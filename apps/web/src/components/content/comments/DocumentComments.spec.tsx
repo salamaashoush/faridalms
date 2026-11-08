@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getCommentThreads, startCommentThread } from "~/server/comments";
@@ -116,6 +116,29 @@ function renderPage(
   render(<RouterProvider router={router} />);
 }
 
+interface StoringPageProps {
+  onMount: () => void;
+}
+
+function Writing({ onMount }: StoringPageProps) {
+  useEffect(() => onMount(), [onMount]);
+  return <p>Writing</p>;
+}
+
+/** A page whose record is stored partway through, as a new lesson's first autosave does. */
+function StoringPage({ onMount }: StoringPageProps) {
+  const [stored, setStored] = useState(false);
+  return (
+    <DocumentCommentsProvider host={stored ? HOST : undefined}>
+      <button type="button" onClick={() => setStored(true)}>
+        Store
+      </button>
+      <Writing onMount={onMount} />
+      <CommentsToggle />
+    </DocumentCommentsProvider>
+  );
+}
+
 describe("comments on a document page", () => {
   beforeEach(() => {
     vi.mocked(getCommentThreads).mockResolvedValue([
@@ -191,5 +214,29 @@ describe("comments on a document page", () => {
       "lesson-translation",
     );
     await waitFor(() => expect(comments).toBeUndefined());
+  });
+
+  it("keeps the page mounted when its record is first stored", async () => {
+    const user = userEvent.setup();
+    const mounted = vi.fn();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const router = createRouter({
+      routeTree: createRootRoute({
+        component: () => (
+          <QueryClientProvider client={queryClient}>
+            <StoringPage onMount={mounted} />
+          </QueryClientProvider>
+        ),
+      }),
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+    });
+    render(<RouterProvider router={router} />);
+    await user.click(await screen.findByRole("button", { name: "Store" }));
+    expect(
+      await screen.findByRole("button", { name: "2 open comments" }),
+    ).toBeInTheDocument();
+    expect(mounted).toHaveBeenCalledOnce();
   });
 });

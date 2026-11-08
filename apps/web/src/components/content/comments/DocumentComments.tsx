@@ -98,20 +98,10 @@ export function DocumentCommentsProvider({
   host,
   children,
 }: DocumentCommentsProviderProps) {
-  return host ? (
-    <CommentsHolder host={host}>{children}</CommentsHolder>
-  ) : (
-    <>{children}</>
-  );
-}
-
-interface CommentsHolderProps {
-  host: CommentsHost;
-  children: ReactNode;
-}
-
-function CommentsHolder({ host, children }: CommentsHolderProps) {
-  const part = host.part ?? "body";
+  // One element whether or not there is a host yet: a record stored while
+  // it is being written gains one, and swapping the element would remount
+  // the page and its editor under the writer's caret.
+  const part = host?.part ?? "body";
   const hash = useLocation({ select: (location) => location.hash });
   const linked = /^thread-([\da-f-]{36})$/.exec(hash)?.[1] ?? null;
   const query = useQuery(commentThreadsQuery(host));
@@ -139,22 +129,25 @@ function CommentsHolder({ host, children }: CommentsHolderProps) {
     },
     [linked, revealThread],
   );
-  const value = useMemo<CommentsState>(
-    () => ({
-      host,
-      part,
-      threads: query.data ?? [],
-      open,
-      setOpen,
-      active,
-      setActive,
-      starting,
-      setStarting,
-      placed,
-      setPlaced,
-      reveal,
-      revealThread,
-    }),
+  const value = useMemo<CommentsState | null>(
+    () =>
+      host
+        ? {
+            host,
+            part,
+            threads: query.data ?? [],
+            open,
+            setOpen,
+            active,
+            setActive,
+            starting,
+            setStarting,
+            placed,
+            setPlaced,
+            reveal,
+            revealThread,
+          }
+        : null,
     [
       host,
       part,
