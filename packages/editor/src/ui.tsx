@@ -131,7 +131,8 @@ export function Floating({
         ],
       }).then(({ x, y }) => {
         floating.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
-        floating.style.visibility = "visible";
+        floating.style.opacity = "";
+        floating.style.pointerEvents = "";
       });
     });
   }, [reference, placement, boundary, keepInView]);
@@ -142,7 +143,16 @@ export function Floating({
       id={id}
       role={role}
       aria-label={label}
-      style={{ position: "fixed", top: 0, left: 0, visibility: "hidden" }}
+      // Unseen until it is placed, yet focusable from the moment it is
+      // drawn: a field that opens focused keeps the keys typed into it
+      // while its position is still being worked out.
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        opacity: 0,
+        pointerEvents: "none",
+      }}
       className={cx(
         "z-50 rounded-lg border bg-popover text-popover-foreground shadow-lg outline-none",
         className,

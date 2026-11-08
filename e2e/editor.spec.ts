@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "@playwright/test";
 
@@ -79,6 +79,39 @@ test("a picture's bar is reached, used and left with the keyboard alone", async 
   await page.getByRole("menuitem", { name: "Medium" }).press("Enter");
   await expect(page.locator("#news-body figure")).toHaveClass(/sm:w-1\/2/);
   await expect(page.locator("#news-body")).toBeFocused();
+});
+
+test("a formula keeps every key typed while its field is still loading", async ({
+  page,
+  browserName,
+}) => {
+  await signIn(page, "admin");
+  // MathLive is held back until the keys are typed, as a slow network would.
+  const held: Route[] = [];
+  const asked = Promise.withResolvers<void>();
+  await page.route(/\/assets\/mathlive[^/]*\.js$/, (route) => {
+    held.push(route);
+    asked.resolve();
+  });
+  await newPost(page, unique("Formula", browserName));
+  await page.keyboard.type("/equation");
+  await page.keyboard.press("Enter");
+  await asked.promise;
+  await page.keyboard.type("x+1");
+  await Promise.all(held.map((route) => route.continue()));
+
+  const field = page.locator("math-field");
+  await expect(field).toBeFocused();
+  await expect
+    .poll(() =>
+      field.evaluate((element) => (element as { value?: string }).value),
+    )
+    .toBe("x+1");
+  await page.keyboard.type("=y");
+  await page.keyboard.press("Enter");
+  await expect(
+    page.locator("#news-body [data-math-node] annotation"),
+  ).toHaveText("x+1=y");
 });
 
 test.describe("on a phone", () => {
