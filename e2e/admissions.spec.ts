@@ -133,7 +133,10 @@ test("a school adds its own question to the form, and families answer it", async
   browser,
   page,
 }) => {
-  const question = `Preferred start ${tag()}`;
+  const run = tag();
+  const question = `Preferred start ${run}`;
+  // Every browser adds a question to the one form, so each names its own.
+  const arabic = `تاريخ البدء المفضل ${run}`;
   await signIn(page, "admin");
   await page.goto("/website");
   await untilHydrated(page);
@@ -171,7 +174,7 @@ test("a school adds its own question to the form, and families answer it", async
     .click();
   await page.keyboard.press("End");
   await page.keyboard.press("Shift+Home");
-  await page.keyboard.insertText("تاريخ البدء المفضل");
+  await page.keyboard.insertText(arabic);
   await page.getByRole("button", { name: "Publish changes" }).click();
 
   const visitorContext = await browser.newContext();
@@ -185,6 +188,6 @@ test("a school adds its own question to the form, and families answer it", async
   }).toPass();
   await expect(field).toHaveAttribute("type", "date");
   await visitor.goto("/site/northwind/pages/admissions?lang=ar");
-  await expect(visitor.getByLabel("تاريخ البدء المفضل")).toBeVisible();
+  await expect(visitor.getByLabel(arabic)).toBeVisible();
   await visitorContext.close();
 });

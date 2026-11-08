@@ -41,6 +41,28 @@ test("the office sets a year's periods and their days, and a later change keeps 
   const dates = DAY[browserName];
   const admin = await apiAs("admin");
   const year = await newYear(admin, dates);
+  // A new year takes the school day of the year before it, which may be
+  // another browser's, changed by this same spec; it starts from the seed's.
+  const { workingYearId } = await admin.classes.options();
+  if (!workingYearId) throw new Error("the school has no working year");
+  const { startsOn } = await admin.years.record({ id: workingYearId });
+  const seeded = await admin.years.periods({ id: workingYearId, on: startsOn });
+  const copied = await admin.years.periods({ id: year.id, on: dates.startsOn });
+  await admin.years.savePeriods({
+    yearId: year.id,
+    from: dates.startsOn,
+    known: copied.periods.map(({ id, version }) => ({ id, version })),
+    periods: seeded.periods.map((period) => ({
+      nameEn: period.nameEn ?? undefined,
+      nameAr: period.nameAr ?? undefined,
+      kind: period.kind,
+      startTime: period.startTime,
+      endTime: period.endTime,
+      official: period.official,
+      weekdays: period.weekdays,
+      dayTimes: period.dayTimes,
+    })),
+  });
   await signIn(page, "admin");
   await page.goto(`/years/${year.id}`);
   await untilHydrated(page);

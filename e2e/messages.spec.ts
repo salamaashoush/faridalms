@@ -214,11 +214,17 @@ test("a new message written from Markdown is kept as a draft, survives a reload,
   ).toBeVisible();
   await again.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page).toHaveURL(/thread=/);
-  const messages = page.getByRole("list", { name: "Messages" });
+  // The conversation with that person is the one other runs write to as
+  // well, so the message is told apart by its own words.
+  const sent = page
+    .getByRole("list", { name: "Messages" })
+    .getByRole("listitem")
+    .filter({ hasText: words });
+  await expect(sent).toHaveCount(1);
   await expect(
-    messages.getByRole("heading", { name: "Learning together" }),
-  ).toHaveCount(1);
-  await expect(messages.locator("strong").last()).toHaveText("Salama");
+    sent.getByRole("heading", { name: "Learning together" }),
+  ).toBeVisible();
+  await expect(sent.locator("strong")).toHaveText("Salama");
   await expect(
     drafts.getByRole("button").filter({ hasText: words }),
   ).toHaveCount(0);

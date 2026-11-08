@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 
 import { test as base, expect } from "@playwright/test";
 
+import { childNamed, FAMILIES, sentApplication } from "./fixtures/admissions";
 import { apiAs } from "./fixtures/api";
 import { RESEND_STAND_IN } from "./fixtures/mail";
 import { PASSWORD, signIn, signInWith } from "./fixtures/sign-in";
@@ -31,6 +32,9 @@ async function next(page: Page) {
 test("the office reads an application and starts its review", async ({
   page,
 }) => {
+  const run = crypto.randomUUID().slice(0, 6);
+  const child = childNamed(run);
+  const { reference } = await sentApplication(FAMILIES.first, child);
   await signIn(page, "admin");
   await page.getByRole("link", { name: "Intakes" }).first().click();
   await expect(
@@ -42,11 +46,12 @@ test("the office reads an application and starts its review", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "Applications" }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Omar Ashoush" }).first().click();
+  await page.getByRole("searchbox").fill(run);
+  await page.getByRole("link", { name: child.en }).click();
   await expect(
-    page.getByRole("heading", { level: 1, name: "Omar Ashoush" }),
+    page.getByRole("heading", { level: 1, name: child.en }),
   ).toBeVisible();
-  await expect(page.getByText("2027-0001").first()).toBeVisible();
+  await expect(page.getByText(reference).first()).toBeVisible();
   await expect(page.getByText("Little Steps Nursery")).toBeVisible();
   await expect(page.getByText("Birth certificate")).toBeVisible();
 
