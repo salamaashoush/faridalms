@@ -1,0 +1,980 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`marks on the same answers > draws a kept question as it did > attempt 1`] = `
+{
+  "blocks": [
+    {
+      "correctOptionIds": [
+        "00000000-0000-4000-8000-000000000011",
+      ],
+      "explanation": "Because.",
+      "hints": [
+        "Think again.",
+      ],
+      "id": "4cf3f81a-c549-8f81-9082-f6ac3ba58e93",
+      "multiple": false,
+      "options": [
+        {
+          "feedback": "",
+          "id": "00000000-0000-4000-8000-000000000011",
+          "text": "Run",
+        },
+        {
+          "feedback": "A thing.",
+          "id": "00000000-0000-4000-8000-000000000012",
+          "text": "Table",
+        },
+        {
+          "feedback": "",
+          "id": "00000000-0000-4000-8000-000000000013",
+          "text": "Blue",
+        },
+      ],
+      "points": 3,
+      "prompt": "Which is a verb?",
+      "shuffle": true,
+      "tries": 2,
+      "type": "choice",
+    },
+  ],
+  "version": 2,
+}
+`;
+
+exports[`marks on the same answers > draws a kept question as it did > drawn 1`] = `
+{
+  "correctOptionIds": [
+    "00000000-0000-4000-8000-000000000011",
+  ],
+  "explanation": "Because.",
+  "hints": [
+    "Think again.",
+  ],
+  "id": "4cf3f81a-c549-8f81-9082-f6ac3ba58e93",
+  "multiple": false,
+  "options": [
+    {
+      "feedback": "",
+      "id": "00000000-0000-4000-8000-000000000011",
+      "text": "Run",
+    },
+    {
+      "feedback": "A thing.",
+      "id": "00000000-0000-4000-8000-000000000012",
+      "text": "Table",
+    },
+    {
+      "feedback": "",
+      "id": "00000000-0000-4000-8000-000000000013",
+      "text": "Blue",
+    },
+  ],
+  "points": 3,
+  "prompt": "Which is a verb?",
+  "shuffle": true,
+  "tries": 2,
+  "type": "choice",
+}
+`;
+
+exports[`marks on the same answers > exports every question as it did > exports 1`] = `
+[
+  {
+    "cc": "<item ident="q0" title="Which is a verb?"><itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>cc_profile</fieldlabel><fieldentry>cc.multiple_choice.v0p1</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>cc_weighting</fieldlabel><fieldentry>2</fieldentry></qtimetadatafield></qtimetadata></itemmetadata><presentation><material><mattext texttype="text/html" xml:lang="en">&lt;p dir=&quot;ltr&quot;&gt;Which is a verb?&lt;/p&gt;</mattext></material><response_lid ident="response1" rcardinality="Single"><render_choice shuffle="Yes"><response_label ident="a1"><material><mattext texttype="text/plain" xml:lang="en">Run</mattext></material></response_label><response_label ident="a2"><material><mattext texttype="text/plain" xml:lang="en">Table</mattext></material></response_label><response_label ident="a3"><material><mattext texttype="text/plain" xml:lang="en">Blue</mattext></material></response_label></render_choice></response_lid></presentation><resprocessing><outcomes><decvar varname="SCORE" vartype="Decimal" minvalue="0" maxvalue="100"/></outcomes><respcondition continue="Yes"><conditionvar><other/></conditionvar><displayfeedback feedbacktype="Response" linkrefid="general_fb"/></respcondition><respcondition continue="Yes"><conditionvar><varequal respident="response1">a2</varequal></conditionvar><displayfeedback feedbacktype="Response" linkrefid="a2_fb"/></respcondition><respcondition continue="No"><conditionvar><varequal respident="response1">a1</varequal></conditionvar><setvar action="Set" varname="SCORE">100</setvar></respcondition></resprocessing><itemfeedback ident="general_fb"><flow_mat><material><mattext texttype="text/html" xml:lang="en">&lt;p&gt;Because.&lt;/p&gt;</mattext></material></flow_mat></itemfeedback><itemfeedback ident="a2_fb"><flow_mat><material><mattext texttype="text/html" xml:lang="en">&lt;p&gt;A thing.&lt;/p&gt;</mattext></material></flow_mat></itemfeedback></item>",
+    "qti": "<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqtiasi_v3p0 https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqti_asiv3p0p1_v1p0.xsd" identifier="q0" title="Q0" adaptive="false" time-dependent="false" xml:lang="en"><qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier"><qti-correct-response><qti-value>C1</qti-value></qti-correct-response></qti-response-declaration><qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="2"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="MAXSCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>2</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="FEEDBACK" cardinality="single" base-type="identifier"/><qti-outcome-declaration identifier="HINT" cardinality="single" base-type="identifier"/><qti-item-body dir="ltr"><qti-choice-interaction response-identifier="RESPONSE" max-choices="1" shuffle="true"><qti-prompt>Which is a verb?</qti-prompt><qti-simple-choice identifier="C1">Run</qti-simple-choice><qti-simple-choice identifier="C2">Table<qti-feedback-inline outcome-identifier="FEEDBACK" identifier="C2" show-hide="show">A thing.</qti-feedback-inline></qti-simple-choice><qti-simple-choice identifier="C3">Blue</qti-simple-choice></qti-choice-interaction><qti-feedback-block outcome-identifier="HINT" identifier="HINT1" show-hide="show" data-farida-hint="1"><qti-content-body><p>Think again.</p></qti-content-body></qti-feedback-block></qti-item-body><qti-response-processing><qti-set-outcome-value identifier="FEEDBACK"><qti-variable identifier="RESPONSE"/></qti-set-outcome-value><qti-response-condition><qti-response-if><qti-match><qti-variable identifier="RESPONSE"/><qti-correct identifier="RESPONSE"/></qti-match><qti-set-outcome-value identifier="SCORE"><qti-variable identifier="MAXSCORE"/></qti-set-outcome-value></qti-response-if></qti-response-condition></qti-response-processing><qti-modal-feedback outcome-identifier="FEEDBACK" identifier="GENERAL" show-hide="hide" data-farida-explanation="true"><qti-content-body><p>Because.</p></qti-content-body></qti-modal-feedback></qti-assessment-item>
+",
+  },
+  {
+    "cc": "<item ident="q1" title="Which are prime?"><itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>cc_profile</fieldlabel><fieldentry>cc.multiple_response.v0p1</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>cc_weighting</fieldlabel><fieldentry>2</fieldentry></qtimetadatafield></qtimetadata></itemmetadata><presentation><material><mattext texttype="text/html" xml:lang="en">&lt;p dir=&quot;ltr&quot;&gt;Which are prime?&lt;/p&gt;</mattext></material><response_lid ident="response1" rcardinality="Multiple"><render_choice shuffle="No"><response_label ident="a1"><material><mattext texttype="text/plain" xml:lang="en">2</mattext></material></response_label><response_label ident="a2"><material><mattext texttype="text/plain" xml:lang="en">3</mattext></material></response_label><response_label ident="a3"><material><mattext texttype="text/plain" xml:lang="en">4</mattext></material></response_label><response_label ident="a4"><material><mattext texttype="text/plain" xml:lang="en">9</mattext></material></response_label></render_choice></response_lid></presentation><resprocessing><outcomes><decvar varname="SCORE" vartype="Decimal" minvalue="0" maxvalue="100"/></outcomes><respcondition continue="Yes"><conditionvar><other/></conditionvar><displayfeedback feedbacktype="Response" linkrefid="general_fb"/></respcondition><respcondition continue="Yes"><conditionvar><varequal respident="response1">a3</varequal></conditionvar><displayfeedback feedbacktype="Response" linkrefid="a3_fb"/></respcondition><respcondition continue="No"><conditionvar><and><varequal case="Yes" respident="response1">a1</varequal><varequal case="Yes" respident="response1">a2</varequal><not><varequal case="Yes" respident="response1">a3</varequal></not><not><varequal case="Yes" respident="response1">a4</varequal></not></and></conditionvar><setvar action="Set" varname="SCORE">100</setvar></respcondition></resprocessing><itemfeedback ident="general_fb"><flow_mat><material><mattext texttype="text/html" xml:lang="en">&lt;p&gt;Because.&lt;/p&gt;</mattext></material></flow_mat></itemfeedback><itemfeedback ident="a3_fb"><flow_mat><material><mattext texttype="text/html" xml:lang="en">&lt;p&gt;Even.&lt;/p&gt;</mattext></material></flow_mat></itemfeedback></item>",
+    "qti": "<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqtiasi_v3p0 https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqti_asiv3p0p1_v1p0.xsd" identifier="q1" title="Q1" adaptive="false" time-dependent="false" xml:lang="en"><qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="identifier"><qti-correct-response><qti-value>C1</qti-value><qti-value>C2</qti-value></qti-correct-response></qti-response-declaration><qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="2"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="MAXSCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>2</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="FEEDBACK" cardinality="single" base-type="identifier"/><qti-outcome-declaration identifier="HINT" cardinality="single" base-type="identifier"/><qti-item-body dir="ltr"><qti-choice-interaction response-identifier="RESPONSE" max-choices="0" shuffle="false"><qti-prompt>Which are prime?</qti-prompt><qti-simple-choice identifier="C1">2</qti-simple-choice><qti-simple-choice identifier="C2">3</qti-simple-choice><qti-simple-choice identifier="C3">4<qti-feedback-inline outcome-identifier="FEEDBACK" identifier="C3" show-hide="show">Even.</qti-feedback-inline></qti-simple-choice><qti-simple-choice identifier="C4">9</qti-simple-choice></qti-choice-interaction><qti-feedback-block outcome-identifier="HINT" identifier="HINT1" show-hide="show" data-farida-hint="1"><qti-content-body><p>Think again.</p></qti-content-body></qti-feedback-block></qti-item-body><qti-response-processing><qti-set-outcome-value identifier="FEEDBACK"><qti-variable identifier="RESPONSE"/></qti-set-outcome-value><qti-response-condition><qti-response-if><qti-match><qti-variable identifier="RESPONSE"/><qti-correct identifier="RESPONSE"/></qti-match><qti-set-outcome-value identifier="SCORE"><qti-variable identifier="MAXSCORE"/></qti-set-outcome-value></qti-response-if></qti-response-condition></qti-response-processing><qti-modal-feedback outcome-identifier="FEEDBACK" identifier="GENERAL" show-hide="hide" data-farida-explanation="true"><qti-content-body><p>Because.</p></qti-content-body></qti-modal-feedback></qti-assessment-item>
+",
+  },
+  {
+    "cc": "<item ident="q2" title="Which do you prefer?"><itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>cc_profile</fieldlabel><fieldentry>cc.multiple_choice.v0p1</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>cc_weighting</fieldlabel><fieldentry>0</fieldentry></qtimetadatafield></qtimetadata></itemmetadata><presentation><material><mattext texttype="text/html" xml:lang="en">&lt;p dir=&quot;ltr&quot;&gt;Which do you prefer?&lt;/p&gt;</mattext></material><response_lid ident="response1" rcardinality="Single"><render_choice shuffle="No"><response_label ident="a1"><material><mattext texttype="text/plain" xml:lang="en">Tea</mattext></material></response_label><response_label ident="a2"><material><mattext texttype="text/plain" xml:lang="en">Coffee</mattext></material></response_label></render_choice></response_lid></presentation><resprocessing><outcomes><decvar varname="SCORE" vartype="Decimal" minvalue="0" maxvalue="100"/></outcomes><respcondition continue="No"><conditionvar><other/></conditionvar><setvar action="Set" varname="SCORE">100</setvar></respcondition></resprocessing></item>",
+    "qti": "<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqtiasi_v3p0 https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqti_asiv3p0p1_v1p0.xsd" identifier="q2" title="Q2" adaptive="false" time-dependent="false" xml:lang="en"><qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier"></qti-response-declaration><qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="0"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="MAXSCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration><qti-item-body dir="ltr"><qti-choice-interaction response-identifier="RESPONSE" max-choices="1" shuffle="false" data-farida-kind="poll" data-farida-class-results="true"><qti-prompt>Which do you prefer?</qti-prompt><qti-simple-choice identifier="C1">Tea</qti-simple-choice><qti-simple-choice identifier="C2">Coffee</qti-simple-choice></qti-choice-interaction></qti-item-body></qti-assessment-item>
+",
+  },
+  {
+    "cc": "<item ident="q3" title="The capital of Egypt?"><itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>cc_profile</fieldlabel><fieldentry>cc.fib.v0p1</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>cc_weighting</fieldlabel><fieldentry>2</fieldentry></qtimetadatafield></qtimetadata></itemmetadata><presentation><material><mattext texttype="text/html" xml:lang="en">&lt;p dir=&quot;ltr&quot;&gt;The capital of Egypt?&lt;/p&gt;</mattext></material><response_str ident="response1" rcardinality="Single"><render_fib rows="1"/></response_str></presentation><resprocessing><outcomes><decvar varname="SCORE" vartype="Decimal" minvalue="0" maxvalue="100"/></outcomes><respcondition continue="Yes"><conditionvar><other/></conditionvar><displayfeedback feedbacktype="Response" linkrefid="general_fb"/></respcondition><respcondition continue="No"><conditionvar><varequal case="No" respident="response1">القاهرة</varequal><varequal case="No" respident="response1">Cairo</varequal></conditionvar><setvar action="Set" varname="SCORE">100</setvar></respcondition></resprocessing><itemfeedback ident="general_fb"><flow_mat><material><mattext texttype="text/html" xml:lang="en">&lt;p&gt;Because.&lt;/p&gt;</mattext></material></flow_mat></itemfeedback></item>",
+    "qti": "<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqtiasi_v3p0 https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqti_asiv3p0p1_v1p0.xsd" identifier="q3" title="Q3" adaptive="false" time-dependent="false" xml:lang="en"><qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="string"><qti-correct-response><qti-value>القاهرة</qti-value></qti-correct-response><qti-mapping default-value="0" upper-bound="2"><qti-map-entry map-key="القاهرة" mapped-value="2" case-sensitive="false"/><qti-map-entry map-key="Cairo" mapped-value="2" case-sensitive="false"/></qti-mapping></qti-response-declaration><qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="2"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="MAXSCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>2</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="FEEDBACK" cardinality="single" base-type="identifier"/><qti-outcome-declaration identifier="HINT" cardinality="single" base-type="identifier"/><qti-item-body dir="ltr"><p>The capital of Egypt?</p><p><qti-text-entry-interaction response-identifier="RESPONSE" data-farida-close-enough="true" data-farida-teh-marbuta="true"/></p><qti-feedback-block outcome-identifier="HINT" identifier="HINT1" show-hide="show" data-farida-hint="1"><qti-content-body><p>Think again.</p></qti-content-body></qti-feedback-block></qti-item-body><qti-response-processing><qti-response-condition><qti-response-if><qti-not><qti-is-null><qti-variable identifier="RESPONSE"/></qti-is-null></qti-not><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-map-response identifier="RESPONSE"/></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition></qti-response-processing><qti-modal-feedback outcome-identifier="FEEDBACK" identifier="GENERAL" show-hide="hide" data-farida-explanation="true"><qti-content-body><p>Because.</p></qti-content-body></qti-modal-feedback></qti-assessment-item>
+",
+  },
+  {
+    "cc": "<item ident="q4" title="Half of nine?"><itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>cc_profile</fieldlabel><fieldentry>cc.essay.v0p1</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>cc_weighting</fieldlabel><fieldentry>2</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>qmd_scoringpermitted</fieldlabel><fieldentry>Yes</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>qmd_computerscored</fieldlabel><fieldentry>No</fieldentry></qtimetadatafield></qtimetadata></itemmetadata><presentation><material><mattext texttype="text/html" xml:lang="en">&lt;p dir=&quot;ltr&quot;&gt;Half of nine?&lt;/p&gt;</mattext></material><response_str ident="response1" rcardinality="Single"><render_fib rows="3"/></response_str></presentation><resprocessing><outcomes><decvar varname="SCORE" vartype="Decimal" minvalue="0" maxvalue="100"/></outcomes><respcondition continue="Yes"><conditionvar><other/></conditionvar><displayfeedback feedbacktype="Response" linkrefid="general_fb"/></respcondition></resprocessing><itemfeedback ident="general_fb"><flow_mat><material><mattext texttype="text/html" xml:lang="en">&lt;p&gt;Because.&lt;/p&gt;</mattext></material></flow_mat></itemfeedback><itemfeedback ident="solution"><solution><solutionmaterial><material><mattext texttype="text/html" xml:lang="en">4.5 ± 0.1</mattext></material></solutionmaterial></solution></itemfeedback></item>",
+    "qti": "<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqtiasi_v3p0 https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqti_asiv3p0p1_v1p0.xsd" identifier="q4" title="Q4" adaptive="false" time-dependent="false" xml:lang="en"><qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="float"><qti-correct-response><qti-value>4.5</qti-value></qti-correct-response></qti-response-declaration><qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="2"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="MAXSCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>2</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="FEEDBACK" cardinality="single" base-type="identifier"/><qti-outcome-declaration identifier="HINT" cardinality="single" base-type="identifier"/><qti-item-body dir="ltr"><p>Half of nine?</p><p><qti-text-entry-interaction response-identifier="RESPONSE"/></p><qti-feedback-block outcome-identifier="HINT" identifier="HINT1" show-hide="show" data-farida-hint="1"><qti-content-body><p>Think again.</p></qti-content-body></qti-feedback-block></qti-item-body><qti-response-processing><qti-response-condition><qti-response-if><qti-and><qti-not><qti-is-null><qti-variable identifier="RESPONSE"/></qti-is-null></qti-not><qti-equal tolerance-mode="absolute" tolerance="0.1"><qti-variable identifier="RESPONSE"/><qti-correct identifier="RESPONSE"/></qti-equal></qti-and><qti-set-outcome-value identifier="SCORE"><qti-variable identifier="MAXSCORE"/></qti-set-outcome-value></qti-response-if></qti-response-condition></qti-response-processing><qti-modal-feedback outcome-identifier="FEEDBACK" identifier="GENERAL" show-hide="hide" data-farida-explanation="true"><qti-content-body><p>Because.</p></qti-content-body></qti-modal-feedback></qti-assessment-item>
+",
+  },
+  {
+    "cc": "<item ident="q5" title="A number between 3 and 7?"><itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>cc_profile</fieldlabel><fieldentry>cc.essay.v0p1</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>cc_weighting</fieldlabel><fieldentry>2</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>qmd_scoringpermitted</fieldlabel><fieldentry>Yes</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>qmd_computerscored</fieldlabel><fieldentry>No</fieldentry></qtimetadatafield></qtimetadata></itemmetadata><presentation><material><mattext texttype="text/html" xml:lang="en">&lt;p dir=&quot;ltr&quot;&gt;A number between 3 and 7?&lt;/p&gt;</mattext></material><response_str ident="response1" rcardinality="Single"><render_fib rows="3"/></response_str></presentation><resprocessing><outcomes><decvar varname="SCORE" vartype="Decimal" minvalue="0" maxvalue="100"/></outcomes><respcondition continue="Yes"><conditionvar><other/></conditionvar><displayfeedback feedbacktype="Response" linkrefid="general_fb"/></respcondition></resprocessing><itemfeedback ident="general_fb"><flow_mat><material><mattext texttype="text/html" xml:lang="en">&lt;p&gt;Because.&lt;/p&gt;</mattext></material></flow_mat></itemfeedback><itemfeedback ident="solution"><solution><solutionmaterial><material><mattext texttype="text/html" xml:lang="en">3 – 7</mattext></material></solutionmaterial></solution></itemfeedback></item>",
+    "qti": "<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqtiasi_v3p0 https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqti_asiv3p0p1_v1p0.xsd" identifier="q5" title="Q5" adaptive="false" time-dependent="false" xml:lang="en"><qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="float"></qti-response-declaration><qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="2"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="MAXSCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>2</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="FEEDBACK" cardinality="single" base-type="identifier"/><qti-outcome-declaration identifier="HINT" cardinality="single" base-type="identifier"/><qti-item-body dir="ltr"><p>A number between 3 and 7?</p><p><qti-text-entry-interaction response-identifier="RESPONSE"/></p><qti-feedback-block outcome-identifier="HINT" identifier="HINT1" show-hide="show" data-farida-hint="1"><qti-content-body><p>Think again.</p></qti-content-body></qti-feedback-block></qti-item-body><qti-response-processing><qti-response-condition><qti-response-if><qti-and><qti-not><qti-is-null><qti-variable identifier="RESPONSE"/></qti-is-null></qti-not><qti-gte><qti-variable identifier="RESPONSE"/><qti-base-value base-type="float">3</qti-base-value></qti-gte><qti-lte><qti-variable identifier="RESPONSE"/><qti-base-value base-type="float">7</qti-base-value></qti-lte></qti-and><qti-set-outcome-value identifier="SCORE"><qti-variable identifier="MAXSCORE"/></qti-set-outcome-value></qti-response-if></qti-response-condition></qti-response-processing><qti-modal-feedback outcome-identifier="FEEDBACK" identifier="GENERAL" show-hide="hide" data-farida-explanation="true"><qti-content-body><p>Because.</p></qti-content-body></qti-modal-feedback></qti-assessment-item>
+",
+  },
+  {
+    "cc": "<item ident="q6" title="Fill the gaps."><itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>cc_profile</fieldlabel><fieldentry>cc.essay.v0p1</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>cc_weighting</fieldlabel><fieldentry>2</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>qmd_scoringpermitted</fieldlabel><fieldentry>Yes</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>qmd_computerscored</fieldlabel><fieldentry>No</fieldentry></qtimetadatafield></qtimetadata></itemmetadata><presentation><material><mattext texttype="text/html" xml:lang="en">&lt;p dir=&quot;ltr&quot;&gt;Fill the gaps.&lt;/p&gt;&lt;p&gt;The ______ sat on the ______&lt;/p&gt;</mattext></material><response_str ident="response1" rcardinality="Single"><render_fib rows="3"/></response_str></presentation><resprocessing><outcomes><decvar varname="SCORE" vartype="Decimal" minvalue="0" maxvalue="100"/></outcomes><respcondition continue="Yes"><conditionvar><other/></conditionvar><displayfeedback feedbacktype="Response" linkrefid="general_fb"/></respcondition></resprocessing><itemfeedback ident="general_fb"><flow_mat><material><mattext texttype="text/html" xml:lang="en">&lt;p&gt;Because.&lt;/p&gt;</mattext></material></flow_mat></itemfeedback><itemfeedback ident="solution"><solution><solutionmaterial><material><mattext texttype="text/html" xml:lang="en">&lt;ul&gt;&lt;li&gt;cat&lt;/li&gt;&lt;li&gt;mat&lt;/li&gt;&lt;/ul&gt;</mattext></material></solutionmaterial></solution></itemfeedback></item>",
+    "qti": "<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqtiasi_v3p0 https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqti_asiv3p0p1_v1p0.xsd" identifier="q6" title="Q6" adaptive="false" time-dependent="false" xml:lang="en"><qti-response-declaration identifier="G1" cardinality="single" base-type="string"><qti-correct-response><qti-value>cat</qti-value></qti-correct-response><qti-mapping default-value="0" upper-bound="1"><qti-map-entry map-key="cat" mapped-value="1" case-sensitive="false"/></qti-mapping></qti-response-declaration><qti-response-declaration identifier="G2" cardinality="single" base-type="identifier"><qti-correct-response><qti-value>G2O1</qti-value></qti-correct-response><qti-mapping default-value="0" upper-bound="1"><qti-map-entry map-key="G2O1" mapped-value="1"/></qti-mapping></qti-response-declaration><qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="2"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="MAXSCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>2</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="FEEDBACK" cardinality="single" base-type="identifier"/><qti-outcome-declaration identifier="HINT" cardinality="single" base-type="identifier"/><qti-item-body dir="ltr"><p>Fill the gaps.</p><p>The <qti-text-entry-interaction response-identifier="G1"/> sat on the <qti-inline-choice-interaction response-identifier="G2" shuffle="true"><qti-inline-choice identifier="G2O1">mat</qti-inline-choice><qti-inline-choice identifier="G2O2">hat</qti-inline-choice></qti-inline-choice-interaction></p><qti-feedback-block outcome-identifier="HINT" identifier="HINT1" show-hide="show" data-farida-hint="1"><qti-content-body><p>Think again.</p></qti-content-body></qti-feedback-block></qti-item-body><qti-response-processing><qti-response-condition><qti-response-if><qti-not><qti-is-null><qti-variable identifier="G1"/></qti-is-null></qti-not><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-map-response identifier="G1"/></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition><qti-response-condition><qti-response-if><qti-not><qti-is-null><qti-variable identifier="G2"/></qti-is-null></qti-not><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-map-response identifier="G2"/></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition></qti-response-processing><qti-modal-feedback outcome-identifier="FEEDBACK" identifier="GENERAL" show-hide="hide" data-farida-explanation="true"><qti-content-body><p>Because.</p></qti-content-body></qti-modal-feedback></qti-assessment-item>
+",
+  },
+  {
+    "cc": "<item ident="q7" title="Match the capitals."><itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>cc_profile</fieldlabel><fieldentry>cc.essay.v0p1</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>cc_weighting</fieldlabel><fieldentry>2</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>qmd_scoringpermitted</fieldlabel><fieldentry>Yes</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>qmd_computerscored</fieldlabel><fieldentry>No</fieldentry></qtimetadatafield></qtimetadata></itemmetadata><presentation><material><mattext texttype="text/html" xml:lang="en">&lt;p dir=&quot;ltr&quot;&gt;Match the capitals.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Egypt&lt;/li&gt;&lt;li&gt;France&lt;/li&gt;&lt;li&gt;Japan&lt;/li&gt;&lt;/ul&gt;&lt;ul&gt;&lt;li&gt;Cairo&lt;/li&gt;&lt;li&gt;Paris&lt;/li&gt;&lt;li&gt;Rome&lt;/li&gt;&lt;li&gt;Tokyo&lt;/li&gt;&lt;/ul&gt;</mattext></material><response_str ident="response1" rcardinality="Single"><render_fib rows="3"/></response_str></presentation><resprocessing><outcomes><decvar varname="SCORE" vartype="Decimal" minvalue="0" maxvalue="100"/></outcomes><respcondition continue="Yes"><conditionvar><other/></conditionvar><displayfeedback feedbacktype="Response" linkrefid="general_fb"/></respcondition></resprocessing><itemfeedback ident="general_fb"><flow_mat><material><mattext texttype="text/html" xml:lang="en">&lt;p&gt;Because.&lt;/p&gt;</mattext></material></flow_mat></itemfeedback><itemfeedback ident="solution"><solution><solutionmaterial><material><mattext texttype="text/html" xml:lang="en">&lt;ul&gt;&lt;li&gt;Egypt → Cairo&lt;/li&gt;&lt;li&gt;France → Paris&lt;/li&gt;&lt;li&gt;Japan → Tokyo&lt;/li&gt;&lt;/ul&gt;</mattext></material></solutionmaterial></solution></itemfeedback></item>",
+    "qti": "<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqtiasi_v3p0 https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqti_asiv3p0p1_v1p0.xsd" identifier="q7" title="Q7" adaptive="false" time-dependent="false" xml:lang="en"><qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="directedPair"><qti-correct-response><qti-value>P1 A1</qti-value><qti-value>P2 A2</qti-value><qti-value>P3 A3</qti-value></qti-correct-response><qti-mapping default-value="0" lower-bound="0" upper-bound="2"><qti-map-entry map-key="P1 A1" mapped-value="0.666667"/><qti-map-entry map-key="P2 A2" mapped-value="0.666667"/><qti-map-entry map-key="P3 A3" mapped-value="0.666667"/></qti-mapping></qti-response-declaration><qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="2"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="MAXSCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>2</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="FEEDBACK" cardinality="single" base-type="identifier"/><qti-outcome-declaration identifier="HINT" cardinality="single" base-type="identifier"/><qti-item-body dir="ltr"><qti-match-interaction response-identifier="RESPONSE" max-associations="3" shuffle="true"><qti-prompt>Match the capitals.</qti-prompt><qti-simple-match-set><qti-simple-associable-choice identifier="P1" match-max="1">Egypt</qti-simple-associable-choice><qti-simple-associable-choice identifier="P2" match-max="1">France</qti-simple-associable-choice><qti-simple-associable-choice identifier="P3" match-max="1">Japan</qti-simple-associable-choice></qti-simple-match-set><qti-simple-match-set><qti-simple-associable-choice identifier="A1" match-max="1">Cairo</qti-simple-associable-choice><qti-simple-associable-choice identifier="A2" match-max="1">Paris</qti-simple-associable-choice><qti-simple-associable-choice identifier="A3" match-max="1">Tokyo</qti-simple-associable-choice><qti-simple-associable-choice identifier="D1" match-max="1">Rome</qti-simple-associable-choice></qti-simple-match-set></qti-match-interaction><qti-feedback-block outcome-identifier="HINT" identifier="HINT1" show-hide="show" data-farida-hint="1"><qti-content-body><p>Think again.</p></qti-content-body></qti-feedback-block></qti-item-body><qti-response-processing><qti-response-condition><qti-response-if><qti-not><qti-is-null><qti-variable identifier="RESPONSE"/></qti-is-null></qti-not><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-map-response identifier="RESPONSE"/></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition></qti-response-processing><qti-modal-feedback outcome-identifier="FEEDBACK" identifier="GENERAL" show-hide="hide" data-farida-explanation="true"><qti-content-body><p>Because.</p></qti-content-body></qti-modal-feedback></qti-assessment-item>
+",
+  },
+  {
+    "cc": "<item ident="q8" title="Smallest first."><itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>cc_profile</fieldlabel><fieldentry>cc.essay.v0p1</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>cc_weighting</fieldlabel><fieldentry>2</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>qmd_scoringpermitted</fieldlabel><fieldentry>Yes</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>qmd_computerscored</fieldlabel><fieldentry>No</fieldentry></qtimetadatafield></qtimetadata></itemmetadata><presentation><material><mattext texttype="text/html" xml:lang="en">&lt;p dir=&quot;ltr&quot;&gt;Smallest first.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;1&lt;/li&gt;&lt;li&gt;2&lt;/li&gt;&lt;li&gt;3&lt;/li&gt;&lt;li&gt;4&lt;/li&gt;&lt;/ul&gt;</mattext></material><response_str ident="response1" rcardinality="Single"><render_fib rows="3"/></response_str></presentation><resprocessing><outcomes><decvar varname="SCORE" vartype="Decimal" minvalue="0" maxvalue="100"/></outcomes><respcondition continue="Yes"><conditionvar><other/></conditionvar><displayfeedback feedbacktype="Response" linkrefid="general_fb"/></respcondition></resprocessing><itemfeedback ident="general_fb"><flow_mat><material><mattext texttype="text/html" xml:lang="en">&lt;p&gt;Because.&lt;/p&gt;</mattext></material></flow_mat></itemfeedback><itemfeedback ident="solution"><solution><solutionmaterial><material><mattext texttype="text/html" xml:lang="en">&lt;ol&gt;&lt;li&gt;1&lt;/li&gt;&lt;li&gt;2&lt;/li&gt;&lt;li&gt;3&lt;/li&gt;&lt;li&gt;4&lt;/li&gt;&lt;/ol&gt;</mattext></material></solutionmaterial></solution></itemfeedback></item>",
+    "qti": "<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqtiasi_v3p0 https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqti_asiv3p0p1_v1p0.xsd" identifier="q8" title="Q8" adaptive="false" time-dependent="false" xml:lang="en"><qti-response-declaration identifier="RESPONSE" cardinality="ordered" base-type="identifier"><qti-correct-response><qti-value>O1</qti-value><qti-value>O2</qti-value><qti-value>O3</qti-value><qti-value>O4</qti-value></qti-correct-response></qti-response-declaration><qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="2"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="MAXSCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>2</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="FEEDBACK" cardinality="single" base-type="identifier"/><qti-outcome-declaration identifier="HINT" cardinality="single" base-type="identifier"/><qti-item-body dir="ltr"><qti-order-interaction response-identifier="RESPONSE" shuffle="true" data-farida-scoring="neighbours"><qti-prompt>Smallest first.</qti-prompt><qti-simple-choice identifier="O1">1</qti-simple-choice><qti-simple-choice identifier="O2">2</qti-simple-choice><qti-simple-choice identifier="O3">3</qti-simple-choice><qti-simple-choice identifier="O4">4</qti-simple-choice></qti-order-interaction><qti-feedback-block outcome-identifier="HINT" identifier="HINT1" show-hide="show" data-farida-hint="1"><qti-content-body><p>Think again.</p></qti-content-body></qti-feedback-block></qti-item-body><qti-response-processing><qti-response-condition><qti-response-if><qti-contains><qti-variable identifier="RESPONSE"/><qti-ordered><qti-base-value base-type="identifier">O1</qti-base-value><qti-base-value base-type="identifier">O2</qti-base-value></qti-ordered></qti-contains><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">0.666667</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition><qti-response-condition><qti-response-if><qti-contains><qti-variable identifier="RESPONSE"/><qti-ordered><qti-base-value base-type="identifier">O2</qti-base-value><qti-base-value base-type="identifier">O3</qti-base-value></qti-ordered></qti-contains><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">0.666667</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition><qti-response-condition><qti-response-if><qti-contains><qti-variable identifier="RESPONSE"/><qti-ordered><qti-base-value base-type="identifier">O3</qti-base-value><qti-base-value base-type="identifier">O4</qti-base-value></qti-ordered></qti-contains><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">0.666667</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition></qti-response-processing><qti-modal-feedback outcome-identifier="FEEDBACK" identifier="GENERAL" show-hide="hide" data-farida-explanation="true"><qti-content-body><p>Because.</p></qti-content-body></qti-modal-feedback></qti-assessment-item>
+",
+  },
+  {
+    "cc": "<item ident="q9" title="Sort the animals."><itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>cc_profile</fieldlabel><fieldentry>cc.essay.v0p1</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>cc_weighting</fieldlabel><fieldentry>2</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>qmd_scoringpermitted</fieldlabel><fieldentry>Yes</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>qmd_computerscored</fieldlabel><fieldentry>No</fieldentry></qtimetadatafield></qtimetadata></itemmetadata><presentation><material><mattext texttype="text/html" xml:lang="en">&lt;p dir=&quot;ltr&quot;&gt;Sort the animals.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;strong&gt;Birds&lt;/strong&gt;&lt;/li&gt;&lt;li&gt;&lt;strong&gt;Fish&lt;/strong&gt;&lt;/li&gt;&lt;/ul&gt;&lt;ul&gt;&lt;li&gt;Eagle&lt;/li&gt;&lt;li&gt;Owl&lt;/li&gt;&lt;li&gt;Shark&lt;/li&gt;&lt;/ul&gt;</mattext></material><response_str ident="response1" rcardinality="Single"><render_fib rows="3"/></response_str></presentation><resprocessing><outcomes><decvar varname="SCORE" vartype="Decimal" minvalue="0" maxvalue="100"/></outcomes><respcondition continue="Yes"><conditionvar><other/></conditionvar><displayfeedback feedbacktype="Response" linkrefid="general_fb"/></respcondition></resprocessing><itemfeedback ident="general_fb"><flow_mat><material><mattext texttype="text/html" xml:lang="en">&lt;p&gt;Because.&lt;/p&gt;</mattext></material></flow_mat></itemfeedback><itemfeedback ident="solution"><solution><solutionmaterial><material><mattext texttype="text/html" xml:lang="en">&lt;ul&gt;&lt;li&gt;Eagle → Birds&lt;/li&gt;&lt;li&gt;Owl → Birds&lt;/li&gt;&lt;li&gt;Shark → Fish&lt;/li&gt;&lt;/ul&gt;</mattext></material></solutionmaterial></solution></itemfeedback></item>",
+    "qti": "<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqtiasi_v3p0 https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqti_asiv3p0p1_v1p0.xsd" identifier="q9" title="Q9" adaptive="false" time-dependent="false" xml:lang="en"><qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="directedPair"><qti-correct-response><qti-value>I1 G1</qti-value><qti-value>I2 G1</qti-value><qti-value>I3 G2</qti-value></qti-correct-response><qti-mapping default-value="0" lower-bound="0" upper-bound="2"><qti-map-entry map-key="I1 G1" mapped-value="0.666667"/><qti-map-entry map-key="I2 G1" mapped-value="0.666667"/><qti-map-entry map-key="I3 G2" mapped-value="0.666667"/></qti-mapping></qti-response-declaration><qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="2"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="MAXSCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>2</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="FEEDBACK" cardinality="single" base-type="identifier"/><qti-outcome-declaration identifier="HINT" cardinality="single" base-type="identifier"/><qti-item-body dir="ltr"><qti-match-interaction response-identifier="RESPONSE" max-associations="3" shuffle="true" data-farida-kind="sorting"><qti-prompt>Sort the animals.</qti-prompt><qti-simple-match-set><qti-simple-associable-choice identifier="I1" match-max="1">Eagle</qti-simple-associable-choice><qti-simple-associable-choice identifier="I2" match-max="1">Owl</qti-simple-associable-choice><qti-simple-associable-choice identifier="I3" match-max="1">Shark</qti-simple-associable-choice></qti-simple-match-set><qti-simple-match-set><qti-simple-associable-choice identifier="G1" match-max="0">Birds</qti-simple-associable-choice><qti-simple-associable-choice identifier="G2" match-max="0">Fish</qti-simple-associable-choice></qti-simple-match-set></qti-match-interaction><qti-feedback-block outcome-identifier="HINT" identifier="HINT1" show-hide="show" data-farida-hint="1"><qti-content-body><p>Think again.</p></qti-content-body></qti-feedback-block></qti-item-body><qti-response-processing><qti-response-condition><qti-response-if><qti-not><qti-is-null><qti-variable identifier="RESPONSE"/></qti-is-null></qti-not><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-map-response identifier="RESPONSE"/></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition></qti-response-processing><qti-modal-feedback outcome-identifier="FEEDBACK" identifier="GENERAL" show-hide="hide" data-farida-explanation="true"><qti-content-body><p>Because.</p></qti-content-body></qti-modal-feedback></qti-assessment-item>
+",
+  },
+  {
+    "cc": "<item ident="q10" title="Explain why."><itemmetadata><qtimetadata><qtimetadatafield><fieldlabel>cc_profile</fieldlabel><fieldentry>cc.essay.v0p1</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>cc_weighting</fieldlabel><fieldentry>2</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>qmd_scoringpermitted</fieldlabel><fieldentry>Yes</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>qmd_computerscored</fieldlabel><fieldentry>No</fieldentry></qtimetadatafield></qtimetadata></itemmetadata><presentation><material><mattext texttype="text/html" xml:lang="en">&lt;p dir=&quot;ltr&quot;&gt;Explain why.&lt;/p&gt;</mattext></material><response_str ident="response1" rcardinality="Single"><render_fib rows="8"/></response_str></presentation><resprocessing><outcomes><decvar varname="SCORE" vartype="Decimal" minvalue="0" maxvalue="100"/></outcomes><respcondition continue="Yes"><conditionvar><other/></conditionvar><displayfeedback feedbacktype="Response" linkrefid="general_fb"/></respcondition></resprocessing><itemfeedback ident="general_fb"><flow_mat><material><mattext texttype="text/html" xml:lang="en">&lt;p&gt;Because.&lt;/p&gt;</mattext></material></flow_mat></itemfeedback></item>",
+    "qti": "<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqtiasi_v3p0 https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqti_asiv3p0p1_v1p0.xsd" identifier="q10" title="Q10" adaptive="false" time-dependent="false" xml:lang="en"><qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="string"></qti-response-declaration><qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="2" external-scored="human"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="MAXSCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>2</qti-value></qti-default-value></qti-outcome-declaration><qti-outcome-declaration identifier="FEEDBACK" cardinality="single" base-type="identifier"/><qti-outcome-declaration identifier="HINT" cardinality="single" base-type="identifier"/><qti-item-body dir="ltr"><qti-extended-text-interaction response-identifier="RESPONSE" format="plain" pattern-mask="^\\s*(\\S+\\s+){0,49}\\S*\\s*$" data-patternmask-message="50 words at most" data-farida-word-limit="50"><qti-prompt>Explain why.</qti-prompt></qti-extended-text-interaction><qti-feedback-block outcome-identifier="HINT" identifier="HINT1" show-hide="show" data-farida-hint="1"><qti-content-body><p>Think again.</p></qti-content-body></qti-feedback-block></qti-item-body><qti-modal-feedback outcome-identifier="FEEDBACK" identifier="GENERAL" show-hide="hide" data-farida-explanation="true"><qti-content-body><p>Because.</p></qti-content-body></qti-modal-feedback></qti-assessment-item>
+",
+  },
+]
+`;
+
+exports[`marks on the same answers > lets the lesson go to students as it did > lesson issue 1`] = `null`;
+
+exports[`marks on the same answers > marks every answer as it did > marks 1`] = `
+[
+  {
+    "blockId": "00000000-0000-4000-8000-000000000001",
+    "issue": null,
+    "mark": {
+      "correct": true,
+      "feedback": [],
+      "fraction": 1,
+      "parts": {},
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000001",
+    "issue": null,
+    "mark": {
+      "correct": false,
+      "feedback": [
+        "A thing.",
+      ],
+      "fraction": 0,
+      "parts": {},
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000002",
+    "issue": null,
+    "mark": {
+      "correct": true,
+      "feedback": [],
+      "fraction": 1,
+      "parts": {},
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000002",
+    "issue": null,
+    "mark": {
+      "correct": false,
+      "feedback": [
+        "Even.",
+      ],
+      "fraction": 0,
+      "parts": {},
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000002",
+    "issue": null,
+    "mark": {
+      "correct": false,
+      "feedback": [],
+      "fraction": 0,
+      "parts": {},
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000003",
+    "issue": null,
+    "mark": {
+      "correct": true,
+      "feedback": [],
+      "fraction": 1,
+      "parts": {},
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000004",
+    "issue": null,
+    "mark": {
+      "correct": true,
+      "feedback": [],
+      "fraction": 1,
+      "parts": {},
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000004",
+    "issue": null,
+    "mark": {
+      "correct": true,
+      "feedback": [],
+      "fraction": 1,
+      "parts": {},
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000004",
+    "issue": null,
+    "mark": {
+      "correct": false,
+      "feedback": [],
+      "fraction": 0,
+      "parts": {},
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000005",
+    "issue": null,
+    "mark": {
+      "correct": true,
+      "feedback": [],
+      "fraction": 1,
+      "parts": {},
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000005",
+    "issue": null,
+    "mark": {
+      "correct": true,
+      "feedback": [],
+      "fraction": 1,
+      "parts": {},
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000005",
+    "issue": null,
+    "mark": {
+      "correct": false,
+      "feedback": [],
+      "fraction": 0,
+      "parts": {},
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000006",
+    "issue": null,
+    "mark": {
+      "correct": true,
+      "feedback": [],
+      "fraction": 1,
+      "parts": {},
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000006",
+    "issue": null,
+    "mark": {
+      "correct": false,
+      "feedback": [],
+      "fraction": 0,
+      "parts": {},
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000007",
+    "issue": null,
+    "mark": {
+      "correct": false,
+      "feedback": [],
+      "fraction": 0.5,
+      "parts": {
+        "00000000-0000-4000-8000-000000000071": true,
+        "00000000-0000-4000-8000-000000000072": false,
+      },
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000008",
+    "issue": null,
+    "mark": {
+      "correct": false,
+      "feedback": [],
+      "fraction": 0.6667,
+      "parts": {
+        "00000000-0000-4000-8000-000000000081": true,
+        "00000000-0000-4000-8000-000000000082": false,
+        "00000000-0000-4000-8000-000000000083": true,
+      },
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000009",
+    "issue": null,
+    "mark": {
+      "correct": false,
+      "feedback": [],
+      "fraction": 0.3333,
+      "parts": {
+        "00000000-0000-4000-8000-000000000091": true,
+        "00000000-0000-4000-8000-000000000092": true,
+        "00000000-0000-4000-8000-000000000093": false,
+        "00000000-0000-4000-8000-000000000094": false,
+      },
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000010",
+    "issue": null,
+    "mark": {
+      "correct": false,
+      "feedback": [],
+      "fraction": 0.6667,
+      "parts": {
+        "00000000-0000-4000-8000-000000000103": true,
+        "00000000-0000-4000-8000-000000000104": false,
+        "00000000-0000-4000-8000-000000000105": true,
+      },
+    },
+  },
+  {
+    "blockId": "00000000-0000-4000-8000-000000000014",
+    "issue": null,
+    "mark": null,
+  },
+]
+`;
+
+exports[`marks on the same answers > scores the attempt and shows it as it did > score 1`] = `4.33`;
+
+exports[`marks on the same answers > scores the attempt and shows it as it did > student quiz 1`] = `
+[
+  {
+    "id": "00000000-0000-4000-8000-000000000005",
+    "narration": null,
+    "narrationWords": null,
+    "points": 2,
+    "prompt": "Half of nine?",
+    "tries": 2,
+    "type": "number",
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000006",
+    "narration": null,
+    "narrationWords": null,
+    "points": 2,
+    "prompt": "A number between 3 and 7?",
+    "tries": 2,
+    "type": "number",
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000009",
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-000000000094",
+        "text": "4",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000093",
+        "text": "3",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000091",
+        "text": "1",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000092",
+        "text": "2",
+      },
+    ],
+    "points": 2,
+    "prompt": "Smallest first.",
+    "scoring": "neighbours",
+    "tries": 2,
+    "type": "ordering",
+  },
+  {
+    "caseSensitive": false,
+    "closeEnough": false,
+    "id": "00000000-0000-4000-8000-000000000007",
+    "points": 2,
+    "prompt": "Fill the gaps.",
+    "segments": [
+      {
+        "text": "The ",
+        "type": "text",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000071",
+        "options": [],
+        "type": "gap",
+      },
+      {
+        "text": " sat on the ",
+        "type": "text",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000072",
+        "options": [
+          "hat",
+          "mat",
+        ],
+        "type": "gap",
+      },
+    ],
+    "tehMarbuta": true,
+    "tries": 2,
+    "type": "gaps",
+  },
+  {
+    "classResults": true,
+    "id": "00000000-0000-4000-8000-000000000003",
+    "multiple": false,
+    "options": [
+      {
+        "id": "00000000-0000-4000-8000-000000000031",
+        "narration": null,
+        "picture": null,
+        "text": "Tea",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000032",
+        "narration": null,
+        "picture": null,
+        "text": "Coffee",
+      },
+    ],
+    "points": 0,
+    "prompt": "Which do you prefer?",
+    "tries": null,
+    "type": "poll",
+  },
+  {
+    "groups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000101",
+        "name": "Birds",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000102",
+        "name": "Fish",
+      },
+    ],
+    "id": "00000000-0000-4000-8000-000000000010",
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-000000000103",
+        "narration": null,
+        "picture": null,
+        "text": "Eagle",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000105",
+        "narration": null,
+        "picture": null,
+        "text": "Owl",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000104",
+        "narration": null,
+        "picture": null,
+        "text": "Shark",
+      },
+    ],
+    "points": 2,
+    "prompt": "Sort the animals.",
+    "tries": 2,
+    "type": "sorting",
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "multiple": false,
+    "options": [
+      {
+        "id": "00000000-0000-4000-8000-000000000011",
+        "narration": null,
+        "picture": null,
+        "text": "Run",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000013",
+        "narration": null,
+        "picture": null,
+        "text": "Blue",
+      },
+    ],
+    "points": 2,
+    "prompt": "Which is a verb?",
+    "shuffle": true,
+    "tries": 2,
+    "type": "choice",
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000014",
+    "points": 2,
+    "prompt": "Explain why.",
+    "tries": 2,
+    "type": "written",
+    "wordLimit": 50,
+  },
+  {
+    "caseSensitive": false,
+    "closeEnough": true,
+    "id": "00000000-0000-4000-8000-000000000004",
+    "points": 2,
+    "prompt": "The capital of Egypt?",
+    "tehMarbuta": true,
+    "tries": 2,
+    "type": "text",
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "multiple": true,
+    "options": [
+      {
+        "id": "00000000-0000-4000-8000-000000000021",
+        "narration": null,
+        "picture": null,
+        "text": "2",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000022",
+        "narration": null,
+        "picture": null,
+        "text": "3",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000024",
+        "narration": null,
+        "picture": null,
+        "text": "9",
+      },
+    ],
+    "points": 2,
+    "prompt": "Which are prime?",
+    "shuffle": false,
+    "tries": 2,
+    "type": "choice",
+  },
+  {
+    "choices": [
+      {
+        "id": "00000000-0000-4000-8000-000000000082",
+        "narration": null,
+        "picture": null,
+        "text": "Paris",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000084",
+        "narration": null,
+        "picture": null,
+        "text": "Rome",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000081",
+        "narration": null,
+        "picture": null,
+        "text": "Cairo",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000083",
+        "narration": null,
+        "picture": null,
+        "text": "Tokyo",
+      },
+    ],
+    "id": "00000000-0000-4000-8000-000000000008",
+    "points": 2,
+    "prompt": "Match the capitals.",
+    "prompts": [
+      {
+        "id": "00000000-0000-4000-8000-000000000081",
+        "narration": null,
+        "picture": null,
+        "text": "Egypt",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000082",
+        "narration": null,
+        "picture": null,
+        "text": "France",
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000083",
+        "narration": null,
+        "picture": null,
+        "text": "Japan",
+      },
+    ],
+    "tries": 2,
+    "type": "matching",
+  },
+]
+`;
+
+exports[`marks on the same answers > scores the attempt and shows it as it did > views 1`] = `
+{
+  "00000000-0000-4000-8000-000000000001": {
+    "askable": 0,
+    "asked": 0,
+    "correct": false,
+    "credit": null,
+    "explanation": "Because.",
+    "feedback": [
+      "A thing.",
+    ],
+    "fraction": 0,
+    "hints": [],
+    "hintsLeft": 0,
+    "key": [
+      "00000000-0000-4000-8000-000000000011",
+    ],
+    "markFeedback": null,
+    "marked": false,
+    "partKey": {},
+    "parts": {},
+    "response": {
+      "optionIds": [
+        "00000000-0000-4000-8000-000000000012",
+      ],
+      "type": "choice",
+    },
+    "revealed": true,
+    "timing": null,
+    "tries": 1,
+    "triesLeft": null,
+  },
+  "00000000-0000-4000-8000-000000000002": {
+    "askable": 0,
+    "asked": 0,
+    "correct": false,
+    "credit": null,
+    "explanation": "Because.",
+    "feedback": [],
+    "fraction": 0,
+    "hints": [],
+    "hintsLeft": 0,
+    "key": [
+      "00000000-0000-4000-8000-000000000021",
+      "00000000-0000-4000-8000-000000000022",
+    ],
+    "markFeedback": null,
+    "marked": false,
+    "partKey": {},
+    "parts": {},
+    "response": {
+      "optionIds": [
+        "00000000-0000-4000-8000-000000000024",
+      ],
+      "type": "choice",
+    },
+    "revealed": true,
+    "timing": null,
+    "tries": 1,
+    "triesLeft": null,
+  },
+  "00000000-0000-4000-8000-000000000003": {
+    "askable": 0,
+    "asked": 0,
+    "correct": true,
+    "credit": null,
+    "explanation": "",
+    "feedback": [],
+    "fraction": 1,
+    "hints": [],
+    "hintsLeft": 0,
+    "key": [],
+    "markFeedback": null,
+    "marked": false,
+    "partKey": {},
+    "parts": {},
+    "response": {
+      "optionIds": [
+        "00000000-0000-4000-8000-000000000032",
+      ],
+      "type": "poll",
+    },
+    "revealed": true,
+    "timing": null,
+    "tries": 1,
+    "triesLeft": null,
+  },
+  "00000000-0000-4000-8000-000000000004": {
+    "askable": 0,
+    "asked": 0,
+    "correct": false,
+    "credit": null,
+    "explanation": "Because.",
+    "feedback": [],
+    "fraction": 0,
+    "hints": [],
+    "hintsLeft": 0,
+    "key": [
+      "القاهرة",
+    ],
+    "markFeedback": null,
+    "marked": false,
+    "partKey": {},
+    "parts": {},
+    "response": {
+      "text": "Giza",
+      "type": "text",
+    },
+    "revealed": true,
+    "timing": null,
+    "tries": 1,
+    "triesLeft": null,
+  },
+  "00000000-0000-4000-8000-000000000005": {
+    "askable": 0,
+    "asked": 0,
+    "correct": false,
+    "credit": null,
+    "explanation": "Because.",
+    "feedback": [],
+    "fraction": 0,
+    "hints": [],
+    "hintsLeft": 0,
+    "key": [
+      "4.5 ± 0.1",
+    ],
+    "markFeedback": null,
+    "marked": false,
+    "partKey": {},
+    "parts": {},
+    "response": {
+      "text": "5",
+      "type": "number",
+    },
+    "revealed": true,
+    "timing": null,
+    "tries": 1,
+    "triesLeft": null,
+  },
+  "00000000-0000-4000-8000-000000000006": {
+    "askable": 0,
+    "asked": 0,
+    "correct": false,
+    "credit": null,
+    "explanation": "Because.",
+    "feedback": [],
+    "fraction": 0,
+    "hints": [],
+    "hintsLeft": 0,
+    "key": [
+      "3 – 7",
+    ],
+    "markFeedback": null,
+    "marked": false,
+    "partKey": {},
+    "parts": {},
+    "response": {
+      "text": "8",
+      "type": "number",
+    },
+    "revealed": true,
+    "timing": null,
+    "tries": 1,
+    "triesLeft": null,
+  },
+  "00000000-0000-4000-8000-000000000007": {
+    "askable": 0,
+    "asked": 0,
+    "correct": false,
+    "credit": null,
+    "explanation": "Because.",
+    "feedback": [],
+    "fraction": 0.5,
+    "hints": [],
+    "hintsLeft": 0,
+    "key": [
+      "cat",
+      "mat",
+    ],
+    "markFeedback": null,
+    "marked": false,
+    "partKey": {
+      "00000000-0000-4000-8000-000000000071": "cat",
+      "00000000-0000-4000-8000-000000000072": "mat",
+    },
+    "parts": {
+      "00000000-0000-4000-8000-000000000071": true,
+      "00000000-0000-4000-8000-000000000072": false,
+    },
+    "response": {
+      "answers": {
+        "00000000-0000-4000-8000-000000000071": "Cat",
+        "00000000-0000-4000-8000-000000000072": "hat",
+      },
+      "type": "gaps",
+    },
+    "revealed": true,
+    "timing": null,
+    "tries": 1,
+    "triesLeft": null,
+  },
+  "00000000-0000-4000-8000-000000000008": {
+    "askable": 0,
+    "asked": 0,
+    "correct": false,
+    "credit": null,
+    "explanation": "Because.",
+    "feedback": [],
+    "fraction": 0.6667,
+    "hints": [],
+    "hintsLeft": 0,
+    "key": [
+      "Egypt: Cairo",
+      "France: Paris",
+      "Japan: Tokyo",
+    ],
+    "markFeedback": null,
+    "marked": false,
+    "partKey": {
+      "00000000-0000-4000-8000-000000000081": "Cairo",
+      "00000000-0000-4000-8000-000000000082": "Paris",
+      "00000000-0000-4000-8000-000000000083": "Tokyo",
+    },
+    "parts": {
+      "00000000-0000-4000-8000-000000000081": true,
+      "00000000-0000-4000-8000-000000000082": false,
+      "00000000-0000-4000-8000-000000000083": true,
+    },
+    "response": {
+      "pairs": {
+        "00000000-0000-4000-8000-000000000081": "00000000-0000-4000-8000-000000000081",
+        "00000000-0000-4000-8000-000000000082": "00000000-0000-4000-8000-000000000084",
+        "00000000-0000-4000-8000-000000000083": "00000000-0000-4000-8000-000000000083",
+      },
+      "type": "matching",
+    },
+    "revealed": true,
+    "timing": null,
+    "tries": 1,
+    "triesLeft": null,
+  },
+  "00000000-0000-4000-8000-000000000009": {
+    "askable": 0,
+    "asked": 0,
+    "correct": false,
+    "credit": null,
+    "explanation": "Because.",
+    "feedback": [],
+    "fraction": 0.3333,
+    "hints": [],
+    "hintsLeft": 0,
+    "key": [
+      "1",
+      "2",
+      "3",
+      "4",
+    ],
+    "markFeedback": null,
+    "marked": false,
+    "partKey": {
+      "00000000-0000-4000-8000-000000000091": "1",
+      "00000000-0000-4000-8000-000000000092": "2",
+      "00000000-0000-4000-8000-000000000093": "3",
+      "00000000-0000-4000-8000-000000000094": "4",
+    },
+    "parts": {
+      "00000000-0000-4000-8000-000000000091": true,
+      "00000000-0000-4000-8000-000000000092": true,
+      "00000000-0000-4000-8000-000000000093": false,
+      "00000000-0000-4000-8000-000000000094": false,
+    },
+    "response": {
+      "order": [
+        "00000000-0000-4000-8000-000000000091",
+        "00000000-0000-4000-8000-000000000092",
+        "00000000-0000-4000-8000-000000000094",
+        "00000000-0000-4000-8000-000000000093",
+      ],
+      "type": "ordering",
+    },
+    "revealed": true,
+    "timing": null,
+    "tries": 1,
+    "triesLeft": null,
+  },
+  "00000000-0000-4000-8000-000000000010": {
+    "askable": 0,
+    "asked": 0,
+    "correct": false,
+    "credit": null,
+    "explanation": "Because.",
+    "feedback": [],
+    "fraction": 0.6667,
+    "hints": [],
+    "hintsLeft": 0,
+    "key": [
+      "Eagle: Birds",
+      "Owl: Birds",
+      "Shark: Fish",
+    ],
+    "markFeedback": null,
+    "marked": false,
+    "partKey": {
+      "00000000-0000-4000-8000-000000000103": "Birds",
+      "00000000-0000-4000-8000-000000000104": "Fish",
+      "00000000-0000-4000-8000-000000000105": "Birds",
+    },
+    "parts": {
+      "00000000-0000-4000-8000-000000000103": true,
+      "00000000-0000-4000-8000-000000000104": false,
+      "00000000-0000-4000-8000-000000000105": true,
+    },
+    "response": {
+      "groups": {
+        "00000000-0000-4000-8000-000000000103": "00000000-0000-4000-8000-000000000101",
+        "00000000-0000-4000-8000-000000000104": "00000000-0000-4000-8000-000000000101",
+        "00000000-0000-4000-8000-000000000105": "00000000-0000-4000-8000-000000000101",
+      },
+      "type": "sorting",
+    },
+    "revealed": true,
+    "timing": null,
+    "tries": 1,
+    "triesLeft": null,
+  },
+  "00000000-0000-4000-8000-000000000014": {
+    "askable": 0,
+    "asked": 0,
+    "correct": false,
+    "credit": null,
+    "explanation": null,
+    "feedback": [],
+    "fraction": 0,
+    "hints": [],
+    "hintsLeft": 0,
+    "key": null,
+    "markFeedback": null,
+    "marked": false,
+    "partKey": null,
+    "parts": {},
+    "response": {
+      "text": "Because it rains.",
+      "type": "written",
+    },
+    "revealed": false,
+    "timing": null,
+    "tries": 1,
+    "triesLeft": null,
+  },
+}
+`;
