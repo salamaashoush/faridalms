@@ -1650,6 +1650,8 @@
   "indexClearFilter": "Clear filter",
   "indexClearFilters": "Clear filters",
   "indexSelectedCount": "{count} selected",
+  "indexSelectionActions": "Actions for the selected rows",
+  "indexClearSelection": "Clear selection",
   "indexNoResultsTitle": "Nothing matches your search or filters",
   "indexNoResultsBody": "Try a different search, or clear the filters to see everything.",
   "indexView": "View",

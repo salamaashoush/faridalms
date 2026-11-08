@@ -96,6 +96,8 @@ export interface SystemStrings {
   selectAll: string;
   selectRow: (name: string) => string;
   selectedCount: (count: string) => string;
+  selectionActions: string;
+  clearSelection: string;
   skipToContent: string;
   sortBy: string;
   theme: string;

@@ -1,4 +1,3 @@
-import type { LucideIcon } from "lucide-react";
 import type { ComponentProps, MouseEvent, ReactNode, Ref } from "react";
 
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
@@ -30,16 +29,14 @@ import {
   ArrowUp,
   Check,
   ChevronLeft,
-  CircleAlert,
   ChevronRight,
   ChevronsUpDown,
-  LoaderCircle,
   Minus,
   SlidersHorizontal,
 } from "lucide-react";
 import { Fragment, useRef, useState } from "react";
 
-import type { ActionItem, Confirmation } from "./action-menu";
+import type { ActionItem } from "./action-menu";
 import type { EmptyStateProps } from "./empty-state";
 import type { FieldOption } from "./form-field";
 import type { IndexToolbarProps } from "./index-toolbar";
@@ -47,10 +44,11 @@ import type { IndexToolbarProps } from "./index-toolbar";
 import {
   ActionMenu,
   phoneMenuItem,
-  useAttempt,
   useRunAndReport,
 } from "./action-menu";
-import { ConfirmDialog } from "./confirm-dialog";
+import type { BatchAction } from "./selection-bar";
+
+import { SelectionBar } from "./selection-bar";
 import { EmptyState, FilteredEmptyState } from "./empty-state";
 import { IndexToolbar, isFiltered } from "./index-toolbar";
 import { useDesignSystem } from "./provider";
@@ -103,23 +101,7 @@ export interface RowActionPlacement {
 /** A row's action, in its menu unless it is the one shown `inline`. */
 export type RowAction = ActionItem & RowActionPlacement;
 
-interface BatchActionBase<T> {
-  label: string;
-  icon?: LucideIcon;
-  onSelect: (rows: T[]) => void | Promise<unknown>;
-}
-
-interface RegularBatchAction<T> extends BatchActionBase<T> {
-  destructive?: false;
-  confirm?: (rows: T[]) => Confirmation;
-}
-
-interface DestructiveBatchAction<T> extends BatchActionBase<T> {
-  destructive: true;
-  confirm: (rows: T[]) => Confirmation;
-}
-
-export type BatchAction<T> = RegularBatchAction<T> | DestructiveBatchAction<T>;
+export type { BatchAction } from "./selection-bar";
 
 /** How a row reads as a card on a phone. */
 export interface DataTableCard<T> {
@@ -335,88 +317,6 @@ export function ViewMenu<S extends string>({
   );
 }
 
-interface BatchBarProps<T> {
-  rows: T[];
-  actions: BatchAction<T>[];
-  onCancel: () => void;
-}
-
-function BatchBar<T>({ rows, actions, onCancel }: BatchBarProps<T>) {
-  const { strings, formatNumber } = useDesignSystem();
-  const attempt = useAttempt();
-  const [pending, setPending] = useState<BatchAction<T> | null>(null);
-  const [confirming, setConfirming] = useState<BatchAction<T> | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const run = async (action: BatchAction<T>) => {
-    setPending(action);
-    setError(null);
-    const failure = await attempt(() => action.onSelect(rows));
-    setPending(null);
-    setError(failure);
-    if (!failure) setConfirming(null);
-  };
-  const confirmation = confirming?.confirm?.(rows);
-  return (
-    <div className="flex min-h-8 flex-wrap items-center gap-2 rounded-md bg-primary/8 ps-3 pe-1">
-      <p className="me-2 text-sm font-medium tabular-nums">
-        {strings.selectedCount(formatNumber(rows.length))}
-      </p>
-      {actions.map((action) => (
-        <Button
-          key={action.label}
-          type="button"
-          variant={action.destructive ? "destructive" : "outline"}
-          size="sm"
-          disabled={pending !== null}
-          onClick={() => {
-            if (action.confirm) {
-              setError(null);
-              setConfirming(action);
-            } else void run(action);
-          }}
-        >
-          {pending === action ? (
-            <LoaderCircle className="animate-spin" aria-hidden />
-          ) : action.icon ? (
-            <action.icon aria-hidden />
-          ) : null}
-          {action.label}
-        </Button>
-      ))}
-      {error && !confirming ? (
-        <p
-          role="alert"
-          className="flex items-center gap-1.5 text-[13px] leading-[18px] text-destructive"
-        >
-          <CircleAlert className="size-3.5 shrink-0" aria-hidden />
-          {error}
-        </p>
-      ) : null}
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="ms-auto"
-        onClick={onCancel}
-      >
-        {strings.cancel}
-      </Button>
-      {confirming && confirmation ? (
-        <ConfirmDialog
-          open
-          title={confirmation.title}
-          body={confirmation.body}
-          confirmLabel={confirmation.label}
-          pending={pending !== null}
-          error={error ?? undefined}
-          onCancel={() => setConfirming(null)}
-          onConfirm={() => void run(confirming)}
-        />
-      ) : null}
-    </div>
-  );
-}
-
 interface RowActionsProps {
   label: string;
   actions: RowAction[];
@@ -621,6 +521,10 @@ export function DataTable<T extends { id: string }, S extends string>({
     select(next);
   };
   const selectAllRef = useRef<HTMLElement>(null);
+  const clearSelection = () => {
+    selectAllRef.current?.focus();
+    select(EMPTY);
+  };
   const selectedRows = rows.filter((row) => selected.has(row.id));
   const selectable = Boolean(batchActions?.length);
   const visible = columns.filter(
@@ -664,16 +568,7 @@ export function DataTable<T extends { id: string }, S extends string>({
             : null}
         </p>
       ) : null}
-      {selectedRows.length && batchActions ? (
-        <BatchBar
-          rows={selectedRows}
-          actions={batchActions}
-          onCancel={() => {
-            selectAllRef.current?.focus();
-            select(EMPTY);
-          }}
-        />
-      ) : toolbar && (rows.length || filtered) ? (
+      {toolbar && (rows.length || filtered) ? (
         <IndexToolbar {...toolbar} view={view} actions={actions} />
       ) : actions && rows.length ? (
         <div className="flex min-h-8 flex-wrap items-center justify-end gap-2">
@@ -928,6 +823,13 @@ export function DataTable<T extends { id: string }, S extends string>({
           {pagination ? <Pagination {...pagination} /> : null}
         </>
       )}
+      {selectedRows.length && batchActions ? (
+        <SelectionBar
+          rows={selectedRows}
+          actions={batchActions}
+          onClear={clearSelection}
+        />
+      ) : null}
     </section>
   );
 }

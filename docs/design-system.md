@@ -18,7 +18,7 @@ package gains it first, with a test and a line in this table.
 | Rule           | Module                                                                                                                                                                                                              |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, breadcrumb steps), `page-actions`                                                                                                            |
-| Index page     | `page-header`, `index-toolbar`, `data-table`, `cell-note` (`CellWithNote`), `empty-state`                                                                                                                           |
+| Index page     | `page-header`, `index-toolbar`, `data-table`, `selection-bar` (`SelectionBar`), `cell-note` (`CellWithNote`), `empty-state`                                                                                         |
 | Page width     | `page` (`Page`)                                                                                                                                                                                                     |
 | Record page    | `record-page` (`RecordHeader`, `RecordStack`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `stage-path` (`StagePath`), `attention-list` (`AttentionList`), `value`               |
 | Record content | `usage-list` (`UsageList`), `summary-list` (`SummaryList`), `change-log` (`ChangeLog`), `dns-records` (`DnsRecords`), `copy-button`, `document-view` (`DocumentView`, a printable document in a tab, printed alone) |
@@ -189,6 +189,16 @@ Carbon data table, shadcn tasks).
 - Selection and batch actions are a desktop tool. Below 768px cards have no
   checkboxes and each card keeps its own `•••` menu, so anything phones need
   must not exist only as a batch action.
+- Selecting rows raises the `SelectionBar` at the foot of the list, sticky
+  above the bottom of the window, as Linear, GitHub and Polaris do; the
+  toolbar stays where it was, so selecting moves nothing. It says how many
+  are selected with a Clear button, stands the first three regular actions
+  as buttons (`promoted`), keeps the rest under More, and puts a
+  destructive action last: beside the others when nothing waits under
+  More, else at the end of More after its separator, always confirmed.
+  Escape clears the selection unless a field, menu or dialog takes it. A
+  grid that selects (the media library) uses the same bar. Order actions by
+  use: the one most often wanted first.
 - A value that cannot exist for a record, such as the grade of a student with
   no class, is a muted dash read as "Not applicable" (`<Value notApplicable>`).
   "Not recorded" stays for values that should exist and are missing.

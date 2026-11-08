@@ -97,6 +97,8 @@ export function portalDesignSystem(): DesignSystemValue {
       selectAll: m.indexSelectAll(),
       selectRow: (name) => m.indexSelectRow({ name }),
       selectedCount: (count) => m.indexSelectedCount({ count }),
+      selectionActions: m.indexSelectionActions(),
+      clearSelection: m.indexClearSelection(),
       skipToContent: m.navSkipToContent(),
       sortBy: m.indexSortBy(),
       theme: m.shellTheme(),

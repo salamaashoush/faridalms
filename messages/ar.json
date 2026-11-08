@@ -1744,6 +1744,8 @@
   "indexClearFilter": "مسح عامل التصفية",
   "indexClearFilters": "مسح عوامل التصفية",
   "indexSelectedCount": "تم تحديد {count}",
+  "indexSelectionActions": "إجراءات الصفوف المحددة",
+  "indexClearSelection": "إلغاء التحديد",
   "indexNoResultsTitle": "لا شيء يطابق البحث أو عوامل التصفية",
   "indexNoResultsBody": "جرّب بحثًا آخر، أو امسح عوامل التصفية لعرض كل شيء.",
   "indexView": "العرض",

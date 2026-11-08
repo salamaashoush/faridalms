@@ -92,6 +92,8 @@ export const ENGLISH_STRINGS: SystemStrings = {
   selectAll: "Select all rows on this page",
   selectRow: (name) => `Select ${name}`,
   selectedCount: (count) => `${count} selected`,
+  selectionActions: "Actions for the selected rows",
+  clearSelection: "Clear selection",
   skipToContent: "Skip to content",
   sortBy: "Sort by",
   theme: "Appearance",
