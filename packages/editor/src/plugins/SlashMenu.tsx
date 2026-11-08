@@ -108,9 +108,10 @@ export function SlashMenuPlugin() {
   });
   const options = useMemo(
     () =>
-      byGroup(filterBlocks(query ?? "", strings, scope)).map(
-        (block) => new BlockOption(block),
-      ),
+      (query
+        ? filterBlocks(query, strings, scope)
+        : byGroup(filterBlocks("", strings, scope))
+      ).map((block) => new BlockOption(block)),
     [query, strings, scope],
   );
   const groups: Record<BlockGroup, string> = {

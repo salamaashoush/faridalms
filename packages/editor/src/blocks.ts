@@ -1467,13 +1467,33 @@ export function filterBlocks(
   scope: BlockScope,
 ): BlockDefinition[] {
   const needle = query.trim().toLocaleLowerCase();
-  return blockDefinitions.filter(
-    (block) =>
-      offered(block, scope) &&
-      (!needle ||
-        block.label(strings).toLocaleLowerCase().includes(needle) ||
-        block.keywords.some((keyword) => keyword.startsWith(needle))),
+  const offeredBlocks = blockDefinitions.filter((block) =>
+    offered(block, scope),
   );
+  if (!needle) return offeredBlocks;
+  // A block named what was typed comes before one that only lists it as a
+  // keyword, so "/date" is the date question, not the timeline of dates.
+  const closeness = (block: BlockDefinition) => {
+    const label = block.label(strings).toLocaleLowerCase();
+    if (label === needle) return 0;
+    if (label.startsWith(needle)) return 1;
+    if (label.includes(needle)) return 2;
+    return block.keywords.some((keyword) => keyword.startsWith(needle))
+      ? 3
+      : null;
+  };
+  return offeredBlocks
+    .flatMap((block) => {
+      const rank = closeness(block);
+      return rank === null ? [] : [{ block, rank }];
+    })
+    .toSorted(
+      (one, other) =>
+        one.rank - other.rank ||
+        BLOCK_GROUPS.indexOf(one.block.group) -
+          BLOCK_GROUPS.indexOf(other.block.group),
+    )
+    .map(({ block }) => block);
 }
 
 const listTypes: Partial<Record<BlockType, ListType>> = {

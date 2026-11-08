@@ -27,6 +27,8 @@ import {
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
+import type { EditorStrings } from "./strings";
+
 import {
   $duplicateBlock,
   $insertBlock,
@@ -34,6 +36,7 @@ import {
   $turnInto,
   blockDefinitions,
   blockScope,
+  filterBlocks,
   offered,
 } from "./blocks";
 import { BlocksExtension, sanitiseStyle } from "./extensions";
@@ -538,6 +541,26 @@ describe("where blocks are offered", () => {
     expect(offered(reading, lesson)).toBe(true);
     expect(offered(why, quiz)).toBe(false);
     expect(offered(reading, blockScope({}))).toBe(false);
+  });
+});
+
+describe("finding a block by what is typed", () => {
+  it("puts the block named what was typed before one it is only a keyword of", () => {
+    const names: Record<string, string> = {
+      questionDate: "Date",
+      timeline: "Timeline",
+    };
+    const strings = new Proxy(
+      {},
+      { get: (_, key) => names[String(key)] ?? String(key) },
+    ) as EditorStrings;
+    const lesson = blockScope({ questions: true, lessonActivities: true });
+    const found = filterBlocks("date", strings, lesson).map(
+      (block) => block.type,
+    );
+    expect(found[0]).toBe("dateQuestion");
+    expect(found).toContain("timeline");
+    expect(filterBlocks("Timeline", strings, lesson)[0]?.type).toBe("timeline");
   });
 });
 
