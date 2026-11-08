@@ -10124,5 +10124,19 @@
   "siteSharedSectionGone": "This shared section was taken out, and published pages no longer show it. Remove it from this page too.",
   "auditSharedSectionCreate": "Shared section added",
   "auditSharedSectionUpdate": "Shared section changed",
-  "auditSharedSectionRemove": "Shared section removed"
+  "auditSharedSectionRemove": "Shared section removed",
+  "sharedSectionUsedIn": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Shown on {value} page",
+        "countPlural=*": "Shown on {value} pages"
+      }
+    }
+  ]
 }

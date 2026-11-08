@@ -422,7 +422,7 @@ function SavedCard({ title, hint, saved, context, onPick }: SavedCardProps) {
   const shown = saved ? sectionPair(saved, context.locale).content : null;
   return (
     <li className="grid content-start overflow-hidden rounded-xl border bg-card shadow-xs">
-      <div className="group relative grid text-start">
+      <div className="group relative grid min-w-0 text-start">
         <button
           type="button"
           disabled={!saved}
@@ -537,11 +537,11 @@ export function SavedSections({
       </p>
     );
   return (
-    <div className="grid gap-6">
+    <div className="grid min-w-0 gap-6">
       {kept.length ? (
-        <section className="grid gap-3">
+        <section className="grid min-w-0 gap-3">
           <h3 className="text-sm font-semibold">{m.siteSharedSections()}</h3>
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {kept.map((row) => (
               <SharedCard
                 key={row.id}
@@ -582,9 +582,9 @@ export function SavedSections({
         </section>
       ) : null}
       {pieces.length ? (
-        <section className="grid gap-3">
+        <section className="grid min-w-0 gap-3">
           <h3 className="text-sm font-semibold">{m.siteSectionTemplates()}</h3>
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {pieces.map((row) => (
               <TemplateCard
                 key={row.id}

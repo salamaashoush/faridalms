@@ -10585,5 +10585,23 @@
   "siteSharedSectionGone": "أُزيل هذا القسم المشترك، ولم تعد الصفحات المنشورة تعرضه. احذفه من هذه الصفحة أيضًا.",
   "auditSharedSectionCreate": "أُضيف قسم مشترك",
   "auditSharedSectionUpdate": "تغيّر قسم مشترك",
-  "auditSharedSectionRemove": "أُزيل قسم مشترك"
+  "auditSharedSectionRemove": "أُزيل قسم مشترك",
+  "sharedSectionUsedIn": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا يظهر في أي صفحة",
+        "countPlural=one": "يظهر في صفحة واحدة",
+        "countPlural=two": "يظهر في صفحتين",
+        "countPlural=few": "يظهر في {value} صفحات",
+        "countPlural=many": "يظهر في {value} صفحة",
+        "countPlural=*": "يظهر في {value} صفحة"
+      }
+    }
+  ]
 }

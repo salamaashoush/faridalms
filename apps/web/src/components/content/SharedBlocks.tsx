@@ -250,7 +250,7 @@ export function SharedUses({ id, kind = "block" }: SharedUsesProps) {
           aria-hidden
           className={open ? "rotate-90" : "rtl:-scale-x-100"}
         />
-        {m.sharedUsedIn({
+        {(kind === "section" ? m.sharedSectionUsedIn : m.sharedUsedIn)({
           count: rows.length,
           value: formatNumber(rows.length),
         })}

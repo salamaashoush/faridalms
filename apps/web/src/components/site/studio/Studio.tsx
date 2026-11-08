@@ -639,6 +639,8 @@ export function SiteStudio({
       onCreated?.(result.id);
     }
     await invalidate();
+    // A save can name a shared section or stop naming one, which its uses say.
+    await queryClient.invalidateQueries({ queryKey: ["shared", "uses"] });
   };
   const pageValid =
     !errors.title &&

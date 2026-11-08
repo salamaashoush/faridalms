@@ -69,7 +69,7 @@ function TypeCard({ type, context, primary, onPick }: TypeCardProps) {
     <li className="grid content-start overflow-hidden rounded-xl border bg-card shadow-xs">
       {/* The preview holds live buttons of its own, so the card's button
           lies over it rather than around it. */}
-      <div className="group relative grid text-start">
+      <div className="group relative grid min-w-0 text-start">
         <button
           type="button"
           onClick={() => insert(variant)}
