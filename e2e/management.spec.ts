@@ -433,9 +433,13 @@ test("the student index opens records, exports a selection and filters on a phon
     page.getByText("1 selected", { exact: true }).last(),
   ).toBeVisible();
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await page
+    .getByRole("group", { name: "Actions for the selected rows" })
+    .getByRole("button", { name: "More actions" })
+    .click();
+  await page.getByRole("menuitem", { name: "Export", exact: true }).click();
   expect((await download).suggestedFilename()).toBe("Students.csv");
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("button", { name: "Clear selection" }).click();
   await expect(selectAll).toBeFocused();
   await expect(selectAll).not.toBeChecked();
   await expect(page.getByRole("searchbox")).toBeVisible();
@@ -512,10 +516,15 @@ test("a new message explains what is missing and opens the sent conversation", a
   await page.keyboard.press("ControlOrMeta+b");
   await sheet.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page).toHaveURL(/thread=/);
-  const messages = page.getByRole("list", { name: "Messages" });
-  await expect(messages.locator("strong")).toHaveText(words);
+  // A new message to someone already written to joins that conversation,
+  // which other runs have written to as well.
+  const bold = page
+    .getByRole("list", { name: "Messages" })
+    .locator("strong")
+    .filter({ hasText: words });
+  await expect(bold).toHaveText(words);
   await page.reload();
-  await expect(messages.locator("strong")).toHaveText(words);
+  await expect(bold).toHaveText(words);
 });
 
 test("a reply being written survives a reload and is sent once", async ({

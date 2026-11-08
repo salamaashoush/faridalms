@@ -239,7 +239,10 @@ test("a Reception teacher records an exemption, shares the goals report and make
   const exempt = section
     .getByRole("checkbox", { name: /^Exemption applies: / })
     .first();
-  await exempt.check();
+  // The box shows the choice once the row takes it, a moment after the
+  // click, so it is clicked and then awaited rather than checked at once.
+  await exempt.click();
+  await expect(exempt).toBeChecked();
   await expect(section).toContainText(/1 exempt/);
 
   await teacher
@@ -278,7 +281,11 @@ test("a Reception teacher records an exemption, shares the goals report and make
   await family.goto(`${portal(school)}/family/grades`);
   await untilHydrated(family);
   await expect(
-    family.getByRole("heading", { name: "Early learning goals", level: 2 }),
+    family.getByRole("heading", {
+      name: "Early learning goals",
+      level: 2,
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     family.getByRole("region", { name: "EYFS early learning goals" }),
@@ -288,14 +295,9 @@ test("a Reception teacher records an exemption, shares the goals report and make
   await expect(
     teacher.getByRole("button", { name: "Share the report with families" }),
   ).toBeVisible();
-  await section
-    .getByRole("button", { name: /^Note or exemption for / })
-    .first()
-    .click();
-  await section
-    .getByRole("checkbox", { name: /^Exemption applies: / })
-    .first()
-    .uncheck();
+  // The note stays open on the row from before.
+  await exempt.click();
+  await expect(exempt).not.toBeChecked();
   await expect(section).toContainText(/0 expected, 0 emerging/);
   await home.close();
   await context.close();

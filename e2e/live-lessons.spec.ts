@@ -264,7 +264,9 @@ test("a teacher leads a young lesson one screen at a time, by tapping", async ({
 
   await page.getByRole("button", { name: "Next screen" }).click();
   await expect(page.getByText("Screen 2 of 2").first()).toBeVisible();
-  await expect(stage.getByText("Is this a dog?")).toBeVisible({
+  await expect(
+    stage.getByRole("heading", { name: "Is this a dog?" }),
+  ).toBeVisible({
     timeout: 2500,
   });
 

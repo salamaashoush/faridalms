@@ -264,7 +264,11 @@ test("the office opens sign-ins for the students it picks, and a student signs i
   await table
     .getByRole("checkbox", { name: "Select Yasmin Sabry", exact: true })
     .check();
-  await page.getByRole("button", { name: "Create sign-ins" }).click();
+  await page
+    .getByRole("group", { name: "Actions for the selected rows" })
+    .getByRole("button", { name: "More actions" })
+    .click();
+  await page.getByRole("menuitem", { name: "Create sign-ins" }).click();
   const sheet = page.getByRole("dialog", { name: "Create sign-ins" });
   await expect(
     sheet.getByRole("radio", { name: "Printed slips" }),

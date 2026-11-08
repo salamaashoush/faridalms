@@ -114,7 +114,9 @@ test("a reading marked in a quiz reaches the student's words to practise and the
   await student.goto("/me/assignments");
   await untilHydrated(student);
   const mine = student.getByRole("region", { name: "Reading aloud" });
-  await expect(mine.getByText("Words to practise")).toBeVisible();
+  await expect(
+    mine.getByRole("heading", { name: "Words to practise" }),
+  ).toBeVisible();
   await expect(mine.getByText("sail", { exact: true })).toBeVisible();
   await expect(mine.getByText("54 words a minute")).toBeVisible();
   await studentContext.close();

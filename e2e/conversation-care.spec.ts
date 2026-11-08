@@ -169,7 +169,9 @@ test("two contacts of one family are merged from the conversation", async ({
   await members
     .getByRole("combobox", { name: "The family's other contact" })
     .click();
-  await page.getByRole("searchbox").fill(work);
+  await page
+    .getByRole("combobox", { name: "Search by name, email or phone" })
+    .fill(work);
   await page.getByRole("option", { name: new RegExp(work) }).click();
   await members.getByRole("button", { name: `Merge into ${name}` }).click();
   await expect(members.getByText(`Also writes from ${work}`)).toBeVisible();
@@ -190,7 +192,15 @@ test("a team finds a conversation by its own note", async ({
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await page.goto(`/search?q=${tag}&kind=notes`);
   await untilHydrated(page);
+  // A team conversation is titled by its subject; the note that matched
+  // is the hit's excerpt.
+  await page
+    .getByRole("link", { name: new RegExp(`Wants the ${tag} orchard tour`) })
+    .click();
+  await expect(page).toHaveURL(/\/messages\?thread=/);
   await expect(
-    page.getByRole("link", { name: new RegExp(name) }),
+    page
+      .getByRole("list", { name: "Messages" })
+      .getByText(`Wants the ${tag} orchard tour.`),
   ).toBeVisible();
 });

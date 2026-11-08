@@ -525,6 +525,22 @@ test("a module holds its class's discussion, and a post's likes are counted and 
     prerequisiteId: "",
     sequential: false,
   });
+  // Students reach a module once it is published, which takes a lesson.
+  await api.learning.saveLesson({
+    id: "",
+    moduleId: module.id,
+    expectedVersion: 0,
+    title: "Springs",
+    completion: "view",
+    passScore: null,
+    young: false,
+    content: plainContent("Water rises where the rock gives way."),
+    publish: false,
+  });
+  await api.learning.publishModule({
+    id: module.id,
+    expectedVersion: module.version,
+  });
 
   await signInWith(page, TEACHER, PASSWORD, "/today");
   await page.goto(`/modules/${module.id}?tab=discussions`);
@@ -769,7 +785,7 @@ test("a reviewer comments on a passage by its review date, and the author says h
   await reviewer.goto(`/assignments/${saved.id}`);
   await untilHydrated(reviewer);
   const reviewing = reviewer.getByRole("region", { name: "Peer review" });
-  await expect(reviewing.getByText(/^Reviews are due /)).toBeVisible();
+  await expect(reviewing.getByText(/Reviews are due /)).toBeVisible();
   await reviewing.getByText("sings").dblclick();
   await reviewing
     .getByRole("textbox", { name: /Your comment on/ })
@@ -886,9 +902,10 @@ test("a teacher sees at a glance which students uploaded their own version of th
   );
   await student.goto(`/assignments/${saved.id}`);
   await untilHydrated(student);
-  await student.getByRole("button", { name: /^Open: worksheet\.txt/ }).focus();
-  await student.getByRole("button", { name: /^Open: worksheet\.txt/ }).click();
-  await student.keyboard.press("Escape");
+  await student
+    .getByRole("textbox", { name: "Your answer" })
+    .getByText("worksheet.txt", { exact: true })
+    .click();
   await student
     .getByRole("toolbar", { name: "File options" })
     .locator("input[type=file]")

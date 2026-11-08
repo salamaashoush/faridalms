@@ -75,7 +75,7 @@ test("the office drops pictures into the library, tags them and finds them by ta
     .filter({ hasText: `museum-${run}.png` })
     .getByRole("button", { name: /Actions for/ })
     .click();
-  await page.getByRole("menuitem", { name: "Describe" }).click();
+  await page.getByRole("menuitem", { name: "Edit details" }).click();
   await page.getByRole("textbox", { name: "Title" }).fill(`Museum ${run}`);
   await page.getByRole("button", { name: "Save" }).click();
   await expect(grid.getByText(`Museum ${run}`)).toBeVisible();
@@ -89,14 +89,22 @@ test("an upload cut off by a reload is picked up and finished", async ({
   await signIn(page, "admin");
   await page.goto("/media");
   await untilHydrated(page);
-  // The bytes never arrive the first time: the page is reloaded mid-upload.
-  await page.route("**/files/*", (route) =>
-    route.request().method() === "PUT" ? undefined : route.continue(),
-  );
+  // The bytes never arrive the first time: the page is reloaded mid-upload,
+  // once they are on their way, by when the browser keeps the upload.
+  let sending: (() => void) | undefined;
+  const sent = new Promise<void>((resolve) => {
+    sending = resolve;
+  });
+  await page.route("**/files/*", (route) => {
+    if (route.request().method() !== "PUT") return route.continue();
+    sending?.();
+    return undefined;
+  });
   await drop(page, [picture(name)]);
   await expect(page.getByRole("list", { name: "Uploading" })).toContainText(
     name,
   );
+  await sent;
   await page.unrouteAll({ behavior: "ignoreErrors" });
   await page.reload();
   await untilHydrated(page);
