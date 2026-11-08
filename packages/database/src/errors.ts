@@ -99,6 +99,7 @@ export const CONFLICTS: Record<string, string> = {
   lesson_projects_key: "lesson_projects.exists",
   lesson_shares_key: "lesson_shares.exists",
   caption_drafts_key: "caption_draft.exists",
+  file_previews_key: "file_preview.exists",
   site_settings_org_key: "conflict.version",
   site_pages_slug_key: "site.slug_taken",
   site_pages_home_key: "site.home_exists",

@@ -65,6 +65,7 @@ import {
   workCommentAnswers,
   bankComments,
   captionDrafts,
+  filePreviews,
   submissionAttempts,
   documentTranslations,
   documentHolds,
@@ -240,6 +241,12 @@ export async function completeFixture(
   await tx
     .insert(fileSubjects)
     .values({ tenantId, fileId: photoId, userId, taggedByUserId: userId });
+  await tx.insert(filePreviews).values({
+    tenantId,
+    storageKey: `t/${tenantId}/f/${photoId}`,
+    kind: "picture",
+    mediaType: "image/jpeg",
+  });
 
   const courtOrder = id();
   const evidence = id();

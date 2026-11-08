@@ -9,6 +9,7 @@
   "dependencies": {
     "@faridalms/makecode": "workspace:*",
     "@faridalms/puzzles": "workspace:*",
+    "thumbhash": "^0.1.1",
     "valibot": "^1.5.0"
   }
 }

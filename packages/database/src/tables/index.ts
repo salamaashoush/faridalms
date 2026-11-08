@@ -19,6 +19,7 @@ export * from "./media";
 export * from "./membership";
 export * from "./messaging";
 export * from "./people";
+export * from "./previews";
 export * from "./privacy";
 export * from "./records";
 export * from "./site";
