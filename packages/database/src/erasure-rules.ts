@@ -137,6 +137,7 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     reviewed: false,
   },
   "core.demographics": { rule: "erased" },
+  "core.discussion_likes": { rule: "erased" },
   "core.discussion_posts": { rule: "erased" },
   "core.document_holds": { rule: "erased" },
   "core.document_comments": {

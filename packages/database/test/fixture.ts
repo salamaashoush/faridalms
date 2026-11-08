@@ -100,6 +100,7 @@ import {
   lessonReleases,
   lessonOpenings,
   programRemarks,
+  discussionLikes,
   discussionPosts,
   ltiKeys,
   ltiLineItems,
@@ -659,12 +660,21 @@ export async function completeFixture(
     .where(eq(submissions.tenantId, tenantId))
     .limit(1);
   if (!submission) throw new Error("the development seed must run first");
-  await tx.insert(discussionPosts).values({
+  const [post] = await tx
+    .insert(discussionPosts)
+    .values({
+      tenantId,
+      assignmentId: submission.assignmentId,
+      authorUserId: submission.studentUserId,
+      content: { root: { type: "root", version: 1, children: [] } },
+      plainText: "",
+    })
+    .returning({ id: discussionPosts.id });
+  if (!post) throw new Error("no discussion post");
+  await tx.insert(discussionLikes).values({
     tenantId,
-    assignmentId: submission.assignmentId,
-    authorUserId: submission.studentUserId,
-    content: { root: { type: "root", version: 1, children: [] } },
-    plainText: "",
+    postId: post.id,
+    userId,
   });
   const [reviewed] = await tx
     .select({

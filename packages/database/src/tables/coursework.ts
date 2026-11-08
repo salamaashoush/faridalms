@@ -34,6 +34,7 @@ import {
 } from "./conventions";
 import { programmeCategories } from "./exams";
 import { gradeScaleVersions } from "./grading";
+import { learningModules } from "./learning";
 import { users } from "./people";
 import { classes } from "./teaching";
 import { tenants } from "./tenancy";
@@ -181,6 +182,8 @@ export const assignments = core.table.withRLS(
      */
     discussionPostFirst: boolean("discussion_post_first"),
     discussionReplies: smallint("discussion_replies"),
+    /** The module a discussion sits in, beside its lessons, when its teacher puts it there. */
+    moduleId: uuid("module_id"),
     /**
      * For peer review: how many classmates' work each student reviews,
      * whether reviewers and authors stay unnamed to each other, when the
@@ -257,6 +260,16 @@ export const assignments = core.table.withRLS(
       "discussion",
       sql`(submission_format = 'discussion') = (discussion_post_first is not null and discussion_replies is not null) and (discussion_replies is null or discussion_replies between 0 and 5)`,
     ),
+    fk(
+      "assignments",
+      [t.tenantId, t.moduleId],
+      [learningModules.tenantId, learningModules.id],
+    ),
+    ck(
+      "assignments",
+      "module",
+      sql`module_id is null or submission_format = 'discussion'`,
+    ),
     ck("assignments", "language", sql`language in ('en', 'ar')`),
     ck(
       "assignments",
@@ -322,6 +335,9 @@ export const assignments = core.table.withRLS(
     index("assignments_year_idx")
       .on(t.tenantId, t.orgId, t.schoolYearId)
       .where(sql`status = 'active'`),
+    index("assignments_module_idx")
+      .on(t.tenantId, t.moduleId)
+      .where(sql`status = 'active' and module_id is not null`),
     ...entityProfile({ integration: true }),
   ],
 );
@@ -831,6 +847,35 @@ export const discussionPosts = core.table.withRLS(
       .where(sql`status = 'active'`),
     ...entityProfile(),
     ...redact(erasureOf("author_user_id")),
+  ],
+);
+
+/**
+ * Someone liking a post in a discussion: one like a person a post. Taking
+ * it back tombstones the row, and liking again adds another.
+ */
+export const discussionLikes = core.table.withRLS(
+  "discussion_likes",
+  {
+    ...tenantColumns(),
+    postId: uuid("post_id").notNull(),
+    userId: uuid("user_id").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("discussion_likes", t.tenantId, t.id),
+    ...baseConstraints("discussion_likes", t, tenants),
+    fk(
+      "discussion_likes",
+      [t.tenantId, t.postId],
+      [discussionPosts.tenantId, discussionPosts.id],
+    ),
+    fk("discussion_likes", [t.tenantId, t.userId], [users.tenantId, users.id]),
+    uniqueIndex("discussion_likes_key")
+      .on(t.tenantId, t.postId, t.userId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    ...eraseAndDelete(erasureOf("user_id")),
   ],
 );
 

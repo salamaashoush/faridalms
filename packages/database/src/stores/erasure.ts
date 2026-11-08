@@ -621,6 +621,11 @@ export async function eraseSubject(
     sql`delete from core.lesson_runs where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid
         returning 1`,
   );
+  await remove(
+    "discussion_likes",
+    sql`core.discussion_likes`,
+    sql`user_id = ${s}::uuid`,
+  );
   for (const table of [
     "lesson_code",
     "lesson_projects",
