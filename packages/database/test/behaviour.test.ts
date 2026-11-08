@@ -1006,10 +1006,6 @@ describe("other runtime roles", () => {
       { text: "select name from core.site_enquiries" },
     ]);
     expect(read.error?.message).toContain("permission denied");
-    const thread = await probe("site", a.tenantId, [
-      { text: "select count(*) from core.site_enquiry_entries" },
-    ]);
-    expect(thread.error?.message).toContain("permission denied");
   });
 
   test("site reads only public org columns, integration reads users but not health or documents", async () => {

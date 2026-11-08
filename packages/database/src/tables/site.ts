@@ -33,7 +33,6 @@ import {
   erasureListed,
   fk,
   instant,
-  ledgerProfile,
   pk,
   roles,
   tenantColumns,
@@ -568,71 +567,5 @@ export const siteEnquiries = core.table.withRLS(
       to: roles.site,
       using: sql`status = 'active' and created_at > statement_timestamp() - interval '1 day'`,
     }),
-  ],
-);
-
-type LegacyEntryKind =
-  | "note"
-  | "call"
-  | "email"
-  | "meeting"
-  | "reply"
-  | "state"
-  | "assigned";
-
-/**
- * What an enquiry's thread held before it became a conversation in the
- * admissions mailbox. The move copied every row into the conversation and
- * nothing reads or writes here; the table goes once no release that wrote
- * it runs, after a last copy of anything such a release added meanwhile.
- */
-export const siteEnquiryEntries = core.table.withRLS(
-  "site_enquiry_entries",
-  {
-    ...tenantColumns(),
-    orgId: uuid("org_id").notNull(),
-    enquiryId: uuid("enquiry_id").notNull(),
-    kind: text("kind").$type<LegacyEntryKind>().notNull(),
-    body: text("body").notNull().default(""),
-    details: jsonb("details")
-      .$type<Record<string, unknown>>()
-      .notNull()
-      .default(sql`'{}'`),
-    authorUserId: uuid("author_user_id"),
-    createdAt: instant("created_at")
-      .notNull()
-      .default(sql`statement_timestamp()`),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("site_enquiry_entries", t.tenantId, t.id),
-    fk("site_enquiry_entries", [t.tenantId], [tenants.tenantId]),
-    fk("site_enquiry_entries", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
-    fk(
-      "site_enquiry_entries",
-      [t.tenantId, t.enquiryId],
-      [siteEnquiries.tenantId, siteEnquiries.id],
-    ),
-    fk(
-      "site_enquiry_entries",
-      [t.tenantId, t.authorUserId],
-      [users.tenantId, users.id],
-    ),
-    ck(
-      "site_enquiry_entries",
-      "kind",
-      sql`kind in ('note', 'call', 'email', 'meeting', 'reply', 'state', 'assigned')`,
-    ),
-    ck("site_enquiry_entries", "body", sql`char_length(body) <= 5200`),
-    ck(
-      "site_enquiry_entries",
-      "details",
-      sql`jsonb_typeof(details) = 'object' and octet_length(details::text) <= 4096`,
-    ),
-    index("site_enquiry_entries_enquiry_idx").on(
-      t.tenantId,
-      t.enquiryId,
-      t.createdAt,
-    ),
-    ...ledgerProfile(),
   ],
 );

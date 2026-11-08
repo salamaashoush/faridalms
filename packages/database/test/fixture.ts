@@ -18,10 +18,8 @@ import {
   absenceReports,
   academicSessions,
   accessRoles,
-  attendanceContacts,
   attendanceSettings,
   siteEnquiries,
-  siteEnquiryEntries,
   messageDrafts,
   accounts,
   calendarFeeds,
@@ -1092,14 +1090,6 @@ export async function completeFixture(
     span: "[2026-11-02,2026-11-03)",
     reasonDescriptorId: illness,
   });
-  await tx.insert(attendanceContacts).values({
-    tenantId,
-    orgId: schoolId,
-    studentUserId: relationship.student,
-    dayOn: "2026-11-02",
-    outcome: "no_answer",
-    recordedByUserId: userId,
-  });
   await tx.insert(studentMovements).values({
     tenantId,
     orgId: schoolId,
@@ -1265,8 +1255,8 @@ export async function completeFixture(
     targetYearId: nextYear,
     plan: { classes: [], students: [] },
   });
-  // What a release before conversations wrote: an enquiry with a thread of
-  // its own, which the move into Messages turns into a conversation.
+  // What a release before conversations wrote: an enquiry with no
+  // conversation, which the move into Messages gives one.
   const legacyEnquiry = id();
   await tx.insert(siteEnquiries).values({
     tenantId,
@@ -1283,33 +1273,6 @@ export async function completeFixture(
     assigneeUserId: userId,
     createdByUserId: userId,
   });
-  await tx.insert(siteEnquiryEntries).values([
-    {
-      tenantId,
-      orgId: schoolId,
-      enquiryId: legacyEnquiry,
-      kind: "note",
-      body: "Prefers mornings.",
-      authorUserId: userId,
-    },
-    {
-      tenantId,
-      orgId: schoolId,
-      enquiryId: legacyEnquiry,
-      kind: "reply",
-      body: "Dear Salama, Tuesday at ten suits us.",
-      details: { subject: "Visiting", locale: "en" },
-      authorUserId: userId,
-    },
-    {
-      tenantId,
-      orgId: schoolId,
-      enquiryId: legacyEnquiry,
-      kind: "state",
-      details: { from: "open", to: "in_progress", automatic: true },
-      authorUserId: userId,
-    },
-  ]);
   await tx.insert(messageDrafts).values({
     tenantId,
     orgId: schoolId,

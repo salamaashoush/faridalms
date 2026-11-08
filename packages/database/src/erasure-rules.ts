@@ -64,11 +64,6 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     why: "A student's declaration on their own work; held with the work while an exam session keeps it.",
     reviewed: false,
   },
-  "core.attendance_contacts": {
-    rule: "to_erase",
-    why: "Calls about an absence, being moved into Messages.",
-    reviewed: false,
-  },
   "core.attendance_events": {
     rule: "kept",
     why: "The statutory attendance record.",
@@ -284,11 +279,6 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     reviewed: false,
   },
   "core.site_enquiries": { rule: "erased" },
-  "core.site_enquiry_entries": {
-    rule: "kept",
-    why: "Names the member of staff who did it; the record belongs to the school.",
-    reviewed: false,
-  },
   "core.site_pages": {
     rule: "kept",
     why: "Names the member of staff who did it; the record belongs to the school.",

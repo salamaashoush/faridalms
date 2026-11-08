@@ -1,0 +1,414 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "4a0405b5-b697-40f9-9e9f-b9a3ef453810",
+  "prevIds": [
+    "a703c553-d0a2-46a8-9e24-55a484f2c1c2"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "attendance_contacts"
+      ],
+      "writes": [
+        "s|pol|core.attendance_contacts.tenant_isolation",
+        "n|pol|core.attendance_contacts.tenant_isolation",
+        "e|pol|core.attendance_contacts.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.attendance_contacts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "attendance_contacts"
+      ],
+      "writes": [
+        "s|pol|core.attendance_contacts.owner_all",
+        "n|pol|core.attendance_contacts.owner_all",
+        "e|pol|core.attendance_contacts.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.attendance_contacts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "attendance_contacts"
+      ],
+      "writes": [
+        "s|pol|core.attendance_contacts.p_select",
+        "n|pol|core.attendance_contacts.p_select",
+        "e|pol|core.attendance_contacts.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.attendance_contacts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "attendance_contacts"
+      ],
+      "writes": [
+        "s|pol|core.attendance_contacts.p_insert",
+        "n|pol|core.attendance_contacts.p_insert",
+        "e|pol|core.attendance_contacts.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.attendance_contacts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "attendance_contacts"
+      ],
+      "writes": [
+        "s|pol|core.attendance_contacts.p_update",
+        "n|pol|core.attendance_contacts.p_update",
+        "e|pol|core.attendance_contacts.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.attendance_contacts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiry_entries"
+      ],
+      "writes": [
+        "s|pol|core.site_enquiry_entries.tenant_isolation",
+        "n|pol|core.site_enquiry_entries.tenant_isolation",
+        "e|pol|core.site_enquiry_entries.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiry_entries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiry_entries"
+      ],
+      "writes": [
+        "s|pol|core.site_enquiry_entries.owner_all",
+        "n|pol|core.site_enquiry_entries.owner_all",
+        "e|pol|core.site_enquiry_entries.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiry_entries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiry_entries"
+      ],
+      "writes": [
+        "s|pol|core.site_enquiry_entries.p_select",
+        "n|pol|core.site_enquiry_entries.p_select",
+        "e|pol|core.site_enquiry_entries.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiry_entries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiry_entries"
+      ],
+      "writes": [
+        "s|pol|core.site_enquiry_entries.p_insert",
+        "n|pol|core.site_enquiry_entries.p_insert",
+        "e|pol|core.site_enquiry_entries.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiry_entries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "attendance_contacts"
+      ],
+      "writes": [
+        "s|tbl|core.attendance_contacts",
+        "n|tbl|core.attendance_contacts",
+        "e|tbl|core.attendance_contacts",
+        "n|rel|core.attendance_contacts",
+        "n|type|core.attendance_contacts"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiry_entries"
+      ],
+      "writes": [
+        "s|tbl|core.site_enquiry_entries",
+        "n|tbl|core.site_enquiry_entries",
+        "e|tbl|core.site_enquiry_entries",
+        "n|rel|core.site_enquiry_entries",
+        "n|type|core.site_enquiry_entries"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"core\",\"attendance_contacts\"]"
+    },
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"core\",\"site_enquiry_entries\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"attendance_contacts\",\"tenant_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"attendance_contacts\",\"id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"attendance_contacts\",\"org_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"attendance_contacts\",\"student_user_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"attendance_contacts\",\"day_on\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"attendance_contacts\",\"outcome\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"attendance_contacts\",\"note\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"attendance_contacts\",\"recorded_by_user_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"attendance_contacts\",\"status\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"attendance_contacts\",\"date_last_modified\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"attendance_contacts\",\"version\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"attendance_contacts\",\"metadata\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"attendance_contacts\",\"created_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_enquiry_entries\",\"tenant_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_enquiry_entries\",\"id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_enquiry_entries\",\"org_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_enquiry_entries\",\"enquiry_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_enquiry_entries\",\"kind\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_enquiry_entries\",\"body\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_enquiry_entries\",\"details\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_enquiry_entries\",\"author_user_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_enquiry_entries\",\"created_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"core\",\"attendance_contacts_day_idx\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"core\",\"site_enquiry_entries_enquiry_idx\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"attendance_contacts\",\"attendance_contacts_tenant_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"attendance_contacts\",\"attendance_contacts_tenant_id_org_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"attendance_contacts\",\"attendance_contacts_tenant_id_student_user_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"attendance_contacts\",\"attendance_contacts_tenant_id_recorded_by_user_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_enquiry_entries\",\"site_enquiry_entries_tenant_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_enquiry_entries\",\"site_enquiry_entries_tenant_id_org_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_enquiry_entries\",\"site_enquiry_entries_tenant_id_enquiry_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_enquiry_entries\",\"site_enquiry_entries_tenant_id_author_user_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"core\",\"attendance_contacts\",\"attendance_contacts_pkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"core\",\"site_enquiry_entries\",\"site_enquiry_entries_pkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"attendance_contacts\",\"attendance_contacts_status_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"attendance_contacts\",\"attendance_contacts_version_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"attendance_contacts\",\"attendance_contacts_metadata_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"attendance_contacts\",\"attendance_contacts_outcome_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"attendance_contacts\",\"attendance_contacts_note_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_enquiry_entries\",\"site_enquiry_entries_kind_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_enquiry_entries\",\"site_enquiry_entries_body_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_enquiry_entries\",\"site_enquiry_entries_details_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"attendance_contacts\",\"tenant_isolation\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"attendance_contacts\",\"owner_all\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"attendance_contacts\",\"p_select\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"attendance_contacts\",\"p_insert\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"attendance_contacts\",\"p_update\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_enquiry_entries\",\"tenant_isolation\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_enquiry_entries\",\"owner_all\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_enquiry_entries\",\"p_select\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_enquiry_entries\",\"p_insert\"]"
+    }
+  ]
+}

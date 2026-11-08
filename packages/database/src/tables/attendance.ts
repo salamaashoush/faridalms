@@ -1,7 +1,6 @@
 import type {
   AbsenceReportKind,
   AbsenceReportStatus,
-  ContactOutcome,
 } from "@faridalms/domain/attendance";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
@@ -276,49 +275,6 @@ export const absenceReports = core.table.withRLS(
     index("absence_reports_open_idx")
       .on(t.tenantId, t.orgId)
       .where(sql`status = 'active' and decision = 'pending'`),
-    ...entityProfile(),
-  ],
-);
-
-/**
- * The office trying to reach a family about a child's unexplained absence:
- * the first-day call and those after it, kept for the safeguarding record.
- */
-export const attendanceContacts = core.table.withRLS(
-  "attendance_contacts",
-  {
-    ...tenantColumns(),
-    orgId: uuid("org_id").notNull(),
-    studentUserId: uuid("student_user_id").notNull(),
-    dayOn: date("day_on", { mode: "string" }).notNull(),
-    outcome: text("outcome").$type<ContactOutcome>().notNull(),
-    note: text("note"),
-    recordedByUserId: uuid("recorded_by_user_id").notNull(),
-    ...entityColumns(),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("attendance_contacts", t.tenantId, t.id),
-    ...baseConstraints("attendance_contacts", t, tenants),
-    fk("attendance_contacts", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
-    fk(
-      "attendance_contacts",
-      [t.tenantId, t.studentUserId],
-      [users.tenantId, users.id],
-    ),
-    fk(
-      "attendance_contacts",
-      [t.tenantId, t.recordedByUserId],
-      [users.tenantId, users.id],
-    ),
-    ck(
-      "attendance_contacts",
-      "outcome",
-      sql`outcome in ('reached', 'no_answer', 'left_message', 'messaged')`,
-    ),
-    ck("attendance_contacts", "note", sql`char_length(note) between 1 and 500`),
-    index("attendance_contacts_day_idx")
-      .on(t.tenantId, t.orgId, t.dayOn)
-      .where(sql`status = 'active'`),
     ...entityProfile(),
   ],
 );
