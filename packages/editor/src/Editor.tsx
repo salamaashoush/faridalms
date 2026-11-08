@@ -25,6 +25,7 @@ import {
   $setSelection,
   BLUR_COMMAND,
   COMMAND_PRIORITY_LOW,
+  configExtension,
   defineExtension,
   KEY_DOWN_COMMAND,
 } from "lexical";
@@ -95,6 +96,9 @@ import { cx } from "./ui";
 const QUIET_REPLACE = "fe-quiet-replace";
 const TYPING_PAUSE_MS = 200;
 const MAX_TYPING_WAIT_MS = 1000;
+// Each step back holds a copy of the document's node map, so an unbounded
+// history grows by megabytes a minute in a long lesson; Word keeps 100.
+const UNDO_STEPS = 200;
 interface Stats {
   characters: number;
   words: number;
@@ -266,7 +270,9 @@ export default function Editor({
       $initialEditorState: collaboration ? null : JSON.stringify(value),
       dependencies: [
         ...contentExtensions,
-        ...(collaboration ? [] : [HistoryExtension]),
+        ...(collaboration
+          ? []
+          : [configExtension(HistoryExtension, { maxDepth: UNDO_STEPS })]),
         CodePrismExtension,
         ShortcutsExtension,
       ],
