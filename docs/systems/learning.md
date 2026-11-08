@@ -288,6 +288,32 @@ From [../research/early-years.md](../research/early-years.md).
 - Judgements, the reports shared and their links are erased with the
   child.
 
+## Reading aloud
+
+- A "Read aloud" question is offered wherever questions are: lessons, young
+  lessons and quizzes. A young lesson shows its passage large above the
+  record button and never reads it to the child.
+- The teacher marks a reading word by word from a lesson's Answers tab or
+  a quiz's, one student's attempt at a time, and may score its prosody on
+  the Multidimensional Fluency Scale (expression and volume, phrasing,
+  smoothness, pace, each 1 to 4), shown with the rest of the marking. The
+  same scale is offered as a ready-made rubric for an assignment.
+- Every reading marked this school year, in lessons and quizzes, comes to
+  words correct a minute and accuracy. Staff who reach a student see them
+  on the record's Coursework tab as a chart per language against the 50th
+  percentile for the grade the student was in, at that time of year
+  (autumn August to November, winter December to February, spring from
+  March), each reading called below, near or above it by ten words, with
+  the words to practise. The student sees their own figures and the words
+  their teacher marked, without norms, on their work page.
+- A school's norms live in Settings, Reading, by grade, time of year and
+  percentile. English starts from Hasbrouck and Tindal's 2017 norms for
+  grades 1 to 6; Arabic starts empty, as there are no published norms to
+  start from. Saved norms replace the defaults until the school goes back
+  to them.
+- Nothing listens to the recordings: speech recognition waits on the
+  owner's decision about language models.
+
 ## Discussions
 
 - A discussion is coursework set for one class. Its teacher may stand it

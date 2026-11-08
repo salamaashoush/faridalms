@@ -44,7 +44,9 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: true,
     schoolSwitch: false,
-    systems: ["coursework", "grading", "bank"],
+    // Reading aloud is marked in quizzes and lessons alike; its record and
+    // norms stand with the coursework every school has.
+    systems: ["coursework", "grading", "bank", "reading"],
   },
   peer_review: {
     requires: [["coursework"]],

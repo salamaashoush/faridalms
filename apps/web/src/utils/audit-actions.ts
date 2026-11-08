@@ -221,6 +221,8 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "person.photo_set": m.auditPersonPhotoSet,
   "placement.change": m.auditPlacementChange,
   "plan.update": m.auditPlanUpdate,
+  "reading.norms": m.auditReadingNorms,
+  "reading.norms_reset": m.auditReadingNormsReset,
   "entitlements.update": m.auditEntitlementsUpdate,
   "onboarding.done": m.auditOnboardingDone,
   "onboarding.undone": m.auditOnboardingUndone,

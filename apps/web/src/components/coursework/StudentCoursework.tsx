@@ -5,6 +5,7 @@ import { Download } from "lucide-react";
 import * as m from "~/i18n/messages";
 import { studentCourseworkQuery } from "~/queries/coursework";
 
+import { StudentReading } from "../reading/StudentReading";
 import { TO_DO, WorkSection } from "./LearnerList";
 import { StudentGrades } from "./StudentGrades";
 
@@ -54,6 +55,7 @@ export function StudentCoursework({ studentId }: StudentCourseworkProps) {
         {...props}
       />
       <StudentGrades studentId={studentId} />
+      <StudentReading studentId={studentId} />
     </div>
   );
 }

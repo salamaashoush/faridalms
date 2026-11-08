@@ -9,9 +9,11 @@ import { Download } from "lucide-react";
 import * as v from "valibot";
 
 import { ByDay, DONE, TO_DO } from "~/components/coursework/LearnerList";
+import { MyReading } from "~/components/reading/MyReading";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { myCourseworkQuery } from "~/queries/coursework";
+import { myReadingQuery } from "~/queries/reading";
 import { formatNumber } from "~/utils/datetime";
 
 export const Route = createFileRoute("/_app/me/assignments")({
@@ -19,7 +21,10 @@ export const Route = createFileRoute("/_app/me/assignments")({
     tab: v.fallback(v.optional(v.picklist(LEARNER_TABS), "to_do"), "to_do"),
   }),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(myCourseworkQuery);
+    await Promise.all([
+      context.queryClient.ensureQueryData(myCourseworkQuery),
+      context.queryClient.ensureQueryData(myReadingQuery),
+    ]);
   },
   component: ToDoPage,
 });
@@ -76,6 +81,9 @@ function ToDoPage() {
       >
         <ByDay items={lists[tab]} linked empty={empty[tab]} />
       </RecordTabs>
+      <div className="mt-6">
+        <MyReading />
+      </div>
     </>
   );
 }

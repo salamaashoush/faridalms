@@ -36,12 +36,14 @@ import { AttendanceRules } from "~/components/attendance/AttendanceRules";
 import { UsageBar } from "~/components/files/UsageBar";
 import { FeaturesCard } from "~/components/learning/FeaturesCard";
 import { lastDay } from "~/components/people/format";
+import { ReadingNorms } from "~/components/reading/ReadingNorms";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
 import { attendanceSettingsQuery } from "~/queries/attendance";
 import { subjectsQuery } from "~/queries/classes";
 import { ltiToolsQuery } from "~/queries/lti";
+import { readingNormsQuery } from "~/queries/reading";
 import {
   schoolFeaturesQuery,
   schoolProfileQuery,
@@ -54,7 +56,14 @@ import { requirePage } from "~/utils/page-access";
 
 const searchSchema = v.object({
   section: v.optional(
-    v.picklist(["school", "subjects", "attendance", "access", "tools"]),
+    v.picklist([
+      "school",
+      "subjects",
+      "attendance",
+      "reading",
+      "access",
+      "tools",
+    ]),
     "school",
   ),
   q: v.optional(v.string(), ""),
@@ -88,6 +97,8 @@ export const Route = createFileRoute("/_app/_staff/settings")({
       await queryClient.ensureQueryData(attendanceSettingsQuery);
     else if (deps.section === "tools")
       await queryClient.ensureQueryData(ltiToolsQuery);
+    else if (deps.section === "reading")
+      await queryClient.ensureQueryData(readingNormsQuery);
     else
       await Promise.all([
         queryClient.ensureQueryData(accessRolesQuery),
@@ -153,6 +164,7 @@ function SettingsRoute() {
           { value: "school", label: m.settingsSchoolTab() },
           { value: "subjects", label: m.adminSubjectsSection() },
           { value: "attendance", label: m.attendanceTitle() },
+          { value: "reading", label: m.readingSettingsTab() },
           { value: "access", label: m.adminPermissionsSection() },
           { value: "tools", label: m.ltiTools() },
         ]}
@@ -166,6 +178,10 @@ function SettingsRoute() {
         ) : search.section === "attendance" ? (
           <SettingsPage>
             <AttendanceRules />
+          </SettingsPage>
+        ) : search.section === "reading" ? (
+          <SettingsPage>
+            <ReadingNorms />
           </SettingsPage>
         ) : search.section === "tools" ? (
           <OutsideTools />

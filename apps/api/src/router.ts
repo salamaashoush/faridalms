@@ -49,6 +49,7 @@ import * as peerSystem from "./systems/peer";
 import * as peopleSystem from "./systems/people";
 import * as privacySystem from "./systems/privacy";
 import * as productSystem from "./systems/product";
+import * as readingSystem from "./systems/reading";
 import * as recordsSystem from "./systems/records";
 import * as rolloverSystem from "./systems/rollover";
 import * as schoolSystem from "./systems/school";
@@ -130,6 +131,7 @@ export const router = {
   standards: owned("standards", standardsSystem),
   coursework: owned("coursework", courseworkSystem),
   peer: owned("peer", peerSystem),
+  reading: owned("reading", readingSystem),
   exams: owned("exams", examsSystem),
   gradebook: owned("gradebook", gradebookSystem),
   grading: owned("grading", gradingSystem),
