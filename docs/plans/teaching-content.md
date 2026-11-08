@@ -877,13 +877,11 @@ Scratch Text to Speech, Translate and tutorials.
    lists what its tools scored the student, with a button to take the
    score, scaled to the assignment's points, as the mark. A student's
    scores go when they are erased.
-   Left: Names and Role Provisioning, so a tool can read a course's
-   roster, and Submission Review, launching from a score to the work
-   behind it. Picking several items at once, and content embedded in the
-   page rather than opened in a window. A tool's columns in the class
-   gradebook; Dynamic Registration, so a tool registers itself from one
-   address; rotating the school's signing key on a schedule; a student
-   seeing their tool scores in Farida.
+   Class lists, Submission Review, picking several items, tools framed in
+   the page, tool columns in the gradebook and Dynamic Registration are
+   done (`docs/systems/interoperability.md`). Left: rotating the school's
+   signing key on a schedule; a student seeing their tool scores in
+   Farida.
 2. **QTI 3 and Common Cartridge** import and export, so content comes in
    from Moodle and Canvas and leaves again.
    Done: a module exports its questions as a QTI 3 package, each kind QTI
@@ -946,9 +944,8 @@ Scratch Text to Speech, Translate and tutorials.
    how much was seen. Students are named by their id under the school's
    address, statements by ids the same records always give, so a record
    store takes a second export without doubling it.
-   Left: sending statements to a school's own record store as they
-   happen; assignments' marks and outside tools' scores as statements;
-   the cmi5 profile for packages launched from a store.
+   Statements go to a school's own record store as they happen, marks
+   and tools' scores among them, and cmi5 packages launch from a lesson.
 
 Waiting for the owner: help from a language model for teachers (drafting
 questions, levelling a text, translating), teaching languages beyond

@@ -13,15 +13,6 @@ table with an `erasure-rules.ts` entry, capabilities through
 components in `packages/ui` with named props, a spec and a
 `docs/design-system.md` entry, and no feature lost on the way.
 
-## G. Interoperability
-
-1. LTI Advantage: Names and Role Provisioning, Submission Review, picking
-   several items at once, content embedded in the page, a tool's columns
-   in the class gradebook, Dynamic Registration.
-2. xAPI: statements sent to a school's own record store as they happen,
-   assignment marks and outside tools' scores as statements, and cmi5 for
-   packages launched from a store.
-
 ## H. Editor core
 
 1. One question-and-answer model shared by quizzes, forms and admission
@@ -61,6 +52,9 @@ Each has a recommendation; nothing is built until the owner chooses.
 - Collaboration: a module discussion belongs to one class, not the module's
   every class; a quiz's peer reviewer reads typed answers only.
 - Early years: Development Matters statements are in English only.
+- Interoperability: sent statements keep their rows without bodies, so
+  the queue table grows; a cmi5 package's satisfaction does not complete
+  its lesson; every cmi5 launch is in Normal mode.
 
 ## Outside the code
 
