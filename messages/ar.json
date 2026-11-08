@@ -4415,6 +4415,14 @@
   "lrnPacedBanner": "يقود معلمك هذا الدرس. يُفتح كل جزء عندما ينتقل الفصل إليه.",
   "lrnPacedPaused": "متوقف مؤقتًا. انظر إلى معلمك.",
   "lrnPacedWaits": "يفتح معلمك الجزء التالي.",
+  "lrnPacedScreen": "الشاشة {number} من {total}",
+  "lrnPacedScreenFact": "الشاشة",
+  "lrnPacedScreensHint": "يُقاد درس الصغار شاشةً بعد شاشة كما يلعبه الأطفال: تُفتح كل شاشة على أجهزتهم عندما تنقر الشاشة التالية.",
+  "lrnPacedOneScreen": "هذا الدرس شاشة واحدة.",
+  "lrnPacedPreviousScreen": "الشاشة السابقة",
+  "lrnPacedNextScreen": "الشاشة التالية",
+  "lrnPacedYoungBadge": "مع معلمك",
+  "lrnPacedYoungWait": "انتظر معلمك",
   "lrnQuestionCount": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

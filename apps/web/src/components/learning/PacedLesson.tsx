@@ -59,7 +59,7 @@ type OpenQuestion = Paced["answers"][number];
 type Shown = Paced["shown"];
 
 const placeOf = (data: Paced) =>
-  m.lrnPacedPart({
+  (data.screens ? m.lrnPacedScreen : m.lrnPacedPart)({
     number: formatNumber(data.step + 1),
     total: formatNumber(data.parts.length),
   });
@@ -221,7 +221,10 @@ export function PacedLesson({ pacedId }: PacedLessonProps) {
       label: m.lrnPacedClassFact(),
       value: data.class ? classTitle(data.class) : "",
     },
-    { label: m.lrnPacedPartFact(), value: placeOf(data) },
+    {
+      label: data.screens ? m.lrnPacedScreenFact() : m.lrnPacedPartFact(),
+      value: placeOf(data),
+    },
     { label: m.lrnPacedHereFact(), value: hereOf(data) },
   ];
   return (
@@ -291,36 +294,50 @@ export function PacedLesson({ pacedId }: PacedLessonProps) {
             <RecordSection
               title={placeOf(data)}
               description={
-                data.parts.length > 1
-                  ? m.lrnPacedPartsHint()
-                  : m.lrnPacedOnePart()
+                data.screens
+                  ? data.parts.length > 1
+                    ? m.lrnPacedScreensHint()
+                    : m.lrnPacedOneScreen()
+                  : data.parts.length > 1
+                    ? m.lrnPacedPartsHint()
+                    : m.lrnPacedOnePart()
               }
             >
               <div className="grid gap-4">
                 <div className="flex flex-wrap items-center gap-2">
+                  {/* A young lesson moves a screen a tap, so its arrows are
+                      big enough to tap without looking away from the room. */}
                   <Button
                     type="button"
                     variant="outline"
-                    className="max-md:h-10"
+                    className={
+                      data.screens ? "h-16 px-6 text-base" : "max-md:h-10"
+                    }
                     disabled={busy || data.step === 0}
                     onClick={() => steer.mutate({ step: data.step - 1 })}
                   >
                     <ArrowLeft aria-hidden className="rtl:rotate-180" />
-                    {m.lrnPacedPrevious()}
+                    {data.screens
+                      ? m.lrnPacedPreviousScreen()
+                      : m.lrnPacedPrevious()}
                   </Button>
                   <Button
                     type="button"
-                    className="max-md:h-10"
+                    className={
+                      data.screens ? "h-16 px-8 text-base" : "max-md:h-10"
+                    }
                     disabled={busy || data.step >= last}
                     onClick={() => steer.mutate({ step: data.step + 1 })}
                   >
-                    {m.lrnPacedNext()}
+                    {data.screens ? m.lrnPacedNextScreen() : m.lrnPacedNext()}
                     <ArrowRight aria-hidden className="rtl:rotate-180" />
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
-                    className="max-md:h-10"
+                    className={
+                      data.screens ? "h-16 px-6 text-base" : "max-md:h-10"
+                    }
                     aria-pressed={data.paused}
                     disabled={busy}
                     onClick={() => steer.mutate({ paused: !data.paused })}

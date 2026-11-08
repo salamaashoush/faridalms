@@ -1072,6 +1072,7 @@ export function LessonPlayer({ lessonId }: LessonPlayerProps) {
           position={data.position}
           onReach={reach}
           watch={watch}
+          paced={data.screens ? paced : null}
           onClose={() =>
             void navigate({
               to: "/modules/$moduleId",

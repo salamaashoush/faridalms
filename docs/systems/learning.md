@@ -116,6 +116,11 @@ From [../research/early-years.md](../research/early-years.md).
 - A teacher of a young class turns its lesson sound effects off on the
   class page, for a room full of tablets; read and recorded words still
   play, and the child's own sound button goes.
+- A young lesson its teacher leads live takes each child, once they have
+  tapped start, to the screen the teacher opens, and no further; a child
+  may go back to an earlier screen. The teacher moves the class with big
+  Next and Previous screen buttons. A pause covers the screen, says "Wait
+  for your teacher" aloud and stops every tap until the lesson goes on.
 - Children see no points or scores. Soft notes and a word of praise naming
   what they did answer each try, and the end of the lesson says so once.
 - A young child's home is up to six big cards, a lesson already begun first,
@@ -152,7 +157,9 @@ From [../research/early-years.md](../research/early-years.md).
   who got a question right after missing it, who is working or finished,
   and who is not in a lesson. Students never see it.
 - Teach live, on a lesson of an open module, leads one class through it
-  part by part, the parts split at its Continue blocks. Students reach the
+  part by part, the parts split at its Continue blocks; a young lesson,
+  where the school has the early years, is led screen by screen, its
+  screens split as the children's player splits them. Students reach the
   parts the teacher has opened and answer nothing while it is paused; the
   teacher's screen shows who has come in and how the open part was
   answered, and a class board shows the same without names. Each start,

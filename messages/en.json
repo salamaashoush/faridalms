@@ -4171,6 +4171,14 @@
   "lrnPacedBanner": "Your teacher is leading this lesson. Each part opens when the class moves on.",
   "lrnPacedPaused": "Paused. Look up at your teacher.",
   "lrnPacedWaits": "Your teacher opens the next part.",
+  "lrnPacedScreen": "Screen {number} of {total}",
+  "lrnPacedScreenFact": "Screen",
+  "lrnPacedScreensHint": "A young lesson is led one screen at a time, as the children play it: each screen opens on their devices when you tap Next screen.",
+  "lrnPacedOneScreen": "This lesson is one screen.",
+  "lrnPacedPreviousScreen": "Previous screen",
+  "lrnPacedNextScreen": "Next screen",
+  "lrnPacedYoungBadge": "With your teacher",
+  "lrnPacedYoungWait": "Wait for your teacher",
   "lrnQuestionCount": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

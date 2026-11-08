@@ -17,6 +17,7 @@ import {
   ArrowRight,
   Check,
   Lightbulb,
+  Pause,
   Play,
   RotateCcw,
   Star,
@@ -355,6 +356,8 @@ export interface YoungLessonProps {
     pending: boolean;
     onChoose: (locale: ContentLocale) => void;
   } | null;
+  /** The screen a teacher leading the lesson live has the class on, and whether they paused it. */
+  paced?: { step: number; paused: boolean } | null;
 }
 
 /**
@@ -380,10 +383,21 @@ export function YoungLesson({
   watch,
   language,
   languages,
+  paced = null,
 }: YoungLessonProps) {
   const steps = useMemo(() => lessonSteps(blocks), [blocks]);
   const hydrated = useHydrated();
   const [at, setAt] = useState<number | "start" | "end">("start");
+  // A child whose teacher leads the lesson goes to each screen the teacher
+  // opens, and on no further than it, once they have tapped start.
+  const ledStep = paced ? Math.min(paced.step, steps.length - 1) : null;
+  const [followed, setFollowed] = useState(ledStep);
+  if (ledStep !== followed) {
+    setFollowed(ledStep);
+    if (ledStep !== null && ledStep >= 0 && typeof at === "number")
+      setAt(ledStep);
+  }
+  const held = paced?.paused === true && typeof at === "number";
   const [sounds, setSounds] = useState(soundsOn);
   const page = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDialogElement>(null);
@@ -509,6 +523,11 @@ export function YoungLesson({
 
   useEffect(() => () => clearTimeout(leaveTimer.current), []);
 
+  // A child cannot read that the teacher has paused, so it is said.
+  useEffect(() => {
+    if (held) sayAloud(m.lrnPacedYoungWait(), null);
+  }, [held]);
+
   useEffect(() => {
     if (at !== "end" || finished.current) return;
     finished.current = true;
@@ -517,6 +536,8 @@ export function YoungLesson({
   }, [at, onFinish]);
 
   const last = at === steps.length - 1;
+  const waiting =
+    ledStep !== null && typeof at === "number" && at >= ledStep && !last;
   const questions = step.filter(isCheckBlock);
   // A choice whose answer was shown waits for the child to tap it.
   const done = questions.every((block) => {
@@ -601,9 +622,9 @@ export function YoungLesson({
             ) : (
               <span className="flex-1" />
             )}
-            {badge ? (
+            {badge || paced ? (
               <span className="shrink-0 rounded-full bg-info/10 px-3 py-1 text-sm font-medium text-info">
-                {badge}
+                {badge ?? m.lrnPacedYoungBadge()}
               </span>
             ) : null}
             {/* A child who reads the other language better taps its name,
@@ -647,9 +668,20 @@ export function YoungLesson({
             ) : null}
           </header>
 
+          {held ? (
+            <output className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 bg-background/90 px-6 text-center">
+              <span className="grid size-28 place-items-center rounded-full bg-warning/15 text-warning">
+                <Pause aria-hidden className="size-14 fill-current" />
+              </span>
+              <span className="text-3xl leading-tight font-bold">
+                {m.lrnPacedYoungWait()}
+              </span>
+            </output>
+          ) : null}
           <div
             ref={page}
             tabIndex={-1}
+            inert={held}
             className="min-h-0 flex-1 overflow-y-auto outline-none"
             onClickCapture={(event) => {
               if (performance.now() - opened.current < HOLDOVER_MS) {
@@ -672,7 +704,15 @@ export function YoungLesson({
                   aria-label={m.lrnYoungStart()}
                   // A tap before the page comes alive would do nothing at all.
                   disabled={!hydrated}
-                  onClick={() => setAt(steps.length > 0 ? resumeAt : "end")}
+                  onClick={() =>
+                    setAt(
+                      steps.length === 0
+                        ? "end"
+                        : ledStep !== null && ledStep >= 0
+                          ? ledStep
+                          : resumeAt,
+                    )
+                  }
                 >
                   <Play
                     aria-hidden
@@ -753,6 +793,7 @@ export function YoungLesson({
             // Wrists rest on the bottom edge, so the arrows sit well above it:
             // at the sides on wide screens, in a raised row on narrow ones.
             <nav
+              inert={held}
               aria-label={m.lrnLessonNav()}
               className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 px-4 pt-3 pb-8 sm:pb-16 lg:pointer-events-none lg:absolute lg:inset-x-0 lg:top-1/2 lg:max-w-none lg:-translate-y-1/2 lg:px-8 lg:pb-0"
             >
@@ -779,8 +820,14 @@ export function YoungLesson({
                   last && "bg-success text-white hover:bg-success/90",
                   done && "motion-safe:animate-[pulse_1.6s_ease-in-out_2]",
                 )}
-                aria-label={last ? m.lrnYoungImDone() : m.lrnYoungNextStep()}
-                disabled={!done}
+                aria-label={
+                  last
+                    ? m.lrnYoungImDone()
+                    : waiting
+                      ? m.lrnPacedYoungWait()
+                      : m.lrnYoungNextStep()
+                }
+                disabled={!done || waiting}
                 onClick={forward}
               >
                 {last ? (
