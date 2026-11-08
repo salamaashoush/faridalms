@@ -167,13 +167,14 @@ test("a school adds its own question to the form, and families answer it", async
   ).toBeVisible();
 
   // The translation rewrites the question's words; what it asks stays.
+  // The words are picked with a triple click: on a Mac, Home and End
+  // scroll the document rather than move the caret, and Shift+Home
+  // selects back to the document's first block.
   await page.getByRole("button", { name: "Arabic", exact: true }).click();
   await page
     .getByRole("textbox", { name: "Your questions" })
     .getByText(question)
-    .click();
-  await page.keyboard.press("End");
-  await page.keyboard.press("Shift+Home");
+    .click({ clickCount: 3 });
   await page.keyboard.insertText(arabic);
   await page.getByRole("button", { name: "Publish changes" }).click();
 
