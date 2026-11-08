@@ -341,8 +341,8 @@ admissions mailbox is read by holders of `admissions:read` or
 mailbox by `attendance:manage`. Its owner is who holds it now, the
 enquiry's assignee for an enquiry. Read state stays per person in `reader`
 rows that grant nothing, and losing the capability loses the mailbox. A
-team's conversation also holds internal entries the family never sees and
-search never indexes: notes, logged calls, meetings and emails, held mail,
+team's conversation also holds internal entries the family never sees,
+which search finds only for the team: notes, logged calls, meetings and emails, held mail,
 and the changes its system records, such as an enquiry moving on or being
 handed to someone. Staff therefore read one timeline, and the record it
 belongs to (an enquiry, an application) keeps only its workflow and draws
@@ -438,7 +438,12 @@ school's. The index holds ids only: every hit is also joined back through
 that rule before anything is shown, so nothing stays findable after a
 relationship ends, and the kinds
 offered follow the viewer's capabilities and the school's switched-on
-areas. Internal entries of team conversations are never indexed. The
+areas. Internal entries of team conversations (notes, logged contacts,
+held mail) are indexed as `team_thread`, a kind of their own, "Team
+notes", offered to whoever reads a mailbox and ranked only among that
+mailbox's conversations; a family's search reads messages alone, as
+`message_thread`, so a word in a note never finds a conversation for it.
+The
 launcher shows the first hits per kind, and a results page keeps the query
 and kind in the URL.
 

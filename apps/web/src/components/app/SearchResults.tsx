@@ -19,6 +19,7 @@ import {
   Inbox,
   Megaphone,
   Newspaper,
+  NotebookPen,
   School,
   Users,
 } from "lucide-react";
@@ -39,6 +40,7 @@ export const SEARCH_KIND_LABEL: Record<SearchKind, () => string> = {
   news: m.searchKindNews,
   events: m.searchKindEvents,
   messages: m.searchKindMessages,
+  notes: m.searchKindNotes,
 };
 
 export const SEARCH_KIND_ICON: Record<SearchKind, LucideIcon> = {
@@ -51,6 +53,7 @@ export const SEARCH_KIND_ICON: Record<SearchKind, LucideIcon> = {
   news: Newspaper,
   events: CalendarDays,
   messages: Inbox,
+  notes: NotebookPen,
 };
 
 const FLAG_LABEL: Record<SearchFlag, () => string> = {

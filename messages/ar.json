@@ -9853,5 +9853,6 @@
   "msgMergeDone": "تم الدمج. أصبحت محادثاتها تخص {name}.",
   "msgMergeGone": "لم تعد جهة الاتصال هذه منفصلة. ابحث مرة أخرى.",
   "msgMergeLinkedApart": "تعود جهتا الاتصال إلى حسابين مختلفين، لذا لا يمكن دمجهما.",
-  "msgMergeAliases": "تكتب أيضًا من {addresses}"
+  "msgMergeAliases": "تكتب أيضًا من {addresses}",
+  "searchKindNotes": "ملاحظات الفريق"
 }

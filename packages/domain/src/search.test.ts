@@ -41,6 +41,12 @@ describe("searchableKinds", () => {
     ]);
   });
 
+  it("offers a team's notes only to those who read a mailbox", () => {
+    expect(searchableKinds(["messages:read"])).not.toContain("notes");
+    expect(searchableKinds(["admissions:read"])).toContain("notes");
+    expect(searchableKinds(["attendance:manage"])).toContain("notes");
+  });
+
   it("leaves only the school's news to someone with no capability", () => {
     expect(searchableKinds([])).toEqual(["announcements", "news"]);
   });

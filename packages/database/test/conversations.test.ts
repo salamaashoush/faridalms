@@ -311,14 +311,22 @@ describe("the move of enquiry threads and logged calls into Messages", () => {
 });
 
 describe("conversations under row security", () => {
-  test("only messages are searchable; a staff note never enters the index", async () => {
+  test("a family finds messages alone; a staff note is found only as the team's", async () => {
     const { a } = harness();
-    const found = await rows<{ kind: string }>(
-      `select x.kind from search.entries e join core.messages x on x.id = e.entity_id
-       where e.tenant_id = $1 and e.entity_type = 'message' group by x.kind`,
+    await moved();
+    const found = await rows<{ kind: string; result_type: string }>(
+      `select x.kind, e.result_type from search.entries e join core.messages x on x.id = e.entity_id
+       where e.tenant_id = $1 and e.entity_type = 'message'
+       group by x.kind, e.result_type order by x.kind`,
       [a.tenantId],
     );
-    expect(found.map((row) => row.kind)).toEqual(["message"]);
+    expect(found.length).toBeGreaterThan(1);
+    for (const row of found)
+      expect([row.kind, row.result_type]).toEqual([
+        row.kind,
+        row.kind === "message" ? "message_thread" : "team_thread",
+      ]);
+    expect(found.some((row) => row.kind === "event")).toBe(false);
     const documents = await rows<{ n: number }>(
       `select count(*)::int as n from search.entries e
        join core.documents d on d.id = e.entity_id

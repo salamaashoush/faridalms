@@ -439,3 +439,45 @@ export async function threadsAmong(tx: Tx, input: Among & ThreadAccess) {
       where t.id = any(${uuidArray(input.ids)}) and t.id in ${threadsReached(input)}`),
   );
 }
+
+interface TeamAccess {
+  tenantId: string;
+  schoolId: string;
+  /** The mailboxes the viewer's capabilities read. */
+  mailboxes: readonly string[];
+}
+
+/** The conversations of the mailboxes the viewer's team shares, internal entries and all. */
+export const teamThreadsReached = (input: TeamAccess) =>
+  sql`(select t.id from core.message_threads t
+    where t.tenant_id = ${input.tenantId}::uuid and t.org_id = ${input.schoolId}::uuid
+      and t.status = 'active' and t.mailbox = any(${textArray(input.mailboxes)}))`;
+
+/**
+ * Team conversations among `ids` the viewer's mailboxes still hold, named
+ * by their subject or the family in them, with the latest internal entry
+ * that matched: a note, a contact logged, or held mail.
+ */
+export async function teamThreadsAmong(tx: Tx, input: Among & TeamAccess) {
+  return found(
+    await tx.execute<Raw>(sql`
+      select t.id, 'team_thread' as type,
+        coalesce(t.subject, (select string_agg(coalesce(${name(input.ar, "u")}, c.display_name), ', ')
+          from core.thread_members o
+          left join core.users u on u.tenant_id = o.tenant_id and u.id = o.user_id
+          left join core.message_contacts c on c.tenant_id = o.tenant_id and c.id = o.contact_id
+          where o.tenant_id = t.tenant_id and o.thread_id = t.id and o.status = 'active'
+            and o.left_at is null and o.role = 'member'),
+          (select ${name(input.ar, "s")} from core.users s
+            where s.tenant_id = t.tenant_id and s.id = t.student_user_id)) as title,
+        (select ${snippetOf(sql`g.body`, input.q)} from core.messages g
+          where g.tenant_id = t.tenant_id and g.thread_id = t.id and g.status = 'active'
+            and g.kind not in ('message', 'event') and g.redacted_at is null
+            and (to_tsvector('english'::regconfig, g.body) @@ websearch_to_tsquery('english'::regconfig, ${input.q})
+              or to_tsvector('arabic'::regconfig, g.body) @@ websearch_to_tsquery('arabic'::regconfig, ${input.q}))
+          order by g.created_at desc limit 1) as snippet,
+        null as context, ${isoOf(sql`t.last_message_at`)} as "when", null as flag, null as roles
+      from core.message_threads t
+      where t.id = any(${uuidArray(input.ids)}) and t.id in ${teamThreadsReached(input)}`),
+  );
+}

@@ -4,6 +4,7 @@ import type { Capability } from "./capabilities";
 import type { ModuleId } from "./modules";
 
 import { MENTION_KINDS } from "./content";
+import { MAILBOXES } from "./messages";
 
 export const SEARCH_KINDS = [
   "students",
@@ -15,6 +16,7 @@ export const SEARCH_KINDS = [
   "news",
   "events",
   "messages",
+  "notes",
 ] as const;
 export type SearchKind = (typeof SEARCH_KINDS)[number];
 
@@ -61,6 +63,9 @@ const KIND_CAPABILITIES: Record<SearchKind, readonly Capability[]> = {
   news: [],
   events: ["calendar:read"],
   messages: ["messages:read"],
+  // A team's own notes, logged contacts and held mail, for whoever reads a
+  // mailbox: never a family, whose conversations hold none of them.
+  notes: [...new Set(Object.values(MAILBOXES).flatMap((box) => box.readers))],
 };
 
 export function searchableKinds(

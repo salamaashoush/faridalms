@@ -212,4 +212,42 @@ describe("search", () => {
     const found = await family.api.search.find({ q: word, kind: "messages" });
     expect(ids(found, "messages")).toEqual([threadId]);
   }, 120_000);
+
+  test("a team finds its own notes in its mailbox's conversations; nobody else does", async () => {
+    const office = await principal();
+    const logged = await office.admissions.logEnquiry({
+      source: "walk_in",
+      purpose: "enquiry",
+      locale: "en",
+      name: "Salama Ashoush",
+      email: "salama.search@example.com",
+      phone: "",
+      childName: "",
+      childYear: "",
+      message: "",
+      assigneeId: "",
+    });
+    const threadId = logged.threadId ?? "";
+    await office.messages.send({
+      threadId,
+      kind: "note",
+      content: plainContent("Prefers the pomegranate orchard tour."),
+    });
+    const notes = await office.search.find({ q: "pomegranate", kind: "notes" });
+    const hit = notes.groups[0]?.rows.find((row) => row.id === threadId);
+    expect(hit?.target).toBe("thread");
+    expect(hit?.snippet).toContain("pomegranate");
+    expect(
+      ids(await office.search.find({ q: "pomegranate" }), "messages"),
+    ).not.toContain(threadId);
+    const other = await teacher();
+    expect(
+      await rejection(other.search.find({ q: "pomegranate", kind: "notes" })),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    expect(
+      (await other.search.find({ q: "pomegranate" })).groups.some(
+        (group) => group.kind === "notes",
+      ),
+    ).toBe(false);
+  });
 });

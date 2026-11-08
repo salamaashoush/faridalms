@@ -27,11 +27,14 @@ import {
   peopleAmong,
   peopleReached,
   studentsAmong,
+  teamThreadsAmong,
+  teamThreadsReached,
   studentsReached,
   threadsAmong,
   threadsReached,
 } from "@faridalms/database/stores/search";
 import { schoolYears, workingYear } from "@faridalms/database/stores/years";
+import { mailboxesOf } from "@faridalms/domain/messages";
 import {
   mentionNamesSchema,
   SEARCH_PAGE_SIZE,
@@ -60,6 +63,7 @@ const TYPES: Record<SearchKind, readonly string[]> = {
   news: ["news"],
   events: ["calendar_event"],
   messages: ["message_thread"],
+  notes: ["team_thread"],
 };
 
 const TARGET: Record<string, SearchTarget> = {
@@ -71,6 +75,7 @@ const TARGET: Record<string, SearchTarget> = {
   news: "news",
   calendar_event: "event",
   message_thread: "thread",
+  team_thread: "thread",
 };
 
 /** The students whose work the viewer follows: themselves, or the children in their care. */
@@ -213,6 +218,17 @@ async function resolverOf(
       return {
         within: threadsReached(access),
         resolve: (ids) => threadsAmong(context.tx, { ...base, ...access, ids }),
+      };
+    }
+    case "notes": {
+      const access = {
+        ...school,
+        mailboxes: mailboxesOf(context.actor.capabilities).reads,
+      };
+      return {
+        within: teamThreadsReached(access),
+        resolve: (ids) =>
+          teamThreadsAmong(context.tx, { ...base, ...access, ids }),
       };
     }
     default: {
