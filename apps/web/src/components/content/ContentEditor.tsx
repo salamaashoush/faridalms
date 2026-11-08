@@ -5,7 +5,7 @@ import type { EditorCollaboration, EditorMedia } from "@faridalms/editor";
 import { contentPlainText } from "@faridalms/domain/content";
 import { editorFrame } from "@faridalms/editor/view";
 import { useHydrated } from "@tanstack/react-router";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useMemo, useState } from "react";
 
 import { useEditorStudio } from "~/components/coding/useEditorStudio";
 import { useEditorAssistant } from "~/components/content/assistant";
@@ -145,6 +145,10 @@ export function ContentEditor({
   // stays in its place until the room's copy is drawn.
   const [joined, setJoined] = useState<string | null>(null);
   const waiting = collaboration !== undefined && joined !== collaboration.id;
+  const room = collaboration?.id;
+  const onSynced = useCallback(() => {
+    if (room) setJoined(room);
+  }, [room]);
   if (!hydrated || pending) return placeholderBox;
   return (
     <Suspense fallback={placeholderBox}>
@@ -189,9 +193,7 @@ export function ContentEditor({
           arabicMath={arabicMath}
           language={language}
           young={young}
-          onSynced={
-            collaboration ? () => setJoined(collaboration.id) : undefined
-          }
+          onSynced={collaboration ? onSynced : undefined}
         />
       </div>
       {coding.dialog}

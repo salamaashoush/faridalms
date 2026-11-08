@@ -28,7 +28,15 @@ import {
   defineExtension,
   KEY_DOWN_COMMAND,
 } from "lexical";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  startTransition,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import * as v from "valibot";
 
 import type {
@@ -87,12 +95,49 @@ import { cx } from "./ui";
 const QUIET_REPLACE = "fe-quiet-replace";
 const TYPING_PAUSE_MS = 200;
 const MAX_TYPING_WAIT_MS = 1000;
-const EMPTY_STATS = { characters: 0, words: 0, minutes: 0 };
+interface Stats {
+  characters: number;
+  words: number;
+  minutes: number;
+}
 
-const statsOf = (document: ContentDocument) => ({
+const statsOf = (document: ContentDocument): Stats => ({
   characters: contentPlainText(document).length,
   ...readingStats(document),
 });
+
+/**
+ * The counts under the text, kept outside React state so a new count draws
+ * the footer that shows it and nothing else in the editor.
+ */
+function statsStore(initial: Stats) {
+  let current = initial;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => current,
+    set: (next: Stats) => {
+      if (
+        next.characters === current.characters &&
+        next.words === current.words &&
+        next.minutes === current.minutes
+      )
+        return;
+      current = next;
+      for (const listener of listeners) listener();
+    },
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
+
+type StatsStore = ReturnType<typeof statsStore>;
+
+const useStats = (store: StatsStore) =>
+  useSyncExternalStore(store.subscribe, store.get, store.get);
 
 /**
  * Live editing: the document's shared state comes from the provider, which
@@ -285,6 +330,9 @@ export default function Editor({
       digits,
     ],
   );
+  // Counted from what the editor opens with, which the host has already
+  // checked, rather than by checking the editor's copy again.
+  const [stats] = useState(() => statsStore(statsOf(value)));
   const [synced, setSynced] = useState(false);
   const factory = collaboration?.providerFactory;
   const providerFactory = useMemo(
@@ -301,7 +349,7 @@ export default function Editor({
   );
   const composer = (
     <LexicalExtensionComposer extension={extension} contentEditable={null}>
-      <Surface {...props} synced={synced} onSynced={onSynced} />
+      <Surface {...props} stats={stats} synced={synced} onSynced={onSynced} />
       {collaboration && providerFactory ? (
         <CollaborationPlugin
           id={collaboration.id}
@@ -324,7 +372,17 @@ export default function Editor({
   );
 }
 
-function Surface({
+interface SurfaceProps extends Omit<
+  EditorProps,
+  "value" | "media" | "locale" | "strings" | "assistant"
+> {
+  stats: StatsStore;
+  synced: boolean;
+}
+
+// The host draws its page again with every change it is handed; the
+// surface and its plugins draw only when what they are given changes.
+const Surface = memo(function Surface({
   id,
   label,
   onChange,
@@ -337,13 +395,12 @@ function Surface({
   describedBy,
   replace,
   onUploadingChange,
+  stats,
   synced,
   onSynced,
   language,
   young = false,
-}: Omit<EditorProps, "value" | "media" | "locale" | "strings" | "assistant"> & {
-  synced: boolean;
-}) {
+}: SurfaceProps) {
   const [editor] = useLexicalComposerContext();
   const { strings, media, arabicMath, digits, forms } = useEditorEnvironment();
   useEffect(
@@ -435,13 +492,7 @@ function Surface({
   );
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
   const [invalid, setInvalid] = useState(false);
-  const [stats, setStats] = useState(() => {
-    const result = v.safeParse(
-      contentDocumentSchema,
-      editor.getEditorState().toJSON(),
-    );
-    return result.success ? statsOf(result.output) : EMPTY_STATS;
-  });
+
   const [focused, setFocused] = useState(false);
   useEffect(() => {
     if (!focused) return undefined;
@@ -493,29 +544,31 @@ function Surface({
   }, [editor, replace]);
 
   // Each change is checked against the content schema and handed to the
-  // host, which draws its whole page again. A change after a pause goes at
-  // once; the keys of a burst of typing go together once it pauses, so
-  // neither the check nor the host's page stands between a key and its
-  // letter on screen. Leaving the editor, Enter, Escape and shortcuts hand
-  // over at once, so a save or a send never misses the last words typed.
+  // host, which draws its whole page again. Neither may stand between a
+  // key and its letter on screen: a change goes in a task of its own once
+  // typing pauses, or a second into a burst that does not, and the host
+  // draws it as a transition that a key pressed meanwhile interrupts.
+  // Leaving the editor, Escape and shortcuts hand it over at once, so a
+  // save never misses the last words typed.
   useEffect(() => {
     let pending: { state: EditorState; quiet: boolean; since: number } | null =
       null;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let handed = -Infinity;
-    const settle = () => {
+    const settle = (urgent: boolean) => {
       clearTimeout(timer);
       timer = undefined;
       if (!pending) return;
       const { state, quiet } = pending;
       pending = null;
-      handed = performance.now();
       const result = v.safeParse(contentDocumentSchema, state.toJSON());
-      setInvalid(!result.success);
-      onValidityChange?.(result.success);
-      if (!result.success) return;
-      setStats(statsOf(result.output));
-      if (!quiet) onChange(result.output);
+      if (result.success) stats.set(statsOf(result.output));
+      const hand = () => {
+        setInvalid(!result.success);
+        onValidityChange?.(result.success);
+        if (result.success && !quiet) onChange(result.output);
+      };
+      if (urgent) hand();
+      else startTransition(hand);
     };
     return mergeRegister(
       editor.registerUpdateListener(
@@ -527,21 +580,23 @@ function Surface({
             quiet: (pending?.quiet ?? true) && tags.has(QUIET_REPLACE),
             since: pending?.since ?? now,
           };
-          if (
-            (!timer && now - handed >= TYPING_PAUSE_MS) ||
-            now - pending.since >= MAX_TYPING_WAIT_MS
-          )
-            settle();
-          else {
-            clearTimeout(timer);
-            timer = setTimeout(settle, TYPING_PAUSE_MS);
-          }
+          clearTimeout(timer);
+          timer = setTimeout(
+            () => settle(false),
+            Math.max(
+              0,
+              Math.min(
+                TYPING_PAUSE_MS,
+                pending.since + MAX_TYPING_WAIT_MS - now,
+              ),
+            ),
+          );
         },
       ),
       editor.registerCommand(
         BLUR_COMMAND,
         () => {
-          settle();
+          settle(true);
           return false;
         },
         COMMAND_PRIORITY_LOW,
@@ -550,20 +605,19 @@ function Surface({
         KEY_DOWN_COMMAND,
         (event) => {
           if (
-            event.key === "Enter" ||
             event.key === "Escape" ||
             event.ctrlKey ||
             event.metaKey ||
             event.altKey
           )
-            settle();
+            settle(true);
           return false;
         },
         COMMAND_PRIORITY_LOW,
       ),
-      settle,
+      () => settle(true),
     );
-  }, [editor, onChange, onValidityChange]);
+  }, [editor, stats, onChange, onValidityChange]);
 
   const document = variant === "document";
   const errorId = `${id}-error`;
@@ -616,14 +670,10 @@ function Surface({
       <QuestionGuardPlugin />
       <DiagramPlugin />
       {!document ? (
-        <div className={editorFrame.footer(document)}>
-          <span>{strings.placeholder}</span>
-          <span>{strings.characters(stats.characters)}</span>
-        </div>
+        <FieldFooter stats={stats} />
       ) : disabled ? null : (
-        <DocumentStatus
-          words={stats.words}
-          minutes={stats.minutes}
+        <DocumentFooter
+          stats={stats}
           focused={focused}
           onFocusedChange={setFocused}
         />
@@ -638,5 +688,42 @@ function Surface({
         </p>
       ) : null}
     </div>
+  );
+});
+
+interface FieldFooterProps {
+  stats: StatsStore;
+}
+
+function FieldFooter({ stats }: FieldFooterProps) {
+  const { strings } = useEditorEnvironment();
+  const { characters } = useStats(stats);
+  return (
+    <div className={editorFrame.footer(false)}>
+      <span>{strings.placeholder}</span>
+      <span>{strings.characters(characters)}</span>
+    </div>
+  );
+}
+
+interface DocumentFooterProps {
+  stats: StatsStore;
+  focused: boolean;
+  onFocusedChange: (focused: boolean) => void;
+}
+
+function DocumentFooter({
+  stats,
+  focused,
+  onFocusedChange,
+}: DocumentFooterProps) {
+  const { words, minutes } = useStats(stats);
+  return (
+    <DocumentStatus
+      words={words}
+      minutes={minutes}
+      focused={focused}
+      onFocusedChange={onFocusedChange}
+    />
   );
 }
