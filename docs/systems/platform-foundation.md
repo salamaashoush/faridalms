@@ -4964,7 +4964,15 @@ header or a record id:
   arrives at `connect.<product domain>/callbacks/<provider>`, is routed to the
   cell by its tenant part, and the cell verifies the provider's signature
   before setting the tenant and updating the delivery ledger and
-  `contact_points.bounced_at`, `complaint_at` or `unsubscribed_at`.
+  `contact_points.bounced_at`, `complaint_at` or `unsubscribed_at`. Built
+  today for email through Resend: every email carries the tag
+  `tenant=<tenant uuid>`, and Resend's signed `email.bounced` (when
+  `Permanent`) and `email.complained` reach the cell's own
+  `/callbacks/resend`, which accepts only a tenant of that cell and stamps
+  `bounced_at` or `complaint_at` on every `contact_points` email and
+  `message_contacts` address at the reported address, audited. Delivery
+  then skips them with the reason `unreachable`. Routing through
+  `connect.` waits for a second cell.
 - **Carrier opt-outs** (an SMS STOP) apply to a sender number that every
   tenant of the cell may share, so they are cell-level: `ops.sms_suppressions`
   holds an HMAC of the number and the sender id, and the delivery worker checks
