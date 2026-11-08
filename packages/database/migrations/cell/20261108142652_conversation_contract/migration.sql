@@ -177,9 +177,8 @@ begin
         returning id into thread;
         insert into core.thread_members (tenant_id, thread_id, user_id, role)
         select distinct t, thread, l.related_user_id, 'member' from core.user_relationships l
-        where l.tenant_id = t and l.student_user_id = a.student_user_id and l.status = 'active'
-          and l.portal_access and not coalesce(l.communication_isolated, false)
-          and l.valid_during @> a.day_on;
+        where l.tenant_id = t and l.student_user_id = a.student_user_id
+          and app.guardian_permits(l, a.day_on, 'contact');
       end if;
       insert into core.messages (tenant_id, thread_id, kind, author_user_id, body, details,
         created_at, date_last_modified)
