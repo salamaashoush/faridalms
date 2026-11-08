@@ -1386,6 +1386,7 @@ export function SelectionToolbarPlugin() {
             value={math.latex}
             locale={locale}
             label={strings.mathField}
+            labels={strings.mathControls}
             onInput={(latex) => change((node) => node.setLatex(latex))}
             onEnter={close}
             onEscape={close}

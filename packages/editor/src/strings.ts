@@ -4,6 +4,7 @@ import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
 import type { BibliographyViewStrings } from "./bibliography-view";
 import type { ChartStrings } from "./chart-view";
+import type { MathInputLabels } from "./math-input";
 import type { LabelEditorStrings } from "./picture-labels";
 import type { AssistantStrings } from "./plugins/assistant";
 import type { RecorderStrings } from "./recorder";
@@ -648,6 +649,7 @@ export interface EditorStrings
   mathField: string;
   mathBlock: string;
   mathRtl: string;
+  mathControls: MathInputLabels;
   mathRemove: string;
   narration: string;
   narrationHint: string;

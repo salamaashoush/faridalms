@@ -343,6 +343,13 @@ publishing changes state (Notion, Linear, Polaris).
   pointer (TinyMCE, CKEditor): Tab on a chosen block or Alt+F10 anywhere
   moves focus into it, the arrow keys, Home and End move along it (mirrored
   in Arabic), and Escape goes back to the text with the selection it had.
+- A formula is written in MathLive's field drawn as the design's text field
+  (`math-input.tsx`, `.fe-math-field` in `editor.css`): one focus ring, the
+  caret and selection in `--primary`. MathLive's own toggles are hidden;
+  its keyboard of symbols and its menu are the field's own ghost buttons
+  with the design's tooltip (Alt+Shift+Space and Alt+Space), and both are
+  themed with the design's tokens through MathLive's custom properties. A
+  plain field stands in while MathLive loads and hands it every key.
 - Body: the document title (30px) above a 720px content column; settings for
   the item (audience, dates, class) sit in a 280px panel beside it and move
   above the content on phones.

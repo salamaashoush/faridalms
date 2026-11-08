@@ -107,6 +107,24 @@ test("a formula keeps every key typed while its field is still loading", async (
       field.evaluate((element) => (element as { value?: string }).value),
     )
     .toBe("x+1");
+
+  // MathLive's menu is the bar's own button, and Escape shuts only the menu.
+  // MathLive settles focus on a field it has just been given a moment later,
+  // its keyboard connected once it has; a menu opened sooner loses focus.
+  await page.waitForFunction(
+    () =>
+      (
+        window as {
+          mathVirtualKeyboard?: { connectedMathfieldWindow?: unknown };
+        }
+      ).mathVirtualKeyboard?.connectedMathfieldWindow === window,
+  );
+  await page.getByRole("button", { name: "Formula options" }).click();
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  await expect(field).toBeFocused();
   await page.keyboard.type("=y");
   await page.keyboard.press("Enter");
   await expect(

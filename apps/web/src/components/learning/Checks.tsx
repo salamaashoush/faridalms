@@ -77,6 +77,7 @@ import { CodeRunner } from "~/components/coding/CodeRunner";
 import { CodingAnswer } from "~/components/coding/CodingAnswer";
 import { friendlyError } from "~/components/coding/friendly";
 import { WebProjectAnswer } from "~/components/coding/WebProjectAnswer";
+import { mathControls } from "~/components/content/strings";
 import { editorSetting, puzzleStrings } from "~/components/puzzles/strings";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { getLocale } from "~/i18n/runtime";
@@ -1310,6 +1311,7 @@ function MathCheck({ block, view, driver }: MathCheckProps) {
           value={latex}
           locale={getLocale()}
           label={m.lrnYourAnswer()}
+          labels={mathControls()}
           onInput={setLatex}
           onEnter={check}
           readOnly={!editing || settled}

@@ -1,4 +1,5 @@
 import type { FileStrings } from "@faridalms/editor/files";
+import type { MathInputLabels } from "@faridalms/editor/math-input";
 import type { EditorStrings } from "@faridalms/editor/strings";
 
 import { featureNames } from "~/components/coding/scratch-checks";
@@ -739,6 +740,7 @@ export function editorStrings(): EditorStrings {
     mathField: m.editorMathField(),
     mathBlock: m.editorMathBlock(),
     mathRtl: m.editorMathRtl(),
+    mathControls: mathControls(),
     mathRemove: m.editorMathRemove(),
     narration: m.editorNarration(),
     narrationHint: m.editorNarrationHint(),
@@ -961,5 +963,32 @@ export function assistantStrings(): AssistantEditorStrings {
     assistantChanged: m.assistantChanged(),
     assistantCheck: m.assistantCheck(),
     assistantClose: m.assistantClose(),
+  };
+}
+
+/** A formula field's own buttons, and MathLive's menu in the page's language. */
+export function mathControls(): MathInputLabels {
+  return {
+    keyboard: m.editorMathKeyboard(),
+    menu: m.editorMathMenu(),
+    items: {
+      "menu.insert": m.editorMathMenuInsert(),
+      "menu.insert.abs": m.editorMathMenuAbs(),
+      "menu.insert.nth-root": m.editorMathMenuNthRoot(),
+      "menu.insert.log-base": m.editorMathMenuLogBase(),
+      "menu.insert.heading-calculus": m.editorMathMenuCalculus(),
+      "menu.insert.derivative": m.editorMathMenuDerivative(),
+      "menu.insert.nth-derivative": m.editorMathMenuNthDerivative(),
+      "menu.insert.integral": m.editorMathMenuIntegral(),
+      "menu.insert.sum": m.editorMathMenuSum(),
+      "menu.insert.product": m.editorMathMenuProduct(),
+      "menu.insert.heading-complex-numbers": m.editorMathMenuComplex(),
+      "menu.insert.modulus": m.editorMathMenuModulus(),
+      "menu.insert.argument": m.editorMathMenuArgument(),
+      "menu.insert.real-part": m.editorMathMenuRealPart(),
+      "menu.insert.imaginary-part": m.editorMathMenuImaginaryPart(),
+      "menu.insert.conjugate": m.editorMathMenuConjugate(),
+      "menu.copy-as-typst": m.editorMathMenuCopyTypst(),
+    },
   };
 }
