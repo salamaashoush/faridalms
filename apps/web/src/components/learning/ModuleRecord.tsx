@@ -55,7 +55,7 @@ import type { AreaView } from "~/components/files/AreaFiles";
 
 import { classTitle } from "~/components/classes/format";
 import { ContentView } from "~/components/content/ContentView";
-import { toolGrading } from "~/components/content/lti";
+import { toolGrading, toolWorkHref } from "~/components/content/lti";
 import { SaveTemplateDialog } from "~/components/content/Templates";
 import { AreaFiles } from "~/components/files/AreaFiles";
 import { displayName } from "~/components/people/format";
@@ -594,18 +594,28 @@ function ToolMark({ data, column, student }: ToolMarkProps) {
         <span className="sr-only">{state}</span>
       </span>
     );
-  return (
-    <span
-      title={state}
-      className={cn(
-        "text-[13px] tabular-nums",
-        score.gradingProgress !== "FullyGraded" && "text-muted-foreground",
-      )}
+  const mark = m.ltiScoreOf({
+    score: formatNumber(Math.round(score.result * 100) / 100),
+    maximum: formatNumber(column.scoreMaximum),
+  });
+  const className = cn(
+    "text-[13px] tabular-nums",
+    score.gradingProgress !== "FullyGraded" && "text-muted-foreground",
+  );
+  // Where the tool can show the work behind the score, the score opens it.
+  return column.reviewable ? (
+    <a
+      href={toolWorkHref(column.id, student.id)}
+      target="_blank"
+      rel="noopener"
+      title={`${state} · ${m.ltiOpenWork()}`}
+      className={cn(className, "underline underline-offset-2")}
     >
-      {m.ltiScoreOf({
-        score: formatNumber(Math.round(score.result * 100) / 100),
-        maximum: formatNumber(column.scoreMaximum),
-      })}
+      {mark}
+    </a>
+  ) : (
+    <span title={state} className={className}>
+      {mark}
     </span>
   );
 }

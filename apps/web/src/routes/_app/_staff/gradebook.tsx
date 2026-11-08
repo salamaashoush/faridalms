@@ -1,6 +1,7 @@
 import type { Facet } from "@faridalms/ui/system/index-toolbar";
 
 import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
@@ -18,6 +19,7 @@ import { toast } from "sonner";
 import * as v from "valibot";
 
 import { classChoices, defaultClass } from "~/components/classes/format";
+import { toolGrading, toolWorkHref } from "~/components/content/lti";
 import { gradeWithScore, resultText } from "~/components/grading/format";
 import { displayName } from "~/components/people/format";
 import { inLocale } from "~/hooks/useCurrentUser";
@@ -57,6 +59,53 @@ export const Route = createFileRoute("/_app/_staff/gradebook")({
 type Book = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classBookQuery>["queryFn"]>>
 >;
+
+interface ToolCellProps {
+  book: Book;
+  column: Book["tools"][number];
+  studentId: string;
+}
+
+/**
+ * A student's score in an outside tool's column, as the tool last sent it;
+ * where the tool can show the work behind it, the score opens it there.
+ */
+function ToolCell({ book, column, studentId }: ToolCellProps) {
+  const score = book.toolScores.find(
+    (row) => row.lineItemId === column.id && row.studentId === studentId,
+  );
+  const state = score ? toolGrading(score.gradingProgress) : m.ltiNoScore();
+  if (score?.result === null || score?.result === undefined)
+    return (
+      <span title={state} className="text-muted-foreground">
+        <span aria-hidden>–</span>
+        <span className="sr-only">{state}</span>
+      </span>
+    );
+  const mark = m.ltiScoreOf({
+    score: formatNumber(Math.round(score.result * 100) / 100),
+    maximum: formatNumber(column.scoreMaximum),
+  });
+  const muted = score.gradingProgress !== "FullyGraded";
+  return column.reviewable ? (
+    <a
+      href={toolWorkHref(column.id, studentId)}
+      target="_blank"
+      rel="noopener"
+      title={`${state} · ${m.ltiOpenWork()}`}
+      className={cn(
+        "underline underline-offset-2",
+        muted && "text-muted-foreground",
+      )}
+    >
+      {mark}
+    </a>
+  ) : (
+    <span title={state} className={cn(muted && "text-muted-foreground")}>
+      {mark}
+    </span>
+  );
+}
 
 interface SheetProps {
   book: Book;
@@ -166,6 +215,20 @@ function Sheet({ book }: SheetProps) {
                   </span>
                 </th>
               ))}
+              {book.tools.map((column) => (
+                <th
+                  key={column.id}
+                  scope="col"
+                  className="max-w-40 px-3 py-2 text-start font-medium"
+                >
+                  <span dir="auto" className="line-clamp-2">
+                    {column.label}
+                  </span>
+                  <span className="block text-[12px] leading-4 font-normal">
+                    <bdi>{column.toolName}</bdi> · {m.gradebookToolNotCounted()}
+                  </span>
+                </th>
+              ))}
               <th scope="col" className="px-3 py-2 text-start font-medium">
                 {m.gradebookCalculated()}
               </th>
@@ -220,6 +283,18 @@ function Sheet({ book }: SheetProps) {
                       </td>
                     );
                   })}
+                  {book.tools.map((column) => (
+                    <td
+                      key={column.id}
+                      className="px-3 py-2 whitespace-nowrap tabular-nums"
+                    >
+                      <ToolCell
+                        book={book}
+                        column={column}
+                        studentId={student.id}
+                      />
+                    </td>
+                  ))}
                   <td className="px-3 py-2 whitespace-nowrap tabular-nums">
                     {calculatedText(student.id) || (
                       <span className="text-muted-foreground">–</span>

@@ -1,13 +1,16 @@
 import type {
   LtiGradingProgress,
   LtiHost,
-  LtiPick,
+  LtiPicked,
 } from "@faridalms/domain/lti";
 import type { EditorTools, LtiPicking } from "@faridalms/editor";
 import type { ReactNode } from "react";
 
 import { LTI_PICK_CHANNEL } from "@faridalms/domain/lti";
+import { buttonVariants } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import { useQuery } from "@tanstack/react-query";
+import { ExternalLink } from "lucide-react";
 import { createContext, useCallback, useContext, useMemo } from "react";
 
 import { useCapability } from "~/hooks/useCurrentUser";
@@ -62,13 +65,13 @@ function pickIn(
   popup.opener = null;
   popup.location.href = `/lti/pick?${new URLSearchParams({ host: host.type, id: host.id, tool: toolId, pick: pickId })}`;
   const channel = new BroadcastChannel(LTI_PICK_CHANNEL);
-  const { promise, resolve } = Promise.withResolvers<LtiPick | null>();
+  const { promise, resolve } = Promise.withResolvers<LtiPicked[] | null>();
   channel.addEventListener(
     "message",
-    (event: MessageEvent<{ pickId?: string; item?: LtiPick | null }>) => {
+    (event: MessageEvent<{ pickId?: string; items?: LtiPicked[] }>) => {
       if (event.data.pickId !== pickId) return;
       channel.close();
-      resolve(event.data.item ?? null);
+      resolve(event.data.items ?? null);
     },
   );
   return {
@@ -117,3 +120,42 @@ const GRADING: Record<LtiGradingProgress, () => string> = {
 /** How far an outside tool has got marking a student's work, in words. */
 export const toolGrading = (progress: LtiGradingProgress) =>
   GRADING[progress]();
+
+/** Where a teacher launches from a student's score in a tool's column to the work behind it. */
+export const toolWorkHref = (lineItemId: string, studentId: string) =>
+  `/lti/review?${new URLSearchParams({ item: lineItemId, student: studentId })}`;
+
+export interface ToolWorkLinkProps {
+  lineItemId: string;
+  studentId: string;
+  /** The column's name, which tells apart several links on one page. */
+  label: string;
+  className?: string;
+}
+
+/**
+ * Opens a student's work behind a tool's score in the tool, LTI's
+ * Submission Review, in a window of its own as other launches are.
+ */
+export function ToolWorkLink({
+  lineItemId,
+  studentId,
+  label,
+  className,
+}: ToolWorkLinkProps) {
+  return (
+    <a
+      href={toolWorkHref(lineItemId, studentId)}
+      target="_blank"
+      rel="noopener"
+      aria-label={m.ltiOpenWorkFor({ label })}
+      className={cn(
+        buttonVariants({ variant: "ghost", size: "sm" }),
+        className,
+      )}
+    >
+      <ExternalLink aria-hidden />
+      {m.ltiOpenWork()}
+    </a>
+  );
+}

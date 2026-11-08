@@ -367,6 +367,8 @@ export function editorStrings(): EditorStrings {
     ltiPicking: m.ltiPicking(),
     ltiPickBlocked: m.ltiPickBlocked(),
     ltiPickCancel: m.ltiPickCancel(),
+    ltiInPage: m.ltiInPage(),
+    ltiShowInPage: m.ltiShowInPage(),
     questionReading: m.editorQuestionReading(),
     questionReadingHint: m.editorQuestionReadingHint(),
     questionReadingPrompt: m.editorQuestionReadingPrompt(),

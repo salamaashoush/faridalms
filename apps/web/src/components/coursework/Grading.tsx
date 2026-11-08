@@ -51,7 +51,7 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { toolGrading } from "~/components/content/lti";
+import { toolGrading, ToolWorkLink } from "~/components/content/lti";
 import { CourseworkStanding } from "~/components/exams/Authentication";
 import { FileList } from "~/components/system/FileList";
 import { useMedia } from "~/hooks/useMedia";
@@ -640,18 +640,28 @@ function GradeSheet({
                           </p>
                         ) : null}
                       </div>
-                      {mark !== null && attempt ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="max-md:h-10"
-                          aria-label={m.ltiUseScoreFor({ label: row.label })}
-                          onClick={() => setScore(String(mark))}
-                        >
-                          {m.ltiUseScore()}
-                        </Button>
-                      ) : null}
+                      <div className="flex flex-wrap gap-1">
+                        {row.reviewable ? (
+                          <ToolWorkLink
+                            lineItemId={row.lineItemId}
+                            studentId={data.student.studentId}
+                            label={row.label}
+                            className="max-md:h-10"
+                          />
+                        ) : null}
+                        {mark !== null && attempt ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="max-md:h-10"
+                            aria-label={m.ltiUseScoreFor({ label: row.label })}
+                            onClick={() => setScore(String(mark))}
+                          >
+                            {m.ltiUseScore()}
+                          </Button>
+                        ) : null}
+                      </div>
                     </li>
                   );
                 })}

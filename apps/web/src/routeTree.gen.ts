@@ -42,7 +42,10 @@ import { Route as LtiAuthRouteImport } from './routes/lti/auth'
 import { Route as LtiDeepLinkRouteImport } from './routes/lti/deep-link'
 import { Route as LtiJwksRouteImport } from './routes/lti/jwks'
 import { Route as LtiLaunchRouteImport } from './routes/lti/launch'
+import { Route as LtiOpenidConfigurationRouteImport } from './routes/lti/openid-configuration'
 import { Route as LtiPickRouteImport } from './routes/lti/pick'
+import { Route as LtiRegisterRouteImport } from './routes/lti/register'
+import { Route as LtiReviewRouteImport } from './routes/lti/review'
 import { Route as LtiTokenRouteImport } from './routes/lti/token'
 import { Route as SiteSchoolRouteImport } from './routes/site/$school'
 import { Route as TeachSplatRouteImport } from './routes/teach.$'
@@ -127,6 +130,7 @@ import { Route as FeedsSchoolFileRouteImport } from './routes/feeds/$school/$fil
 import { Route as FilesFileIdPartsRouteImport } from './routes/files/$fileId.parts'
 import { Route as FilesFileIdStreamRouteImport } from './routes/files/$fileId.stream'
 import { Route as LtiAgsSplatRouteImport } from './routes/lti/ags.$'
+import { Route as LtiNrpsSplatRouteImport } from './routes/lti/nrps.$'
 import { Route as SiteSchoolIndexRouteImport } from './routes/site/$school/index'
 import { Route as SiteSchoolSplatRouteImport } from './routes/site/$school/$'
 import { Route as SiteSchoolRobotsDottxtRouteImport } from './routes/site/$school/robots[.]txt'
@@ -308,9 +312,24 @@ const LtiLaunchRoute = LtiLaunchRouteImport.update({
   path: '/lti/launch',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LtiOpenidConfigurationRoute = LtiOpenidConfigurationRouteImport.update({
+  id: '/lti/openid-configuration',
+  path: '/lti/openid-configuration',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LtiPickRoute = LtiPickRouteImport.update({
   id: '/lti/pick',
   path: '/lti/pick',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LtiRegisterRoute = LtiRegisterRouteImport.update({
+  id: '/lti/register',
+  path: '/lti/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LtiReviewRoute = LtiReviewRouteImport.update({
+  id: '/lti/review',
+  path: '/lti/review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LtiTokenRoute = LtiTokenRouteImport.update({
@@ -743,6 +762,11 @@ const LtiAgsSplatRoute = LtiAgsSplatRouteImport.update({
   path: '/lti/ags/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LtiNrpsSplatRoute = LtiNrpsSplatRouteImport.update({
+  id: '/lti/nrps/$',
+  path: '/lti/nrps/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SiteSchoolIndexRoute = SiteSchoolIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -866,7 +890,10 @@ export interface FileRoutesByFullPath {
   '/lti/deep-link': typeof LtiDeepLinkRoute
   '/lti/jwks': typeof LtiJwksRoute
   '/lti/launch': typeof LtiLaunchRoute
+  '/lti/openid-configuration': typeof LtiOpenidConfigurationRoute
   '/lti/pick': typeof LtiPickRoute
+  '/lti/register': typeof LtiRegisterRoute
+  '/lti/review': typeof LtiReviewRoute
   '/lti/token': typeof LtiTokenRoute
   '/site/$school': typeof SiteSchoolRouteWithChildren
   '/teach/$': typeof TeachSplatRoute
@@ -945,6 +972,7 @@ export interface FileRoutesByFullPath {
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
   '/lti/ags/$': typeof LtiAgsSplatRoute
+  '/lti/nrps/$': typeof LtiNrpsSplatRoute
   '/site/$school/$': typeof SiteSchoolSplatRoute
   '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
   '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
@@ -998,7 +1026,10 @@ export interface FileRoutesByTo {
   '/lti/deep-link': typeof LtiDeepLinkRoute
   '/lti/jwks': typeof LtiJwksRoute
   '/lti/launch': typeof LtiLaunchRoute
+  '/lti/openid-configuration': typeof LtiOpenidConfigurationRoute
   '/lti/pick': typeof LtiPickRoute
+  '/lti/register': typeof LtiRegisterRoute
+  '/lti/review': typeof LtiReviewRoute
   '/lti/token': typeof LtiTokenRoute
   '/teach/$': typeof TeachSplatRoute
   '/academic-year-editor': typeof AppStaffAcademicYearEditorRoute
@@ -1076,6 +1107,7 @@ export interface FileRoutesByTo {
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
   '/lti/ags/$': typeof LtiAgsSplatRoute
+  '/lti/nrps/$': typeof LtiNrpsSplatRoute
   '/site/$school/$': typeof SiteSchoolSplatRoute
   '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
   '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
@@ -1135,7 +1167,10 @@ export interface FileRoutesById {
   '/lti/deep-link': typeof LtiDeepLinkRoute
   '/lti/jwks': typeof LtiJwksRoute
   '/lti/launch': typeof LtiLaunchRoute
+  '/lti/openid-configuration': typeof LtiOpenidConfigurationRoute
   '/lti/pick': typeof LtiPickRoute
+  '/lti/register': typeof LtiRegisterRoute
+  '/lti/review': typeof LtiReviewRoute
   '/lti/token': typeof LtiTokenRoute
   '/site/$school': typeof SiteSchoolRouteWithChildren
   '/teach/$': typeof TeachSplatRoute
@@ -1214,6 +1249,7 @@ export interface FileRoutesById {
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
   '/lti/ags/$': typeof LtiAgsSplatRoute
+  '/lti/nrps/$': typeof LtiNrpsSplatRoute
   '/site/$school/$': typeof SiteSchoolSplatRoute
   '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
   '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
@@ -1271,7 +1307,10 @@ export interface FileRouteTypes {
     | '/lti/deep-link'
     | '/lti/jwks'
     | '/lti/launch'
+    | '/lti/openid-configuration'
     | '/lti/pick'
+    | '/lti/register'
+    | '/lti/review'
     | '/lti/token'
     | '/site/$school'
     | '/teach/$'
@@ -1350,6 +1389,7 @@ export interface FileRouteTypes {
     | '/files/$fileId/parts'
     | '/files/$fileId/stream'
     | '/lti/ags/$'
+    | '/lti/nrps/$'
     | '/site/$school/$'
     | '/site/$school/robots.txt'
     | '/site/$school/sitemap.xml'
@@ -1403,7 +1443,10 @@ export interface FileRouteTypes {
     | '/lti/deep-link'
     | '/lti/jwks'
     | '/lti/launch'
+    | '/lti/openid-configuration'
     | '/lti/pick'
+    | '/lti/register'
+    | '/lti/review'
     | '/lti/token'
     | '/teach/$'
     | '/academic-year-editor'
@@ -1481,6 +1524,7 @@ export interface FileRouteTypes {
     | '/files/$fileId/parts'
     | '/files/$fileId/stream'
     | '/lti/ags/$'
+    | '/lti/nrps/$'
     | '/site/$school/$'
     | '/site/$school/robots.txt'
     | '/site/$school/sitemap.xml'
@@ -1539,7 +1583,10 @@ export interface FileRouteTypes {
     | '/lti/deep-link'
     | '/lti/jwks'
     | '/lti/launch'
+    | '/lti/openid-configuration'
     | '/lti/pick'
+    | '/lti/register'
+    | '/lti/review'
     | '/lti/token'
     | '/site/$school'
     | '/teach/$'
@@ -1618,6 +1665,7 @@ export interface FileRouteTypes {
     | '/files/$fileId/parts'
     | '/files/$fileId/stream'
     | '/lti/ags/$'
+    | '/lti/nrps/$'
     | '/site/$school/$'
     | '/site/$school/robots.txt'
     | '/site/$school/sitemap.xml'
@@ -1659,7 +1707,10 @@ export interface RootRouteChildren {
   LtiDeepLinkRoute: typeof LtiDeepLinkRoute
   LtiJwksRoute: typeof LtiJwksRoute
   LtiLaunchRoute: typeof LtiLaunchRoute
+  LtiOpenidConfigurationRoute: typeof LtiOpenidConfigurationRoute
   LtiPickRoute: typeof LtiPickRoute
+  LtiRegisterRoute: typeof LtiRegisterRoute
+  LtiReviewRoute: typeof LtiReviewRoute
   LtiTokenRoute: typeof LtiTokenRoute
   SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
   TeachSplatRoute: typeof TeachSplatRoute
@@ -1669,6 +1720,7 @@ export interface RootRouteChildren {
   ExportsStudentsStudentIdRoute: typeof ExportsStudentsStudentIdRoute
   FeedsSchoolFileRoute: typeof FeedsSchoolFileRoute
   LtiAgsSplatRoute: typeof LtiAgsSplatRoute
+  LtiNrpsSplatRoute: typeof LtiNrpsSplatRoute
   PublicMediaPTokenNameRoute: typeof PublicMediaPTokenNameRoute
 }
 
@@ -1905,11 +1957,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LtiLaunchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lti/openid-configuration': {
+      id: '/lti/openid-configuration'
+      path: '/lti/openid-configuration'
+      fullPath: '/lti/openid-configuration'
+      preLoaderRoute: typeof LtiOpenidConfigurationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lti/pick': {
       id: '/lti/pick'
       path: '/lti/pick'
       fullPath: '/lti/pick'
       preLoaderRoute: typeof LtiPickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lti/register': {
+      id: '/lti/register'
+      path: '/lti/register'
+      fullPath: '/lti/register'
+      preLoaderRoute: typeof LtiRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lti/review': {
+      id: '/lti/review'
+      path: '/lti/review'
+      fullPath: '/lti/review'
+      preLoaderRoute: typeof LtiReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lti/token': {
@@ -2500,6 +2573,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LtiAgsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lti/nrps/$': {
+      id: '/lti/nrps/$'
+      path: '/lti/nrps/$'
+      fullPath: '/lti/nrps/$'
+      preLoaderRoute: typeof LtiNrpsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/site/$school/': {
       id: '/site/$school/'
       path: '/'
@@ -2930,7 +3010,10 @@ const rootRouteChildren: RootRouteChildren = {
   LtiDeepLinkRoute: LtiDeepLinkRoute,
   LtiJwksRoute: LtiJwksRoute,
   LtiLaunchRoute: LtiLaunchRoute,
+  LtiOpenidConfigurationRoute: LtiOpenidConfigurationRoute,
   LtiPickRoute: LtiPickRoute,
+  LtiRegisterRoute: LtiRegisterRoute,
+  LtiReviewRoute: LtiReviewRoute,
   LtiTokenRoute: LtiTokenRoute,
   SiteSchoolRoute: SiteSchoolRouteWithChildren,
   TeachSplatRoute: TeachSplatRoute,
@@ -2940,6 +3023,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExportsStudentsStudentIdRoute: ExportsStudentsStudentIdRoute,
   FeedsSchoolFileRoute: FeedsSchoolFileRoute,
   LtiAgsSplatRoute: LtiAgsSplatRoute,
+  LtiNrpsSplatRoute: LtiNrpsSplatRoute,
   PublicMediaPTokenNameRoute: PublicMediaPTokenNameRoute,
 }
 export const routeTree = rootRouteImport
