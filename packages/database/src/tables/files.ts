@@ -324,6 +324,11 @@ export const files = core.table.withRLS(
     index("files_library_idx")
       .on(t.tenantId, t.hostId, t.folderId)
       .where(sql`status = 'active' and host_type = 'media_library'`),
+    index("files_sha256_idx")
+      .on(t.tenantId, t.sha256)
+      .where(
+        sql`status = 'active' and state = 'ready' and encryption = 'bucket'`,
+      ),
     index("files_trashed_idx")
       .on(t.tenantId, t.trashedAt)
       .where(sql`status = 'active' and trashed_at is not null`),

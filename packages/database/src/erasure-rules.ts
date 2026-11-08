@@ -229,6 +229,11 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
   },
   "core.login_identities": { rule: "erased" },
   "core.lti_scores": { rule: "erased" },
+  "core.media_item_tags": {
+    rule: "kept",
+    why: "Names the member of staff who filed a library item under a tag; the library belongs to the school.",
+    reviewed: false,
+  },
   "core.message_contacts": { rule: "erased" },
   "core.message_drafts": { rule: "erased" },
   "core.message_threads": { rule: "erased" },

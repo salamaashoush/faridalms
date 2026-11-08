@@ -77,6 +77,9 @@ import {
   files,
   identityProviderOrgs,
   mediaFolders,
+  mediaItemTags,
+  mediaItemTexts,
+  mediaTags,
   siteRedirects,
   identityProviders,
   importRows,
@@ -367,6 +370,25 @@ export async function completeFixture(
     tenantId,
     orgId: schoolId,
     name: "Sports day",
+  });
+  const sportsTag = id();
+  await tx.insert(mediaTags).values({
+    tenantId,
+    id: sportsTag,
+    orgId: schoolId,
+    name: "Sports",
+  });
+  await tx.insert(mediaItemTags).values({
+    tenantId,
+    fileId: photoId,
+    tagId: sportsTag,
+    taggedByUserId: userId,
+  });
+  await tx.insert(mediaItemTexts).values({
+    tenantId,
+    fileId: photoId,
+    title: "Sports day relay",
+    caption: "The year 7 relay team at the finish.",
   });
   await tx.insert(siteRedirects).values({
     tenantId,

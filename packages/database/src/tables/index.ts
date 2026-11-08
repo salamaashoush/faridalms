@@ -15,6 +15,7 @@ export * from "./files";
 export * from "./grading";
 export * from "./learning";
 export * from "./lti";
+export * from "./media";
 export * from "./membership";
 export * from "./messaging";
 export * from "./people";
