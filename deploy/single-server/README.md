@@ -198,7 +198,11 @@ all peak at once, and the 4 GB of swap is the headroom.
   briefly run two APIs). Statements over 500 ms are logged.
 - `media` 2 GB and 2 of the 4 CPUs, so an encode cannot starve the API or
   the database. It and `backup` are the first the kernel stops if memory
-  runs out; Postgres is the last.
+  runs out; Postgres is the last. It also makes every file's previews
+  (picture sizes, waveforms, a PDF's first page), with poppler in its image;
+  previewing office files as PDFs takes an image built with
+  `--build-arg MEDIA_OFFICE=true`, `MEDIA_OFFICE_CONVERTER=/usr/bin/soffice`
+  in `.env`, and another gigabyte for the container.
 - `api` 1 GB (it marks Python exercises in up to 256 MiB each), `web`
   512 MB, `backup` 512 MB and 1 CPU (rclone holds a bucket's listing in
   memory, about 1 KB an object), `migrate` 512 MB while it runs,

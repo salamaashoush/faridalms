@@ -254,6 +254,12 @@ services:
       CELL_SECRET: *cell-secret
       MEDIA_API_URL: http://api:3001
       MEDIA_JOBS: 1
+      # Pictures, recordings and documents get their previews in a lane of
+      # their own, so none waits behind an encode.
+      MEDIA_PREVIEW_JOBS: 1
+      # Office files are previewed as PDFs only by an image built with
+      # MEDIA_OFFICE=true and this set to /usr/bin/soffice.
+      MEDIA_OFFICE_CONVERTER: ${MEDIA_OFFICE_CONVERTER:-}
     networks: [front]
     depends_on:
       api:

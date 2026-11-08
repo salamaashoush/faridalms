@@ -681,6 +681,39 @@ a multilingual one. `ggml-base` is fine for English trials; Arabic needs
 `ggml-small` or larger to be worth correcting. Encodes come first: a worker
 drafts captions only when no video is waiting.
 
+The service also makes every file's previews, in a lane of its own
+(`MEDIA_PREVIEW_JOBS`, default 1, 0 turns it off) so a picture never waits
+behind an encode; the main lane takes them too between videos. They are
+written under `t/<school>/r/<preview>/` and served through the files host
+like the file itself, sealed and private:
+
+- a picture's sizes 320, 640, 1024, 1600 and 2400 wide, each only where the
+  picture is wider, in WebP and AVIF, its size upright and a ThumbHash
+  placeholder; a photo taken on its side is turned upright in place, except
+  one a handed-in attempt holds, whose bytes never change;
+- a recording's length and a waveform of 100 bars;
+- a PDF's first page, drawn by poppler's `pdftoppm` (`MEDIA_PDFTOPPM`,
+  `MEDIA_PDFINFO`, by default on the path; the Dockerfile's image carries
+  `poppler-utils`). Without it the service starts with a warning and PDFs
+  get no page;
+- an office file as a PDF and its first page, only where
+  `MEDIA_OFFICE_CONVERTER` names LibreOffice (`soffice`). Build the image
+  with `--build-arg MEDIA_OFFICE=true` to carry LibreOffice's writer, calc
+  and impress, and set `MEDIA_OFFICE_CONVERTER=/usr/bin/soffice`; give the
+  container another gigabyte of memory, as a large spreadsheet takes it.
+  Unset, office files are downloaded only. Named but not runnable, the
+  service refuses to start.
+
+The API removes a picture's location, camera and editing records before it
+keeps the upload anywhere, whether or not the media service runs. Files
+stored before previews were made are cleaned and queued by the files sweep,
+a hundred a school a pass (`FILE_SWEEP_MS`), and previews whose bytes no
+file holds any more are deleted by it. A website publishes a picture's sizes
+beside it in the public bucket when the page or post is published, so a
+page published before its sizes were made gets them when it is next
+published. Sealed files (health reports, evidence, legal papers) get no
+previews.
+
 Give it `MEDIA_WHISPER_VAD_MODEL` as well, the Silero model from
 whisper.cpp's `models/download-vad-model.sh`. Without it Whisper hears
 words in music and in silence: forty seconds of music before a sentence

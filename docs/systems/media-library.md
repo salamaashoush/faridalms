@@ -84,14 +84,63 @@ use may say them otherwise.
   blocks, by title. Deleting an item in use names how many documents show
   it before it goes.
 
-## Cropping
+## Editing a picture
 
 A picture is cropped in the browser to the original ratio, freeform, 1:1,
-4:3, 3:2 or 16:9 (`cropRect` in the domain), drawn on a canvas and uploaded
-like any picture; `mediaLibrary.crop` keeps the upload as a new item beside
-its original, in its folder, with its description, credit and the people it
-shows, named for its shape. The original never changes, so every document
-showing it goes on showing it whole.
+4:3, 3:2 or 16:9 (`cropRect` in the domain), turned a quarter at a time,
+mirrored either way and narrowed to a width (`PictureEdits`), drawn on a
+canvas and uploaded like any picture; `mediaLibrary.crop` keeps the upload
+as a new item beside its original, in its folder, with its description,
+credit and the people it shows, named for its shape or "edited", and
+records the edits. The original never changes, so every document showing it
+goes on showing it whole.
+
+## Focal point
+
+A keeper marks where a picture's subject sits (`mediaLibrary.focus`, kept
+as `metadata.focus` in percent). A crop's frame starts on it, turned and
+mirrored with the picture (`turnedFocus`); library tiles keep it in view;
+and the website draws the picture around it wherever a page's own use of
+the picture sets no focus of its own, in the builder from the file's facts
+and on the published site from what the page published with it.
+
+## Previews
+
+What the media service makes of a file belongs to its bytes
+(`core.file_previews`, by storage key), so every row sharing them, a copy
+in a document or a previous version, shares them too; the sweep deletes
+them once no file holds the bytes.
+
+- **Pictures**: sizes 320 to 2400 wide in WebP and AVIF (`PICTURE_WIDTHS`),
+  each only below the picture's own width, its width and height upright
+  (also set on the file), and a ThumbHash placeholder. A reader, the
+  editor, a gallery and the website builder draw a picture with a `srcset`
+  of `/files/<id>?w=<width>` and a `sizes` from its block; the API sends the
+  smallest size at least that wide in the best format the browser's
+  `Accept` names, and the original when none is made. Library tiles ask for 320. The placeholder and the picture's shape come with the file's facts
+  (`files.facts`), so it holds its place blurred until it loads.
+- **Metadata**: the API removes location, camera and editing records from
+  every picture (JPEG, PNG, WebP, GIF) before it keeps the upload anywhere,
+  keeping only an orientation, which the media service then applies to the
+  pixels in place. A picture a handed-in attempt holds is never rewritten.
+- **Sound**: its length (on the file too) and a waveform of 100 bars,
+  drawn as the player's timeline.
+- **Documents**: a PDF's first page, drawn on the server, shows on its card
+  and its library tile; an office file becomes a PDF, read in the viewer,
+  where the service has LibreOffice, and is downloaded only otherwise.
+- **Sealed files** (health reports, evidence, legal papers) get none, so
+  nothing made of them sits in the store unsealed; their delivery is as
+  before. Everything else made is served through the files host behind a
+  sealed, short-lived link, as the file is.
+- **The website** publishes a picture's sizes into the public folder of its
+  copy, each a derivative of its publication, and keeps their names, the
+  picture's size, placeholder and focal point in the published copy
+  (`content.pictures`), so a visitor's browser picks a size from
+  `<source>`s with no request to the API. Public copies stay immutable;
+  sizes made after a page was published go up with its next publication.
+
+Files stored before previews existed are cleaned and queued by the files
+sweep, a few a school each pass.
 
 ## Choosing
 
