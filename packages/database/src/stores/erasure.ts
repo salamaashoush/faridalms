@@ -353,8 +353,9 @@ export async function eraseContact(
     listed,
     emptyContent: input.emptyContent,
   });
-  const keys = await tx.execute<{ storage_key: string }>(sql`
-    select storage_key from core.files where tenant_id = ${t}::uuid and id in ${listed("file")}`);
+  const keys = await tx.execute<{ storage_key: string }>(
+    sharedKeysLeft(t, listed("file")),
+  );
   await run(
     "files",
     sql`update core.files set status = 'tobedeleted', metadata = '{}'
@@ -367,6 +368,18 @@ export async function eraseContact(
   );
   return { counts, storageKeys: keys.map((row) => row.storage_key) };
 }
+
+/**
+ * The stored objects of the files an erasure lists that no other file
+ * still points at: a copy or an upload of the same bytes keeps its object.
+ */
+const sharedKeysLeft = (tenantId: string, files: SQL) => sql`
+  select distinct f.storage_key from core.files f
+  where f.tenant_id = ${tenantId}::uuid and f.id in ${files}
+    and not exists (
+      select 1 from core.files o
+      where o.tenant_id = f.tenant_id and o.storage_key = f.storage_key
+        and o.status = 'active' and o.id not in ${files})`;
 
 /** Empties the documents an approval lists, with their translations, versions and file links. */
 async function eraseListed(
@@ -635,8 +648,9 @@ export async function eraseSubject(
 
   // Medical reports are among the files only while the health purpose is set.
   await purpose("health");
-  const keys = await tx.execute<{ storage_key: string }>(sql`
-    select storage_key from core.files where tenant_id = ${t}::uuid and id in ${listed("file")}`);
+  const keys = await tx.execute<{ storage_key: string }>(
+    sharedKeysLeft(t, listed("file")),
+  );
   await remove("files", sql`core.files`, sql`id in ${listed("file")}`);
   await purpose("");
 

@@ -49,6 +49,22 @@ describe("sending a file", () => {
     expect(progress).toEqual(progress.toSorted((a, b) => a - b));
   });
 
+  it("sends only the parts the server lacks after a reload", async () => {
+    const { calls, send, wait } = server(() => fine);
+    const progress: number[] = [];
+    await transfer(
+      { url: "/files/1", file, partBytes: 10, send, wait, held: new Set([0]) },
+      { onProgress: (share) => progress.push(share) },
+    );
+    expect(calls.map((call) => call.url)).toEqual([
+      "/files/1/parts/1",
+      "/files/1/parts/2",
+      "/files/1/parts",
+    ]);
+    expect(progress[0]).toBe(0.4);
+    expect(progress.at(-1)).toBe(1);
+  });
+
   it("sends a part the network dropped again, and only that part", async () => {
     const { calls, waits, send, wait } = server((call) =>
       call === 1 || call === 2 ? "dropped" : fine,

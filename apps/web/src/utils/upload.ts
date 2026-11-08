@@ -45,10 +45,13 @@ export async function transfer(
     send: Send;
     /** Waits before a new try; rejects when the upload is called off. */
     wait: (ms: number) => Promise<void>;
+    /** Parts the server already holds, from an upload begun before a reload. */
+    held?: ReadonlySet<number> | undefined;
   },
   options: TransferOptions = {},
 ): Promise<void> {
   const { url, file, send, wait } = input;
+  const held = input.held ?? new Set<number>();
   const size = file.size;
   const report = (sent: number) =>
     options.onProgress?.(size > 0 ? Math.min(1, sent / size) : 1);
@@ -102,6 +105,10 @@ export async function transfer(
   };
   const sendFrom = async (part: number): Promise<void> => {
     if (part >= count) return;
+    if (held.has(part)) {
+      report(Math.min(size, (part + 1) * partBytes));
+      return sendFrom(part + 1);
+    }
     await sendPart(part);
     await sendFrom(part + 1);
   };
@@ -186,22 +193,54 @@ function pause(signal: AbortSignal | undefined) {
     });
 }
 
+/** How far an upload begun before a reload had got, as the server says. */
+export type UploadState =
+  | { state: "initiated"; parts: number[] }
+  | { state: "ready" }
+  | { state: "gone" };
+
+/**
+ * Asks the server how far an upload got: the parts it holds while it
+ * waits, that it is already in, or that it is gone, as an upload left
+ * for a day is.
+ */
+export async function uploadState(url: string): Promise<UploadState> {
+  const response = await fetch(`${url}/parts`, {
+    headers: { accept: "application/json" },
+  });
+  if (response.status === 404) return { state: "gone" };
+  if (!response.ok) throw new Error("file.failed");
+  const answer = (await response.json()) as {
+    state?: unknown;
+    parts?: unknown;
+  };
+  if (answer.state === "ready") return { state: "ready" };
+  return {
+    state: "initiated",
+    parts: Array.isArray(answer.parts)
+      ? answer.parts.filter((part): part is number => typeof part === "number")
+      : [],
+  };
+}
+
 /**
  * Sends a file from the browser; a refusal rejects with the server's code,
  * such as `file.infected`, so the caller can say why.
  */
 export function sendFile(
   url: string,
-  file: File,
+  file: Blob,
   mediaType: string,
   options: TransferOptions = {},
   partBytes?: number,
+  held?: ReadonlySet<number>,
 ): Promise<void> {
   return transfer(
     {
       url,
       file,
       partBytes,
+      held,
       send: exchange(mediaType, options.signal),
       wait: pause(options.signal),
     },

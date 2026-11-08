@@ -5,6 +5,7 @@ import { TenantUnavailableError } from "@faridalms/database/context";
 import {
   partKey,
   settleFile,
+  shareStoredObject,
   studentOfFile,
 } from "@faridalms/database/stores/files";
 import {
@@ -126,14 +127,51 @@ function assembled(
 }
 
 /**
- * Takes an upload's bytes, whole or assembled from its parts, checks them
- * against what was declared, and settles the file ready or rejected.
+ * Lets a file just made ready share an object the school already stores
+ * with the same bytes, and removes the copy it brought. A failure here
+ * leaves the file with its own copy, which is only storage.
  */
-async function accept(
+async function shareBytes(context: SchoolContext, file: StoredFile) {
+  try {
+    const dropped = await context.cell.withWorker(
+      {
+        tenantId: context.school.tenantId,
+        requestId: context.requestId,
+        actor: { kind: "system" },
+      },
+      "write",
+      (tx) =>
+        shareStoredObject(tx, {
+          tenantId: context.school.tenantId,
+          id: file.id,
+        }),
+    );
+    if (dropped) await context.files.remove(dropped);
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        requestId: context.requestId,
+        file: file.id,
+        share: error instanceof Error ? error.message : String(error),
+      }),
+    );
+  }
+}
+
+/** What became of bytes taken in: kept, or refused with the status and code to answer. */
+export type Taken = { ok: true } | { ok: false; status: number; code: string };
+
+/**
+ * Takes an upload's bytes, whole or assembled from its parts, checks them
+ * against what was declared, and settles the file ready or rejected. A
+ * file the server fetched for someone comes in here too, held to the same
+ * checks.
+ */
+export async function takeUpload(
   context: SchoolContext,
   file: StoredFile,
   body: ReadableStream<Uint8Array>,
-): Promise<Response> {
+): Promise<Taken> {
   const checked = await takeChecked(
     {
       files: context.files,
@@ -151,8 +189,7 @@ async function accept(
       state: "rejected",
       reason: checked.reason,
     });
-    const { status, code } = REJECTED[checked.reason];
-    return problem(status, code, context.requestId);
+    return { ok: false, ...REJECTED[checked.reason] };
   }
   const stream =
     context.mediaOrigin !== null &&
@@ -172,7 +209,18 @@ async function accept(
     stream,
     keyVersion: checked.keyVersion,
   });
-  if (!settled) return problem(409, "file.not_pending", context.requestId);
+  if (!settled) return { ok: false, status: 409, code: "file.not_pending" };
+  if (checked.keyVersion === null) await shareBytes(context, file);
+  return { ok: true };
+}
+
+async function accept(
+  context: SchoolContext,
+  file: StoredFile,
+  body: ReadableStream<Uint8Array>,
+): Promise<Response> {
+  const taken = await takeUpload(context, file, body);
+  if (!taken.ok) return problem(taken.status, taken.code, context.requestId);
   return Response.json({
     id: file.id,
     name: file.name,
@@ -223,6 +271,38 @@ async function receivePart(
     throw error;
   }
   return new Response(null, { status: 204 });
+}
+
+/**
+ * How far an upload has got, for a sender picking it up again after a
+ * reload: the parts the server holds while it waits, or that it is
+ * already in, so only what is missing is sent.
+ */
+async function uploadState(
+  context: SchoolContext,
+  fileId: string,
+): Promise<Response> {
+  const file = await openUnit(context, "read", async (unit) => {
+    const found = await findFile(unit.tx, unit.tenantId, fileId);
+    return found && found.uploadedByUserId === unit.actor.userId ? found : null;
+  });
+  if (!file || (file.state !== "initiated" && file.state !== "ready"))
+    return problem(404, "NOT_FOUND", context.requestId);
+  if (file.state === "ready")
+    return Response.json({ state: "ready", parts: [] });
+  const count = uploadParts(
+    file.sizeBytes,
+    context.uploadPartBytes ?? UPLOAD_PART_BYTES,
+  );
+  const held = await Promise.all(
+    Array.from({ length: count }, (_, part) =>
+      context.files.has(partKey(context.school.tenantId, fileId, part)),
+    ),
+  );
+  return Response.json({
+    state: "initiated",
+    parts: held.flatMap((has, part) => (has ? [part] : [])),
+  });
 }
 
 /**
@@ -369,6 +449,8 @@ export async function handleFileRequest(
         return await receivePart(request, scoped, match[1], Number(parts[2]));
       if (request.method === "POST" && parts[2] === undefined)
         return await finishParts(scoped, match[1]);
+      if (request.method === "GET" && parts[2] === undefined)
+        return await uploadState(scoped, match[1]);
       return problem(405, "METHOD_NOT_ALLOWED", context.requestId);
     }
     if (request.method === "PUT")

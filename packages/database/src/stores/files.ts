@@ -319,6 +319,45 @@ export async function settleFile(
 }
 
 /**
+ * Points a file just made ready at an object the school already stores
+ * with the same bytes, by digest and size, and answers the key it held,
+ * whose object the caller removes. Only files kept in the bucket's own
+ * encryption share: a sealed file, or one behind a special-category
+ * purpose, keeps its own object, so bytes never pass between what a key
+ * guards and what it does not. The other file must be placed and outside
+ * the trash, so the sweep is not about to take its object; it is locked
+ * until this commits. Run as the worker, the only role that may change
+ * what a row points at.
+ */
+export async function shareStoredObject(
+  tx: Tx,
+  input: { tenantId: string; id: string },
+): Promise<string | null> {
+  const [row] = await tx.execute<{ dropped: string }>(sql`
+    with mine as (
+      select id, sha256, size_bytes, storage_key from core.files
+      where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+        and status = 'active' and state = 'ready' and encryption = 'bucket'
+        and purpose not in ('health_report', 'evidence', 'legal_document')),
+    twin as (
+      select o.storage_key from core.files o, mine
+      where o.tenant_id = ${input.tenantId}::uuid and o.sha256 = mine.sha256
+        and o.size_bytes = mine.size_bytes and o.id <> mine.id
+        and o.storage_key <> mine.storage_key
+        and o.status = 'active' and o.state = 'ready' and o.encryption = 'bucket'
+        and o.purpose not in ('health_report', 'evidence', 'legal_document')
+        and o.linked_at is not null and o.trashed_at is null
+      order by o.ready_at
+      limit 1
+      for share of o)
+    update core.files f set storage_key = twin.storage_key
+    from twin, mine
+    where f.tenant_id = ${input.tenantId}::uuid and f.id = mine.id
+    returning mine.storage_key as dropped`);
+  return row?.dropped ?? null;
+}
+
+/**
  * Uploads started before `before` and never finished become rejected as
  * abandoned; their quarantine keys come back so the bytes can go too.
  */

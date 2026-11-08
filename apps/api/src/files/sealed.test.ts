@@ -27,6 +27,10 @@ class MemoryStore implements FileStore {
     return new Blob([part]).stream();
   }
 
+  async has(key: string) {
+    return this.objects.has(key);
+  }
+
   async move(from: string, to: string) {
     const bytes = this.objects.get(from);
     if (bytes) this.objects.set(to, bytes);

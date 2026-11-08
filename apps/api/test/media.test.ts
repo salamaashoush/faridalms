@@ -195,6 +195,7 @@ describe("video streams", () => {
     const store: FileStore = {
       write: (key, body, limit) => files.write(key, body, limit),
       open: (key, range) => files.open(key, range),
+      has: (key) => files.has(key),
       move: (from, to) => files.move(from, to),
       remove: (key) => files.remove(key),
       removeFolder: async (folder) => {

@@ -27,6 +27,8 @@ export interface FileStore {
     key: string,
     range?: { start: number; end: number },
   ): Promise<ReadableStream<Uint8Array> | null>;
+  /** Whether an object is stored under the key, without reading it. */
+  has(key: string): Promise<boolean>;
   move(from: string, to: string): Promise<void>;
   remove(key: string): Promise<void>;
   /**
@@ -93,6 +95,10 @@ export class DiskFileStore implements FileStore {
     return range
       ? file.slice(range.start, range.end + 1).stream()
       : file.stream();
+  }
+
+  has(key: string) {
+    return Bun.file(this.path(key)).exists();
   }
 
   async move(from: string, to: string) {
@@ -179,6 +185,10 @@ export class S3FileStore implements FileStore {
     return range
       ? object.slice(range.start, range.end + 1).stream()
       : object.stream();
+  }
+
+  has(key: string) {
+    return this.object(key).exists();
   }
 
   async move(from: string, to: string) {

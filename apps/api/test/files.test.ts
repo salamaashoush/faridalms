@@ -410,6 +410,8 @@ describe("files in documents", () => {
 
   test("a file deleted from a class's files waits in the trash for 30 days", async () => {
     const teacher = await sessionFor("northwind", login("teacher", 0, 1));
+    // Bytes of its own: an upload sharing another's stored object leaves
+    // the object to the other when it goes.
     const file = await teacher.api.files.initiate({
       purpose: "document_media",
       name: "worksheet.txt",
@@ -418,7 +420,7 @@ describe("files in documents", () => {
     });
     await raw("northwind", teacher.token, `/v1/files/${file.id}/content`, {
       method: "PUT",
-      body: text("worksheet"),
+      body: text("binned it"),
     });
     const { classes } = await teacher.api.coursework.options();
     const target = classes.find((row) => row.classType === "scheduled");
