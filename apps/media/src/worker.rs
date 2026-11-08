@@ -1,5 +1,6 @@
-//! Asks the API for videos to encode and encodes them, a few at a time.
-//! While a job is worked on the API hears of it every few seconds, whatever
+//! Asks the API for work and does it, a few jobs at a time: videos to
+//! encode, captions to draft, previews to make, with previews also taken in
+//! a lane of their own. While a job is worked on the API hears of it every few seconds, whatever
 //! the work is doing, so the job stays this worker's; a job the API takes
 //! away is dropped, and one this worker cannot finish through no fault of
 //! the file is handed back unspent.
@@ -13,12 +14,13 @@ use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 
-use crate::api::{Api, Job, Kind, Lease, Replaced};
+use crate::api::{Api, CanPreview, Claim, Job, Kind, Lease, Replaced};
 use crate::config::Config;
 use crate::metrics::{End, Metrics};
 use crate::plan::Manifest;
+use crate::preview::{Preview, PreviewError};
 use crate::transcode::TranscodeError;
-use crate::{captions, storage, transcode};
+use crate::{captions, preview, storage, transcode};
 
 /// How long to wait before asking again when there was nothing to do.
 const IDLE: Duration = Duration::from_secs(5);
@@ -40,6 +42,9 @@ const TELLINGS: u32 = 3;
 /// The share of a video's progress that is encoding; the rest is its
 /// streams going to the store.
 const ENCODING: f64 = 0.9;
+/// The share of a preview's progress that is making it; the rest is its
+/// files going to the store.
+const MAKING: f64 = 0.8;
 
 #[derive(Clone)]
 pub struct Worker {
@@ -68,8 +73,42 @@ fn idle_after(empty: u32) -> Duration {
     .min(LONGEST_IDLE)
 }
 
-pub async fn run(worker: Worker) {
-  let slots = Arc::new(Semaphore::new(worker.config.jobs.max(1)));
+/// What one loop of the worker asks the API for, with slots of its own.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Lane {
+  /// Every kind of job this machine can do, video encodes among them.
+  Everything,
+  /// Previews alone, so a picture never waits behind a long encode.
+  Previews,
+}
+
+impl Lane {
+  fn slots(self, config: &Config) -> usize {
+    match self {
+      Self::Everything => config.jobs.max(1),
+      Self::Previews => config.preview_jobs,
+    }
+  }
+
+  fn claim(self, config: &Config) -> Claim {
+    Claim {
+      captions: self == Self::Everything && config.speech.is_some(),
+      streams: self == Self::Everything,
+      previews: CanPreview {
+        pdf: config.previews.pdf,
+        office: config.previews.office.is_some(),
+      },
+    }
+  }
+}
+
+pub async fn run(worker: Worker, lane: Lane) {
+  let slots = lane.slots(&worker.config);
+  if slots == 0 {
+    return;
+  }
+  let claim = lane.claim(&worker.config);
+  let slots = Arc::new(Semaphore::new(slots));
   let failures = Arc::new(AtomicU32::new(0));
   let mut jobs = JoinSet::new();
   let mut empty = 0_u32;
@@ -86,7 +125,7 @@ pub async fn run(worker: Worker) {
       () = worker.stop.cancelled() => break,
       claimed = async {
         tokio::time::sleep(wait).await;
-        worker.api.claim(worker.config.speech.is_some()).await
+        worker.api.claim(&claim).await
       } => claimed,
     };
     match claimed {
@@ -109,7 +148,7 @@ pub async fn run(worker: Worker) {
       },
       Err(error) => {
         drop(slot);
-        tracing::warn!(%error, "asking the API for work failed");
+        tracing::warn!(?lane, %error, "asking the API for work failed");
         idle(&worker.stop, IDLE).await;
       },
     }
@@ -133,6 +172,7 @@ enum Made {
     bytes: u64,
   },
   Captions(String),
+  Previews(Preview),
 }
 
 /// How far a job has got, from 0 to 1, shared with what tells the API.
@@ -163,12 +203,15 @@ async fn pulse(api: Api, job: Job, progress: Arc<Progress>, lost: CancellationTo
 
 /// Whether the machine is at fault and not the file: the store or the disk
 /// could not be read or written, or a tool is not there to run. Such a
-/// failure says nothing about the video, which is handed back unspent.
+/// failure says nothing about the file, which is handed back unspent.
 fn is_the_machines(error: &anyhow::Error) -> bool {
   error.chain().any(|cause| {
     cause
       .downcast_ref::<TranscodeError>()
       .is_some_and(TranscodeError::is_the_machines)
+      || cause
+        .downcast_ref::<PreviewError>()
+        .is_some_and(PreviewError::is_the_machines)
       || cause
         .downcast_ref::<object_store::Error>()
         .is_some_and(|error| !matches!(error, object_store::Error::NotFound { .. }))
@@ -197,6 +240,7 @@ async fn work(worker: &Worker, job: &Job) -> End {
   let kind = match job.kind {
     Kind::Streams => "streams",
     Kind::Captions => "captions",
+    Kind::Previews => "previews",
   };
   tracing::info!(job = %job.id, kind, "working");
   worker.metrics.started();
@@ -216,6 +260,7 @@ async fn work(worker: &Worker, job: &Job) -> End {
       match job.kind {
         Kind::Streams => encode(worker, job, &progress).await,
         Kind::Captions => draft(worker, job, &progress).await,
+        Kind::Previews => preview(worker, job, &progress).await,
       }
     } => Some(made),
   };
@@ -237,6 +282,11 @@ async fn work(worker: &Worker, job: &Job) -> End {
     },
     Some(Ok(Made::Captions(vtt))) => {
       tell(job, "the drafted captions", || api.drafted(job, &vtt)).await;
+      End::Done
+    },
+    Some(Ok(Made::Previews(preview))) => {
+      worker.metrics.stored(preview.bytes);
+      tell(job, "the finished preview", || api.previewed(job, &preview)).await;
       End::Done
     },
     Some(Err(error)) => {
@@ -290,6 +340,36 @@ async fn draft(worker: &Worker, job: &Job, progress: &Progress) -> anyhow::Resul
   )
   .await?;
   Ok(Made::Captions(vtt))
+}
+
+async fn preview(worker: &Worker, job: &Job, progress: &Progress) -> anyhow::Result<Made> {
+  let (config, store) = (&worker.config, worker.store.as_ref());
+  let work = tempfile::Builder::new()
+    .prefix("farida-preview-")
+    .tempdir_in(&config.work_dir)?;
+  let source = work.path().join("source");
+  let out = work.path().join("out");
+  storage::download(store, &job.source_key, &source).await?;
+  let made = preview::make(
+    &config.previews,
+    &config.tools,
+    job.media_type.as_deref().unwrap_or_default(),
+    &source,
+    work.path(),
+    &out,
+    job.rewrite,
+  )
+  .await?;
+  progress.set(MAKING);
+  let mut preview = made.preview;
+  preview.bytes = storage::upload_dir(store, &out, &job.output_prefix, |sent| {
+    progress.set(MAKING + sent * (1.0 - MAKING));
+  })
+  .await?;
+  if let Some(upright) = made.upright {
+    preview.source = Some(storage::replace(store, &upright, &job.source_key).await?);
+  }
+  Ok(Made::Previews(preview))
 }
 
 async fn encode(worker: &Worker, job: &Job, progress: &Progress) -> anyhow::Result<Made> {
@@ -352,6 +432,47 @@ mod tests {
   }
 
   #[test]
+  fn the_preview_lane_never_claims_an_encode() -> anyhow::Result<()> {
+    let mut config = Config {
+      host: String::new(),
+      port: 0,
+      cell_secret: Vec::new(),
+      api_url: None,
+      storage: crate::config::Storage::Disk { root: "files".into() },
+      jobs: 0,
+      tools: transcode::Tools {
+        ffmpeg: "ffmpeg".into(),
+        ffprobe: "ffprobe".into(),
+        encoder: crate::plan::Encoder::Cpu,
+        tone_map: false,
+      },
+      speech: None,
+      preview_jobs: 0,
+      previews: preview::Previews {
+        pdftoppm: "pdftoppm".into(),
+        pdfinfo: "pdfinfo".into(),
+        pdf: true,
+        office: None,
+      },
+      work_dir: "work".into(),
+      metrics: None,
+    };
+    assert_eq!(
+      serde_json::to_value(Lane::Everything.claim(&config))?,
+      serde_json::json!({ "captions": false, "streams": true, "previews": { "pdf": true, "office": false } })
+    );
+    assert_eq!(
+      serde_json::to_value(Lane::Previews.claim(&config))?,
+      serde_json::json!({ "captions": false, "streams": false, "previews": { "pdf": true, "office": false } })
+    );
+    assert_eq!(Lane::Everything.slots(&config), 1);
+    assert_eq!(Lane::Previews.slots(&config), 0);
+    config.preview_jobs = 2;
+    assert_eq!(Lane::Previews.slots(&config), 2);
+    Ok(())
+  }
+
+  #[test]
   fn tells_the_machines_fault_from_the_files() {
     let missing_tool = anyhow::Error::from(TranscodeError::Start {
       tool: "ffmpeg",
@@ -377,6 +498,20 @@ mod tests {
     assert!(!is_the_machines(&broken_file));
     let no_picture = anyhow::Error::from(TranscodeError::Probe(crate::plan::ProbeError::NoVideo));
     assert!(!is_the_machines(&no_picture));
+    let undecodable = anyhow::Error::from(PreviewError::Unreadable("the picture could not be read".into()));
+    assert!(!is_the_machines(&undecodable));
+    let unknown = anyhow::Error::from(PreviewError::Unknown("text/plain".into()));
+    assert!(!is_the_machines(&unknown));
+    let no_pdftoppm = anyhow::Error::from(PreviewError::Tool(TranscodeError::Start {
+      tool: "pdftoppm",
+      source: std::io::Error::from(std::io::ErrorKind::NotFound),
+    }));
+    assert!(is_the_machines(&no_pdftoppm));
+    let slow_document = anyhow::Error::from(PreviewError::Tool(TranscodeError::Failed {
+      tool: "libreoffice",
+      stderr: "libreoffice was stopped after 120 seconds".into(),
+    }));
+    assert!(!is_the_machines(&slow_document));
     let gone = anyhow::Error::from(object_store::Error::NotFound {
       path: "t/a/f/b".into(),
       source: "gone".into(),

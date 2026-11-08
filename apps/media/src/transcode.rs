@@ -4,6 +4,7 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::time::Duration;
 
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::process::Command;
@@ -254,15 +255,35 @@ async fn loudness(tools: &Tools, source: &Path) -> Option<plan::Gain> {
 }
 
 pub(crate) async fn run(program: &Path, tool: &'static str, args: &[String]) -> Result<(), TranscodeError> {
-  let output = Command::new(program)
+  output(program, tool, args, None).await.map(drop)
+}
+
+/// Runs a tool and gives back what it wrote. One still running after
+/// `within` is killed and the file blamed: a document that keeps a tool
+/// busy that long will do so on every machine.
+pub(crate) async fn output(
+  program: &Path,
+  tool: &'static str,
+  args: &[String],
+  within: Option<Duration>,
+) -> Result<Vec<u8>, TranscodeError> {
+  let running = Command::new(program)
     .args(args)
     .stdin(Stdio::null())
     .kill_on_drop(true)
-    .output()
-    .await
-    .map_err(|source| TranscodeError::Start { tool, source })?;
+    .output();
+  let output = match within {
+    Some(within) => tokio::time::timeout(within, running)
+      .await
+      .map_err(|_| TranscodeError::Failed {
+        tool,
+        stderr: format!("{tool} was stopped after {} seconds", within.as_secs()),
+      })?,
+    None => running.await,
+  }
+  .map_err(|source| TranscodeError::Start { tool, source })?;
   if output.status.success() {
-    Ok(())
+    Ok(output.stdout)
   } else {
     Err(TranscodeError::Failed {
       tool,
@@ -277,7 +298,7 @@ fn tail_of(text: &str) -> String {
   lines[lines.len().saturating_sub(12)..].join("\n")
 }
 
-fn collect_tail(stderr: tokio::process::ChildStderr) -> tokio::task::JoinHandle<String> {
+pub(crate) fn collect_tail(stderr: tokio::process::ChildStderr) -> tokio::task::JoinHandle<String> {
   tokio::spawn(async move {
     let mut text = String::new();
     let _ = BufReader::new(stderr).read_to_string(&mut text).await;

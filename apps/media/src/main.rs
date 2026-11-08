@@ -7,6 +7,7 @@ mod captions;
 mod config;
 mod metrics;
 mod plan;
+mod preview;
 mod seal;
 mod serve;
 mod storage;
@@ -44,22 +45,29 @@ async fn main() -> Result<()> {
         .await
         .context("this machine cannot draft captions")?;
     }
+    preview::check(&mut config.previews)
+      .await
+      .context("this machine cannot convert office files")?;
+    if !config.previews.pdf {
+      tracing::warn!("pdftoppm does not run: PDFs and office files get no first page");
+    }
   }
   let config = Arc::new(config);
 
-  let worker = if let Some(url) = &config.api_url {
-    let api = api::Api::new(url.clone(), seal::worker_token(&config.cell_secret))?;
-    Some(tokio::spawn(worker::run(worker::Worker {
+  let mut lanes = Vec::new();
+  if let Some(url) = &config.api_url {
+    let worker = worker::Worker {
       config: Arc::clone(&config),
       store: Arc::clone(&store),
-      api,
+      api: api::Api::new(url.clone(), seal::worker_token(&config.cell_secret))?,
       metrics: Arc::clone(&metrics),
       stop: stop.clone(),
-    })))
+    };
+    lanes.push(tokio::spawn(worker::run(worker.clone(), worker::Lane::Previews)));
+    lanes.push(tokio::spawn(worker::run(worker, worker::Lane::Everything)));
   } else {
     tracing::info!("MEDIA_API_URL is not set: serving streams, encoding nothing");
-    None
-  };
+  }
 
   if let Some(address) = &config.metrics {
     let listener = tokio::net::TcpListener::bind(address)
@@ -95,8 +103,8 @@ async fn main() -> Result<()> {
     .with_graceful_shutdown(stop.cancelled_owned())
     .await?;
   // Jobs under way hand themselves back to the API before the service goes.
-  if let Some(worker) = worker {
-    let _ = worker.await;
+  for lane in lanes {
+    let _ = lane.await;
   }
   Ok(())
 }

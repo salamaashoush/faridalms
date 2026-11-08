@@ -71,9 +71,14 @@ COPY apps/media/src ./src
 RUN --mount=type=cache,target=/usr/local/cargo/registry --mount=type=cache,target=/app/apps/media/target cargo build --release --locked && cp target/release/farida-media /farida-media
 
 FROM debian:trixie-slim AS media
+# LibreOffice turns office files into PDFs to preview; it is large, so it is
+# carried only when asked for, and MEDIA_OFFICE_CONVERTER must name it.
+ARG MEDIA_OFFICE=false
 WORKDIR /app
 ENV MEDIA_HOST=0.0.0.0 MEDIA_PORT=3104
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates && rm -rf /var/lib/apt/lists/* && useradd --system --uid 1000 --create-home media
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg poppler-utils ca-certificates \
+      $(if [ "$MEDIA_OFFICE" = "true" ]; then echo libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui; fi) \
+    && rm -rf /var/lib/apt/lists/* && useradd --system --uid 1000 --create-home media
 COPY --chown=media:media LICENSE ./LICENSE
 COPY --from=media-build /farida-media /usr/local/bin/farida-media
 USER media

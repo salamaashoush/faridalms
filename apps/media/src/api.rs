@@ -10,13 +10,36 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::plan::Manifest;
+use crate::preview::Preview;
 
-/// What a job asks for: a video's streams, or a recording's captions drafted.
+/// What a job asks for: a video's streams, a recording's captions drafted,
+/// or the sizes and summary a file is shown by before it is opened.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Kind {
   Streams,
   Captions,
+  Previews,
+}
+
+/// The work a worker asks for. Each job kind the API holds is handed out
+/// only to a worker that says it can do it, so an older worker that says
+/// nothing of previews is never given one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct Claim {
+  pub captions: bool,
+  /// Whether video encodes may be handed out, which a lane kept for quick
+  /// work turns down.
+  pub streams: bool,
+  pub previews: CanPreview,
+}
+
+/// Which documents this worker can make previews of; pictures and sound
+/// it always can.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct CanPreview {
+  pub pdf: bool,
+  pub office: bool,
 }
 
 /// The part of a recording its maker kept, in seconds from its start.
@@ -50,6 +73,13 @@ pub struct Job {
   /// The part to keep, when its maker cut the recording's ends off.
   #[serde(default)]
   pub trim: Option<Trim>,
+  /// What the API took the file to be, which decides what its preview is.
+  #[serde(default)]
+  pub media_type: Option<String>,
+  /// Whether a picture held on its side by its metadata is put upright in
+  /// place of its upload.
+  #[serde(default)]
+  pub rewrite: bool,
 }
 
 impl Job {
@@ -57,6 +87,7 @@ impl Job {
     let folder = match self.kind {
       Kind::Streams => "jobs",
       Kind::Captions => "captions",
+      Kind::Previews => "previews",
     };
     format!("/v1/media/{folder}/{}/{report}", self.id)
   }
@@ -104,9 +135,9 @@ impl Api {
       .with_context(|| format!("the API did not answer {path}"))
   }
 
-  /// The next job waiting, or none; captions only when this service can draft them.
-  pub async fn claim(&self, captions: bool) -> Result<Option<Job>> {
-    let response = self.post("/v1/media/claim", &json!({ "captions": captions })).await?;
+  /// The next job waiting of a kind `claim` takes, or none.
+  pub async fn claim(&self, claim: &Claim) -> Result<Option<Job>> {
+    let response = self.post("/v1/media/claim", claim).await?;
     match response.status() {
       StatusCode::NO_CONTENT => Ok(None),
       StatusCode::OK => Ok(Some(response.json().await?)),
@@ -145,6 +176,14 @@ impl Api {
     let response = self.post(&job.path("done"), &json!({ "vtt": vtt })).await?;
     if !response.status().is_success() {
       bail!("the API refused drafted captions: {}", response.status());
+    }
+    Ok(())
+  }
+
+  pub async fn previewed(&self, job: &Job, preview: &Preview) -> Result<()> {
+    let response = self.post(&job.path("done"), preview).await?;
+    if !response.status().is_success() {
+      bail!("the API refused a finished preview: {}", response.status());
     }
     Ok(())
   }

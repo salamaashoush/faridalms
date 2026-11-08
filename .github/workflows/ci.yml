@@ -72,8 +72,8 @@ jobs:
             ~/.cargo/registry
             apps/media/target
           key: media-${{ runner.os }}-${{ hashFiles('apps/media/Cargo.lock') }}
-      # The tests encode a clip, so they need the tools the service drives.
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      # The tests encode a clip and draw a PDF, so they need the tools the service drives.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg poppler-utils
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked

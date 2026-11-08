@@ -19,7 +19,11 @@ pub enum End {
   Lost,
 }
 
-const KINDS: [(Kind, &str); 2] = [(Kind::Streams, "streams"), (Kind::Captions, "captions")];
+const KINDS: [(Kind, &str); 3] = [
+  (Kind::Streams, "streams"),
+  (Kind::Captions, "captions"),
+  (Kind::Previews, "previews"),
+];
 const ENDS: [(End, &str); 4] = [
   (End::Done, "done"),
   (End::Failed, "failed"),
@@ -55,7 +59,7 @@ impl Metrics {
     self.job_millis[kind_at(kind)].fetch_add(u64::try_from(took.as_millis()).unwrap_or(u64::MAX), Ordering::Relaxed);
   }
 
-  /// Streams written to the store.
+  /// Streams and previews written to the store.
   pub fn stored(&self, bytes: u64) {
     self.stored_bytes.fetch_add(bytes, Ordering::Relaxed);
   }
@@ -97,7 +101,7 @@ impl Metrics {
     text.push_str("# HELP farida_media_jobs_running Jobs being worked on now.\n");
     text.push_str("# TYPE farida_media_jobs_running gauge\n");
     let _ = writeln!(text, "farida_media_jobs_running {}", read(&self.running));
-    text.push_str("# HELP farida_media_stored_bytes_total Bytes of streams written to the store.\n");
+    text.push_str("# HELP farida_media_stored_bytes_total Bytes of streams and previews written to the store.\n");
     text.push_str("# TYPE farida_media_stored_bytes_total counter\n");
     let _ = writeln!(text, "farida_media_stored_bytes_total {}", read(&self.stored_bytes));
     text.push_str("# HELP farida_media_stream_responses_total Requests for a stream answered, by status.\n");
@@ -126,6 +130,8 @@ mod tests {
     metrics.started();
     metrics.started();
     metrics.ended(Kind::Streams, End::Done, Duration::from_millis(12_500));
+    metrics.started();
+    metrics.ended(Kind::Previews, End::Released, Duration::from_millis(40));
     metrics.stored(4096);
     metrics.answered(206, 1000);
     metrics.answered(206, 24);
@@ -135,6 +141,8 @@ mod tests {
       "farida_media_jobs_total{kind=\"streams\",outcome=\"done\"} 1",
       "farida_media_jobs_total{kind=\"captions\",outcome=\"failed\"} 0",
       "farida_media_job_seconds_total{kind=\"streams\"} 12.500",
+      "farida_media_jobs_total{kind=\"previews\",outcome=\"released\"} 1",
+      "farida_media_job_seconds_total{kind=\"previews\"} 0.040",
       "farida_media_jobs_running 1",
       "farida_media_stored_bytes_total 4096",
       "farida_media_stream_responses_total{status=\"206\"} 2",

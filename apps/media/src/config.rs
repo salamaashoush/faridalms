@@ -11,6 +11,7 @@ use base64::engine::general_purpose::STANDARD;
 
 use crate::captions::Speech;
 use crate::plan::Encoder;
+use crate::preview::Previews;
 use crate::transcode::Tools;
 
 #[derive(Debug, Clone)]
@@ -42,6 +43,10 @@ pub struct Config {
   pub tools: Tools,
   /// Speech recognition for drafting captions; none drafts none.
   pub speech: Option<Speech>,
+  /// Previews made at once in a lane of their own, so a picture never
+  /// waits behind a long encode; 0 turns the lane off.
+  pub preview_jobs: usize,
+  pub previews: Previews,
   /// Where sources and encodes wait while they are worked on.
   pub work_dir: PathBuf,
   /// Where the service's counts are served, for the machine's own monitor
@@ -137,6 +142,15 @@ impl Config {
             .map_or(Ok(4), |value| value.parse())
             .context("MEDIA_WHISPER_THREADS must be a number")?,
         }),
+      },
+      preview_jobs: var("MEDIA_PREVIEW_JOBS")
+        .map_or(Ok(1), |value| value.parse())
+        .context("MEDIA_PREVIEW_JOBS must be a number")?,
+      previews: Previews {
+        pdftoppm: var("MEDIA_PDFTOPPM").unwrap_or_else(|| "pdftoppm".into()).into(),
+        pdfinfo: var("MEDIA_PDFINFO").unwrap_or_else(|| "pdfinfo".into()).into(),
+        pdf: false,
+        office: var("MEDIA_OFFICE_CONVERTER").map(PathBuf::from),
       },
       work_dir: var("MEDIA_WORK_DIR").map_or_else(env::temp_dir, PathBuf::from),
       metrics: match var("MEDIA_METRICS_PORT") {
