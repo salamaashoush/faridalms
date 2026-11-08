@@ -127,10 +127,30 @@ interface LessonTitleProps {
   data: Data;
 }
 
+/** The lesson a rule reads its score in, named with its module when that is another. */
+function sourceTitle(
+  lessonId: string,
+  lessons: readonly { id: string; title: string }[],
+  sources: readonly { lessonId: string; title: string; moduleTitle: string }[],
+) {
+  const own = lessons.find((item) => item.id === lessonId);
+  if (own) return own.title;
+  const other = sources.find((item) => item.lessonId === lessonId);
+  return other
+    ? m.lrnConditionElsewhere({
+        lesson: other.title,
+        module: other.moduleTitle,
+      })
+    : null;
+}
+
 function LessonTitle({ row, data }: LessonTitleProps) {
   const before = row.condition
-    ? data.lessons.find((item) => item.id === row.condition?.lessonId)
-    : undefined;
+    ? sourceTitle(row.condition.lessonId, data.lessons, data.sources)
+    : null;
+  const routes = data.routes.filter(
+    (item) => item.condition.lessonId === row.id,
+  );
   return (
     <span className="grid min-w-0 gap-0.5">
       <RowLink
@@ -142,9 +162,20 @@ function LessonTitle({ row, data }: LessonTitleProps) {
       </RowLink>
       {row.condition && before ? (
         <span className="text-[13px] leading-[18px] whitespace-normal text-muted-foreground">
-          {conditionText(row.condition, before.title)}
+          {conditionText(row.condition, before)}
         </span>
       ) : null}
+      {routes.map((item) => (
+        <span
+          key={item.lessonId}
+          className="text-[13px] leading-[18px] whitespace-normal text-muted-foreground"
+        >
+          {m.lrnConditionRoutes({
+            lesson: item.title,
+            module: item.moduleTitle,
+          })}
+        </span>
+      ))}
       {row.live.length > 0 ? (
         <span className="flex flex-wrap gap-1.5 pt-0.5">
           {row.live.map((session) => {
@@ -718,12 +749,24 @@ function Matrix({ moduleId, classId }: MatrixProps) {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <ol className="flex min-w-0 flex-1 flex-wrap gap-x-6 gap-y-1 text-[13px] leading-[18px] text-muted-foreground">
-          {data.lessons.map((lesson, index) => (
-            <li key={lesson.id} className="min-w-0">
-              {m.lrnLessonNumber({ number: formatNumber(index + 1) })}:{" "}
-              <bdi>{lesson.title}</bdi>
-            </li>
-          ))}
+          {data.lessons.map((lesson, index) => {
+            const before = lesson.condition
+              ? sourceTitle(
+                  lesson.condition.lessonId,
+                  data.lessons,
+                  data.sources,
+                )
+              : null;
+            return (
+              <li key={lesson.id} className="min-w-0">
+                {m.lrnLessonNumber({ number: formatNumber(index + 1) })}:{" "}
+                <bdi>{lesson.title}</bdi>
+                {lesson.condition && before ? (
+                  <> · {conditionText(lesson.condition, before)}</>
+                ) : null}
+              </li>
+            );
+          })}
           {data.tools.map((column, index) => (
             <li key={column.id} className="min-w-0">
               {m.ltiToolColumn({ number: formatNumber(index + 1) })}:{" "}

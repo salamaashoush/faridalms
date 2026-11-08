@@ -69,7 +69,7 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { moduleRecordQuery } from "~/queries/learning";
+import { moduleRecordQuery, routeChoicesQuery } from "~/queries/learning";
 import {
   getRemarking,
   reviewLessonTranslation,
@@ -182,6 +182,7 @@ export function LessonEditor({
 }: LessonEditorProps) {
   const queryClient = useQueryClient();
   const module = useSuspenseQuery(moduleRecordQuery(moduleId)).data;
+  const elsewhere = useSuspenseQuery(routeChoicesQuery(moduleId)).data.lessons;
   const earlyYears = useCurrentUser().modules.early_years;
   const open = module.state === "published";
   const media = useDocumentMedia({ type: "module", id: moduleId });
@@ -328,9 +329,31 @@ export function LessonEditor({
       row.position < ownPosition &&
       (row.scored || row.id === draft.conditionLessonId),
   );
-  const conditionLesson = module.lessons.find(
-    (row) => row.id === draft.conditionLessonId,
-  );
+  // A lesson of another module the class takes can route this one too.
+  const outside = [
+    ...elsewhere,
+    ...module.sources.filter(
+      (row) =>
+        row.lessonId === draft.conditionLessonId &&
+        !elsewhere.some((item) => item.lessonId === row.lessonId),
+    ),
+  ];
+  const conditionTitle = (() => {
+    const own = module.lessons.find(
+      (row) => row.id === draft.conditionLessonId,
+    );
+    if (own) return own.title;
+    const other = outside.find(
+      (row) => row.lessonId === draft.conditionLessonId,
+    );
+    return other
+      ? m.lrnConditionElsewhere({
+          lesson: other.title,
+          module: other.moduleTitle,
+        })
+      : null;
+  })();
+  const routable = earlier.length + outside.length > 0;
   const storable = !titleIssue && !passIssue && !conditionIssue;
   // Checking the lesson reads every block of it, too much for each key
   // pressed, so it runs only where its findings are wanted.
@@ -413,7 +436,8 @@ export function LessonEditor({
       ...current,
       byScore: value === "score",
       conditionLessonId:
-        current.conditionLessonId || (earlier.at(-1)?.id ?? ""),
+        current.conditionLessonId ||
+        (earlier.at(-1)?.id ?? outside[0]?.lessonId ?? ""),
     }));
   };
   const changeContent = useCallback((value: ContentDocument) => {
@@ -869,14 +893,12 @@ export function LessonEditor({
                 id="lesson-show"
                 label={m.lrnConditionShow()}
                 hint={
-                  earlier.length > 0
-                    ? m.lrnConditionShowHint()
-                    : m.lrnConditionNone()
+                  routable ? m.lrnConditionShowHint() : m.lrnConditionNone()
                 }
                 value={draft.byScore ? "score" : "all"}
                 options={[
                   { value: "all", label: m.lrnConditionEveryone() },
-                  ...(earlier.length > 0 || draft.byScore
+                  ...(routable || draft.byScore
                     ? [
                         {
                           value: "score" as const,
@@ -893,10 +915,21 @@ export function LessonEditor({
                     id="lesson-condition-lesson"
                     label={m.lrnConditionLesson()}
                     value={draft.conditionLessonId}
-                    options={earlier.map((row) => ({
-                      value: row.id,
-                      label: `${formatNumber(row.position + 1)}. ${row.title}`,
-                    }))}
+                    options={[
+                      ...earlier.map((row) => ({
+                        value: row.id,
+                        label: `${formatNumber(row.position + 1)}. ${row.title}`,
+                        group:
+                          outside.length > 0
+                            ? m.lrnConditionThisModule()
+                            : undefined,
+                      })),
+                      ...outside.map((row) => ({
+                        value: row.lessonId,
+                        label: row.title,
+                        group: row.moduleTitle,
+                      })),
+                    ]}
                     onChange={(lessonId) => set("conditionLessonId", lessonId)}
                     errors={
                       checking && !draft.conditionLessonId
@@ -944,9 +977,9 @@ export function LessonEditor({
                       />
                     )}
                   </div>
-                  {condition && conditionLesson ? (
+                  {condition && conditionTitle ? (
                     <p className="text-[13px] leading-[18px] text-muted-foreground">
-                      {conditionText(condition, conditionLesson.title)}
+                      {conditionText(condition, conditionTitle)}
                     </p>
                   ) : (checking || rangeFilled) && draft.conditionLessonId ? (
                     <p

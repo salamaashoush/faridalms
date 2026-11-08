@@ -20,6 +20,7 @@ import {
   getClassSounds,
   getNextLessons,
   getPracticeSet,
+  getRouteChoices,
   getTeachingModules,
   getWrittenAnswers,
   getYearMap,
@@ -49,6 +50,13 @@ export const moduleRecordQuery = (id: string) =>
   queryOptions({
     queryKey: ["learning", "module", id],
     queryFn: () => getModuleRecord({ data: { id } }),
+  });
+
+/** The scored lessons of other modules sharing a class that a lesson here can be routed by. */
+export const routeChoicesQuery = (moduleId: string) =>
+  queryOptions({
+    queryKey: ["learning", "routes", moduleId],
+    queryFn: () => getRouteChoices({ data: { moduleId } }),
   });
 
 export const planQuery = (moduleId: string) =>

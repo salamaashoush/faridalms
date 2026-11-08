@@ -72,6 +72,10 @@ export const getModuleRecord = createServerFn({ method: "GET" })
   .validator(byId)
   .handler(({ data }) => record(backend().learning.record(data)));
 
+export const getRouteChoices = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ moduleId: v.pipe(v.string(), v.uuid()) })))
+  .handler(({ data }) => backend().learning.routeChoices(data));
+
 export const saveModule = createServerFn({ method: "POST" })
   .validator(checked(saveModuleSchema))
   .handler(({ data }) => backend().learning.saveModule(data));

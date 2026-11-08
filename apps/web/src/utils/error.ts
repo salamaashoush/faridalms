@@ -887,6 +887,10 @@ export function getMessageFromError(error: unknown): string {
         return m.courseworkErrTranslationLanguage();
       case "learning.condition_in_use":
         return m.lrnErrConditionInUse();
+      case "learning.condition_module":
+        return m.lrnErrConditionModule();
+      case "learning.condition_loop":
+        return m.lrnErrConditionLoop();
       case "learning.paced_paused":
         return m.lrnErrPacedPaused();
       case "learning.paced_ahead":

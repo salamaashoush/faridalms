@@ -215,29 +215,39 @@ export function ModuleOutline({ moduleId, studentId }: ModuleOutlineProps) {
                           formatNumber(index + 1)
                         )}
                       </span>
-                      {linked ? (
-                        <Link
-                          to="/lessons/$lessonId"
-                          params={{ lessonId: lesson.id }}
-                          search={{}}
-                          className={cn(
-                            "min-w-0 text-sm leading-5 font-medium hover:text-primary hover:underline",
-                            phoneLink,
-                          )}
-                        >
-                          <bdi>{lesson.title}</bdi>
-                        </Link>
-                      ) : (
-                        <bdi
-                          className={cn(
-                            "min-w-0 text-sm leading-5 font-medium",
-                            lesson.state === "locked" &&
-                              "text-muted-foreground",
-                          )}
-                        >
-                          {lesson.title}
-                        </bdi>
-                      )}
+                      <span className="grid min-w-0 gap-0.5">
+                        {linked ? (
+                          <Link
+                            to="/lessons/$lessonId"
+                            params={{ lessonId: lesson.id }}
+                            search={{}}
+                            className={cn(
+                              "min-w-0 text-sm leading-5 font-medium hover:text-primary hover:underline",
+                              phoneLink,
+                            )}
+                          >
+                            <bdi>{lesson.title}</bdi>
+                          </Link>
+                        ) : (
+                          <bdi
+                            className={cn(
+                              "min-w-0 text-sm leading-5 font-medium",
+                              lesson.state === "locked" &&
+                                "text-muted-foreground",
+                            )}
+                          >
+                            {lesson.title}
+                          </bdi>
+                        )}
+                        {lesson.from ? (
+                          <span className="text-[13px] leading-[18px] text-muted-foreground">
+                            {m.lrnFromLesson({
+                              lesson: lesson.from.title,
+                              module: lesson.from.moduleTitle,
+                            })}
+                          </span>
+                        ) : null}
+                      </span>
                     </div>
                     <span className="inline-flex shrink-0 items-center gap-1.5 text-[13px] leading-[18px] text-muted-foreground">
                       <Icon aria-hidden className="size-3.5" />
@@ -251,6 +261,40 @@ export function ModuleOutline({ moduleId, studentId }: ModuleOutlineProps) {
         }
         aside={
           <>
+            {data.sent.length > 0 ? (
+              <RecordSection
+                title={m.lrnSentTitle()}
+                description={m.lrnSentHint()}
+              >
+                <RecordList>
+                  {data.sent.map((item) => (
+                    <li key={item.lessonId} className="grid gap-0.5 py-2">
+                      {data.own ? (
+                        <Link
+                          to="/lessons/$lessonId"
+                          params={{ lessonId: item.lessonId }}
+                          search={{}}
+                          className={cn(
+                            "text-sm leading-5 font-medium hover:text-primary hover:underline",
+                            phoneLink,
+                          )}
+                        >
+                          <bdi>{item.title}</bdi>
+                        </Link>
+                      ) : (
+                        <bdi className="text-sm leading-5 font-medium">
+                          {item.title}
+                        </bdi>
+                      )}
+                      <span className="text-[13px] leading-[18px] text-muted-foreground">
+                        <bdi>{item.moduleTitle}</bdi>
+                        {item.done ? ` · ${m.lrnLessonDone()}` : null}
+                      </span>
+                    </li>
+                  ))}
+                </RecordList>
+              </RecordSection>
+            ) : null}
             {data.own && !data.locked && done >= 2 ? (
               <RecordSection
                 title={m.lrnPracticeTitle()}

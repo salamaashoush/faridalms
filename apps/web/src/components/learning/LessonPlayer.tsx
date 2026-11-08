@@ -44,7 +44,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDown,
   ArrowLeft,
@@ -1032,6 +1032,9 @@ export function LessonPlayer({ lessonId }: LessonPlayerProps) {
     number: formatNumber(data.index + 1),
     total: formatNumber(data.total),
   });
+  // A child's score that opened a lesson elsewhere takes them on there
+  // once the module has nothing next for them.
+  const youngNext = data.next ?? data.sent[0]?.lessonId ?? null;
   if (data.young && earlyYears)
     return (
       <YoungContext.Provider value>
@@ -1076,13 +1079,13 @@ export function LessonPlayer({ lessonId }: LessonPlayerProps) {
               : null
           }
           next={
-            data.next
+            youngNext
               ? {
                   label: m.lrnNext(),
                   onNext: () =>
                     void navigate({
                       to: "/lessons/$lessonId",
-                      params: { lessonId: data.next ?? "" },
+                      params: { lessonId: youngNext },
                     }),
                 }
               : null
@@ -1222,6 +1225,28 @@ export function LessonPlayer({ lessonId }: LessonPlayerProps) {
               <p dir="auto" className="ps-6 text-sm leading-5">
                 {data.band}
               </p>
+            ) : null}
+            {data.sent.length > 0 ? (
+              <div className="grid gap-1 ps-6 text-sm leading-5">
+                <p>{m.lrnSentFrom()}</p>
+                <ul className="grid gap-1">
+                  {data.sent.map((item) => (
+                    <li key={item.lessonId}>
+                      <Link
+                        to="/lessons/$lessonId"
+                        params={{ lessonId: item.lessonId }}
+                        search={{}}
+                        className="font-medium text-primary underline-offset-4 hover:underline"
+                      >
+                        {m.lrnConditionElsewhere({
+                          lesson: item.title,
+                          module: item.moduleTitle,
+                        })}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
           </div>
           {canRetry ? (

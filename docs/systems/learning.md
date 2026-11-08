@@ -163,6 +163,22 @@ From [../research/early-years.md](../research/early-years.md).
   closes once marked. A teacher may choose several waiting answers, or all
   of them, and give them one mark and feedback together.
 
+- A lesson can be shown by score: to the students whose best score in
+  another lesson is below a mark, at or above one, or between two. That
+  lesson is an earlier scored lesson of the module, or a scored lesson of
+  another module that shares a class with it and that the teacher may
+  edit, chosen in the lesson's routing settings under the module's name.
+  It stays hidden until that lesson is finished, then is on the student's
+  path or off it; no chain of rules may lead back to the lesson itself,
+  and a lesson whose score routes another, anywhere, cannot be removed. A
+  copied module keeps its rules within itself and drops those on other
+  modules. The student's module names the lesson elsewhere that opened a
+  lesson, and the module the score came from lists where it sent them, as
+  does the lesson once finished; a young child's last screen goes on
+  there. The teacher's lessons table names each rule and, on the lesson a
+  score comes from, the lessons it opens elsewhere; the progress grid
+  names each rule and shows a lesson off a student's path, or waiting on
+  a score in another module, as it does within one.
 - Work for a whole class or for groups follows who is in them. A module
   reaches whoever is in its class or groups today. A student who joins a
   class, or one of its groups, is given its published assignments that are

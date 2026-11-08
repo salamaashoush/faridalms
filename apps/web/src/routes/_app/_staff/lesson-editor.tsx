@@ -15,7 +15,11 @@ import * as v from "valibot";
 import { LessonEditor } from "~/components/learning/LessonEditor";
 import * as m from "~/i18n/messages";
 import { collaborationQuery } from "~/queries/documents";
-import { lessonEditorQuery, moduleRecordQuery } from "~/queries/learning";
+import {
+  lessonEditorQuery,
+  moduleRecordQuery,
+  routeChoicesQuery,
+} from "~/queries/learning";
 import { templateQuery } from "~/queries/library";
 import { currentUserQuery } from "~/queries/user";
 import { requirePage } from "~/utils/page-access";
@@ -34,6 +38,7 @@ export const Route = createFileRoute("/_app/_staff/lesson-editor")({
     requirePage(user, "learning:author");
     await Promise.all([
       context.queryClient.ensureQueryData(moduleRecordQuery(deps.moduleId)),
+      context.queryClient.ensureQueryData(routeChoicesQuery(deps.moduleId)),
       deps.id
         ? context.queryClient.ensureQueryData(lessonEditorQuery(deps.id))
         : null,
