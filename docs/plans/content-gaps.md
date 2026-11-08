@@ -106,12 +106,6 @@ Every week view, register, cover board, feed and print follows them.
 7. Announcements and news under one API namespace, so the web keeps one
    server bridge.
 
-## D. Courses and live lessons
-
-1. Routing a student across modules by a single lesson's score.
-2. Live lessons pushed to students as the teacher moves, in place of
-   asking now and then, and live mode for young lessons.
-
 ## E. Collaboration and reading
 
 1. Discussions inside a module, and liking a post.
@@ -144,7 +138,7 @@ Every week view, register, cover board, feed and print follows them.
 ## H. Editor core
 
 1. One question-and-answer model shared by quizzes, forms and admission
-   forms. Built after D and E land, since both touch questions.
+   forms. Built after E lands, since it touches questions.
 2. The picture, gallery, file and recording blocks' floating bars tested
    in the browser with real uploads.
 

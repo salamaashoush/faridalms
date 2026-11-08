@@ -490,8 +490,8 @@ Sources: [../research/course-design.md](../research/course-design.md),
    moved after it or removed, and a copied module keeps its rules. A
    teacher opens a lesson off a student's path, or still waiting on a
    score, for that student from the progress grid, and takes it back
-   there; a lesson after it then follows from it as from any other.
-   Left: routing across modules by a single lesson's score.
+   there; a lesson after it then follows from it as from any other. A
+   rule may name a scored lesson in another module that shares a class.
 7. **Live lesson**: the teacher paces a lesson for the class, as Nearpod and
    Pear Deck do, with answers gathered on the teacher's screen.
    Done: Teach live, on a lesson of an open module, leads one class
@@ -504,15 +504,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
    at a click. A class board for the room's screen shows the same without
    names, and the right answers once the teacher chooses, as Pear Deck
    keeps names to the teacher. Ending it leaves each part a student
-   reached open. Students' players ask every 3 seconds while a lesson is
-   led and every 15 otherwise.
+   reached open. Each move is pushed to the students' players and the
+   board through the collab service; players ask again only when the push
+   channel drops. A young lesson is led one screen at a time.
    A module's lessons show each one being led live, and for which class,
    a link back to its teacher's screen. A question answered in words or a
    picture lists each student's answer on the teacher's screen, names
    hidden at the same click, and the teacher puts any one on the board
    without its writer's name, as Pear Deck projects a response; taking the
    class on clears it.
-   Left: a push channel in place of asking, and young lessons.
 
 ## 6. Editor capabilities
 
