@@ -207,4 +207,90 @@ describe("a lesson led live, pushed", () => {
     ).toBe(403);
     student.provider.destroy();
   });
+
+  test("a teacher leads a young lesson one screen at a time", async () => {
+    const { keeper, pupil, classId } = await cast();
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Animals together",
+      summary: "",
+      classIds: [classId],
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const tap = (prompt: string) => {
+      const right = id();
+      return {
+        right,
+        block: {
+          id: id(),
+          type: "choice" as const,
+          prompt,
+          points: 1,
+          hints: [],
+          explanation: "",
+          tries: 3,
+          options: [
+            { id: right, text: "Yes", feedback: "" },
+            { id: id(), text: "No", feedback: "" },
+          ],
+          correctOptionIds: [right],
+          multiple: false,
+          shuffle: false,
+        },
+      };
+    };
+    const cat = tap("Is this a cat?");
+    const dog = tap("Is this a dog?");
+    // No continue gate: each question closes a screen of its own.
+    const led = await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Animals",
+      completion: "view",
+      passScore: null,
+      young: true,
+      content: written([
+        { id: id(), type: "content", content: plainContent("A cat.") },
+        cat.block,
+        { id: id(), type: "content", content: plainContent("A dog.") },
+        dog.block,
+      ]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const started = await keeper.learning.startPaced({
+      lessonId: led.id,
+      classId,
+    });
+    const view = await keeper.learning.paced({ id: started.id });
+    expect(view.screens).toBe(true);
+    expect(
+      view.parts.map(({ label, questions }) => ({ label, questions })),
+    ).toEqual([
+      { label: "A cat.", questions: 1 },
+      { label: "A dog.", questions: 1 },
+    ]);
+    const answer = (item: typeof cat) =>
+      pupil.learning.respond({
+        lessonId: led.id,
+        blockId: item.block.id,
+        response: { type: "choice", optionIds: [item.right] },
+      });
+    expect(await rejection(answer(dog))).toMatchObject({
+      code: "CONFLICT",
+      message: "learning.paced_ahead",
+    });
+    await answer(cat);
+    expect(
+      await keeper.learning.pace({ id: started.id, step: 9 }),
+    ).toMatchObject({ step: 1 });
+    await answer(dog);
+    await keeper.learning.endPaced({ id: started.id });
+  });
 });

@@ -160,7 +160,8 @@ import {
   lessonWatchables,
   lessonRecordings,
   lessonScore,
-  lessonParts,
+  pacedParts,
+  pacedPartOf,
   lessonPlainText,
   lessonScored,
   markResponse,
@@ -172,7 +173,6 @@ import {
   overrideSchema,
   openForStudentSchema,
   paceSchema,
-  partOf,
   pathOf,
   planSchema,
   positionSchema,
@@ -2136,6 +2136,14 @@ export const live = readProcedure
     };
   });
 
+/**
+ * Whether a lesson is played one screen at a time, as its students' player
+ * shows a lesson for young children where the school has the early years.
+ */
+async function byScreens(context: UnitContext, row: { young: boolean }) {
+  return row.young && (await modulesOf(context)).early_years;
+}
+
 /** A lesson led live, with the module it is in and the version its students play. */
 async function pacedFor(context: UnitContext, pacedId: string) {
   const session = await pacedById(context.tx, context.tenantId, pacedId);
@@ -2145,7 +2153,13 @@ async function pacedFor(context: UnitContext, pacedId: string) {
   const owner = await editableModule(context, led.moduleId);
   const published = await publishedLesson(context, led.id);
   if (!published) throw new ORPCError("NOT_FOUND");
-  return { session, led, owner, content: published.content };
+  return {
+    session,
+    led,
+    owner,
+    content: published.content,
+    screens: await byScreens(context, led),
+  };
 }
 
 /** A part named by its first words, for the teacher choosing where to take the class. */
@@ -2201,9 +2215,12 @@ export const startPaced = writeProcedure
 export const paced = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
-    const { session, led, owner, content } = await pacedFor(context, input.id);
+    const { session, led, owner, content, screens } = await pacedFor(
+      context,
+      input.id,
+    );
     const roster = await audienceOf(context, owner.id, session.classId);
-    const parts = lessonParts(content.blocks);
+    const parts = pacedParts(content.blocks, screens);
     const step = Math.min(session.step, parts.length - 1);
     const open = new Set((parts[step] ?? []).map((block) => block.id));
     const [classes, students, rows, activity, ran, releases] =
@@ -2245,6 +2262,8 @@ export const paced = readProcedure
       step,
       paused: session.paused,
       revealed: session.revealed,
+      /** The lesson is led one screen at a time, as young children play it. */
+      screens,
       startedAt: session.startedAt,
       endedAt: session.endedAt,
       lesson: {
@@ -2322,13 +2341,16 @@ function openAnswers(
 export const pace = writeProcedure
   .input(paceSchema)
   .handler(async ({ input, context }) => {
-    const { session, owner, content } = await pacedFor(context, input.id);
+    const { session, owner, content, screens } = await pacedFor(
+      context,
+      input.id,
+    );
     if (session.endedAt)
       throw new ORPCError("CONFLICT", { message: "learning.paced_ended" });
     const step =
       input.step === undefined
         ? undefined
-        : Math.min(input.step, lessonParts(content.blocks).length - 1);
+        : Math.min(input.step, pacedParts(content.blocks, screens).length - 1);
     const moved = step !== undefined && step !== session.step;
     // An answer shown is one of the class's to a question in the lesson
     // that answers in words or a picture.
@@ -2889,6 +2911,7 @@ async function playable(context: UnitContext, lessonId: string) {
     content,
     checks: checkStates(content, rows),
     paced: leading,
+    screens: await byScreens(context, row),
     shown,
     translation: translation && { locale: translation.locale },
     reading:
@@ -2917,7 +2940,10 @@ function pacedAllows(played: Played, blockId: string) {
   if (!played.paced) return;
   if (played.paced.paused)
     throw new ORPCError("CONFLICT", { message: "learning.paced_paused" });
-  if (partOf(played.content.blocks, blockId) > played.paced.step)
+  if (
+    pacedPartOf(played.content.blocks, blockId, played.screens) >
+    played.paced.step
+  )
     throw new ORPCError("CONFLICT", { message: "learning.paced_ahead" });
 }
 
@@ -3100,6 +3126,8 @@ export const playLesson = writeProcedure
           ).filter((item) => item.fromLessonId === row.id)
         : [],
       paced: played.paced,
+      /** A teacher leading the lesson opens it a screen at a time. */
+      screens: played.screens,
       sounds: !(await quietLessons(context.tx, {
         tenantId: context.tenantId,
         moduleId: owner.id,

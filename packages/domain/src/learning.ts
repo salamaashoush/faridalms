@@ -33,6 +33,7 @@ import {
 } from "./crossword";
 import { embedProviderNames, FRAMED_KEY, framedKey } from "./embed";
 import { lessonOfContent } from "./lesson-content";
+import { lessonSteps } from "./lesson-steps";
 import { MATH_FORMS } from "./math-forms";
 import { keyIssue, markMath } from "./math-marking";
 import {
@@ -1184,6 +1185,30 @@ export function partOf(
     if (block.type === "gate") part += 1;
   }
   return -1;
+}
+
+/**
+ * The parts a teacher leading a lesson live opens one at a time: its
+ * screens for a lesson young children play one screen at a time, else the
+ * parts between its continue gates.
+ */
+export function pacedParts<B extends LessonBlock>(
+  blocks: readonly B[],
+  screens: boolean,
+): B[][] {
+  return screens ? lessonSteps(blocks) : lessonParts(blocks);
+}
+
+/** The part a teacher leading a lesson opens a block in, or -1 when it has no such block. */
+export function pacedPartOf(
+  blocks: readonly LessonBlock[],
+  blockId: string,
+  screens: boolean,
+): number {
+  if (!screens) return partOf(blocks, blockId);
+  return lessonSteps(blocks).findIndex((step) =>
+    step.some((block) => block.id === blockId),
+  );
 }
 
 /** Whether a lesson's questions give it a score that another lesson can depend on. */
