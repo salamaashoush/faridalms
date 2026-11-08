@@ -1,6 +1,6 @@
 import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouterState } from "@tanstack/react-router";
 import * as v from "valibot";
 
 import { Register } from "~/components/attendance/Register";
@@ -40,11 +40,24 @@ function RegisterPage() {
   const { classId } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  // The address changes as soon as another day or period is chosen, while
+  // the register shown stays the last one loaded until the next arrives.
+  const askedDate = useRouterState({
+    select: (state) => state.location.search.date ?? "",
+  });
+  const askedPeriod = useRouterState({
+    select: (state) => state.location.search.periodId ?? "",
+  });
+  const switching =
+    askedDate !== search.date || askedPeriod !== (search.periodId ?? "");
   return (
     <Register
       classId={classId}
       date={search.date}
       periodId={search.periodId ?? ""}
+      loading={
+        switching ? { date: askedDate, periodId: askedPeriod } : undefined
+      }
       onChange={(change) => {
         void navigate({
           search: (previous) => ({

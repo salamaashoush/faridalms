@@ -477,10 +477,12 @@ function Summary({ drafts }: SummaryProps) {
 
 interface RegisterFormProps {
   data: Data;
+  /** Another register is on its way, so this one takes no more marks. */
+  loading: boolean;
   onDirtyChange: (dirty: boolean) => void;
 }
 
-function RegisterForm({ data, onDirtyChange }: RegisterFormProps) {
+function RegisterForm({ data, loading, onDirtyChange }: RegisterFormProps) {
   const hydrated = useHydrated();
   const queryClient = useQueryClient();
   const [initial, setInitial] = useState(() => draftsOf(data));
@@ -559,7 +561,7 @@ function RegisterForm({ data, onDirtyChange }: RegisterFormProps) {
       className="grid gap-4"
       onSubmit={(event) => {
         event.preventDefault();
-        if (invalid) return;
+        if (invalid || loading) return;
         if (correcting && !correction.trim()) {
           setAsked(true);
           document.getElementById("register-correction")?.focus();
@@ -588,7 +590,7 @@ function RegisterForm({ data, onDirtyChange }: RegisterFormProps) {
             type="button"
             variant="outline"
             className="max-md:h-10"
-            disabled={!hydrated}
+            disabled={!hydrated || loading}
             onClick={markRestPresent}
           >
             <ListChecks aria-hidden />
@@ -598,6 +600,7 @@ function RegisterForm({ data, onDirtyChange }: RegisterFormProps) {
       ) : null}
       <section
         aria-label={m.attStudents()}
+        aria-busy={loading || undefined}
         className="rounded-lg border bg-card px-4"
       >
         <ul className="divide-y">
@@ -621,7 +624,7 @@ function RegisterForm({ data, onDirtyChange }: RegisterFormProps) {
               reasons={data.reasons}
               lateNow={lateNow}
               closesMinutes={data.lateness.closesMinutes}
-              disabled={!editable || !hydrated || save.isPending}
+              disabled={!editable || !hydrated || save.isPending || loading}
               onChange={(next) => set(student.id, next)}
             />
           ))}
@@ -646,7 +649,9 @@ function RegisterForm({ data, onDirtyChange }: RegisterFormProps) {
           <Button
             type="submit"
             className="max-md:h-10"
-            disabled={!hydrated || save.isPending || !dirty || invalid}
+            disabled={
+              !hydrated || save.isPending || !dirty || invalid || loading
+            }
           >
             <Save aria-hidden />
             {unmarked.length
@@ -678,10 +683,18 @@ export interface RegisterProps {
   classId: string;
   date: string;
   periodId: string;
+  /** Another day or period chosen, whose register is on its way. */
+  loading?: { date: string; periodId: string };
   onChange: (change: { date?: string; periodId?: string }) => void;
 }
 
-export function Register({ classId, date, periodId, onChange }: RegisterProps) {
+export function Register({
+  classId,
+  date,
+  periodId,
+  loading,
+  onChange,
+}: RegisterProps) {
   const data = useSuspenseQuery(registerQuery(classId, date, periodId)).data;
   const [checking, setChecking] = useState(false);
   // Marks being made stay on screen when the register is read again, as it
@@ -738,7 +751,7 @@ export function Register({ classId, date, periodId, onChange }: RegisterProps) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <DayNav
           id="register-date"
-          date={data.date}
+          date={loading?.date || data.date}
           min={data.year.startsOn}
           max={max < data.date ? data.date : max}
           today={data.today}
@@ -750,7 +763,7 @@ export function Register({ classId, date, periodId, onChange }: RegisterProps) {
           labelHidden
           width="name"
           className="w-56"
-          value={data.period.id}
+          value={loading?.periodId || data.period.id}
           options={data.periods.map((period) => ({
             value: period.id,
             label: period.startTime
@@ -780,6 +793,7 @@ export function Register({ classId, date, periodId, onChange }: RegisterProps) {
         <RegisterForm
           key={`${data.date}|${data.period.id}|${shown}`}
           data={data}
+          loading={loading !== undefined}
           onDirtyChange={setEditing}
         />
       )}
