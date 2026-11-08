@@ -257,6 +257,7 @@ import { gradeReader } from "../core/grades";
 import { publishTelling } from "../core/mentions";
 import { nameUuid } from "../core/names";
 import { notify } from "../core/notify";
+import { reviewerReads } from "../core/peer-work";
 import {
   audit,
   can,
@@ -519,8 +520,11 @@ registerGoLive<AssignmentRow>("assignment", {
     );
   },
 });
-registerHostReader("submission", (context, hostId) =>
-  readable(context, { type: "submission", id: hostId }),
+registerHostReader(
+  "submission",
+  async (context, hostId, file) =>
+    (await readable(context, { type: "submission", id: hostId })) ||
+    (file !== undefined && (await reviewerReads(context, hostId, file.id))),
 );
 registerHostReader("submission_attempt", (context, hostId) =>
   readable(context, { type: "submission_attempt", id: hostId }),

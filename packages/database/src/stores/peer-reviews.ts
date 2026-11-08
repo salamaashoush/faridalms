@@ -183,6 +183,22 @@ export async function reviewsAttempt(
   return row?.found ?? false;
 }
 
+/** A reviewer's reviews of the attempts of one submission. */
+export async function reviewsOfSubmission(
+  tx: Tx,
+  input: { tenantId: string; reviewerId: string; submissionId: string },
+): Promise<PeerReviewRow[]> {
+  const rows = await tx.execute<PeerReviewRecord>(sql`
+    select ${reviewColumns} from core.peer_reviews r
+    where r.tenant_id = ${input.tenantId}::uuid and r.status = 'active'
+      and r.reviewer_user_id = ${input.reviewerId}::uuid
+      and exists (select 1 from core.submission_attempts t
+        where t.tenant_id = r.tenant_id and t.id = r.attempt_id
+          and t.submission_id = ${input.submissionId}::uuid)
+    order by r.created_at, r.id`);
+  return rows.map(reviewOf);
+}
+
 /** Whether classmates were given this attempt to review. */
 export async function attemptUnderReview(
   tx: Tx,

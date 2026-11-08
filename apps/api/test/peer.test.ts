@@ -25,6 +25,32 @@ async function classmates(teacher: Session) {
   throw new Error("no two classmates sign in");
 }
 
+/** A student's own recording or picture, as an answer to a question keeps one. */
+async function answerFile(
+  session: Session,
+  kind: "sound" | "picture",
+): Promise<string> {
+  const body =
+    kind === "sound"
+      ? new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3])])
+      : new Blob([
+          new Uint8Array([
+            0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0,
+          ]),
+        ]);
+  const file = await session.api.files.initiate({
+    purpose: "document_media",
+    name: kind === "sound" ? "answer.webm" : "drawing.png",
+    mediaType: kind === "sound" ? "audio/webm" : "image/png",
+    sizeBytes: body.size,
+  });
+  await raw("northwind", session.token, `/v1/files/${file.id}/content`, {
+    method: "PUT",
+    body,
+  });
+  return file.id;
+}
+
 async function uploadAs(session: Session, name: string) {
   const body = new Blob([`contents of ${name}`]);
   const file = await session.api.files.initiate({
@@ -380,6 +406,154 @@ describe("peer review", () => {
         (review) => review.id === giving.id,
       ),
     ).toMatchObject({ helpfulness: "very", comments: [{ words: "Waves" }] });
+  });
+
+  test("a quiz's reviewer hears and sees the spoken and drawn answers they review, and opens no other file", async () => {
+    const teacher = await sessionFor("northwind", login("teacher", 0, 1));
+    const { classId, first, second } = await classmates(teacher);
+    const question = {
+      points: 4,
+      wordLimit: null,
+      hints: [],
+      explanation: "",
+      tries: null,
+      type: "written" as const,
+    };
+    const spoken = {
+      ...question,
+      id: crypto.randomUUID(),
+      prompt: "Say why the tide turns.",
+      recordSeconds: 45 as const,
+    };
+    const drawn = {
+      ...question,
+      id: crypto.randomUUID(),
+      prompt: "Draw the moon and the sea.",
+      answerWith: "drawing" as const,
+    };
+    const quiz = await teacher.api.coursework.save({
+      classId,
+      title: "Tides spoken and drawn",
+      brief: briefWithQuiz(plainContent("Answer aloud, then draw."), {
+        version: 2,
+        blocks: [spoken, drawn],
+      }),
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "quiz",
+      points: null,
+      rubric: null,
+      quiz: {
+        attempts: 1,
+        keep: "highest",
+        reveal: "returned",
+        shuffle: false,
+      },
+      peer: { reviews: 1, anonymous: true },
+    });
+    await teacher.api.coursework.publish({
+      id: quiz.id,
+      expectedVersion: quiz.version,
+    });
+    const files = new Map<Session, { sound: string; picture: string }>();
+    for (const session of [first, second]) {
+      const sound = await answerFile(session, "sound");
+      const picture = await answerFile(session, "picture");
+      files.set(session, { sound, picture });
+      await session.api.coursework.saveQuizAnswer({
+        assignmentId: quiz.id,
+        blockId: spoken.id,
+        response: {
+          type: "written",
+          text: "",
+          recording: { fileId: sound, seconds: 12 },
+        },
+      });
+      await session.api.coursework.saveQuizAnswer({
+        assignmentId: quiz.id,
+        blockId: drawn.id,
+        response: { type: "written", text: "", picture: { fileId: picture } },
+      });
+    }
+    // A recording kept with the work but left out of every answer.
+    const spare = await answerFile(second, "sound");
+    await second.api.coursework.saveQuizAnswer({
+      assignmentId: quiz.id,
+      blockId: spoken.id,
+      response: {
+        type: "written",
+        text: "",
+        recording: { fileId: spare, seconds: 3 },
+      },
+    });
+    await second.api.coursework.saveQuizAnswer({
+      assignmentId: quiz.id,
+      blockId: spoken.id,
+      response: {
+        type: "written",
+        text: "",
+        recording: { fileId: files.get(second)?.sound ?? "", seconds: 12 },
+      },
+    });
+    const opens = async (session: Session, fileId: string) =>
+      (
+        await raw("northwind", session.token, `/v1/files/${fileId}/content`, {
+          redirect: "manual",
+        })
+      ).status !== 404;
+    const theirs = files.get(second);
+    if (!theirs) throw new Error("no answers");
+    // Before the reviews are handed out, a classmate opens none of it.
+    expect(await opens(first, theirs.sound)).toBe(false);
+    expect(await opens(first, theirs.picture)).toBe(false);
+    for (const session of [first, second]) {
+      const work = await session.api.coursework.work({ id: quiz.id });
+      await session.api.coursework.handIn({
+        assignmentId: quiz.id,
+        expectedVersion: work.submission.version,
+      });
+    }
+    await teacher.api.peer.start({ assignmentId: quiz.id });
+    const reviewing = (await first.api.peer.mine({ assignmentId: quiz.id }))
+      .toGive[0];
+    expect(reviewing?.answers).toEqual([
+      {
+        blockId: spoken.id,
+        prompt: spoken.prompt,
+        text: "",
+        recording: { fileId: theirs.sound, video: false },
+        picture: null,
+      },
+      {
+        blockId: drawn.id,
+        prompt: drawn.prompt,
+        text: "",
+        recording: null,
+        picture: { fileId: theirs.picture },
+      },
+    ]);
+    // The reviewer opens exactly the files of the answers they review.
+    expect(await opens(first, theirs.sound)).toBe(true);
+    expect(await opens(first, theirs.picture)).toBe(true);
+    expect(await opens(first, spare)).toBe(false);
+    // Each opens of the other's only what their own review shows them; and
+    // someone reviewing neither opens nothing.
+    const mine = files.get(first);
+    // Someone who reviews none of it.
+    const outsider = await sessionFor("northwind", login("parent"));
+    if (mine) {
+      expect(await opens(second, mine.sound)).toBe(
+        (await second.api.peer.mine({ assignmentId: quiz.id })).toGive.some(
+          (review) =>
+            review.answers.some(
+              (answer) => answer.recording?.fileId === mine.sound,
+            ),
+        ),
+      );
+      expect(await opens(outsider, mine.sound)).toBe(false);
+    }
+    expect(await opens(outsider, theirs.sound)).toBe(false);
+    expect(await opens(outsider, theirs.picture)).toBe(false);
   });
 
   test("classmates review a quiz's written answers and a discussion's posts", async () => {

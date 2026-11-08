@@ -1,6 +1,8 @@
 import type { PeerHelpfulness, Rubric } from "@faridalms/domain/coursework";
 
 import { PEER_HELPFULNESS } from "@faridalms/domain/coursework";
+import { StoredImage } from "@faridalms/editor/files";
+import { MediaPlayer } from "@faridalms/editor/media-view";
 import { Button } from "@faridalms/ui/button";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
@@ -23,6 +25,7 @@ import { ContentView } from "~/components/content/ContentView";
 import { displayName } from "~/components/people/format";
 import { FileList } from "~/components/system/FileList";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { myPeerReviewsQuery, peerOverviewQuery } from "~/queries/coursework";
 import {
   hidePeerReview,
@@ -574,12 +577,29 @@ function GiveItem({ assignmentId, data, review }: GiveItemProps) {
                     <p dir="auto" className="text-sm leading-5 font-medium">
                       {answer.prompt}
                     </p>
-                    <p
-                      dir="auto"
-                      className="text-sm leading-6 whitespace-pre-wrap"
-                    >
-                      {answer.text || m.peerAnswerNotTyped()}
-                    </p>
+                    {answer.recording ? (
+                      <MediaPlayer
+                        src={`/files/${answer.recording.fileId}`}
+                        captions={undefined}
+                        video={answer.recording.video}
+                        locale={getLocale()}
+                        captionsLabel={m.editorCaptions()}
+                      />
+                    ) : answer.picture ? (
+                      <StoredImage
+                        src={`/files/${answer.picture.fileId}`}
+                        alt={m.peerPictureAnswer({ question: answer.prompt })}
+                        removed={m.fileRemoved()}
+                        className="max-h-72 w-auto max-w-full justify-self-start rounded-lg border bg-white object-contain"
+                      />
+                    ) : (
+                      <p
+                        dir="auto"
+                        className="text-sm leading-6 whitespace-pre-wrap"
+                      >
+                        {answer.text || m.peerAnswerNotTyped()}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ol>

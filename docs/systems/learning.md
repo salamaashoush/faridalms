@@ -348,7 +348,10 @@ From [../research/early-years.md](../research/early-years.md).
 
 - Written work, files, a quiz and a discussion can be set for peer review.
   A quiz's reviewer reads the classmate's answers to the questions only a
-  teacher marks (typed words; a spoken or drawn answer says so); a
+  teacher marks, typed, or heard and seen when spoken, filmed, drawn or
+  photographed: while the review is theirs, the submission's file reader
+  opens to them exactly the recordings and pictures of the answers it
+  shows, and no other file the classmate keeps (`reviewerReads`). A
   discussion's reviewer reads the classmate's posts, hidden ones left out.
 - Reviews may have a date of their own, no earlier than the work's due
   date. Handing reviews out tells each reviewer, with the date, and the

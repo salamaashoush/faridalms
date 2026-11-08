@@ -1,18 +1,13 @@
-import type { AssignmentRow } from "@faridalms/database/stores/coursework";
-import type { PeerReviewRow } from "@faridalms/database/stores/peer-reviews";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { CommentAnchor, Rubric } from "@faridalms/domain/coursework";
 
 import {
   assignmentById,
-  attemptById,
-  discussionPostsOf,
   isRecipient,
   namesOf,
   studentWork,
 } from "@faridalms/database/stores/coursework";
 import { documentOf } from "@faridalms/database/stores/documents";
-import { filesOfHost } from "@faridalms/database/stores/files";
 import {
   hidePeerReview,
   insertPeerComment,
@@ -26,7 +21,6 @@ import {
   removePeerComment,
   sendPeerReview,
 } from "@faridalms/database/stores/peer-reviews";
-import { quizAnswersOf } from "@faridalms/database/stores/quizzes";
 import { withBlockIds, wordsAt } from "@faridalms/domain/content";
 import {
   hidePeerReviewSchema,
@@ -36,7 +30,6 @@ import {
   removePeerCommentSchema,
 } from "@faridalms/domain/coursework";
 import { quoteOf } from "@faridalms/domain/document-comments";
-import { checkBlocks, isTeacherMarked } from "@faridalms/domain/learning";
 import { allocateReviews } from "@faridalms/domain/peer-review";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
@@ -44,6 +37,7 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 
 import { requireOpenYear, taughtAssignment } from "../core/coursework-access";
+import { workUnderReview } from "../core/peer-work";
 import {
   audit,
   readProcedure,
@@ -51,7 +45,6 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { teachingScope, tellReviewers } from "../core/teaching-notices";
-import { attemptQuizzes, publishedQuiz } from "../quizzes/quiz";
 
 const byAssignment = v.object({ assignmentId: v.pipe(v.string(), v.uuid()) });
 
@@ -135,103 +128,6 @@ async function commentsByReview(
     }),
     (row) => row.reviewId,
   );
-}
-
-/**
- * What a reviewer reads of a classmate's work: the page and files they
- * handed in, a quiz's answers only a teacher can mark, or what they posted
- * in a discussion, hidden posts left out.
- */
-async function workUnderReview(
-  context: UnitContext,
-  assignment: AssignmentRow,
-  review: PeerReviewRow,
-) {
-  const none = {
-    content: null as ContentDocument | null,
-    files: [] as {
-      id: string;
-      name: string;
-      mediaType: string;
-      sizeBytes: number;
-    }[],
-    answers: [] as { blockId: string; prompt: string; text: string }[],
-    posts: [] as {
-      id: string;
-      reply: boolean;
-      content: ContentDocument;
-      createdAt: string;
-    }[],
-  };
-  if (assignment.submissionFormat === "quiz") {
-    const [attempt, document] = await Promise.all([
-      attemptById(context.tx, context.tenantId, review.attemptId),
-      publishedQuiz(context, assignment.id),
-    ]);
-    if (!attempt || !document) return none;
-    const [quizzes, answers] = await Promise.all([
-      attemptQuizzes(context, document, attempt.submissionId),
-      quizAnswersOf(context.tx, {
-        tenantId: context.tenantId,
-        submissionId: attempt.submissionId,
-        attempt: attempt.number,
-      }),
-    ]);
-    return {
-      ...none,
-      answers: checkBlocks(quizzes.of(attempt.number))
-        .filter(isTeacherMarked)
-        .map((block) => {
-          const response = answers.find(
-            (answer) => answer.blockId === block.id,
-          )?.response;
-          return {
-            blockId: block.id,
-            prompt: block.prompt,
-            text: typeof response?.text === "string" ? response.text : "",
-          };
-        }),
-    };
-  }
-  if (assignment.submissionFormat === "discussion") {
-    const posts = await discussionPostsOf(context.tx, {
-      tenantId: context.tenantId,
-      assignmentId: assignment.id,
-    });
-    return {
-      ...none,
-      posts: posts
-        .filter(
-          (post) =>
-            post.authorUserId === review.authorId &&
-            !post.hidden &&
-            !post.redacted,
-        )
-        .map((post) => ({
-          id: post.id,
-          reply: post.parentPostId !== null,
-          content: post.content as unknown as ContentDocument,
-          createdAt: post.createdAt,
-        })),
-    };
-  }
-  const host = { type: "submission_attempt", id: review.attemptId };
-  const [document, files] = await Promise.all([
-    documentOf(context.tx, context.tenantId, host),
-    filesOfHost(context.tx, context.tenantId, host),
-  ]);
-  return {
-    ...none,
-    content: document?.content
-      ? withBlockIds(document.content as unknown as ContentDocument)
-      : null,
-    files: files.map((file) => ({
-      id: file.id,
-      name: file.name,
-      mediaType: file.mediaType,
-      sizeBytes: file.sizeBytes,
-    })),
-  };
 }
 
 /**
