@@ -42,6 +42,7 @@ import type { Inbox } from "../notifications/resend-inbox";
 
 import { schoolZone } from "../core/procedure";
 import { takeChecked } from "../files/ingest";
+import { previewReadyFile } from "../files/previews";
 import { fileKeys } from "../files/sealed";
 import { verifyWebhook } from "../notifications/resend-inbox";
 import { writeEntry } from "./conversations";
@@ -233,8 +234,8 @@ async function takeMail(
           file.sizeBytes,
         )
       : ({ ok: false, reason: "size_mismatch" } as const);
-    await context.cell.withWorker(work, "write", (tx) =>
-      settleFile(tx, {
+    await context.cell.withWorker(work, "write", async (tx) => {
+      const settled = await settleFile(tx, {
         tenantId: routed.tenantId,
         id: file.id,
         verdict: checked.ok
@@ -246,8 +247,10 @@ async function takeMail(
               keyVersion: checked.keyVersion,
             }
           : { state: "rejected", reason: checked.reason },
-      }),
-    );
+      });
+      if (settled && checked.ok)
+        await previewReadyFile(tx, routed.tenantId, file, checked);
+    });
     if (checked.ok) ready.push(file);
     else skipped.push({ name: file.name, reason: "rejected" });
   }

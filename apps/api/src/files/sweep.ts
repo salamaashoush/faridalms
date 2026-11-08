@@ -9,6 +9,7 @@ import {
   retireTrashedMedia,
   retireUnlinkedFiles,
 } from "@faridalms/database/stores/files";
+import { retirePreviews } from "@faridalms/database/stores/previews";
 import {
   ABANDONED_UPLOAD_MS,
   FILE_GATES,
@@ -20,6 +21,8 @@ import {
 
 import type { FileStore } from "./store";
 
+import { backfillPreviews } from "./previews";
+
 /**
  * One pass over a tenant's files as the worker: uploads never finished are
  * rejected and their bytes dropped, verified files nothing linked within
@@ -27,9 +30,11 @@ import type { FileStore } from "./store";
  * from a file area, for the trash window is retired, and coding projects
  * saved over since are pruned to each student's last few saves. A video
  * that is gone, by this pass or any other way, loses the streams made from
- * it. Files a special-category purpose hides are swept behind each purpose
- * in turn. Records change first and bytes second, so a failure in between
- * leaves stray bytes rather than a record pointing at nothing.
+ * it, and bytes no file holds any more lose their previews. Files a
+ * special-category purpose hides are swept behind each purpose in turn.
+ * Records change first and bytes second, so a failure in between leaves
+ * stray bytes rather than a record pointing at nothing. Last, a few files
+ * stored before previews were made on upload are cleaned and queued.
  */
 export async function sweepTenantFiles(
   cell: Cell,
@@ -89,8 +94,9 @@ export async function sweepTenantFiles(
           savedBefore: new Date(now.getTime() - SUPERSEDED_SAVE_MS),
           limit,
         }),
-        // Last, so a video retired in this pass loses its streams with it.
+        // Last, so a file retired in this pass loses what was made from it.
         streams: await retireStreams(tx, tenantId, limit),
+        previews: await retirePreviews(tx, tenantId, limit),
       };
     },
   );
@@ -104,12 +110,16 @@ export async function sweepTenantFiles(
   // An upload given up part way leaves its parts behind as well.
   for (const key of keys.abandoned)
     await store.removeFolder(key.replace("/q/", "/u/"));
-  for (const folder of keys.streams) await store.removeFolder(folder);
+  for (const folder of [...keys.streams, ...keys.previews])
+    await store.removeFolder(folder);
+  const backfilled = await backfillPreviews(cell, store, tenantId, limit);
   return {
     abandoned: keys.abandoned.length,
     retired: keys.retired.length,
     trashed: keys.trashed.length,
     superseded: keys.superseded.length,
     streams: keys.streams.length,
+    previews: keys.previews.length,
+    backfilled,
   };
 }

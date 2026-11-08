@@ -8,6 +8,7 @@ import {
   shareStoredObject,
   studentOfFile,
 } from "@faridalms/database/stores/files";
+import { previewsOf } from "@faridalms/database/stores/previews";
 import {
   previewable,
   UPLOAD_PART_BYTES,
@@ -25,6 +26,7 @@ import { findFile, withFileGate } from "./gate";
 import { takeChecked } from "./ingest";
 import { hasVideo, streamsMore, uploadLimit } from "./limit";
 import { linkSeconds, sealLink } from "./links";
+import { previewAsk, previewObject, previewReadyFile } from "./previews";
 import { fileKeys } from "./sealed";
 import { StoreError } from "./store";
 
@@ -159,7 +161,9 @@ async function shareBytes(context: SchoolContext, file: StoredFile) {
 }
 
 /** What became of bytes taken in: kept, or refused with the status and code to answer. */
-export type Taken = { ok: true } | { ok: false; status: number; code: string };
+export type Taken =
+  | { ok: true; sizeBytes: number }
+  | { ok: false; status: number; code: string };
 
 /**
  * Takes an upload's bytes, whole or assembled from its parts, checks them
@@ -211,7 +215,16 @@ export async function takeUpload(
   });
   if (!settled) return { ok: false, status: 409, code: "file.not_pending" };
   if (checked.keyVersion === null) await shareBytes(context, file);
-  return { ok: true };
+  await context.cell.withWorker(
+    {
+      tenantId: context.school.tenantId,
+      requestId: context.requestId,
+      actor: { kind: "system" },
+    },
+    "write",
+    (tx) => previewReadyFile(tx, context.school.tenantId, file, checked),
+  );
+  return { ok: true, sizeBytes: checked.sizeBytes };
 }
 
 async function accept(
@@ -225,7 +238,7 @@ async function accept(
     id: file.id,
     name: file.name,
     mediaType: file.mediaType,
-    sizeBytes: file.sizeBytes,
+    sizeBytes: taken.sizeBytes,
   });
 }
 
@@ -367,7 +380,9 @@ async function send(
   context: SchoolContext,
   fileId: string,
 ): Promise<Response> {
-  const download = new URL(request.url).searchParams.get("download") !== null;
+  const url = new URL(request.url);
+  const download = url.searchParams.get("download") !== null;
+  const ask = previewAsk(url);
   const opened = await openUnit(context, "read", async (unit) => {
     const found = await findFile(unit.tx, unit.tenantId, fileId);
     if (!found || found.state !== "ready") return null;
@@ -377,16 +392,30 @@ async function send(
         : null,
     );
     if (!gated) return null;
+    const asked =
+      !download && found.keyVersion === null
+        ? previewObject(
+            unit.tenantId,
+            found,
+            (await previewsOf(unit.tx, unit.tenantId, [found.storageKey])).get(
+              found.storageKey,
+            ),
+            ask,
+            request.headers.get("accept"),
+          )
+        : null;
     return {
       file: found,
+      asked,
       student: gated.student,
       logged:
         found.uploadedByUserId !== unit.actor.userId &&
         (download || watched(found)),
     };
   });
-  if (!opened) return problem(404, "NOT_FOUND", context.requestId);
-  const { file } = opened;
+  if (!opened || opened.asked === "missing")
+    return problem(404, "NOT_FOUND", context.requestId);
+  const { file, asked } = opened;
   if (opened.logged && request.method !== "HEAD")
     await openUnit(context, "write", async (unit) =>
       writeAudit(unit.tx, unit.tenantId, {
@@ -404,17 +433,19 @@ async function send(
       }),
     );
   // A viewer shows what a browser can show by itself; asking to download,
-  // or any other type, saves the file under its name.
+  // or any other type, saves the file under its name. A size, a page or a
+  // PDF made from the file shows in its place, never on a download.
+  const sent = asked ?? file;
   const token = sealLink(context.linkKey, {
-    storageKey: file.storageKey,
-    name: file.name,
-    mediaType: file.mediaType,
-    sizeBytes: file.sizeBytes,
+    storageKey: sent.storageKey,
+    name: sent.name,
+    mediaType: sent.mediaType,
+    sizeBytes: sent.sizeBytes,
     disposition:
-      previewable(file.mediaType) && !download ? "inline" : "attachment",
+      previewable(sent.mediaType) && !download ? "inline" : "attachment",
     expires: Math.floor(Date.now() / 1000) + linkSeconds(file.mediaType),
     sealed:
-      file.keyVersion === null
+      asked || file.keyVersion === null
         ? null
         : { tenantId: context.school.tenantId, keyVersion: file.keyVersion },
   });

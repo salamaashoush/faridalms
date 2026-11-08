@@ -22,7 +22,7 @@ const PARAMETRISED = /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*:$/;
 const SUFFIX = /^\.[a-z][a-z0-9_]*$/;
 // File and host names share the shape of a code.
 const NAME =
-  /\.(?:html|css|js|mjs|json|xml|txt|py|wasm|vtt|m3u8|jpg|png|svg|zip|com|org|be|aspx)$/;
+  /\.(?:html|css|js|mjs|json|xml|txt|py|wasm|vtt|m3u8|jpg|png|svg|zip|pdf|webp|avif|com|org|be|aspx)$/;
 // Values of these properties are audit actions, tables and job names, and
 // a constant named for tables or audit actions holds those.
 const NOT_CODE_KEYS = new Set(["action", "audit", "name", "table"]);

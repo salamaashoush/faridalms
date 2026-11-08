@@ -16,6 +16,7 @@ import {
   subjectsOf,
   trashAreaFile,
 } from "@faridalms/database/stores/files";
+import { focusOfFiles, previewsOf } from "@faridalms/database/stores/previews";
 import {
   areaQuerySchema,
   fileAreaSchema,
@@ -48,6 +49,7 @@ import { canReadFile, mayKeepArea } from "../files/authorize";
 import { withFileGate } from "../files/gate";
 import { replaceBytes, roomFor, versionsOf } from "../files/keeping";
 import { hasVideo, streamsMore, uploadLimit } from "../files/limit";
+import { previewFacts } from "../files/previews";
 
 /** Who may upload for each purpose; none, anyone signed in, its use checked where it is put. */
 const UPLOADERS: Record<FilePurpose, Capability[] | null> = {
@@ -251,7 +253,9 @@ export const trashInArea = writeProcedure
 
 /**
  * What files are called and weigh now, for the cards of documents that
- * show them; only files the reader may open are answered.
+ * show them, with what their previews add: a picture's size, placeholder
+ * and subject, a recording's waveform, a document's first page. Only files
+ * the reader may open are answered.
  */
 export const facts = readProcedure
   .input(
@@ -272,15 +276,32 @@ export const facts = readProcedure
           : null,
       ),
     );
+    const shown = readable.filter((file) => file !== null);
+    const [previews, focus] = await Promise.all([
+      previewsOf(
+        context.tx,
+        context.tenantId,
+        shown
+          .filter((file) => file.keyVersion === null)
+          .map((file) => file.storageKey),
+      ),
+      focusOfFiles(
+        context.tx,
+        context.tenantId,
+        shown.map((file) => file.id),
+      ),
+    ]);
     return {
-      files: readable
-        .filter((file) => file !== null)
-        .map((file) => ({
-          id: file.id,
-          name: file.name,
-          mediaType: file.mediaType,
-          sizeBytes: file.sizeBytes,
-        })),
+      files: shown.map((file) => ({
+        id: file.id,
+        name: file.name,
+        mediaType: file.mediaType,
+        sizeBytes: file.sizeBytes,
+        ...previewFacts(
+          file.keyVersion === null ? previews.get(file.storageKey) : undefined,
+        ),
+        focus: focus.get(file.id) ?? null,
+      })),
     };
   });
 

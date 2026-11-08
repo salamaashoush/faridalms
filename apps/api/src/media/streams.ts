@@ -19,6 +19,7 @@ import { openUnit, schoolOf } from "../core/procedure";
 import { refusalResponse } from "../core/refusal";
 import { canReadFile } from "../files/authorize";
 import { claimCaptions, reportCaptions } from "./captions";
+import { claimPreviews, previewKinds, reportPreviews } from "./previews";
 
 /**
  * A worker holds a video this long between reports. An encode reports every
@@ -90,7 +91,7 @@ const manifestSchema = v.object({
 });
 
 const JOB_PATH =
-  /^\/v1\/media\/(jobs|captions)\/([0-9a-f-]{36})\.([0-9a-f-]{36})\/(progress|done|failed|release)$/;
+  /^\/v1\/media\/(jobs|captions|previews)\/([0-9a-f-]{36})\.([0-9a-f-]{36})\/(progress|done|failed|release)$/;
 
 /** How a worker says a job is going, or how it ended. */
 export type JobReport = "progress" | "done" | "failed" | "release";
@@ -120,6 +121,8 @@ export const asWorker = <T>(
     run,
   );
 
+type Work = "streams" | "captions" | "previews";
+
 /** The school each kind of work was last handed out from, by cell. */
 const lastServed = new Map<string, string>();
 
@@ -131,7 +134,7 @@ const lastServed = new Map<string, string>();
  */
 export async function schoolsInTurn(
   context: RequestContext,
-  work: "streams" | "captions",
+  work: Work,
 ): Promise<string[]> {
   return inTurn(
     await context.directory.tenantsOfCell(context.cellId),
@@ -147,26 +150,47 @@ export function inTurn(schools: string[], last: string | undefined): string[] {
 }
 
 /** Notes the school just handed work from, so the next one asked follows it. */
-export function served(
-  context: RequestContext,
-  work: "streams" | "captions",
-  tenantId: string,
-) {
+export function served(context: RequestContext, work: Work, tenantId: string) {
   lastServed.set(`${context.cellId}:${work}`, tenantId);
 }
 
 /**
+ * What a worker asks for: videos to encode unless it says otherwise,
+ * previews when it says it can make them (and which documents it can
+ * draw), and captions when it has a speech model. A worker from before
+ * previews never names them, so it is never handed one.
+ */
+const claimSchema = v.object({
+  captions: v.optional(v.boolean(), false),
+  streams: v.optional(v.boolean(), true),
+  previews: v.optional(
+    v.object({
+      pdf: v.optional(v.boolean(), false),
+      office: v.optional(v.boolean(), false),
+    }),
+  ),
+});
+
+/**
  * A waiting video, leased to the asking worker: the oldest in the first
- * school that has one, schools taking turns; with none, a recording whose
- * captions are to be drafted, when the worker has a speech model.
+ * school that has one, schools taking turns; with none, a file's previews,
+ * and then a recording whose captions are to be drafted.
  */
 async function claim(
   request: Request,
   context: RequestContext,
 ): Promise<Response> {
+  const parsed = v.safeParse(
+    claimSchema,
+    await request.json().catch(() => ({})),
+  );
+  if (!parsed.success) return problem(400, "BAD_REQUEST", context.requestId);
+  const asked = parsed.output;
   const now = new Date();
   const until = new Date(now.getTime() + LEASE_MS);
-  for (const tenantId of await schoolsInTurn(context, "streams")) {
+  for (const tenantId of asked.streams
+    ? await schoolsInTurn(context, "streams")
+    : []) {
     const job = await asWorker(context, tenantId, (tx) =>
       claimStream(tx, { tenantId, now, until }),
     );
@@ -185,12 +209,12 @@ async function claim(
           : null,
       });
   }
-  const asked = v.safeParse(
-    v.object({ captions: v.optional(v.boolean(), false) }),
-    await request.json().catch(() => ({})),
-  );
+  const previews = asked.previews
+    ? await claimPreviews(context, previewKinds(asked.previews))
+    : null;
+  if (previews) return previews;
   const captions =
-    asked.success && asked.output.captions && context.mediaCaptions
+    asked.captions && context.mediaCaptions
       ? await claimCaptions(context)
       : null;
   return captions ?? new Response(null, { status: 204 });
@@ -365,6 +389,8 @@ export async function handleMediaRequest(
   if (!job?.[1] || !job[2] || !job[3] || !job[4])
     return problem(404, "NOT_FOUND", context.requestId);
   const kind = job[4] as JobReport;
+  if (job[1] === "previews")
+    return reportPreviews(request, context, job[2], job[3], kind);
   return job[1] === "captions"
     ? reportCaptions(request, context, job[2], job[3], kind)
     : report(request, context, job[2], job[3], kind);
