@@ -16,7 +16,10 @@ Besides text, headings, quotes, lists, checklists, links, code, tables and
 dividers it accepts the editor's blocks: callouts, toggles, columns,
 pictures, files, video and audio, embeds, drawings, questions, continue
 gates, page breaks, a student's starting copy and a declaration of AI use,
-and formulas written in LaTeX within the text.
+and formulas written in LaTeX within the text. A question block is the one
+model of a question everywhere one is asked, a family's forms included;
+[systems/questions.md](systems/questions.md) describes it and the settings
+each surface chooses.
 `publishIssues` in `content-checks.ts` is the one list of what a document
 must not carry to its readers: an undescribed picture, a skipped heading
 level (or, for words under a heading of their own such as a website
