@@ -110,8 +110,10 @@ describe("useHeldDocument", () => {
     render(<Page save={save} latest={latest} />);
     await waitFor(() => expect(hold).toHaveBeenCalled());
 
-    await user.clear(screen.getByLabelText("Words"));
-    await user.type(screen.getByLabelText("Words"), "my words");
+    // One input event, so the short autosave delay cannot save a half-typed
+    // word before the rest arrives.
+    await user.tripleClick(screen.getByLabelText("Words"));
+    await user.paste("my words");
 
     const dialog = await screen.findByRole("dialog", {
       name: "Compare versions",
