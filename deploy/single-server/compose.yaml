@@ -179,6 +179,13 @@ services:
       # Cloudflare Turnstile on the schools' website forms, both or neither.
       TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+      # Anthropic's API for the language model a school may turn on for its
+      # teachers; without the key the setting stays off. The model and the
+      # most requests a day any school may allow keep their defaults unless
+      # set.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ASSISTANT_MODEL: ${ASSISTANT_MODEL:-}
+      ASSISTANT_DAILY_CEILING: ${ASSISTANT_DAILY_CEILING:-}
       TRUSTED_PROXY_HOPS: 1
     networks: [front, data, intake]
     depends_on:
