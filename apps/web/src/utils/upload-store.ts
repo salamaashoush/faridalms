@@ -21,6 +21,8 @@ export interface KeptUpload {
   startedAt: number;
 }
 
+type Stored = Omit<KeptUpload, "file"> & { file: Blob | ArrayBuffer };
+
 const DATABASE = "farida-uploads";
 const STORE = "uploads";
 
@@ -59,14 +61,24 @@ async function run<T>(
 
 /**
  * Keeps an upload until it is finished or given up. A browser that will
- * not store it, out of room or in a private window, simply cannot pick it
- * up after a reload.
+ * not store it, out of room or with storage turned off, simply cannot pick
+ * it up after a reload.
  */
 export async function keepUpload(upload: KeptUpload): Promise<void> {
   try {
     await run("readwrite", (store) => store.put(upload));
   } catch {
-    // Kept nowhere: the upload goes on, it just cannot outlive the page.
+    // Safari's private windows refuse a Blob in IndexedDB but take its
+    // bytes, so the upload is kept as those instead.
+    try {
+      const stored: Stored = {
+        ...upload,
+        file: await upload.file.arrayBuffer(),
+      };
+      await run("readwrite", (store) => store.put(stored));
+    } catch {
+      // Kept nowhere: the upload goes on, it just cannot outlive the page.
+    }
   }
 }
 
@@ -88,10 +100,17 @@ export async function uploadsIn(
 ): Promise<KeptUpload[]> {
   let found: KeptUpload[];
   try {
-    found =
+    const stored =
       ((await run("readonly", (store) =>
         store.index("scope").getAll(IDBKeyRange.only(scope)),
-      )) as KeptUpload[] | null) ?? [];
+      )) as Stored[] | null) ?? [];
+    found = stored.map((upload) => ({
+      ...upload,
+      file:
+        upload.file instanceof Blob
+          ? upload.file
+          : new Blob([upload.file], { type: upload.mediaType }),
+    }));
   } catch {
     return [];
   }
