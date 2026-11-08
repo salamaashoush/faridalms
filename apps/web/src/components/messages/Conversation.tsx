@@ -27,7 +27,13 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { useHydrated } from "@tanstack/react-router";
-import { ArrowLeft, Mail, SendHorizontal, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Mail,
+  MailCheck,
+  SendHorizontal,
+  Users,
+} from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
@@ -37,7 +43,7 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { earlierEntriesQuery, threadQuery } from "~/queries/messages";
-import { markThreadRead, sendMessage } from "~/server/messages";
+import { acceptHeldMail, markThreadRead, sendMessage } from "~/server/messages";
 import { formatInstant, schoolDayOf } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -166,9 +172,65 @@ function Bubble({ entry, own, showAuthor, seen }: BubbleProps) {
   );
 }
 
+type Member = Thread["members"][number];
+
+interface AcceptHeldProps {
+  threadId: string;
+  entryId: string;
+  contacts: Member[];
+}
+
+/**
+ * Lets held mail in as the family's message, for the team that writes in
+ * the conversation. With several outside contacts in it, the team says
+ * whose it is.
+ */
+function AcceptHeld({ threadId, entryId, contacts }: AcceptHeldProps) {
+  const queryClient = useQueryClient();
+  const accept = useMutation({
+    mutationFn: (contactId: string) =>
+      acceptHeldMail({ data: { threadId, entryId, contactId } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messages"] }),
+    meta: { inlineError: true },
+  });
+  const choices: { contactId: string; label: string }[] =
+    contacts.length > 1
+      ? contacts.map((member) => ({
+          contactId: member.contactId ?? "",
+          label: m.msgAcceptHeldAs({ name: nameOf(member) }),
+        }))
+      : [{ contactId: "", label: m.msgAcceptHeld() }];
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {choices.map((choice) => (
+        <Button
+          key={choice.contactId || "only"}
+          type="button"
+          variant="outline"
+          size="sm"
+          className="max-md:h-10"
+          disabled={accept.isPending}
+          onClick={() => accept.mutate(choice.contactId)}
+        >
+          <MailCheck aria-hidden />
+          {choice.label}
+        </Button>
+      ))}
+      {accept.error ? (
+        <p role="alert" className="text-[13px] leading-[18px] text-destructive">
+          {getMessageFromError(accept.error)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 interface InternalEntryProps {
   entry: Entry & { kind: Exclude<EntryKind, "message"> };
   mailbox: Thread["mailbox"];
+  threadId: string;
+  /** The outside contacts held mail may be let in as, for a team that writes here. */
+  contacts: Member[] | null;
 }
 
 /**
@@ -177,7 +239,12 @@ interface InternalEntryProps {
  * bubble, and marked internal, so nobody mistakes it for something the
  * family was sent.
  */
-function InternalEntry({ entry, mailbox }: InternalEntryProps) {
+function InternalEntry({
+  entry,
+  mailbox,
+  threadId,
+  contacts,
+}: InternalEntryProps) {
   const Icon = ENTRY_ICON[entry.kind];
   const title = entryTitle(mailbox, entry.kind, entry.details);
   const author = nameOf({
@@ -234,6 +301,20 @@ function InternalEntry({ entry, mailbox }: InternalEntryProps) {
         </span>
       </p>
       <Words entry={entry} />
+      {entry.kind === "held" && typeof entry.details.acceptedAs === "string" ? (
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.msgHeldAccepted()}
+        </p>
+      ) : entry.kind === "held" &&
+        !entry.redacted &&
+        contacts &&
+        contacts.length > 0 ? (
+        <AcceptHeld
+          threadId={threadId}
+          entryId={entry.id}
+          contacts={contacts}
+        />
+      ) : null}
     </li>
   );
 }
@@ -550,6 +631,9 @@ export function Conversation({
       ? others.filter((row) => row.outside || row.role === "member")
       : others,
   });
+  const outsideContacts = thread.members.filter(
+    (member) => member.contactId !== null && member.role === "member",
+  );
   const lastOwn = thread.messages
     .toReversed()
     .find((entry) => entry.kind === "message" && entry.authorId === user.id);
@@ -668,6 +752,8 @@ export function Conversation({
                 key={entry.id}
                 entry={entry as Entry & { kind: Exclude<EntryKind, "message"> }}
                 mailbox={thread.mailbox}
+                threadId={thread.id}
+                contacts={thread.canNote ? outsideContacts : null}
               />
             );
           return heading ? [heading, drawn] : [drawn];

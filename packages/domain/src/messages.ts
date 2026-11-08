@@ -221,6 +221,17 @@ export type RecipientCursor = NonNullable<
   v.InferOutput<typeof recipientsQuerySchema>["after"]
 >;
 
+/**
+ * Lets held mail into a conversation as an outside contact's message:
+ * `contactId` names which contact when the conversation has several; by
+ * default it is the one the mail came from, or the only one.
+ */
+export const acceptHeldSchema = v.object({
+  threadId: id,
+  entryId: id,
+  contactId: v.optional(v.union([v.literal(""), id]), ""),
+});
+
 /** Why mail that reached a conversation's address was kept back from it. */
 export const HOLD_REASONS = ["sender", "unauthenticated"] as const;
 export type HoldReason = (typeof HOLD_REASONS)[number];

@@ -1,4 +1,5 @@
 import {
+  acceptHeldSchema,
   draftRefSchema,
   draftSchema,
   draftsQuerySchema,
@@ -65,3 +66,7 @@ export const discardMessageDraft = createServerFn({ method: "POST" })
 export const changeMembers = createServerFn({ method: "POST" })
   .validator(checked(membersSchema))
   .handler(({ data }) => backend().messages.members(data));
+
+export const acceptHeldMail = createServerFn({ method: "POST" })
+  .validator(checked(acceptHeldSchema))
+  .handler(({ data }) => backend().messages.acceptHeld(data));

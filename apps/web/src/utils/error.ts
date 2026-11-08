@@ -485,6 +485,10 @@ export function getMessageFromError(error: unknown): string {
         return m.msgRecipientGone();
       case "messages.newer":
         return m.msgNewer();
+      case "messages.not_held":
+        return m.msgErrNotHeld();
+      case "messages.which_contact":
+        return m.msgErrWhichContact();
       case "messages.empty":
         return m.msgBodyNeeded();
       case "messages.recipients":

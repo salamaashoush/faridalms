@@ -9837,5 +9837,10 @@
   "msgUnreachableBounced": "ارتدّ البريد المرسل إلى {email}، لذا لن تصل هذه الرسالة إلى {name} بالبريد الإلكتروني. تواصلوا معهم بطريقة أخرى.",
   "msgUnreachableComplained": "أبلغ {name} عن بريد المدرسة بأنه رسائل مزعجة، لذا لن تُرسل هذه الرسالة إلى {email}.",
   "msgMemberBounced": "ارتدّ البريد",
-  "msgMemberComplained": "أبلغ عن البريد كرسائل مزعجة"
+  "msgMemberComplained": "أبلغ عن البريد كرسائل مزعجة",
+  "msgAcceptHeld": "قبولها كرسالة من الأسرة",
+  "msgAcceptHeldAs": "قبولها كرسالة من {name}",
+  "msgHeldAccepted": "قُبلت في المحادثة كرسالة من الأسرة",
+  "msgErrNotHeld": "قُبل هذا البريد من قبل، أو لم يعد محتجزًا.",
+  "msgErrWhichContact": "اختر صاحب هذه الرسالة."
 }

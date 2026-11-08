@@ -920,7 +920,10 @@ What the endpoint does with an email:
   its domain's DMARC (or, without a DMARC policy, DKIM or SPF). Anything
   else is held as an internal entry the team reads and the family never
   sees. Received mail is always the outside contact's: nothing in it can
-  make it a staff member's message.
+  make it a staff member's message. Someone who writes in the team's
+  mailbox may accept held mail as the family's message once they know it
+  is theirs; it then reaches the conversation as trusted mail would, the
+  held entry naming what it became, audited as `message.accept_held`.
 - Quoted history, signatures and "sent from my phone" lines are cut. Up to
   five attachments of at most 10 MiB each (and `MAX_UPLOAD_BYTES`) are kept,
   through the same checks as an upload (type, size, `CLAMD_ADDRESS`) and

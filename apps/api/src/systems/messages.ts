@@ -24,6 +24,7 @@ import {
   messagingGuardians,
   readsMessage,
   removeMembers,
+  takeHeld,
   threadById,
   threadsOf,
   unreachable,
@@ -34,6 +35,7 @@ import { readSubject } from "@faridalms/database/stores/notifications";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import {
+  acceptHeldSchema,
   draftRefSchema,
   draftSchema,
   draftsQuerySchema,
@@ -762,4 +764,61 @@ export const members = writeProcedure
       details: { added: input.add, removed },
     });
     return { added: input.add.length, removed };
+  });
+
+/**
+ * Lets mail the conversation held back in as the family's message, when
+ * the team knows it is theirs: from another address of theirs, or from
+ * theirs when a check failed. It becomes the outside contact's message as
+ * if it had arrived trusted, telling whoever such a message tells and
+ * never emailed back to them; the held entry stays, naming what it became.
+ */
+export const acceptHeld = writeProcedure
+  .input(acceptHeldSchema)
+  .handler(async ({ input, context }) => {
+    const opened = await openThread(context, input.threadId);
+    const { thread: row, team, writes } = opened;
+    if (!team || !writes) throw new ORPCError("FORBIDDEN");
+    const contacts = opened.members.filter(
+      (member) => member.contactId !== null && member.role === "member",
+    );
+    const entryId = Bun.randomUUIDv7();
+    const held = await takeHeld(context.tx, {
+      tenantId: context.tenantId,
+      threadId: row.id,
+      id: input.entryId,
+      acceptedAs: entryId,
+      acceptedBy: context.actor.userId,
+    });
+    if (!held)
+      throw new ORPCError("CONFLICT", { message: "messages.not_held" });
+    const contact = input.contactId
+      ? contacts.find((member) => member.contactId === input.contactId)
+      : (contacts.find(
+          (member) =>
+            member.email !== null && member.email === held.from.toLowerCase(),
+        ) ?? (contacts.length === 1 ? contacts[0] : undefined));
+    if (!contact?.contactId)
+      throw new ORPCError("BAD_REQUEST", { message: "messages.which_contact" });
+    const posted = await writeEntry(scopeOf(context), {
+      id: entryId,
+      threadId: row.id,
+      kind: "message",
+      authorUserId: null,
+      authorContactId: contact.contactId,
+      content: (held.content ??
+        plainContent(held.body || "-")) as unknown as ContentDocument,
+      details: { acceptedFrom: held.id },
+    });
+    await audit(context, {
+      action: "message.accept_held",
+      objectType: "message",
+      objectId: posted.id,
+      details: {
+        held: held.id,
+        threadId: row.id,
+        contactId: contact.contactId,
+      },
+    });
+    return { id: posted.id };
   });

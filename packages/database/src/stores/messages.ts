@@ -1460,6 +1460,62 @@ export async function replyTarget(
   };
 }
 
+export interface HeldMail {
+  id: string;
+  /** The address it came from, as the receiving route read it. */
+  from: string;
+  body: string;
+  content: Record<string, unknown> | null;
+}
+
+/**
+ * Takes mail held back from a conversation to let it in, once: the held
+ * entry records the message it became and who let it in, and is read
+ * under a lock so two people accepting it at once make one message. Null
+ * when it is not held mail of this conversation, was emptied by an
+ * erasure, or was let in already.
+ */
+export async function takeHeld(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    threadId: string;
+    id: string;
+    acceptedAs: string;
+    acceptedBy: string;
+  },
+): Promise<HeldMail | null> {
+  const [row] = await tx.execute<{
+    id: string;
+    details: Record<string, unknown>;
+    body: string;
+  }>(sql`
+    select id, details, body from core.messages
+    where tenant_id = ${input.tenantId}::uuid and thread_id = ${input.threadId}::uuid
+      and id = ${input.id}::uuid and kind = 'held' and status = 'active'
+      and redacted_at is null and not details ? 'acceptedAs'
+    for update`);
+  if (!row) return null;
+  await tx.execute(sql`
+    update core.messages
+    set details = details || jsonb_build_object('acceptedAs', ${input.acceptedAs}::text,
+      'acceptedBy', ${input.acceptedBy}::text)
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid`);
+  const [document] = await tx.execute<{
+    content: Record<string, unknown>;
+  }>(sql`
+    select content from core.documents
+    where tenant_id = ${input.tenantId}::uuid and host_type = 'message' and host_id = ${input.id}::uuid
+      and status = 'active'
+    order by created_at desc limit 1`);
+  return {
+    id: row.id,
+    from: typeof row.details.from === "string" ? row.details.from : "",
+    body: row.body,
+    content: document?.content ?? null,
+  };
+}
+
 /** How much mail reached a conversation lately, kept or held, to slow down a flood. */
 export async function recentMail(
   tx: Tx,

@@ -400,6 +400,53 @@ describe("email to and from an outside contact", () => {
     ).toBeTrue();
   });
 
+  test("the team lets held mail in as the family's message, once", async () => {
+    const address = "salama.accepted@example.com";
+    const { api, threadId } = await enquiryFrom(address);
+    const { replyTo } = await replyAddressOf(api, threadId, address, "Hello.");
+    await webhook({
+      from: "salama.work@example.org",
+      to: [replyTo],
+      text: "Writing from my work address: Thursday suits us.",
+    });
+    const held = (await api.messages.thread({ id: threadId })).messages.at(-1);
+    if (held?.kind !== "held") throw new Error("the mail was not held");
+    expect(
+      await rejection(
+        (await teacher()).api.messages.acceptHeld({
+          threadId,
+          entryId: held.id,
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    const before = seeded().mail.sent.length;
+    const accepted = await api.messages.acceptHeld({
+      threadId,
+      entryId: held.id,
+    });
+    const entries = (await api.messages.thread({ id: threadId })).messages;
+    const posted = entries.find((entry) => entry.id === accepted.id);
+    expect(posted).toMatchObject({
+      kind: "message",
+      authorNameEn: "Salama Ashoush",
+      body: "Writing from my work address: Thursday suits us.",
+      details: { acceptedFrom: held.id },
+    });
+    expect(posted?.authorContactId).toBeString();
+    expect(
+      entries.find((entry) => entry.id === held.id)?.details,
+    ).toMatchObject({ acceptedAs: accepted.id });
+    expect(
+      await rejection(api.messages.acceptHeld({ threadId, entryId: held.id })),
+    ).toMatchObject({ code: "CONFLICT", message: "messages.not_held" });
+    await deliver();
+    expect(
+      seeded()
+        .mail.sent.slice(before)
+        .some((item) => item.to === address),
+    ).toBeFalse();
+  });
+
   test("machines, unknown addresses, floods and unsigned calls never reach a conversation", async () => {
     const address = "salama.machines@example.com";
     const { api, threadId } = await enquiryFrom(address);

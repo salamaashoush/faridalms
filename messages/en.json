@@ -9413,5 +9413,10 @@
   "msgUnreachableBounced": "Mail to {email} bounced, so {name} will not get this by email. Reach them another way.",
   "msgUnreachableComplained": "{name} reported the school's mail as spam, so this will not be emailed to {email}.",
   "msgMemberBounced": "Mail bounced",
-  "msgMemberComplained": "Reported mail as spam"
+  "msgMemberComplained": "Reported mail as spam",
+  "msgAcceptHeld": "Accept as the family's message",
+  "msgAcceptHeldAs": "Accept as {name}'s message",
+  "msgHeldAccepted": "Accepted into the conversation as the family's message",
+  "msgErrNotHeld": "This email was already accepted, or is no longer held.",
+  "msgErrWhichContact": "Choose whose message this email is."
 }
