@@ -174,6 +174,9 @@ the work a key press does must not grow with the document:
   transition; blur, Escape and shortcuts hand it over at once. The surface
   and its plugins are memoised against the host's redraw, and the word
   count is a store only the footer reads.
+- Undo keeps the last 200 steps (`UNDO_STEPS` in `Editor.tsx`). Each step
+  holds a copy of the document's node map, so Lexical's unbounded default
+  grew a long lesson's editor by megabytes a minute.
 
 `apps/web/src/components/content/editor-performance.spec.tsx` holds the
 budget, on the 336-block lesson in `packages/editor/src/large-document.ts`:
