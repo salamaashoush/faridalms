@@ -56,6 +56,7 @@ import {
 } from "./nodes";
 import { BankPlugin } from "./plugins/bank";
 import { BlockHandlePlugin } from "./plugins/BlockHandle";
+import { Cmi5ImportPlugin } from "./plugins/cmi5";
 import { CodeBlockPlugin } from "./plugins/code-block";
 import { CommentsPlugin } from "./plugins/comments";
 import { DiagramPlugin } from "./plugins/diagram";
@@ -587,6 +588,7 @@ function Surface({
       <MediaPlugin onBusyChange={onUploadingChange} />
       <WordImportPlugin />
       <QtiImportPlugin />
+      <Cmi5ImportPlugin />
       <EmbedPlugin />
       <TableInsertPlugin />
       <BankPlugin />

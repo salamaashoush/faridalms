@@ -870,6 +870,26 @@
   "ltiPickBlocked": "اسمح بالنوافذ المنبثقة، ثم اختر مجددًا",
   "ltiPickCancel": "إلغاء",
   "ltiInPage": "معروضة في الصفحة",
+  "cmi5Import": "حزمة مقرر (cmi5)",
+  "cmi5ImportHint": "حزمة cmi5 من أداة تأليف، تُطلق وحداتها لكل طالب",
+  "cmi5Reading": "جارٍ قراءة الحزمة…",
+  "cmi5Failed": "تعذّر حفظ الحزمة. حاول مرة أخرى.",
+  "cmi5NotPackage": "ليست هذه حزمة cmi5: يجب أن يكون في جذرها ملف cmi5.xml يسمّي وحداتٍ موجودة فيها.",
+  "cmi5Start": "ابدأ",
+  "cmi5Units": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا وحدات",
+        "countPlural=one": "وحدة واحدة",
+        "countPlural=two": "وحدتان",
+        "countPlural=few": "{count} وحدات",
+        "countPlural=many": "{count} وحدة",
+        "countPlural=*": "{count} وحدة"
+      }
+    }
+  ],
   "ltiShowInPage": "اعرضها في الصفحة",
   "ltiTools": "الأدوات الخارجية",
   "ltiToolsHint": "أدوات يربطها المعلمون من الدروس والتعليمات، تُفتح عبر LTI 1.3 بحساب كل شخص.",

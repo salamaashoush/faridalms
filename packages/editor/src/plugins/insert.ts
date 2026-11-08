@@ -5,6 +5,7 @@ import type { BlockType } from "../blocks";
 import { $insertBlock } from "../blocks";
 import { EDIT_DIAGRAM_COMMAND } from "../nodes";
 import { OPEN_BANK_COMMAND } from "./bank";
+import { IMPORT_CMI5_COMMAND } from "./cmi5";
 import { OPEN_EMBED_COMMAND } from "./embed";
 import { INSERT_MEDIA_COMMAND, RECORD_VIDEO_COMMAND } from "./media";
 import { IMPORT_QTI_COMMAND } from "./qti";
@@ -39,6 +40,10 @@ export function $runBlock(editor: LexicalEditor, type: BlockType) {
   }
   if (type === "word") {
     editor.dispatchCommand(IMPORT_WORD_COMMAND, undefined);
+    return;
+  }
+  if (type === "cmi5Package") {
+    editor.dispatchCommand(IMPORT_CMI5_COMMAND, undefined);
     return;
   }
   if (type === "qtiImport") {

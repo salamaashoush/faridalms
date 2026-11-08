@@ -48,6 +48,7 @@ import {
   BookOpenText,
   LibraryBig,
   FileInput,
+  PackageOpen,
   FileText,
   CodeXml,
   FileCode,
@@ -238,7 +239,8 @@ export type BlockType =
   | "glossary"
   | "bibliography"
   | "word"
-  | "qtiImport";
+  | "qtiImport"
+  | "cmi5Package";
 
 /** The groups the insert menus show blocks in, in this order. */
 export const BLOCK_GROUPS = [
@@ -738,6 +740,24 @@ export const blockDefinitions: BlockDefinition[] = [
       "محاكاة",
     ],
     tools: true,
+  },
+  {
+    type: "cmi5Package",
+    group: "media",
+    icon: PackageOpen,
+    label: (s) => s.cmi5Import,
+    hint: (s) => s.cmi5ImportHint,
+    keywords: [
+      "cmi5",
+      "xapi",
+      "package",
+      "course",
+      "elearning",
+      "حزمة",
+      "مقرر",
+    ],
+    media: true,
+    activity: true,
   },
   {
     type: "diagram",

@@ -36,6 +36,8 @@ import { Route as AuthRegisterRouteImport } from './routes/_auth/register'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AdminSplatRouteImport } from './routes/admin.$'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as Cmi5FetchRouteImport } from './routes/cmi5/fetch'
+import { Route as Cmi5LaunchRouteImport } from './routes/cmi5/launch'
 import { Route as ExportsMediaRouteImport } from './routes/exports/media'
 import { Route as FilesFileIdRouteImport } from './routes/files/$fileId'
 import { Route as LtiAuthRouteImport } from './routes/lti/auth'
@@ -122,6 +124,7 @@ import { Route as AppStandardsMapRouteImport } from './routes/_app/standards/map
 import { Route as AppStudentsStudentIdRouteImport } from './routes/_app/students.$studentId'
 import { Route as AppYearsYearIdRouteImport } from './routes/_app/years.$yearId'
 import { Route as AuthAuthHandoffRouteImport } from './routes/_auth/auth.handoff'
+import { Route as Cmi5XapiSplatRouteImport } from './routes/cmi5/xapi.$'
 import { Route as ExportsAssignmentsAssignmentIdRouteImport } from './routes/exports/assignments.$assignmentId'
 import { Route as ExportsClassesClassIdRouteImport } from './routes/exports/classes.$classId'
 import { Route as ExportsModulesModuleIdRouteImport } from './routes/exports/modules.$moduleId'
@@ -280,6 +283,16 @@ const AdminSplatRoute = AdminSplatRouteImport.update({
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Cmi5FetchRoute = Cmi5FetchRouteImport.update({
+  id: '/cmi5/fetch',
+  path: '/cmi5/fetch',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Cmi5LaunchRoute = Cmi5LaunchRouteImport.update({
+  id: '/cmi5/launch',
+  path: '/cmi5/launch',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExportsMediaRoute = ExportsMediaRouteImport.update({
@@ -720,6 +733,11 @@ const AuthAuthHandoffRoute = AuthAuthHandoffRouteImport.update({
   path: '/auth/handoff',
   getParentRoute: () => AuthRoute,
 } as any)
+const Cmi5XapiSplatRoute = Cmi5XapiSplatRouteImport.update({
+  id: '/cmi5/xapi/$',
+  path: '/cmi5/xapi/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExportsAssignmentsAssignmentIdRoute =
   ExportsAssignmentsAssignmentIdRouteImport.update({
     id: '/exports/assignments/$assignmentId',
@@ -884,6 +902,8 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof AuthSignInRoute
   '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
+  '/cmi5/fetch': typeof Cmi5FetchRoute
+  '/cmi5/launch': typeof Cmi5LaunchRoute
   '/exports/media': typeof ExportsMediaRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/lti/auth': typeof LtiAuthRoute
@@ -964,6 +984,7 @@ export interface FileRoutesByFullPath {
   '/students/$studentId': typeof AppStudentsStudentIdRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
   '/auth/handoff': typeof AuthAuthHandoffRoute
+  '/cmi5/xapi/$': typeof Cmi5XapiSplatRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/classes/$classId': typeof ExportsClassesClassIdRoute
   '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
@@ -1020,6 +1041,8 @@ export interface FileRoutesByTo {
   '/sign-in': typeof AuthSignInRoute
   '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
+  '/cmi5/fetch': typeof Cmi5FetchRoute
+  '/cmi5/launch': typeof Cmi5LaunchRoute
   '/exports/media': typeof ExportsMediaRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/lti/auth': typeof LtiAuthRoute
@@ -1099,6 +1122,7 @@ export interface FileRoutesByTo {
   '/students/$studentId': typeof AppStudentsStudentIdRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
   '/auth/handoff': typeof AuthAuthHandoffRoute
+  '/cmi5/xapi/$': typeof Cmi5XapiSplatRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/classes/$classId': typeof ExportsClassesClassIdRoute
   '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
@@ -1161,6 +1185,8 @@ export interface FileRoutesById {
   '/_auth/sign-in': typeof AuthSignInRoute
   '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
+  '/cmi5/fetch': typeof Cmi5FetchRoute
+  '/cmi5/launch': typeof Cmi5LaunchRoute
   '/exports/media': typeof ExportsMediaRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/lti/auth': typeof LtiAuthRoute
@@ -1241,6 +1267,7 @@ export interface FileRoutesById {
   '/_app/students/$studentId': typeof AppStudentsStudentIdRoute
   '/_app/years/$yearId': typeof AppYearsYearIdRoute
   '/_auth/auth/handoff': typeof AuthAuthHandoffRoute
+  '/cmi5/xapi/$': typeof Cmi5XapiSplatRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/classes/$classId': typeof ExportsClassesClassIdRoute
   '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
@@ -1301,6 +1328,8 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/admin/$'
     | '/api/health'
+    | '/cmi5/fetch'
+    | '/cmi5/launch'
     | '/exports/media'
     | '/files/$fileId'
     | '/lti/auth'
@@ -1381,6 +1410,7 @@ export interface FileRouteTypes {
     | '/students/$studentId'
     | '/years/$yearId'
     | '/auth/handoff'
+    | '/cmi5/xapi/$'
     | '/exports/assignments/$assignmentId'
     | '/exports/classes/$classId'
     | '/exports/modules/$moduleId'
@@ -1437,6 +1467,8 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/admin/$'
     | '/api/health'
+    | '/cmi5/fetch'
+    | '/cmi5/launch'
     | '/exports/media'
     | '/files/$fileId'
     | '/lti/auth'
@@ -1516,6 +1548,7 @@ export interface FileRouteTypes {
     | '/students/$studentId'
     | '/years/$yearId'
     | '/auth/handoff'
+    | '/cmi5/xapi/$'
     | '/exports/assignments/$assignmentId'
     | '/exports/classes/$classId'
     | '/exports/modules/$moduleId'
@@ -1577,6 +1610,8 @@ export interface FileRouteTypes {
     | '/_auth/sign-in'
     | '/admin/$'
     | '/api/health'
+    | '/cmi5/fetch'
+    | '/cmi5/launch'
     | '/exports/media'
     | '/files/$fileId'
     | '/lti/auth'
@@ -1657,6 +1692,7 @@ export interface FileRouteTypes {
     | '/_app/students/$studentId'
     | '/_app/years/$yearId'
     | '/_auth/auth/handoff'
+    | '/cmi5/xapi/$'
     | '/exports/assignments/$assignmentId'
     | '/exports/classes/$classId'
     | '/exports/modules/$moduleId'
@@ -1701,6 +1737,8 @@ export interface RootRouteChildren {
   WelcomeRoute: typeof WelcomeRoute
   AdminSplatRoute: typeof AdminSplatRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  Cmi5FetchRoute: typeof Cmi5FetchRoute
+  Cmi5LaunchRoute: typeof Cmi5LaunchRoute
   ExportsMediaRoute: typeof ExportsMediaRoute
   FilesFileIdRoute: typeof FilesFileIdRouteWithChildren
   LtiAuthRoute: typeof LtiAuthRoute
@@ -1714,6 +1752,7 @@ export interface RootRouteChildren {
   LtiTokenRoute: typeof LtiTokenRoute
   SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
   TeachSplatRoute: typeof TeachSplatRoute
+  Cmi5XapiSplatRoute: typeof Cmi5XapiSplatRoute
   ExportsAssignmentsAssignmentIdRoute: typeof ExportsAssignmentsAssignmentIdRoute
   ExportsClassesClassIdRoute: typeof ExportsClassesClassIdRoute
   ExportsModulesModuleIdRoute: typeof ExportsModulesModuleIdRoute
@@ -1913,6 +1952,20 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cmi5/fetch': {
+      id: '/cmi5/fetch'
+      path: '/cmi5/fetch'
+      fullPath: '/cmi5/fetch'
+      preLoaderRoute: typeof Cmi5FetchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cmi5/launch': {
+      id: '/cmi5/launch'
+      path: '/cmi5/launch'
+      fullPath: '/cmi5/launch'
+      preLoaderRoute: typeof Cmi5LaunchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/exports/media': {
@@ -2517,6 +2570,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAuthHandoffRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/cmi5/xapi/$': {
+      id: '/cmi5/xapi/$'
+      path: '/cmi5/xapi/$'
+      fullPath: '/cmi5/xapi/$'
+      preLoaderRoute: typeof Cmi5XapiSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/exports/assignments/$assignmentId': {
       id: '/exports/assignments/$assignmentId'
       path: '/exports/assignments/$assignmentId'
@@ -3004,6 +3064,8 @@ const rootRouteChildren: RootRouteChildren = {
   WelcomeRoute: WelcomeRoute,
   AdminSplatRoute: AdminSplatRoute,
   ApiHealthRoute: ApiHealthRoute,
+  Cmi5FetchRoute: Cmi5FetchRoute,
+  Cmi5LaunchRoute: Cmi5LaunchRoute,
   ExportsMediaRoute: ExportsMediaRoute,
   FilesFileIdRoute: FilesFileIdRouteWithChildren,
   LtiAuthRoute: LtiAuthRoute,
@@ -3017,6 +3079,7 @@ const rootRouteChildren: RootRouteChildren = {
   LtiTokenRoute: LtiTokenRoute,
   SiteSchoolRoute: SiteSchoolRouteWithChildren,
   TeachSplatRoute: TeachSplatRoute,
+  Cmi5XapiSplatRoute: Cmi5XapiSplatRoute,
   ExportsAssignmentsAssignmentIdRoute: ExportsAssignmentsAssignmentIdRoute,
   ExportsClassesClassIdRoute: ExportsClassesClassIdRoute,
   ExportsModulesModuleIdRoute: ExportsModulesModuleIdRoute,

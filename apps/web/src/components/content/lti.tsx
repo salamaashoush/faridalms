@@ -49,6 +49,20 @@ export function useLtiHref(): ((linkId: string) => string | null) | undefined {
   );
 }
 
+/** Where a unit of a course package launches, in the lesson shown here. */
+export function useCmi5Href():
+  | ((packageId: string, index: number) => string | null)
+  | undefined {
+  const host = useContext(LtiHostContext);
+  return useCallback(
+    (packageId: string, index: number) =>
+      host?.type === "lesson" && host.id
+        ? `/cmi5/launch?${new URLSearchParams({ lesson: host.id, package: packageId, au: String(index) })}`
+        : null,
+    [host],
+  );
+}
+
 /**
  * Opens a tool's window to pick its content, LTI's Deep Linking, and waits
  * for the page the tool sends back to hand over what was picked. The window

@@ -31,7 +31,8 @@ delete_allowed(name, role) as (values
   ('core.standard_observations', 'retention'),
   ('core.peer_reviews', 'retention'), ('core.lti_replays', 'retention'), ('core.lti_scores', 'retention'),
   ('core.discussion_likes', 'retention'), ('core.peer_review_comments', 'retention'),
-  ('core.xapi_statements', 'retention'),
+  ('core.xapi_statements', 'retention'), ('core.cmi5_registrations', 'retention'),
+  ('core.cmi5_sessions', 'retention'), ('core.cmi5_states', 'retention'),
   ('core.module_audiences', 'retention'), ('core.lesson_openings', 'retention'),
   ('core.document_holds', 'retention')),
 unversioned_update_allowed(name, role) as (values

@@ -827,6 +827,22 @@
   "ltiPickBlocked": "Allow pop-ups, then choose again",
   "ltiPickCancel": "Cancel",
   "ltiInPage": "Shown in the page",
+  "cmi5Import": "Course package (cmi5)",
+  "cmi5ImportHint": "A cmi5 package from an authoring tool, its units launched for each student",
+  "cmi5Reading": "Reading the package…",
+  "cmi5Failed": "The package could not be stored. Try again.",
+  "cmi5NotPackage": "This is not a cmi5 package: it needs a cmi5.xml at its root naming units it holds.",
+  "cmi5Start": "Start",
+  "cmi5Units": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} unit",
+        "countPlural=*": "{count} units"
+      }
+    }
+  ],
   "ltiShowInPage": "Show in the page",
   "ltiTools": "Outside tools",
   "ltiToolsHint": "Tools teachers link to from lessons and briefs, launched by LTI 1.3 with each person signed in as themselves.",

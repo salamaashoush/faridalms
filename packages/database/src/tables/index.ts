@@ -5,6 +5,7 @@ export * from "./assessed";
 export * from "./attendance";
 export * from "./broadcasts";
 export * from "./calendar";
+export * from "./cmi5";
 export * from "./comments";
 export * from "./coursework";
 export * from "./descriptors";

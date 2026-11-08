@@ -640,6 +640,9 @@ export async function eraseSubject(
     "lesson_openings",
     "lti_scores",
     "xapi_statements",
+    "cmi5_states",
+    "cmi5_sessions",
+    "cmi5_registrations",
   ] as const)
     await remove(
       table,

@@ -7,6 +7,7 @@ import { AiUseNode } from "./ai-use";
 import { BibliographyNode } from "./bibliography";
 import { $isCalloutNode, CalloutNode } from "./callout";
 import { ChartNode } from "./chart";
+import { Cmi5Node } from "./cmi5";
 import { $isColumnNode, ColumnNode, ColumnsNode } from "./columns";
 import { DrawNode } from "./draw";
 import { FootnoteNode } from "./footnote";
@@ -92,6 +93,7 @@ export const blockNodes = [
   MediaNode,
   EmbedNode,
   LtiNode,
+  Cmi5Node,
   DiagramNode,
   QuestionNode,
   QuestionPromptNode,

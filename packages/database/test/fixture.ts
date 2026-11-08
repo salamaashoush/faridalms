@@ -109,6 +109,9 @@ import {
   ltiScores,
   xapiStatements,
   xapiStores,
+  cmi5Registrations,
+  cmi5Sessions,
+  cmi5States,
   ltiTools,
   peerReviewComments,
   peerReviews,
@@ -759,6 +762,37 @@ export async function completeFixture(
     activityProgress: "Completed",
     gradingProgress: "FullyGraded",
     scoredAt: new Date("2026-09-22T10:00:00Z"),
+  });
+  const [registration] = await tx
+    .insert(cmi5Registrations)
+    .values({
+      tenantId,
+      orgId: schoolId,
+      lessonId: lesson.id,
+      packageId: id(),
+      studentUserId: userId,
+      progress: { "https://example.com/au/1": { completed: true } },
+    })
+    .returning({ id: cmi5Registrations.id });
+  if (!registration) throw new Error("no registration");
+  await tx.insert(cmi5Sessions).values({
+    tenantId,
+    registrationId: registration.id,
+    studentUserId: userId,
+    auId: "https://example.com/au/1",
+    activityId: "https://example.com/lessons/1#au",
+    verbs: ["initialized", "completed", "terminated"],
+    endedAt: new Date("2026-09-22T10:00:00Z"),
+    ending: "terminated",
+  });
+  await tx.insert(cmi5States).values({
+    tenantId,
+    registrationId: registration.id,
+    studentUserId: userId,
+    activityId: "https://example.com/lessons/1#au",
+    stateId: "bookmark",
+    contentType: "application/json",
+    body: '{"page":3}',
   });
   await tx.insert(xapiStores).values({
     tenantId,

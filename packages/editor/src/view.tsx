@@ -70,6 +70,7 @@ import type { MediaWatch } from "./player";
 import { AiUseView } from "./ai-use-view";
 import { BibliographyList } from "./bibliography-view";
 import { ChartView } from "./chart-view";
+import { Cmi5Card } from "./cmi5-card";
 import { codeGutter, codeLanguageName } from "./code-language";
 import { useFileFacts } from "./file-facts";
 import { FileCard, PictureView, StoredImage } from "./files";
@@ -118,6 +119,8 @@ export interface ViewStrings
   footnoteRef: (number: number) => string;
   footnoteBack: (number: number) => string;
   ltiOpen: string;
+  cmi5Start: string;
+  cmi5Units: (count: number) => string;
   codeCopy: string;
   codeCopied: string;
 }
@@ -162,6 +165,8 @@ interface Context {
   mentionHref?: ((mention: Mention) => string | null) | undefined;
   mentionName?: ((mention: Mention) => string | undefined) | undefined;
   ltiHref?: ((linkId: string) => string | null) | undefined;
+  /** Where a course package's unit launches, in the lesson shown. */
+  cmi5Href?: ((packageId: string, index: number) => string | null) | undefined;
   speaker?: ((text: string) => ReactNode) | undefined;
   /** The language the document's own numbers are written for. */
   numbering: string;
@@ -855,6 +860,20 @@ function draw(
         />
       ) : null;
     }
+    case "cmi5":
+      return node.cmi5 ? (
+        <Cmi5Card
+          key={key}
+          course={node.cmi5}
+          href={(index) =>
+            node.cmi5
+              ? (context.cmi5Href?.(node.cmi5.packageId, index) ?? null)
+              : null
+          }
+          startLabel={context.strings.cmi5Start}
+          unitsLabel={context.strings.cmi5Units(node.cmi5.aus.length)}
+        />
+      ) : null;
     // A shared block reads as part of the page, drawn as it now is.
     case "shared":
       return context.shared && node.sharedId ? (
@@ -1309,6 +1328,7 @@ export function ContentRenderer({
   mentionHref,
   mentionName,
   ltiHref,
+  cmi5Href,
   speaker,
   digits,
   lang,
@@ -1341,6 +1361,7 @@ export function ContentRenderer({
   mentionName?: ((mention: Mention) => string | undefined) | undefined;
   /** Where a link to an outside tool launches; without it the link only names the tool. */
   ltiHref?: (linkId: string) => string | null;
+  cmi5Href?: (packageId: string, index: number) => string | null;
   /** A button reading words aloud, offered beside a defined word; none without it. */
   speaker?: (text: string) => ReactNode;
   /** The digits the reader's school writes Arabic in, for the numbers the document draws. */
@@ -1375,6 +1396,7 @@ export function ContentRenderer({
     mentionHref,
     mentionName,
     ltiHref,
+    cmi5Href,
     speaker,
     numbering,
     number: (value) =>

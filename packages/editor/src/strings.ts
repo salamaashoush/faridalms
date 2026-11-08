@@ -320,6 +320,13 @@ export interface EditorStrings
   ltiPicking: string;
   ltiPickBlocked: string;
   ltiPickCancel: string;
+  cmi5Import: string;
+  cmi5ImportHint: string;
+  cmi5Reading: string;
+  cmi5Failed: string;
+  cmi5NotPackage: string;
+  cmi5Start: string;
+  cmi5Units: (count: number) => string;
   /** Said of a tool shown in the page rather than opened in a window. */
   ltiInPage: string;
   ltiShowInPage: string;
