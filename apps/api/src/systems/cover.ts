@@ -79,6 +79,7 @@ async function lessonAt(
 ): Promise<MeetingRow | null> {
   const meetings = await meetingsOn(context.tx, {
     tenantId: context.tenantId,
+    schoolId: context.schoolId,
     on: input.on,
     days: [input.on],
     filter: { groupIds: [], classIds: [input.classId] },
@@ -161,6 +162,7 @@ export const day = readProcedure
         ? Promise.resolve([])
         : meetingsOn(context.tx, {
             tenantId: context.tenantId,
+            schoolId: context.schoolId,
             on,
             days: [on],
             filter: { teacherIds: absences.map((row) => row.userId) },
@@ -169,6 +171,7 @@ export const day = readProcedure
         ? Promise.resolve([])
         : meetingsOn(context.tx, {
             tenantId: context.tenantId,
+            schoolId: context.schoolId,
             on,
             days: [on],
             filter: {
@@ -284,6 +287,7 @@ export const options = readProcedure
       roomsOf(context.tx, context.tenantId, context.schoolId),
       meetingsOn(context.tx, {
         tenantId: context.tenantId,
+        schoolId: context.schoolId,
         on: input.on,
         days: [input.on],
         filter: { schoolId: context.schoolId },

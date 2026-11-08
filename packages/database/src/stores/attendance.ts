@@ -14,6 +14,7 @@ import type { CellTransaction } from "../context";
 import type { RegisterState } from "../tables/attendance";
 import type { ClassType } from "../tables/teaching";
 
+import { dayPlan, heldOn } from "./day-plan";
 import { holds, isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
@@ -176,9 +177,8 @@ export interface PeriodRow {
 }
 
 /**
- * The periods of a school day registers can be taken in. With `everyDay`,
- * those of the day's structure whichever days of the week they run on, as
- * a week is drawn.
+ * The periods of a school day registers can be taken in, at that day's
+ * times: none its bell schedule leaves out, none that skip its weekday.
  */
 export async function periodsOn(
   tx: Tx,
@@ -187,42 +187,24 @@ export async function periodsOn(
     schoolId: string;
     yearId: string;
     day: string;
-    everyDay?: boolean;
   },
 ): Promise<PeriodRow[]> {
-  const rows = await tx.execute<{
-    id: string;
-    code: string;
-    name_en: string | null;
-    name_ar: string | null;
-    sequence: number;
-    kind: PeriodRow["kind"];
-    start_time: string | null;
-    end_time: string | null;
-    official_attendance: boolean;
-    weekdays: number[];
-  }>(sql`
-    select id, code, name_en, name_ar, sequence, kind,
-           to_char(start_time, 'HH24:MI') as start_time, to_char(end_time, 'HH24:MI') as end_time,
-           official_attendance, weekdays
-    from core.class_periods
-    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
-      and school_year_id = ${input.yearId}::uuid and status = 'active'
-      and valid_during @> ${input.day}::date and kind in ('lesson', 'registration')
-      and (${input.everyDay ?? false} or extract(isodow from ${input.day}::date)::smallint = any(weekdays))
-    order by sequence`);
-  return rows.map((row) => ({
-    id: row.id,
-    code: row.code,
-    nameEn: row.name_en,
-    nameAr: row.name_ar,
-    sequence: row.sequence,
-    kind: row.kind,
-    startTime: row.start_time,
-    endTime: row.end_time,
-    official: row.official_attendance,
-    weekdays: row.weekdays,
-  }));
+  const plan = await dayPlan(tx, input);
+  if (plan.yearId !== input.yearId) return [];
+  return plan.periods
+    .filter((row) => row.kind === "lesson" || row.kind === "registration")
+    .map((row) => ({
+      id: row.id,
+      code: row.code,
+      nameEn: row.nameEn,
+      nameAr: row.nameAr,
+      sequence: row.sequence,
+      kind: row.kind,
+      startTime: row.startTime,
+      endTime: row.endTime,
+      official: row.official,
+      weekdays: row.weekdays,
+    }));
 }
 
 export interface RegisterRow {
@@ -539,6 +521,7 @@ export async function dayBoard(
     officialPeriodId: string | null;
   },
 ): Promise<BoardRow[]> {
+  const plan = await dayPlan(tx, input);
   const rows = await tx.execute<{
     class_id: string;
     code: string;
@@ -572,8 +555,7 @@ export async function dayBoard(
       select m.class_id, m.class_period_id from core.class_meetings m
       where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
         and m.school_year_id = ${input.yearId}::uuid and m.status = 'active'
-        and m.valid_during @> ${input.day}::date
-        and m.weekday = extract(isodow from ${input.day}::date)
+        and ${heldOn(plan)}
         and not exists (select 1 from core.lesson_changes x
           where x.tenant_id = m.tenant_id and x.status = 'active' and x.cancelled
             and x.class_id = m.class_id and x.class_period_id = m.class_period_id

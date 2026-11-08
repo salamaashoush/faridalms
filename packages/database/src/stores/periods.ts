@@ -1,4 +1,8 @@
-import type { PeriodKind, PeriodPattern } from "@faridalms/domain/timetable";
+import type {
+  DayTimes,
+  PeriodKind,
+  PeriodPattern,
+} from "@faridalms/domain/timetable";
 
 import { DEFAULT_PERIODS, periodChanged } from "@faridalms/domain/timetable";
 import { sql } from "drizzle-orm";
@@ -20,6 +24,15 @@ export interface YearPeriod extends PeriodPattern {
   until: string;
 }
 
+const dayTimesOf = (period: Pick<PeriodPattern, "dayTimes">) =>
+  sql`${JSON.stringify(
+    period.dayTimes.map((entry) => ({
+      weekdays: [...new Set(entry.weekdays)].toSorted((a, b) => a - b),
+      startTime: entry.startTime,
+      endTime: entry.endTime,
+    })),
+  )}::text::jsonb`;
+
 const days = (weekdays: readonly number[]) =>
   sql`${`{${[...new Set(weekdays)].toSorted((a, b) => a - b).join(",")}}`}::smallint[]`;
 
@@ -40,11 +53,12 @@ export async function periodsInForce(
     end_time: string | null;
     official_attendance: boolean;
     weekdays: number[];
+    day_times: DayTimes[];
     valid_during: string;
   }>(sql`
     select id, version, code, name_en, name_ar, sequence, kind,
            to_char(start_time, 'HH24:MI') as start_time, to_char(end_time, 'HH24:MI') as end_time,
-           official_attendance, weekdays, valid_during::text as valid_during
+           official_attendance, weekdays, day_times, valid_during::text as valid_during
     from core.class_periods
     where tenant_id = ${input.tenantId}::uuid and school_year_id = ${input.yearId}::uuid
       and status = 'active' and valid_during @> ${input.on}::date
@@ -63,6 +77,7 @@ export async function periodsInForce(
       endTime: row.end_time ?? "",
       official: row.official_attendance,
       weekdays: row.weekdays,
+      dayTimes: row.day_times,
       from: range.from,
       until: range.to ?? range.from,
     };
@@ -105,9 +120,9 @@ export async function copyPeriods(
 ): Promise<number> {
   const rows = await tx.execute<{ id: string }>(sql`
     insert into core.class_periods (tenant_id, org_id, school_year_id, code, name_en, name_ar,
-      sequence, kind, start_time, end_time, official_attendance, weekdays, valid_during)
+      sequence, kind, start_time, end_time, official_attendance, weekdays, day_times, valid_during)
     select p.tenant_id, ${input.schoolId}::uuid, ${input.target.id}::uuid, p.code, p.name_en, p.name_ar,
-      p.sequence, p.kind, p.start_time, p.end_time, p.official_attendance, p.weekdays,
+      p.sequence, p.kind, p.start_time, p.end_time, p.official_attendance, p.weekdays, p.day_times,
       daterange(${input.target.startsOn}::date, ${input.target.endsBefore}::date, '[)')
     from core.class_periods p
     join core.academic_sessions y on y.tenant_id = p.tenant_id and y.id = p.school_year_id
@@ -177,6 +192,13 @@ export async function givePeriods(
     )}`);
   return "default";
 }
+
+// A meeting of a cycle of days falls on any weekday, so only a period
+// leaving the day altogether ends it.
+const leaves = (keeps: readonly number[]) => sql`(${keeps.length === 0}
+  or (exists (select 1 from core.timetables t where t.tenant_id = class_meetings.tenant_id
+        and t.id = class_meetings.timetable_id and t.cycle_kind = 'weeks')
+      and not ((weekday - 1) % 7 + 1)::smallint = any(${days(keeps.length ? keeps : [0])})))`;
 
 export class PeriodChangeError extends Error {
   constructor(public readonly code: string) {
@@ -274,8 +296,7 @@ export async function replacePeriodsFrom(
     update core.class_periods set valid_during = daterange(lower(valid_during), ${input.from}::date, '[)')
     where ${scope} and id = ${id}::uuid`;
   const endMeetings = async (periodId: string, keeps: readonly number[]) => {
-    const others = sql`class_period_id = ${periodId}::uuid
-      and not weekday = any(${days(keeps.length ? keeps : [0])})`;
+    const others = sql`class_period_id = ${periodId}::uuid and ${leaves(keeps)}`;
     await tx.execute(sql`
       update core.class_meetings set status = 'tobedeleted'
       where ${scope} and ${others} and lower(valid_during) >= ${input.from}::date`);
@@ -326,11 +347,12 @@ export async function replacePeriodsFrom(
   ) => {
     const [row] = await tx.execute<{ id: string }>(sql`
       insert into core.class_periods (tenant_id, org_id, school_year_id, code, name_en, name_ar,
-        sequence, kind, start_time, end_time, official_attendance, weekdays, valid_during)
+        sequence, kind, start_time, end_time, official_attendance, weekdays, day_times, valid_during)
       values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.yearId}::uuid, ${code},
         ${period.nameEn}, ${period.nameAr}, ${period.sequence}, ${period.kind},
         ${period.startTime}::time, ${period.endTime}::time, ${period.official},
-        ${days(period.weekdays)}, daterange(${input.from}::date, ${until}::date, '[)'))
+        ${days(period.weekdays)}, ${dayTimesOf(period)},
+        daterange(${input.from}::date, ${until}::date, '[)'))
       returning id`);
     if (!row) throw new Error("period not written");
     return row.id;
@@ -355,15 +377,18 @@ export async function replacePeriodsFrom(
         from spanning s
         where m.tenant_id = ${input.tenantId}::uuid and m.id = s.id
         returning m.tenant_id, m.org_id, m.class_id, m.class_type, m.school_year_id,
-          m.group_class_id, m.weekday, m.teacher_user_id, m.location_id, m.clash_accepted, s.until
+          m.timetable_id, m.group_class_id, m.weekday, m.teacher_user_id, m.location_id,
+          m.clash_accepted, s.until
       )
       insert into core.class_meetings (tenant_id, org_id, class_id, class_type, school_year_id,
-        group_class_id, weekday, class_period_id, teacher_user_id, location_id, valid_during,
-        clash_accepted)
-      select tenant_id, org_id, class_id, class_type, school_year_id, group_class_id, weekday,
-        ${id}::uuid, teacher_user_id, location_id, daterange(${input.from}::date, until, '[)'),
-        clash_accepted
-      from ended where weekday = any(${keeps})`);
+        timetable_id, group_class_id, weekday, class_period_id, teacher_user_id, location_id,
+        valid_during, clash_accepted)
+      select e.tenant_id, e.org_id, e.class_id, e.class_type, e.school_year_id, e.timetable_id,
+        e.group_class_id, e.weekday, ${id}::uuid, e.teacher_user_id, e.location_id,
+        daterange(${input.from}::date, e.until, '[)'), e.clash_accepted
+      from ended e
+      join core.timetables t on t.tenant_id = e.tenant_id and t.id = e.timetable_id
+      where t.cycle_kind = 'days' or ((e.weekday - 1) % 7 + 1)::smallint = any(${keeps})`);
     await tx.execute(sql`
       update core.lesson_changes set class_period_id = ${id}::uuid
       where ${scope} and class_period_id = ${old.id}::uuid and day_on >= ${input.from}::date`);
@@ -377,7 +402,8 @@ export async function replacePeriodsFrom(
       update core.class_periods
       set name_en = ${next.nameEn}, name_ar = ${next.nameAr}, sequence = ${next.sequence},
           kind = ${next.kind}, start_time = ${next.startTime}::time, end_time = ${next.endTime}::time,
-          official_attendance = ${next.official}, weekdays = ${days(next.weekdays)}
+          official_attendance = ${next.official}, weekdays = ${days(next.weekdays)},
+          day_times = ${dayTimesOf(next)}
       where ${scope} and id = ${old.id}::uuid`);
   }
   for (const period of added) await insert(period, freshCode(), segmentEnd);

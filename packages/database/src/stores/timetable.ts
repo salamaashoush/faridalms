@@ -1,10 +1,13 @@
+import type { Cycle } from "@faridalms/domain/timetable";
 import type { SQL } from "drizzle-orm";
 
+import { MAX_CYCLE_DAY, WEEKLY } from "@faridalms/domain/timetable";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 import type { ClassType } from "../tables/teaching";
 
+import { dayPlan, dayPlans } from "./day-plan";
 import { textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
@@ -119,6 +122,8 @@ export interface MeetingRow {
   groupCode: string;
   groupTitleEn: string | null;
   groupTitleAr: string | null;
+  timetableId: string;
+  /** The day of its timetable's cycle; the ISO weekday in an ordinary week. */
   weekday: number;
   periodId: string;
   teacherId: string | null;
@@ -157,23 +162,62 @@ function filterOf(filter: MeetingFilter): SQL {
     or m.class_id = any(${uuidArray(filter.classIds ?? [])}))`;
 }
 
+const everyRow = () => true;
+
+const smallints = (values: readonly number[]) => `{${values.join(",")}}`;
+
 /**
- * The meetings for a grid, a teacher, a room or a student: those in force on
- * `on`, or with `days`, each in force on the date of its weekday that week.
+ * The meetings for a grid, a teacher, a room or a student at a school: those
+ * of the timetable followed on `on` and in force then, or with `days`, those
+ * held on each of them, on its day of the cycle and in a period it keeps.
  */
 export async function meetingsOn(
   tx: Tx,
   input: {
     tenantId: string;
+    schoolId: string;
     on: string;
     filter: MeetingFilter;
     days?: readonly string[];
   },
 ): Promise<MeetingRow[]> {
-  const day = input.days
-    ? sql`join unnest(${textArray(input.days)}::date[]) as w(d)
-        on m.valid_during @> w.d and extract(isodow from w.d) = m.weekday`
-    : sql`join (select ${input.on}::date as d) w on m.valid_during @> w.d`;
+  let day: SQL;
+  let keeps: (row: { on: string; periodId: string }) => boolean = everyRow;
+  if (input.days) {
+    const plans = await dayPlans(tx, {
+      tenantId: input.tenantId,
+      schoolId: input.schoolId,
+      days: input.days,
+    });
+    const held = [...plans.values()].flatMap((plan) =>
+      plan.timetable && plan.cycleDay !== null
+        ? [
+            {
+              day: plan.day,
+              timetableId: plan.timetable.id,
+              cycleDay: plan.cycleDay,
+            },
+          ]
+        : [],
+    );
+    if (held.length === 0) return [];
+    day = sql`join unnest(${textArray(held.map((row) => row.day))}::date[],
+        ${uuidArray(held.map((row) => row.timetableId))},
+        ${smallints(held.map((row) => row.cycleDay))}::smallint[]) as w(d, t, k)
+        on m.valid_during @> w.d and m.timetable_id = w.t and m.weekday = w.k`;
+    keeps = (row) =>
+      plans.get(row.on)?.periods.some((period) => period.id === row.periodId) ??
+      false;
+  } else {
+    const plan = await dayPlan(tx, {
+      tenantId: input.tenantId,
+      schoolId: input.schoolId,
+      day: input.on,
+    });
+    if (!plan.timetable) return [];
+    day = sql`join (select ${input.on}::date as d) w on m.valid_during @> w.d
+      and m.timetable_id = ${plan.timetable.id}::uuid`;
+  }
   const rows = await tx.execute<{
     id: string;
     class_id: string;
@@ -185,6 +229,7 @@ export async function meetingsOn(
     group_code: string;
     group_title_en: string | null;
     group_title_ar: string | null;
+    timetable_id: string;
     weekday: number;
     class_period_id: string;
     teacher_user_id: string | null;
@@ -201,15 +246,16 @@ export async function meetingsOn(
   }>(sql`
     select m.id, m.class_id, c.code as class_code, c.title_en as class_title_en,
            c.title_ar as class_title_ar, c.class_type, m.group_class_id, g.code as group_code,
-           g.title_en as group_title_en, g.title_ar as group_title_ar, m.weekday, m.class_period_id,
+           g.title_en as group_title_en, g.title_ar as group_title_ar, m.timetable_id, m.weekday,
+           m.class_period_id,
            m.teacher_user_id, u.full_name_en as teacher_en, u.full_name_ar as teacher_ar,
            m.location_id, l.code as room_code, l.name_en as room_en, l.name_ar as room_ar,
            to_char(lower(m.valid_during), 'YYYY-MM-DD') as from_day,
            to_char(w.d, 'YYYY-MM-DD') as day_on, m.clash_accepted,
            exists (select 1 from core.class_meetings o
              where o.tenant_id = m.tenant_id and o.id <> m.id and o.status = 'active'
-               and o.weekday = m.weekday and o.class_period_id = m.class_period_id
-               and o.valid_during @> w.d
+               and o.timetable_id = m.timetable_id and o.weekday = m.weekday
+               and o.class_period_id = m.class_period_id and o.valid_during @> w.d
                and ((m.teacher_user_id is not null and o.teacher_user_id = m.teacher_user_id)
                     or (m.location_id is not null and o.location_id = m.location_id))) as clashing
     from core.class_meetings m
@@ -218,34 +264,38 @@ export async function meetingsOn(
     join core.classes g on g.tenant_id = m.tenant_id and g.id = m.group_class_id
     left join core.users u on u.tenant_id = m.tenant_id and u.id = m.teacher_user_id
     left join core.locations l on l.tenant_id = m.tenant_id and l.id = m.location_id
-    where m.tenant_id = ${input.tenantId}::uuid and m.status = 'active'
-      and ${filterOf(input.filter)}
-    order by m.weekday, m.class_period_id, g.code, c.code`);
-  return rows.map((row) => ({
-    id: row.id,
-    classId: row.class_id,
-    classCode: row.class_code,
-    classTitleEn: row.class_title_en,
-    classTitleAr: row.class_title_ar,
-    classType: row.class_type,
-    groupClassId: row.group_class_id,
-    groupCode: row.group_code,
-    groupTitleEn: row.group_title_en,
-    groupTitleAr: row.group_title_ar,
-    weekday: row.weekday,
-    periodId: row.class_period_id,
-    teacherId: row.teacher_user_id,
-    teacherNameEn: row.teacher_en,
-    teacherNameAr: row.teacher_ar,
-    roomId: row.location_id,
-    roomCode: row.room_code,
-    roomNameEn: row.room_en,
-    roomNameAr: row.room_ar,
-    from: row.from_day,
-    on: row.day_on,
-    clashAccepted: row.clash_accepted,
-    clashing: row.clashing,
-  }));
+    where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
+      and m.status = 'active' and ${filterOf(input.filter)}
+    order by w.d, m.weekday, m.class_period_id, g.code, c.code`);
+  return rows.flatMap((row) => {
+    const meeting: MeetingRow = {
+      id: row.id,
+      classId: row.class_id,
+      classCode: row.class_code,
+      classTitleEn: row.class_title_en,
+      classTitleAr: row.class_title_ar,
+      classType: row.class_type,
+      groupClassId: row.group_class_id,
+      groupCode: row.group_code,
+      groupTitleEn: row.group_title_en,
+      groupTitleAr: row.group_title_ar,
+      timetableId: row.timetable_id,
+      weekday: row.weekday,
+      periodId: row.class_period_id,
+      teacherId: row.teacher_user_id,
+      teacherNameEn: row.teacher_en,
+      teacherNameAr: row.teacher_ar,
+      roomId: row.location_id,
+      roomCode: row.room_code,
+      roomNameEn: row.room_en,
+      roomNameAr: row.room_ar,
+      from: row.from_day,
+      on: row.day_on,
+      clashAccepted: row.clash_accepted,
+      clashing: row.clashing,
+    };
+    return keeps(meeting) ? [meeting] : [];
+  });
 }
 
 export interface Booking {
@@ -265,6 +315,7 @@ export async function bookingsAt(
   tx: Tx,
   input: {
     tenantId: string;
+    timetableId: string;
     groupId: string;
     weekday: number;
     periodId: string;
@@ -289,7 +340,7 @@ export async function bookingsAt(
     join core.classes c on c.tenant_id = m.tenant_id and c.id = m.class_id
     where m.tenant_id = ${input.tenantId}::uuid and m.status = 'active'
       and m.group_class_id <> ${input.groupId}::uuid
-      and m.weekday = ${input.weekday} and m.class_period_id = ${input.periodId}::uuid
+      and m.timetable_id = ${input.timetableId}::uuid and m.weekday = ${input.weekday} and m.class_period_id = ${input.periodId}::uuid
       and upper(m.valid_during) > ${input.from}::date
       and (m.teacher_user_id = ${input.teacherId}::uuid or m.location_id = ${input.roomId}::uuid)
     order by c.code`);
@@ -321,11 +372,12 @@ async function endFrom(tx: Tx, tenantId: string, where: SQL, from: string) {
   return rows.length;
 }
 
-/** Empties a grid's cell from a day on. */
+/** Empties a timetable's cell of a grid from a day on. */
 export function endCell(
   tx: Tx,
   input: {
     tenantId: string;
+    timetableId: string;
     groupId: string;
     weekday: number;
     periodId: string;
@@ -335,8 +387,8 @@ export function endCell(
   return endFrom(
     tx,
     input.tenantId,
-    sql`m.group_class_id = ${input.groupId}::uuid and m.weekday = ${input.weekday}
-      and m.class_period_id = ${input.periodId}::uuid`,
+    sql`m.group_class_id = ${input.groupId}::uuid and m.timetable_id = ${input.timetableId}::uuid
+      and m.weekday = ${input.weekday} and m.class_period_id = ${input.periodId}::uuid`,
     input.from,
   );
 }
@@ -363,6 +415,7 @@ export async function insertMeeting(
     classId: string;
     classType: ClassType;
     yearId: string;
+    timetableId: string;
     groupId: string;
     weekday: number;
     periodId: string;
@@ -375,10 +428,11 @@ export async function insertMeeting(
 ): Promise<string> {
   const [row] = await tx.execute<{ id: string }>(sql`
     insert into core.class_meetings
-      (tenant_id, org_id, class_id, class_type, school_year_id, group_class_id, weekday,
-       class_period_id, teacher_user_id, location_id, valid_during, clash_accepted)
+      (tenant_id, org_id, class_id, class_type, school_year_id, timetable_id, group_class_id,
+       weekday, class_period_id, teacher_user_id, location_id, valid_during, clash_accepted)
     values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.classId}::uuid,
-            ${input.classType}, ${input.yearId}::uuid, ${input.groupId}::uuid, ${input.weekday},
+            ${input.classType}, ${input.yearId}::uuid, ${input.timetableId}::uuid,
+            ${input.groupId}::uuid, ${input.weekday},
             ${input.periodId}::uuid, ${input.teacherId}::uuid, ${input.roomId}::uuid,
             daterange(${input.from}::date, ${input.endsBefore}::date, '[)'), ${input.clashAccepted})
     returning id`);
@@ -434,4 +488,145 @@ export async function yearTeachers(
     fullNameEn: row.full_name_en,
     fullNameAr: row.full_name_ar,
   }));
+}
+
+export class TimetableConflict extends Error {
+  constructor(readonly code: "conflict.version") {
+    super(code);
+  }
+}
+
+interface TimetableFields extends Cycle {
+  nameEn: string | null;
+  nameAr: string | null;
+  startsOn: string;
+}
+
+export async function insertTimetable(
+  tx: Tx,
+  input: TimetableFields & {
+    tenantId: string;
+    schoolId: string;
+    yearId: string;
+  },
+): Promise<string> {
+  const [row] = await tx.execute<{ id: string }>(sql`
+    insert into core.timetables (tenant_id, org_id, school_year_id, name_en, name_ar, starts_on,
+      cycle_kind, cycle_length, first_day, closures_move)
+    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.yearId}::uuid,
+      ${input.nameEn}, ${input.nameAr}, ${input.startsOn}::date, ${input.kind}, ${input.length},
+      ${input.firstDay}, ${input.closuresMove})
+    returning id`);
+  if (!row) throw new Error("timetable not written");
+  return row.id;
+}
+
+/**
+ * The year's first timetable, an ordinary week from its first day, made
+ * when a year that has none is first planned.
+ */
+export async function ensureTimetable(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    year: { id: string; startsOn: string };
+  },
+): Promise<void> {
+  await tx.execute(sql`select app.lock(${`timetables:${input.year.id}`})`);
+  const [held] = await tx.execute<{ held: boolean }>(sql`
+    select exists (select 1 from core.timetables
+      where tenant_id = ${input.tenantId}::uuid and school_year_id = ${input.year.id}::uuid
+        and status = 'active') as held`);
+  if (held?.held) return;
+  await insertTimetable(tx, {
+    tenantId: input.tenantId,
+    schoolId: input.schoolId,
+    yearId: input.year.id,
+    nameEn: null,
+    nameAr: null,
+    startsOn: input.year.startsOn,
+    ...WEEKLY,
+  });
+}
+
+export async function updateTimetable(
+  tx: Tx,
+  input: TimetableFields & { tenantId: string; id: string; version: number },
+): Promise<void> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.timetables
+    set name_en = ${input.nameEn}, name_ar = ${input.nameAr}, starts_on = ${input.startsOn}::date,
+        cycle_kind = ${input.kind}, cycle_length = ${input.length}, first_day = ${input.firstDay},
+        closures_move = ${input.closuresMove}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and status = 'active' and version = ${input.version}
+    returning id`);
+  if (rows.length === 0) throw new TimetableConflict("conflict.version");
+}
+
+/** Removes a timetable with its lessons; the one before it is followed in its place. */
+export async function tombstoneTimetable(
+  tx: Tx,
+  input: { tenantId: string; id: string; version: number },
+): Promise<void> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.timetables set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and status = 'active' and version = ${input.version}
+    returning id`);
+  if (rows.length === 0) throw new TimetableConflict("conflict.version");
+  await tx.execute(sql`
+    update core.class_meetings set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and timetable_id = ${input.id}::uuid
+      and status = 'active'`);
+}
+
+/** How many lessons a timetable places, whatever their dates. */
+export async function timetableLessons(
+  tx: Tx,
+  input: { tenantId: string; ids: readonly string[] },
+): Promise<Map<string, number>> {
+  if (input.ids.length === 0) return new Map();
+  const rows = await tx.execute<{ timetable_id: string; lessons: number }>(sql`
+    select timetable_id, count(*)::int as lessons from core.class_meetings
+    where tenant_id = ${input.tenantId}::uuid and timetable_id = any(${uuidArray(input.ids)})
+      and status = 'active'
+    group by timetable_id`);
+  return new Map(rows.map((row) => [row.timetable_id, row.lessons]));
+}
+
+/**
+ * Starts a timetable with the lessons another holds on its first day, each
+ * moved to the days `days` gives for its day of the cycle.
+ */
+export async function copyMeetings(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    fromId: string;
+    toId: string;
+    startsOn: string;
+    days: (day: number) => number[];
+  },
+): Promise<number> {
+  const pairs = Array.from({ length: MAX_CYCLE_DAY }, (_, index) => index + 1)
+    .flatMap((day) => input.days(day).map((to) => [day, to] as const))
+    .filter(([, to]) => to >= 1 && to <= MAX_CYCLE_DAY);
+  if (pairs.length === 0) return 0;
+  const rows = await tx.execute<{ id: string }>(sql`
+    insert into core.class_meetings (tenant_id, org_id, class_id, class_type, school_year_id,
+      timetable_id, group_class_id, weekday, class_period_id, teacher_user_id, location_id,
+      valid_during, clash_accepted)
+    select m.tenant_id, m.org_id, m.class_id, m.class_type, m.school_year_id, ${input.toId}::uuid,
+      m.group_class_id, x.target, m.class_period_id, m.teacher_user_id, m.location_id,
+      daterange(${input.startsOn}::date, upper(m.valid_during), '[)'), m.clash_accepted
+    from core.class_meetings m
+    join unnest(${smallints(pairs.map(([day]) => day))}::smallint[],
+      ${smallints(pairs.map(([, to]) => to))}::smallint[]) as x(source, target)
+      on x.source = m.weekday
+    where m.tenant_id = ${input.tenantId}::uuid and m.timetable_id = ${input.fromId}::uuid
+      and m.status = 'active' and m.valid_during @> ${input.startsOn}::date
+    returning id`);
+  return rows.length;
 }

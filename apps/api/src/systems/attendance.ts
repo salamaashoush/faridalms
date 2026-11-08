@@ -78,7 +78,6 @@ import {
 } from "@faridalms/domain/attendance";
 import { paged, pageWindow } from "@faridalms/domain/paging";
 import { addDays } from "@faridalms/domain/school";
-import { isoWeekday } from "@faridalms/domain/timetable";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -348,13 +347,13 @@ export const register = readProcedure
     });
     const meets = input.periodId
       ? []
-      : (
-          await meetingsOn(context.tx, {
-            tenantId: context.tenantId,
-            on: input.date,
-            filter: { groupIds: [], classIds: [classRow.id] },
-          })
-        ).filter((row) => row.weekday === isoWeekday(input.date));
+      : await meetingsOn(context.tx, {
+          tenantId: context.tenantId,
+          schoolId: context.schoolId,
+          on: input.date,
+          days: [input.date],
+          filter: { groupIds: [], classIds: [classRow.id] },
+        });
     const period = input.periodId
       ? periods.find((row) => row.id === input.periodId)
       : taking.periods === "all"

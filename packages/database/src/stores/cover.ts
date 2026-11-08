@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
+import { dayPlan, heldOn } from "./day-plan";
 import { bounds, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
@@ -293,6 +294,7 @@ export async function coverCandidates(
     day: string;
   },
 ): Promise<CoverCandidate[]> {
+  const plan = await dayPlan(tx, input);
   const rows = await tx.execute<{
     id: string;
     full_name_en: string | null;
@@ -313,8 +315,7 @@ export async function coverCandidates(
       from core.class_meetings m
       where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
         and m.status = 'active' and m.teacher_user_id is not null
-        and m.valid_during @> ${input.day}::date
-        and m.weekday = extract(isodow from ${input.day}::date)
+        and ${heldOn(plan)}
         and not exists (select 1 from core.lesson_changes x
           where x.tenant_id = m.tenant_id and x.status = 'active' and x.class_id = m.class_id
             and x.class_period_id = m.class_period_id and x.day_on = ${input.day}::date

@@ -2,21 +2,14 @@ import type { CellTransaction } from "@faridalms/database/context";
 import type { LessonChange } from "@faridalms/database/stores/cover";
 import type { MeetingRow } from "@faridalms/database/stores/timetable";
 
-import { periodsOn } from "@faridalms/database/stores/attendance";
 import { changesOn } from "@faridalms/database/stores/cover";
+import { dayPlans } from "@faridalms/database/stores/day-plan";
 import {
   meetingsOn,
   studentGroups,
 } from "@faridalms/database/stores/timetable";
-import {
-  calendarDays,
-  schoolWeek,
-  schoolYears,
-  workingYear,
-} from "@faridalms/database/stores/years";
-import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
+import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import { addDays } from "@faridalms/domain/school";
-import { isoWeekday } from "@faridalms/domain/timetable";
 
 /** How far a feed's lessons reach: last week, and the weeks ahead. */
 const BACK_DAYS = 7;
@@ -67,14 +60,13 @@ export async function feedLessons(
   if (!year) return [];
   const from = addDays(input.today, -BACK_DAYS);
   const to = addDays(input.today, AHEAD_DAYS);
-  const [week, marked, periods, groups] = await Promise.all([
-    schoolWeek(tx, input.tenantId, input.schoolId),
-    calendarDays(tx, { tenantId: input.tenantId, yearId: year.id, from, to }),
-    periodsOn(tx, {
+  const span: string[] = [];
+  for (let day = from; day <= to; day = addDays(day, 1)) span.push(day);
+  const [plans, groups] = await Promise.all([
+    dayPlans(tx, {
       tenantId: input.tenantId,
       schoolId: input.schoolId,
-      yearId: year.id,
-      day: input.today < year.startsOn ? year.startsOn : input.today,
+      days: span,
     }),
     studentGroups(tx, {
       tenantId: input.tenantId,
@@ -82,25 +74,15 @@ export async function feedLessons(
       on: input.today,
     }),
   ]);
-  const shut = new Set(
-    marked
-      .filter((row) => !SCHOOL_DAY_MEANINGS.includes(row.meaning))
-      .map((row) => row.day),
+  const days = span.filter(
+    (day) => plans.get(day)?.open && plans.get(day)?.yearId === year.id,
   );
-  const days: string[] = [];
-  for (let day = from; day <= to; day = addDays(day, 1))
-    if (
-      day >= year.startsOn &&
-      day < year.endsBefore &&
-      !week.weekendDays.includes(isoWeekday(day)) &&
-      !shut.has(day)
-    )
-      days.push(day);
   if (days.length === 0) return [];
   const learner = groups.groupIds.length > 0 || groups.classIds.length > 0;
   const [taught, learnt, covers] = await Promise.all([
     meetingsOn(tx, {
       tenantId: input.tenantId,
+      schoolId: input.schoolId,
       on: input.today,
       days,
       filter: { teacherId: input.userId },
@@ -108,6 +90,7 @@ export async function feedLessons(
     learner
       ? meetingsOn(tx, {
           tenantId: input.tenantId,
+          schoolId: input.schoolId,
           on: input.today,
           days,
           filter: groups,
@@ -122,6 +105,7 @@ export async function feedLessons(
   const covered = covers.length
     ? await meetingsOn(tx, {
         tenantId: input.tenantId,
+        schoolId: input.schoolId,
         on: input.today,
         days,
         filter: {
@@ -138,7 +122,8 @@ export async function feedLessons(
   });
   const changeOf = new Map(changes.map((row) => [key(row, row.day), row]));
   const coverOf = new Map(covers.map((row) => [key(row, row.day), row]));
-  const periodOf = new Map(periods.map((row) => [row.id, row]));
+  const periodOf = (row: MeetingRow) =>
+    plans.get(row.on)?.periods.find((period) => period.id === row.periodId);
   const ar = input.locale === "ar";
   const pick = (en: string | null, other: string | null) =>
     (ar ? (other ?? en) : (en ?? other)) ?? "";
@@ -148,7 +133,7 @@ export async function feedLessons(
     change: LessonChange | undefined,
     cover: boolean,
   ): FeedLesson | null => {
-    const period = periodOf.get(row.periodId);
+    const period = periodOf(row);
     if (!period?.startTime || !period.endTime) return null;
     // A teacher away for a lesson someone covers has nothing on then.
     if (

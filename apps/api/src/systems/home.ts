@@ -174,6 +174,7 @@ async function asHeld(
   const coverOf = new Map(covers.map((row) => [slotKey(row), row]));
   const covered = await meetingsOn(context.tx, {
     tenantId: context.tenantId,
+    schoolId: context.schoolId,
     on: day,
     days: [day],
     filter: {
@@ -305,6 +306,7 @@ export const teacher = readProcedure.handler(async ({ context }) => {
     }),
     meetingsOn(context.tx, {
       tenantId: context.tenantId,
+      schoolId: context.schoolId,
       on: context.today,
       days: [context.today],
       filter: { teacherId: context.actor.userId },
@@ -330,11 +332,9 @@ export const teacher = readProcedure.handler(async ({ context }) => {
   const registers = new Map(
     board.map((row) => [`${row.classId}:${row.periodId}`, row.state]),
   );
-  const weekday = isoWeekday(context.today);
   const taught = new Set(classes.map((row) => row.id));
-  const today = meetings.filter((meeting) => meeting.weekday === weekday);
   const covered = new Set(
-    today.map((meeting) => `${meeting.classId}:${meeting.periodId}`),
+    meetings.map((meeting) => `${meeting.classId}:${meeting.periodId}`),
   );
   // A homeroom's daily register is expected without a timetabled lesson.
   const daily: MeetingRow[] = board
@@ -354,7 +354,8 @@ export const teacher = readProcedure.handler(async ({ context }) => {
       groupCode: row.classCode,
       groupTitleEn: row.classTitleEn,
       groupTitleAr: row.classTitleAr,
-      weekday,
+      timetableId: "",
+      weekday: isoWeekday(context.today),
       periodId: row.periodId,
       teacherId: context.actor.userId,
       teacherNameEn: null,
@@ -369,7 +370,7 @@ export const teacher = readProcedure.handler(async ({ context }) => {
       clashing: false,
     }));
   const slots = slotsOf(
-    [...today, ...daily],
+    [...meetings, ...daily],
     periods,
     clock,
     (classId, periodId) => registers.get(`${classId}:${periodId}`) ?? null,
@@ -506,6 +507,7 @@ async function studentDay(context: UnitContext, studentId: string) {
           context,
           await meetingsOn(context.tx, {
             tenantId: context.tenantId,
+            schoolId: context.schoolId,
             on: context.today,
             days: [context.today],
             filter: { groupIds: groups.groupIds, classIds: groups.classIds },

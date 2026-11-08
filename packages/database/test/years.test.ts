@@ -131,6 +131,7 @@ describe("a year's school day", () => {
             endTime: "10:00",
             official: true,
             weekdays: [7, 1, 2, 3, 4],
+            dayTimes: [],
           },
         ],
       });

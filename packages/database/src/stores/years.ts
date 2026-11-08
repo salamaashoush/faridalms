@@ -237,6 +237,8 @@ export interface CalendarDay {
   noteEn: string | null;
   noteAr: string | null;
   provisional: boolean;
+  /** The bell schedule the day runs on instead of its periods' own times. */
+  scheduleId: string | null;
 }
 
 /** Every day of a year's school calendar with what it is, and the count it aims at. */
@@ -270,9 +272,10 @@ export async function calendarDays(
     note_en: string | null;
     note_ar: string | null;
     provisional: boolean;
+    bell_schedule_id: string | null;
   }>(sql`
     select to_char(d.day_on, 'YYYY-MM-DD') as day, e.system_meaning as meaning,
-           d.note_en, d.note_ar, d.provisional
+           d.note_en, d.note_ar, d.provisional, d.bell_schedule_id
     from core.calendar_dates d
     join core.calendars c on c.tenant_id = d.tenant_id and c.id = d.calendar_id
       and c.kind = 'school' and c.status = 'active'
@@ -286,6 +289,7 @@ export async function calendarDays(
     noteEn: row.note_en,
     noteAr: row.note_ar,
     provisional: row.provisional,
+    scheduleId: row.bell_schedule_id,
   }));
 }
 
