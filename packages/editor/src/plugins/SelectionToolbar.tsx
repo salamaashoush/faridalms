@@ -6,6 +6,7 @@ import type {
   FileDisplay,
   ImageSize,
   QuestionKind,
+  SetPicture,
   StandardTarget,
   TextSize,
 } from "@faridalms/domain/content";
@@ -198,6 +199,7 @@ import {
   $setNarration,
   $setNarrationWords,
 } from "../nodes/narration";
+import { $isGalleryNode } from "../nodes/pictures";
 import {
   $findPart,
   $holdsPicture,
@@ -257,6 +259,7 @@ type Mode =
   | "link-edit"
   | "link-view"
   | "block"
+  | "gallery"
   | "file"
   | "lti"
   | "cmi5"
@@ -399,6 +402,12 @@ const MATH_FORM_CHOICES = [
 ] as const;
 const MATH_UNITS = [null, "convert", "same"] as const;
 const FLASH = [null, 2, 3, 5] as const;
+
+/** A selected gallery: the pictures whose people the bar names. */
+interface GalleryFacts {
+  key: NodeKey;
+  pictures: SetPicture[];
+}
 
 /** A selected file: what the bar opens, shares or shows. */
 interface FileBarFacts {
@@ -645,6 +654,7 @@ export function SelectionToolbarPlugin() {
   const [reference, setReference] = useState<ReferenceElement | null>(null);
   const [facts, setFacts] = useListenerState<Facts>(empty, sameFacts);
   const [layout, setLayout] = useState<BlockFacts | null>(null);
+  const [gallery, setGallery] = useState<GalleryFacts | null>(null);
   // A selected video's bar offers a question at the moment it is paused on,
   // so the bar follows its player while it shows.
   const [, setMoment] = useState(0);
@@ -761,6 +771,8 @@ export function SelectionToolbarPlugin() {
   const pointer = useRef(false);
   const menus = useRef(0);
   const toolbar = useRef<HTMLDivElement>(null);
+  // A gallery picture chosen from the bar, whose people the host now asks for.
+  const peopleAsked = useRef(false);
 
   const read = () =>
     editor.getEditorState().read(() => {
@@ -845,6 +857,16 @@ export function SelectionToolbarPlugin() {
       const node = nodes.length === 1 ? nodes[0] : null;
       if (!$isStandardsNode(node)) return null;
       return { key: node.getKey(), targets: node.getTargets() };
+    });
+
+  const readGallery = () =>
+    editor.getEditorState().read((): GalleryFacts | null => {
+      const selection = $getSelection();
+      if (!$isNodeSelection(selection)) return null;
+      const nodes = selection.getNodes();
+      const node = nodes.length === 1 ? nodes[0] : null;
+      if (!$isGalleryNode(node) || node.getPictures().length === 0) return null;
+      return { key: node.getKey(), pictures: node.getPictures() };
     });
 
   const readBlock = () =>
@@ -1061,6 +1083,12 @@ export function SelectionToolbarPlugin() {
       setCmi5Facts(course);
       setReference(editor.getElementByKey(course.key));
       return show("cmi5");
+    }
+    const pictures = focused && media?.people ? readGallery() : null;
+    if (pictures) {
+      setGallery(pictures);
+      setReference(editor.getElementByKey(pictures.key));
+      return show("gallery");
     }
     const selected = focused ? readBlock() : null;
     if (selected) {
@@ -1551,6 +1579,74 @@ export function SelectionToolbarPlugin() {
         >
           <BookX aria-hidden />
         </ToolButton>
+      </Floating>
+    );
+  }
+
+  if (mode === "gallery" && gallery && media?.people) {
+    const { people } = media;
+    return (
+      <Floating
+        reference={reference}
+        placement="top"
+        boundary={boundary}
+        className={BAR}
+        keepFocus
+        role="toolbar"
+        label={strings.blockOptions}
+      >
+        <div ref={toolbar} className="contents">
+          <Menu.Root
+            onOpenChange={(open) => {
+              if (open) peopleAsked.current = false;
+              trackMenu(open);
+            }}
+          >
+            <Menu.Trigger className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground [&_svg]:size-4">
+              <UsersRound aria-hidden />
+              {strings.picturePeople}
+              <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+            </Menu.Trigger>
+            <Menu.Portal>
+              <Menu.Positioner className="z-50" sideOffset={6} align="start">
+                <Menu.Popup
+                  className={cx(menuPopupClass, "max-h-80 overflow-y-auto")}
+                  // The host's sheet for the picture chosen keeps the focus
+                  // it takes; only a menu shut without a choice hands it back.
+                  finalFocus={() => !peopleAsked.current && textFocus(editor)()}
+                >
+                  {gallery.pictures.map((picture, index) => (
+                    <Menu.Item
+                      key={picture.fileId}
+                      className={menuItemClass}
+                      onClick={() => {
+                        peopleAsked.current = true;
+                        people(picture.fileId);
+                      }}
+                    >
+                      <img
+                        src={media.url(picture.fileId)}
+                        alt=""
+                        loading="lazy"
+                        className="size-8 shrink-0 rounded object-cover"
+                      />
+                      <span className="max-w-60 flex-1 truncate">
+                        {picture.alt.trim() ||
+                          strings.pictureOf(index + 1, gallery.pictures.length)}
+                      </span>
+                    </Menu.Item>
+                  ))}
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
+          {comments ? (
+            <>
+              {separator}
+              <CommentTool />
+            </>
+          ) : null}
+        </div>
       </Floating>
     );
   }

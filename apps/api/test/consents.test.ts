@@ -471,6 +471,49 @@ describe("pictures of students", () => {
     });
   });
 
+  test("a picture in a gallery is checked as a picture on its own is", async () => {
+    const family = await mother();
+    const studentId = await answerFor(family, "photo_school_news", false);
+    const office = await principal();
+    const [first, second] = [await picture(), await picture()];
+    const draft = post("Gallery day", first, "school");
+    const words = plainContent("Gallery day was a great day.");
+    const saved = await office.broadcasts.news.save({
+      ...draft,
+      body: {
+        root: {
+          ...words.root,
+          children: [
+            ...(words.root.children ?? []),
+            {
+              type: "gallery",
+              version: 1,
+              format: "",
+              pictures: [
+                { fileId: first, alt: "The relay", caption: "" },
+                { fileId: second, alt: "The long jump", caption: "" },
+              ],
+            } as never,
+          ],
+        },
+      },
+    });
+    await office.files.tagPictured({ id: second, studentIds: [studentId] });
+    expect(
+      await rejection(
+        office.broadcasts.news.publish({
+          id: saved.id,
+          expectedVersion: saved.version,
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "news.consent" });
+    await answerFor(family, "photo_school_news", true);
+    await office.broadcasts.news.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+  });
+
   test("only those who publish pictures name who is in them", async () => {
     const fileId = await picture();
     const teacher = await signedIn("northwind", login("teacher"));

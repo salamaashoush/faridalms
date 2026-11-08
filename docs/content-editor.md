@@ -27,6 +27,9 @@ section, a first-level heading), a vague link, a video without captions or
 audio without captions or a transcript, and a suggested question not yet
 kept. Every publishing path refuses those through `core/publication.ts`,
 which also refuses a picture showing someone who has not agreed to it.
+Who a picture shows is named from the floating bar, on a picture of its
+own and on each picture of a gallery alike (its bar's "Who is in it"
+lists them), so the check reaches every picture a document holds.
 
 Lessons, quizzes, assignment briefs, learner responses, assessment
 feedback, messages, announcements, calendar events, news posts, consent

@@ -132,6 +132,49 @@ test("a formula keeps every key typed while its field is still loading", async (
   ).toHaveText("x+1=y");
 });
 
+test("each picture of a gallery names who is in it from the bar", async ({
+  page,
+  browserName,
+}) => {
+  await signIn(page, "admin");
+  await newPost(page, unique("Gallery", browserName));
+  await page.keyboard.type("Above the gallery.");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("/gallery");
+  await page.keyboard.press("Enter");
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Add pictures" }).click();
+  await (
+    await chooser
+  ).setFiles([
+    { name: "relay.jpg", mimeType: "image/jpeg", buffer: PICTURE },
+    { name: "jump.jpg", mimeType: "image/jpeg", buffer: PICTURE },
+  ]);
+  await expect(page.locator("#news-body .fe-gallery img")).toHaveCount(2);
+
+  await page.locator("#news-body > p").first().click();
+  await page.keyboard.press("End");
+  await page.keyboard.press("ArrowDown");
+  const bar = page.getByRole("toolbar", { name: "Block options" });
+  await expect(bar).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(bar.getByRole("button", { name: "Who is in it" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("menuitem")).toHaveText([
+    "Picture 1 of 2",
+    "Picture 2 of 2",
+  ]);
+  await page.getByRole("menuitem", { name: "Picture 2 of 2" }).press("Enter");
+  const sheet = page.getByRole("dialog", { name: "Who is in this picture" });
+  await expect(sheet).toBeVisible();
+  // The sheet keeps the focus it takes; the menu does not send it back.
+  await expect
+    .poll(() =>
+      sheet.evaluate((element) => element.contains(document.activeElement)),
+    )
+    .toBe(true);
+});
+
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
