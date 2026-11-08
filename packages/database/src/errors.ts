@@ -22,6 +22,7 @@ export const CONFLICTS: Record<string, string> = {
   academic_weeks_excl: "academic_week.overlapping",
   class_periods_code_excl: "class_period.code_overlapping",
   class_periods_sequence_excl: "class_period.sequence_overlapping",
+  timetables_start_key: "timetable.start",
   locations_code_key: "location.code_taken",
   tenant_keys_active_key: "tenant_key.active_exists",
   file_publications_tenant_id_public_key_key: "file_publication.key_taken",

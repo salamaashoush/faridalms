@@ -19,6 +19,7 @@ import {
   academicSessions,
   accessRoles,
   attendanceSettings,
+  bellSchedules,
   siteEnquiries,
   messageDrafts,
   accounts,
@@ -1079,6 +1080,13 @@ export async function completeFixture(
     classPeriodId: lessonSlot.class_period_id,
     dayOn: "2026-11-02",
     cancelled: true,
+  });
+  await tx.insert(bellSchedules).values({
+    tenantId,
+    orgId: schoolId,
+    schoolYearId: lessonSlot.school_year_id,
+    nameEn: "Late start",
+    times: [{ code: "1", startTime: "09:00", endTime: "09:45" }],
   });
   await tx.insert(absenceReports).values({
     tenantId,
