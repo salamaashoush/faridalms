@@ -51,12 +51,34 @@ starts a use from those words, and the use may say it otherwise without
 changing the item. Who a picture shows is the file's own
 (`core.file_subjects`), so it holds wherever the item is shown.
 
-## Folders, search and uses
+## What an item says
+
+An item has its file's name and, apart from it, a title people call it by
+(shown in place of the name wherever the library lists it), a description
+for those who cannot see a picture, a caption a picture block starts its
+caption from, and a credit. Title and caption live in
+`core.media_item_texts`, one row per item; description and credit stay on
+the file. Choosing a picture starts the block's alt text from the
+description and its caption from the caption (`LibraryChoice`), and each
+use may say them otherwise.
+
+## Folders, tags, search and uses
 
 - Folders nest. A folder is deleted only once empty, so nothing is lost with
   it. Items move between folders singly or several at a time.
-- Search looks in every folder by name and description; the trash lists
-  everything in it.
+- Tags are the school's own words (`core.media_tags`, unique per school
+  whatever their case), and an item carries any number
+  (`core.media_item_tags`, which names who tagged it and is kept as a
+  school record on erasure). Typing a tag the school lacks makes it;
+  taking a tag away keeps its items.
+- Search looks in every folder by name, title, description and caption;
+  the trash lists everything in it. Filters narrow by kind, by the month
+  an item was added in the school's time zone, by who uploaded it and by
+  tag (an item must carry every tag chosen); any of them searches every
+  folder. All of it is kept in the page's address.
+- In the grid and the list, items are selected together to download as
+  one zip (`/v1/media/library.zip`), and, for the library's keepers, to tag,
+  move or delete into the trash.
 - Where an item is used is read from the documents that hold it, lessons,
   assignments, unit plans, notices, news, events, website pages and shared
   blocks, by title. Deleting an item in use names how many documents show
@@ -84,3 +106,78 @@ way in, supplied by `MediaLibraryProvider` for those who may use it.
   sharing the bytes.
 - The website studio's picture and media fields and a news post's cover
   choose from it beside their upload.
+
+## Uploading into it
+
+Files are chosen, dropped on the page or pasted anywhere on it outside a
+field, and go up through the design system's `UploadQueue` (one row each,
+with progress, Stop, and Try again where it can help) into the open folder.
+The editor and a website picture field take dropped and pasted files the
+same way and show the same queue, as do a class's and module's files.
+
+An upload survives a reload or a closed tab. The browser keeps each file
+in IndexedDB (`apps/web/src/utils/upload-store.ts`) from the moment the
+server gives it an id until it is put where it goes; when the page opens
+again it asks the server which parts it holds (`GET /v1/files/:id/parts`,
+which answers the parts held, or that the file is already in) and sends
+only the rest, then places it. A Web Lock per upload keeps two tabs from
+sending one file, and an upload older than the day the server keeps it is
+forgotten. The editor finishes such an upload at the end of its document.
+
+## Replacing a file
+
+A keeper replaces an item's file with a new upload of the same kind: the
+item keeps its id, so every document and page showing it shows the new
+file at once (a website page's public copy changes when it is next
+published), and the old file stays as a previous version for 30 days,
+from which it can be brought back. It is `replaceFileBytes`, as class and
+module files use.
+
+## Uploads in documents
+
+"In documents" lists what staff put straight into the documents they wrote
+(news, notices, lessons, assignments, events, website pages) and the
+library does not hold yet: one row per stored object, newest first, the
+200 most recent looked through, and only those the viewer may open. A
+student's work, a conversation's files and a recording still to be cut
+never appear. Keeping one is `mediaLibrary.keep`, singly or several at
+once.
+
+## Bringing files in
+
+- **From a link**: the server fetches it (`apps/api/src/files/fetch-link.ts`).
+  Only http and https on the standard ports, without credentials; every
+  address the host resolves to, and every redirect's, must be public, so
+  loopback, private, carrier-grade NAT, link-local and metadata
+  (169.254.169.254, fd00:ec2::254), multicast and reserved ranges, and
+  IPv6 forms carrying one of those, are refused; the request is pinned to
+  the address the check approved, so a second lookup cannot point it
+  elsewhere. It stops at five redirects, the upload limit and 20 seconds.
+  The bytes then go through the same quarantine, type check by content and
+  scan as an upload (`takeUpload`), and land in the open folder.
+- **Free pictures**: the open symbol and emoji collections the editor
+  offers a question (ARASAAC, OpenMoji) are searched from the library page
+  too; a picked one is copied into the school as an upload.
+
+## Duplicates and storage
+
+When an upload is checked, a file with the same SHA-256 and size that the
+school already stores, placed and outside the trash, lends it its object:
+the new row points at the same key and the copy just stored is removed
+(`shareStoredObject`). Only files kept under the bucket's own encryption
+share; a file sealed under the school's files key, or one behind a
+special-category purpose, never shares bytes either way. An object goes
+only when no active row points at it, which erasure now respects too.
+Adding an item whose bytes the library already holds says so.
+
+Storage is counted once per stored object. Keepers see on the library page
+the pool used against the plan's limit, by kind of file and by the ten
+staff who uploaded most, with students, families and arriving mail counted
+together (`mediaLibrary.storage`).
+
+## What is recorded
+
+Adding (by upload, link or keeping), renaming, describing (title,
+description, caption or credit), moving, tagging, cropping, replacing,
+deleting and restoring an item, and making, renaming and removing folders
+and tags, each write an audit entry against the item, folder or tag.
