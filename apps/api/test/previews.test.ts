@@ -66,14 +66,18 @@ function cameraExif(orientation: number) {
   return [...ascii("Exif\0\0"), ...tiff];
 }
 
-/** A phone's photo as its bytes are laid out, though not a picture worth decoding. */
-const cameraJpeg = (orientation = 6) =>
+/**
+ * A phone's photo as its bytes are laid out, though not a picture worth
+ * decoding. Its comment carries a mark of its own, since the school keeps
+ * one copy of the same bytes and another photo's previews would be shared.
+ */
+const cameraJpeg = (orientation = 6, mark: string = crypto.randomUUID()) =>
   Uint8Array.from([
     0xff,
     0xd8,
     ...segment(0xe0, [...ascii("JFIF\0"), 1, 1, 0, 0, 1, 0, 1, 0, 0]),
     ...segment(0xe1, cameraExif(orientation)),
-    ...segment(0xfe, ascii("Taken by a phone at home")),
+    ...segment(0xfe, ascii(`Taken by a phone at home ${mark}`)),
     ...segment(0xdb, [0, ...Array.from({ length: 64 }, () => 1)]),
     ...segment(0xc0, [8, 0, 16, 0, 16, 1, 1, 0x11, 0]),
     ...segment(0xda, [1, 1, 0, 0, 63, 0]),
@@ -407,16 +411,17 @@ describe("documents and sound", () => {
 describe("the sweep", () => {
   test("cleans and queues a picture kept before previews, and retires previews no file holds", async () => {
     const teacher = await sessionFor("northwind", login("teacher"));
+    const mark = crypto.randomUUID();
     const fileId = await upload(
       teacher,
       "archive.jpg",
       "image/jpeg",
-      cameraJpeg(1),
+      cameraJpeg(1, mark),
     );
     const { cell, files } = seeded();
     const key = readyKey(tenantId(), fileId);
     // As it was before previews: the camera's bytes, and nothing asked.
-    const original = cameraJpeg(1);
+    const original = cameraJpeg(1, mark);
     await files.write(key, new Blob([original]).stream(), original.byteLength);
     await cell.withWorker(
       {

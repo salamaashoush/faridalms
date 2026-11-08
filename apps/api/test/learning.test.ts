@@ -3442,9 +3442,16 @@ describe("coding projects", () => {
       pupil,
       "project.sb3",
       "application/x.scratch.sb3",
-      sb3,
+      // The student's own work on the starter, not the starter's bytes,
+      // which the school would keep as one copy for both.
+      new Blob([sb3, crypto.getRandomValues(new Uint8Array(16))]),
     );
-    const stage = await uploadAs(pupil, "stage.png", "image/png", png);
+    const stage = await uploadAs(
+      pupil,
+      "stage.png",
+      "image/png",
+      new Blob([png, crypto.getRandomValues(new Uint8Array(16))]),
+    );
     expect(
       await rejection(
         pupil.api.learning.respond({
@@ -3488,14 +3495,19 @@ describe("coding projects", () => {
       200,
     );
 
-    // Each save keeps the whole project, so only the last few stay.
+    // Each save keeps the whole project, so only the last few stay. Every
+    // save differs, as a student's do; bytes the school already holds, from
+    // this run or an earlier one, would share that copy.
     const saves = [project];
     for (let save = 0; save < 4; save += 1) {
       const next = await uploadAs(
         pupil,
         `project-${save}.sb3`,
         "application/x.scratch.sb3",
-        sb3,
+        new Blob([
+          new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0, 0]),
+          crypto.getRandomValues(new Uint8Array(16)),
+        ]),
       );
       await pupil.api.learning.respond({
         lessonId: lesson.id,
