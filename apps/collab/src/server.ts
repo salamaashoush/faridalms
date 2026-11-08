@@ -1,5 +1,5 @@
 import type { Collab } from "@faridalms/database/context";
-import type { Ticket } from "@faridalms/domain/collab";
+import type { DocumentTicket, Ticket } from "@faridalms/domain/collab";
 import type { Binding, Provider } from "@lexical/yjs";
 import type { ServerWebSocket } from "bun";
 import type { LexicalEditor } from "lexical";
@@ -9,7 +9,13 @@ import {
   liveDocument,
   storeLiveDocument,
 } from "@faridalms/database/stores/collab";
-import { roomOf, verifyTicket } from "@faridalms/domain/collab";
+import {
+  isPacing,
+  PACING_SIGNAL,
+  roomOf,
+  verifySignal,
+  verifyTicket,
+} from "@faridalms/domain/collab";
 import {
   contentDocumentSchema,
   contentPlainText,
@@ -126,7 +132,7 @@ async function follow(
   };
 }
 
-const unit = (ticket: Ticket) => ({
+const unit = (ticket: DocumentTicket) => ({
   tenantId: ticket.tenantId,
   requestId: crypto.randomUUID(),
   actor: { kind: "user" as const, userId: ticket.userId },
@@ -150,6 +156,11 @@ function derive(live: Live) {
  * with a ticket the API signed for that very document; a reader's connection
  * is read-only. The shared state and the validated content derived from it
  * are stored together as the `collab` role, which can touch nothing else.
+ *
+ * A lesson's pacing room holds no document: its students and teacher only
+ * listen, and hear a signal whenever the API says the teacher moved the
+ * class. Nothing of it is loaded or stored, and what a listener says of
+ * itself reaches no one.
  */
 export function createCollab(input: {
   collab: Collab;
@@ -166,10 +177,15 @@ export function createCollab(input: {
       const ticket = await verifyTicket(token, input.cellSecret);
       if (!ticket || roomOf(ticket) !== documentName)
         throw new Error("collab.forbidden");
-      if (ticket.access === "read") connectionConfig.readOnly = true;
+      if (isPacing(ticket) || ticket.access === "read")
+        connectionConfig.readOnly = true;
       return ticket;
     },
+    async beforeHandleAwareness({ context, states }) {
+      if (context && isPacing(context)) states.clear();
+    },
     async onLoadDocument({ document, documentName, context }) {
+      if (isPacing(context)) return document;
       const row = await input.collab.withCollab(unit(context), "read", (tx) =>
         liveDocument(tx, context.tenantId, context.documentId),
       );
@@ -189,7 +205,7 @@ export function createCollab(input: {
     }) {
       const context = lastContext;
       const state = live.get(documentName);
-      if (!state || context.access !== "write") return;
+      if (!state || isPacing(context) || context.access !== "write") return;
       const derived = derive(state);
       if (!derived)
         console.warn(
@@ -229,13 +245,36 @@ interface Peer {
   connection?: ReturnType<Hocuspocus["handleConnection"]>;
 }
 
-/** Serves the collaboration protocol over Bun's WebSockets. */
-export function serve(hocuspocus: Hocuspocus<Context>, port: number) {
+/**
+ * Passes a signal the API signed to everyone listening in its room. The edge
+ * refuses this path from outside, and the signature refuses anyone else.
+ */
+async function relay(
+  hocuspocus: Hocuspocus<Context>,
+  request: Request,
+  cellSecret: Uint8Array<ArrayBuffer>,
+) {
+  const signal = await verifySignal(await request.text(), cellSecret);
+  if (!signal) return new Response(null, { status: 403 });
+  hocuspocus.documents.get(signal.room)?.broadcastStateless(PACING_SIGNAL);
+  return new Response(null, { status: 204 });
+}
+
+/** Serves the collaboration protocol over Bun's WebSockets, and the API's signals over HTTP. */
+export function serve(
+  hocuspocus: Hocuspocus<Context>,
+  port: number,
+  cellSecret: Uint8Array<ArrayBuffer>,
+) {
   return Bun.serve<Peer>({
     port,
     fetch(request, server) {
-      if (new URL(request.url).pathname === "/health/live")
-        return Response.json({ status: "ok" });
+      const { pathname } = new URL(request.url);
+      if (pathname === "/health/live") return Response.json({ status: "ok" });
+      if (pathname === "/signal")
+        return request.method === "POST"
+          ? relay(hocuspocus, request, cellSecret)
+          : new Response(null, { status: 405 });
       if (server.upgrade(request, { data: { request } })) return undefined;
       return new Response("Upgrade required", { status: 426 });
     },

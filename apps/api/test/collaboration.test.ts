@@ -23,6 +23,7 @@ const collab = openCollab(seeded().collabUrl);
 const server = serve(
   createCollab({ collab, cellSecret: seeded().cellSecret, debounceMs: 50 }),
   0,
+  seeded().cellSecret,
 );
 afterAll(async () => {
   await server.stop(true);

@@ -4,11 +4,9 @@ import { env } from "./env";
 import { createCollab, serve } from "./server";
 
 const collab = openCollab(env.CELL_COLLAB_URL);
-const hocuspocus = createCollab({
-  collab,
-  cellSecret: new Uint8Array(Buffer.from(env.CELL_SECRET, "base64")),
-});
-const server = serve(hocuspocus, env.COLLAB_PORT);
+const cellSecret = new Uint8Array(Buffer.from(env.CELL_SECRET, "base64"));
+const hocuspocus = createCollab({ collab, cellSecret });
+const server = serve(hocuspocus, env.COLLAB_PORT, cellSecret);
 console.info(`Farida LMS collaboration listening on port ${server.port}`);
 
 let stopping = false;

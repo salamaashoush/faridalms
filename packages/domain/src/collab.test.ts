@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { roomOf, signTicket, verifyTicket } from "./collab";
+import {
+  pacingRoom,
+  roomOf,
+  signSignal,
+  signTicket,
+  verifySignal,
+  verifyTicket,
+} from "./collab";
 
 const secret = new Uint8Array(32).fill(7);
 const ticket = {
@@ -37,5 +44,40 @@ describe("collaboration tickets", () => {
       ),
     ).toBeNull();
     expect(await verifyTicket("not-a-ticket", secret)).toBeNull();
+  });
+
+  it("let a student listen for a lesson's pacing, in a room of its own", async () => {
+    const pacing = {
+      kind: "pacing" as const,
+      tenantId: ticket.tenantId,
+      lessonId: ticket.documentId,
+      userId: ticket.userId,
+      expiresAt: ticket.expiresAt,
+    };
+    const token = await signTicket(pacing, secret);
+    expect(await verifyTicket(token, secret)).toEqual(pacing);
+    expect(roomOf(pacing)).toBe(pacingRoom(ticket.tenantId, ticket.documentId));
+    expect(roomOf(pacing)).not.toBe(roomOf(ticket));
+  });
+});
+
+describe("signals to a room", () => {
+  it("carry the room the API named, and are no ticket", async () => {
+    const signal = {
+      room: pacingRoom(ticket.tenantId, ticket.documentId),
+      expiresAt: ticket.expiresAt,
+    };
+    const token = await signSignal(signal, secret);
+    expect(await verifySignal(token, secret)).toEqual(signal);
+    expect(await verifyTicket(token, secret)).toBeNull();
+    expect(
+      await verifySignal(await signTicket(ticket, secret), secret),
+    ).toBeNull();
+    expect(
+      await verifySignal(
+        await signSignal({ ...signal, expiresAt: 1 }, secret),
+        secret,
+      ),
+    ).toBeNull();
   });
 });
