@@ -2,7 +2,10 @@ import { paintDaysSchema, targetDaysSchema } from "@faridalms/domain/calendar";
 import { historyQuerySchema } from "@faridalms/domain/history";
 import {
   periodsQuerySchema,
+  removeBellScheduleSchema,
+  saveBellScheduleSchema,
   savePeriodsSchema,
+  scheduleDaysSchema,
 } from "@faridalms/domain/timetable";
 import { saveYearSchema, yearLifecycleSchema } from "@faridalms/domain/years";
 import { createServerFn } from "@tanstack/react-start";
@@ -49,3 +52,15 @@ export const getYearPeriods = createServerFn({ method: "GET" })
 export const saveYearPeriods = createServerFn({ method: "POST" })
   .validator(checked(savePeriodsSchema))
   .handler(({ data }) => backend().years.savePeriods(data));
+
+export const saveBellSchedule = createServerFn({ method: "POST" })
+  .validator(checked(saveBellScheduleSchema))
+  .handler(({ data }) => backend().years.saveSchedule(data));
+
+export const removeBellSchedule = createServerFn({ method: "POST" })
+  .validator(checked(removeBellScheduleSchema))
+  .handler(({ data }) => backend().years.removeSchedule(data));
+
+export const scheduleYearDays = createServerFn({ method: "POST" })
+  .validator(checked(scheduleDaysSchema))
+  .handler(({ data }) => backend().years.scheduleRange(data));

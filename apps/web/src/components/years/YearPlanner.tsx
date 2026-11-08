@@ -26,7 +26,7 @@ import { CheckboxRow } from "~/components/people/fields";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { yearDaysQuery } from "~/queries/years";
-import { paintYearDays, setYearTarget } from "~/server/years";
+import { paintYearDays, scheduleYearDays, setYearTarget } from "~/server/years";
 import {
   formatWeekday,
   formatDate,
@@ -106,6 +106,24 @@ interface Run {
   from: string;
   to: string;
   day: Day;
+}
+
+/** Days on a bell schedule grouped into runs of the same schedule, weekends between them bridged. */
+function scheduleRunsOf(days: Day[]): Run[] {
+  const runs: Run[] = [];
+  for (const day of days) {
+    if (!day.scheduleId) continue;
+    const last = runs.at(-1);
+    const bridged =
+      last &&
+      days
+        .filter((one) => one.day > last.to && one.day < day.day)
+        .every((one) => one.meaning === "weekend");
+    if (last && bridged && last.day.scheduleId === day.scheduleId)
+      last.to = day.day;
+    else runs.push({ from: day.day, to: day.day, day });
+  }
+  return runs;
 }
 
 /** Marked days grouped into runs of the same kind and note, weekends between them bridged. */
@@ -224,6 +242,7 @@ interface MonthProps {
   weekStart: IsoWeekday;
   byDay: Map<string, Day>;
   terms: Days["terms"];
+  scheduleName: (id: string) => string;
   today: string;
   selected: { from: string; to: string } | null;
   onPick: (day: string) => void;
@@ -236,6 +255,7 @@ function Month({
   weekStart,
   byDay,
   terms,
+  scheduleName,
   today,
   selected,
   onPick,
@@ -284,6 +304,11 @@ function Month({
                 look.label(),
                 note,
                 entry.provisional ? m.plannerExpected() : "",
+                entry.scheduleId
+                  ? m.plannerOnSchedule({
+                      name: scheduleName(entry.scheduleId),
+                    })
+                  : "",
                 term
                   ? inLocale(term.titleEn, term.titleAr)
                   : m.plannerBetweenTerms(),
@@ -293,7 +318,7 @@ function Month({
               const face = (
                 <span
                   className={cn(
-                    "grid aspect-square place-items-center rounded tabular-nums",
+                    "relative grid aspect-square place-items-center rounded tabular-nums",
                     look.tint,
                     entry.provisional && "border border-dashed border-current",
                     !term &&
@@ -304,6 +329,12 @@ function Month({
                   )}
                 >
                   {Number(day.slice(8))}
+                  {entry.scheduleId ? (
+                    <span
+                      aria-hidden
+                      className="absolute inset-x-0 bottom-0.5 mx-auto size-1 rounded-full bg-primary"
+                    />
+                  ) : null}
                 </span>
               );
               return (
@@ -458,6 +489,77 @@ function MarkForm({ yearId, range, onDone }: MarkFormProps) {
   );
 }
 
+interface ScheduleFormProps {
+  yearId: string;
+  range: { from: string; to: string };
+  schedules: Days["schedules"];
+  scheduleName: (id: string) => string;
+  onDone: () => void;
+}
+
+/** Runs the chosen days on a bell schedule, or back on their periods' own times. */
+function ScheduleForm({
+  yearId,
+  range,
+  schedules,
+  scheduleName,
+  onDone,
+}: ScheduleFormProps) {
+  const queryClient = useQueryClient();
+  const [scheduleId, setScheduleId] = useState(schedules[0]?.id ?? "");
+  const apply = useMutation({
+    mutationFn: () =>
+      scheduleYearDays({ data: { yearId, ...range, scheduleId } }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["years"] });
+      await queryClient.invalidateQueries({ queryKey: ["timetable"] });
+      await queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      toast.success(
+        m.plannerScheduled({ count: formatNumber(result.changed) }),
+      );
+      onDone();
+    },
+  });
+  return (
+    <form
+      className="grid gap-4 rounded-lg border bg-card p-4 print:hidden"
+      onSubmit={(event) => {
+        event.preventDefault();
+        apply.mutate();
+      }}
+    >
+      <SelectField
+        id="planner-schedule"
+        label={m.plannerSchedule()}
+        hint={m.plannerScheduleHint()}
+        width="name"
+        value={scheduleId}
+        options={[
+          ...schedules.map((row) => ({
+            value: row.id,
+            label: scheduleName(row.id),
+          })),
+          { value: "", label: m.plannerScheduleOwn() },
+        ]}
+        onChange={setScheduleId}
+      />
+      {apply.error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {getMessageFromError(apply.error)}
+        </p>
+      ) : null}
+      <Button
+        type="submit"
+        variant="outline"
+        className="justify-self-start max-md:h-10"
+        disabled={apply.isPending}
+      >
+        {m.plannerScheduleApply()}
+      </Button>
+    </form>
+  );
+}
+
 export interface YearPlannerProps {
   yearId: string;
   startsOn: string;
@@ -490,6 +592,11 @@ export function YearPlanner({
   )
     months.push(month);
   const runs = runsOf(data.days);
+  const scheduleRuns = scheduleRunsOf(data.days);
+  const scheduleName = (id: string) => {
+    const found = data.schedules.find((row) => row.id === id);
+    return found ? inLocale(found.nameEn, found.nameAr) : "";
+  };
   const count = schoolDayCount(data.days);
   const closed = data.days.filter(
     (day) =>
@@ -523,6 +630,16 @@ export function YearPlanner({
       await queryClient.invalidateQueries({ queryKey: ["calendar"] });
     },
   });
+  const ownTimes = useMutation({
+    mutationFn: (run: Run) =>
+      scheduleYearDays({
+        data: { yearId, from: run.from, to: run.to, scheduleId: "" },
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["years"] });
+      await queryClient.invalidateQueries({ queryKey: ["timetable"] });
+    },
+  });
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] print:block">
       <div className="grid content-start gap-4">
@@ -548,6 +665,7 @@ export function YearPlanner({
               weekStart={user.school.weekStart as IsoWeekday}
               byDay={byDay}
               terms={data.terms}
+              scheduleName={scheduleName}
               today={user.today}
               selected={range}
               onPick={pick}
@@ -580,6 +698,17 @@ export function YearPlanner({
             />
             {m.plannerBetweenTerms()}
           </li>
+          {data.schedules.length > 0 ? (
+            <li className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="grid size-3.5 place-items-center rounded-sm border"
+              >
+                <span className="size-1 rounded-full bg-primary" />
+              </span>
+              {m.plannerOnAnySchedule()}
+            </li>
+          ) : null}
         </ul>
       </div>
       <aside className="grid content-start gap-4">
@@ -600,6 +729,61 @@ export function YearPlanner({
               setAnchor(null);
             }}
           />
+        ) : null}
+        {range && data.canEdit && data.schedules.length > 0 ? (
+          <ScheduleForm
+            key={`schedule-${range.from}-${range.to}`}
+            yearId={yearId}
+            range={range}
+            schedules={data.schedules}
+            scheduleName={scheduleName}
+            onDone={() => {
+              setRange(null);
+              setAnchor(null);
+            }}
+          />
+        ) : null}
+        {scheduleRuns.length > 0 ? (
+          <section
+            aria-labelledby="planner-scheduled"
+            className="grid gap-2 rounded-lg border bg-card p-4"
+          >
+            <h3 id="planner-scheduled" className="text-sm font-semibold">
+              {m.plannerScheduledList()}
+            </h3>
+            <ul className="grid gap-2">
+              {scheduleRuns.map((run) => (
+                <li key={run.from} className="flex items-start gap-2 text-sm">
+                  <span className="grid min-w-0 flex-1 gap-0.5">
+                    <span className="font-medium">
+                      {run.from === run.to
+                        ? formatDate(run.from)
+                        : m.plannerRange({
+                            from: formatDate(run.from),
+                            to: formatDate(run.to),
+                          })}
+                    </span>
+                    <span className="text-[13px] text-muted-foreground">
+                      {scheduleName(run.day.scheduleId ?? "")}
+                    </span>
+                  </span>
+                  {data.canEdit ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="max-md:size-10 print:hidden"
+                      aria-label={m.plannerScheduleReset()}
+                      disabled={ownTimes.isPending}
+                      onClick={() => ownTimes.mutate(run)}
+                    >
+                      <RotateCcw aria-hidden />
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
         <section
           aria-labelledby="planner-marked"

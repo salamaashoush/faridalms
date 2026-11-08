@@ -28,6 +28,7 @@ import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { CheckboxRow } from "~/components/people/fields";
+import { BellSchedules } from "~/components/years/BellSchedules";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { yearPeriodsQuery } from "~/queries/years";
@@ -96,6 +97,13 @@ function segmentOf(data: PeriodsData) {
 const clamp = (day: string, first: string, last: string) =>
   day < first ? first : day > last ? last : day;
 
+interface DayTimesDraft {
+  key: number;
+  weekdays: number[];
+  startTime: string;
+  endTime: string;
+}
+
 interface Draft {
   key: number;
   id?: string;
@@ -106,6 +114,7 @@ interface Draft {
   endTime: string;
   official: boolean;
   weekdays: number[];
+  dayTimes: DayTimesDraft[];
 }
 
 type Field = "from" | "periods" | `${number}.${string}`;
@@ -120,7 +129,131 @@ const draftOf = (period: Period, key: number): Draft => ({
   endTime: period.endTime,
   official: period.official,
   weekdays: [...period.weekdays],
+  dayTimes: period.dayTimes.map((entry, index) => ({
+    key: index + 1,
+    weekdays: [...entry.weekdays],
+    startTime: entry.startTime,
+    endTime: entry.endTime,
+  })),
 });
+
+/** A period's other times as a line: "Thursday 09:00–09:40". */
+function otherTimesLabel(period: Pick<Period, "dayTimes">) {
+  return period.dayTimes.map((entry) =>
+    m.periodsOtherTimesOn({
+      days: formatList(entry.weekdays.map((day) => formatWeekday(day))),
+      times: m.ttTimeRange({
+        from: formatTime(entry.startTime),
+        to: formatTime(entry.endTime),
+      }),
+    }),
+  );
+}
+
+interface OtherTimesFieldsProps {
+  draft: Draft;
+  legend: string;
+  days: readonly number[];
+  error?: string;
+  onChange: (dayTimes: DayTimesDraft[]) => void;
+}
+
+/**
+ * The days a period keeps other times on, each set of days with its own
+ * start and end; only the days the period runs on can be chosen.
+ */
+function OtherTimesFields({
+  draft,
+  legend,
+  days,
+  error,
+  onChange,
+}: OtherTimesFieldsProps) {
+  const runs = days.filter((day) => draft.weekdays.includes(day));
+  const change = (key: number, next: Partial<DayTimesDraft>) =>
+    onChange(
+      draft.dayTimes.map((entry) =>
+        entry.key === key ? { ...entry, ...next } : entry,
+      ),
+    );
+  return (
+    <div className="grid gap-3 sm:col-span-2">
+      {draft.dayTimes.map((entry) => (
+        <fieldset
+          key={entry.key}
+          className="relative grid gap-4 rounded-md border border-dashed p-3 pt-5 sm:grid-cols-2"
+        >
+          <legend className="px-1 text-[13px] leading-[18px] font-medium">
+            {m.periodsOtherTimes()}
+          </legend>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute end-1 top-1 max-md:size-10"
+            aria-label={m.periodsOtherTimesRemove({ name: legend })}
+            onClick={() =>
+              onChange(draft.dayTimes.filter((one) => one.key !== entry.key))
+            }
+          >
+            <X aria-hidden />
+          </Button>
+          <DayChoices
+            legend={legend}
+            days={runs}
+            value={entry.weekdays}
+            onChange={(weekdays) => change(entry.key, { weekdays })}
+          />
+          <TextField
+            id={`period-other-starts-${draft.key}-${entry.key}`}
+            label={m.periodsStarts()}
+            type="time"
+            width="date"
+            value={entry.startTime}
+            onChange={(event) =>
+              change(entry.key, { startTime: event.target.value })
+            }
+          />
+          <TextField
+            id={`period-other-ends-${draft.key}-${entry.key}`}
+            label={m.periodsEnds()}
+            type="time"
+            width="date"
+            min={entry.startTime || undefined}
+            value={entry.endTime}
+            onChange={(event) =>
+              change(entry.key, { endTime: event.target.value })
+            }
+          />
+        </fieldset>
+      ))}
+      {error ? (
+        <p className="text-[13px] leading-[18px] text-destructive">{error}</p>
+      ) : null}
+      {runs.length > 1 ? (
+        <Button
+          type="button"
+          variant="ghost"
+          className="justify-self-start max-md:h-10"
+          onClick={() =>
+            onChange([
+              ...draft.dayTimes,
+              {
+                key: Math.max(0, ...draft.dayTimes.map((one) => one.key)) + 1,
+                weekdays: [],
+                startTime: draft.startTime,
+                endTime: draft.endTime,
+              },
+            ])
+          }
+        >
+          <Plus aria-hidden />
+          {m.periodsOtherTimesAdd()}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
 
 interface DayChoicesProps {
   legend: string;
@@ -218,6 +351,11 @@ function PeriodsSheet({ data, open, onClose }: PeriodsSheetProps) {
       endTime: draft.endTime,
       official: draft.kind !== "break" && draft.official,
       weekdays: draft.weekdays,
+      dayTimes: draft.dayTimes.map((entry) => ({
+        weekdays: entry.weekdays.filter((day) => draft.weekdays.includes(day)),
+        startTime: entry.startTime,
+        endTime: entry.endTime,
+      })),
     })),
   };
   const mutation = useMutation({
@@ -379,6 +517,13 @@ function PeriodsSheet({ data, open, onClose }: PeriodsSheetProps) {
               onChange={(weekdays) => change(draft.key, { weekdays })}
               error={error(index, "weekdays")?.[0]}
             />
+            <OtherTimesFields
+              draft={draft}
+              legend={legend}
+              days={data.days}
+              error={error(index, "dayTimes")?.[0]}
+              onChange={(dayTimes) => change(draft.key, { dayTimes })}
+            />
             {draft.kind === "break" ? null : (
               <div className="sm:col-span-2">
                 <CheckboxRow
@@ -412,6 +557,7 @@ function PeriodsSheet({ data, open, onClose }: PeriodsSheetProps) {
               endTime: "",
               official: false,
               weekdays: [...data.days],
+              dayTimes: [],
             },
           ]);
         }}
@@ -449,6 +595,14 @@ function PeriodList({ data }: PeriodListProps) {
               <span aria-hidden> · </span>
               {daysLabel(period.weekdays, data.days)}
             </span>
+            {otherTimesLabel(period).map((line) => (
+              <span
+                key={line}
+                className="text-[13px] leading-[18px] text-muted-foreground tabular-nums"
+              >
+                {line}
+              </span>
+            ))}
           </div>
           <span className="text-sm leading-5 text-muted-foreground tabular-nums">
             <bdi dir="ltr">{timeRange(period)}</bdi>
@@ -485,34 +639,38 @@ export function YearPeriods({ yearId, on }: YearPeriodsProps) {
     <>
       <RecordColumns
         main={
-          <RecordSection
-            title={m.periodsTitle()}
-            description={
-              <>
-                {m.periodsHint()}{" "}
-                <span className="font-medium text-foreground">
-                  {m.accessDuring({
-                    from: formatDate(segment.from),
-                    to: formatDate(addDays(segment.until, -1)),
-                  })}
-                </span>
-              </>
-            }
-            edit={
-              data.canEdit
-                ? {
-                    label: m.periodsEdit(),
-                    onClick: () =>
-                      setSheet((current) => ({
-                        open: true,
-                        key: current.key + 1,
-                      })),
-                  }
-                : undefined
-            }
-          >
-            <PeriodList data={data} />
-          </RecordSection>
+          <>
+            <RecordSection
+              title={m.periodsTitle()}
+
+              description={
+                <>
+                  {m.periodsHint()}{" "}
+                  <span className="font-medium text-foreground">
+                    {m.accessDuring({
+                      from: formatDate(segment.from),
+                      to: formatDate(addDays(segment.until, -1)),
+                    })}
+                  </span>
+                </>
+              }
+              edit={
+                data.canEdit
+                  ? {
+                      label: m.periodsEdit(),
+                      onClick: () =>
+                        setSheet((current) => ({
+                          open: true,
+                          key: current.key + 1,
+                        })),
+                    }
+                  : undefined
+              }
+            >
+              <PeriodList data={data} />
+            </RecordSection>
+            <BellSchedules data={data} />
+          </>
         }
         aside={
           <>
