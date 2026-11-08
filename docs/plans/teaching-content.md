@@ -741,8 +741,8 @@ Sources: [../research/course-design.md](../research/course-design.md),
    fills as through strokes. The teacher receives the picture as the
    child coloured it; on paper the picture prints in the drawing box to
    colour by hand.
-   Left: line-art pictures found for colouring in the picture library;
-   a fill that spreads in slowly, as some children's apps show it.
+   A drawing question's picture search opens on line drawings, and a fill
+   spreads out from the tap.
 2. **Children's reading type**: Andika for Latin and a naskh face for
    Arabic in young lessons, with the Arabic scale applied there.
    Done: a young lesson is set in Andika, SIL's face for children
@@ -765,10 +765,9 @@ Sources: [../research/course-design.md](../research/course-design.md),
    A school adds the seventeen EYFS goals under their seven areas in one
    step from Standards or the empty Goals tab; any other framework works
    the same way. Judgements are erased with the child.
-   Left: the profile's "exemption applies" code and the end-of-year
-   return; a report of the goals for families; judging from a quiz
-   answer; Development Matters as a ready-made framework for younger
-   children.
+   The exemption code, the end-of-year return, a report shared with
+   families, goals confirmed from a right quiz answer and Development
+   Matters as a framework are done.
 
 ## 9. Coding
 
@@ -793,8 +792,7 @@ Scratch Text to Speech, Translate and tutorials.
    in place. A reply tells the author of the post it answers and of its
    thread, one unread notice a discussion, by a kind they choose how to
    receive.
-   Left: a discussion in a module rather than a class, and rating or
-   liking posts.
+   A discussion stands in a module set for its class, and posts are liked.
 2. **Peer review**: students review each other's work against a rubric,
    anonymously when the teacher chooses.
    Done: work handed in on the page or as files can be set for peer
@@ -811,9 +809,8 @@ Scratch Text to Speech, Translate and tutorials.
    reviews a student wrote and those of their work. Marking a student,
    the teacher reads beneath their work the reviews of it and those they
    wrote, with names.
-   Left: a review date of its own and reminders, rating a review's
-   helpfulness, reviews of quizzes and discussions, and passage comments
-   by reviewers.
+   Reviews have their own date and reminders, are rated for helpfulness,
+   cover quizzes and discussions, and comment on passages.
 3. **Translate a brief in place** for a reader in another language.
    Done: an assignment's brief says the language it is written in and
    can carry a translation in the other, written beside it in the editor
@@ -839,10 +836,10 @@ Scratch Text to Speech, Translate and tutorials.
    reading fluency is tracked by, and keeps the marking with the mark. The
    passage prints to read from. Any written question can be switched to
    reading aloud from its answer menu.
-   Left: speech recognition marking a first draft for the teacher; each
-   student's words-correct-per-minute over the year against norms; the
-   student seeing the words to practise; reading aloud in quizzes and
-   young lessons; prosody on a rubric.
+   Words correct a minute over the year against norms, words to practise,
+   reading aloud in quizzes and young lessons and a prosody rubric are
+   done. Left: speech recognition marking a first draft, waiting on the
+   owner.
 5. **A file block copied for each student** to work in.
    Done: a file put in "Each student's copy" of a brief becomes each
    student's own the first time they save their answer, a copy in their
@@ -851,8 +848,8 @@ Scratch Text to Speech, Translate and tutorials.
    new version", which puts the version worked on in its place, caption
    and display kept, so a student hands back their own worksheet and a
    teacher updates a file without moving it.
-   Left: editing an office file in the browser rather than downloading
-   it; seeing at a glance which students uploaded their version.
+   The Students tab says who has uploaded their own copy. Left: editing an
+   office file in the browser, waiting on the owner.
 
 ## 11. Interoperability and owner decisions
 
