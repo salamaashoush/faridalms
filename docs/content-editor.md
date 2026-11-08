@@ -119,6 +119,42 @@ disagree on the node types, and while any block, inserted at the top of a
 document, in a callout or in a table cell, saves a document the domain
 refuses.
 
+## Help from a language model
+
+A school may let its teachers ask a language model for help with what
+they write, off until an administrator turns it on in Settings, Language
+model (`school:manage`), choosing the provider among those the deployment
+holds a key for and a daily limit for the whole school. Anthropic is the
+first provider (`ANTHROPIC_API_KEY`, `ASSISTANT_MODEL`, by default
+`claude-opus-5-5`); each sits behind `AssistantProvider` in
+`apps/api/src/assistant/provider.ts`, so another is one adapter. Keys are
+the deployment's and never reach a school.
+
+The editor of lessons and briefs offers it once the record is stored:
+"Suggest questions" in the insert menu and "Writing help" on the floating
+bar open one panel (`plugins/assistant.tsx`, through the host's
+`EditorAssistant`). Suggested questions come back as blocks of the existing
+kinds, each shown with its answers to add or dismiss one by one; a level
+rewrite of the selected paragraphs is shown as it is written, to replace
+the text or discard. Nothing enters the document without the teacher's
+click. "Draft the translation" in a lesson's or brief's translation section
+fills the translation being written; a translation the model drafted is
+withheld from readers (a lesson cannot be published, a brief's readers get
+the original) until a person checks it against the original.
+
+The server alone decides what leaves (`apps/api/src/assistant/routes.ts`):
+staff only, a record the person may write, never a document holding a
+student's work, within the school's day. The prompt is built from the
+teacher's own words (`teacherWords` and `translationUnits` in
+`domain/assistant.ts`): mentions, answer keys, gaps, code, formulas,
+files, pictures and embeds are left out, and the school's students' full
+names are replaced by tokens the answer has put back. Every request is
+recorded in `core.assistant_requests` (who, which record, what kind, how
+much was sent and came back, the model) and audited; the words are never
+kept. Answers stream to the panel and stop when it closes. Requests are
+paced from Anthropic's `anthropic-ratelimit-*` headers and `retry-after`,
+never a guessed interval.
+
 ## Remaining work
 
 What the editor and the teaching tools on it still lack, with the order of
