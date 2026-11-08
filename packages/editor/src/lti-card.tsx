@@ -2,20 +2,25 @@ import type { JSX } from "react";
 
 import { AppWindow, ExternalLink } from "lucide-react";
 
+export interface LtiCardProps {
+  title: string;
+  tool?: string;
+  href: string | null;
+  openLabel: string;
+  /** A word beside the tool's name, such as that it shows in the page. */
+  note?: string;
+  children?: JSX.Element | null;
+}
+
 /** A link to an outside tool as its readers meet it: what it is, and a way in. */
 export function LtiCard({
   title,
   tool,
   href,
   openLabel,
+  note,
   children,
-}: {
-  title: string;
-  tool?: string;
-  href: string | null;
-  openLabel: string;
-  children?: JSX.Element | null;
-}) {
+}: LtiCardProps) {
   return (
     <div className="fe-lti">
       <span className="fe-lti-icon" aria-hidden>
@@ -27,9 +32,9 @@ export function LtiCard({
             {title}
           </span>
         )}
-        {tool && tool !== title ? (
+        {(tool && tool !== title) || note ? (
           <span className="fe-lti-tool" dir="auto">
-            {tool}
+            {[tool !== title ? tool : null, note].filter(Boolean).join(" · ")}
           </span>
         ) : null}
       </div>

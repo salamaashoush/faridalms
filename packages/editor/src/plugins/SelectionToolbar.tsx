@@ -96,6 +96,7 @@ import {
   Images,
   Italic,
   Library,
+  PanelTop,
   Lightbulb,
   ListPlus,
   Link,
@@ -177,10 +178,11 @@ import {
   OPEN_LINK_EDITOR_COMMAND,
   textColors,
 } from "../formatting";
+import { $placePicked } from "../lti-pick";
 import { MathInput } from "../math-input";
 import { $isDrawNode, useBankTags } from "../nodes/draw";
 import { $insertFootnote, $isFootnoteNode } from "../nodes/footnote";
-import { $isLtiNode, $setLtiContent } from "../nodes/lti";
+import { $isLtiNode, $setLtiContent, $setLtiFrame } from "../nodes/lti";
 import { $insertMath, $isMathNode } from "../nodes/math";
 import { $isFileNode, $isImageNode, OPEN_FILE_COMMAND } from "../nodes/media";
 import {
@@ -288,10 +290,11 @@ interface TermBarFacts {
   fresh: boolean;
 }
 
-/** A chosen link to an outside tool, and the tool it opens. */
+/** A chosen link to an outside tool, the tool it opens, and whether in the page. */
 interface LtiBarFacts {
   key: NodeKey;
   toolId: string;
+  framed: boolean;
 }
 
 /** A chosen standards block and the standards it names. */
@@ -924,16 +927,9 @@ export function SelectionToolbarPlugin() {
       if (!$isNodeSelection(selection)) return null;
       const nodes = selection.getNodes();
       const node = nodes.length === 1 ? nodes[0] : null;
-      if (!$isLtiNode(node)) return null;
-      const { toolId } = node.getLink();
-      const tool = tools?.list.find((row) => row.id === toolId);
-      // A single tool with nothing to pick from leaves the bar nothing to offer.
-      if (
-        !tools ||
-        (tools.list.length < 2 && !(tool?.deepLinking && tools.pick))
-      )
-        return null;
-      return { key: node.getKey(), toolId };
+      if (!$isLtiNode(node) || !tools) return null;
+      const { toolId, frame } = node.getLink();
+      return { key: node.getKey(), toolId, framed: Boolean(frame) };
     });
 
   const startPick = (link: LtiBarFacts) => {
@@ -948,11 +944,11 @@ export function SelectionToolbarPlugin() {
       setPicking((current) =>
         current?.cancel === started.cancel ? null : current,
       );
-      if (!picked) return;
+      if (!picked?.length) return;
       updateFromOutside(editor, () => {
         const node = $getNodeByKey(key);
         if ($isLtiNode(node) && node.getLink().toolId === link.toolId)
-          $setLtiContent(node, { picked });
+          $placePicked(editor, node, picked);
       });
     });
   };
@@ -3474,6 +3470,24 @@ export function SelectionToolbarPlugin() {
               )}
             </>
           ) : null}
+          {tools.list.length > 1 || (tool?.deepLinking && tools.pick)
+            ? separator
+            : null}
+          <button
+            type="button"
+            aria-pressed={ltiFacts.framed}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() =>
+              withSelection(() => {
+                const node = $getNodeByKey(ltiFacts.key);
+                if ($isLtiNode(node)) $setLtiFrame(node, !ltiFacts.framed);
+              })
+            }
+            className={`${action} aria-pressed:bg-accent aria-pressed:text-foreground`}
+          >
+            <PanelTop aria-hidden />
+            {strings.ltiShowInPage}
+          </button>
         </div>
       </Floating>
     );

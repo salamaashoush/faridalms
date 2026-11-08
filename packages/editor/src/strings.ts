@@ -320,6 +320,9 @@ export interface EditorStrings
   ltiPicking: string;
   ltiPickBlocked: string;
   ltiPickCancel: string;
+  /** Said of a tool shown in the page rather than opened in a window. */
+  ltiInPage: string;
+  ltiShowInPage: string;
   questionReading: string;
   questionReadingHint: string;
   questionReadingPrompt: string;

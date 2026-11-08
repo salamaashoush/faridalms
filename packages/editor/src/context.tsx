@@ -2,7 +2,7 @@ import type { Anchor } from "@faridalms/domain/anchors";
 import type { PictureCredit } from "@faridalms/domain/commons";
 import type { ContentDocument, Mention } from "@faridalms/domain/content";
 import type { SpeechLanguage } from "@faridalms/domain/file";
-import type { LtiPick } from "@faridalms/domain/lti";
+import type { LtiPicked } from "@faridalms/domain/lti";
 import type { Digits } from "@faridalms/domain/people";
 import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
 import type { Level } from "@faridalms/puzzles/level";
@@ -235,8 +235,8 @@ export interface EditorMentions {
 /** The school's outside tools a document may link to, and where a link opens. */
 /** A pick of a tool's content under way in the tool's own window. */
 export interface LtiPicking {
-  /** What the teacher picked, or nothing when they picked nothing. */
-  picked: Promise<LtiPick | null>;
+  /** What the teacher picked, in the tool's order, or nothing when the pick ended without an answer. */
+  picked: Promise<LtiPicked[] | null>;
   cancel: () => void;
 }
 

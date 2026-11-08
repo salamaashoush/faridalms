@@ -11,6 +11,7 @@ import type {
 } from "lexical";
 import type { JSX } from "react";
 
+import { LTI_FRAME_HEIGHTS } from "@faridalms/domain/lti";
 import { $dfs } from "@lexical/utils";
 import {
   $createNodeSelection,
@@ -53,6 +54,7 @@ function LtiBlock({ nodeKey, link }: { nodeKey: NodeKey; link: LtiLink }) {
         tool={tool?.name}
         href={tools?.href(link.linkId) ?? null}
         openLabel={strings.ltiOpen}
+        note={link.frame ? strings.ltiInPage : undefined}
       >
         {tools ? (
           <input
@@ -171,6 +173,21 @@ export function $setLtiContent(
     ...change.picked,
     title: change.picked.title || title,
   });
+}
+
+/** Shows a link's tool in the page, in a frame, or opens it in a window again. */
+export function $setLtiFrame(node: LtiNode, framed: boolean) {
+  const { frame: _, ...link } = node.getLink();
+  node.setLink(
+    framed
+      ? {
+          ...link,
+          frame: {
+            height: node.getLink().frame?.height ?? LTI_FRAME_HEIGHTS.usual,
+          },
+        }
+      : link,
+  );
 }
 
 export function $isLtiNode(

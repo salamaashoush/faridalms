@@ -83,6 +83,7 @@ import {
 import { GlossaryList } from "./glossary-view";
 import { linked } from "./linked";
 import { LtiCard } from "./lti-card";
+import { LtiFrame } from "./lti-frame";
 import { MathText } from "./math";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "./media-view";
 import { PanelsView } from "./panels-view";
@@ -831,15 +832,29 @@ function draw(
         </sup>
       );
     }
-    case "lti":
+    case "lti": {
+      const href = node.lti
+        ? (context.ltiHref?.(node.lti.linkId) ?? null)
+        : null;
+      if (node.lti?.frame && href)
+        return (
+          <LtiFrame
+            key={key}
+            title={node.lti.title}
+            href={href}
+            height={node.lti.frame.height}
+            openLabel={context.strings.ltiOpen}
+          />
+        );
       return node.lti ? (
         <LtiCard
           key={key}
           title={node.lti.title}
-          href={context.ltiHref?.(node.lti.linkId) ?? null}
+          href={href}
           openLabel={context.strings.ltiOpen}
         />
       ) : null;
+    }
     // A shared block reads as part of the page, drawn as it now is.
     case "shared":
       return context.shared && node.sharedId ? (
