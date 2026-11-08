@@ -22,6 +22,7 @@ import {
 } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  CalendarPlus,
   CalendarX2,
   CircleCheck,
   LoaderCircle,
@@ -87,6 +88,16 @@ interface LessonStateProps {
 /** Where a lesson stands that day, as one short status. */
 function LessonState({ lesson }: LessonStateProps) {
   const change = lesson.change;
+  if (lesson.oneDay)
+    return (
+      <StatusText tone="info">
+        {change?.coverId
+          ? m.ttOneDayWith({
+              name: nameOf(change.coverNameEn, change.coverNameAr),
+            })
+          : m.ttOneDay()}
+      </StatusText>
+    );
   if (change?.cancelled)
     return <StatusText tone="neutral">{m.ttCancelled()}</StatusText>;
   if (change?.coverId)
@@ -231,6 +242,7 @@ export function CoverDay({ on }: CoverDayProps) {
   const queryClient = useQueryClient();
   const endAbsence = useServerFn(endStaffAbsence);
   const [adding, setAdding] = useState(false);
+  const [choosing, setChoosing] = useState(false);
   const [arranging, setArranging] = useState<Lesson | null>(null);
   if (!data) return <EmptyState icon={CalendarX2} title={m.ttNoYear()} />;
   const refresh = () =>
@@ -243,6 +255,39 @@ export function CoverDay({ on }: CoverDayProps) {
     id: `${lesson.classId}:${lesson.periodId}`,
   }));
   const open = lessons.filter((lesson) => lesson.away && !lesson.change).length;
+  const oneDayPeriods = data.periods.filter((period) => period.oneDay);
+  const startLesson = (classId: string, periodId: string) => {
+    const found = lessons.find(
+      (row) => row.classId === classId && row.periodId === periodId,
+    );
+    const owner = data.classes.find((row) => row.id === classId);
+    if (found) {
+      setArranging(found);
+      return;
+    }
+    if (!owner) return;
+    setArranging({
+      id: `${classId}:${periodId}`,
+      classId,
+      classCode: owner.code,
+      classTitleEn: owner.titleEn,
+      classTitleAr: owner.titleAr,
+      groupCode: owner.code,
+      groupTitleEn: owner.titleEn,
+      groupTitleAr: owner.titleAr,
+      periodId,
+      teacherId: null,
+      teacherNameEn: null,
+      teacherNameAr: null,
+      roomId: null,
+      roomCode: null,
+      roomNameEn: null,
+      roomNameAr: null,
+      away: false,
+      oneDay: true,
+      change: null,
+    });
+  };
 
   const absenceActions = (row: Absence): RowAction[] => [
     {
@@ -318,6 +363,17 @@ export function CoverDay({ on }: CoverDayProps) {
                 : m.coverAllArranged()}
             </p>
           ) : null}
+          {oneDayPeriods.length > 0 && data.classes.length > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="max-md:h-10"
+              onClick={() => setChoosing(true)}
+            >
+              <CalendarPlus aria-hidden />
+              {m.coverOneDayAdd()}
+            </Button>
+          ) : null}
         </div>
         <DataTable
           caption={m.coverLessons()}
@@ -342,6 +398,17 @@ export function CoverDay({ on }: CoverDayProps) {
         onClose={() => setAdding(false)}
         onSaved={refresh}
       />
+      {choosing ? (
+        <OneDayLessonSheet
+          periods={oneDayPeriods}
+          classes={data.classes}
+          onClose={() => setChoosing(false)}
+          onChoose={(classId, periodId) => {
+            setChoosing(false);
+            startLesson(classId, periodId);
+          }}
+        />
+      ) : null}
       {arranging ? (
         <ArrangeSheet
           lesson={arranging}
@@ -509,6 +576,67 @@ function AbsenceSheet({
   );
 }
 
+interface OneDayLessonSheetProps {
+  periods: Day["periods"];
+  classes: Day["classes"];
+  onClose: () => void;
+  onChoose: (classId: string, periodId: string) => void;
+}
+
+/** Chooses the class and the period of the day's bell schedule a one-day lesson is for. */
+function OneDayLessonSheet({
+  periods,
+  classes,
+  onClose,
+  onChoose,
+}: OneDayLessonSheetProps) {
+  const [periodId, setPeriodId] = useState(periods[0]?.id ?? "");
+  const [classId, setClassId] = useState("");
+  const [missing, setMissing] = useState(false);
+  return (
+    <SheetForm
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title={m.coverOneDayAdd()}
+      submitLabel={m.coverOneDayNext()}
+      onSubmit={() => {
+        if (!classId || !periodId) {
+          setMissing(true);
+          return;
+        }
+        onChoose(classId, periodId);
+      }}
+    >
+      <p className="-mt-2 text-sm leading-5 text-muted-foreground">
+        {m.coverOneDayHint()}
+      </p>
+      <SelectField
+        id="one-day-period"
+        label={m.ttPeriod()}
+        value={periodId}
+        options={periods.map((period) => ({
+          value: period.id,
+          label: periodName(period),
+        }))}
+        onChange={setPeriodId}
+      />
+      <SelectField
+        id="one-day-class"
+        label={m.attClass()}
+        value={classId}
+        options={classes.map((row) => ({
+          value: row.id,
+          label: classTitle(row),
+        }))}
+        onChange={setClassId}
+        errors={missing && !classId ? [m.coverOneDayChooseClass()] : undefined}
+      />
+    </SheetForm>
+  );
+}
+
 const KEEP = "";
 const CANCEL = "cancel";
 
@@ -587,10 +715,13 @@ function ArrangeSheet({
       onSubmit={() => save.mutate()}
     >
       <p className="-mt-2 text-sm leading-5 text-muted-foreground">
-        {m.coverPlanned({
-          teacher: nameOf(lesson.teacherNameEn, lesson.teacherNameAr) || "–",
-          room: roomOf(lesson) ?? "–",
-        })}
+        {lesson.oneDay
+          ? m.coverOneDayPlanned()
+          : m.coverPlanned({
+              teacher:
+                nameOf(lesson.teacherNameEn, lesson.teacherNameAr) || "–",
+              room: roomOf(lesson) ?? "–",
+            })}
       </p>
       <fieldset className="grid gap-2">
         <legend className="mb-1 text-sm leading-5 font-medium">
@@ -612,7 +743,9 @@ function ArrangeSheet({
               className="flex items-start gap-3 rounded-md px-2 py-2 hover:bg-muted/60"
             >
               <RadioGroupItem id="cover-keep" value={KEEP} className="mt-0.5" />
-              <span className="text-sm leading-5">{m.coverNobody()}</span>
+              <span className="text-sm leading-5">
+                {lesson.oneDay ? m.coverOneDayNone() : m.coverNobody()}
+              </span>
             </label>
             {candidates.map((candidate) => (
               <label
@@ -640,24 +773,26 @@ function ArrangeSheet({
                 {m.coverNobodyFree()}
               </p>
             ) : null}
-            <label
-              htmlFor="cover-cancel"
-              className="flex items-start gap-3 rounded-md px-2 py-2 hover:bg-muted/60"
-            >
-              <RadioGroupItem
-                id="cover-cancel"
-                value={CANCEL}
-                className="mt-0.5"
-              />
-              <span className="grid gap-0.5">
-                <span className="text-sm leading-5 font-medium">
-                  {m.coverCancel()}
+            {lesson.oneDay ? null : (
+              <label
+                htmlFor="cover-cancel"
+                className="flex items-start gap-3 rounded-md px-2 py-2 hover:bg-muted/60"
+              >
+                <RadioGroupItem
+                  id="cover-cancel"
+                  value={CANCEL}
+                  className="mt-0.5"
+                />
+                <span className="grid gap-0.5">
+                  <span className="text-sm leading-5 font-medium">
+                    {m.coverCancel()}
+                  </span>
+                  <span className="text-[13px] leading-[18px] text-muted-foreground">
+                    {m.coverCancelHint()}
+                  </span>
                 </span>
-                <span className="text-[13px] leading-[18px] text-muted-foreground">
-                  {m.coverCancelHint()}
-                </span>
-              </span>
-            </label>
+              </label>
+            )}
           </RadioGroup>
         )}
       </fieldset>

@@ -7,6 +7,7 @@ import {
   SCHOOL_DAY_MEANINGS,
   schoolDayCount,
 } from "@faridalms/domain/calendar";
+import { cycleDays, timetableOn } from "@faridalms/domain/cycle";
 import { addDays, shiftMonth } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
 import { Button } from "@faridalms/ui/button";
@@ -23,10 +24,16 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { CheckboxRow } from "~/components/people/fields";
+import { cycleDayLabel } from "~/components/timetable/cycle";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { yearDaysQuery } from "~/queries/years";
-import { paintYearDays, scheduleYearDays, setYearTarget } from "~/server/years";
+import {
+  paintYearDays,
+  runYearDayAs,
+  scheduleYearDays,
+  setYearTarget,
+} from "~/server/years";
 import {
   formatWeekday,
   formatDate,
@@ -243,6 +250,7 @@ interface MonthProps {
   byDay: Map<string, Day>;
   terms: Days["terms"];
   scheduleName: (id: string) => string;
+  runsAsName: (day: string, runsAs: number) => string;
   today: string;
   selected: { from: string; to: string } | null;
   onPick: (day: string) => void;
@@ -256,6 +264,7 @@ function Month({
   byDay,
   terms,
   scheduleName,
+  runsAsName,
   today,
   selected,
   onPick,
@@ -309,6 +318,11 @@ function Month({
                       name: scheduleName(entry.scheduleId),
                     })
                   : "",
+                entry.runsAs
+                  ? m.plannerRunsAsDay({
+                      day: runsAsName(day, entry.runsAs),
+                    })
+                  : "",
                 term
                   ? inLocale(term.titleEn, term.titleAr)
                   : m.plannerBetweenTerms(),
@@ -333,6 +347,12 @@ function Month({
                     <span
                       aria-hidden
                       className="absolute inset-x-0 bottom-0.5 mx-auto size-1 rounded-full bg-primary"
+                    />
+                  ) : null}
+                  {entry.runsAs ? (
+                    <span
+                      aria-hidden
+                      className="absolute end-0.5 top-0.5 size-1.5 rotate-45 bg-primary"
                     />
                   ) : null}
                 </span>
@@ -560,6 +580,71 @@ function ScheduleForm({
   );
 }
 
+interface RunAsFormProps {
+  yearId: string;
+  day: string;
+  current: number | null;
+  options: { value: number; label: string }[];
+  onDone: () => void;
+}
+
+/** Runs one school day as another day of its timetable's cycle, or as its own. */
+function RunAsForm({ yearId, day, current, options, onDone }: RunAsFormProps) {
+  const queryClient = useQueryClient();
+  const [runsAs, setRunsAs] = useState(current === null ? "" : String(current));
+  const apply = useMutation({
+    mutationFn: () =>
+      runYearDayAs({
+        data: { yearId, day, runsAs: runsAs ? Number(runsAs) : null },
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["years"] });
+      await queryClient.invalidateQueries({ queryKey: ["timetable"] });
+      await queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      toast.success(m.plannerRunsAsSaved());
+      onDone();
+    },
+  });
+  return (
+    <form
+      className="grid gap-4 rounded-lg border bg-card p-4 print:hidden"
+      onSubmit={(event) => {
+        event.preventDefault();
+        apply.mutate();
+      }}
+    >
+      <SelectField
+        id="planner-runs-as"
+        label={m.plannerRunsAs()}
+        hint={m.plannerRunsAsHint()}
+        width="name"
+        value={runsAs}
+        options={[
+          { value: "", label: m.plannerRunsAsOwn() },
+          ...options.map((option) => ({
+            value: String(option.value),
+            label: option.label,
+          })),
+        ]}
+        onChange={setRunsAs}
+      />
+      {apply.error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {getMessageFromError(apply.error)}
+        </p>
+      ) : null}
+      <Button
+        type="submit"
+        variant="outline"
+        className="justify-self-start max-md:h-10"
+        disabled={apply.isPending}
+      >
+        {m.plannerRunsAsApply()}
+      </Button>
+    </form>
+  );
+}
+
 export interface YearPlannerProps {
   yearId: string;
   startsOn: string;
@@ -597,6 +682,19 @@ export function YearPlanner({
     const found = data.schedules.find((row) => row.id === id);
     return found ? inLocale(found.nameEn, found.nameAr) : "";
   };
+  const runsAsName = (day: string, runsAs: number) =>
+    cycleDayLabel(timetableOn(data.timetables, day), runsAs);
+  const ranAs = data.days.filter((day) => day.runsAs !== null);
+  const single =
+    range && range.from === range.to ? byDay.get(range.from) : undefined;
+  const singleCycle = single ? timetableOn(data.timetables, single.day) : null;
+  const runsAsOptions =
+    single && singleCycle && SCHOOL_DAY_MEANINGS.includes(single.meaning)
+      ? cycleDays(singleCycle, data.weekdays).map((value) => ({
+          value,
+          label: cycleDayLabel(singleCycle, value),
+        }))
+      : [];
   const count = schoolDayCount(data.days);
   const closed = data.days.filter(
     (day) =>
@@ -628,6 +726,15 @@ export function YearPlanner({
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["years"] });
       await queryClient.invalidateQueries({ queryKey: ["calendar"] });
+    },
+  });
+  const ownDay = useMutation({
+    mutationFn: (day: string) =>
+      runYearDayAs({ data: { yearId, day, runsAs: null } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["years"] });
+      await queryClient.invalidateQueries({ queryKey: ["timetable"] });
+      await queryClient.invalidateQueries({ queryKey: ["attendance"] });
     },
   });
   const ownTimes = useMutation({
@@ -666,6 +773,7 @@ export function YearPlanner({
               byDay={byDay}
               terms={data.terms}
               scheduleName={scheduleName}
+              runsAsName={runsAsName}
               today={user.today}
               selected={range}
               onPick={pick}
@@ -709,6 +817,14 @@ export function YearPlanner({
               {m.plannerOnAnySchedule()}
             </li>
           ) : null}
+          {ranAs.length > 0 ? (
+            <li className="inline-flex items-center gap-1.5">
+              <span aria-hidden className="relative size-3.5 rounded-sm border">
+                <span className="absolute end-0.5 top-0.5 size-1.5 rotate-45 bg-primary" />
+              </span>
+              {m.plannerRunsAsAny()}
+            </li>
+          ) : null}
         </ul>
       </div>
       <aside className="grid content-start gap-4">
@@ -742,6 +858,60 @@ export function YearPlanner({
               setAnchor(null);
             }}
           />
+        ) : null}
+        {single && data.canEdit && runsAsOptions.length > 0 ? (
+          <RunAsForm
+            key={`runs-as-${single.day}`}
+            yearId={yearId}
+            day={single.day}
+            current={single.runsAs}
+            options={runsAsOptions}
+            onDone={() => {
+              setRange(null);
+              setAnchor(null);
+            }}
+          />
+        ) : null}
+        {ranAs.length > 0 ? (
+          <section
+            aria-labelledby="planner-runs-as-list"
+            className="grid gap-2 rounded-lg border bg-card p-4"
+          >
+            <h3 id="planner-runs-as-list" className="text-sm font-semibold">
+              {m.plannerRunsAsList()}
+            </h3>
+            <ul className="grid gap-2">
+              {ranAs.map((day) => (
+                <li key={day.day} className="flex items-start gap-2 text-sm">
+                  <span className="grid min-w-0 flex-1 gap-0.5">
+                    <span className="font-medium">
+                      {formatDate(day.day, "weekday")}
+                    </span>
+                    <span className="text-[13px] text-muted-foreground">
+                      {m.plannerRunsAsDay({
+                        day: runsAsName(day.day, day.runsAs ?? 0),
+                      })}
+                    </span>
+                  </span>
+                  {data.canEdit ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="max-md:size-10 print:hidden"
+                      aria-label={m.plannerRunsAsReset({
+                        day: formatDate(day.day),
+                      })}
+                      disabled={ownDay.isPending}
+                      onClick={() => ownDay.mutate(day.day)}
+                    >
+                      <RotateCcw aria-hidden />
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
         {scheduleRuns.length > 0 ? (
           <section

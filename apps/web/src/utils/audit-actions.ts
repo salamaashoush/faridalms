@@ -82,6 +82,7 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "bank_question.remove": m.auditBankQuestionRemove,
   "bank_question.update": m.auditBankQuestionUpdate,
   "calendar.bell_schedule": m.auditCalendarBellSchedule,
+  "calendar.runs_as": m.auditCalendarRunsAs,
   "calendar.target_days": m.auditCalendarTargetDays,
   "calendar_dates.mark": m.auditCalendarDatesMark,
   "calendar_event.cancel": m.auditCalendarEventCancel,

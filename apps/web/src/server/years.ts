@@ -3,6 +3,7 @@ import { historyQuerySchema } from "@faridalms/domain/history";
 import {
   periodsQuerySchema,
   removeBellScheduleSchema,
+  runDayAsSchema,
   saveBellScheduleSchema,
   savePeriodsSchema,
   scheduleDaysSchema,
@@ -64,3 +65,7 @@ export const removeBellSchedule = createServerFn({ method: "POST" })
 export const scheduleYearDays = createServerFn({ method: "POST" })
   .validator(checked(scheduleDaysSchema))
   .handler(({ data }) => backend().years.scheduleRange(data));
+
+export const runYearDayAs = createServerFn({ method: "POST" })
+  .validator(checked(runDayAsSchema))
+  .handler(({ data }) => backend().years.runDay(data));

@@ -8,6 +8,8 @@ const REGISTERS_AFTER = "enrollment.registers_after:";
 export const PERIOD_REGISTERS_AFTER = "class_period.registers_after:";
 /** Followed by the first day cover is arranged in a period the change ends. */
 export const PERIOD_COVER_AFTER = "class_period.cover_after:";
+/** Followed by the first day a register or one-day lesson holds a period a schedule removes. */
+const SCHEDULE_PERIOD_IN_USE = "bell_schedule.period_in_use:";
 
 const CODE = /^[a-z][a-z0-9_]*\.[a-z0-9_.]+(?::.*)?$/;
 
@@ -595,6 +597,14 @@ export function getMessageFromError(error: unknown): string {
         return m.ttCoverBusy();
       case "timetable.cover_own":
         return m.ttCoverOwn();
+      case "timetable.one_day_cancel":
+        return m.ttOneDayCancel();
+      case "calendar.runs_as_closed":
+        return m.plannerRunsAsClosed();
+      case "calendar.runs_as_day":
+        return m.plannerRunsAsInvalid();
+      case "bell_schedule.code_taken":
+        return m.schedulesCodeTaken();
       case "timetable.absence_range":
         return m.ttAbsenceRange();
       case "timetable.change_exists":
@@ -1198,6 +1208,11 @@ export function getMessageFromError(error: unknown): string {
       return m.periodsCoverAfter({
         date: formatDate(error.message.slice(PERIOD_COVER_AFTER.length)),
       });
+    if (error.message.startsWith(SCHEDULE_PERIOD_IN_USE))
+      return m.schedulesPeriodInUse({
+        date: formatDate(error.message.slice(SCHEDULE_PERIOD_IN_USE.length)),
+      });
+
     if (error.message.endsWith(".conflict")) return m.errorConflictVersion();
     if (error.message.endsWith(".reference_invalid"))
       return m.errorReferenceGone();

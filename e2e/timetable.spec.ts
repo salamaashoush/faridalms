@@ -157,3 +157,90 @@ test("an administrator runs a day on a bell schedule", async ({
   ).toBeVisible();
   await expect(page.getByText("09:00–09:45")).toBeVisible();
 });
+
+test("an administrator runs a Tuesday as a Sunday, then puts it back", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium", "the year's calendar is shared");
+  await signIn(page, "admin");
+  await page.goto("/academic-years");
+  await untilHydrated(page);
+  await page.getByRole("link", { name: "2026–2027" }).first().click();
+  await page.getByRole("tab", { name: "School days" }).click();
+  await untilHydrated(page);
+  await page.getByRole("button", { name: /^Tuesday, June 15/ }).click();
+  await page.getByRole("combobox", { name: /^Runs as/ }).click();
+  await page.getByRole("option", { name: /^Sunday/ }).click();
+  await page.getByRole("button", { name: "Run this day so" }).click();
+  await expect(page.getByText("Day saved")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^Tuesday, June 15, .*runs as Sunday/ }),
+  ).toBeVisible();
+  const list = page.getByRole("region", { name: "Days run as another" });
+  await expect(list.getByText(/runs as Sunday/)).toBeVisible();
+
+  await page.goto("/timetable?view=teachers&from=2027-06-15");
+  await untilHydrated(page);
+  await expect(
+    page.getByRole("columnheader", {
+      name: /Tuesday Jun 15\s*Runs as Sunday/,
+    }),
+  ).toBeVisible();
+
+  await page.goBack();
+  await untilHydrated(page);
+  await list.getByRole("button", { name: /as its own day$/ }).click();
+  await expect(list).toHaveCount(0);
+});
+
+test("a bell schedule adds an assembly that a class can have a lesson in for that day", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium", "the year's calendar is shared");
+  await signIn(page, "admin");
+  await page.goto("/academic-years");
+  await untilHydrated(page);
+  await page.getByRole("link", { name: "2026–2027" }).first().click();
+  await page.getByRole("tab", { name: "Periods" }).click();
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Add bell schedule" }).click();
+  const sheet = page.getByRole("dialog");
+  await sheet.getByLabel("Name in English").first().fill("Assembly day");
+  await sheet.getByRole("button", { name: "Add a period of its own" }).click();
+  const own = sheet.getByRole("group", { name: "New period" });
+  await own.getByLabel("Name in English").fill("Assembly");
+  const assembly = sheet.getByRole("group", { name: "Assembly" });
+  await assembly.getByLabel(/^Code/).fill("asm");
+  await assembly.getByLabel("Starts").fill("06:30");
+  await assembly.getByLabel("Ends").fill("07:00");
+
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Bell schedule saved")).toBeVisible();
+  await expect(page.getByText("Its own: Assembly")).toBeVisible();
+
+  await page.getByRole("tab", { name: "School days" }).click();
+  await untilHydrated(page);
+  await page.getByRole("button", { name: /^Thursday, June 17/ }).click();
+  await page.getByRole("combobox", { name: /^Bell times/ }).click();
+  await page.getByRole("option", { name: "Assembly day" }).click();
+  await page.getByRole("button", { name: "Use for these days" }).click();
+  await expect(page.getByText("Days changed: 1")).toBeVisible();
+
+  await page.goto("/timetable?view=cover&from=2027-06-17");
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Add a lesson for this day" }).click();
+  const choose = page.getByRole("dialog");
+  await choose.getByRole("combobox", { name: /^Class/ }).click();
+  await page.getByRole("option", { name: "7A", exact: true }).click();
+  await choose.getByRole("button", { name: "Choose who takes it" }).click();
+  const arrange = page.getByRole("dialog");
+  await arrange.getByRole("radio").nth(1).click();
+  await arrange.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText(/^This day only, with /)).toBeVisible();
+
+  await page.goto("/timetable?view=teachers&from=2027-06-16");
+  await untilHydrated(page);
+  await expect(page.getByText("Assembly day").first()).toBeVisible();
+});

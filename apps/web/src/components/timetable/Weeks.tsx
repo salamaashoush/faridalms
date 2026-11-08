@@ -123,6 +123,12 @@ function changeLine(meeting: Meeting, own: boolean): string | null {
   const change = meeting.change;
   if (!change) return null;
   if (change.cancelled) return m.ttCancelled();
+  if (meeting.oneDay)
+    return change.coverId
+      ? m.ttOneDayWith({
+          name: inLocale(change.coverNameEn, change.coverNameAr),
+        })
+      : m.ttOneDay();
   if (meeting.cover)
     return m.ttCoverFor({
       name: inLocale(meeting.teacherNameEn, meeting.teacherNameAr),

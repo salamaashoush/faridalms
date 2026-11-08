@@ -1,8 +1,14 @@
-import { saveBellScheduleSchema } from "@faridalms/domain/timetable";
+import type { PeriodKind } from "@faridalms/domain/timetable";
+
+import {
+  MAX_EXTRA_PERIODS,
+  PERIOD_KINDS,
+  saveBellScheduleSchema,
+} from "@faridalms/domain/timetable";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
-import { TextField } from "@faridalms/ui/system/form-field";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import {
   RecordEmpty,
   RecordList,
@@ -10,13 +16,14 @@ import {
 } from "@faridalms/ui/system/record-page";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus, Trash2 } from "lucide-react";
-import { useId, useState } from "react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
+
+import type { yearPeriodsQuery } from "~/queries/years";
 
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import type { yearPeriodsQuery } from "~/queries/years";
 import { removeBellSchedule, saveBellSchedule } from "~/server/years";
 import { formatList, formatTime } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -35,14 +42,38 @@ interface Row {
   endTime: string;
 }
 
-type Field = "nameAr" | "times";
+/** A period of the schedule's own as the editor holds it. */
+interface Extra {
+  key: number;
+  id?: string;
+  code: string;
+  nameEn: string;
+  nameAr: string;
+  kind: PeriodKind;
+  startTime: string;
+  endTime: string;
+}
+
+type Field = "nameAr" | "times" | "extras";
 
 const fieldOf = (key: string): Field | undefined =>
   key === "nameAr" || key === "nameEn"
     ? "nameAr"
-    : key === "times"
-      ? "times"
+    : key === "times" || key === "extras"
+      ? key
       : undefined;
+
+const KIND_LABEL: Record<PeriodKind, () => string> = {
+  lesson: m.periodsKindLesson,
+  registration: m.periodsKindRegistration,
+  break: m.periodsKindBreak,
+  other: m.periodsKindOther,
+};
+
+const extraName = (extra: Extra) =>
+  inLocale(extra.nameEn || null, extra.nameAr || null) ||
+  extra.code ||
+  m.schedulesExtraNew();
 
 const scheduleName = (schedule: Schedule) =>
   inLocale(schedule.nameEn, schedule.nameAr);
@@ -83,6 +114,15 @@ function ScheduleSheet({ data, schedule, onClose }: ScheduleSheetProps) {
   const [nameEn, setNameEn] = useState(schedule?.nameEn ?? "");
   const [nameAr, setNameAr] = useState(schedule?.nameAr ?? "");
   const [rows, setRows] = useState(() => rowsOf(data, schedule));
+  const [extras, setExtras] = useState<Extra[]>(() =>
+    (schedule?.extras ?? []).map((extra, key) => ({
+      ...extra,
+      key,
+      nameEn: extra.nameEn ?? "",
+      nameAr: extra.nameAr ?? "",
+    })),
+  );
+  const nextKey = useRef(extras.length);
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const payload = {
     yearId: data.year.id,
@@ -96,6 +136,7 @@ function ScheduleSheet({ data, schedule, onClose }: ScheduleSheetProps) {
         startTime: row.startTime,
         endTime: row.endTime,
       })),
+    extras: extras.map(({ key: _key, ...extra }) => extra),
   };
   const save = useMutation({
     mutationFn: () => saveBellSchedule({ data: payload }),
@@ -105,6 +146,14 @@ function ScheduleSheet({ data, schedule, onClose }: ScheduleSheetProps) {
     setErrors({});
     setRows((current) =>
       current.map((row) => (row.code === code ? { ...row, ...next } : row)),
+    );
+  };
+  const changeExtra = (key: number, next: Partial<Extra>) => {
+    setErrors({});
+    setExtras((current) =>
+      current.map((extra) =>
+        extra.key === key ? { ...extra, ...next } : extra,
+      ),
     );
   };
   return (
@@ -120,7 +169,9 @@ function ScheduleSheet({ data, schedule, onClose }: ScheduleSheetProps) {
       }
       pending={save.isPending}
       error={
-        save.error ? getMessageFromError(save.error) : (errors.times ?? null)
+        save.error
+          ? getMessageFromError(save.error)
+          : (errors.times ?? errors.extras ?? null)
       }
       onSubmit={async () => {
         const found = schemaErrors(saveBellScheduleSchema, payload, fieldOf);
@@ -217,6 +268,129 @@ function ScheduleSheet({ data, schedule, onClose }: ScheduleSheetProps) {
           </div>
         ))}
       </fieldset>
+      <fieldset className="grid gap-3">
+        <legend className="mb-1 text-sm leading-5 font-medium">
+          {m.schedulesExtrasLegend()}
+        </legend>
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.schedulesExtrasHint()}
+        </p>
+        {extras.map((extra) => (
+          <fieldset
+            key={extra.key}
+            className="relative grid gap-3 rounded-md border p-3 pe-12 sm:grid-cols-2"
+          >
+            <legend className="sr-only">{extraName(extra)}</legend>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute end-2 top-2 max-md:size-10"
+              aria-label={m.schedulesExtraRemove({ name: extraName(extra) })}
+              onClick={() => {
+                setErrors({});
+                setExtras((current) =>
+                  current.filter((item) => item.key !== extra.key),
+                );
+              }}
+            >
+              <X aria-hidden />
+            </Button>
+            <TextField
+              id={`${id}-extra-${extra.key}-name-ar`}
+              label={m.periodsNameArabic()}
+              dir="rtl"
+              maxLength={60}
+              autoComplete="off"
+              value={extra.nameAr}
+              onChange={(event) =>
+                changeExtra(extra.key, { nameAr: event.target.value })
+              }
+            />
+            <TextField
+              id={`${id}-extra-${extra.key}-name-en`}
+              label={m.periodsNameEnglish()}
+              dir="ltr"
+              maxLength={60}
+              autoComplete="off"
+              value={extra.nameEn}
+              onChange={(event) =>
+                changeExtra(extra.key, { nameEn: event.target.value })
+              }
+            />
+            <TextField
+              id={`${id}-extra-${extra.key}-code`}
+              label={m.schedulesExtraCode()}
+              hint={m.schedulesExtraCodeHint()}
+              dir="ltr"
+              maxLength={20}
+              autoComplete="off"
+              value={extra.code}
+              onChange={(event) =>
+                changeExtra(extra.key, { code: event.target.value })
+              }
+            />
+            <SelectField
+              id={`${id}-extra-${extra.key}-kind`}
+              label={m.periodsKind()}
+              value={extra.kind}
+              options={PERIOD_KINDS.map((kind) => ({
+                value: kind,
+                label: KIND_LABEL[kind](),
+              }))}
+              onChange={(kind) => changeExtra(extra.key, { kind })}
+            />
+            <TextField
+              id={`${id}-extra-${extra.key}-starts`}
+              label={m.periodsStarts()}
+              type="time"
+              width="date"
+              value={extra.startTime}
+              onChange={(event) =>
+                changeExtra(extra.key, { startTime: event.target.value })
+              }
+            />
+            <TextField
+              id={`${id}-extra-${extra.key}-ends`}
+              label={m.periodsEnds()}
+              type="time"
+              width="date"
+              min={extra.startTime || undefined}
+              value={extra.endTime}
+              onChange={(event) =>
+                changeExtra(extra.key, { endTime: event.target.value })
+              }
+            />
+          </fieldset>
+        ))}
+        {extras.length < MAX_EXTRA_PERIODS ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="justify-self-start max-md:h-10"
+            onClick={() => {
+              const key = nextKey.current;
+              nextKey.current += 1;
+              setErrors({});
+              setExtras((current) => [
+                ...current,
+                {
+                  key,
+                  code: "",
+                  nameEn: "",
+                  nameAr: "",
+                  kind: "registration",
+                  startTime: "",
+                  endTime: "",
+                },
+              ]);
+            }}
+          >
+            <Plus aria-hidden />
+            {m.schedulesExtraAdd()}
+          </Button>
+        ) : null}
+      </fieldset>
     </SheetForm>
   );
 }
@@ -234,6 +408,13 @@ function ScheduleItem({ data, schedule, onEdit, onRemove }: ScheduleItemProps) {
     return period ? inLocale(period.nameEn, period.nameAr) : code;
   };
   const name = scheduleName(schedule);
+  const held = [
+    ...schedule.times.map((row) => ({ ...row, name: nameOf(row.code) })),
+    ...schedule.extras.map((row) => ({
+      ...row,
+      name: inLocale(row.nameEn, row.nameAr) || row.code,
+    })),
+  ].toSorted((a, b) => a.startTime.localeCompare(b.startTime));
   return (
     <li className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 py-3">
       <div className="grid min-w-0 gap-0.5">
@@ -242,16 +423,28 @@ function ScheduleItem({ data, schedule, onEdit, onRemove }: ScheduleItemProps) {
         </span>
         <span className="text-[13px] leading-[18px] text-muted-foreground">
           {formatList(
-            schedule.times.map(
+            held.map(
               (row) =>
-                `${nameOf(row.code)} ${m.ttTimeRange({
+                `${row.name} ${m.ttTimeRange({
                   from: formatTime(row.startTime),
                   to: formatTime(row.endTime),
                 })}`,
             ),
           )}
         </span>
+        {schedule.extras.length > 0 ? (
+          <span className="text-[13px] leading-[18px] text-muted-foreground">
+            {m.schedulesExtrasOwn({
+              names: formatList(
+                schedule.extras.map(
+                  (row) => inLocale(row.nameEn, row.nameAr) || row.code,
+                ),
+              ),
+            })}
+          </span>
+        ) : null}
       </div>
+
       {data.canEdit ? (
         <div className="flex gap-1">
           <Button

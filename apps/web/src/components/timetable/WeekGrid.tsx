@@ -54,6 +54,8 @@ export interface GridDate {
   /** The day of its timetable's cycle, and the cycle, when lessons are held. */
   cycleDay?: number | null;
   cycle?: CycleShape | null;
+  /** The day of the cycle it runs as instead of its own, when it does. */
+  runsAs?: number | null;
   /** The bell schedule it runs on instead of its periods' own times. */
   schedule?: { nameEn: string | null; nameAr: string | null } | null;
   /** The lesson periods it holds; without them every period runs as planned. */
@@ -97,13 +99,20 @@ function heldPeriod(
   return !period.weekdays || period.weekdays.includes(day) ? period : null;
 }
 
-/** What a dated day shows under its name: its day of the cycle and its bell schedule. */
+/**
+ * What a dated day shows under its name: the day of the cycle it runs as
+ * when that is not its own, else its day in a cycle of days, and its bell
+ * schedule.
+ */
 function dayDetail(date: GridDate | undefined): string | null {
   if (!date || date.closed) return null;
   const parts = [
-    date.cycle?.kind === "days" && date.cycleDay
-      ? cycleDayLabel(date.cycle, date.cycleDay)
-      : null,
+    date.runsAs
+      ? m.ttRunsAs({ day: cycleDayLabel(date.cycle ?? null, date.runsAs) })
+      : date.cycle?.kind === "days" && date.cycleDay
+        ? cycleDayLabel(date.cycle, date.cycleDay)
+        : null,
+
     date.schedule ? inLocale(date.schedule.nameEn, date.schedule.nameAr) : null,
   ].filter((part) => part !== null);
   return parts.length ? parts.join(" · ") : null;
