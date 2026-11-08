@@ -9683,7 +9683,6 @@
   "msgMergeLabel": "The family's other contact",
   "msgMergeHint": "Their conversations and what they wrote join {name}'s, and mail from either address reaches the family.",
   "msgMergeSearch": "Search by name, email or phone",
-  "msgMergeNone": "No other contact matches.",
   "msgMergeConfirm": "Merge into {name}",
   "msgMergeCancel": "Cancel",
   "msgMergeDone": "Merged. Their conversations now belong to {name}.",

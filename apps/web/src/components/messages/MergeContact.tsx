@@ -78,7 +78,6 @@ export function MergeContact({ contactId, name }: MergeContactProps) {
         search={search}
         onSearchChange={setSearch}
         searchLabel={m.msgMergeSearch()}
-        emptyLabel={m.msgMergeNone()}
       />
       {merge.error ? (
         <p role="alert" className="text-[13px] leading-[18px] text-destructive">
