@@ -922,7 +922,7 @@ export interface ModuleRecordProps {
   onTab: (tab: ModuleTab) => void;
   onClass: (classId: string) => void;
   files: AreaView;
-  onFiles: (view: AreaView) => void;
+  onFiles: (change: Partial<AreaView>) => void;
 }
 
 /** A module for those who teach it: its lessons, and how each student is getting on. */

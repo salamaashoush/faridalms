@@ -222,7 +222,11 @@ export interface AreaFilesProps {
   area: Area;
   title: string;
   view: AreaView;
-  onView: (view: AreaView) => void;
+  /**
+   * Receives only what changed, to merge into the address as it stands: a
+   * search sent after a pause must not put back the kinds of an older view.
+   */
+  onView: (change: Partial<AreaView>) => void;
 }
 
 /**
@@ -266,10 +270,9 @@ export function AreaFiles({ area, title, view, onView }: AreaFilesProps) {
   const replacement = useRef<HTMLInputElement>(null);
   const [replacing, setReplacing] = useState<AreaFile | null>(null);
   const [versionsOf, setVersionsOf] = useState<AreaFile | null>(null);
-  const setSearch = (fileSearch: string) => onView({ ...view, fileSearch });
+  const setSearch = (fileSearch: string) => onView({ fileSearch });
   const setKinds = (next: string[]) =>
     onView({
-      ...view,
       fileKinds: FILE_KINDS.filter((kind) => next.includes(kind)),
     });
   const [viewing, setViewing] = useState<AreaFile | null>(null);
@@ -465,14 +468,14 @@ export function AreaFiles({ area, title, view, onView }: AreaFilesProps) {
             },
           ],
           onReset: () => {
-            onView({ ...view, fileSearch: "", fileKinds: [] });
+            onView({ fileSearch: "", fileKinds: [] });
           },
         }}
         sort={{
           value: sort.value,
           direction: sort.direction,
           onChange: (value, direction) =>
-            onView({ ...view, fileSort: value, fileOrder: direction }),
+            onView({ fileSort: value, fileOrder: direction }),
         }}
         card={areaCard(area)}
         pagination={

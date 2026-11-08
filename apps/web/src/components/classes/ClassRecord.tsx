@@ -422,7 +422,7 @@ export interface ClassRecordProps {
   tab: ClassTab;
   onTab: (tab: ClassTab) => void;
   files: AreaView;
-  onFiles: (view: AreaView) => void;
+  onFiles: (change: Partial<AreaView>) => void;
 }
 
 export function ClassRecord({
