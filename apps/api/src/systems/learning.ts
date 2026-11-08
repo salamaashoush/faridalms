@@ -45,6 +45,7 @@ import {
   insertModule,
   keepCode as keepOwnCode,
   lessonById,
+  lessonsIn,
   lessonSoundsOf,
   lessonsOf,
   liveActivity,
@@ -73,6 +74,9 @@ import {
   recordWatch,
   responsesOf,
   responsesTo,
+  routeSources,
+  lessonsByIds,
+  lessonsRoutedBy,
   runCounts,
   runsOf,
   removeLesson as tombstoneLesson,
@@ -512,22 +516,30 @@ function resultsOf(
   return results;
 }
 
-/** One student's progress through some lessons, and those their teacher opened for them. */
+/**
+ * One student's progress through some lessons and the lessons elsewhere
+ * their conditions read, and those their teacher opened for them.
+ */
 async function pathFacts(
   context: UnitContext,
-  lessonIds: readonly string[],
+  lessons: readonly LessonRow[],
   studentId: string,
 ) {
+  const sources = await routeSources(context.tx, context.tenantId, lessons);
   const scope = {
     tenantId: context.tenantId,
-    lessonIds,
+    lessonIds: [...lessons, ...sources].map((lesson) => lesson.id),
     studentIds: [studentId],
   };
   const [cells, openings] = await Promise.all([
     progressIn(context.tx, scope),
     openingsIn(context.tx, scope),
   ]);
-  return { cells, opened: new Set(openings.map((row) => row.lessonId)) };
+  return {
+    cells,
+    opened: new Set(openings.map((row) => row.lessonId)),
+    sources,
+  };
 }
 
 type PathFacts = Awaited<ReturnType<typeof pathFacts>>;
@@ -540,11 +552,11 @@ type PathFacts = Awaited<ReturnType<typeof pathFacts>>;
 function outline(
   row: ModuleRow,
   lessons: Awaited<ReturnType<typeof lessonsOf>>,
-  { cells, opened }: PathFacts,
+  { cells, opened, sources }: PathFacts,
   locked: boolean,
 ) {
   const results = resultsOf(cells, opened);
-  const path = pathOf(lessons, results);
+  const path = pathOf([...lessons, ...sources], results);
   let blocked = locked;
   return lessons
     .filter((lesson) => path.get(lesson.id) === "on")
@@ -558,6 +570,97 @@ function outline(
       if (row.sequential && !done) blocked = true;
       return { ...lesson, state };
     });
+}
+
+/** Lessons of other modules named with their module, for a path's rule to say where its score comes from. */
+async function routeLabels(context: UnitContext, rows: readonly LessonRow[]) {
+  const modules = new Map<string, ModuleRow | null>();
+  for (const moduleId of new Set(rows.map((row) => row.moduleId)))
+    modules.set(
+      moduleId,
+      await moduleById(context.tx, context.tenantId, moduleId),
+    );
+  return new Map(
+    rows.flatMap((row) => {
+      const owner = modules.get(row.moduleId);
+      return owner
+        ? [
+            [
+              row.id,
+              {
+                lessonId: row.id,
+                title: row.title,
+                moduleId: owner.id,
+                moduleTitle: owner.title,
+              },
+            ] as const,
+          ]
+        : [];
+    }),
+  );
+}
+
+/**
+ * The lessons of other modules a student's scores in these lessons have put
+ * on their path, in modules open to them: where those scores send them.
+ */
+async function sentFrom(
+  context: UnitContext,
+  lessons: readonly LessonRow[],
+  facts: PathFacts,
+  studentId: string,
+) {
+  const own = new Set(lessons.map((lesson) => lesson.id));
+  const routed = await lessonsRoutedBy(context.tx, context.tenantId, [...own]);
+  const elsewhere = routed.filter(
+    (lesson) => !lessons.some((item) => item.moduleId === lesson.moduleId),
+  );
+  if (elsewhere.length === 0) return [];
+  const shown = await publishedLessons(
+    context.tx,
+    context.tenantId,
+    elsewhere.map((lesson) => lesson.id),
+  );
+  const targets = elsewhere.filter((lesson) => shown.has(lesson.id));
+  const theirs = await pathFacts(context, targets, studentId);
+  const results = resultsOf(
+    [...facts.cells, ...theirs.cells],
+    new Set([...facts.opened, ...theirs.opened]),
+  );
+  const path = pathOf(
+    [...lessons, ...facts.sources, ...targets, ...theirs.sources],
+    results,
+  );
+  const open = new Map<string, boolean>();
+  for (const moduleId of new Set(targets.map((lesson) => lesson.moduleId)))
+    try {
+      open.set(
+        moduleId,
+        !(await openModule(context, moduleId, studentId)).locked,
+      );
+    } catch {
+      open.set(moduleId, false);
+    }
+  const sent = targets.filter(
+    (lesson) =>
+      path.get(lesson.id) === "on" &&
+      open.get(lesson.moduleId) &&
+      lesson.condition &&
+      results.get(lesson.condition.lessonId)?.completed,
+  );
+  const labels = await routeLabels(context, sent);
+  return sent.flatMap((lesson) => {
+    const label = labels.get(lesson.id);
+    return label && lesson.condition
+      ? [
+          {
+            ...label,
+            fromLessonId: lesson.condition.lessonId,
+            done: results.get(lesson.id)?.completed ?? false,
+          },
+        ]
+      : [];
+  });
 }
 
 async function hostReadable(context: UnitContext, lessonId: string) {
@@ -826,9 +929,36 @@ export const record = readProcedure
       lessons.map((lesson) => lesson.id),
       ["question"],
     );
+    const own = new Set(lessons.map((lesson) => lesson.id));
+    const [read, routed] = await Promise.all([
+      lessonsByIds(
+        context.tx,
+        context.tenantId,
+        lessons.flatMap((lesson) =>
+          lesson.condition && !own.has(lesson.condition.lessonId)
+            ? [lesson.condition.lessonId]
+            : [],
+        ),
+      ),
+      lessonsRoutedBy(context.tx, context.tenantId, [...own]),
+    ]);
+    const elsewhere = routed.filter((lesson) => lesson.moduleId !== row.id);
+    const labels = await routeLabels(context, [...read, ...elsewhere]);
     return {
       ...row,
       classes,
+      /** The lessons of other modules this module's rules read a score in. */
+      sources: read.flatMap((lesson) => {
+        const label = labels.get(lesson.id);
+        return label ? [label] : [];
+      }),
+      /** The lessons of other modules whose rules read a score here. */
+      routes: elsewhere.flatMap((lesson) => {
+        const label = labels.get(lesson.id);
+        return label && lesson.condition
+          ? [{ ...label, condition: lesson.condition }]
+          : [];
+      }),
       // Whether each lesson has a score that a later one can depend on.
       lessons: lessons.map((lesson) => ({
         ...lesson,
@@ -845,6 +975,14 @@ export const record = readProcedure
       audiences,
       open: isLive(row, context.now),
     };
+  });
+
+/** The lessons of other modules a lesson of this one can be routed by, for its routing settings. */
+export const routeChoices = readProcedure
+  .input(v.object({ moduleId: id }))
+  .handler(async ({ input, context }) => {
+    const owner = await editableModule(context, input.moduleId);
+    return { lessons: await routeChoicesOf(context, owner) };
   });
 
 /**
@@ -1372,20 +1510,114 @@ export const publishLesson = writeProcedure
     return { published: true };
   });
 
+/** How many lessons a chain of conditions is followed through before it counts as a loop. */
+const CHAIN_LIMIT = 64;
+
+/**
+ * Whether a condition on `source` would route a lesson by its own score,
+ * through the lessons whose conditions lead from `source` back to it.
+ */
+async function routesBack(
+  context: UnitContext,
+  source: LessonRow,
+  lessonId: string,
+) {
+  let at: LessonRow | null = source;
+  for (let step = 0; at?.condition && step < CHAIN_LIMIT; step += 1) {
+    if (at.condition.lessonId === lessonId) return true;
+    at = await lessonById(context.tx, context.tenantId, at.condition.lessonId);
+  }
+  return Boolean(at?.condition);
+}
+
+/**
+ * The scored lessons of other modules a module's lesson can be routed by:
+ * modules that share a class with it, which the teacher may edit.
+ */
+async function routeChoicesOf(context: UnitContext, owner: ModuleRow) {
+  const classes = new Set(
+    (await classesOfModule(context.tx, context.tenantId, owner.id)).map(
+      (item) => item.id,
+    ),
+  );
+  if (classes.size === 0) return [];
+  const siblings = (
+    await modulesForClasses(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      classIds: [...classes],
+      authorId: null,
+    })
+  ).filter((item) => item.id !== owner.id);
+  const editable: ModuleRow[] = [];
+  for (const item of siblings)
+    if (await mayEditModule(context, item)) editable.push(item);
+  const lessons = await lessonsIn(
+    context.tx,
+    context.tenantId,
+    editable.map((item) => item.id),
+  );
+  const contents = await topBlocksOf(
+    context.tx,
+    context.tenantId,
+    "lesson",
+    lessons.map((row) => row.id),
+    ["question"],
+  );
+  return lessons
+    .filter((row) => lessonScored(lessonContentOf(contents.get(row.id))))
+    .flatMap((row) => {
+      const from = editable.find((item) => item.id === row.moduleId);
+      return from
+        ? [
+            {
+              lessonId: row.id,
+              title: row.title,
+              position: row.position,
+              moduleId: from.id,
+              moduleTitle: from.title,
+            },
+          ]
+        : [];
+    });
+}
+
 /**
  * A condition a lesson is saved with: on a scored lesson before it in the
- * same module. One kept as it was is not checked again, so a lesson whose
- * condition has since lost its questions still saves.
+ * same module, or on a scored lesson of another module that shares a class
+ * with it and its teacher may edit, as long as no chain of conditions leads
+ * back to the lesson itself. One kept as it was is not checked again, so a
+ * lesson whose condition has since lost its questions still saves.
  */
 async function checkedCondition(
   context: UnitContext,
-  moduleId: string,
+  owner: ModuleRow,
   stored: LessonRow | null,
   condition: LessonCondition | null,
 ) {
   if (!condition || condition.lessonId === stored?.condition?.lessonId)
     return condition;
-  const lessons = await lessonsOf(context.tx, context.tenantId, moduleId);
+  const source = await lessonById(
+    context.tx,
+    context.tenantId,
+    condition.lessonId,
+  );
+  if (source && source.moduleId !== owner.id) {
+    if (
+      !(await routeChoicesOf(context, owner)).some(
+        (item) => item.lessonId === source.id,
+      )
+    )
+      throw new ORPCError("BAD_REQUEST", {
+        message: "learning.condition_module",
+      });
+    if (stored && (await routesBack(context, source, stored.id)))
+      throw new ORPCError("BAD_REQUEST", {
+        message: "learning.condition_loop",
+      });
+    return condition;
+  }
+  const lessons = await lessonsOf(context.tx, context.tenantId, owner.id);
   const at = stored
     ? lessons.findIndex((item) => item.id === stored.id)
     : lessons.length;
@@ -1451,7 +1683,7 @@ export const saveLesson = writeProcedure
       bands: input.bands,
       condition: await checkedCondition(
         context,
-        owner.id,
+        owner,
         stored,
         input.condition,
       ),
@@ -1608,8 +1840,10 @@ export const removeLesson = writeProcedure
     const row = await lessonById(context.tx, context.tenantId, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
     const owner = await editableModule(context, row.moduleId);
-    const lessons = await lessonsOf(context.tx, context.tenantId, owner.id);
-    if (lessons.some((item) => item.condition?.lessonId === row.id))
+    // A lesson whose score routes another, in this module or any other, stays.
+    if (
+      (await lessonsRoutedBy(context.tx, context.tenantId, [row.id])).length > 0
+    )
       throw new ORPCError("CONFLICT", {
         message: "learning.condition_in_use",
       });
@@ -1645,24 +1879,30 @@ export const progress = readProcedure
       lessonsOf(context.tx, context.tenantId, row.id),
       audienceOf(context, row.id, input.classId),
     ]);
+    const sources = await routeSources(context.tx, context.tenantId, lessons);
     const scope = {
       tenantId: context.tenantId,
-      lessonIds: lessons.map((item) => item.id),
+      lessonIds: [...lessons, ...sources].map((item) => item.id),
       studentIds: roster,
     };
-    const [students, cells, openings] = await Promise.all([
+    const [students, everyCell, everyOpening] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
       progressIn(context.tx, scope),
       openingsIn(context.tx, scope),
     ]);
+    const own = new Set(lessons.map((item) => item.id));
+    const cells = everyCell.filter((cell) => own.has(cell.lessonId));
+    const openings = everyOpening.filter((opening) =>
+      own.has(opening.lessonId),
+    );
     // Where each student's path leaves a lesson out, or waits to decide.
     const paths = roster.flatMap((studentId) => {
       const path = pathOf(
-        lessons,
+        [...lessons, ...sources],
         resultsOf(
-          cells.filter((cell) => cell.studentUserId === studentId),
+          everyCell.filter((cell) => cell.studentUserId === studentId),
           new Set(
-            openings
+            everyOpening
               .filter((opening) => opening.studentId === studentId)
               .map((opening) => opening.lessonId),
           ),
@@ -1688,6 +1928,8 @@ export const progress = readProcedure
       module: { id: row.id, title: row.title },
       classes,
       lessons,
+      /** The lessons of other modules this module's rules read a score in. */
+      sources: [...(await routeLabels(context, sources)).values()],
       students,
       paths,
       openings,
@@ -2273,11 +2515,7 @@ export const nextLessons = readProcedure.handler(async ({ context }) => {
   const lessons = await Promise.all(
     open.map((row) => studentLessons(context, row.id)),
   );
-  const facts = await pathFacts(
-    context,
-    lessons.flat().map((item) => item.id),
-    studentId,
-  );
+  const facts = await pathFacts(context, lessons.flat(), studentId);
   const begun = new Set(facts.cells.map((cell) => cell.lessonId));
   const found = open.flatMap((row, index) => {
     const next = outline(row, lessons[index] ?? [], facts, false).find(
@@ -2451,17 +2689,21 @@ export const play = readProcedure
       studentId,
     );
     const lessons = await studentLessons(context, row.id);
-    const facts = await pathFacts(
-      context,
-      lessons.map((item) => item.id),
-      studentId,
-    );
+    const facts = await pathFacts(context, lessons, studentId);
+    const labels = await routeLabels(context, facts.sources);
     return {
       ...row,
       locked,
       prerequisiteResult,
       own,
-      lessons: outline(row, lessons, facts, locked),
+      lessons: outline(row, lessons, facts, locked).map((item) => ({
+        ...item,
+        // Where a lesson put on the path from another module was opened from.
+        from: item.condition
+          ? (labels.get(item.condition.lessonId) ?? null)
+          : null,
+      })),
+      sent: await sentFrom(context, lessons, facts, studentId),
     };
   });
 
@@ -2491,11 +2733,7 @@ export const moduleGlossary = readProcedure
       lessons = outline(
         row,
         shown,
-        await pathFacts(
-          context,
-          shown.map((item) => item.id),
-          studentId,
-        ),
+        await pathFacts(context, shown, studentId),
         locked,
       );
     }
@@ -2548,11 +2786,7 @@ async function playable(context: UnitContext, lessonId: string) {
   const lessons = await studentLessons(context, owner.id);
   const classIds = await classesOfStudent(context, studentId);
   const [facts, leading, released] = await Promise.all([
-    pathFacts(
-      context,
-      lessons.map((item) => item.id),
-      studentId,
-    ),
+    pathFacts(context, lessons, studentId),
     pacingOf(context, row.id, classIds),
     lessonReleased(context.tx, {
       tenantId: context.tenantId,
@@ -2765,18 +2999,12 @@ export const playLesson = writeProcedure
         : Boolean(own?.completedAt);
     // Finished by this opening, the lesson opens the next in a module taken
     // in order, which the outline read before it could not know.
+    const facts = completed
+      ? await pathFacts(context, played.lessons, played.studentId)
+      : null;
     const outlined =
-      completed && !own?.completedAt
-        ? outline(
-            owner,
-            played.lessons,
-            await pathFacts(
-              context,
-              played.lessons.map((item) => item.id),
-              played.studentId,
-            ),
-            played.locked,
-          )
+      facts && !own?.completedAt
+        ? outline(owner, played.lessons, facts, played.locked)
         : states;
     const index = outlined.findIndex((item) => item.id === row.id);
     return {
@@ -2821,6 +3049,12 @@ export const playLesson = writeProcedure
           : null,
       index,
       total: outlined.length,
+      /** Lessons of other modules the student's score here has opened. */
+      sent: facts
+        ? (
+            await sentFrom(context, played.lessons, facts, played.studentId)
+          ).filter((item) => item.fromLessonId === row.id)
+        : [],
       paced: played.paced,
       sounds: !(await quietLessons(context.tx, {
         tenantId: context.tenantId,

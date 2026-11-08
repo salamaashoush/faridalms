@@ -2132,8 +2132,9 @@ export function completionMet(
 }
 
 /**
- * A lesson shown only to the students whose best score in an earlier lesson
- * of its module is at least `atLeast`, below `below`, or between the two.
+ * A lesson shown only to the students whose best score in another lesson is
+ * at least `atLeast`, below `below`, or between the two: an earlier lesson
+ * of its module, or a lesson of another module its class takes.
  */
 export interface LessonCondition {
   lessonId: string;
@@ -2174,8 +2175,9 @@ export function meetsCondition(
  * the score is out of range or that lesson is off the path itself, and
  * pending until then. A lesson the student has finished stays on their
  * path, so a better score later never hides work they did, and so does one
- * their teacher opened for them; a condition on a lesson the module no
- * longer has is void.
+ * their teacher opened for them; a condition on a lesson not among those
+ * given is void. A condition on a lesson of another module is read the
+ * same way once that lesson is given beside the module's own.
  */
 export function pathOf(
   lessons: readonly { id: string; condition: LessonCondition | null }[],
@@ -2216,13 +2218,15 @@ export function pathOf(
 /**
  * How far a student is through a module along their own path: the lessons
  * on it, how many they have finished, and the mean of their best scores in
- * those that are scored, or null when none is.
+ * those that are scored, or null when none is. `sources` are the lessons
+ * elsewhere that its lessons' conditions read.
  */
 export function moduleStanding(
   lessons: readonly { id: string; condition: LessonCondition | null }[],
   results: ReadonlyMap<string, LessonResult>,
+  sources: readonly { id: string; condition: LessonCondition | null }[] = [],
 ) {
-  const path = pathOf(lessons, results);
+  const path = pathOf([...lessons, ...sources], results);
   const on = lessons.filter((lesson) => path.get(lesson.id) === "on");
   const completed = on.filter(
     (lesson) => results.get(lesson.id)?.completed,

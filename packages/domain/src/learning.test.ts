@@ -1672,6 +1672,30 @@ describe("paths through a module", () => {
     expect(prerequisiteMet({ ...standing, score: null }, 90)).toBe(true);
   });
 
+  it("routes by a score in another module's lesson once it is given", () => {
+    // Lesson 2 of the module reads its score in lesson 1 of another.
+    const own = [more];
+    expect(moduleStanding(own, results([1, true, 40]), [check])).toMatchObject({
+      lessons: 1,
+      completed: 0,
+    });
+    expect(moduleStanding(own, results([1, true, 80]), [check])).toMatchObject({
+      lessons: 0,
+      finished: false,
+    });
+    expect(moduleStanding(own, results([1, false, 40]), [check]).lessons).toBe(
+      0,
+    );
+    const chained = { id: uuid(5), condition: null };
+    const elsewhere = {
+      ...check,
+      condition: { lessonId: uuid(5), atLeast: 50, below: null },
+    };
+    expect(
+      pathOf([more, elsewhere, chained], results([5, true, 20])).get(uuid(2)),
+    ).toBe("off");
+  });
+
   it("asks for a range that holds a score", () => {
     expect(validCondition(null, 60)).toBe(true);
     expect(validCondition(40, 80)).toBe(true);

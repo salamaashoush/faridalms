@@ -668,6 +668,89 @@ export async function lessonById(
   return row ? lessonOf(row) : null;
 }
 
+/** These lessons, those of a module that is still kept. */
+export async function lessonsByIds(
+  tx: Tx,
+  tenantId: string,
+  ids: readonly string[],
+): Promise<LessonRow[]> {
+  if (ids.length === 0) return [];
+  const rows = await tx.execute<LessonRecord>(sql`
+    select ${lessonColumns} from core.lessons l
+      join core.learning_modules m on m.tenant_id = l.tenant_id and m.id = l.module_id
+        and m.status = 'active'
+    where l.tenant_id = ${tenantId}::uuid and l.id = any(${uuidArray(ids)})
+      and l.status = 'active'
+    order by l.module_id, l.position, l.id`);
+  return rows.map(lessonOf);
+}
+
+/** The lessons, in modules still kept, whose condition reads a score in any of these. */
+export async function lessonsRoutedBy(
+  tx: Tx,
+  tenantId: string,
+  lessonIds: readonly string[],
+): Promise<LessonRow[]> {
+  if (lessonIds.length === 0) return [];
+  const rows = await tx.execute<LessonRecord>(sql`
+    select ${lessonColumns} from core.lessons l
+      join core.learning_modules m on m.tenant_id = l.tenant_id and m.id = l.module_id
+        and m.status = 'active'
+    where l.tenant_id = ${tenantId}::uuid and l.status = 'active'
+      and l.condition_lesson_id = any(${uuidArray(lessonIds)})
+    order by l.module_id, l.position, l.id`);
+  return rows.map(lessonOf);
+}
+
+/** How many modules apart a path may route before the rest is left out. */
+const ROUTE_DEPTH = 8;
+
+/**
+ * The lessons of other modules these lessons' conditions read a score in,
+ * and those theirs read in turn: what a student's path needs beyond the
+ * module's own lessons. Only lessons students can play count, as within a
+ * module, so a condition on one never shown is void.
+ */
+export async function routeSources(
+  tx: Tx,
+  tenantId: string,
+  lessons: readonly LessonRow[],
+): Promise<LessonRow[]> {
+  const known = new Map(lessons.map((lesson) => [lesson.id, lesson]));
+  const found: LessonRow[] = [];
+  let from: readonly LessonRow[] = lessons;
+  for (let depth = 0; depth < ROUTE_DEPTH && from.length > 0; depth += 1) {
+    const wanted = [
+      ...new Set(
+        from.flatMap((lesson) =>
+          lesson.condition && !known.has(lesson.condition.lessonId)
+            ? [lesson.condition.lessonId]
+            : [],
+        ),
+      ),
+    ];
+    const rows = await lessonsByIds(tx, tenantId, wanted);
+    const shown = await publishedLessons(
+      tx,
+      tenantId,
+      rows.map((row) => row.id),
+    );
+    const next = rows.filter(
+      (row) =>
+        shown.has(row.id) &&
+        from.some(
+          (lesson) =>
+            lesson.condition?.lessonId === row.id &&
+            lesson.moduleId !== row.moduleId,
+        ),
+    );
+    for (const row of next) known.set(row.id, row);
+    found.push(...next);
+    from = next;
+  }
+  return found;
+}
+
 export interface LessonFields {
   title: string;
   completion: LessonCompletion;
@@ -1407,9 +1490,10 @@ export async function standingsIn(
   input: { tenantId: string; moduleIds: readonly string[]; studentId: string },
 ): Promise<Map<string, ModuleStanding>> {
   const lessons = await lessonsIn(tx, input.tenantId, input.moduleIds);
+  const sources = await routeSources(tx, input.tenantId, lessons);
   const scope = {
     tenantId: input.tenantId,
-    lessonIds: lessons.map((lesson) => lesson.id),
+    lessonIds: [...lessons, ...sources].map((lesson) => lesson.id),
     studentIds: [input.studentId],
   };
   const [progress, openings] = await Promise.all([
@@ -1435,6 +1519,7 @@ export async function standingsIn(
       moduleStanding(
         lessons.filter((lesson) => lesson.moduleId === moduleId),
         results,
+        [...lessons, ...sources],
       ),
     ]),
   );
