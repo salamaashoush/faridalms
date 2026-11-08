@@ -52,14 +52,19 @@ export function Floating({
   const attach = useCallback(
     (element: HTMLDivElement | null) => {
       ref.current = element;
-      if (!element || !keepFocus) return undefined;
+      if (!element) return undefined;
       const prevent = (event: MouseEvent) => {
         if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
       };
-      element.addEventListener("mousedown", prevent);
-      return () => element.removeEventListener("mousedown", prevent);
+      const move = (event: KeyboardEvent) => moveAlongToolbar(element, event);
+      if (keepFocus) element.addEventListener("mousedown", prevent);
+      if (role === "toolbar") element.addEventListener("keydown", move);
+      return () => {
+        element.removeEventListener("mousedown", prevent);
+        element.removeEventListener("keydown", move);
+      };
     },
-    [keepFocus],
+    [keepFocus, role],
   );
   useEffect(() => {
     const floating = ref.current;
@@ -121,6 +126,54 @@ export function Floating({
     </div>,
     container ?? document.body,
   );
+}
+
+export const TOOLBAR_CONTROLS =
+  "button:not([disabled]), a[href], input:not([disabled]), [role=button]:not([aria-disabled=true])";
+
+/**
+ * Arrow keys move along a toolbar's controls, mirrored in right-to-left
+ * text, and Home and End go to its ends, as the ARIA toolbar pattern has
+ * it. A field in the bar keeps its arrows for its own caret.
+ */
+function moveAlongToolbar(bar: HTMLElement, event: KeyboardEvent) {
+  const target = event.target;
+  if (
+    !(target instanceof HTMLElement) ||
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    event.altKey ||
+    event.ctrlKey ||
+    event.metaKey
+  )
+    return;
+  const controls = [
+    ...bar.querySelectorAll<HTMLElement>(TOOLBAR_CONTROLS),
+  ].filter((control) => control.closest("[role=toolbar]") === bar);
+  const at = controls.indexOf(target);
+  if (at === -1) return;
+  const rtl = getComputedStyle(bar).direction === "rtl";
+  const step =
+    event.key === "ArrowRight"
+      ? rtl
+        ? -1
+        : 1
+      : event.key === "ArrowLeft"
+        ? rtl
+          ? 1
+          : -1
+        : 0;
+  const next =
+    event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? controls.length - 1
+        : step
+          ? (at + step + controls.length) % controls.length
+          : -1;
+  if (next === -1) return;
+  event.preventDefault();
+  controls[next]?.focus();
 }
 
 /**

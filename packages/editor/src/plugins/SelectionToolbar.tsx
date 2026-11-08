@@ -62,6 +62,7 @@ import {
   FORMAT_TEXT_COMMAND,
   KEY_DOWN_COMMAND,
   KEY_ESCAPE_COMMAND,
+  KEY_TAB_COMMAND,
   SKIP_DOM_SELECTION_TAG,
 } from "lexical";
 import {
@@ -234,6 +235,7 @@ import {
   menuPopupClass,
   selectionReference,
   shortcutLabel,
+  TOOLBAR_CONTROLS,
 } from "../ui";
 import { AssistantTool } from "./assistant";
 import { CommentTool } from "./comments";
@@ -1000,7 +1002,15 @@ export function SelectionToolbarPlugin() {
     )
       return;
     const root = editor.getRootElement();
-    const focused = root !== null && root.contains(document.activeElement);
+    // Focus in the bar is still the text's: an update while someone works
+    // the bar from the keyboard keeps the bar it is on.
+    const focused =
+      (root !== null && root.contains(document.activeElement)) ||
+      Boolean(
+        toolbar.current
+          ?.closest("[role=toolbar]")
+          ?.contains(document.activeElement),
+      );
     const formula = focused ? readMath() : null;
     if (formula) {
       setMath(formula);
@@ -1150,6 +1160,19 @@ export function SelectionToolbarPlugin() {
     show("hidden");
     return true;
   });
+  // The bar stands outside the text, where Tab never reaches it. Alt+F10,
+  // as in other editors, and Tab on a chosen block move focus into it, and
+  // Escape there brings focus back to the text, its selection with it.
+  const onEnterBar = useEffectEvent((event: KeyboardEvent) => {
+    if (modeRef.current === "hidden") return false;
+    const first = toolbar.current
+      ?.closest("[role=toolbar]")
+      ?.querySelector<HTMLElement>(TOOLBAR_CONTROLS);
+    if (!first) return false;
+    event.preventDefault();
+    first.focus();
+    return true;
+  });
   const onPointerDown = useEffectEvent(() => {
     pointer.current = true;
     if (modeRef.current !== "link-edit") show("hidden");
@@ -1197,8 +1220,17 @@ export function SelectionToolbarPlugin() {
             onOpenLink();
             return true;
           }
+          if (event.altKey && event.key === "F10") return onEnterBar(event);
           return false;
         },
+        COMMAND_PRIORITY_LOW,
+      ),
+      editor.registerCommand(
+        KEY_TAB_COMMAND,
+        (event) =>
+          !event.shiftKey && $isNodeSelection($getSelection())
+            ? onEnterBar(event)
+            : false,
         COMMAND_PRIORITY_LOW,
       ),
       editor.registerCommand(
@@ -1263,11 +1295,30 @@ export function SelectionToolbarPlugin() {
         onEscape();
     };
     document.addEventListener("focusin", onFocus);
+    const onKey = (event: KeyboardEvent) => {
+      if (
+        event.key !== "Escape" ||
+        menus.current > 0 ||
+        !toolbar.current
+          ?.closest("[role=toolbar]")
+          ?.contains(document.activeElement)
+      )
+        return;
+      event.preventDefault();
+      // A chosen block has no caret for Lexical's own focus to draw, so the
+      // text takes focus and its selection is put back as it was.
+      const kept = editor
+        .getEditorState()
+        .read(() => $getSelection()?.clone() ?? null);
+      updateFromOutside(editor, () => $setSelection(kept));
+    };
+    document.addEventListener("keydown", onKey);
     const onBlur = () => requestAnimationFrame(onFocus);
     const root = editor.getRootElement();
     root?.addEventListener("blur", onBlur);
     return () => {
       document.removeEventListener("focusin", onFocus);
+      document.removeEventListener("keydown", onKey);
       root?.removeEventListener("blur", onBlur);
     };
   }, [editor, mode]);

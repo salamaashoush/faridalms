@@ -339,6 +339,10 @@ publishing changes state (Notion, Linear, Polaris).
   (back to the copy readers have) and Update. Announcements and news are one
   broadcast editor (`components/broadcasts/BroadcastEditor.tsx`) configured by
   kind; updating an announcement asks whether to notify recipients again.
+- The editor's floating bar is reached from the keyboard as well as the
+  pointer (TinyMCE, CKEditor): Tab on a chosen block or Alt+F10 anywhere
+  moves focus into it, the arrow keys, Home and End move along it (mirrored
+  in Arabic), and Escape goes back to the text with the selection it had.
 - Body: the document title (30px) above a 720px content column; settings for
   the item (audience, dates, class) sit in a 280px panel beside it and move
   above the content on phones.
