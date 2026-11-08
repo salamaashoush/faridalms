@@ -111,7 +111,6 @@ test("a drafted translation waits for a person's check before students have it",
   await page.keyboard.type("Rivers carve valleys.");
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Details" }).click();
   await page.locator("#lesson-language").click();
   await page.getByRole("option", { name: "English" }).click();
   await page.getByRole("checkbox", { name: /Also write it in Arabic/ }).click();
