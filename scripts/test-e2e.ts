@@ -19,6 +19,7 @@ import { seedCell } from "@faridalms/database/seed";
 import { SQL } from "bun";
 import { randomBytes } from "node:crypto";
 
+import { KEY, startAnthropicStandIn } from "./e2e-anthropic";
 import { OIDC_CLIENT_ID, startOidcStandIn } from "./e2e-oidc";
 import { startPaymobStandIn } from "./e2e-paymob";
 import { startResendStandIn } from "./e2e-resend";
@@ -44,6 +45,8 @@ const resendPort = "3207";
 const opsPort = "3206";
 const oidcPort = "3208";
 const paymobPort = "3209";
+// Anthropic's stand-in, which teachers' requests to the language model reach.
+const anthropicPort = "3210";
 const provisionPort = process.env.PROVISION_PORT ?? "3205";
 const webhookSecret = `whsec_${randomBytes(24).toString("base64")}`;
 
@@ -98,6 +101,7 @@ try {
   const resend = startResendStandIn(Number(resendPort));
   const oidc = await startOidcStandIn(Number(oidcPort));
   const paymob = startPaymobStandIn(Number(paymobPort));
+  const anthropic = startAnthropicStandIn(Number(anthropicPort));
   const provisionSecret = randomBytes(32).toString("base64");
   const runner = Bun.spawn(
     [
@@ -163,6 +167,10 @@ try {
         PAYMOB_LIVE: "false",
         PAYMOB_BASE_URL: `http://127.0.0.1:${paymobPort}`,
         E2E_PAYMOB_PORT: paymobPort,
+        // Teachers' language model, against the stand-in.
+        ANTHROPIC_API_KEY: KEY,
+        ANTHROPIC_API_URL: `http://127.0.0.1:${anthropicPort}`,
+        E2E_ANTHROPIC_PORT: anthropicPort,
       },
       stdout: "inherit",
       stderr: "inherit",
@@ -174,6 +182,7 @@ try {
   await resend.stop(true);
   await oidc.stop(true);
   await paymob.stop(true);
+  await anthropic.stop(true);
 } finally {
   await dropDatabase(admin, cellName);
   await dropDatabase(admin, directoryName);
