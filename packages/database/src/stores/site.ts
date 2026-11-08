@@ -1,6 +1,8 @@
+import type { PublishedPicture } from "@faridalms/domain/previews";
 import type { FormAnswer } from "@faridalms/domain/questions";
 import type { SiteChrome, SiteTheme } from "@faridalms/domain/site-theme";
 
+import { publishedPicture } from "@faridalms/domain/previews";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -585,6 +587,80 @@ export async function recordPublication(
       ${input.hostType}, ${input.hostId}::uuid, ${input.derivative ?? null})`);
 }
 
+/** A public copy of a file, where it is published and the sizes already beside it. */
+export interface PublishedHolder {
+  fileId: string;
+  purpose: string;
+  publicKey: string;
+  hostType: string;
+  hostId: string;
+  derivatives: string[];
+}
+
+/** Every page or post showing a file with these bytes publicly now. */
+export async function publishedHolders(
+  tx: Tx,
+  input: { tenantId: string; storageKey: string },
+): Promise<PublishedHolder[]> {
+  const rows = await tx.execute<{
+    file_id: string;
+    file_purpose: string;
+    public_key: string;
+    host_type: string;
+    host_id: string;
+    derivatives: string[];
+  }>(sql`
+    select p.file_id, p.file_purpose, p.public_key, p.host_type, p.host_id,
+      coalesce((select array_agg(d.derivative) from core.file_publications d
+        where d.tenant_id = p.tenant_id and d.file_id = p.file_id
+          and d.host_type = p.host_type and d.host_id = p.host_id
+          and d.derivative is not null and d.status = 'active' and d.unpublished_at is null),
+        '{}')::text[] as derivatives
+    from core.file_publications p
+    join core.files f on f.tenant_id = p.tenant_id and f.id = p.file_id and f.status = 'active'
+    where p.tenant_id = ${input.tenantId}::uuid and f.storage_key = ${input.storageKey}
+      and p.derivative is null and p.status = 'active' and p.unpublished_at is null`);
+  return rows.map((row) => ({
+    fileId: row.file_id,
+    purpose: row.file_purpose,
+    publicKey: row.public_key,
+    hostType: row.host_type,
+    hostId: row.host_id,
+    derivatives: row.derivatives,
+  }));
+}
+
+/**
+ * Adds what a picture published since adds to the copies visitors read of
+ * a page or post that shows it, in every language, so their browsers pick
+ * from its sizes at once.
+ */
+export async function keepPublishedPicture(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    host: "page" | "post";
+    hostId: string;
+    fileId: string;
+    picture: PublishedPicture;
+  },
+): Promise<number> {
+  const table =
+    input.host === "page"
+      ? sql`core.site_published_pages`
+      : sql`core.site_published_posts`;
+  const id = input.host === "page" ? sql`page_id` : sql`post_id`;
+  const rows = await tx.execute(sql`
+    update ${table}
+    set content = content || jsonb_build_object('pictures',
+      coalesce(content->'pictures', '{}'::jsonb)
+        || jsonb_build_object(${input.fileId}::text, ${JSON.stringify(input.picture)}::text::jsonb))
+    where tenant_id = ${input.tenantId}::uuid and ${id} = ${input.hostId}::uuid
+      and status = 'active' and media ? ${input.fileId}::text
+    returning 1`);
+  return rows.length;
+}
+
 /** Ends the publications of these files for a host; the keys come back so their objects go. */
 export async function endPublications(
   tx: Tx,
@@ -954,11 +1030,15 @@ export interface PublicPost {
   excerpt: string;
   coverKey: string | null;
   coverAlt: string;
+  /** The cover's size, placeholder and the sizes published beside it. */
+  coverPicture: PublishedPicture | null;
   pinned: boolean;
   publishedAt: string;
 }
 
 const publicPostColumns = sql`post_id, slug, category_id, title, excerpt, cover_key, cover_alt,
+  (select content->'pictures'->e.key from jsonb_each_text(media) e
+    where e.value = cover_key limit 1) as cover_picture,
   pinned, ${isoOf(sql`visible_from`)} as visible_from`;
 
 type PublicPostRecord = {
@@ -969,6 +1049,7 @@ type PublicPostRecord = {
   excerpt: string;
   cover_key: string | null;
   cover_alt: string;
+  cover_picture: unknown;
   pinned: boolean;
   visible_from: string;
 };
@@ -982,6 +1063,7 @@ function publicPostOf(row: PublicPostRecord): PublicPost {
     excerpt: row.excerpt,
     coverKey: row.cover_key,
     coverAlt: row.cover_alt,
+    coverPicture: publishedPicture(row.cover_picture),
     pinned: row.pinned,
     publishedAt: row.visible_from,
   };

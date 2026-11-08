@@ -136,8 +136,11 @@ them once no file holds the bytes.
   copy, each a derivative of its publication, and keeps their names, the
   picture's size, placeholder and focal point in the published copy
   (`content.pictures`), so a visitor's browser picks a size from
-  `<source>`s with no request to the API. Public copies stay immutable;
-  sizes made after a page was published go up with its next publication.
+  `<source>`s with no request to the API. A news post's cover is drawn the
+  same way, on its page and on every card listing it. Sizes made after a
+  page or post was published go up beside its public copy as the media
+  service reports them (`publishLateSizes`), and the copies visitors read
+  gain them then, without the page being published again.
 
 Files stored before previews existed are cleaned and queued by the files
 sweep, a few a school each pass.

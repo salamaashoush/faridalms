@@ -181,6 +181,12 @@ export function publishedPictures(
   return read.success ? read.output : {};
 }
 
+/** One picture a published copy keeps, or none when it will not read. */
+export function publishedPicture(kept: unknown): PublishedPicture | null {
+  const read = v.safeParse(publishedPictureSchema, kept);
+  return read.success ? read.output : null;
+}
+
 /** A published picture's sizes as `<source>`s, best format first, from its public address. */
 export function publishedSources(
   url: string,

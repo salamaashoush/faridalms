@@ -1,4 +1,5 @@
 import type { CellTransaction } from "@faridalms/database/context";
+import type { StoredPreview } from "@faridalms/database/stores/previews";
 import type { PublishedPicture } from "@faridalms/domain/previews";
 
 import {
@@ -8,8 +9,10 @@ import {
 } from "@faridalms/database/stores/previews";
 import {
   endPublications,
+  keepPublishedPicture,
   publicationsOf,
   publishableFiles,
+  publishedHolders,
   recordPublication,
   subjectsWithoutConsent,
 } from "@faridalms/database/stores/site";
@@ -18,7 +21,7 @@ import { availableModules } from "@faridalms/domain/plans";
 import { publicKeyFor } from "@faridalms/domain/website";
 import { ORPCError } from "@orpc/server";
 
-import type { RequestContext, UnitContext } from "./context";
+import type { ApiDependencies, RequestContext, UnitContext } from "./context";
 
 import { portalHost } from "./portal";
 
@@ -95,12 +98,79 @@ export interface PublishedMedia {
 /** A made size's name as a publication's derivative: `w640.avif` is `w640_avif`. */
 const derivativeOf = (name: string) => name.replace(/[^a-z0-9]/g, "_");
 
+/** What copying a picture's sizes into the public bucket needs. */
+type Publishing = Pick<
+  ApiDependencies,
+  "files" | "publicMedia" | "maxUploadBytes"
+> & {
+  tx: CellTransaction;
+};
+
+/**
+ * Puts a picture's sizes in the public folder of its copy, each recorded
+ * as a derivative of the publication, those already there left alone; and
+ * answers what a page needs to draw it from them, or null when its
+ * previews are not a picture's, or not ready.
+ */
+async function publishSizes(
+  publishing: Publishing,
+  host: Host,
+  file: { id: string; purpose: string },
+  publicKey: string,
+  preview: StoredPreview | undefined,
+  published: ReadonlySet<string>,
+  focus: { x: number; y: number } | undefined,
+): Promise<PublishedPicture | null> {
+  if (
+    preview?.state !== "ready" ||
+    preview.kind !== "picture" ||
+    !preview.width ||
+    !preview.height
+  )
+    return null;
+  const folder = publicKey.slice(0, publicKey.lastIndexOf("/"));
+  const sizes = preview.sizes.filter((size) => size.name.startsWith("w"));
+  for (const size of sizes) {
+    const derivative = derivativeOf(size.name);
+    if (published.has(derivative)) continue;
+    const body = await publishing.files.open(
+      `${previewFolder(host.tenantId, preview.id)}/${size.name}`,
+    );
+    if (!body) throw new ORPCError("CONFLICT", { message: "site.file" });
+    await publishing.publicMedia.write(
+      `${folder}/${size.name}`,
+      body,
+      publishing.maxUploadBytes,
+    );
+    await recordPublication(publishing.tx, {
+      tenantId: host.tenantId,
+      fileId: file.id,
+      purpose: file.purpose,
+      publicKey: `${folder}/${size.name}`,
+      hostType: host.hostType,
+      hostId: host.hostId,
+      derivative,
+    });
+  }
+  return {
+    width: preview.width,
+    height: preview.height,
+    ...(preview.placeholder ? { placeholder: preview.placeholder } : {}),
+    ...(focus ? { focus } : {}),
+    sizes: sizes.map(({ name, width, mediaType }) => ({
+      name,
+      width,
+      mediaType,
+    })),
+  };
+}
+
 /**
  * Makes exactly these files public for a page or post: new ones are copied to
  * the public-media bucket under a fresh key and recorded, ones it no longer
  * shows are withdrawn and their objects deleted. A picture's sizes go into
- * the same public folder, each recorded as a derivative, so a size made
- * since the last publication goes up with the next. Anyone pictured must
+ * the same public folder, each recorded as a derivative; sizes made after
+ * it go up as they are made (`publishLateSizes`). Anyone pictured must
  * have agreed to appear on the website. Answers each file's public key and
  * what the page needs to show its pictures at the size it draws them.
  */
@@ -130,9 +200,12 @@ export async function publishMedia(
       .filter((row) => row.derivative === null)
       .map((row) => [row.fileId, row.publicKey]),
   );
-  const derived = new Set(
-    shown.map((row) => `${row.fileId}:${row.derivative ?? ""}`),
-  );
+  const derived = (fileId: string) =>
+    new Set(
+      shown
+        .filter((row) => row.fileId === fileId && row.derivative !== null)
+        .map((row) => row.derivative ?? ""),
+    );
   const [previews, focus] = await Promise.all([
     previewsOf(
       tx,
@@ -164,53 +237,71 @@ export async function publishMedia(
       });
     }
     media[file.id] = publicKey;
-    const preview = previews.get(file.storageKey);
-    if (
-      preview?.state !== "ready" ||
-      preview.kind !== "picture" ||
-      !preview.width ||
-      !preview.height
-    )
-      continue;
-    const folder = publicKey.slice(0, publicKey.lastIndexOf("/"));
-    const sizes = preview.sizes.filter((size) => size.name.startsWith("w"));
-    for (const size of sizes) {
-      const derivative = derivativeOf(size.name);
-      if (derived.has(`${file.id}:${derivative}`)) continue;
-      const body = await context.files.open(
-        `${previewFolder(host.tenantId, preview.id)}/${size.name}`,
-      );
-      if (!body) throw new ORPCError("CONFLICT", { message: "site.file" });
-      await context.publicMedia.write(
-        `${folder}/${size.name}`,
-        body,
-        context.maxUploadBytes,
-      );
-      await recordPublication(tx, {
-        tenantId: host.tenantId,
-        fileId: file.id,
-        purpose: file.purpose,
-        publicKey: `${folder}/${size.name}`,
-        hostType: host.hostType,
-        hostId: host.hostId,
-        derivative,
-      });
-    }
-    const subject = focus.get(file.id);
-    pictures[file.id] = {
-      width: preview.width,
-      height: preview.height,
-      ...(preview.placeholder ? { placeholder: preview.placeholder } : {}),
-      ...(subject ? { focus: subject } : {}),
-      sizes: sizes.map(({ name, width, mediaType }) => ({
-        name,
-        width,
-        mediaType,
-      })),
-    };
+    const picture = await publishSizes(
+      context,
+      host,
+      file,
+      publicKey,
+      previews.get(file.storageKey),
+      derived(file.id),
+      focus.get(file.id),
+    );
+    if (picture) pictures[file.id] = picture;
   }
   await withdrawMedia(context, host, fileIds);
   return { media, pictures };
+}
+
+/** The hosts whose published copies keep their pictures' sizes, by what each copy is. */
+const COPIES: Readonly<Record<string, "page" | "post">> = {
+  site_page: "page",
+  news: "post",
+};
+
+/**
+ * Publishes a picture's sizes once they are made, beside every public copy
+ * of it a page or post already shows, and adds them to the copies visitors
+ * read, so a page published before its pictures' sizes existed is drawn
+ * from them without waiting to be published again.
+ */
+export async function publishLateSizes(
+  publishing: Publishing & { tenantId: string },
+  storageKey: string,
+): Promise<number> {
+  const { tx, tenantId } = publishing;
+  const preview = (await previewsOf(tx, tenantId, [storageKey])).get(
+    storageKey,
+  );
+  if (preview?.state !== "ready" || preview.kind !== "picture") return 0;
+  const holders = await publishedHolders(tx, { tenantId, storageKey });
+  if (holders.length === 0) return 0;
+  const focus = await focusOfFiles(
+    tx,
+    tenantId,
+    holders.map((row) => row.fileId),
+  );
+  let kept = 0;
+  for (const holder of holders) {
+    const picture = await publishSizes(
+      publishing,
+      { tenantId, hostType: holder.hostType, hostId: holder.hostId },
+      { id: holder.fileId, purpose: holder.purpose },
+      holder.publicKey,
+      preview,
+      new Set(holder.derivatives),
+      focus.get(holder.fileId),
+    );
+    const copy = COPIES[holder.hostType];
+    if (picture && copy)
+      kept += await keepPublishedPicture(tx, {
+        tenantId,
+        host: copy,
+        hostId: holder.hostId,
+        fileId: holder.fileId,
+        picture,
+      });
+  }
+  return kept;
 }
 
 /**

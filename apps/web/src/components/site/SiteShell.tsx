@@ -3,7 +3,6 @@ import type { SiteLocale } from "@faridalms/domain/website";
 import type { PictureSources } from "@faridalms/editor/file-facts";
 import type { ReactNode } from "react";
 
-import { publishedSources } from "@faridalms/domain/previews";
 import { PictureSourcesProvider } from "@faridalms/editor/file-facts";
 import { useLocation, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
@@ -23,7 +22,7 @@ import type {
 
 import { SiteFrame } from "./render/frame";
 import { withNews } from "./render/frame-model";
-import { publicMediaUrl } from "./render/parts";
+import { publicMediaUrl, publishedSource } from "./render/parts";
 
 export type PublicSite = Awaited<
   ReturnType<NonNullable<ReturnType<typeof publicSiteQuery>["queryFn"]>>
@@ -130,13 +129,7 @@ export function publicPictureSources(
     const key = media[fileId];
     const picture = pictures[fileId];
     if (!key || !picture) return undefined;
-    return {
-      sources: publishedSources(publicMediaUrl(key), picture),
-      width: picture.width,
-      height: picture.height,
-      ...(picture.placeholder ? { placeholder: picture.placeholder } : {}),
-      ...(picture.focus ? { focus: picture.focus } : {}),
-    };
+    return publishedSource(publicMediaUrl(key), picture);
   };
 }
 

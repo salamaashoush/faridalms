@@ -13,6 +13,7 @@ import * as v from "valibot";
 import type { RequestContext } from "../core/context";
 import type { JobReport } from "./streams";
 
+import { publishLateSizes } from "../core/site";
 import { asWorker, LEASE_MS, problem, schoolsInTurn, served } from "./streams";
 
 /** The kinds of previews a worker can make, from what it says it has. */
@@ -170,8 +171,8 @@ export async function reportPreviews(
   if (!input.success) return problem(400, "BAD_REQUEST", context.requestId);
   const { document, source, ...made } = input.output;
   return settled(
-    await asWorker(context, tenantId, (tx) =>
-      previewReady(tx, {
+    await asWorker(context, tenantId, async (tx) => {
+      const storageKey = await previewReady(tx, {
         tenantId,
         id,
         made: {
@@ -179,7 +180,10 @@ export async function reportPreviews(
           documentBytes: document?.bytes,
           source: source ?? undefined,
         },
-      }),
-    ),
+      });
+      if (storageKey === null) return false;
+      await publishLateSizes({ ...context, tx, tenantId }, storageKey);
+      return true;
+    }),
   );
 }

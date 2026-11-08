@@ -201,11 +201,12 @@ export interface MadePreview {
  * A file's previews are ready. A picture's size and a recording's length
  * are the file's own too, set on every row holding the bytes; a picture
  * turned upright in place changes what each of them weighs and hashes to.
+ * Answers the bytes' key, or null when the previews were not being made.
  */
 export async function previewReady(
   tx: Tx,
   input: { tenantId: string; id: string; made: MadePreview },
-): Promise<boolean> {
+): Promise<string | null> {
   const made = input.made;
   const [row] = await tx.execute<{
     storage_key: string;
@@ -222,7 +223,7 @@ export async function previewReady(
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and status = 'active' and state = 'working'
     returning storage_key, kind`);
-  if (!row) return false;
+  if (!row) return null;
   const picture = row.kind === "picture";
   await tx.execute(sql`
     update core.files
@@ -234,7 +235,7 @@ export async function previewReady(
         sha256 = coalesce(decode(${made.source?.sha256 ?? null}::text, 'hex'), sha256)
     where tenant_id = ${input.tenantId}::uuid and storage_key = ${row.storage_key}
       and status = 'active'`);
-  return true;
+  return row.storage_key;
 }
 
 /** Previews failed: tried again later, or given up after the last attempt. */

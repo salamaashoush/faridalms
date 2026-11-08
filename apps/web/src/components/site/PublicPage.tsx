@@ -16,7 +16,7 @@ import { formatInstant } from "~/utils/datetime";
 import type { PublicSite } from "./SiteShell";
 
 import { opensOnPicture, PageSections } from "./render/page";
-import { Actions, publicMediaUrl } from "./render/parts";
+import { Actions, PostCover, publicMediaUrl } from "./render/parts";
 import { schemeStyle } from "./render/theme";
 import { langSearch, publicContext, SiteShell } from "./SiteShell";
 
@@ -105,10 +105,12 @@ export function PostList({ posts, site, school }: PostListProps) {
             className="site-card flex h-full flex-col overflow-hidden transition-transform hover:-translate-y-0.5"
           >
             {post.coverKey ? (
-              <img
-                src={publicMediaUrl(post.coverKey)}
+              <PostCover
+                coverKey={post.coverKey}
+                picture={post.coverPicture}
                 alt={post.coverAlt}
                 loading="lazy"
+                sizes="(min-width: 80rem) 24rem, (min-width: 48rem) 50vw, 100vw"
                 className="site-media aspect-[3/2] rounded-none"
               />
             ) : null}
@@ -244,9 +246,11 @@ export function PublicPostView({ post, site, school }: PublicPostViewProps) {
       >
         <div className="mx-auto grid max-w-3xl gap-8 px-5 py-[calc(var(--s-space)*0.8)] @3xl/site:px-8">
           {post.coverKey ? (
-            <img
-              src={publicMediaUrl(post.coverKey)}
+            <PostCover
+              coverKey={post.coverKey}
+              picture={post.coverPicture}
               alt={post.coverAlt}
+              sizes="(min-width: 48rem) 48rem, 100vw"
               className="site-media aspect-[16/9]"
             />
           ) : null}

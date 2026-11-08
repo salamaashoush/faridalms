@@ -63,7 +63,7 @@ import {
   SiteImage,
   SitePicture,
   Prose,
-  publicMediaUrl,
+  PostCover,
   Scrim,
   SectionFrame,
   fullBleed,
@@ -2060,10 +2060,16 @@ function Cover({ item, className, grow = false }: CoverProps) {
       )}
     >
       {item.coverKey ? (
-        <img
-          src={publicMediaUrl(item.coverKey)}
+        <PostCover
+          coverKey={item.coverKey}
+          picture={item.coverPicture}
           alt={item.coverAlt}
           loading="lazy"
+          sizes={
+            grow
+              ? "(min-width: 48rem) 50vw, 100vw"
+              : "(min-width: 48rem) 33vw, 100vw"
+          }
           className={cn("site-media site-photo rounded-none", className)}
         />
       ) : (

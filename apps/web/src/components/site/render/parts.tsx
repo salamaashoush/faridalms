@@ -1,5 +1,6 @@
 import type { Picture, PictureFocus } from "@faridalms/domain/commons";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { PublishedPicture } from "@faridalms/domain/previews";
 import type {
   IconId,
   PageSection,
@@ -8,10 +9,11 @@ import type {
   SiteMedia,
 } from "@faridalms/domain/site-sections";
 import type { Divider, Theme } from "@faridalms/domain/site-theme";
+import type { PictureSource } from "@faridalms/editor/file-facts";
 import type { LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 
-import { placeholderUrl } from "@faridalms/domain/previews";
+import { placeholderUrl, publishedSources } from "@faridalms/domain/previews";
 import { usePicture } from "@faridalms/editor/file-facts";
 import { MediaPlayer } from "@faridalms/editor/media-view";
 import { PictureCreditLine } from "@faridalms/editor/picture-credit";
@@ -63,6 +65,7 @@ export interface NewsItem {
   excerpt: string;
   coverKey: string | null;
   coverAlt: string;
+  coverPicture?: PublishedPicture | null;
   publishedAt: string;
 }
 
@@ -553,6 +556,8 @@ export interface SiteImageProps {
   /** How wide it is drawn, for the browser to fetch no larger a size. */
   sizes?: string;
   loading?: "lazy" | "eager";
+  /** What was published of it, where the page around it does not hold it. */
+  published?: PictureSource | undefined;
 }
 
 /**
@@ -570,8 +575,10 @@ export function SiteImage({
   focus,
   sizes = "100vw",
   loading,
+  published,
 }: SiteImageProps) {
-  const picture = usePicture(fileId ?? undefined);
+  const known = usePicture(fileId ?? undefined);
+  const picture = published ?? known;
   const [loaded, setLoaded] = useState(false);
   const placeholder = loaded ? null : placeholderUrl(picture.placeholder);
   const image = (
@@ -606,6 +613,57 @@ export function SiteImage({
     </picture>
   ) : (
     image
+  );
+}
+
+/** How a picture the website published is drawn: from the sizes published beside it. */
+export function publishedSource(
+  url: string,
+  picture: PublishedPicture,
+): PictureSource {
+  return {
+    sources: publishedSources(url, picture),
+    width: picture.width,
+    height: picture.height,
+    ...(picture.placeholder ? { placeholder: picture.placeholder } : {}),
+    ...(picture.focus ? { focus: picture.focus } : {}),
+  };
+}
+
+export interface PostCoverProps {
+  coverKey: string;
+  /** The cover as its post published it; a post published before it was kept has none. */
+  picture: PublishedPicture | null | undefined;
+  alt: string;
+  className?: string;
+  /** How wide it is drawn, for the browser to fetch no larger a size. */
+  sizes: string;
+  loading?: "lazy" | "eager";
+}
+
+/**
+ * A news post's cover on the website, on a card or above the post, drawn
+ * from the sizes its post published as any other picture is.
+ */
+export function PostCover({
+  coverKey,
+  picture,
+  alt,
+  className,
+  sizes,
+  loading,
+}: PostCoverProps) {
+  const src = publicMediaUrl(coverKey);
+  return (
+    <SiteImage
+      fileId={null}
+      src={src}
+      alt={alt}
+      className={className}
+      sizes={sizes}
+      loading={loading}
+      published={picture ? publishedSource(src, picture) : undefined}
+    />
   );
 }
 

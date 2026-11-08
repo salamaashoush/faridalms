@@ -1,4 +1,5 @@
 import { readyKey } from "@faridalms/database/stores/files";
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 
@@ -6,7 +7,7 @@ import type { FileStore } from "../src/files/store";
 
 import { sweepTenantFiles } from "../src/files/sweep";
 import { mediaWorkerToken } from "../src/media/streams";
-import { login, raw, seeded, sessionFor } from "./harness";
+import { client, login, raw, seeded, sessionFor } from "./harness";
 
 const ascii = (text: string) => Array.from(text, (c) => c.charCodeAt(0));
 
@@ -297,6 +298,112 @@ describe("pictures", () => {
         )
       ).status,
     ).toBe(404);
+  });
+
+  test("a post published before its picture's sizes existed gets them as they are made", async () => {
+    const office = await sessionFor("northwind", login("principal"));
+    const fileId = await upload(
+      office,
+      "harvest.jpg",
+      "image/jpeg",
+      cameraJpeg(1),
+    );
+    const slug = `harvest-${crypto.randomUUID().slice(0, 8)}`;
+    const body = plainContent("The harvest came in.");
+    const saved = await office.api.broadcasts.news.save({
+      id: "",
+      expectedVersion: 0,
+      visibility: "public",
+      primaryLocale: "en",
+      titleEn: "Harvest",
+      titleAr: "",
+      excerptEn: "",
+      excerptAr: "",
+      slug,
+      categoryId: "",
+      coverFileId: fileId,
+      coverAltEn: "Baskets of dates",
+      coverAltAr: "",
+      pinned: false,
+      audiences: [],
+      body: {
+        root: {
+          ...body.root,
+          children: [
+            {
+              type: "image",
+              version: 1,
+              fileId,
+              alt: "Baskets of dates",
+              caption: "",
+              size: "full",
+            },
+            ...(body.root.children ?? []),
+          ],
+        },
+      },
+      translation: null,
+    });
+    const published = await office.api.broadcasts.news.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const read = () =>
+      client("northwind").site.publicSitePost({
+        school: "northwind",
+        locale: "en",
+        slug,
+      });
+    const before = await read();
+    expect(before.coverKey).not.toBeNull();
+    expect(before.coverPicture).toBeNull();
+    expect(before.pictures[fileId]).toBeUndefined();
+
+    const job = await claimPreview(readyKey(tenantId(), fileId));
+    if (!job) throw new Error("the picture was never offered");
+    const sizes = [sizeOf("w320.webp", 320, 9), sizeOf("w320.avif", 320, 5)];
+    for (const size of sizes)
+      await made(job.outputPrefix, size.name, new Uint8Array(size.bytes));
+    expect(
+      (
+        await call(`/v1/media/previews/${job.id}/done`, {
+          width: 800,
+          height: 600,
+          placeholder: "1QcSHQRnh493V4dIh4eXh1h4kJUI",
+          sizes,
+          bytes: 14,
+        })
+      ).status,
+    ).toBe(204);
+
+    // Without publishing again, the copy visitors read draws from its sizes,
+    // which sit beside the picture in its public folder.
+    const after = await read();
+    const kept = {
+      width: 800,
+      height: 600,
+      placeholder: "1QcSHQRnh493V4dIh4eXh1h4kJUI",
+      sizes: [
+        { name: "w320.webp", width: 320, mediaType: "image/webp" as const },
+        { name: "w320.avif", width: 320, mediaType: "image/avif" as const },
+      ],
+    };
+    expect(after.pictures[fileId]).toEqual(kept);
+    expect(after.coverPicture).toEqual(kept);
+    const folder = (after.coverKey ?? "").slice(
+      0,
+      (after.coverKey ?? "").lastIndexOf("/"),
+    );
+    const size = await seeded().dependencies.publicMedia.open(
+      `${folder}/w320.avif`,
+    );
+    expect(size ? (await new Response(size).bytes()).byteLength : 0).toBe(5);
+    // Publishing again finds them published and copies nothing twice.
+    await office.api.broadcasts.news.publish({
+      id: saved.id,
+      expectedVersion: published.version,
+    });
+    expect((await read()).coverPicture).toEqual(kept);
   });
 
   test("a worker that never asked for previews is never handed one", async () => {
