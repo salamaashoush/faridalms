@@ -32,7 +32,7 @@ package gains it first, with a test and a line in this table.
 | Comments       | `comment-thread` (`CommentThread`, `CommentComposer`), `side-panel` (`SidePanel`)                                                                                                                                     |
 | Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                                                                                                                   |
 | Media          | `media-grid` (`MediaGrid`, pictures and files as tiles that open, are chosen or are selected for a batch), `crop-frame` (`CropFrame`), `upload-queue` (`UploadQueue`, `FileDropZone`), `focus-picker` (`FocusPicker`) |
-| Metrics        | `metrics` (`MetricGrid`, `Metric`)                                                                                                                                                                                    |
+| Metrics        | `metrics` (`MetricGrid`, `Metric`), `trend-chart` (`TrendChart`, one measure over time against a reference line)                                                                                                      |
 | Steps          | `step-nav` (`StepNav`), `form-footer` (`FormFooter`)                                                                                                                                                                  |
 | Status pages   | `status-page` (`StatusPage`, `ErrorPage`, `NotFoundPage`)                                                                                                                                                             |
 | Sign-in pages  | `auth-layout` (`AuthLayout`, `AuthBand`, `AuthHeading`), `theme-toggle`                                                                                                                                               |
@@ -480,6 +480,14 @@ the value at 24px (20px on phones, where two tiles share a row) in tabular figur
 only when it reports a state ("2 need help"). A metric that counts a list
 opens it from the whole tile, its label naming the link. Metrics never
 replace the list itself: the records follow below.
+
+A measure followed over time, such as a student's words correct a minute
+across the year, is a `TrendChart`: one thin line with its points in the
+primary colour, and at most one dashed reference line in muted ink (a
+norm, a target) named beside the chart's title, so the line is never told
+by colour alone. One y-axis from zero with three recessive gridlines; time
+runs in the reading direction. Each point names itself when hovered or
+focused, and the same figures always stand in a table beside the chart.
 
 ## Feedback
 
