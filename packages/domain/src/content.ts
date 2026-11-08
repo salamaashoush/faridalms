@@ -403,6 +403,8 @@ export interface ContentNode {
   correct?: boolean;
   feedback?: string;
   points?: number;
+  /** A form takes its answers only with one to this question. */
+  required?: boolean;
   tries?: number | null;
   /** When the student learns how a question went; at once when absent. */
   feedbackAt?: FeedbackTime;
@@ -423,6 +425,8 @@ export interface ContentNode {
   /** A poll whose votes no one reads by name, its teacher included. */
   anonymous?: boolean;
   caseSensitive?: boolean;
+  /** A typed answer that is a day, chosen from a calendar. */
+  date?: boolean;
   closeEnough?: boolean;
   tehMarbuta?: boolean;
   wordLimit?: number | null;
@@ -756,6 +760,7 @@ const nodeShape: v.GenericSchema<ContentNode> = v.pipe(
     correct: v.optional(v.boolean()),
     feedback: v.optional(v.pipe(v.string(), v.maxLength(300))),
     points: v.optional(integer(0, 100)),
+    required: v.optional(v.boolean()),
     tries: v.optional(v.nullable(integer(1, 10))),
     feedbackAt: v.optional(v.picklist(FEEDBACK_TIMES)),
     requires: v.optional(v.picklist(GATE_WAITS)),
@@ -772,6 +777,7 @@ const nodeShape: v.GenericSchema<ContentNode> = v.pipe(
     classResults: v.optional(v.boolean()),
     anonymous: v.optional(v.boolean()),
     caseSensitive: v.optional(v.boolean()),
+    date: v.optional(v.boolean()),
     closeEnough: v.optional(v.boolean()),
     tehMarbuta: v.optional(v.boolean()),
     wordLimit: v.optional(v.nullable(integer(10, 5000))),

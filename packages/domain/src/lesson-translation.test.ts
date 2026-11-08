@@ -103,6 +103,12 @@ function translationOf(change?: (node: ContentNode) => ContentNode) {
   };
 }
 
+/** Gives the choice question these hints. */
+const hinted = (hints: string[]) => (node: ContentNode) =>
+  node.type === "question" && node.kind === "choice"
+    ? { ...node, hints }
+    : node;
+
 const read = (document: LessonDocument) =>
   JSON.stringify(studentBlocks(document, "seed"));
 
@@ -166,5 +172,26 @@ describe("a lesson's translation", () => {
     expect(read(translated)).toContain("Rivers carve valleys.");
     expect(read(translated)).not.toContain("Only here.");
     expect(untranslatedParts(original, shorter)).toHaveLength(1);
+  });
+
+  it("gives a question its hints in the translation's words", () => {
+    const source = {
+      root: {
+        ...original.root,
+        children: (original.root.children ?? []).map(
+          hinted(["It runs north."]),
+        ),
+      },
+    };
+    const translated = translatedLesson(
+      source,
+      translationOf(hinted(["يجري نحو الشمال."])),
+    );
+    const choice = translated.blocks.find((block) => block.type === "choice");
+    expect(choice).toMatchObject({
+      prompt: "أي نهر يجري في مصر؟",
+      hints: ["يجري نحو الشمال."],
+      correctOptionIds: [NILE],
+    });
   });
 });

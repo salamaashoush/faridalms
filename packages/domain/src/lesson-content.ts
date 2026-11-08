@@ -162,6 +162,7 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
       : {}),
     ...(typeof node.videoAt === "number" ? { videoAt: node.videoAt } : {}),
     ...(node.standards?.length ? { standards: node.standards } : {}),
+    ...(node.required ? { required: true } : {}),
   };
   switch (node.kind) {
     case "choice": {
@@ -219,6 +220,7 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
         caseSensitive: node.caseSensitive ?? false,
         closeEnough: node.closeEnough ?? false,
         tehMarbuta: node.tehMarbuta ?? true,
+        ...(node.date ? { date: true as const } : {}),
       };
     case "math":
       return {
@@ -846,6 +848,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     explanation: block.explanation,
     ...(typeof block.videoAt === "number" ? { videoAt: block.videoAt } : {}),
     ...(block.standards?.length ? { standards: block.standards } : {}),
+    ...(block.required ? { required: true } : {}),
     ...voiced(block.narration, block.narrationWords),
     children: [inlineOf("question-prompt", block.prompt)],
   };
@@ -889,6 +892,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       caseSensitive: block.caseSensitive,
       closeEnough: block.closeEnough,
       tehMarbuta: block.tehMarbuta,
+      ...(block.date ? { date: true } : {}),
       children: [
         ...(base.children ?? []),
         ...block.answers.map((answer) => inlineOf("question-answer", answer)),

@@ -1,5 +1,7 @@
 import * as v from "valibot";
 
+import type { FormAnswer } from "./questions";
+
 import { pageField } from "./paging";
 
 /**
@@ -72,137 +74,8 @@ export function nextStates(enquiry: {
 export const afterContact = (state: EnquiryState): EnquiryState =>
   state === "open" ? "in_progress" : state;
 
-export const QUESTION_KINDS = [
-  "short",
-  "long",
-  "choice",
-  "date",
-  "number",
-] as const;
-export type QuestionKind = (typeof QUESTION_KINDS)[number];
-
-/** A question a school adds to its form, as the form section stores it. */
-export interface FormQuestion {
-  id: string;
-  label: string;
-  hint: string;
-  answer: QuestionKind;
-  required: "optional" | "required";
-  /** A choice's options, one per line. */
-  options: string;
-}
-
-/** One answer kept with the enquiry, worded as the family saw the question. */
-export interface EnquiryAnswer {
-  id: string;
-  label: string;
-  kind: QuestionKind;
-  value: string;
-}
-
+/** The most questions of its own a school's enquiry form asks. */
 export const MAX_QUESTIONS = 10;
-export const MAX_OPTIONS = 20;
-const ANSWER_LIMIT: Record<QuestionKind, number> = {
-  short: 200,
-  long: 2000,
-  choice: 200,
-  date: 10,
-  number: 20,
-};
-
-/** A choice's options: one per line, blank lines and repeats dropped. */
-export function optionsOf(text: string): string[] {
-  return [
-    ...new Set(
-      text
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean),
-    ),
-  ].slice(0, MAX_OPTIONS);
-}
-
-/** Whether a question can be answered as written: it has words, and a choice has two options. */
-export function questionComplete(question: FormQuestion): boolean {
-  return (
-    question.label.trim() !== "" &&
-    (question.answer !== "choice" || optionsOf(question.options).length >= 2)
-  );
-}
-
-const NUMBER = /^-?\d{1,12}(\.\d{1,4})?$/;
-const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-
-function validDay(value: string) {
-  if (!ISO_DAY.test(value)) return false;
-  const day = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(day.getTime()) && day.toISOString().startsWith(value);
-}
-
-/** Arabic-Indic and Persian digits as ASCII, so a number typed either way reads the same. */
-const asciiDigits = (value: string) =>
-  value
-    .replaceAll(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))
-    .replaceAll(/[۰-۹]/g, (digit) => String(digit.charCodeAt(0) - 0x06f0))
-    .replace("٫", ".");
-
-export type AnswersRead =
-  | { ok: true; answers: EnquiryAnswer[] }
-  | { ok: false; questionId: string; code: "required" | "invalid" };
-
-/**
- * A family's answers checked against the questions their form showed, in the
- * words it showed them. A choice must be one of its options, a date a real
- * day, a number a number. Answers to questions the form no longer asks are
- * dropped, and each answer keeps its question's wording, so editing the form
- * later never changes what an enquiry says.
- */
-export function readAnswers(
-  questions: readonly FormQuestion[],
-  submitted: Readonly<Record<string, string>>,
-): AnswersRead {
-  const answers: EnquiryAnswer[] = [];
-  for (const question of questions.filter(questionComplete)) {
-    const raw = (submitted[question.id] ?? "").trim();
-    if (!raw) {
-      if (question.required === "required")
-        return { ok: false, questionId: question.id, code: "required" };
-      continue;
-    }
-    let value = raw;
-    if (question.answer === "number") {
-      value = asciiDigits(raw);
-      if (!NUMBER.test(value))
-        return { ok: false, questionId: question.id, code: "invalid" };
-    }
-    if (question.answer === "date" && !validDay(raw))
-      return { ok: false, questionId: question.id, code: "invalid" };
-    if (
-      question.answer === "choice" &&
-      !optionsOf(question.options).includes(raw)
-    )
-      return { ok: false, questionId: question.id, code: "invalid" };
-    if (value.length > ANSWER_LIMIT[question.answer])
-      return { ok: false, questionId: question.id, code: "invalid" };
-    answers.push({
-      id: question.id,
-      label: question.label.trim(),
-      kind: question.answer,
-      value,
-    });
-  }
-  return { ok: true, answers };
-}
-
-/** The most an answer can hold, for the form's own inputs. */
-export const answerLimit = (kind: QuestionKind) => ANSWER_LIMIT[kind];
-
-export const enquiryAnswerSchema = v.object({
-  id: v.pipe(v.string(), v.maxLength(64)),
-  label: v.pipe(v.string(), v.maxLength(120)),
-  kind: v.picklist(QUESTION_KINDS),
-  value: v.pipe(v.string(), v.maxLength(2000)),
-});
 
 const id = v.pipe(v.string(), v.uuid());
 const version = v.pipe(v.number(), v.integer(), v.minValue(1));
@@ -331,13 +204,13 @@ export function applicationSubject(
  */
 export function submissionText(enquiry: {
   message: string;
-  answers: readonly EnquiryAnswer[];
+  answers: readonly FormAnswer[];
   childName: string;
   childYear: string;
 }): string {
   const message = enquiry.message.trim();
   const answered = enquiry.answers
-    .map((answer) => `${answer.label}: ${answer.value}`)
+    .map((answer) => `${answer.prompt}: ${answer.text}`)
     .join("\n");
   const about = [enquiry.childName, enquiry.childYear]
     .map((part) => part.trim())

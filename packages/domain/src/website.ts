@@ -249,7 +249,8 @@ export function postIssues(post: {
  * What a visitor sends from a form section. `website` is a field people
  * never see, so anything in it came from a script; `elapsed` is how long the
  * form was open, and a person takes more than a moment to fill it. `answers`
- * holds the school's own questions by id, and `turnstile` the challenge's
+ * holds a response to each of the school's own questions by the question's
+ * id, checked against the form by `readFormAnswers`, and `turnstile` the challenge's
  * token where the site is protected by one.
  */
 export const enquirySchema = v.object({
@@ -271,7 +272,7 @@ export const enquirySchema = v.object({
   message: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ""),
   answers: v.optional(
     v.pipe(
-      v.record(id, v.pipe(v.string(), v.maxLength(2000))),
+      v.record(id, v.unknown()),
       v.check(
         (answers) => Object.keys(answers).length <= MAX_QUESTIONS,
         "site.form",

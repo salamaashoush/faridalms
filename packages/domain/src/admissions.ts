@@ -1,16 +1,15 @@
 import * as v from "valibot";
 
 import type { ContentDocument, ContentNode } from "./content";
-import type { FormQuestion, QuestionKind } from "./enquiries";
+import type { ContentLocale } from "./translations";
 
-import {
-  MAX_OPTIONS,
-  optionsOf,
-  QUESTION_KINDS,
-  readAnswers,
-} from "./enquiries";
+import { contentDocumentSchema } from "./content";
+import { responseSchema } from "./learning";
+import { translatedContent } from "./lesson-translation";
 import { pageField } from "./paging";
 import { personNamesSchema } from "./people";
+import { formIssue, formQuestions, readFormAnswers } from "./questions";
+import { CONTENT_LOCALES } from "./translations";
 
 const id = v.pipe(v.string(), v.uuid());
 const version = v.pipe(v.number(), v.integer(), v.minValue(1));
@@ -512,65 +511,38 @@ export const intakeListSchema = v.object({
   year: v.optional(v.union([v.literal(""), id]), ""),
 });
 
-/** One of the school's own questions, worded in both languages. */
-export interface AdmissionQuestion {
-  id: string;
-  answer: QuestionKind;
-  required: "optional" | "required";
-  labelEn: string;
-  labelAr: string;
-  hintEn: string;
-  hintAr: string;
-  /** A choice's options, one per line, the same count in each language. */
-  optionsEn: string;
-  optionsAr: string;
-}
-
 export const MAX_APPLICATION_QUESTIONS = 30;
 
-export const admissionQuestionSchema = v.object({
-  id,
-  answer: v.picklist(QUESTION_KINDS),
-  required: v.picklist(["optional", "required"]),
-  labelEn: v.pipe(v.string(), v.trim(), v.maxLength(120)),
-  labelAr: v.pipe(v.string(), v.trim(), v.maxLength(120)),
-  hintEn: words(200),
-  hintAr: words(200),
-  optionsEn: v.pipe(v.string(), v.maxLength(MAX_OPTIONS * 101)),
-  optionsAr: v.pipe(v.string(), v.maxLength(MAX_OPTIONS * 101)),
-});
-
 /**
- * A question as the enquiry form asks it, in one language, so applications
- * and enquiries read and check answers the same way. A question left blank
- * in one language borrows the other's words.
+ * The school's own questions on an application form: a document of
+ * question blocks written in one language, with its translation beside it.
  */
-export function questionIn(
-  question: AdmissionQuestion,
-  locale: "en" | "ar",
-): FormQuestion {
-  const pick = (en: string, ar: string) =>
-    locale === "ar" ? ar.trim() || en : en.trim() || ar;
-  return {
-    id: question.id,
-    label: pick(question.labelEn, question.labelAr),
-    hint: pick(question.hintEn, question.hintAr),
-    answer: question.answer,
-    required: question.required,
-    options: pick(question.optionsEn, question.optionsAr),
-  };
+export interface AdmissionQuestions {
+  primaryLocale: ContentLocale;
+  body: ContentDocument;
+  translation: ContentDocument | null;
 }
 
-/** A family's answers to the school's questions, checked as an enquiry's are, in the language they read. */
+/**
+ * The form as a family reads it in their language: the original's
+ * questions, in the translation's words where it gives them.
+ */
+export function questionsIn(
+  form: AdmissionQuestions,
+  locale: ContentLocale,
+): ContentDocument {
+  return form.translation && locale !== form.primaryLocale
+    ? translatedContent(form.body, form.translation)
+    : form.body;
+}
+
+/** A family's answers to the school's questions, checked in the language they read them. */
 export function readApplicationAnswers(
-  questions: readonly AdmissionQuestion[],
-  locale: "en" | "ar",
-  submitted: Readonly<Record<string, string>>,
+  form: AdmissionQuestions,
+  locale: ContentLocale,
+  submitted: Readonly<Record<string, unknown>>,
 ) {
-  return readAnswers(
-    questions.map((question) => questionIn(question, locale)),
-    submitted,
-  );
+  return readFormAnswers(formQuestions(questionsIn(form, locale)), submitted);
 }
 
 export const saveFormSchema = v.pipe(
@@ -579,37 +551,45 @@ export const saveFormSchema = v.pipe(
     expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
     nameEn: words(120),
     nameAr: words(120),
-    questions: v.pipe(
-      v.array(admissionQuestionSchema),
-      v.maxLength(MAX_APPLICATION_QUESTIONS),
-    ),
+    primaryLocale: v.picklist(CONTENT_LOCALES),
+    body: contentDocumentSchema,
+    translation: v.nullable(contentDocumentSchema),
   }),
   v.forward(
     v.check((input) => input.nameEn !== "" || input.nameAr !== "", "form.name"),
     ["nameEn"],
   ),
   v.forward(
-    v.check(
-      (input) =>
-        new Set(input.questions.map((q) => q.id)).size ===
-        input.questions.length,
-      "form.questions",
-    ),
-    ["questions"],
+    v.check((input) => {
+      const ids = formQuestions(input.body).map((question) => question.id);
+      return (
+        ids.length <= MAX_APPLICATION_QUESTIONS &&
+        new Set(ids).size === ids.length
+      );
+    }, "form.questions"),
+    ["body"],
   ),
 );
 export type SaveForm = v.InferOutput<typeof saveFormSchema>;
 
 export const formRefSchema = v.object({ id, expectedVersion: version });
 
-/** Whether a question can be published: words in at least one language, and a choice's options in each it has words for. */
-export function questionReady(question: AdmissionQuestion): boolean {
-  const en = questionIn(question, "en");
-  const ar = questionIn(question, "ar");
-  if (en.label === "") return false;
-  if (question.answer !== "choice") return true;
-  const count = optionsOf(en.options).length;
-  return count >= 2 && optionsOf(ar.options).length === count;
+/**
+ * The first question that stops a form being published, or null: one a
+ * form cannot ask or not finished, in the original or its translation.
+ */
+export function formUnready(form: AdmissionQuestions): string | null {
+  for (const document of [form.body, form.translation]) {
+    if (!document || !formIssue(document)) continue;
+    const blocks = document.root.children ?? [];
+    const question = blocks.find(
+      (node) =>
+        node.type === "question" &&
+        formIssue({ root: { ...document.root, children: [node] } }),
+    );
+    return question?.questionId ?? "";
+  }
+  return null;
 }
 
 /** A second adult the family names on the form, made a person when it is sent. */
@@ -652,7 +632,7 @@ export const MAX_PREVIOUS_SCHOOLS = 5;
 /**
  * What the family writes on the form besides the child: who they are to the
  * child, the other parent or guardian, the schools the child has been to,
- * and their answers to the school's questions as typed. Kept as a draft
+ * and their answers to the school's questions. Kept as a draft
  * until the application is sent; the child is a person from the start.
  */
 export const applicationFormSchema = v.object({
@@ -665,11 +645,8 @@ export const applicationFormSchema = v.object({
     v.array(previousSchoolSchema),
     v.maxLength(MAX_PREVIOUS_SCHOOLS),
   ),
-  questions: v.pipe(
-    v.record(
-      v.pipe(v.string(), v.uuid()),
-      v.pipe(v.string(), v.maxLength(2000)),
-    ),
+  answers: v.pipe(
+    v.record(v.pipe(v.string(), v.uuid()), responseSchema),
     v.check(
       (answers) => Object.keys(answers).length <= MAX_APPLICATION_QUESTIONS,
       "application.questions",
@@ -684,7 +661,7 @@ export const emptyApplicationForm = (): ApplicationForm => ({
   phone: "",
   other: null,
   schools: [],
-  questions: {},
+  answers: {},
 });
 
 /** The child's identity document, sealed by the identifiers system as it is saved. */

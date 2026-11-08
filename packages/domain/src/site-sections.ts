@@ -13,7 +13,9 @@ import {
 } from "./content";
 import { publishIssues } from "./content-checks";
 import { embedProviders, isEmbedId } from "./embed";
-import { MAX_QUESTIONS, optionsOf, QUESTION_KINDS } from "./enquiries";
+import { MAX_QUESTIONS } from "./enquiries";
+import { translatedContent } from "./lesson-translation";
+import { formIssue, formQuestions } from "./questions";
 import { isSiteHref, isVagueLink, MAX_BUTTON_LABEL } from "./site-links";
 import { DIVIDERS, SCHEMES } from "./site-theme";
 
@@ -72,7 +74,8 @@ type TextField = {
   /** Shown in the inspector only while a sibling field of an item has this value. */
   when?: { field: string; is: string };
 };
-type RichField = { kind: "rich" };
+/** A rich body; one with `questions` is a form's questions, written as question blocks. */
+type RichField = { kind: "rich"; questions?: true };
 type ImageField = { kind: "image" };
 type MediaField = { kind: "media" };
 type LinksField = { kind: "links"; max: number };
@@ -630,22 +633,7 @@ export const SECTION_SPECS = {
       child: choice(["hide", "ask"]),
       grade: choice(["ask", "hide"]),
       message: choice(["ask", "hide"]),
-      questions: {
-        kind: "items",
-        max: MAX_QUESTIONS,
-        fields: {
-          label: t(120),
-          hint: t(200),
-          answer: choice(QUESTION_KINDS),
-          required: choice(["optional", "required"]),
-          options: {
-            kind: "text",
-            max: 1000,
-            multiline: true,
-            when: { field: "answer", is: "choice" },
-          },
-        },
-      },
+      questions: { kind: "rich", questions: true },
       submit: t(25),
       thanks: t(300, true),
       media: { kind: "media" },
@@ -1092,8 +1080,16 @@ function scalarOverlay(
 ): unknown {
   switch (field.kind) {
     case "text":
-    case "rich":
       return translated ?? original;
+    case "rich":
+      // A form's translation gives its questions' words; the original
+      // decides what is asked, so an answer fits it in either language.
+      return field.questions && translated
+        ? translatedContent(
+            original as ContentDocument,
+            translated as ContentDocument,
+          )
+        : (translated ?? original);
     case "image":
     case "media":
       return {
@@ -1122,7 +1118,8 @@ function scalarBlank(field: ScalarField, original: unknown): unknown {
     case "text":
       return "";
     case "rich":
-      return emptyBody();
+      // A translator rewrites a form's questions in place, keeping each one.
+      return field.questions ? original : emptyBody();
     case "image":
     case "media":
       return { ...(original as Picture), alt: "" };
@@ -1415,8 +1412,16 @@ function scalarIssues(field: ScalarField, value: unknown): SiteIssueCode[] {
         if (isVagueLink(label)) return ["link"];
         return label.length > MAX_BUTTON_LABEL ? ["label"] : [];
       });
-    case "rich":
-      return bodyIssues(value as ContentDocument);
+    case "rich": {
+      const body = value as ContentDocument;
+      if (!field.questions) return bodyIssues(body);
+      return [
+        ...bodyIssues(body),
+        ...(formIssue(body) || formQuestions(body).length > MAX_QUESTIONS
+          ? (["form_question"] as const)
+          : []),
+      ];
+    }
     default:
       return [];
   }
@@ -1440,25 +1445,11 @@ export function sectionIssues(section: PageSection): SiteIssueCode[] {
   ];
 }
 
-/**
- * A form must leave the family a way to be answered, and a choice it asks
- * must offer two options. A question without words is not shown, as any
- * empty field, so it stops nothing.
- */
+/** A form must leave the family a way to be answered. */
 function formIssues(section: SectionOf<"form">): SiteIssueCode[] {
-  const found: SiteIssueCode[] = [];
-  if (section.data.email === "hide" && section.data.phone === "hide")
-    found.push("form_contact");
-  if (
-    section.data.questions.some(
-      (question) =>
-        question.label.trim() !== "" &&
-        question.answer === "choice" &&
-        optionsOf(question.options).length < 2,
-    )
-  )
-    found.push("form_question");
-  return found;
+  return section.data.email === "hide" && section.data.phone === "hide"
+    ? ["form_contact"]
+    : [];
 }
 
 /** Whether a field of a repeating item applies to the item as it stands. */

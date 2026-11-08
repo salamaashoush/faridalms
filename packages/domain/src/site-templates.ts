@@ -8,6 +8,7 @@ import type {
 import type { SiteChrome, ThemeId } from "./site-theme";
 
 import { plainContent } from "./content-conversion";
+import { formDocument } from "./questions";
 import { defaultStyle, newSection } from "./site-sections";
 
 /** Words in both languages; a template is written once and built in either. */
@@ -980,22 +981,37 @@ const FORM = (
       phone: "ask" as const,
       child: purpose === "enquiry" ? ("ask" as const) : ("hide" as const),
       grade: purpose === "general" ? ("hide" as const) : ("ask" as const),
-      questions:
+      questions: formDocument(
         purpose === "enquiry"
           ? [
               {
                 id: b.id(),
-                label: b.w(["How did you hear about us?", "كيف عرفتم بنا؟"]),
-                hint: "",
-                answer: "choice" as const,
-                required: "optional" as const,
-                options: b.w([
-                  "A friend or relative\nSocial media\nA search online\nAn event or open day\nSomewhere else",
-                  "صديق أو قريب\nوسائل التواصل الاجتماعي\nالبحث على الإنترنت\nفعالية أو يوم مفتوح\nمصدر آخر",
-                ]),
+                type: "choice",
+                prompt: b.w(["How did you hear about us?", "كيف عرفتم بنا؟"]),
+                points: 0,
+                hints: [],
+                explanation: "",
+                tries: null,
+                options: (
+                  [
+                    ["A friend or relative", "صديق أو قريب"],
+                    ["Social media", "وسائل التواصل الاجتماعي"],
+                    ["A search online", "البحث على الإنترنت"],
+                    ["An event or open day", "فعالية أو يوم مفتوح"],
+                    ["Somewhere else", "مصدر آخر"],
+                  ] as const
+                ).map((words) => ({
+                  id: b.id(),
+                  text: b.w(words),
+                  feedback: "",
+                })),
+                correctOptionIds: [],
+                multiple: false,
+                shuffle: false,
               },
             ]
           : [],
+      ),
       submit: b.w(
         purpose === "visit"
           ? ["Request a visit", "اطلب زيارة"]

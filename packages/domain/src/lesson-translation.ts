@@ -54,7 +54,9 @@ function isWords(path: readonly (string | number)[], parent: unknown): boolean {
 /** A question with its words set aside, so two that differ only in words read the same. */
 function shapeOf(value: unknown, path: (string | number)[] = []): unknown {
   if (Array.isArray(value))
-    return value.map((item, index) => shapeOf(item, [...path, index]));
+    return value.map((item, index) =>
+      isWords([...path, index], value) ? null : shapeOf(item, [...path, index]),
+    );
   if (value && typeof value === "object")
     return Object.fromEntries(
       Object.entries(value).map(([key, item]) => [
@@ -133,14 +135,18 @@ export function translatedQuiz(
   return readAs(quizOfBrief, brief, translation);
 }
 
-/** A document read in its translation's words, its parts as the original's. */
-function readAs(
-  read: (document: ContentDocument) => LessonDocument,
+/**
+ * A document in its translation's words, its parts and questions as the
+ * original has them: a part the translation lacks, or a question it changed
+ * beyond its words, stands as the original's. A family's form is read this
+ * way, so the answers they give fit the original's questions.
+ */
+export function translatedContent(
   original: ContentDocument,
   translation: ContentDocument,
-): LessonDocument {
+): ContentDocument {
   const parts = translatedParts(translation);
-  const merged: ContentDocument = {
+  return {
     root: {
       ...original.root,
       children: (original.root.children ?? []).map(
@@ -148,8 +154,16 @@ function readAs(
       ),
     },
   };
+}
+
+/** A document read in its translation's words, its parts as the original's. */
+function readAs(
+  read: (document: ContentDocument) => LessonDocument,
+  original: ContentDocument,
+  translation: ContentDocument,
+): LessonDocument {
   const asWritten = read(original);
-  const translated = read(merged);
+  const translated = read(translatedContent(original, translation));
   if (translated.blocks.length !== asWritten.blocks.length) return asWritten;
   return {
     version: 2,

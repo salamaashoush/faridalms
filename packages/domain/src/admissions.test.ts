@@ -1,7 +1,7 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import type { AdmissionQuestion } from "./admissions";
+import type { FormQuestion } from "./questions";
 
 import {
   ageFit,
@@ -22,8 +22,8 @@ import {
   placesLeft,
   prioritiesFound,
   prioritiesMet,
-  questionIn,
-  questionReady,
+  formUnready,
+  questionsIn,
   rankWaitlist,
   readApplicationAnswers,
   releaseDue,
@@ -34,19 +34,34 @@ import {
 } from "./admissions";
 import { plainContent } from "./content-conversion";
 import { reviewDueOn } from "./privacy";
+import { formDocument, formQuestions } from "./questions";
 
-const question = (more: Partial<AdmissionQuestion>): AdmissionQuestion => ({
+const route = (
+  prompt: string,
+  options: [string, string],
+): Extract<FormQuestion, { type: "choice" }> => ({
   id: "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3d01",
-  answer: "choice",
-  required: "required",
-  labelEn: "Which bus route?",
-  labelAr: "أي خط حافلة؟",
-  hintEn: "",
-  hintAr: "",
-  optionsEn: "Maadi\nZamalek",
-  optionsAr: "المعادي\nالزمالك",
-  ...more,
+  type: "choice",
+  prompt,
+  points: 0,
+  hints: [],
+  explanation: "",
+  tries: null,
+  required: true,
+  options: options.map((text, place) => ({
+    id: `0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3d1${place}`,
+    text,
+    feedback: "",
+  })),
+  correctOptionIds: [],
+  multiple: false,
+  shuffle: false,
 });
+const form = {
+  primaryLocale: "en" as const,
+  body: formDocument([route("Which bus route?", ["Maadi", "Zamalek"])]),
+  translation: formDocument([route("أي خط حافلة؟", ["المعادي", "الزمالك"])]),
+};
 
 describe("an application's states", () => {
   it("lets the family send or withdraw a draft and nothing else", () => {
@@ -202,39 +217,47 @@ describe("an intake", () => {
 });
 
 describe("the school's own questions", () => {
-  it("asks in the family's language and borrows the other's words when one is blank", () => {
-    expect(questionIn(question({}), "ar").label).toBe("أي خط حافلة؟");
-    expect(questionIn(question({ labelAr: "" }), "ar").label).toBe(
+  it("asks in the family's language, the original deciding what is asked", () => {
+    expect(formQuestions(questionsIn(form, "ar"))[0]?.prompt).toBe(
+      "أي خط حافلة؟",
+    );
+    expect(formQuestions(questionsIn(form, "en"))[0]?.prompt).toBe(
       "Which bus route?",
     );
-  });
-
-  it("checks a choice against the options in the language the family read", () => {
-    const read = readApplicationAnswers([question({})], "ar", {
-      [question({}).id]: "الزمالك",
-    });
-    expect(read).toEqual({
-      ok: true,
-      answers: [
-        {
-          id: question({}).id,
-          label: "أي خط حافلة؟",
-          kind: "choice",
-          value: "الزمالك",
-        },
-      ],
-    });
     expect(
-      readApplicationAnswers([question({})], "en", {
-        [question({}).id]: "الزمالك",
-      }).ok,
-    ).toBe(false);
+      formQuestions(questionsIn({ ...form, translation: null }, "ar"))[0]
+        ?.prompt,
+    ).toBe("Which bus route?");
   });
 
-  it("is ready once worded, and a choice once each language has the same options", () => {
-    expect(questionReady(question({}))).toBe(true);
-    expect(questionReady(question({ optionsAr: "المعادي" }))).toBe(false);
-    expect(questionReady(question({ labelEn: "", labelAr: "" }))).toBe(false);
+  it("keeps the option chosen by its id, in the words the family read", () => {
+    const zamalek = "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3d11";
+    const answer = { type: "choice", optionIds: [zamalek] };
+    const id = "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3d01";
+    expect(readApplicationAnswers(form, "ar", { [id]: answer })).toMatchObject({
+      ok: true,
+      answers: [{ prompt: "أي خط حافلة؟", text: "الزمالك" }],
+    });
+    expect(readApplicationAnswers(form, "en", { [id]: answer })).toMatchObject({
+      ok: true,
+      answers: [{ prompt: "Which bus route?", text: "Zamalek" }],
+    });
+    expect(readApplicationAnswers(form, "en", {})).toMatchObject({
+      ok: false,
+      code: "required",
+    });
+  });
+
+  it("is ready once every question with words is finished, in either language", () => {
+    expect(formUnready(form)).toBeNull();
+    const single = route("Which bus route?", ["Maadi", "Zamalek"]);
+    const unfinished = {
+      ...form,
+      translation: formDocument([
+        { ...single, prompt: "أي خط؟", options: single.options.slice(0, 1) },
+      ]),
+    };
+    expect(formUnready(unfinished)).toBe(single.id);
   });
 });
 

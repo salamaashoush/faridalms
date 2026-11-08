@@ -81,6 +81,8 @@ export const MAX_LESSON_BLOCKS = 60;
 export const VOWEL_MARKS = ["shown", "hidden", "choice"] as const;
 export type VowelMarks = (typeof VOWEL_MARKS)[number];
 export const MAX_CHOICE_OPTIONS = 8;
+/** Options a form's choice may offer, as a family picks one year or language of many. */
+export const MAX_FORM_OPTIONS = 20;
 export const MAX_ACCEPTED_ANSWERS = 10;
 export const MAX_GAPS = 20;
 export const MAX_PAIRS = 8;
@@ -200,6 +202,8 @@ const checkFields = {
   standards: v.optional(
     v.pipe(v.array(id), v.maxLength(MAX_QUESTION_STANDARDS)),
   ),
+  /** A form takes its answers only with one to this question. */
+  required: v.optional(v.boolean()),
 };
 
 const accepted = v.pipe(
@@ -289,6 +293,118 @@ const highlightSegment = v.variant("type", [
   v.object({ type: v.literal("target"), id, text: requiredText(80) }),
 ]);
 
+const choiceObject = v.object({
+  ...checkFields,
+  type: v.literal("choice"),
+  options: v.pipe(
+    v.array(choiceOptionSchema),
+    v.minLength(2),
+    v.maxLength(MAX_FORM_OPTIONS),
+  ),
+  correctOptionIds: v.array(id),
+  multiple: v.boolean(),
+  shuffle: v.boolean(),
+});
+
+/**
+ * Whether a choice's right options are among its options, one alone unless
+ * it takes several. A choice with none right asks rather than marks.
+ */
+const fitsOptions = v.check(
+  (block: v.InferOutput<typeof choiceObject>) =>
+    block.correctOptionIds.every((optionId) =>
+      block.options.some((option) => option.id === optionId),
+    ) &&
+    (block.multiple || block.correctOptionIds.length <= 1),
+  "learning.correct_option",
+);
+
+/**
+ * A choice as every surface asks it. Its right options are its key, which
+ * a form leaves out; `lessonBlockSchema` marks a choice by one.
+ */
+export const choiceShape = v.pipe(choiceObject, fitsOptions);
+
+/**
+ * A typed answer as every surface asks it. The words it accepts are its
+ * key, which a form leaves out; `lessonBlockSchema` marks by at least one.
+ */
+export const textShape = v.object({
+  ...checkFields,
+  ...matching,
+  type: v.literal("text"),
+  /** The answer is a day, chosen from a calendar and kept as `YYYY-MM-DD`. */
+  date: v.optional(v.literal(true)),
+  answers: v.pipe(
+    v.array(requiredText(200)),
+    v.maxLength(MAX_ACCEPTED_ANSWERS),
+  ),
+});
+
+export const numberSchema = v.pipe(
+  v.object({
+    ...checkFields,
+    type: v.literal("number"),
+    /** An exact value within a tolerance, or any value in a range. */
+    mode: v.picklist(["exact", "range"]),
+    value: v.number(),
+    tolerance: v.pipe(v.number(), v.minValue(0)),
+    percent: v.boolean(),
+    min: v.number(),
+    max: v.number(),
+    /** Answered by placing a point on a number line from `from` to `to`, in steps. */
+    line: v.optional(
+      v.pipe(
+        v.object({
+          from: v.number(),
+          to: v.number(),
+          step: v.pipe(v.number(), v.gtValue(0)),
+        }),
+        v.check(
+          (line) =>
+            line.from < line.to &&
+            (line.to - line.from) / line.step <= MAX_LINE_STEPS,
+          "learning.number_line",
+        ),
+      ),
+    ),
+  }),
+  v.check(
+    (block) => block.mode === "exact" || block.min <= block.max,
+    "learning.number_range",
+  ),
+  v.check(
+    (block) =>
+      !block.line ||
+      (block.mode === "exact"
+        ? block.value >= block.line.from && block.value <= block.line.to
+        : block.max >= block.line.from && block.min <= block.line.to),
+    "learning.number_line_answer",
+  ),
+);
+
+export const writtenSchema = v.object({
+  ...checkFields,
+  type: v.literal("written"),
+  /** Null for no limit. */
+  wordLimit: v.nullable(
+    v.pipe(v.number(), v.integer(), v.minValue(10), v.maxValue(5000)),
+  ),
+  /** Answered by speaking, up to this many seconds, rather than writing. */
+  recordSeconds: v.optional(v.nullable(v.picklist(RECORD_SECONDS))),
+  /** The spoken answer is recorded on camera, or with the student's screen. */
+  recordVideo: v.optional(v.boolean()),
+  /**
+   * A passage the student reads aloud, their recording the answer, for
+   * their teacher to mark word by word as a running record is.
+   */
+  passage: v.optional(v.pipe(v.string(), v.maxLength(MAX_PASSAGE))),
+  /** Answered with a drawing or a photo rather than words. */
+  answerWith: v.optional(v.nullable(v.picklist(PICTURE_ANSWERS))),
+  /** The picture a drawing is made over, as a colouring page. */
+  picture,
+});
+
 export const lessonBlockSchema = v.variant("type", [
   v.object({ id, type: v.literal("content"), content: contentDocumentSchema }),
   v.pipe(
@@ -334,27 +450,12 @@ export const lessonBlockSchema = v.variant("type", [
     points: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
   }),
   v.pipe(
-    v.object({
-      ...checkFields,
-      type: v.literal("choice"),
-      options: v.pipe(
-        v.array(choiceOptionSchema),
-        v.minLength(2),
-        v.maxLength(MAX_CHOICE_OPTIONS),
-      ),
-      correctOptionIds: v.pipe(
-        v.array(id),
-        v.minLength(1, "learning.correct_option"),
-      ),
-      multiple: v.boolean(),
-      shuffle: v.boolean(),
-    }),
+    choiceObject,
+    fitsOptions,
+    // Lessons and quizzes lay out a few options; a form may offer more.
+    v.check((block) => block.options.length <= MAX_CHOICE_OPTIONS),
     v.check(
-      (block) =>
-        block.correctOptionIds.every((optionId) =>
-          block.options.some((option) => option.id === optionId),
-        ) &&
-        (block.multiple || block.correctOptionIds.length === 1),
+      (block) => block.correctOptionIds.length > 0,
       "learning.correct_option",
     ),
   ),
@@ -374,12 +475,7 @@ export const lessonBlockSchema = v.variant("type", [
     /** Votes counted without names, for the teacher too. */
     anonymous: v.optional(v.boolean()),
   }),
-  v.object({
-    ...checkFields,
-    ...matching,
-    type: v.literal("text"),
-    answers: accepted,
-  }),
+  v.object({ ...textShape.entries, answers: accepted }),
   v.pipe(
     v.object({
       ...checkFields,
@@ -451,47 +547,7 @@ export const lessonBlockSchema = v.variant("type", [
       return targets.length >= 1 && targets.length <= MAX_TARGETS;
     }, "learning.targets_needed"),
   ),
-  v.pipe(
-    v.object({
-      ...checkFields,
-      type: v.literal("number"),
-      /** An exact value within a tolerance, or any value in a range. */
-      mode: v.picklist(["exact", "range"]),
-      value: v.number(),
-      tolerance: v.pipe(v.number(), v.minValue(0)),
-      percent: v.boolean(),
-      min: v.number(),
-      max: v.number(),
-      /** Answered by placing a point on a number line from `from` to `to`, in steps. */
-      line: v.optional(
-        v.pipe(
-          v.object({
-            from: v.number(),
-            to: v.number(),
-            step: v.pipe(v.number(), v.gtValue(0)),
-          }),
-          v.check(
-            (line) =>
-              line.from < line.to &&
-              (line.to - line.from) / line.step <= MAX_LINE_STEPS,
-            "learning.number_line",
-          ),
-        ),
-      ),
-    }),
-    v.check(
-      (block) => block.mode === "exact" || block.min <= block.max,
-      "learning.number_range",
-    ),
-    v.check(
-      (block) =>
-        !block.line ||
-        (block.mode === "exact"
-          ? block.value >= block.line.from && block.value <= block.line.to
-          : block.max >= block.line.from && block.min <= block.line.to),
-      "learning.number_line_answer",
-    ),
-  ),
+  numberSchema,
   v.object({
     ...checkFields,
     type: v.literal("matching"),
@@ -741,27 +797,7 @@ export const lessonBlockSchema = v.variant("type", [
     /** Shown for this many seconds, then hidden; none keeps them in view. */
     flashSeconds: v.nullable(v.picklist(FLASH_SECONDS)),
   }),
-  v.object({
-    ...checkFields,
-    type: v.literal("written"),
-    /** Null for no limit. */
-    wordLimit: v.nullable(
-      v.pipe(v.number(), v.integer(), v.minValue(10), v.maxValue(5000)),
-    ),
-    /** Answered by speaking, up to this many seconds, rather than writing. */
-    recordSeconds: v.optional(v.nullable(v.picklist(RECORD_SECONDS))),
-    /** The spoken answer is recorded on camera, or with the student's screen. */
-    recordVideo: v.optional(v.boolean()),
-    /**
-     * A passage the student reads aloud, their recording the answer, for
-     * their teacher to mark word by word as a running record is.
-     */
-    passage: v.optional(v.pipe(v.string(), v.maxLength(MAX_PASSAGE))),
-    /** Answered with a drawing or a photo rather than words. */
-    answerWith: v.optional(v.nullable(v.picklist(PICTURE_ANSWERS))),
-    /** The picture a drawing is made over, as a colouring page. */
-    picture,
-  }),
+  writtenSchema,
   v.object({
     ...checkFields,
     type: v.literal("scratch"),
@@ -1387,7 +1423,7 @@ export const responseSchema = v.variant("type", [
     optionIds: v.pipe(
       v.array(id),
       v.minLength(1),
-      v.maxLength(MAX_CHOICE_OPTIONS),
+      v.maxLength(MAX_FORM_OPTIONS),
     ),
   }),
   v.object({
