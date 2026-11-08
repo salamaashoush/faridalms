@@ -65,11 +65,6 @@ From `foundations.md`. W1 to W5 are merged.
   on desktop and phone in Chromium and WebKit, so the path that reaches
   it stuck is not known yet.
 
-## Reach
-
-- A staff session without `people:read` now counts as staff in Messages,
-  because staff is decided by role. Confirm that is the wanted rule.
-
 ## Front door
 
 From `school-front-door.md`; slices 1 to 9 are merged.

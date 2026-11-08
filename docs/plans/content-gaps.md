@@ -20,27 +20,32 @@ components in `packages/ui` with named props, a spec and a
 2. The picture, gallery, file and recording blocks' floating bars tested
    in the browser with real uploads.
 
-## Waiting for the owner
+## Decided by the owner (2026-11-08)
 
-Each has a recommendation; nothing is built until the owner chooses.
+To build:
 
-1. **Saved sections** in the website builder: a section kind in templates
-   and shared blocks (recommended: one reuse system), or a section library
-   of its own.
-2. **Wikimedia Commons** in the picture search: recommended only behind a
-   staff-only switch, since Commons has no safe search.
-3. **A language model** for teachers (question suggestions, levelling,
-   translating, marking reading aloud): recommended as an opt-in per
-   school with a named provider and no student data sent.
-4. **Hosted video** (Mux and similar) beside our pipeline, and whether
-   streams count against storage.
-5. **Office files edited in the browser** (Collabora or OnlyOffice, self
-   hosted).
-6. **Languages** beyond English and Arabic; **how far LTI and QTI go**;
-   **generated narration** for young children.
-7. **Messages:** whether staff without `people:read` count as staff.
-8. **Timetable:** setting a single date to run as another weekday or cycle
-   day, and a bell schedule adding a period normal days do not have.
+1. **Saved sections** in the website builder join the one reuse system:
+   templates and shared blocks learn a section kind.
+2. **Wikimedia Commons** in the picture search, for staff only, behind a
+   school setting; students never see it.
+3. **A language model** for teachers, opt-in per school with a named
+   provider: question suggestions, levelling a text and translating.
+   Only what teachers wrote is sent, never student work.
+4. **Video streams count against the school's storage**; our own pipeline
+   stays the one video path (no hosted adapters).
+5. **Timetable:** a single date can run as another weekday or cycle day,
+   and a bell schedule can add a period normal days do not have.
+
+Settled, nothing to build:
+
+- Narration for young children uses the device's own voices only.
+- No office editing in the browser; download, a new version and PDF
+  previews stay.
+- English and Arabic stay the interface languages.
+- LTI and QTI stay at their current scope: LTI 1.3 Advantage as a
+  platform, QTI 3 and Common Cartridge import and export.
+- Messages: anyone signed in with a staff role counts as staff, whatever
+  their capabilities.
 
 ## Left by the landed workstreams
 
