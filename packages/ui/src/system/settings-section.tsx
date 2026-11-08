@@ -13,6 +13,7 @@ import {
   useState,
 } from "react";
 
+import { mayMoveFocus } from "./focus-after-submit";
 import { useSystemStrings } from "./provider";
 import { UnsavedChangesGuard } from "./unsaved-changes-guard";
 
@@ -151,8 +152,10 @@ export function SettingsSection({
           onSubmit={(event) => {
             event.preventDefault();
             const form = event.currentTarget;
+            const before = form.ownerDocument.activeElement;
             void Promise.resolve(onSubmit()).then(() => {
               requestAnimationFrame(() => {
+                if (!mayMoveFocus(before, form.ownerDocument)) return;
                 form
                   .querySelector<HTMLElement>('[aria-invalid="true"]')
                   ?.focus();

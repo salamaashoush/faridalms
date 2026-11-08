@@ -12,6 +12,7 @@ import {
 import { CircleAlert, LoaderCircle, X } from "lucide-react";
 import { useId, useState } from "react";
 
+import { mayMoveFocus } from "./focus-after-submit";
 import { useEndSide, useSystemStrings } from "./provider";
 
 export interface SheetFormProps {
@@ -72,8 +73,10 @@ export function SheetForm({
             event.preventDefault();
             event.stopPropagation();
             const form = event.currentTarget;
+            const before = form.ownerDocument.activeElement;
             void Promise.resolve(onSubmit()).then(() => {
               requestAnimationFrame(() => {
+                if (!mayMoveFocus(before, form.ownerDocument)) return;
                 form
                   .querySelector<HTMLElement>('[aria-invalid="true"]')
                   ?.focus();

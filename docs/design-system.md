@@ -450,7 +450,9 @@ always left to right.
 Validation runs on submit, then live only on fields still invalid (Primer).
 Forms with more than five fields show an error summary at the top that takes
 focus and links to each field (GOV.UK); a shorter form moves focus to its
-first invalid field, else to the form's error. Save is never disabled except
+first invalid field, else to the form's error. Focus stays put when the
+person has already gone on to another field by the time the errors draw.
+Save is never disabled except
 before the page has hydrated, when the fields are disabled too because
 WebKit drops what is typed before then, and while a submit is in flight.
 Placeholders never replace labels.

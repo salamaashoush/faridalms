@@ -6,6 +6,7 @@ import { CircleAlert, LoaderCircle } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { ConfirmDialog } from "./confirm-dialog";
+import { mayMoveFocus } from "./focus-after-submit";
 import { PageHeader } from "./page-header";
 import { useDesignSystem } from "./provider";
 import { UnsavedChangesGuard } from "./unsaved-changes-guard";
@@ -258,6 +259,7 @@ export function RecordForm({
   const [submitted, setSubmitted] = useState(false);
   const [fields, setFields] = useState<Scan>({ fields: 0, problems: [] });
   const [focusRequest, setFocusRequest] = useState(0);
+  const focusedAtSubmit = useRef<Element | null>(null);
 
   const failure = error ?? thrown;
   const summary =
@@ -317,6 +319,7 @@ export function RecordForm({
 
   useEffect(() => {
     if (!focusRequest) return;
+    if (!mayMoveFocus(focusedAtSubmit.current, document)) return;
     if (summaryRef.current) {
       summaryRef.current.focus();
       return;
@@ -347,6 +350,7 @@ export function RecordForm({
         ? submitter.value
         : undefined;
     setThrown(null);
+    focusedAtSubmit.current = form.ownerDocument.activeElement;
     try {
       await onSubmit(intent);
     } catch (failed) {
