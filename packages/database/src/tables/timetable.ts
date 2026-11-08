@@ -1,4 +1,7 @@
-import type { StaffAbsenceReason } from "@faridalms/domain/timetable";
+import type {
+  CycleKind,
+  StaffAbsenceReason,
+} from "@faridalms/domain/timetable";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
@@ -26,11 +29,67 @@ import {
   pk,
   range,
   tenantColumns,
+  uq,
 } from "./conventions";
 import { locations } from "./files";
 import { users } from "./people";
 import { classes } from "./teaching";
 import { tenants } from "./tenancy";
+
+/**
+ * A timetable of a school year, followed from its first day until the next
+ * one starts; the first is followed from the start of the year. It says how
+ * its lessons repeat: a cycle of weeks (one, or A and B) or of school days.
+ */
+export const timetables = core.table.withRLS(
+  "timetables",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    schoolYearId: uuid("school_year_id").notNull(),
+    schoolYearType: text("school_year_type").notNull().default("school_year"),
+    nameEn: text("name_en"),
+    nameAr: text("name_ar"),
+    startsOn: date("starts_on", { mode: "string" }).notNull(),
+    cycleKind: text("cycle_kind").$type<CycleKind>().notNull(),
+    cycleLength: smallint("cycle_length").notNull(),
+    /** The week or day of the cycle its first school day is. */
+    firstDay: smallint("first_day").notNull().default(1),
+    /** Closed days and weeks leave the cycle where it was instead of using up their place. */
+    closuresMove: boolean("closures_move").notNull().default(false),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("timetables", t.tenantId, t.id),
+    uq("timetables", t.tenantId, t.id, t.schoolYearId, t.orgId),
+    ...baseConstraints("timetables", t, tenants),
+    fk(
+      "timetables",
+      [t.tenantId, t.schoolYearId, t.schoolYearType, t.schoolYearId, t.orgId],
+      [
+        academicSessions.tenantId,
+        academicSessions.id,
+        academicSessions.type,
+        academicSessions.schoolYearId,
+        academicSessions.orgId,
+      ],
+    ),
+    ck("timetables", "school_year_type", sql`school_year_type = 'school_year'`),
+    ck("timetables", "name_en", sql`char_length(name_en) between 1 and 60`),
+    ck("timetables", "name_ar", sql`char_length(name_ar) between 1 and 60`),
+    ck(
+      "timetables",
+      "cycle",
+      sql`(cycle_kind = 'weeks' and cycle_length between 1 and 4)
+        or (cycle_kind = 'days' and cycle_length between 2 and 20)`,
+    ),
+    ck("timetables", "first_day", sql`first_day between 1 and cycle_length`),
+    uniqueIndex("timetables_start_key")
+      .on(t.tenantId, t.schoolYearId, t.startsOn)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
 
 /**
  * Ed-Fi's section class period on a day of the week: when a class meets, who
@@ -48,6 +107,12 @@ export const classMeetings = core.table.withRLS(
     schoolYearType: text("school_year_type").notNull().default("school_year"),
     /** The homeroom whose students the class takes, or the class itself. */
     groupClassId: uuid("group_class_id").notNull(),
+    /** The timetable it belongs to, which is followed only on its own days. */
+    // Keyed to timetables NOT VALID by the custom migration, as
+    // calendar_dates.bell_schedule_id: validating a key on an existing table
+    // reads it under forced row security, where a migration has no tenant.
+    timetableId: uuid("timetable_id").notNull(),
+    /** The day of its timetable's cycle: the ISO weekday in an ordinary week. */
     weekday: smallint("weekday").notNull(),
     classPeriodId: uuid("class_period_id").notNull(),
     teacherUserId: uuid("teacher_user_id"),
@@ -101,7 +166,7 @@ export const classMeetings = core.table.withRLS(
       "school_year_type",
       sql`school_year_type = 'school_year'`,
     ),
-    ck("class_meetings", "weekday", sql`weekday between 1 and 7`),
+    ck("class_meetings", "weekday", sql`weekday between 1 and 28`),
     ck("class_meetings", "valid_during", range.bounded("valid_during")),
     index("class_meetings_group_idx")
       .on(t.tenantId, t.groupClassId)

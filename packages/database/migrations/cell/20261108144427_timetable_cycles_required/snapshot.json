@@ -1,0 +1,38 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "c0d25013-03bf-44be-b1eb-37b607f383e5",
+  "prevIds": [
+    "a9cd62c9-cf84-4371-9995-11d3193f2164"
+  ],
+  "footprints": [
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "class_meetings",
+        "timetable_id"
+      ],
+      "writes": [
+        "s|colprop|core.class_meetings.timetable_id.notNull"
+      ],
+      "reads": [
+        "n|tbl|core.class_meetings",
+        "n|sch|core",
+        "n|col|core.class_meetings.timetable_id"
+      ],
+      "sqlHash": "c1995ae852f0b2ef"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"core\",\"class_meetings\",\"timetable_id\"]",
+      "set": {
+        "notNull": true
+      }
+    }
+  ]
+}

@@ -242,6 +242,66 @@ export const calendarGradeLevels = core.table.withRLS(
   ],
 );
 
+/** A bell schedule's times for one period, keyed by the period's code. */
+export interface BellTimesRow {
+  code: string;
+  startTime: string;
+  endTime: string;
+}
+
+/**
+ * A day of the year run on other times than its periods' own (a late
+ * start, an exam day, Ramadan hours): the periods held, each at its time
+ * that day. Days choose it on the school calendar.
+ */
+export const bellSchedules = core.table.withRLS(
+  "bell_schedules",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    schoolYearId: uuid("school_year_id").notNull(),
+    schoolYearType: text("school_year_type").notNull().default("school_year"),
+    nameEn: text("name_en"),
+    nameAr: text("name_ar"),
+    /** A period left out is not held on the schedule's days. */
+    times: jsonb("times").$type<BellTimesRow[]>().notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("bell_schedules", t.tenantId, t.id),
+    uq("bell_schedules", t.tenantId, t.id, t.schoolYearId),
+    ...baseConstraints("bell_schedules", t, tenants),
+    fk(
+      "bell_schedules",
+      [t.tenantId, t.schoolYearId, t.schoolYearType, t.schoolYearId, t.orgId],
+      [
+        academicSessions.tenantId,
+        academicSessions.id,
+        academicSessions.type,
+        academicSessions.schoolYearId,
+        academicSessions.orgId,
+      ],
+    ),
+    ck(
+      "bell_schedules",
+      "school_year_type",
+      sql`school_year_type = 'school_year'`,
+    ),
+    ck("bell_schedules", "name_en", sql`char_length(name_en) between 1 and 60`),
+    ck("bell_schedules", "name_ar", sql`char_length(name_ar) between 1 and 60`),
+    ck("bell_schedules", "name", sql`num_nonnulls(name_en, name_ar) >= 1`),
+    ck(
+      "bell_schedules",
+      "times",
+      sql`jsonb_typeof(times) = 'array' and jsonb_array_length(times) between 1 and 50`,
+    ),
+    index("bell_schedules_year_idx")
+      .on(t.tenantId, t.schoolYearId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
 export const calendarDates = core.table.withRLS(
   "calendar_dates",
   {
@@ -261,6 +321,11 @@ export const calendarDates = core.table.withRLS(
     noteAr: text("note_ar"),
     /** Waits on an announcement, as holidays set by the moon do; shown as expected. */
     provisional: boolean("provisional").notNull().default(false),
+    /** The other times the day runs on; none keeps its periods' own. */
+    // Keyed to bell_schedules NOT VALID by the custom migration: drizzle-kit
+    // writes a key on an existing table as validated, and validating reads
+    // the table under forced row security, where a migration has no tenant.
+    bellScheduleId: uuid("bell_schedule_id"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -363,6 +428,11 @@ export const classPeriods = core.table.withRLS(
       .array()
       .notNull()
       .default(sql`'{1,2,3,4,5,6,7}'`),
+    /** Other times it keeps on some of its days of the week. */
+    dayTimes: jsonb("day_times")
+      .$type<{ weekdays: number[]; startTime: string; endTime: string }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     validDuring: daterange("valid_during").notNull(),
     ...entityColumns(),
   },
@@ -405,6 +475,11 @@ export const classPeriods = core.table.withRLS(
       "class_periods",
       "weekdays",
       sql`weekdays <@ '{1,2,3,4,5,6,7}' and cardinality(weekdays) between 1 and 7`,
+    ),
+    ck(
+      "class_periods",
+      "day_times",
+      sql`jsonb_typeof(day_times) = 'array' and jsonb_array_length(day_times) <= 6`,
     ),
     ck("class_periods", "valid_during", range.bounded("valid_during")),
     ...entityProfile({ integration: true }),

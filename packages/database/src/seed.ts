@@ -94,6 +94,7 @@ import {
   classGroups,
   classes,
   classMeetings,
+  timetables,
   classPeriods,
   contactPoints,
   courses,
@@ -1348,6 +1349,18 @@ async function seedTimetable(
       and c.school_year_id = ${yearId}::uuid and c.class_type = 'scheduled'
     order by h.code, c.code`);
   const homerooms = [...new Set(offered.map((row) => row.homeroom_class_id))];
+  const [timetable] = await tx
+    .insert(timetables)
+    .values({
+      tenantId,
+      orgId: schoolId,
+      schoolYearId: yearId,
+      startsOn: YEAR.start,
+      cycleKind: "weeks",
+      cycleLength: 1,
+    })
+    .returning({ id: timetables.id });
+  if (!timetable) throw new Error("no seeded timetable");
   const meetings: (typeof classMeetings.$inferInsert)[] = [];
   for (const [grade, homeroomId] of homerooms.entries()) {
     const subjects = offered.filter(
@@ -1365,6 +1378,7 @@ async function seedTimetable(
           classId: taught.id,
           classType: "scheduled",
           schoolYearId: yearId,
+          timetableId: timetable.id,
           groupClassId: homeroomId,
           weekday,
           classPeriodId: period.id,

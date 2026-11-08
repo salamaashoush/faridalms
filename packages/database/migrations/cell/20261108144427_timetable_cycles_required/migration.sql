@@ -1,0 +1,1 @@
+ALTER TABLE "core"."class_meetings" ALTER COLUMN "timetable_id" SET NOT NULL;
