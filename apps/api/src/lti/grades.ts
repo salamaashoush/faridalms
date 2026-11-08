@@ -30,6 +30,7 @@ import {
   agsScoreSchema,
   LTI_AGS_CLAIM,
   LTI_AGS_SCOPES,
+  ltiScopesOf,
 } from "@faridalms/domain/lti";
 import { decodeJwt, jwtVerify } from "jose";
 import * as v from "valibot";
@@ -56,21 +57,41 @@ const MEDIA = {
   results: "application/vnd.ims.lis.v2.resultcontainer+json",
 } as const;
 
-interface AccessToken {
+/** A tool's access token, which names the tool and the scopes it was given. */
+export interface AccessToken {
   kind: "access";
   toolId: string;
   scopes: string[];
 }
 
+/** The access token a tool's service call carries, when it is one this cell gave. */
+export async function bearerOf(
+  context: SchoolContext,
+  request: Request,
+): Promise<AccessToken | null> {
+  const header = request.headers.get("authorization") ?? "";
+  const token = header.startsWith("Bearer ")
+    ? await secretsFor(context).read<AccessToken>(header.slice(7))
+    : null;
+  return token?.kind === "access" ? token : null;
+}
+
+/**
+ * Whether a token lets its tool use a scope: given when the token was
+ * issued, and still among the services the school lets the tool use.
+ */
+export const grants = (token: AccessToken, tool: ToolRow, scope: string) =>
+  token.scopes.includes(scope) && ltiScopesOf(tool).includes(scope);
+
 const noStore = { "cache-control": "no-store", pragma: "no-cache" };
 
-const asSystem = (context: SchoolContext) => ({
+export const asSystem = (context: SchoolContext) => ({
   tenantId: context.school.tenantId,
   requestId: context.requestId,
   actor: { kind: "system" as const },
 });
 
-const courseKey = (course: LtiCourse): [string, string] =>
+export const courseKey = (course: LtiCourse): [string, string] =>
   "moduleId" in course
     ? ["module", course.moduleId]
     : ["class", course.classId];
@@ -193,7 +214,7 @@ export async function issueToken(
       }),
   );
   if (!fresh) return oauthError("invalid_client", 401);
-  const known: string[] = Object.values(LTI_AGS_SCOPES);
+  const known = ltiScopesOf(tool);
   const scopes = [
     ...new Set((params.get("scope") ?? "").split(" ").filter(Boolean)),
   ].filter((scope) => known.includes(scope));
@@ -245,7 +266,7 @@ function targetOf(pathname: string): Target | null {
   return null;
 }
 
-const unauthorized = () =>
+export const unauthorized = () =>
   new Response(JSON.stringify({ error: "invalid_token" }), {
     status: 401,
     headers: {
@@ -277,17 +298,20 @@ function lineItemJson(context: SchoolContext, item: LineItemRow) {
     ...(item.gradesReleased === null
       ? {}
       : { gradesReleased: item.gradesReleased }),
+    ...(item.submissionReview
+      ? { submissionReview: item.submissionReview }
+      : {}),
   };
 }
 
 /** How many a page holds, as the tool asked, within the school's own limit. */
-const pageSize = (url: URL) => {
+export const pageSize = (url: URL) => {
   const asked = Number(url.searchParams.get("limit"));
   return Number.isInteger(asked) && asked > 0 ? Math.min(asked, 500) : 100;
 };
 
 /** The address of the page after this one, which keeps the filters asked for. */
-function nextLink(context: SchoolContext, url: URL, after: string) {
+export function nextLink(context: SchoolContext, url: URL, after: string) {
   const search = new URLSearchParams(url.searchParams);
   search.set("after", after);
   const path = url.pathname.slice("/lti".length);
@@ -300,7 +324,7 @@ function nextLink(context: SchoolContext, url: URL, after: string) {
  * A link a tool names in a course as `resource_link_id`, as the place it
  * has there: a lesson in the module or a brief in the class.
  */
-function placeOf(course: LtiCourse, named: string): LtiLinkPlace | null {
+export function placeOf(course: LtiCourse, named: string): LtiLinkPlace | null {
   const [hostId = "", linkId = ""] = named.split(":");
   if (!ID.test(hostId) || !ID.test(linkId)) return null;
   return "moduleId" in course
@@ -312,7 +336,7 @@ function placeOf(course: LtiCourse, named: string): LtiLinkPlace | null {
  * Whether a link is the tool's own, in a lesson or brief of the course,
  * written there or shown to students.
  */
-async function isToolLink(
+export async function isToolLink(
   tx: CellTransaction,
   tenantId: string,
   tool: ToolRow,
@@ -346,6 +370,7 @@ const fieldsOf = (input: v.InferOutput<typeof agsLineItemSchema>) => ({
   startsAt: input.startDateTime,
   endsAt: input.endDateTime,
   gradesReleased: input.gradesReleased,
+  submissionReview: input.submissionReview,
 });
 
 async function body(request: Request): Promise<unknown> {
@@ -369,13 +394,8 @@ export async function gradeService(
 ): Promise<Response> {
   const target = targetOf(url.pathname);
   if (!target) return refused(404, "NOT_FOUND");
-  const header = request.headers.get("authorization") ?? "";
-  const token = header.startsWith("Bearer ")
-    ? await secretsFor(context).read<AccessToken>(header.slice(7))
-    : null;
-  if (token?.kind !== "access") return unauthorized();
-  const may = (...scopes: string[]) =>
-    scopes.some((scope) => token.scopes.includes(scope));
+  const token = await bearerOf(context, request);
+  if (!token) return unauthorized();
   const tenantId = context.school.tenantId;
   const school = { tenantId, orgId: context.school.schoolId };
   const method = request.method;
@@ -384,6 +404,8 @@ export async function gradeService(
   return context.cell.withTenant(asSystem(context), "write", async (tx) => {
     const tool = await toolById(tx, { ...school, id: token.toolId });
     if (!tool) return unauthorized();
+    const may = (...scopes: string[]) =>
+      scopes.some((scope) => grants(token, tool, scope));
 
     if (target.kind === "lineItems") {
       const [kind, id] = courseKey(target.course);

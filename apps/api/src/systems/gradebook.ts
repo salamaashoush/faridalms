@@ -12,6 +12,7 @@ import {
   classCategories,
   classGrading,
 } from "@faridalms/database/stores/grading";
+import { columnScores, columnsOf } from "@faridalms/database/stores/lti";
 import {
   dayIn,
   holdYear,
@@ -39,6 +40,7 @@ import {
 } from "../core/procedure";
 import { requireStudent, teaches } from "../core/reach";
 import { teachingScope, tellPeriodGrades } from "../core/teaching-notices";
+import { resultOf } from "../lti/grades";
 
 async function taughtClass(context: UnitContext, classId: string) {
   const classRow = await classById(context.tx, context, classId);
@@ -111,6 +113,23 @@ export const classBook = readProcedure
       (row) =>
         !period || !row.gradingPeriodId || row.gradingPeriodId === period.id,
     );
+    // Outside tools' columns sit beside the work, read only: a brief's go
+    // with its term, the class's own and its modules' in every term. They
+    // count towards nothing until a teacher takes a score as a mark.
+    const inTerm = new Set(termWork.map((row) => row.id));
+    const toolColumns = (
+      await columnsOf(context.tx, {
+        tenantId: context.tenantId,
+        classId: classRow.id,
+      })
+    ).filter(
+      (column) => !column.assignmentId || inTerm.has(column.assignmentId),
+    );
+    const toolScores = await columnScores(context.tx, {
+      tenantId: context.tenantId,
+      lineItemIds: toolColumns.map((column) => column.id),
+      studentIds: roster,
+    });
     // What the term grade would be from the work graded so far, for the
     // teacher to apply or set aside; the term grade itself stays theirs.
     const calculated = students.map((student) => {
@@ -178,6 +197,20 @@ export const classBook = readProcedure
         ...row,
         grade: grade(row.gradeScaleVersionId, row.score, row.maxScore),
       })),
+      tools: toolColumns,
+      toolScores: toolScores.flatMap((score) => {
+        const column = toolColumns.find((item) => item.id === score.lineItemId);
+        return column
+          ? [
+              {
+                lineItemId: score.lineItemId,
+                studentId: score.studentUserId,
+                result: resultOf(score, column),
+                gradingProgress: score.gradingProgress,
+              },
+            ]
+          : [];
+      }),
     };
   });
 

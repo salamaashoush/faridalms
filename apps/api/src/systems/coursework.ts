@@ -1914,6 +1914,7 @@ export const grading = readProcedure
                 result: resultOf(score, column),
                 gradingProgress: score.gradingProgress,
                 comment: score.comment,
+                reviewable: column.reviewable,
               },
             ]
           : [];

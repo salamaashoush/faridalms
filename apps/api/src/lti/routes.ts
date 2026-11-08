@@ -1,5 +1,6 @@
-import type { LtiCourse } from "@faridalms/database/stores/lti";
-import type { LtiHost, LtiPick } from "@faridalms/domain/lti";
+import type { CellTransaction } from "@faridalms/database/context";
+import type { LtiCourse, ToolRow } from "@faridalms/database/stores/lti";
+import type { LtiHost, LtiPicked } from "@faridalms/domain/lti";
 
 import { TenantUnavailableError } from "@faridalms/database/context";
 import { classById } from "@faridalms/database/stores/classes";
@@ -11,20 +12,23 @@ import {
 import { lessonById, moduleById } from "@faridalms/database/stores/learning";
 import {
   declaredLineItem,
+  lineItemById,
   publishedKeys,
+  scoresIn,
   toolByClientId,
   toolById,
   useOnce,
 } from "@faridalms/database/stores/lti";
 import {
   COURSE_OFFERING,
+  LTI_ACCEPT_TYPES,
   LTI_CLAIM,
   LTI_DL_CLAIM,
   LTI_HOSTS,
   LTI_PICK_CHANNEL,
   LTI_ROLES,
   LTI_VERSION,
-  ltiPickOf,
+  ltiPickedOf,
 } from "@faridalms/domain/lti";
 import { ORPCError } from "@orpc/server";
 import { decodeJwt, jwtVerify } from "jose";
@@ -35,10 +39,14 @@ import type {
   UnitContext,
 } from "../core/context";
 
-import { localeOf, openUnit, schoolOf } from "../core/procedure";
+import { editableModule } from "../core/learning-access";
+import { can, localeOf, openUnit, schoolOf } from "../core/procedure";
+import { teaches } from "../core/reach";
 import { hostAccess } from "../files/authorize";
 import { gradeService, gradesClaim, issueToken } from "./grades";
 import { schoolSigningKey, signed, toolKeys } from "./keys";
+import { openIdConfiguration, registerTool } from "./registration";
+import { courseNamed, rosterClaim, rosterService } from "./roster";
 import {
   escape,
   findLink,
@@ -152,6 +160,14 @@ interface LaunchHint {
   userId: string;
 }
 
+/** A teacher's launch from a score to the work behind it, LTI's Submission Review. */
+interface ReviewHint {
+  kind: "review";
+  lineItemId: string;
+  studentId: string;
+  userId: string;
+}
+
 interface PickHint {
   kind: "pick";
   host: LtiHost;
@@ -174,6 +190,21 @@ const ID = /^[0-9a-f-]{36}$/;
 /** The course a lesson's or brief's grades sit in, as the grade services name it. */
 const courseFor = (host: LtiHost, courseId: string): LtiCourse =>
   host === "lesson" ? { moduleId: courseId } : { classId: courseId };
+
+/** What a launch tells a tool of the services the school lets it use in a course. */
+async function servicesClaims(
+  context: SchoolContext,
+  tool: ToolRow,
+  course: LtiCourse,
+  lineItemId: string | null,
+) {
+  return {
+    ...(tool.grades
+      ? await gradesClaim(context, tool.id, course, lineItemId)
+      : {}),
+    ...(tool.roster ? await rosterClaim(context, tool.id, course) : {}),
+  };
+}
 
 /** The lesson or brief a request names, when it names one. */
 function hostIn(url: URL): { type: LtiHost; id: string } | null {
@@ -220,6 +251,18 @@ async function launch(context: SchoolContext, url: URL): Promise<Response> {
       linkId,
       userId: unit.actor.userId,
     };
+    if (url.searchParams.get("frame") === "1") {
+      const framed = await framedHint(context, unit, hint);
+      if (!framed) return refused(404, "NOT_FOUND");
+      return postedTo(framed.tool.loginUrl, {
+        iss: issuerOf(context.school),
+        login_hint: unit.actor.userId,
+        target_link_uri: framed.target,
+        lti_message_hint: framed.hint,
+        client_id: framed.tool.clientId,
+        lti_deployment_id: framed.tool.deploymentId,
+      });
+    }
     return postedTo(found.tool.loginUrl, {
       iss: issuerOf(context.school),
       login_hint: unit.actor.userId,
@@ -264,6 +307,156 @@ async function pick(context: SchoolContext, url: URL): Promise<Response> {
   });
 }
 
+/**
+ * What a review is of: a tool's column and a student's score in it, which
+ * the person may see as one who marks the course, the column's link when
+ * it has one, and the course.
+ */
+async function reviewOf(
+  unit: UnitContext,
+  lineItemId: string,
+  studentId: string,
+) {
+  const item = await lineItemById(unit.tx, {
+    tenantId: unit.tenantId,
+    orgId: unit.schoolId,
+    id: lineItemId,
+  });
+  if (!item?.submissionReview) return null;
+  const tool = await toolById(unit.tx, {
+    tenantId: unit.tenantId,
+    orgId: unit.schoolId,
+    id: item.toolId,
+  });
+  if (!tool) return null;
+  const marks =
+    "moduleId" in item.course
+      ? await editableModule(unit, item.course.moduleId).then(
+          () => true,
+          () => false,
+        )
+      : can(unit, "submissions:grade") &&
+        (await teaches(unit, "teaching", item.course.classId));
+  if (!marks) return null;
+  // There is work to look at once the tool has said something of it.
+  const [score] = await scoresIn(unit.tx, {
+    tenantId: unit.tenantId,
+    lineItemId: item.id,
+    studentUserId: studentId,
+    limit: 1,
+  });
+  if (!score) return null;
+  const host = item.link?.lessonId
+    ? { type: "lesson" as const, id: item.link.lessonId }
+    : item.link?.assignmentId
+      ? { type: "assignment" as const, id: item.link.assignmentId }
+      : null;
+  const document = host ? await documentOf(unit.tx, unit.tenantId, host) : null;
+  const published = document
+    ? await publishedVersion(unit.tx, unit.tenantId, document.id)
+    : null;
+  const link =
+    host && item.link
+      ? (findLink(published?.content, item.link.linkId) ??
+        findLink(document?.content, item.link.linkId))
+      : null;
+  const course = await courseNamed(unit.tx, unit, item.course);
+  if (!course) return null;
+  return {
+    item,
+    tool,
+    course,
+    link: host && item.link && link ? { host, link } : null,
+    targetLinkUri:
+      item.submissionReview.url ??
+      tool.reviewUrl ??
+      link?.url ??
+      tool.launchUrl,
+  };
+}
+
+/**
+ * Starts a teacher's launch from a student's score in a tool's column to
+ * the work behind it, by the same sign-in as a launch.
+ */
+async function review(context: SchoolContext, url: URL): Promise<Response> {
+  const lineItemId = url.searchParams.get("item") ?? "";
+  const studentId = url.searchParams.get("student") ?? "";
+  if (!ID.test(lineItemId) || !ID.test(studentId))
+    return refused(404, "NOT_FOUND");
+  return asPerson(context, async (unit) => {
+    const found = await reviewOf(unit, lineItemId, studentId);
+    if (!found) return refused(404, "NOT_FOUND");
+    const hint: ReviewHint = {
+      kind: "review",
+      lineItemId,
+      studentId,
+      userId: unit.actor.userId,
+    };
+    return postedTo(found.tool.loginUrl, {
+      iss: issuerOf(context.school),
+      login_hint: unit.actor.userId,
+      target_link_uri: found.targetLinkUri,
+      lti_message_hint: await secretsFor(context).sign(hint, 300),
+      client_id: found.tool.clientId,
+      lti_deployment_id: found.tool.deploymentId,
+    });
+  });
+}
+
+/** What a review tells a tool: whose work, in which column, and where to come back to. */
+async function reviewMessage(
+  context: SchoolContext,
+  unit: UnitContext,
+  hint: ReviewHint,
+) {
+  const found = await reviewOf(unit, hint.lineItemId, hint.studentId);
+  if (!found) return null;
+  const { item, tool, link } = found;
+  const [student] = tool.sendNames
+    ? await namesOf(unit.tx, unit.tenantId, [hint.studentId])
+    : [];
+  const returnTo =
+    link?.host.type === "assignment"
+      ? `/grading?${new URLSearchParams({ assignmentId: link.host.id, studentId: hint.studentId })}`
+      : "moduleId" in item.course
+        ? `/modules/${item.course.moduleId}?tab=progress`
+        : `/gradebook?${new URLSearchParams({ classId: item.course.classId })}`;
+  return {
+    tool,
+    course: found.course,
+    target: "window" as const,
+    returnUrl: `https://${context.school.appHost}${returnTo}`,
+    claims: {
+      [LTI_CLAIM.messageType]: "LtiSubmissionReviewRequest",
+      [LTI_CLAIM.targetLinkUri]: found.targetLinkUri,
+      [LTI_CLAIM.roles]: LTI_ROLES.instructor,
+      [LTI_CLAIM.forUser]: {
+        user_id: hint.studentId,
+        roles: LTI_ROLES.learner,
+        ...(student
+          ? { name: student.fullNameEn ?? student.fullNameAr ?? "" }
+          : {}),
+      },
+      ...(link
+        ? {
+            [LTI_CLAIM.resourceLink]: {
+              id: resourceLinkId(link.host.id, link.link.linkId),
+              title: link.link.title,
+              ...(link.link.text ? { description: link.link.text } : {}),
+            },
+          }
+        : {}),
+      [LTI_CLAIM.custom]: {
+        ...tool.custom,
+        ...link?.link.custom,
+        ...item.submissionReview?.custom,
+      },
+      ...(await servicesClaims(context, tool, item.course, item.id)),
+    },
+  };
+}
+
 async function parameters(request: Request, url: URL) {
   if (request.method === "GET") return url.searchParams;
   const type = request.headers.get("content-type") ?? "";
@@ -301,11 +494,14 @@ async function launchMessage(
         scoreMaximum: found.link.lineItem.scoreMaximum,
         resourceId: found.link.lineItem.resourceId ?? null,
         tag: found.link.lineItem.tag ?? null,
+        submissionReview: found.link.lineItem.submissionReview ?? null,
       })
     : null;
   return {
     tool: found.tool,
     course: found.course,
+    target: "window" as const,
+    returnUrl: null,
     claims: {
       [LTI_CLAIM.messageType]: "LtiResourceLinkRequest",
       [LTI_CLAIM.targetLinkUri]: found.link.url ?? found.tool.launchUrl,
@@ -318,15 +514,16 @@ async function launchMessage(
         ? LTI_ROLES.instructor
         : LTI_ROLES.learner,
       [LTI_CLAIM.custom]: { ...found.tool.custom, ...found.link.custom },
-      ...(await gradesClaim(context, found.tool.id, course, declared)),
+      ...(await servicesClaims(context, found.tool, course, declared)),
     },
   };
 }
 
 /**
- * What a pick tells a tool: what it may hand back, one link at a time
- * opened in its own window, and where to send it, with data signed here
- * that names the editor waiting for it.
+ * What a pick tells a tool: what it may hand back, several items at once
+ * of the kinds the editor places, shown in the page or opened in a window,
+ * and where to send it, with data signed here that names the editor
+ * waiting for it.
  */
 async function pickMessage(
   context: SchoolContext,
@@ -347,6 +544,8 @@ async function pickMessage(
   return {
     tool: found.tool,
     course: found.course,
+    target: "window" as const,
+    returnUrl: null,
     claims: {
       [LTI_CLAIM.messageType]: "LtiDeepLinkingRequest",
       [LTI_CLAIM.targetLinkUri]: found.deepLinkUrl,
@@ -354,16 +553,16 @@ async function pickMessage(
       [LTI_CLAIM.custom]: found.tool.custom,
       [LTI_DL_CLAIM.settings]: {
         deep_link_return_url: `${issuerOf(context.school)}/deep-link`,
-        accept_types: ["ltiResourceLink"],
-        accept_presentation_document_targets: ["window"],
-        accept_multiple: false,
-        accept_lineitem: true,
+        accept_types: LTI_ACCEPT_TYPES,
+        accept_presentation_document_targets: ["iframe", "window", "embed"],
+        accept_multiple: true,
+        accept_lineitem: found.tool.grades,
         // A teacher may browse a tool's library a while before picking.
         data: await secretsFor(context).sign(data, 3600),
       },
-      ...(await gradesClaim(
+      ...(await servicesClaims(
         context,
-        found.tool.id,
+        found.tool,
         courseFor(hint.host, found.course.id),
         null,
       )),
@@ -413,10 +612,22 @@ async function authorize(
     value("prompt") !== "none"
   )
     return fail("invalid_request");
-  const hint = await secretsFor(context).read<LaunchHint | PickHint>(
-    value("lti_message_hint"),
-  );
-  if (hint?.kind !== "launch" && hint?.kind !== "pick")
+  const sent = value("lti_message_hint");
+  if (sent.startsWith(FRAMED))
+    return framedAnswer(context, tool, sent, {
+      loginHint: value("login_hint"),
+      nonce: value("nonce"),
+      reply: (fields) =>
+        postedTo(redirect, { ...fields, state: value("state") }),
+    });
+  const hint = await secretsFor(context).read<
+    LaunchHint | PickHint | ReviewHint
+  >(sent);
+  if (
+    hint?.kind !== "launch" &&
+    hint?.kind !== "pick" &&
+    hint?.kind !== "review"
+  )
     return fail("invalid_request");
   const answered = await asPerson(context, async (unit) => {
     if (
@@ -427,56 +638,185 @@ async function authorize(
     const message =
       hint.kind === "launch"
         ? await launchMessage(context, unit, hint)
-        : await pickMessage(context, unit, hint);
+        : hint.kind === "pick"
+          ? await pickMessage(context, unit, hint)
+          : await reviewMessage(context, unit, hint);
     if (!message || message.tool.id !== tool.id) return fail("invalid_request");
-    const [person] = tool.sendNames
-      ? await namesOf(unit.tx, unit.tenantId, [unit.actor.userId])
-      : [];
-    const locale = localeOf(context);
-    const token = await signed(
-      {
-        iss: issuerOf(context.school),
-        aud: [tool.clientId],
-        azp: tool.clientId,
-        sub: unit.actor.userId,
-        nonce: value("nonce"),
-        [LTI_CLAIM.version]: LTI_VERSION,
-        [LTI_CLAIM.deploymentId]: tool.deploymentId,
-        [LTI_CLAIM.context]: {
-          id: message.course.id,
-          title: message.course.title,
-          type: [COURSE_OFFERING],
-        },
-        [LTI_CLAIM.launchPresentation]: { document_target: "window", locale },
-        [LTI_CLAIM.toolPlatform]: {
-          guid: context.school.schoolId,
-          name: context.school.nameEn ?? context.school.nameAr ?? "",
-          product_family_code: "farida",
-        },
-        ...message.claims,
-        ...(person
-          ? {
-              name: person.fullNameEn ?? person.fullNameAr ?? "",
-              locale,
-            }
-          : {}),
-      },
-      await schoolSigningKey(unit.tx, context.school, secretsFor(context)),
-    );
+    const token = await idToken(context, unit.tx, tool, {
+      userId: unit.actor.userId,
+      nonce: value("nonce"),
+      course: message.course,
+      target: message.target,
+      returnUrl: message.returnUrl,
+      claims: message.claims,
+      name: await nameFor(unit, tool),
+    });
     return postedTo(redirect, { id_token: token, state: value("state") });
   });
   // Without a session the launch cannot go on, and the tool is told so.
   return answered.status === 401 ? fail("login_required") : answered;
 }
 
+/** A person's name as a tool that is sent names is told it; none for one that is not. */
+async function nameFor(unit: UnitContext, tool: ToolRow) {
+  const [person] = tool.sendNames
+    ? await namesOf(unit.tx, unit.tenantId, [unit.actor.userId])
+    : [];
+  return person ? (person.fullNameEn ?? person.fullNameAr ?? "") : null;
+}
+
+/** What a launch's signed token says beyond the message itself. */
+interface Launched {
+  userId: string;
+  nonce: string;
+  course: { id: string; title: string };
+  target: "window" | "iframe";
+  returnUrl: string | null;
+  claims: Record<string, unknown>;
+  name: string | null;
+}
+
+/** The launch as the tool receives it: signed with the school's key, for five minutes. */
+async function idToken(
+  context: SchoolContext,
+  tx: CellTransaction,
+  tool: ToolRow,
+  launched: Launched,
+) {
+  const locale = localeOf(context);
+  return signed(
+    {
+      iss: issuerOf(context.school),
+      aud: [tool.clientId],
+      azp: tool.clientId,
+      sub: launched.userId,
+      nonce: launched.nonce,
+      [LTI_CLAIM.version]: LTI_VERSION,
+      [LTI_CLAIM.deploymentId]: tool.deploymentId,
+      [LTI_CLAIM.context]: {
+        id: launched.course.id,
+        title: launched.course.title,
+        type: [COURSE_OFFERING],
+      },
+      [LTI_CLAIM.launchPresentation]: {
+        document_target: launched.target,
+        locale,
+        ...(launched.returnUrl ? { return_url: launched.returnUrl } : {}),
+      },
+      [LTI_CLAIM.toolPlatform]: {
+        guid: context.school.schoolId,
+        name: context.school.nameEn ?? context.school.nameAr ?? "",
+        product_family_code: "farida",
+      },
+      ...launched.claims,
+      ...(launched.name === null ? {} : { name: launched.name, locale }),
+    },
+    await schoolSigningKey(tx, context.school, secretsFor(context)),
+  );
+}
+
+/** Marks a hint that carries a launch shown in the page, sealed. */
+const FRAMED = "f.";
+/** How long a launch shown in the page has to come back from the tool's sign-in. */
+const FRAMED_SECONDS = 120;
+
+/** A launch shown in the page, made while the person was signed in and sealed into its hint. */
+interface FramedLaunch {
+  kind: "framed";
+  id: string;
+  toolId: string;
+  exp: number;
+  launched: Omit<Launched, "nonce">;
+}
+
+/**
+ * The hint for a launch shown in the page. A frame's trip through the
+ * tool's site comes back without the person's session cookie, which the
+ * browser keeps from a cross-site frame, so the launch is made here while
+ * the person is signed in, sealed so the tool cannot read or change it,
+ * and taken once, within two minutes, by the tool it was made for.
+ */
+async function framedHint(
+  context: SchoolContext,
+  unit: UnitContext,
+  hint: LaunchHint,
+) {
+  const message = await launchMessage(context, unit, hint);
+  if (!message) return null;
+  const framed: FramedLaunch = {
+    kind: "framed",
+    id: crypto.randomUUID(),
+    toolId: message.tool.id,
+    exp: Math.floor(Date.now() / 1000) + FRAMED_SECONDS,
+    launched: {
+      userId: unit.actor.userId,
+      course: message.course,
+      target: "iframe",
+      returnUrl: null,
+      claims: message.claims,
+      name: await nameFor(unit, message.tool),
+    },
+  };
+  return {
+    tool: message.tool,
+    hint: `${FRAMED}${await secretsFor(context).seal(framed)}`,
+    target: message.claims[LTI_CLAIM.targetLinkUri],
+  };
+}
+
+/** Answers a tool's sign-in for a launch shown in the page, from its sealed hint. */
+async function framedAnswer(
+  context: SchoolContext,
+  tool: ToolRow,
+  sent: string,
+  asked: {
+    loginHint: string;
+    nonce: string;
+    reply: (fields: Record<string, string>) => Response;
+  },
+) {
+  const framed = await secretsFor(context)
+    .open<FramedLaunch>(sent.slice(FRAMED.length))
+    .catch(() => null);
+  if (
+    framed?.kind !== "framed" ||
+    framed.toolId !== tool.id ||
+    framed.exp <= Math.floor(Date.now() / 1000) ||
+    framed.launched.userId !== asked.loginHint
+  )
+    return asked.reply({ error: "invalid_request" });
+  const system = {
+    tenantId: context.school.tenantId,
+    requestId: context.requestId,
+    actor: { kind: "system" as const },
+  };
+  const token = await context.cell.withTenant(system, "write", async (tx) => {
+    const fresh = await useOnce(tx, {
+      tenantId: context.school.tenantId,
+      key: `framed:${framed.id}`,
+      expiresAt: new Date((framed.exp + 60) * 1000),
+    });
+    return fresh
+      ? idToken(context, tx, tool, { ...framed.launched, nonce: asked.nonce })
+      : null;
+  });
+  return token
+    ? asked.reply({ id_token: token })
+    : asked.reply({ error: "invalid_request" });
+}
+
 const PICKED_TEXT = {
   en: {
     done: "Done. You can close this window.",
+    partly:
+      "Some of what you picked could not be placed. The rest is in the editor; you can close this window.",
     failed:
       "The tool's answer could not be used. Close this window and try again.",
   },
   ar: {
     done: "تم. يمكنك إغلاق هذه النافذة.",
+    partly:
+      "تعذّر وضع بعض ما اخترته. الباقي في المحرّر، ويمكنك إغلاق هذه النافذة.",
     failed: "تعذّر استخدام ردّ الأداة. أغلق هذه النافذة وحاول مرة أخرى.",
   },
 } as const;
@@ -489,14 +829,15 @@ const PICKED_TEXT = {
  */
 function pickedPage(
   context: SchoolContext,
-  answer: { pickId: string; item: LtiPick | null } | null,
+  answer: { pickId: string; items: LtiPicked[] } | null,
   problem: string | null = null,
 ): Response {
   const locale = localeOf(context);
   const text = PICKED_TEXT[locale];
   const failed = !answer || problem !== null;
+  const partly = failed && answer !== null && answer.items.length > 0;
   const body = [
-    `<p>${escape(failed ? text.failed : text.done)}</p>`,
+    `<p>${escape(partly ? text.partly : failed ? text.failed : text.done)}</p>`,
     problem ? `<p dir="auto">${escape(problem)}</p>` : "",
   ].join("");
   const script = answer
@@ -581,17 +922,18 @@ async function picked(
     }),
   );
   if (!fresh) return pickedPage(context, null);
-  const items = payload[LTI_DL_CLAIM.contentItems];
-  const first = Array.isArray(items) ? (items[0] as unknown) : undefined;
-  const item = first === undefined ? null : ltiPickOf(first);
+  const { picked: items, refused: left } = ltiPickedOf(
+    payload[LTI_DL_CLAIM.contentItems],
+  );
   const told = payload[LTI_DL_CLAIM.errormsg];
+  // What can be placed is placed; the teacher is told when some could not be.
   const problem =
     typeof told === "string" && told.trim()
       ? told.trim().slice(0, 500)
-      : first !== undefined && !item
+      : left > 0
         ? ""
         : null;
-  return pickedPage(context, { pickId: data.pickId, item }, problem);
+  return pickedPage(context, { pickId: data.pickId, items }, problem);
 }
 
 /** The school's public keys, by which tools check what it signs. */
@@ -635,6 +977,14 @@ export async function handleLtiRequest(
     return authorize(scoped, request, url);
   if (url.pathname === "/lti/pick" && request.method === "GET")
     return pick(scoped, url);
+  if (url.pathname === "/lti/review" && request.method === "GET")
+    return review(scoped, url);
+  if (url.pathname.startsWith("/lti/nrps/"))
+    return rosterService(scoped, request, url);
+  if (url.pathname === "/lti/openid-configuration" && request.method === "GET")
+    return openIdConfiguration(scoped);
+  if (url.pathname === "/lti/register" && request.method === "POST")
+    return registerTool(scoped, request);
   if (url.pathname === "/lti/deep-link" && request.method === "POST")
     return picked(scoped, request);
   if (url.pathname === "/lti/token" && request.method === "POST")

@@ -1,7 +1,4 @@
-import type { LtiLink } from "@faridalms/domain/lti";
-
 import { plainContent } from "@faridalms/domain/content-conversion";
-import { contentOfLesson } from "@faridalms/domain/lesson-content";
 import {
   LTI_AGS_CLAIM,
   LTI_AGS_SCOPES,
@@ -20,166 +17,18 @@ import {
   SignJWT,
 } from "jose";
 
-import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
-
-const TITLE = "Reading stories together";
-const TOOL = "https://tool.example.com";
-
-/** The fields of a page that posts itself on, and where it posts them. */
-function posted(html: string) {
-  const action = /<form method="post" action="([^"]+)"/.exec(html)?.[1] ?? "";
-  const fields = Object.fromEntries(
-    [...html.matchAll(/name="([^"]+)" value="([^"]*)"/g)].map((match) => [
-      match[1],
-      (match[2] ?? "").replaceAll("&quot;", '"').replaceAll("&amp;", "&"),
-    ]),
-  );
-  return { action: action.replaceAll("&amp;", "&"), fields };
-}
-
-/** A tool's answer to a pick, posted back as it comes from the tool's site. */
-const returned = (jwt: string) =>
-  raw("northwind", "", "/lti/deep-link", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ JWT: jwt }).toString(),
-  });
-
-/** What the answer's page hands to the editor waiting for it. */
-const handed = (html: string) =>
-  JSON.parse(
-    /c\.postMessage\((.*?)\);c\.close/.exec(html)?.[1] ?? "null",
-  ) as unknown;
-
-/** A launch carried through the tool's sign-in to the token it is posted. */
-async function launchToken(
-  token: string,
-  userId: string,
-  clientId: string,
-  start: string,
-) {
-  const started = posted(await (await raw("northwind", token, start)).text());
-  const answer = posted(
-    await (
-      await raw(
-        "northwind",
-        token,
-        `/lti/auth?${new URLSearchParams({
-          scope: "openid",
-          response_type: "id_token",
-          response_mode: "form_post",
-          prompt: "none",
-          client_id: clientId,
-          redirect_uri: `${TOOL}/launch`,
-          login_hint: userId,
-          lti_message_hint: started.fields.lti_message_hint ?? "",
-          nonce: crypto.randomUUID(),
-          state: "s",
-        })}`,
-      )
-    ).text(),
-  );
-  return answer.fields.id_token ?? "";
-}
-
-/** A tool's proof of who it is, as it asks the school for a token. */
-const assertion = (
-  clientId: string,
-  key: CryptoKey,
-  kid: string,
-  audience = "https://localhost/lti/token",
-) =>
-  new SignJWT({})
-    .setProtectedHeader({ alg: "RS256", kid })
-    .setIssuer(clientId)
-    .setSubject(clientId)
-    .setAudience(audience)
-    .setJti(crypto.randomUUID())
-    .setIssuedAt()
-    .setExpirationTime("5m")
-    .sign(key);
-
-/** A tool asking the school's token endpoint for the scopes named. */
-const askToken = (jwt: string, scope: string) =>
-  raw("northwind", "", "/lti/token", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_assertion_type:
-        "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-      client_assertion: jwt,
-      scope,
-    }).toString(),
-  });
-
-/** A service address a launch named, as the API is reached here. */
-const local = (url: string) => url.replace("https://localhost", "");
-
-/** A lesson in the seeded module with a link to the tool in it. */
-async function lessonWithLink(toolId: string, link: Partial<LtiLink> = {}) {
-  const tenant = seeded().tenants[0];
-  const school = tenant?.schools.find((row) => row.slug === "northwind");
-  let keeper: Awaited<ReturnType<typeof sessionFor>> | null = null;
-  for (const row of tenant?.logins ?? []) {
-    if (row.role !== "teacher" || row.schoolId !== school?.id) continue;
-    const session = await sessionFor("northwind", row.loginName);
-    const { rows } = await session.api.learning.modules({});
-    if (rows.some((item) => item.title === TITLE)) keeper ??= session;
-  }
-  if (!keeper) throw new Error("no teacher of the module");
-  const source = (await keeper.api.learning.modules({})).rows.find(
-    (row) => row.title === TITLE,
-  );
-  if (!source) throw new Error("no module");
-  const saved = await keeper.api.learning.saveModule({
-    id: "",
-    expectedVersion: 0,
-    title: "Rivers outside",
-    summary: "",
-    classIds: source.classes.map((item) => item.id),
-    prerequisiteId: "",
-    sequential: false,
-  });
-  const document = contentOfLesson({ version: 2, blocks: [] });
-  if (!document) throw new Error("no document");
-  const linkId = crypto.randomUUID();
-  document.root.children = [
-    ...(document.root.children ?? []),
-    {
-      type: "lti",
-      version: 1,
-      lti: {
-        linkId,
-        toolId,
-        title: "Flood simulator",
-        custom: { level: "2" },
-        ...link,
-      },
-    },
-  ];
-  const lesson = await keeper.api.learning.saveLesson({
-    id: "",
-    moduleId: saved.id,
-    expectedVersion: 0,
-    title: "Simulate a flood",
-    completion: "view",
-    passScore: null,
-    content: document,
-    publish: false,
-  });
-  await keeper.api.learning.publishModule({
-    id: saved.id,
-    expectedVersion: saved.version,
-  });
-  return {
-    keeper,
-    lessonId: lesson.id,
-    linkId,
-    moduleId: saved.id,
-    classIds: source.classes.map((item) => item.id),
-  };
-}
+import { login, raw, rejection, sessionFor, signedIn } from "./harness";
+import {
+  askToken,
+  assertion,
+  handed,
+  launchToken,
+  lessonWithLink,
+  local,
+  posted,
+  returned,
+  TOOL,
+} from "./lti-helpers";
 
 describe("outside tools by LTI 1.3", () => {
   test("a student launches a tool from a lesson, signed in as themselves", async () => {
@@ -390,8 +239,10 @@ describe("outside tools by LTI 1.3", () => {
       [LTI_CLAIM.roles]: [...LTI_ROLES.instructor],
       [LTI_DL_CLAIM.settings]: {
         deep_link_return_url: "https://localhost/lti/deep-link",
-        accept_types: ["ltiResourceLink"],
-        accept_multiple: false,
+        accept_types: ["ltiResourceLink", "link", "html"],
+        accept_presentation_document_targets: ["iframe", "window", "embed"],
+        accept_multiple: true,
+        accept_lineitem: true,
       },
     });
     expect(request[LTI_CLAIM.resourceLink]).toBeUndefined();
@@ -448,12 +299,17 @@ describe("outside tools by LTI 1.3", () => {
       expect(back.status).toBe(200);
       expect(handed(await back.text())).toEqual({
         pickId,
-        item: {
-          title: "Rivers in flood",
-          url: `${TOOL}/sims/flood`,
-          custom: { sim: "flood" },
-          lineItem: { label: "Rivers in flood", scoreMaximum: 10 },
-        },
+        items: [
+          {
+            type: "lti",
+            pick: {
+              title: "Rivers in flood",
+              url: `${TOOL}/sims/flood`,
+              custom: { sim: "flood" },
+              lineItem: { label: "Rivers in flood", scoreMaximum: 10 },
+            },
+          },
+        ],
       });
       // The same answer is taken once.
       expect((await returned(jwt)).status).toBe(400);
@@ -472,7 +328,63 @@ describe("outside tools by LTI 1.3", () => {
             await returned(await response({ [LTI_DL_CLAIM.contentItems]: [] }))
           ).text(),
         ),
-      ).toEqual({ pickId, item: null });
+      ).toEqual({ pickId, items: [] });
+      // Several items come at once, each placed as the editor places it:
+      // a link shown in the page, an address, the tool's HTML to read as a
+      // paste is. What cannot be placed is left out and the teacher told.
+      const several = await returned(
+        await response({
+          [LTI_DL_CLAIM.contentItems]: [
+            {
+              type: "ltiResourceLink",
+              title: "Tides",
+              url: `${TOOL}/sims/tides`,
+              iframe: { width: 800, height: 5000 },
+              lineItem: {
+                scoreMaximum: 5,
+                submissionReview: { label: "See the work" },
+              },
+            },
+            {
+              type: "link",
+              url: "https://example.com/rivers",
+              title: "Rivers of the world",
+              iframe: { src: "https://example.com/rivers?embed=1" },
+            },
+            { type: "html", html: "<p>A river <b>floods</b>.</p>" },
+            { type: "file", url: `${TOOL}/files/1.pdf` },
+            { type: "link", url: "http://example.com/plain" },
+          ],
+        }),
+      );
+      const page = await several.text();
+      expect(handed(page)).toEqual({
+        pickId,
+        items: [
+          {
+            type: "lti",
+            pick: {
+              title: "Tides",
+              url: `${TOOL}/sims/tides`,
+              lineItem: {
+                label: "Tides",
+                scoreMaximum: 5,
+                submissionReview: { label: "See the work" },
+              },
+              frame: { height: 2000 },
+            },
+          },
+          {
+            type: "link",
+            url: "https://example.com/rivers",
+            title: "Rivers of the world",
+            frame: "https://example.com/rivers?embed=1",
+          },
+          { type: "html", html: "<p>A river <b>floods</b>.</p>", title: "" },
+        ],
+      });
+      expect(page).toContain("Some of what you picked could not be placed.");
+      expect(page).not.toContain("window.close()");
     } finally {
       fetched.mockRestore();
     }
@@ -857,6 +769,7 @@ describe("outside tools by LTI 1.3", () => {
         result: 6,
         gradingProgress: "FullyGraded",
         comment: "Timed it well.",
+        reviewable: false,
       },
     ]);
   });
