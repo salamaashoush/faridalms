@@ -81,26 +81,13 @@ From `school-front-door.md`; slices 1 to 9 are merged.
 
 ## Messages
 
-- The contract step of the conversation move: drop `site_enquiry_entries`
-  and `attendance_contacts`. Each migrated entry records `migratedFrom`, so
-  first copy anything an older release wrote after the move.
-- Staff search over internal entries.
-- Presence ("someone is replying").
-- Merging two contacts who write from different addresses.
-- Accepting a held email into the conversation as the family's.
-- Webhooks for bounces and complaints that mark a contact unreachable.
 - Routing inbound callbacks through `connect.` once a second cell exists.
 
 ## Teaching and records
 
-- Timetables: more than one timetable per year, rotating day cycles, and
-  one period with different times on different days. Today the last one
-  needs separate periods.
 - Files:
   - There is no job that re-encrypts sealed files after a key rotation; the
     encrypted fields have none either.
-- Broadcasts: the web keeps one server-bridge file per kind because the API
-  keeps its `announcements` and `news` namespaces.
 
 ## Operations
 

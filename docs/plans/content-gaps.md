@@ -83,29 +83,6 @@ copies cached for a year. The gaps, split in two workstreams:
 - Audio duration and a waveform; PDF page thumbnails; office files
   previewed as PDF when a converter is configured.
 
-## B. Timetable
-
-1. More than one bell schedule in a year, chosen per day.
-2. Rotating day cycles (A/B weeks, six-day cycles), with closures moving
-   the cycle or not as the school chooses.
-3. More than one timetable in a year, each from a date.
-4. One period with different times on different days.
-
-Every week view, register, cover board, feed and print follows them.
-
-## C. Messages and communication
-
-1. The contract step of the conversation move: copy anything written to
-   `site_enquiry_entries` and `attendance_contacts` after the move, then
-   drop both.
-2. Staff search over internal entries.
-3. Presence: "someone is replying" in a conversation.
-4. Merging two contacts who write from different addresses.
-5. Accepting a held email into the conversation as the family's.
-6. Bounce and complaint webhooks that mark a contact unreachable.
-7. Announcements and news under one API namespace, so the web keeps one
-   server bridge.
-
 ## E. Collaboration and reading
 
 1. Discussions inside a module, and liking a post.
@@ -161,6 +138,8 @@ Each has a recommendation; nothing is built until the owner chooses.
 6. **Languages** beyond English and Arabic; **how far LTI and QTI go**;
    **generated narration** for young children.
 7. **Messages:** whether staff without `people:read` count as staff.
+8. **Timetable:** setting a single date to run as another weekday or cycle
+   day, and a bell schedule adding a period normal days do not have.
 
 ## Outside the code
 
