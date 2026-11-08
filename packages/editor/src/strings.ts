@@ -5,11 +5,16 @@ import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 import type { BibliographyViewStrings } from "./bibliography-view";
 import type { ChartStrings } from "./chart-view";
 import type { LabelEditorStrings } from "./picture-labels";
+import type { AssistantStrings } from "./plugins/assistant";
 import type { RecorderStrings } from "./recorder";
 import type { VideoRecorderStrings } from "./video-recorder";
 
 export interface EditorStrings
-  extends LabelEditorStrings, ChartStrings, BibliographyViewStrings {
+  extends
+    LabelEditorStrings,
+    ChartStrings,
+    BibliographyViewStrings,
+    AssistantStrings {
   placeholder: string;
   emptyPlaceholder: string;
   headingPlaceholder: string;

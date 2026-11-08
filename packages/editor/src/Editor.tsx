@@ -32,6 +32,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as v from "valibot";
 
 import type {
+  EditorAssistant,
   EditorBank,
   EditorComments,
   EditorShared,
@@ -55,6 +56,7 @@ import {
   setQuestionLabels,
   setQuestionsAsked,
 } from "./nodes";
+import { AssistantPlugin } from "./plugins/assistant";
 import { BankPlugin } from "./plugins/bank";
 import { BlockHandlePlugin } from "./plugins/BlockHandle";
 import { Cmi5ImportPlugin } from "./plugins/cmi5";
@@ -131,6 +133,8 @@ export interface EditorProps {
   tools?: EditorTools;
   /** Comments the document's writers leave each other, kept outside it. */
   comments?: EditorComments;
+  /** Help from the school's language model, where the host offers it. */
+  assistant?: EditorAssistant;
   placeholder?: string;
   initialFocus?: boolean;
   locale?: string;
@@ -188,6 +192,7 @@ export default function Editor({
   mentions,
   tools,
   comments,
+  assistant,
   locale,
   digits,
   value,
@@ -234,6 +239,7 @@ export default function Editor({
       mentions,
       tools,
       comments,
+      assistant,
       locale:
         locale ??
         (typeof document === "undefined"
@@ -263,6 +269,7 @@ export default function Editor({
       mentions,
       tools,
       comments,
+      assistant,
       locale,
       questions,
       forms,
@@ -334,7 +341,7 @@ function Surface({
   onSynced,
   language,
   young = false,
-}: Omit<EditorProps, "value" | "media" | "locale" | "strings"> & {
+}: Omit<EditorProps, "value" | "media" | "locale" | "strings" | "assistant"> & {
   synced: boolean;
 }) {
   const [editor] = useLexicalComposerContext();
@@ -604,6 +611,7 @@ function Surface({
       <SharedPlugin />
       <MentionsPlugin />
       <CommentsPlugin />
+      <AssistantPlugin language={language} />
       <PastePlugin />
       <QuestionGuardPlugin />
       <DiagramPlugin />

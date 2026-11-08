@@ -4,6 +4,7 @@ import type { BlockType } from "../blocks";
 
 import { $insertBlock } from "../blocks";
 import { EDIT_DIAGRAM_COMMAND } from "../nodes";
+import { OPEN_ASSISTANT_COMMAND } from "./assistant";
 import { OPEN_BANK_COMMAND } from "./bank";
 import { IMPORT_CMI5_COMMAND } from "./cmi5";
 import { OPEN_EMBED_COMMAND } from "./embed";
@@ -28,6 +29,13 @@ export function $runBlock(editor: LexicalEditor, type: BlockType) {
   }
   if (type === "embed") {
     editor.dispatchCommand(OPEN_EMBED_COMMAND, undefined);
+    return;
+  }
+  if (type === "assistantQuestions") {
+    editor.dispatchCommand(OPEN_ASSISTANT_COMMAND, {
+      task: "questions",
+      selection: false,
+    });
     return;
   }
   if (type === "bankQuestion") {

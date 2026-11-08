@@ -3,6 +3,8 @@ export type { EditorCollaboration, EditorProps } from "./Editor";
 export type { Provider, ProviderAwareness } from "@lexical/yjs";
 export type {
   CommentMark,
+  EditorAssistant,
+  EditorAssistantRequest,
   EditorBank,
   EditorComments,
   EditorShared,

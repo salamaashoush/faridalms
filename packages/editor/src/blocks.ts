@@ -78,6 +78,7 @@ import {
   GitCommitVertical,
   Library,
   Sigma,
+  WandSparkles,
   SquareRadical,
   Columns2,
   Columns3,
@@ -236,6 +237,7 @@ export type BlockType =
   | "studentCopy"
   | "aiUse"
   | "bankQuestion"
+  | "assistantQuestions"
   | "sharedBlock"
   | "bankDraw"
   | "standards"
@@ -336,6 +338,8 @@ export interface BlockDefinition {
   shared?: boolean;
   /** Offered only where the school has outside tools to link to. */
   tools?: boolean;
+  /** Offered only where the school's language model helps its teachers. */
+  assistant?: boolean;
 }
 
 /** Which kinds of block a document may hold. */
@@ -355,6 +359,7 @@ export interface BlockScope {
   standards: boolean;
   shared: boolean;
   tools: boolean;
+  assistant: boolean;
 }
 
 export function blockScope(environment: {
@@ -372,6 +377,7 @@ export function blockScope(environment: {
   standards?: unknown;
   shared?: unknown;
   tools?: { list: readonly unknown[] };
+  assistant?: unknown;
 }): BlockScope {
   const questions = Boolean(environment.questions);
   return {
@@ -389,6 +395,7 @@ export function blockScope(environment: {
     standards: Boolean(environment.standards),
     shared: Boolean(environment.shared),
     tools: Boolean(environment.tools?.list.length),
+    assistant: questions && Boolean(environment.assistant),
   };
 }
 
@@ -406,7 +413,8 @@ export const offered = (block: BlockDefinition, scope: BlockScope) =>
   (scope.draws || !block.draw) &&
   (scope.standards || !block.standards) &&
   (scope.shared || !block.shared) &&
-  (scope.tools || !block.tools);
+  (scope.tools || !block.tools) &&
+  (scope.assistant || !block.assistant);
 
 export const blockDefinitions: BlockDefinition[] = [
   {
@@ -924,6 +932,24 @@ export const blockDefinitions: BlockDefinition[] = [
       "إعادة استخدام",
     ],
     shared: true,
+  },
+  {
+    type: "assistantQuestions",
+    group: "questions",
+    icon: WandSparkles,
+    label: (s) => s.assistantSuggest,
+    hint: (s) => s.assistantSuggestHint,
+    keywords: [
+      "suggest",
+      "generate",
+      "ai",
+      "assistant",
+      "اقتراح",
+      "أسئلة",
+      "مساعد",
+    ],
+    question: true,
+    assistant: true,
   },
   {
     type: "bankQuestion",

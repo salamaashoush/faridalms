@@ -1,10 +1,16 @@
 import type { Anchor } from "@faridalms/domain/anchors";
+import type {
+  AssistantEvent,
+  QUESTION_COUNTS,
+  ReadingLevel,
+} from "@faridalms/domain/assistant";
 import type { PictureCredit } from "@faridalms/domain/commons";
 import type { ContentDocument, Mention } from "@faridalms/domain/content";
 import type { SpeechLanguage } from "@faridalms/domain/file";
 import type { LtiPicked } from "@faridalms/domain/lti";
 import type { Digits } from "@faridalms/domain/people";
 import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
+import type { ContentLocale } from "@faridalms/domain/translations";
 import type { Level } from "@faridalms/puzzles/level";
 import type { ComponentType } from "react";
 
@@ -278,8 +284,41 @@ export interface EditorComments {
   reveal?: { id: string; at: number };
 }
 
+/** What a teacher asks of the school's language model from the editor. */
+export type EditorAssistantRequest =
+  | {
+      task: "questions";
+      content: ContentDocument;
+      language: ContentLocale;
+      count: (typeof QUESTION_COUNTS)[number];
+    }
+  | {
+      task: "level";
+      content: ContentDocument;
+      language: ContentLocale;
+      level: ReadingLevel;
+    };
+
+/**
+ * Help from the school's language model while writing. The host sends
+ * the words to its server, which decides what may leave; `run` yields the
+ * answer as it is written until `signal` stops it, and `describe` gives a
+ * refusal or a failure in the person's language.
+ */
+export interface EditorAssistant {
+  /** The provider the school chose, as the teacher is told it. */
+  provider: string;
+  run: (
+    request: EditorAssistantRequest,
+    signal: AbortSignal,
+  ) => AsyncIterable<AssistantEvent>;
+  describe: (error: unknown) => string;
+}
+
 export interface EditorEnvironment {
   strings: EditorStrings;
+  /** Help from the school's language model; absent where it is not offered. */
+  assistant?: EditorAssistant;
   /** Comments while writing; absent where nobody may leave them. */
   comments?: EditorComments;
   media?: EditorMedia;

@@ -235,6 +235,7 @@ import {
   selectionReference,
   shortcutLabel,
 } from "../ui";
+import { AssistantTool } from "./assistant";
 import { CommentTool } from "./comments";
 import { FootnotePanel } from "./footnote-panel";
 import { KeepInLibrary } from "./library";
@@ -4000,6 +4001,7 @@ export function SelectionToolbarPlugin() {
             <CommentTool />
           </>
         ) : null}
+        <AssistantTool />
       </div>
     </Floating>
   );
