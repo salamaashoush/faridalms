@@ -46,7 +46,12 @@ export type ThreadRole = "owner" | "member" | "reader";
  * the address, `user_id` names them and their conversations become theirs.
  * `phone_normalized` is the number in E.164, as contact points keep it, so
  * "010..." and "+2010..." are found as one. An erased contact keeps its
- * row, emptied, for the conversations that name it.
+ * row, emptied, for the conversations that name it. Mail to the address
+ * that bounced for good, or that its reader reported as spam, stamps
+ * `bounced_at` or `complaint_at`, and nothing more is emailed to it. A
+ * family that writes from two addresses is one contact once staff merge
+ * them: the other row stays, `merged_into_id` naming the one kept, so its
+ * address still finds the family, and everything it was in moved across.
  */
 export const messageContacts = core.table.withRLS(
   "message_contacts",
@@ -59,6 +64,12 @@ export const messageContacts = core.table.withRLS(
     locale: text("locale").$type<"en" | "ar">().notNull().default("en"),
     userId: uuid("user_id"),
     linkedAt: instant("linked_at"),
+    bouncedAt: instant("bounced_at"),
+    complaintAt: instant("complaint_at"),
+    // Keyed to message_contacts NOT VALID by the custom migration, as
+    // thread_members.contact_id.
+    mergedIntoId: uuid("merged_into_id"),
+    mergedAt: instant("merged_at"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -92,6 +103,14 @@ export const messageContacts = core.table.withRLS(
       "linked",
       sql`(user_id is null) = (linked_at is null)`,
     ),
+    ck(
+      "message_contacts",
+      "merged",
+      sql`(merged_into_id is null) = (merged_at is null) and merged_into_id is distinct from id`,
+    ),
+    index("message_contacts_merged_idx")
+      .on(t.tenantId, t.mergedIntoId)
+      .where(sql`merged_into_id is not null`),
     uniqueIndex("message_contacts_email_key")
       .on(t.tenantId, t.email)
       .where(sql`status = 'active' and email is not null`),
@@ -102,7 +121,9 @@ export const messageContacts = core.table.withRLS(
       .on(t.tenantId, t.phoneNormalized)
       .where(sql`status = 'active' and phone_normalized is not null`),
     ...entityProfile(),
-    ...erase(sql`${erasureOf("id")} or ${erasureOf("user_id")}`),
+    ...erase(
+      sql`${erasureOf("id")} or ${erasureOf("user_id")} or ${erasureOf("merged_into_id")}`,
+    ),
   ],
 );
 

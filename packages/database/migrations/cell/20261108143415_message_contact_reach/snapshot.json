@@ -1,0 +1,256 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "04a7e005-15f7-468e-896d-0f1f0baf6b64",
+  "prevIds": [
+    "4a0405b5-b697-40f9-9e9f-b9a3ef453810"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "message_contacts",
+        "bounced_at"
+      ],
+      "writes": [
+        "s|col|core.message_contacts.bounced_at",
+        "n|col|core.message_contacts.bounced_at",
+        "e|col|core.message_contacts.bounced_at"
+      ],
+      "reads": [
+        "n|tbl|core.message_contacts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "message_contacts",
+        "complaint_at"
+      ],
+      "writes": [
+        "s|col|core.message_contacts.complaint_at",
+        "n|col|core.message_contacts.complaint_at",
+        "e|col|core.message_contacts.complaint_at"
+      ],
+      "reads": [
+        "n|tbl|core.message_contacts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "message_contacts",
+        "merged_into_id"
+      ],
+      "writes": [
+        "s|col|core.message_contacts.merged_into_id",
+        "n|col|core.message_contacts.merged_into_id",
+        "e|col|core.message_contacts.merged_into_id"
+      ],
+      "reads": [
+        "n|tbl|core.message_contacts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "message_contacts",
+        "merged_at"
+      ],
+      "writes": [
+        "s|col|core.message_contacts.merged_at",
+        "n|col|core.message_contacts.merged_at",
+        "e|col|core.message_contacts.merged_at"
+      ],
+      "reads": [
+        "n|tbl|core.message_contacts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "message_contacts",
+        "message_contacts_merged_idx"
+      ],
+      "writes": [
+        "s|idx|core.message_contacts_merged_idx",
+        "n|idx|core.message_contacts_merged_idx",
+        "e|idx|core.message_contacts_merged_idx",
+        "n|rel|core.message_contacts_merged_idx"
+      ],
+      "reads": [
+        "n|tbl|core.message_contacts",
+        "n|sch|core",
+        "n|col|core.message_contacts.tenant_id",
+        "n|col|core.message_contacts.merged_into_id"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "message_contacts"
+      ],
+      "writes": [
+        "s|ck|core.message_contacts.message_contacts_merged_check",
+        "n|ck|core.message_contacts.message_contacts_merged_check",
+        "e|ck|core.message_contacts.message_contacts_merged_check",
+        "n|con|core.message_contacts.message_contacts_merged_check"
+      ],
+      "reads": [
+        "n|tbl|core.message_contacts",
+        "n|sch|core",
+        "n|col|core.message_contacts.merged_into_id",
+        "n|col|core.message_contacts.merged_at",
+        "n|col|core.message_contacts.id"
+      ]
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "message_contacts"
+      ],
+      "writes": [
+        "s|pol|core.message_contacts.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.message_contacts",
+        "n|sch|core",
+        "n|role|retention"
+      ],
+      "sqlHash": "8ce21b5ed86193da"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "message_contacts",
+        "name": "bounced_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "message_contacts",
+        "name": "complaint_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "message_contacts",
+        "name": "merged_into_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "message_contacts",
+        "name": "merged_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "message_contacts",
+        "name": "message_contacts_merged_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "merged_into_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "merged_into_id is not null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "message_contacts",
+        "name": "message_contacts_merged_check",
+        "value": "(merged_into_id is null) = (merged_at is null) and merged_into_id is distinct from id",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"core\",\"message_contacts\",\"p_erase_update\"]",
+      "set": {
+        "using": "app.erasure_approved(tenant_id, \"id\") or app.erasure_approved(tenant_id, \"user_id\") or app.erasure_approved(tenant_id, \"merged_into_id\")"
+      }
+    }
+  ]
+}
