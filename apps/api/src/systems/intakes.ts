@@ -18,6 +18,7 @@ import {
 } from "@faridalms/database/stores/templates";
 import { schoolYears } from "@faridalms/database/stores/years";
 import {
+  admissionsYear,
   formRefSchema,
   intakeListSchema,
   intakeRefSchema,
@@ -141,11 +142,7 @@ export const list = readProcedure
     readsAdmissions(context);
     const years = await entryYears(context);
     const yearId =
-      input.year ||
-      // Years come latest first; admissions are usually for the next one.
-      years.findLast((year) => year.lifecycle === "upcoming")?.id ||
-      years[0]?.id ||
-      null;
+      input.year || admissionsYear(years, context.today)?.id || null;
     const intakes = yearId
       ? await intakesOf(context.tx, { ...org(context), yearId })
       : [];

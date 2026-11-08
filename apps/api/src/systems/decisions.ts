@@ -26,6 +26,7 @@ import {
 import { schoolYears } from "@faridalms/database/stores/years";
 import {
   admissionReportSchema,
+  admissionsYear,
   answerOfferSchema,
   APPLICATION_STATES,
   applicationReference,
@@ -738,10 +739,7 @@ export const reports = readProcedure
       await schoolYears(context.tx, context.tenantId, context.schoolId)
     ).filter((year) => year.lifecycle !== "closed");
     const yearId =
-      input.year ||
-      years.findLast((year) => year.lifecycle === "upcoming")?.id ||
-      years[0]?.id ||
-      null;
+      input.year || admissionsYear(years, context.today)?.id || null;
     const [rows, times, intakes] = yearId
       ? await Promise.all([
           funnelRows(context.tx, { ...org(context), yearId }),

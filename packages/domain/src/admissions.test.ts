@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { FormQuestion } from "./questions";
 
 import {
+  admissionsYear,
   ageFit,
   ageInMonths,
   APPLICATION_STATES,
@@ -385,5 +386,37 @@ describe("the funnel", () => {
       stageReached(["submitted", "in_review", "decided", "waitlisted"]),
     ).toBe("decided");
     expect(stageReached(["draft", "withdrawn"])).toBeNull();
+  });
+});
+
+const year = (startsOn: string, lifecycle = "upcoming") => ({
+  startsOn,
+  lifecycle,
+});
+
+describe("admissionsYear", () => {
+  const today = "2026-11-08";
+
+  it("opens on the soonest upcoming year still ahead", () => {
+    const next = year("2027-09-01");
+    expect(
+      admissionsYear(
+        [year("2030-09-01"), next, year("2026-09-01", "current")],
+        today,
+      ),
+    ).toBe(next);
+  });
+
+  it("passes over an upcoming year that has already begun", () => {
+    const next = year("2027-09-01");
+    expect(admissionsYear([next, year("2011-09-11")], today)).toBe(next);
+  });
+
+  it("falls back to the soonest upcoming year, then the latest", () => {
+    const begun = year("2026-09-01");
+    expect(admissionsYear([begun], today)).toBe(begun);
+    const current = year("2026-09-01", "current");
+    expect(admissionsYear([current], today)).toBe(current);
+    expect(admissionsYear([], today)).toBeNull();
   });
 });

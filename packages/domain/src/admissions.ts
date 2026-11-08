@@ -1163,3 +1163,21 @@ export function stageReached(
 }
 
 export const letterRefSchema = v.object({ id });
+
+/**
+ * The year admissions open on when none is asked for: the soonest upcoming
+ * year still ahead of today, since families do not apply for a year already
+ * begun; else the soonest upcoming one; else the latest. `years` come
+ * latest first.
+ */
+export function admissionsYear<
+  T extends { lifecycle: string; startsOn: string },
+>(years: readonly T[], today: string): T | null {
+  const upcoming = years.filter((year) => year.lifecycle === "upcoming");
+  return (
+    upcoming.findLast((year) => year.startsOn > today) ??
+    upcoming.at(-1) ??
+    years[0] ??
+    null
+  );
+}

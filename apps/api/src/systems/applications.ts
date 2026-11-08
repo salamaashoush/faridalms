@@ -25,6 +25,7 @@ import { reachability } from "@faridalms/database/stores/notifications";
 import { person as readPerson } from "@faridalms/database/stores/students";
 import { schoolYears } from "@faridalms/database/stores/years";
 import {
+  admissionsYear,
   ageFit,
   applicationListSchema,
   applicationNoteSchema,
@@ -90,11 +91,7 @@ export const list = readProcedure
       await schoolYears(context.tx, context.tenantId, context.schoolId)
     ).filter((year) => year.lifecycle !== "closed");
     const yearId =
-      input.year ||
-      // Years come latest first; admissions are usually for the next one.
-      years.findLast((year) => year.lifecycle === "upcoming")?.id ||
-      years[0]?.id ||
-      null;
+      input.year || admissionsYear(years, context.today)?.id || null;
     const [listed, intakes] = await Promise.all([
       listApplications(context.tx, {
         ...org(context),
