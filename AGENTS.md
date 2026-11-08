@@ -352,8 +352,10 @@ actually break here — SSR, sessions, locale, hydration — are invisible to `t
 Run `bun run test:e2e`. It builds and serves the **production** bundle across
 Chromium, Firefox and WebKit, and the operator console as the `console`
 project, signing operators in through a stand-in OpenID Connect provider
-(`scripts/e2e-oidc.ts`). Every one of the following was caught there and by
-nothing else:
+(`scripts/e2e-oidc.ts`). Each run makes its own databases and takes ports
+3200-3210; a second run side by side (another worktree) sets its own block
+with `E2E_PORT_BASE`, such as `E2E_PORT_BASE=3300`. Every one of the
+following was caught there and by nothing else:
 
 - a `Secure` session cookie that made sign-in silently impossible in Safari,
 - devtools crashing SSR in production,

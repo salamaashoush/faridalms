@@ -35,19 +35,24 @@ const password =
   process.env.CELL_ROLE_PASSWORD ?? randomBytes(24).toString("hex");
 const kek = randomBytes(32);
 const cellId = "eg-1";
-const webPort = "3200";
-const apiPort = "3201";
-const collabPort = "3202";
+// Every port is an offset from one base, so runs side by side (one per
+// worktree) each take their own block: E2E_PORT_BASE=3300 takes 3300-3310.
+// The API serves the files host two ports above its own.
+const base = Number(process.env.E2E_PORT_BASE ?? "3200");
+const port = (offset: number) => String(base + offset);
+const webPort = port(0);
+const apiPort = port(1);
+const collabPort = port(2);
 // Resend's stand-in, which email is sent to and received mail read from.
-const resendPort = "3207";
+const resendPort = port(7);
 // The operator console, the identity provider it signs operators in with,
 // and the cell's provisioner it calls.
-const opsPort = "3206";
-const oidcPort = "3208";
-const paymobPort = "3209";
+const opsPort = port(6);
+const oidcPort = port(8);
+const paymobPort = port(9);
 // Anthropic's stand-in, which teachers' requests to the language model reach.
-const anthropicPort = "3210";
-const provisionPort = process.env.PROVISION_PORT ?? "3205";
+const anthropicPort = port(10);
+const provisionPort = port(5);
 const webhookSecret = `whsec_${randomBytes(24).toString("base64")}`;
 
 const urlFor = (name: string, role?: string) => {
