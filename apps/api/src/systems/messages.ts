@@ -16,7 +16,9 @@ import {
   draftsOf,
   existingThread,
   keepDraft,
+  mailboxContacts,
   markRead as markThreadRead,
+  mergeContacts as mergeContactRows,
   membersOf,
   messageable,
   messagesOf,
@@ -36,6 +38,7 @@ import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import {
   acceptHeldSchema,
+  contactsQuerySchema,
   draftRefSchema,
   draftSchema,
   draftsQuerySchema,
@@ -45,6 +48,7 @@ import {
   isInternal,
   mailboxesOf,
   membersSchema,
+  mergeContactsSchema,
   recipientsQuerySchema,
   sendSchema,
   startSchema,
@@ -256,6 +260,7 @@ export const thread = readProcedure
         email: team ? member.email : null,
         /** Why mail no longer reaches a contact, for the team that writes to it. */
         unreachable: team ? member.unreachable : null,
+        aliases: team ? member.aliases : [],
         lastReadAt: staff ? member.lastReadAt : null,
         link: linkOf(member.userId),
       })),
@@ -779,7 +784,7 @@ export const acceptHeld = writeProcedure
     const opened = await openThread(context, input.threadId);
     const { thread: row, team, writes } = opened;
     if (!team || !writes) throw new ORPCError("FORBIDDEN");
-    const contacts = opened.members.filter(
+    const outside = opened.members.filter(
       (member) => member.contactId !== null && member.role === "member",
     );
     const entryId = Bun.randomUUIDv7();
@@ -793,11 +798,11 @@ export const acceptHeld = writeProcedure
     if (!held)
       throw new ORPCError("CONFLICT", { message: "messages.not_held" });
     const contact = input.contactId
-      ? contacts.find((member) => member.contactId === input.contactId)
-      : (contacts.find(
+      ? outside.find((member) => member.contactId === input.contactId)
+      : (outside.find(
           (member) =>
             member.email !== null && member.email === held.from.toLowerCase(),
-        ) ?? (contacts.length === 1 ? contacts[0] : undefined));
+        ) ?? (outside.length === 1 ? outside[0] : undefined));
     if (!contact?.contactId)
       throw new ORPCError("BAD_REQUEST", { message: "messages.which_contact" });
     const posted = await writeEntry(scopeOf(context), {
@@ -821,4 +826,68 @@ export const acceptHeld = writeProcedure
       },
     });
     return { id: posted.id };
+  });
+
+/** Contacts are the business of the teams that write to them. */
+function contactTeams(context: UnitContext) {
+  const { writes } = mailboxesFor(context);
+  if (writes.length === 0) throw new ORPCError("FORBIDDEN");
+  return writes;
+}
+
+/**
+ * The outside contacts in conversations of the mailboxes the viewer
+ * writes in, to find the other address a family wrote from.
+ */
+export const contacts = readProcedure
+  .input(contactsQuerySchema)
+  .handler(async ({ input, context }) => ({
+    rows: await mailboxContacts(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      mailboxes: contactTeams(context),
+      q: input.q,
+      limit: 30,
+    }),
+  }));
+
+/**
+ * One family that wrote from two addresses becomes one contact: the
+ * other's conversations and what it wrote become the kept contact's, and
+ * mail from either address reaches the family. Both must be in
+ * conversations of a mailbox the viewer writes in.
+ */
+export const mergeContacts = writeProcedure
+  .input(mergeContactsSchema)
+  .handler(async ({ input, context }) => {
+    const found = await mailboxContacts(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      mailboxes: contactTeams(context),
+      q: "",
+      ids: [input.intoId, input.fromId],
+      limit: 2,
+    });
+    if (found.length !== 2 || input.intoId === input.fromId)
+      throw new ORPCError("NOT_FOUND");
+    const merged = await mergeContactRows(context.tx, {
+      tenantId: context.tenantId,
+      fromId: input.fromId,
+      intoId: input.intoId,
+    });
+    if (!merged.merged)
+      throw new ORPCError("CONFLICT", {
+        message: `messages.merge_${merged.reason}`,
+      });
+    await audit(context, {
+      action: "message_contact.merge",
+      objectType: "message_contact",
+      objectId: input.intoId,
+      details: {
+        from: input.fromId,
+        conversations: merged.conversations,
+        entries: merged.entries,
+      },
+    });
+    return { conversations: merged.conversations, entries: merged.entries };
   });

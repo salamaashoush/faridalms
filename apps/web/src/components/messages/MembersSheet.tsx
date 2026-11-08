@@ -19,6 +19,7 @@ import { getMessageFromError } from "~/utils/error";
 
 import { NameLink } from "./entries";
 import { nameOf } from "./format";
+import { MergeContact } from "./MergeContact";
 
 type Thread = Awaited<
   ReturnType<NonNullable<ReturnType<typeof threadQuery>["queryFn"]>>
@@ -68,7 +69,7 @@ export function MembersSheet({ thread, onClose }: MembersSheetProps) {
         .map((row) => (
           <li
             key={row.userId ?? row.contactId}
-            className="flex items-center justify-between gap-3 px-3 py-2"
+            className="flex flex-wrap items-center justify-between gap-3 px-3 py-2"
           >
             <span className="grid min-w-0">
               <NameLink
@@ -103,6 +104,11 @@ export function MembersSheet({ thread, onClose }: MembersSheetProps) {
                   ) : null}
                 </span>
               ) : null}
+              {row.aliases.length > 0 ? (
+                <span className="truncate text-[13px] leading-[18px] text-muted-foreground">
+                  {m.msgMergeAliases({ addresses: row.aliases.join(", ") })}
+                </span>
+              ) : null}
             </span>
             {thread.canManage && row.userId && row.userId !== user.id ? (
               <Button
@@ -119,6 +125,11 @@ export function MembersSheet({ thread, onClose }: MembersSheetProps) {
               >
                 <UserMinus aria-hidden />
               </Button>
+            ) : null}
+            {thread.canNote && row.contactId ? (
+              <div className="basis-full">
+                <MergeContact contactId={row.contactId} name={nameOf(row)} />
+              </div>
             ) : null}
           </li>
         ))}

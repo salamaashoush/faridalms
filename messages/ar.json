@@ -9842,5 +9842,16 @@
   "msgAcceptHeldAs": "قبولها كرسالة من {name}",
   "msgHeldAccepted": "قُبلت في المحادثة كرسالة من الأسرة",
   "msgErrNotHeld": "قُبل هذا البريد من قبل، أو لم يعد محتجزًا.",
-  "msgErrWhichContact": "اختر صاحب هذه الرسالة."
+  "msgErrWhichContact": "اختر صاحب هذه الرسالة.",
+  "msgMergeOpen": "عنوان آخر لهذه الأسرة…",
+  "msgMergeLabel": "جهة الاتصال الأخرى للأسرة",
+  "msgMergeHint": "تنضم محادثاتها وما كتبته إلى محادثات {name}، ويصل البريد من أيٍّ من العنوانين إلى الأسرة.",
+  "msgMergeSearch": "ابحث بالاسم أو البريد أو الهاتف",
+  "msgMergeNone": "لا توجد جهة اتصال أخرى مطابقة.",
+  "msgMergeConfirm": "دمج في {name}",
+  "msgMergeCancel": "إلغاء",
+  "msgMergeDone": "تم الدمج. أصبحت محادثاتها تخص {name}.",
+  "msgMergeGone": "لم تعد جهة الاتصال هذه منفصلة. ابحث مرة أخرى.",
+  "msgMergeLinkedApart": "تعود جهتا الاتصال إلى حسابين مختلفين، لذا لا يمكن دمجهما.",
+  "msgMergeAliases": "تكتب أيضًا من {addresses}"
 }

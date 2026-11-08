@@ -1,10 +1,12 @@
 import {
   acceptHeldSchema,
+  contactsQuerySchema,
   draftRefSchema,
   draftSchema,
   draftsQuerySchema,
   inboxQuerySchema,
   membersSchema,
+  mergeContactsSchema,
   recipientsQuerySchema,
   sendSchema,
   startSchema,
@@ -70,3 +72,11 @@ export const changeMembers = createServerFn({ method: "POST" })
 export const acceptHeldMail = createServerFn({ method: "POST" })
   .validator(checked(acceptHeldSchema))
   .handler(({ data }) => backend().messages.acceptHeld(data));
+
+export const getMessageContacts = createServerFn({ method: "GET" })
+  .validator(checked(contactsQuerySchema))
+  .handler(({ data }) => backend().messages.contacts(data));
+
+export const mergeMessageContacts = createServerFn({ method: "POST" })
+  .validator(checked(mergeContactsSchema))
+  .handler(({ data }) => backend().messages.mergeContacts(data));

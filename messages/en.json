@@ -9418,5 +9418,16 @@
   "msgAcceptHeldAs": "Accept as {name}'s message",
   "msgHeldAccepted": "Accepted into the conversation as the family's message",
   "msgErrNotHeld": "This email was already accepted, or is no longer held.",
-  "msgErrWhichContact": "Choose whose message this email is."
+  "msgErrWhichContact": "Choose whose message this email is.",
+  "msgMergeOpen": "Another address of this family…",
+  "msgMergeLabel": "The family's other contact",
+  "msgMergeHint": "Their conversations and what they wrote join {name}'s, and mail from either address reaches the family.",
+  "msgMergeSearch": "Search by name, email or phone",
+  "msgMergeNone": "No other contact matches.",
+  "msgMergeConfirm": "Merge into {name}",
+  "msgMergeCancel": "Cancel",
+  "msgMergeDone": "Merged. Their conversations now belong to {name}.",
+  "msgMergeGone": "That contact is no longer separate. Search again.",
+  "msgMergeLinkedApart": "These contacts belong to two different accounts, so they cannot be merged.",
+  "msgMergeAliases": "Also writes from {addresses}"
 }

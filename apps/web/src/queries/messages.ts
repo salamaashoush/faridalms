@@ -7,6 +7,7 @@ import {
   getDraft,
   getDrafts,
   getInbox,
+  getMessageContacts,
   getRecipients,
   getThread,
   getUnreadThreads,
@@ -66,4 +67,12 @@ export const draftQuery = (id: string) =>
   queryOptions({
     queryKey: ["messages", "draft", id],
     queryFn: () => getDraft({ data: { id } }),
+  });
+
+/** Outside contacts of the mailboxes the viewer writes in, to merge another address of a family. */
+export const messageContactsQuery = (q: string) =>
+  queryOptions({
+    queryKey: ["messages", "contacts", q],
+    queryFn: () => getMessageContacts({ data: { q } }),
+    placeholderData: (previous) => previous,
   });

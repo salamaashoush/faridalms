@@ -232,6 +232,17 @@ export const acceptHeldSchema = v.object({
   contactId: v.optional(v.union([v.literal(""), id]), ""),
 });
 
+/** Outside contacts of the mailboxes the viewer writes in, by name, address or number. */
+export const contactsQuerySchema = v.object({
+  q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
+});
+
+/** Makes one family of two contacts: `fromId`, another address of theirs, merged into `intoId`. */
+export const mergeContactsSchema = v.object({
+  intoId: id,
+  fromId: id,
+});
+
 /** Why mail that reached a conversation's address was kept back from it. */
 export const HOLD_REASONS = ["sender", "unauthenticated"] as const;
 export type HoldReason = (typeof HOLD_REASONS)[number];

@@ -548,6 +548,8 @@ export interface MemberRow extends Named {
   email: string | null;
   /** Why mail no longer reaches a contact's address, if it does not. */
   unreachable: Unreachable | null;
+  /** The other addresses of a contact's family, merged into it. */
+  aliases: string[];
 }
 
 /** Why mail no longer reaches contact `c`, the worse reason first. */
@@ -569,12 +571,16 @@ export async function membersOf(
     role: ThreadRole;
     last_read_at: string | null;
     unreachable: Unreachable | null;
+    aliases: string[];
   }>(sql`
     select m.id, m.user_id, m.contact_id,
            coalesce(u.full_name_en, case when u.id is null then c.display_name end) as full_name_en,
            coalesce(u.full_name_ar, case when u.id is null then c.display_name end) as full_name_ar,
            c.email, m.role, ${isoOf(sql`m.last_read_at`)} as last_read_at,
-           ${unreachableOf} as unreachable
+           ${unreachableOf} as unreachable,
+           array(select a.email from core.message_contacts a
+             where a.tenant_id = m.tenant_id and a.merged_into_id = m.contact_id
+               and a.status = 'active' and a.email is not null order by a.email) as aliases
     from core.thread_members m
     left join core.message_contacts c on c.tenant_id = m.tenant_id and c.id = m.contact_id
     left join core.users u on u.tenant_id = m.tenant_id and u.id = m.user_id
@@ -591,6 +597,7 @@ export async function membersOf(
     role: row.role,
     lastReadAt: row.last_read_at,
     unreachable: row.unreachable,
+    aliases: row.aliases,
   }));
 }
 
@@ -1270,7 +1277,8 @@ export interface ContactRow {
 /**
  * The contact for an address, made the first time someone writes from it
  * and renamed after what they call themselves now. Without an address a
- * family is a contact of its own, reached by phone.
+ * family is a contact of its own, reached by phone. An address merged into
+ * another contact finds the contact it was merged into.
  */
 export async function contactFor(
   tx: Tx,
@@ -1286,14 +1294,16 @@ export async function contactFor(
 ): Promise<ContactRow> {
   const email = input.email.trim().toLowerCase() || null;
   const phone = input.phone.trim() || null;
-  const [row] = await tx.execute<{
+  type Row = {
     id: string;
     email: string | null;
     phone: string | null;
     display_name: string;
     locale: "en" | "ar";
     user_id: string | null;
-  }>(
+    merged_into_id: string | null;
+  };
+  const [written] = await tx.execute<Row>(
     email
       ? sql`
     insert into core.message_contacts (tenant_id, email, phone, phone_normalized, display_name, locale)
@@ -1303,13 +1313,19 @@ export async function contactFor(
     do update set display_name = excluded.display_name, locale = excluded.locale,
       phone = coalesce(excluded.phone, core.message_contacts.phone),
       phone_normalized = coalesce(excluded.phone_normalized, core.message_contacts.phone_normalized)
-    returning id, email, phone, display_name, locale, user_id`
+    returning id, email, phone, display_name, locale, user_id, merged_into_id`
       : sql`
     insert into core.message_contacts (tenant_id, phone, phone_normalized, display_name, locale)
     values (${input.tenantId}::uuid, ${phone}, ${input.phoneNormalized}, ${input.name},
       ${input.locale})
-    returning id, email, phone, display_name, locale, user_id`,
+    returning id, email, phone, display_name, locale, user_id, merged_into_id`,
   );
+  const [row] = written?.merged_into_id
+    ? await tx.execute<Row>(sql`
+        select id, email, phone, display_name, locale, user_id, merged_into_id
+        from core.message_contacts
+        where tenant_id = ${input.tenantId}::uuid and id = ${written.merged_into_id}::uuid`)
+    : [written];
   if (!row) throw new Error("contact not written");
   return {
     id: row.id,
@@ -1333,14 +1349,28 @@ export async function linkOutsideParticipant(
   tx: Tx,
   input: { tenantId: string; userId: string; verifiedEmail: string },
 ): Promise<{ contactId: string | null; conversations: number }> {
-  const [contact] = await tx.execute<{ id: string }>(sql`
+  const [found] = await tx.execute<{
+    id: string;
+    merged_into_id: string | null;
+  }>(sql`
     update core.message_contacts
-    set user_id = ${input.userId}::uuid, linked_at = statement_timestamp()
+    set user_id = ${input.userId}::uuid, linked_at = coalesce(linked_at, statement_timestamp())
     where tenant_id = ${input.tenantId}::uuid and status = 'active'
       and email = ${input.verifiedEmail.trim().toLowerCase()}
       and (user_id is null or user_id = ${input.userId}::uuid)
-    returning id`);
-  if (!contact) return { contactId: null, conversations: 0 };
+    returning id, merged_into_id`);
+  if (!found) return { contactId: null, conversations: 0 };
+  // An address merged into another contact is that contact's, whose
+  // conversations it holds; it is linked too unless someone else holds it.
+  const [contact] = found.merged_into_id
+    ? await tx.execute<{ id: string }>(sql`
+        update core.message_contacts
+        set user_id = ${input.userId}::uuid, linked_at = coalesce(linked_at, statement_timestamp())
+        where tenant_id = ${input.tenantId}::uuid and id = ${found.merged_into_id}::uuid
+          and status = 'active' and (user_id is null or user_id = ${input.userId}::uuid)
+        returning id`)
+    : [found];
+  if (!contact) return { contactId: found.id, conversations: 0 };
   const rows = await tx.execute<{ id: string }>(sql`
     update core.thread_members m set user_id = ${input.userId}::uuid
     where m.tenant_id = ${input.tenantId}::uuid and m.contact_id = ${contact.id}::uuid
@@ -1422,10 +1452,16 @@ export interface ReplyTarget {
   mailbox: Mailbox | null;
   contactId: string;
   email: string | null;
+  /** Every address the contact writes from: its own and those merged into it. */
+  addresses: string[];
   linkedUserId: string | null;
 }
 
-/** The conversation place a reply token's digest names, if it is still open. */
+/**
+ * The conversation place a reply token's digest names, if it is still
+ * open. A contact merged into another left its place where the other was
+ * already in the conversation, so its token answers for the kept one.
+ */
 export async function replyTarget(
   tx: Tx,
   input: { tenantId: string; key: Uint8Array },
@@ -1437,17 +1473,25 @@ export async function replyTarget(
     mailbox: Mailbox | null;
     contact_id: string;
     email: string | null;
+    addresses: string[];
     user_id: string | null;
   }>(sql`
-    select m.id as member_id, t.id as thread_id, t.org_id, t.mailbox, c.id as contact_id,
-      c.email, c.user_id
+    select coalesce(o.id, m.id) as member_id, t.id as thread_id, t.org_id, t.mailbox,
+      c.id as contact_id, c.email, c.user_id,
+      array(select a.email from core.message_contacts a
+        where a.tenant_id = c.tenant_id and a.status = 'active' and a.email is not null
+          and (a.id = c.id or a.merged_into_id = c.id)
+        order by a.email) as addresses
     from core.thread_members m
     join core.message_threads t on t.tenant_id = m.tenant_id and t.id = m.thread_id
       and t.status = 'active'
     join core.message_contacts c on c.tenant_id = m.tenant_id and c.id = m.contact_id
       and c.status = 'active'
+    left join core.thread_members o on o.tenant_id = m.tenant_id and o.thread_id = m.thread_id
+      and o.contact_id = m.contact_id and o.status = 'active' and o.left_at is null
+      and m.left_at is not null
     where m.tenant_id = ${input.tenantId}::uuid and m.reply_key = ${Buffer.from(input.key)}
-      and m.status = 'active' and m.left_at is null`);
+      and m.status = 'active' and (m.left_at is null or o.id is not null)`);
   if (!row) return null;
   return {
     memberId: row.member_id,
@@ -1456,7 +1500,172 @@ export async function replyTarget(
     mailbox: row.mailbox,
     contactId: row.contact_id,
     email: row.email,
+    addresses: row.addresses,
     linkedUserId: row.user_id,
+  };
+}
+
+export interface ContactSummary {
+  id: string;
+  displayName: string;
+  email: string | null;
+  phone: string | null;
+  linked: boolean;
+  /** Addresses merged into it, which still find it. */
+  aliases: string[];
+  conversations: number;
+}
+
+/**
+ * Outside contacts in a school's conversations of these mailboxes, by
+ * name, address or number, or only those named; a contact merged into
+ * another is found as the one it was merged into.
+ */
+export async function mailboxContacts(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    mailboxes: readonly Mailbox[];
+    q: string;
+    ids?: readonly string[];
+    limit: number;
+  },
+): Promise<ContactSummary[]> {
+  if (input.mailboxes.length === 0) return [];
+  const rows = await tx.execute<{
+    id: string;
+    display_name: string;
+    email: string | null;
+    phone: string | null;
+    linked: boolean;
+    aliases: string[];
+    conversations: number;
+  }>(sql`
+    select c.id, c.display_name, c.email, c.phone, c.user_id is not null as linked,
+      array(select a.email from core.message_contacts a
+        where a.tenant_id = c.tenant_id and a.merged_into_id = c.id and a.status = 'active'
+          and a.email is not null order by a.email) as aliases,
+      count(distinct t.id)::int as conversations
+    from core.message_contacts c
+    join core.thread_members m on m.tenant_id = c.tenant_id and m.contact_id = c.id
+      and m.status = 'active' and m.left_at is null
+    join core.message_threads t on t.tenant_id = m.tenant_id and t.id = m.thread_id
+      and t.status = 'active' and t.org_id = ${input.schoolId}::uuid
+      and t.mailbox = any(${textArray(input.mailboxes)})
+    where c.tenant_id = ${input.tenantId}::uuid and c.status = 'active' and c.merged_into_id is null
+      and ${input.ids ? sql`c.id = any(${uuidArray(input.ids)})` : sql`true`}
+      and (${holds(input.q, [sql`c.display_name`, sql`c.email`, sql`c.phone`])}
+        or exists (select 1 from core.message_contacts a
+          where a.tenant_id = c.tenant_id and a.merged_into_id = c.id
+            and ${holds(input.q, [sql`a.email`, sql`a.phone`])}))
+    group by c.tenant_id, c.id
+    order by c.display_name, c.id
+    limit ${input.limit}`);
+  return rows.map((row) => ({
+    id: row.id,
+    displayName: row.display_name,
+    email: row.email,
+    phone: row.phone,
+    linked: row.linked,
+    aliases: row.aliases,
+    conversations: row.conversations,
+  }));
+}
+
+export type MergeRefusal = "same" | "gone" | "merged" | "linked_apart";
+
+/**
+ * Makes two contacts of one family one: `from`, written from another
+ * address, is merged into `into`, which is kept. Every conversation
+ * `from` was in and everything it wrote becomes `into`'s, in place, so
+ * each conversation reads as it did; where both were in one conversation,
+ * `from`'s place there is left, and its reply token still answers for
+ * `into`. `from` stays, naming `into`, so its address keeps finding the
+ * family, and a contact merged into `from` before follows it. A person
+ * linked to either becomes linked to both; two different people refuse.
+ */
+export async function mergeContacts(
+  tx: Tx,
+  input: { tenantId: string; fromId: string; intoId: string },
+): Promise<
+  | { merged: false; reason: MergeRefusal }
+  | {
+      merged: true;
+      conversations: number;
+      entries: number;
+      from: { email: string | null; phone: string | null };
+    }
+> {
+  if (input.fromId === input.intoId) return { merged: false, reason: "same" };
+  const t = input.tenantId;
+  const rows = await tx.execute<{
+    id: string;
+    email: string | null;
+    phone: string | null;
+    user_id: string | null;
+    linked_at: string | null;
+    merged_into_id: string | null;
+  }>(sql`
+    select id, email, phone, user_id, linked_at::text as linked_at, merged_into_id
+    from core.message_contacts
+    where tenant_id = ${t}::uuid and id in (${input.fromId}::uuid, ${input.intoId}::uuid)
+      and status = 'active'
+    order by id
+    for update`);
+  const from = rows.find((row) => row.id === input.fromId);
+  const into = rows.find((row) => row.id === input.intoId);
+  if (!from || !into) return { merged: false, reason: "gone" };
+  if (from.merged_into_id || into.merged_into_id)
+    return { merged: false, reason: "merged" };
+  if (from.user_id && into.user_id && from.user_id !== into.user_id)
+    return { merged: false, reason: "linked_apart" };
+  const userId = into.user_id ?? from.user_id;
+  if (userId)
+    await tx.execute(sql`
+      update core.message_contacts
+      set user_id = ${userId}::uuid, linked_at = coalesce(linked_at, statement_timestamp())
+      where tenant_id = ${t}::uuid
+        and (id in (${input.fromId}::uuid, ${input.intoId}::uuid) or merged_into_id = ${input.fromId}::uuid)
+        and user_id is null`);
+  await tx.execute(sql`
+    update core.message_contacts
+    set merged_into_id = ${input.intoId}::uuid, merged_at = statement_timestamp()
+    where tenant_id = ${t}::uuid
+      and (id = ${input.fromId}::uuid or merged_into_id = ${input.fromId}::uuid)`);
+  // Where both are in one conversation, from's place is left before it
+  // names into, so the two never hold one open place.
+  const shared = await tx.execute<{ thread_id: string }>(sql`
+    update core.thread_members m
+    set left_at = statement_timestamp(), contact_id = ${input.intoId}::uuid
+    where m.tenant_id = ${t}::uuid and m.contact_id = ${input.fromId}::uuid
+      and m.status = 'active' and m.left_at is null
+      and exists (select 1 from core.thread_members o
+        where o.tenant_id = m.tenant_id and o.thread_id = m.thread_id
+          and o.contact_id = ${input.intoId}::uuid and o.status = 'active' and o.left_at is null)
+    returning m.thread_id`);
+  const moved = await tx.execute<{ thread_id: string }>(sql`
+    update core.thread_members m
+    set contact_id = ${input.intoId}::uuid,
+      user_id = case
+        when m.user_id is not null or ${userId}::uuid is null then m.user_id
+        when exists (select 1 from core.thread_members o
+          where o.tenant_id = m.tenant_id and o.thread_id = m.thread_id
+            and o.user_id = ${userId}::uuid and o.status = 'active' and o.left_at is null)
+          then null
+        else ${userId}::uuid end
+    where m.tenant_id = ${t}::uuid and m.contact_id = ${input.fromId}::uuid
+    returning m.thread_id`);
+  const entries = await tx.execute<{ id: string }>(sql`
+    update core.messages set author_contact_id = ${input.intoId}::uuid
+    where tenant_id = ${t}::uuid and author_contact_id = ${input.fromId}::uuid
+    returning id`);
+  return {
+    merged: true,
+    conversations: new Set([...shared, ...moved].map((row) => row.thread_id))
+      .size,
+    entries: entries.length,
+    from: { email: from.email, phone: from.phone },
   };
 }
 

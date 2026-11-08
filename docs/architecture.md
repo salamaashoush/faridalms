@@ -325,7 +325,15 @@ contact's place in one conversation and is stored only as a digest. Replies
 come back through Resend's receiving webhook and are posted as the
 contact's message when they come from the contact's address and pass its
 domain's checks, and held as an internal entry otherwise
-([operations.md](operations.md), "Conversations by email").
+([operations.md](operations.md), "Conversations by email"); the team may
+accept held mail as the family's message once it knows it is theirs.
+A family that writes from two addresses is two contacts until someone who
+writes in a mailbox merges them (`mergeContacts` in the messages store):
+the other contact's conversations, places and words become the kept
+one's, its row stays naming the kept one so its address still finds the
+family and its replies are trusted, and erasing the kept contact reaches
+it too. Mail to an address that bounced for good or was reported as spam
+is no longer sent, and the team sees why where it writes.
 
 A mailbox conversation belongs to a team rather than a person. The
 admissions mailbox is read by holders of `admissions:read` or

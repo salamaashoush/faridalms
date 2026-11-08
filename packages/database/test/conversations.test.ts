@@ -12,6 +12,7 @@ import {
   contactErasurePlan,
   eraseContact,
 } from "../src/stores/erasure";
+import { contactFor, mergeContacts, replyTarget } from "../src/stores/messages";
 import { harness, probe, urlFor } from "./harness";
 
 async function migrationText(suffix: string) {
@@ -443,6 +444,130 @@ describe("erasing an outside contact", () => {
           enquiry: "-",
         });
         expect(after?.entries).toBeGreaterThan(0);
+        checked = true;
+        throw rollback;
+      });
+    } catch (error) {
+      if (error !== rollback) throw error;
+    } finally {
+      await client.close();
+    }
+    expect(checked).toBe(true);
+  });
+});
+
+describe("merging two contacts of one family", () => {
+  test("keeps every conversation and entry, and erasing the one kept reaches the other", async () => {
+    const { a } = harness();
+    const t = a.tenantId;
+    const client = new SQL(urlFor(null));
+    const db = drizzle({ client });
+    const rollback = new Error("rolled back");
+    let checked = false;
+    try {
+      await db.transaction(async (tx) => {
+        await tx.execute(
+          sql`select app.begin_unit(${t}::uuid, null, null, null, 'probe', 'system')`,
+        );
+        const [staff] = await tx.execute<{ user_id: string; org_id: string }>(
+          sql`select user_id, org_id from core.user_roles where tenant_id = ${t}::uuid
+              and role = 'principal' and status = 'active' limit 1`,
+        );
+        if (!staff) throw new Error("no principal");
+        const [home, work] = await tx.execute<{ id: string }>(sql`
+          insert into core.message_contacts (tenant_id, email, display_name)
+          values (${t}::uuid, 'salama.home@example.com', 'Salama Ashoush'),
+                 (${t}::uuid, 'salama.work@example.org', 'Salama Ashoush')
+          returning id`);
+        if (!home || !work) throw new Error("no contacts");
+        const [both, alone] = await tx.execute<{ id: string }>(sql`
+          insert into core.message_threads (tenant_id, org_id, kind, mailbox, subject)
+          values (${t}::uuid, ${staff.org_id}::uuid, 'mailbox', 'admissions', 'Both'),
+                 (${t}::uuid, ${staff.org_id}::uuid, 'mailbox', 'admissions', 'Alone')
+          returning id`);
+        if (!both || !alone) throw new Error("no threads");
+        const key = Buffer.alloc(32, 7);
+        await tx.execute(sql`
+          insert into core.thread_members (tenant_id, thread_id, contact_id, role, reply_key)
+          values (${t}::uuid, ${both.id}::uuid, ${home.id}::uuid, 'member', null),
+                 (${t}::uuid, ${both.id}::uuid, ${work.id}::uuid, 'member', ${key}),
+                 (${t}::uuid, ${alone.id}::uuid, ${work.id}::uuid, 'member', null)`);
+        const [written] = await tx.execute<{ id: string }>(sql`
+          insert into core.messages (tenant_id, thread_id, kind, author_contact_id, body)
+          values (${t}::uuid, ${alone.id}::uuid, 'message', ${work.id}::uuid, 'From work.')
+          returning id`);
+        await tx.execute(sql`
+          insert into core.notification_deliveries (tenant_id, contact_id, message_id, channel,
+            address, locale, state, due_at)
+          values (${t}::uuid, ${work.id}::uuid, ${written?.id}::uuid, 'email',
+            'salama.work@example.org', 'en', 'pending', now())`);
+
+        const merged = await mergeContacts(tx, {
+          tenantId: t,
+          fromId: work.id,
+          intoId: home.id,
+        });
+        expect(merged).toMatchObject({
+          merged: true,
+          conversations: 2,
+          entries: 1,
+        });
+        expect(
+          await mergeContacts(tx, {
+            tenantId: t,
+            fromId: work.id,
+            intoId: home.id,
+          }),
+        ).toEqual({ merged: false, reason: "merged" });
+        const target = await replyTarget(tx, { tenantId: t, key });
+        expect(target).toMatchObject({
+          threadId: both.id,
+          contactId: home.id,
+          addresses: ["salama.home@example.com", "salama.work@example.org"],
+        });
+        const found = await contactFor(tx, {
+          tenantId: t,
+          email: "Salama.Work@example.org",
+          phone: "",
+          phoneNormalized: null,
+          name: "Salama Ashoush",
+          locale: "en",
+        });
+        expect(found.id).toBe(home.id);
+
+        const plan = await contactErasurePlan(tx, {
+          tenantId: t,
+          contactId: home.id,
+        });
+        expect(plan.threads.toSorted()).toEqual([both.id, alone.id].toSorted());
+        await approveErasure(tx, {
+          tenantId: t,
+          subjectUserId: null,
+          subjectContactId: home.id,
+          basis: "data_subject_request",
+          requestReference: "Asked by phone",
+          approvedByUserId: staff.user_id,
+          plan,
+        });
+        await tx.execute(sql`set local role retention`);
+        await tx.execute(
+          sql`select app.begin_unit(${t}::uuid, null, null, null, 'probe', 'system')`,
+        );
+        const result = await eraseContact(tx, {
+          tenantId: t,
+          contactId: home.id,
+          emptyContent: emptyContent(),
+        });
+        await tx.execute(sql`reset role`);
+        expect(result.counts.message_contacts).toBe(2);
+        expect(result.counts.notification_deliveries).toBe(1);
+        const [after] = await tx.execute<{ emails: number; words: number }>(sql`
+          select (select count(*)::int from core.message_contacts
+                   where tenant_id = ${t}::uuid and id in (${home.id}::uuid, ${work.id}::uuid)
+                     and email is not null) as emails,
+                 (select count(*)::int from core.messages
+                   where tenant_id = ${t}::uuid and thread_id = ${alone.id}::uuid and body <> '') as words`);
+        expect(after).toEqual({ emails: 0, words: 0 });
         checked = true;
         throw rollback;
       });

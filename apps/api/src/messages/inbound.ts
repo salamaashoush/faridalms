@@ -152,7 +152,7 @@ async function takeMail(
         })) >= MAIL_PER_HOUR
       )
         return { outcome: "flood" };
-      const sender = from !== "" && from === target.email;
+      const sender = from !== "" && target.addresses.includes(from);
       const trusted = sender && senderAuthenticated(email.authentication);
       const text = newContent(email.text ?? textOfHtml(email.html ?? ""));
       const files: { file: StoredFile; attachmentId: string }[] = [];

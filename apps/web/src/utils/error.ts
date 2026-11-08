@@ -485,6 +485,12 @@ export function getMessageFromError(error: unknown): string {
         return m.msgRecipientGone();
       case "messages.newer":
         return m.msgNewer();
+      case "messages.merge_same":
+      case "messages.merge_gone":
+      case "messages.merge_merged":
+        return m.msgMergeGone();
+      case "messages.merge_linked_apart":
+        return m.msgMergeLinkedApart();
       case "messages.not_held":
         return m.msgErrNotHeld();
       case "messages.which_contact":

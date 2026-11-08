@@ -60,6 +60,11 @@ async function conversationPlan(
   };
 }
 
+/** A contact and the contacts merged into it: one family, by every address it wrote from. */
+const contactAndMerged = (tenantId: string, contactId: string) =>
+  sql`(select id from core.message_contacts where tenant_id = ${tenantId}::uuid
+    and (id = ${contactId}::uuid or merged_into_id = ${contactId}::uuid))`;
+
 /**
  * What erasing an outside contact who never had an account takes: their
  * conversations and enquiries as `conversationPlan` finds them.
@@ -70,7 +75,7 @@ export function contactErasurePlan(
 ): Promise<ErasurePlan> {
   return conversationPlan(tx, {
     tenantId: input.tenantId,
-    contacts: sql`(select ${input.contactId}::uuid)`,
+    contacts: contactAndMerged(input.tenantId, input.contactId),
   });
 }
 
@@ -339,7 +344,7 @@ export async function eraseContact(
             and i.object_type = ${type})`;
   await eraseConversations(run, {
     tenantId: t,
-    contacts: sql`(select ${input.contactId}::uuid)`,
+    contacts: contactAndMerged(t, input.contactId),
     authorUserId: null,
     listed,
   });

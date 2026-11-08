@@ -609,6 +609,95 @@ describe("mail that cannot reach a contact", () => {
   });
 });
 
+describe("a family writing from two addresses", () => {
+  test("is merged into one contact, keeping both conversations and every entry", async () => {
+    const home = "salama.merge.home@example.com";
+    const work = "salama.merge.work@example.org";
+    const first = await enquiryFrom(home);
+    const second = await enquiryFrom(work);
+    const { api } = first;
+    const fromWork = await replyAddressOf(api, second.threadId, work, "Hi.");
+    const outsideOf = async (threadId: string) =>
+      (await api.messages.thread({ id: threadId })).members.find(
+        (member) => member.outside,
+      );
+    const kept = await outsideOf(first.threadId);
+    const other = await outsideOf(second.threadId);
+    if (!kept?.contactId || !other?.contactId)
+      throw new Error("no outside contacts");
+    expect(
+      await webhook({ from: work, to: [fromWork.replyTo], text: "From work." }),
+    ).toMatchObject({ outcome: "posted" });
+
+    const found = await api.messages.contacts({ q: "salama.merge" });
+    expect(found.rows.map((row) => row.id).toSorted()).toEqual(
+      [kept.contactId, other.contactId].toSorted(),
+    );
+    expect(
+      await rejection(
+        (await teacher()).api.messages.mergeContacts({
+          intoId: kept.contactId,
+          fromId: other.contactId,
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+
+    const entriesBefore = (await api.messages.thread({ id: second.threadId }))
+      .messages.length;
+    const merged = await api.messages.mergeContacts({
+      intoId: kept.contactId,
+      fromId: other.contactId,
+    });
+    expect(merged).toEqual({ conversations: 1, entries: 1 });
+
+    const after = await api.messages.thread({ id: second.threadId });
+    expect(after.messages.length).toBe(entriesBefore);
+    const moved = after.members.find((member) => member.outside);
+    expect(moved).toMatchObject({
+      contactId: kept.contactId,
+      email: home,
+      aliases: [work],
+    });
+    expect(
+      after.messages
+        .filter((entry) => entry.authorContactId !== null)
+        .every((entry) => entry.authorContactId === kept.contactId),
+    ).toBeTrue();
+    expect(
+      (await api.messages.contacts({ q: work })).rows.map((row) => row.id),
+    ).toEqual([kept.contactId]);
+
+    expect(
+      await webhook({
+        from: work,
+        to: [fromWork.replyTo],
+        text: "Still from work.",
+      }),
+    ).toMatchObject({ outcome: "posted" });
+    const fromHome = await replyAddressOf(api, first.threadId, home, "Hello.");
+    expect(
+      await webhook({
+        from: work,
+        to: [fromHome.replyTo],
+        text: "Answering the other one from work.",
+      }),
+    ).toMatchObject({ outcome: "posted" });
+
+    const third = await enquiryFrom(work);
+    expect(await outsideOf(third.threadId)).toMatchObject({
+      contactId: kept.contactId,
+    });
+    expect(
+      await rejection(
+        api.messages.mergeContacts({
+          intoId: kept.contactId,
+          fromId: other.contactId,
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
 describe("an outside contact who becomes a family with an account", () => {
   test("takes over the same conversations in their portal, without the team's internal entries", async () => {
     const address = "salama.link@example.com";
