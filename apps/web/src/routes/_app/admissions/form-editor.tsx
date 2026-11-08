@@ -1,3 +1,4 @@
+import { formDocument } from "@faridalms/domain/questions";
 import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -5,6 +6,7 @@ import * as v from "valibot";
 
 import { FormEditor } from "~/components/admissions/FormEditor";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { formQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
 import { requirePage } from "~/utils/page-access";
@@ -37,7 +39,10 @@ function FormEditorPage() {
         version: form?.version ?? 0,
         nameEn: form?.nameEn ?? "",
         nameAr: form?.nameAr ?? "",
-        questions: form?.questions ?? [],
+        primaryLocale:
+          form?.primaryLocale ?? (getLocale() === "ar" ? "ar" : "en"),
+        body: form?.body ?? formDocument([]),
+        translation: form?.translation ?? null,
         published: Boolean(form?.published),
       }}
       onDone={() =>

@@ -14,7 +14,7 @@ import type {
   PriorityRule,
   WithdrawReason,
 } from "@faridalms/domain/admissions";
-import type { EnquirySource, QuestionKind } from "@faridalms/domain/enquiries";
+import type { EnquirySource } from "@faridalms/domain/enquiries";
 import type { Tone } from "@faridalms/ui/system/status";
 
 import { inLocale } from "~/hooks/useCurrentUser";
@@ -146,15 +146,6 @@ export const AGE_LABEL: Record<AgeFit, () => string> = {
   young: m.aplAgeYoung,
   old: m.aplAgeOld,
   unknown: m.aplAgeUnknown,
-};
-
-/** The kinds of answer a school's question takes, worded as the website builder words them. */
-export const ANSWER_LABEL: Record<QuestionKind, () => string> = {
-  short: m.siteChoiceAnswerShort,
-  long: m.siteChoiceAnswerLong,
-  choice: m.siteChoiceAnswerChoice,
-  date: m.siteChoiceAnswerDate,
-  number: m.siteChoiceAnswerNumber,
 };
 
 export const DECISION_LABEL: Record<Decision, () => string> = {

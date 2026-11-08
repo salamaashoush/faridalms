@@ -2,6 +2,7 @@ import type { SectionOf } from "@faridalms/domain/website";
 import type { RouterClient } from "@orpc/server";
 
 import { fillFields, plainContent } from "@faridalms/domain/content-conversion";
+import { formDocument } from "@faridalms/domain/questions";
 import { newSection } from "@faridalms/domain/website";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
@@ -37,7 +38,16 @@ const QUESTIONS = {
   start: "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3d02",
   siblings: "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3d03",
 };
+const OPTIONS = {
+  friend: "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3d11",
+  social: "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3d12",
+};
 const FORM_ID = "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3d00";
+const ASKED = { points: 0, hints: [], explanation: "", tries: null };
+const chose = (optionId: string) => ({
+  type: "choice" as const,
+  optionIds: [optionId],
+});
 
 /** A form that asks for a phone, not an email, and three questions of the school's own. */
 function form(locale: "en" | "ar"): SectionOf<"form"> {
@@ -52,32 +62,53 @@ function form(locale: "en" | "ar"): SectionOf<"form"> {
       email: "hide",
       phone: "require",
       child: "ask",
-      questions: [
+      questions: formDocument([
         {
+          ...ASKED,
           id: QUESTIONS.heard,
-          label: ar ? "كيف عرفت عنا؟" : "How did you hear about us?",
-          hint: "",
-          answer: "choice",
-          required: "required",
-          options: ar ? "صديق\nوسائل التواصل" : "A friend\nSocial media",
+          type: "choice",
+          prompt: ar ? "كيف عرفت عنا؟" : "How did you hear about us?",
+          required: true,
+          options: [
+            {
+              id: OPTIONS.friend,
+              text: ar ? "صديق" : "A friend",
+              feedback: "",
+            },
+            {
+              id: OPTIONS.social,
+              text: ar ? "وسائل التواصل" : "Social media",
+              feedback: "",
+            },
+          ],
+          correctOptionIds: [],
+          multiple: false,
+          shuffle: false,
         },
         {
+          ...ASKED,
           id: QUESTIONS.start,
-          label: ar ? "تاريخ البدء" : "Hoped-for start",
-          hint: "",
-          answer: "date",
-          required: "optional",
-          options: "",
+          type: "text",
+          prompt: ar ? "تاريخ البدء" : "Hoped-for start",
+          date: true,
+          answers: [],
+          caseSensitive: false,
+          closeEnough: false,
+          tehMarbuta: true,
         },
         {
+          ...ASKED,
           id: QUESTIONS.siblings,
-          label: ar ? "عدد الإخوة" : "Brothers and sisters",
-          hint: "",
-          answer: "number",
-          required: "optional",
-          options: "",
+          type: "number",
+          prompt: ar ? "عدد الإخوة" : "Brothers and sisters",
+          mode: "exact",
+          value: 0,
+          tolerance: 0,
+          percent: false,
+          min: 0,
+          max: 0,
         },
-      ],
+      ]),
     },
   };
 }
@@ -114,7 +145,7 @@ const sent = (name: string, more: Record<string, unknown> = {}) => ({
   name,
   phone: "+20 100 555 0199",
   childName: "Yusuf",
-  answers: { [QUESTIONS.heard]: "A friend" },
+  answers: { [QUESTIONS.heard]: chose(OPTIONS.friend) },
   elapsed: 9000,
   ...more,
 });
@@ -144,7 +175,9 @@ describe("the website's form", () => {
       await rejection(
         site.submitEnquiry(
           sent("Not an option", {
-            answers: { [QUESTIONS.heard]: "A newspaper" },
+            answers: {
+              [QUESTIONS.heard]: chose("0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3d19"),
+            },
           }),
         ),
       ),
@@ -154,8 +187,8 @@ describe("the website's form", () => {
         site.submitEnquiry(
           sent("Not a day", {
             answers: {
-              [QUESTIONS.heard]: "A friend",
-              [QUESTIONS.start]: "2027-02-30",
+              [QUESTIONS.heard]: chose(OPTIONS.friend),
+              [QUESTIONS.start]: { type: "text", text: "2027-02-30" },
             },
           }),
         ),
@@ -167,10 +200,13 @@ describe("the website's form", () => {
         sent("Salama Ashoush (form)", {
           email: "hidden@example.com",
           answers: {
-            [QUESTIONS.heard]: "Social media",
-            [QUESTIONS.start]: "2027-01-10",
-            [QUESTIONS.siblings]: "٢",
-            "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3dff": "not asked",
+            [QUESTIONS.heard]: chose(OPTIONS.social),
+            [QUESTIONS.start]: { type: "text", text: "2027-01-10" },
+            [QUESTIONS.siblings]: { type: "number", text: "٢" },
+            "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3dff": {
+              type: "text",
+              text: "not asked",
+            },
           },
         }),
       ),
@@ -178,7 +214,7 @@ describe("the website's form", () => {
     await visitorFrom("192.0.2.11").submitEnquiry(
       sent("سلامة عشوش (نموذج)", {
         locale: "ar",
-        answers: { [QUESTIONS.heard]: "صديق" },
+        answers: { [QUESTIONS.heard]: chose(OPTIONS.friend) },
       }),
     );
 
@@ -198,21 +234,25 @@ describe("the website's form", () => {
     expect(english.answers).toEqual([
       {
         id: QUESTIONS.heard,
-        label: "How did you hear about us?",
+        prompt: "How did you hear about us?",
         kind: "choice",
-        value: "Social media",
+        response: chose(OPTIONS.social),
+        text: "Social media",
       },
       {
         id: QUESTIONS.start,
-        label: "Hoped-for start",
-        kind: "date",
-        value: "2027-01-10",
+        prompt: "Hoped-for start",
+        kind: "text",
+        response: { type: "text", text: "2027-01-10" },
+        text: "2027-01-10",
+        date: true,
       },
       {
         id: QUESTIONS.siblings,
-        label: "Brothers and sisters",
+        prompt: "Brothers and sisters",
         kind: "number",
-        value: "2",
+        response: { type: "number", text: "٢" },
+        text: "٢",
       },
     ]);
     const arabic = await api.admissions.enquiry({
@@ -222,9 +262,10 @@ describe("the website's form", () => {
     expect(arabic.answers).toEqual([
       {
         id: QUESTIONS.heard,
-        label: "كيف عرفت عنا؟",
+        prompt: "كيف عرفت عنا؟",
         kind: "choice",
-        value: "صديق",
+        response: chose(OPTIONS.friend),
+        text: "صديق",
       },
     ]);
   });

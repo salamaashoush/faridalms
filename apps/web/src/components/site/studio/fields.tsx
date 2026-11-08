@@ -967,6 +967,8 @@ interface RichControlProps {
   label: string;
   value: ContentDocument;
   media: EditorMedia;
+  /** The body is a form's questions, which a family answers. */
+  form?: boolean;
   onChange: (value: ContentDocument) => void;
 }
 
@@ -975,7 +977,14 @@ interface RichControlProps {
  * change made to the page from outside it, as an undo is, is put into it;
  * otherwise the next key pressed would bring the undone words back.
  */
-function RichControl({ id, label, value, media, onChange }: RichControlProps) {
+function RichControl({
+  id,
+  label,
+  value,
+  media,
+  form = false,
+  onChange,
+}: RichControlProps) {
   const written = useRef(JSON.stringify(value));
   const [replace, setReplace] = useState<{
     to: ContentDocument;
@@ -998,8 +1007,11 @@ function RichControl({ id, label, value, media, onChange }: RichControlProps) {
       label={label}
       value={value}
       replace={replace}
-      media={media}
-      sharedBlocks
+      // A visitor who is not signed in answers a form, so it holds no files.
+      media={form ? undefined : media}
+      questions={form}
+      forms={form}
+      sharedBlocks={!form}
       onChange={(next) => {
         written.current = JSON.stringify(next);
         onChange(next);
@@ -1060,7 +1072,7 @@ export function FieldControl({
       );
     case "rich":
       return (
-        <StudioField label={label}>
+        <StudioField label={label} hint={FIELD_HINT[name]?.()}>
           <div
             lang={context.locale}
             dir={dirOf(context.locale)}
@@ -1071,6 +1083,7 @@ export function FieldControl({
               label={label}
               value={value as ContentDocument}
               media={context.media}
+              form={Boolean(field.questions)}
               onChange={onChange}
             />
           </div>

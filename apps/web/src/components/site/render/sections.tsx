@@ -1,3 +1,4 @@
+import type { FormQuestion } from "@faridalms/domain/questions";
 import type {
   IconId,
   PageSection,
@@ -15,9 +16,9 @@ import type {
 
 import {
   answerLimit,
-  optionsOf,
-  questionComplete,
-} from "@faridalms/domain/enquiries";
+  formQuestions,
+  formResponse,
+} from "@faridalms/domain/questions";
 import { withoutEmphasis } from "@faridalms/domain/site-sections";
 import { cn } from "@faridalms/ui/cn";
 import { useHydrated } from "@tanstack/react-router";
@@ -2969,22 +2970,24 @@ const FAILURE: Partial<Record<string, FormState>> = {
   "validation.invalid": "check",
 };
 
-type Question = SectionOf<"form">["data"]["questions"][number];
-
 /** How long ago a moment was, read when the form is sent. */
 const since = (start: number) => Date.now() - start;
 
-/** A question whose answer needs the whole row: a paragraph, or a few options laid out side by side. */
-const takesRow = (question: Question) =>
-  question.answer === "long" ||
-  (question.answer === "choice" && optionsOf(question.options).length <= 4);
+/** A question whose answer needs the whole row: a paragraph, or options laid out side by side. */
+const takesRow = (question: FormQuestion) =>
+  question.type === "written" ||
+  (question.type === "choice" &&
+    (question.multiple || question.options.length <= 4));
 
 /**
  * The fields that take the whole row in a form of two columns: those that
  * need it, and the first of any run of half-width fields whose count is
  * odd, so no row ends half empty.
  */
-function wideFields(halves: number, questions: Question[]): Set<string> {
+function wideFields(
+  halves: number,
+  questions: readonly FormQuestion[],
+): Set<string> {
   const wide = new Set<string>();
   let run = halves;
   let first = "name";
@@ -3006,7 +3009,7 @@ function wideFields(halves: number, questions: Question[]): Set<string> {
 }
 
 interface QuestionFieldProps {
-  question: Question;
+  question: FormQuestion;
   id: string;
   context: RenderContext;
   wide: boolean;
@@ -3016,12 +3019,13 @@ interface QuestionFieldProps {
 function QuestionField({ question, id, context, wide }: QuestionFieldProps) {
   const t = { locale: context.locale };
   const row = wide || undefined;
-  const required = question.required === "required";
+  const required = Boolean(question.required);
   const name = `answer:${question.id}`;
-  const hintId = question.hint ? `${id}-hint` : undefined;
+  const [hintWords] = question.hints;
+  const hintId = hintWords ? `${id}-hint` : undefined;
   const label = (
     <span>
-      {question.label}
+      {question.prompt}
       {required ? null : (
         <span className="site-muted font-normal">
           {" "}
@@ -3030,9 +3034,9 @@ function QuestionField({ question, id, context, wide }: QuestionFieldProps) {
       )}
     </span>
   );
-  const hint = question.hint ? (
+  const hint = hintWords ? (
     <span id={hintId} className="site-muted text-sm font-normal">
-      {question.hint}
+      {hintWords}
     </span>
   ) : null;
   const shared = {
@@ -3042,9 +3046,12 @@ function QuestionField({ question, id, context, wide }: QuestionFieldProps) {
     disabled: context.editing,
     "aria-describedby": hintId,
   };
-  if (question.answer === "choice") {
-    const options = optionsOf(question.options);
-    if (options.length <= 4)
+  if (question.type === "choice") {
+    const options = question.options.map((option) => ({
+      id: option.id,
+      text: option.text || option.picture?.alt || "",
+    }));
+    if (question.multiple || options.length <= 4)
       return (
         <fieldset
           className="site-label"
@@ -3056,20 +3063,20 @@ function QuestionField({ question, id, context, wide }: QuestionFieldProps) {
           <div className="flex flex-wrap gap-x-6 gap-y-2">
             {options.map((option, index) => (
               <label
-                key={option}
+                key={option.id}
                 htmlFor={`${id}-${index}`}
                 className="inline-flex min-h-10 items-center gap-2 font-normal"
               >
                 <input
                   id={`${id}-${index}`}
-                  type="radio"
+                  type={question.multiple ? "checkbox" : "radio"}
                   name={name}
-                  value={option}
-                  required={required}
+                  value={option.id}
+                  required={required && !question.multiple}
                   disabled={context.editing}
                   className="size-4 accent-[var(--s-btn)]"
                 />
-                {option}
+                {option.text}
               </label>
             ))}
           </div>
@@ -3084,15 +3091,15 @@ function QuestionField({ question, id, context, wide }: QuestionFieldProps) {
             {m.siteFormChoose({}, t)}
           </option>
           {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
+            <option key={option.id} value={option.id}>
+              {option.text}
             </option>
           ))}
         </select>
       </label>
     );
   }
-  if (question.answer === "long")
+  if (question.type === "written")
     return (
       <label htmlFor={id} className="site-label" data-wide={row}>
         {label}
@@ -3100,10 +3107,11 @@ function QuestionField({ question, id, context, wide }: QuestionFieldProps) {
         <textarea
           {...shared}
           className="site-input min-h-28"
-          maxLength={answerLimit("long")}
+          maxLength={answerLimit(question)}
         />
       </label>
     );
+  const date = question.type === "text" && question.date;
   return (
     <label htmlFor={id} className="site-label" data-wide={row}>
       {label}
@@ -3111,10 +3119,10 @@ function QuestionField({ question, id, context, wide }: QuestionFieldProps) {
       <input
         {...shared}
         className="site-input"
-        type={question.answer === "date" ? "date" : "text"}
-        inputMode={question.answer === "number" ? "decimal" : undefined}
-        dir={question.answer === "short" ? undefined : "ltr"}
-        maxLength={answerLimit(question.answer)}
+        type={date ? "date" : "text"}
+        inputMode={question.type === "number" ? "decimal" : undefined}
+        dir={question.type === "text" && !date ? undefined : "ltr"}
+        maxLength={answerLimit(question)}
       />
     </label>
   );
@@ -3143,9 +3151,7 @@ function EnquiryForm({ section, context }: Props<"form">) {
   useEffect(() => {
     if (state === "sent") thanks.current?.focus();
   }, [state]);
-  const questions = data.questions.filter((question) =>
-    context.editing ? question.label.trim() !== "" : questionComplete(question),
-  );
+  const questions = formQuestions(data.questions);
   const turnstileKey = context.editing ? null : (context.turnstileKey ?? null);
   const send = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -3186,10 +3192,15 @@ function EnquiryForm({ section, context }: Props<"form">) {
           childYear: read("childYear"),
           message: read("message"),
           answers: Object.fromEntries(
-            questions.map((question) => [
-              question.id,
-              read(`answer:${question.id}`),
-            ]),
+            questions.flatMap((question) => {
+              const response = formResponse(
+                question,
+                form
+                  .getAll(`answer:${question.id}`)
+                  .filter((value) => typeof value === "string"),
+              );
+              return response ? [[question.id, response]] : [];
+            }),
           ),
           website: read("website"),
           elapsed: since(opened.current),

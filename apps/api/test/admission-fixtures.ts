@@ -1,24 +1,46 @@
-import type {
-  IntakeLetters,
-  AdmissionQuestion,
-} from "@faridalms/domain/admissions";
+import type { IntakeLetters } from "@faridalms/domain/admissions";
+import type { FormQuestion } from "@faridalms/domain/questions";
+
+import { formDocument } from "@faridalms/domain/questions";
 
 import { client, login, seeded, signedIn } from "./harness";
 
 export const officer = () => signedIn("northwind", login("staff"));
 export const principal = () => signedIn("northwind", login("principal"));
 
-export const QUESTION: AdmissionQuestion = {
+/** The bus route question in one language, with the same ids in either. */
+export const routeQuestion = (
+  prompt: string,
+  [first, second]: [string, string],
+): Extract<FormQuestion, { type: "choice" }> => ({
   id: "0192f0a4-7a1c-7b5a-9a2e-7e6f1f2a3d01",
-  answer: "choice",
-  required: "required",
-  labelEn: "Which bus route?",
-  labelAr: "أي خط حافلة؟",
-  hintEn: "",
-  hintAr: "",
-  optionsEn: "Maadi\nZamalek",
-  optionsAr: "المعادي\nالزمالك",
-};
+  type: "choice",
+  prompt,
+  points: 0,
+  hints: [],
+  explanation: "",
+  tries: null,
+  required: true,
+  options: [
+    { id: MAADI, text: first, feedback: "" },
+    { id: ZAMALEK, text: second, feedback: "" },
+  ],
+  correctOptionIds: [],
+  multiple: false,
+  shuffle: false,
+});
+export const MAADI = "0192f0a4-7a1c-7b5a-9a2e-7e6f1f2a3d02";
+export const ZAMALEK = "0192f0a4-7a1c-7b5a-9a2e-7e6f1f2a3d03";
+export const QUESTION = routeQuestion("Which bus route?", ["Maadi", "Zamalek"]);
+
+/** An application form asking the bus route, in English with its Arabic beside it. */
+export const routeForm = () => ({
+  primaryLocale: "en" as const,
+  body: formDocument([QUESTION]),
+  translation: formDocument([
+    routeQuestion("أي خط حافلة؟", ["المعادي", "الزمالك"]),
+  ]),
+});
 
 export const DOCUMENT_KEY = "0192f0a4-7a1c-7b5a-9a2e-7e6f1f2a3d10";
 
@@ -61,7 +83,7 @@ export async function intakeFor(
     expectedVersion: 0,
     nameEn: `${grade} form`,
     nameAr: "",
-    questions: [QUESTION],
+    ...routeForm(),
   });
   await api.intakes.publishForm({ id: form.id, expectedVersion: form.version });
   const intake = await api.intakes.saveIntake({
@@ -213,7 +235,7 @@ export async function filledDraft(
           leaving: "",
         },
       ],
-      questions: { [QUESTION.id]: "Maadi" },
+      answers: { [QUESTION.id]: { type: "choice", optionIds: [MAADI] } },
     },
     needs: {
       ...NO_NEEDS,

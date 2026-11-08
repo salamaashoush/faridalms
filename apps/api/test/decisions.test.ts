@@ -302,7 +302,7 @@ describe("deferring", () => {
     expect(carried).toMatchObject({
       state: "submitted",
       deferredFromId: id,
-      answers: [{ label: "Which bus route?", value: "Maadi" }],
+      answers: [{ prompt: "Which bus route?", text: "Maadi" }],
     });
     expect(
       await rejection(

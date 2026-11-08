@@ -21,12 +21,13 @@ import {
   formRefSchema,
   intakeListSchema,
   intakeRefSchema,
-  questionReady,
+  formUnready,
   saveFormSchema,
   saveIntakeSchema,
   suggestedAges,
   suggestedCutoff,
 } from "@faridalms/domain/admissions";
+import { formQuestions } from "@faridalms/domain/questions";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -310,7 +311,9 @@ export const saveForm = writeProcedure
         expectedVersion: input.expectedVersion,
         nameEn: input.nameEn,
         nameAr: input.nameAr,
-        questions: input.questions,
+        primaryLocale: input.primaryLocale,
+        body: input.body,
+        translation: input.translation,
       });
       if (version === null) throw conflict();
       await audit(context, {
@@ -322,12 +325,12 @@ export const saveForm = writeProcedure
           {
             nameEn: before.nameEn,
             nameAr: before.nameAr,
-            questions: before.questions.length,
+            questions: formQuestions(before.body).length,
           },
           {
             nameEn: input.nameEn,
             nameAr: input.nameAr,
-            questions: input.questions.length,
+            questions: formQuestions(input.body).length,
           },
         ),
       });
@@ -337,13 +340,15 @@ export const saveForm = writeProcedure
       ...org(context),
       nameEn: input.nameEn,
       nameAr: input.nameAr,
-      questions: input.questions,
+      primaryLocale: input.primaryLocale,
+      body: input.body,
+      translation: input.translation,
     });
     await audit(context, {
       action: "admission_form.create",
       objectType: "admission_form",
       objectId: created.id,
-      details: { questions: input.questions.length },
+      details: { questions: formQuestions(input.body).length },
     });
     return created;
   });
@@ -357,13 +362,11 @@ export const publishForm = writeProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "admissions:configure");
     const current = await formOf(context, input.id);
-    const unready = current.questions.find(
-      (question) => !questionReady(question),
-    );
-    if (unready)
+    const unready = formUnready(current);
+    if (unready !== null)
       throw new ORPCError("BAD_REQUEST", {
         message: "form.question_unready",
-        data: { questionId: unready.id },
+        data: { questionId: unready },
       });
     if (!current.changed)
       throw new ORPCError("CONFLICT", { message: "form.unchanged" });

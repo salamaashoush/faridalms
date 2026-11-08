@@ -1,11 +1,12 @@
 import type {
-  AdmissionQuestion,
   applicationFormSchema,
   Needs,
   PreviousSchool,
 } from "@faridalms/domain/admissions";
 import type { FileSummary } from "@faridalms/domain/file";
+import type { LessonResponse } from "@faridalms/domain/learning";
 import type { PersonNamesInput } from "@faridalms/domain/people";
+import type { FormQuestion } from "@faridalms/domain/questions";
 import type { ContentLocale } from "@faridalms/domain/translations";
 import type * as v from "valibot";
 
@@ -13,12 +14,19 @@ import {
   MAX_FILES_PER_ITEM,
   MAX_PREVIOUS_SCHOOLS,
   NEEDS_KINDS,
-  questionIn,
+  questionsIn,
 } from "@faridalms/domain/admissions";
-import { answerLimit, optionsOf } from "@faridalms/domain/enquiries";
+import {
+  answerLimit,
+  formQuestions,
+  formResponse,
+  formValue,
+  readFormAnswers,
+} from "@faridalms/domain/questions";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import {
+  CheckboxGroupField,
   FormField,
   SelectField,
   TextField,
@@ -483,82 +491,88 @@ function IntakeFacts({ intake }: IntakeFactsProps) {
 }
 
 interface QuestionProps {
-  question: AdmissionQuestion;
-  value: string;
-  onChange: (value: string) => void;
+  question: FormQuestion;
+  response: LessonResponse | undefined;
+  onChange: (response: LessonResponse | undefined) => void;
   error?: string | null;
 }
 
-function Question({ question, value, onChange, error }: QuestionProps) {
-  const shown = questionIn(question, getLocale() === "ar" ? "ar" : "en");
+/** One of the school's own questions, as the input its kind takes. */
+function Question({ question, response, onChange, error }: QuestionProps) {
   const id = `question-${question.id}`;
   const errors = error ? [error] : undefined;
-  const optional = question.required === "optional";
-  switch (question.answer) {
-    case "long":
+  const optional = !question.required;
+  const [hint] = question.hints;
+  const value = formValue(question, response);
+  const change = (next: string | readonly string[]) =>
+    onChange(formResponse(question, next));
+  if (question.type === "choice") {
+    const options = question.options.map((option) => ({
+      value: option.id,
+      label: option.text || option.picture?.alt || "",
+    }));
+    if (question.multiple)
       return (
-        <FormField
-          id={id}
-          label={shown.label}
-          hint={shown.hint || undefined}
-          optional={optional}
-          errors={errors}
-        >
-          {(control) => (
-            <Textarea
-              {...control}
-              dir="auto"
-              rows={4}
-              maxLength={answerLimit("long")}
-              value={value}
-              onChange={(event) => onChange(event.target.value)}
-            />
-          )}
-        </FormField>
-      );
-    case "choice":
-      return (
-        <SelectField
-          id={id}
-          label={shown.label}
-          hint={shown.hint || undefined}
-          optional={optional}
-          errors={errors}
+        <CheckboxGroupField
+          label={question.prompt}
+          hint={hint}
           value={value}
-          options={[
-            { value: "", label: m.applyChoose() },
-            ...optionsOf(shown.options).map((option) => ({
-              value: option,
-              label: option,
-            })),
-          ]}
-          onChange={onChange}
-          width="name"
+          options={options}
+          errors={errors}
+          onChange={change}
         />
       );
-    default:
-      return (
-        <TextField
-          id={id}
-          label={shown.label}
-          hint={shown.hint || undefined}
-          optional={optional}
-          errors={errors}
-          type={question.answer === "date" ? "date" : "text"}
-          inputMode={question.answer === "number" ? "decimal" : undefined}
-          width={
-            question.answer === "date"
-              ? "date"
-              : question.answer === "number"
-                ? "score"
-                : "name"
-          }
-          maxLength={answerLimit(question.answer)}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-        />
-      );
+    return (
+      <SelectField
+        id={id}
+        label={question.prompt}
+        hint={hint}
+        optional={optional}
+        errors={errors}
+        value={value[0] ?? ""}
+        options={[{ value: "", label: m.applyChoose() }, ...options]}
+        onChange={change}
+        width="name"
+      />
+    );
   }
+  if (question.type === "written")
+    return (
+      <FormField
+        id={id}
+        label={question.prompt}
+        hint={hint}
+        optional={optional}
+        errors={errors}
+      >
+        {(control) => (
+          <Textarea
+            {...control}
+            dir="auto"
+            rows={4}
+            maxLength={answerLimit(question)}
+            value={value[0] ?? ""}
+            onChange={(event) => change(event.target.value)}
+          />
+        )}
+      </FormField>
+    );
+  const date = question.type === "text" && question.date;
+  return (
+    <TextField
+      id={id}
+      label={question.prompt}
+      hint={hint}
+      optional={optional}
+      errors={errors}
+      type={date ? "date" : "text"}
+      inputMode={question.type === "number" ? "decimal" : undefined}
+      width={date ? "date" : question.type === "number" ? "score" : "name"}
+      maxLength={answerLimit(question)}
+      value={value[0] ?? ""}
+      onChange={(event) => change(event.target.value)}
+    />
+  );
 }
 
 type Draft = Awaited<
@@ -618,6 +632,14 @@ export function ApplicationSteps({
         }
       : null,
   }));
+  const questions = formQuestions(questionsIn(data.questions, locale));
+  const answerError = (question: FormQuestion) => {
+    const read = readFormAnswers([question], form.answers);
+    if (read.ok) return null;
+    return read.code === "required"
+      ? m.validationRequired()
+      : m.validationInvalid();
+  };
   const [needs, setNeeds] = useState<Needs>(data.needs);
   const [needsDirty, setNeedsDirty] = useState(false);
   const [version, setVersion] = useState(data.application.version);
@@ -667,10 +689,7 @@ export function ApplicationSteps({
         (hasName(form.other.names) && Boolean(form.other.relationId))),
     schools: form.schools.every((school) => school.name.trim() !== ""),
     needs: true,
-    questions: data.questions.every((question) => {
-      const value = (form.questions[question.id] ?? "").trim();
-      return question.required === "optional" || value !== "";
-    }),
+    questions: readFormAnswers(questions, form.answers).ok,
     documents: true,
     send: data.consents.every(
       (consent) =>
@@ -794,25 +813,22 @@ export function ApplicationSteps({
           </>
         ) : null}
         {step === "questions" ? (
-          data.questions.length ? (
-            data.questions.map((question) => (
+          questions.length ? (
+            questions.map((question) => (
               <Question
                 key={question.id}
                 question={question}
-                value={form.questions[question.id] ?? ""}
-                onChange={(value) =>
+                response={form.answers[question.id]}
+                onChange={(response) => {
+                  const { [question.id]: _left, ...others } = form.answers;
                   setForm({
                     ...form,
-                    questions: { ...form.questions, [question.id]: value },
-                  })
-                }
-                error={
-                  tried &&
-                  question.required === "required" &&
-                  !(form.questions[question.id] ?? "").trim()
-                    ? m.validationRequired()
-                    : null
-                }
+                    answers: response
+                      ? { ...others, [question.id]: response }
+                      : others,
+                  });
+                }}
+                error={tried ? answerError(question) : null}
               />
             ))
           ) : (

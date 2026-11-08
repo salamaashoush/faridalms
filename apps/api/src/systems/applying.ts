@@ -809,7 +809,11 @@ export const draft = readProcedure
         moves: { withdraw: canMove(row.state, "withdrawn", "family") },
       },
       intake: intakeView(intake, context.today),
-      questions: version.questions,
+      questions: {
+        primaryLocale: version.primaryLocale,
+        body: version.body,
+        translation: version.translation,
+      },
       child: {
         version: child.version,
         names: {
@@ -1004,11 +1008,7 @@ export const submit = writeProcedure
       : null;
     if (form.other && !otherRelation?.meaning)
       throw new ORPCError("BAD_REQUEST", { message: "application.relation" });
-    const read = readApplicationAnswers(
-      version.questions,
-      input.locale,
-      form.questions,
-    );
+    const read = readApplicationAnswers(version, input.locale, form.answers);
     if (!read.ok)
       throw new ORPCError("BAD_REQUEST", {
         message:

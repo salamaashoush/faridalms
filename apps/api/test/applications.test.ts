@@ -1,3 +1,4 @@
+import { formDocument } from "@faridalms/domain/questions";
 import { describe, expect, test } from "bun:test";
 
 import { createTurnstile } from "../src/core/turnstile";
@@ -11,6 +12,8 @@ import {
   principal,
   QUESTION,
   registeredFamily,
+  routeForm,
+  routeQuestion,
   registrationLink,
 } from "./admission-fixtures";
 import {
@@ -41,7 +44,9 @@ describe("setting up admissions", () => {
       expectedVersion: 0,
       nameEn: "Unpublished",
       nameAr: "",
-      questions: [],
+      primaryLocale: "en",
+      body: formDocument([]),
+      translation: null,
     });
     expect(
       await rejection(
@@ -67,13 +72,19 @@ describe("setting up admissions", () => {
     ).toMatchObject({ message: "intake.form_unpublished" });
   });
 
-  test("a choice is published only once each language has its options", async () => {
+  test("a form is published only once each question is finished, in either language", async () => {
     const api = await officer();
     const form = await api.intakes.saveForm({
       expectedVersion: 0,
       nameEn: "Half translated",
       nameAr: "",
-      questions: [{ ...QUESTION, optionsAr: "المعادي" }],
+      ...routeForm(),
+      translation: formDocument([
+        {
+          ...routeQuestion("أي خط حافلة؟", ["المعادي", "الزمالك"]),
+          options: QUESTION.options.slice(0, 1),
+        },
+      ]),
     });
     expect(
       await rejection(
@@ -293,7 +304,7 @@ describe("an application", () => {
       enquiryId,
       moves: ["in_review", "withdrawn"],
       family: { email },
-      answers: [{ label: "Which bus route?", value: "Maadi" }],
+      answers: [{ prompt: "Which bus route?", text: "Maadi" }],
     });
     expect(record.consents.map((row) => row.decision)).toEqual([
       "granted",

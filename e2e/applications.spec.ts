@@ -202,3 +202,44 @@ test("a family who registers from an intake's apply door comes back to that inta
   await visitor.getByRole("button", { name: "Sign In", exact: true }).click();
   await expect(visitor).toHaveURL(`${portal}/apply?intake=${intake.id}`);
 });
+
+test("the office writes an application form's questions as blocks and publishes it", async ({
+  page,
+}) => {
+  const name = `Bus form ${crypto.randomUUID().slice(0, 6)}`;
+  await signIn(page, "admin");
+  await page.goto("/admissions/intakes?tab=forms");
+  await page.getByRole("link", { name: "New form" }).first().click();
+  await expect(
+    page.getByRole("heading", { name: "New application form" }),
+  ).toBeVisible();
+  await page.getByRole("textbox", { name: "Name in English" }).fill(name);
+  // Only the kinds a form asks are offered, and nothing is marked.
+  const questions = page.getByRole("textbox", {
+    name: "The school's questions",
+  });
+  await questions.click();
+  await page.keyboard.type("/typed");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Which bus stop is nearest your home?");
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("/date");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("When could your child start?");
+  await expect(questions.locator("[data-question]")).toHaveCount(2);
+  await expect(questions.locator("[data-question][data-asked]")).toHaveCount(2);
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("/ordering");
+  await expect(page.getByRole("option", { name: /Ordering/ })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  await page.getByRole("button", { name: "Save and publish" }).click();
+  await expect(page.getByText("Form published")).toBeVisible();
+  await expect(page.getByRole("row", { name: new RegExp(name) })).toContainText(
+    "2",
+  );
+});

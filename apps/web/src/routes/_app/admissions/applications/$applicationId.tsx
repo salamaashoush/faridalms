@@ -238,11 +238,9 @@ function ApplicationPage() {
               {row.answers.length ? (
                 <Facts>
                   {row.answers.map((answer) => (
-                    <Fact key={answer.id} label={answer.label} wide>
+                    <Fact key={answer.id} label={answer.prompt} wide>
                       <span dir="auto" className="whitespace-pre-line">
-                        {answer.kind === "date"
-                          ? formatDate(answer.value)
-                          : answer.value}
+                        {answer.date ? formatDate(answer.text) : answer.text}
                       </span>
                     </Fact>
                   ))}

@@ -52,11 +52,11 @@ import {
   withdrawPage,
   writePublishedPage,
 } from "@faridalms/database/stores/site";
-import { readAnswers } from "@faridalms/domain/enquiries";
 import { clientAddress } from "@faridalms/domain/forwarded";
 import { paged, pageWindow } from "@faridalms/domain/paging";
 import { publishedPictures } from "@faridalms/domain/previews";
 import { phaseOf } from "@faridalms/domain/publication";
+import { formQuestions, readFormAnswers } from "@faridalms/domain/questions";
 import {
   redirectPath,
   sitePagePath,
@@ -1389,7 +1389,10 @@ export const submitEnquiry = publicProcedure
           throw new ORPCError("BAD_REQUEST", {
             message: "validation.required",
           });
-        const answers = readAnswers(asks.questions, input.answers);
+        const answers = readFormAnswers(
+          formQuestions(asks.questions),
+          input.answers,
+        );
         if (!answers.ok)
           throw new ORPCError("BAD_REQUEST", {
             message:

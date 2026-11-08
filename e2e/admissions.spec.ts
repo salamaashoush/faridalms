@@ -1,17 +1,10 @@
-import type { Locator, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 import { expect, test } from "@playwright/test";
 
 import { openWith, signIn, untilHydrated } from "./fixtures/sign-in";
 
 const tag = () => crypto.randomUUID().slice(0, 6);
-
-/** Opens one repeating item in the builder's inspector, if it is not open yet. */
-async function openItem(item: Locator) {
-  const details = item.locator("details").first();
-  if ((await details.getAttribute("open")) === null)
-    await details.locator("summary").click();
-}
 
 /** A family sends the admissions page's form, taking the time a person would. */
 async function enquire(visitor: Page, name: string, heard?: string) {
@@ -153,22 +146,31 @@ test("a school adds its own question to the form, and families answer it", async
     .getByRole("tabpanel", { name: "Sections" })
     .getByRole("button", { name: /Enquiry form/ })
     .click();
-  const questions = page.getByRole("group", { name: "Your questions" });
-  await questions.getByRole("button", { name: "Add item" }).click();
-  const added = questions.getByRole("listitem").last();
-  await openItem(added);
-  await added.getByRole("textbox", { name: "Label" }).fill(question);
-  await added.getByRole("combobox", { name: "Answer type" }).click();
-  await page.getByRole("option", { name: "Date" }).click();
+  // The school's questions are question blocks, written in the editor.
+  const questions = page.getByRole("textbox", { name: "Your questions" });
+  await questions.click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("/date");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type(question);
+  await expect(questions.locator("[data-question]").last()).toHaveAttribute(
+    "data-kind",
+    "text",
+  );
   await expect(
     page.getByRole("main", { name: "Page preview" }).getByText(question),
   ).toBeVisible();
 
+  // The translation rewrites the question's words; what it asks stays.
   await page.getByRole("button", { name: "Arabic", exact: true }).click();
-  await openItem(added);
-  await added
-    .getByRole("textbox", { name: "Label" })
-    .fill("تاريخ البدء المفضل");
+  await page
+    .getByRole("textbox", { name: "Your questions" })
+    .getByText(question)
+    .click();
+  await page.keyboard.press("End");
+  await page.keyboard.press("Shift+Home");
+  await page.keyboard.insertText("تاريخ البدء المفضل");
   await page.getByRole("button", { name: "Publish changes" }).click();
 
   const visitorContext = await browser.newContext();

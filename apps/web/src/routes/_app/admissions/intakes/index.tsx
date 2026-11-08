@@ -1,6 +1,7 @@
 import type { Column } from "@faridalms/ui/system/data-table";
 
 import { intakeWindow } from "@faridalms/domain/admissions";
+import { formQuestions } from "@faridalms/domain/questions";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
 import { PageHeader } from "@faridalms/ui/system/page-header";
@@ -146,7 +147,7 @@ function formColumns(): Column<Form>[] {
     {
       id: "questions",
       header: m.afmColQuestions(),
-      cell: (row) => formatNumber(row.questions.length),
+      cell: (row) => formatNumber(formQuestions(row.body).length),
     },
     {
       id: "published",
@@ -225,7 +226,9 @@ const FORM_CARD = {
   title: (row: Form) => <FormName row={row} />,
   status: (row: Form) => <Published row={row} />,
   fact: (row: Form) =>
-    m.afmQuestionsCount({ count: formatNumber(row.questions.length) }),
+    m.afmQuestionsCount({
+      count: formatNumber(formQuestions(row.body).length),
+    }),
 };
 
 function IntakesPage() {

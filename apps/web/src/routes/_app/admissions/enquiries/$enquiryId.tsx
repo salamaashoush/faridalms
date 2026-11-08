@@ -335,10 +335,8 @@ function EnquiryPage() {
               >
                 <Facts>
                   {enquiry.answers.map((answer) => (
-                    <Fact key={answer.id} label={answer.label}>
-                      {answer.kind === "date"
-                        ? formatDate(answer.value)
-                        : answer.value}
+                    <Fact key={answer.id} label={answer.prompt}>
+                      {answer.date ? formatDate(answer.text) : answer.text}
                     </Fact>
                   ))}
                 </Facts>

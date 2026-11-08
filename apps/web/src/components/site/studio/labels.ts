@@ -307,10 +307,6 @@ export const FIELD_LABEL: Record<string, () => string> = {
   grade: m.siteFieldGrade,
   message: m.siteFieldMessage,
   questions: m.siteFieldQuestions,
-  hint: m.siteFieldHint,
-  answer: m.siteFieldAnswer,
-  required: m.siteFieldRequired,
-  options: m.siteFieldOptions,
   submit: m.siteFieldSubmit,
   thanks: m.siteFieldThanks,
 };
@@ -515,7 +511,6 @@ export const ISSUE_LABEL: Record<SiteIssueCode, () => string> = {
 export const FIELD_HINT: Record<string, () => string> = {
   intake: m.siteFieldIntakeHint,
   closed: m.siteFieldClosedHint,
-  options: m.siteFieldOptionsHint,
   questions: m.siteFieldQuestionsHint,
 };
 
@@ -666,16 +661,5 @@ export const CHOICE_LABEL: Record<string, Record<string, () => string>> = {
   message: {
     ask: m.siteChoiceMessageAsk,
     hide: m.siteChoiceMessageHide,
-  },
-  answer: {
-    short: m.siteChoiceAnswerShort,
-    long: m.siteChoiceAnswerLong,
-    choice: m.siteChoiceAnswerChoice,
-    date: m.siteChoiceAnswerDate,
-    number: m.siteChoiceAnswerNumber,
-  },
-  required: {
-    optional: m.siteChoiceRequiredOptional,
-    required: m.siteChoiceRequiredRequired,
   },
 };
