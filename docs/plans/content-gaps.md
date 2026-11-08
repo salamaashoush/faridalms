@@ -44,8 +44,44 @@ media plugin and Uppy:
 8. **The school's space.** Storage used by kind and by person, warnings
    before the limit, and duplicates found by their bytes.
 
-The exact gaps come from an audit of the code; the workstream's first
-commit records it here.
+What exists (audit of 2026-11-08): uploads go through the API relay in 8 MB
+parts with retry and progress, are type-checked by their bytes, scanned
+by clamd when configured, and quarantined until clean; SVG is refused;
+video gets an HLS ladder, poster and scrub thumbnails in apps/media;
+quotas per school, class, module and person; library grid and list,
+search by name and words, a kind filter, folders, Move in bulk, trash
+with a 30-day sweep, crop as a new item, where used, who a picture shows;
+private delivery by short-lived sealed links with ranges, public website
+copies cached for a year. The gaps, split in two workstreams:
+
+**A1. Uploading and the library** (web and API)
+
+- Resume an upload after a reload (the server already keeps its parts);
+  drag and drop and paste files into the library, the editor and the
+  website's picture fields; cancel in the library too; one upload queue
+  component in the design system.
+- Filters by date, uploader and tag; tags; bulk delete, tag and download
+  as a zip, in grid and list.
+- A caption and a title apart from the file name; replace keeping every
+  reference, with versions, as class and module files already have.
+- Uploads made in documents seen from the library ("In documents") with
+  one step to keep them; import from a link (fetched by the server, safe
+  against requests to private addresses); the free picture search on the
+  library page.
+- Storage used by kind and by person on the library page; duplicates
+  found by their sha256 at upload, sharing the bytes.
+- Audit of rename, describe, move, add and crop.
+
+**A2. Pictures and previews** (apps/media and readers)
+
+- Sizes made once on upload, in WebP and AVIF beside the original;
+  image dimensions stored; a placeholder (thumbhash) shown while loading;
+  `srcset` in the reader, the editor, the website and library tiles.
+- Location and camera data removed and orientation fixed on the server.
+- A focal point on the library item that crops, sizes and the website
+  respect; rotate, flip and resize beside crop.
+- Audio duration and a waveform; PDF page thumbnails; office files
+  previewed as PDF when a converter is configured.
 
 ## B. Timetable
 
