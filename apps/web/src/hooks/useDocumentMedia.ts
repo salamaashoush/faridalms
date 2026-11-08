@@ -6,7 +6,9 @@ import type {
 } from "@faridalms/domain/file";
 import type {
   EditorMedia,
+  UnfinishedUpload,
   UploadedFile,
+  UploadKind,
   UploadOptions,
 } from "@faridalms/editor";
 
@@ -14,6 +16,8 @@ import { ATTACHABLE_EXTENSIONS, mediaTypeFor } from "@faridalms/domain/file";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo } from "react";
 import { toast } from "sonner";
+
+import type { KeptUpload } from "~/utils/upload-store";
 
 import { useMediaLibrary } from "~/components/media/LibraryPicker";
 import { fileSizeLabel } from "~/components/system/FileList";
@@ -26,7 +30,13 @@ import {
 } from "~/server/files";
 import { searchPictures } from "~/server/library";
 import { formatNumber } from "~/utils/datetime";
-import { sendFile } from "~/utils/upload";
+import { sendFile, uploadState } from "~/utils/upload";
+import {
+  forgetUpload,
+  keepUpload,
+  uploadsIn,
+  whileHolding,
+} from "~/utils/upload-store";
 
 const NEARLY_FULL: Record<
   StorageScope,
@@ -67,9 +77,22 @@ type MediaPurpose = Extract<
   "document_media" | "message_attachment"
 >;
 
+/** Where an upload is kept for a reload to pick up, and what to do with it then. */
+export interface Keeping {
+  scope: string;
+  meta?: Record<string, string | null>;
+}
+
+/** Only a dropped connection leaves an upload worth picking up later. */
+const interrupted = (error: unknown) =>
+  error instanceof Error && error.message === "file.failed";
+
 /**
  * Stores a file as media a document keeps, through the same two-step upload
- * as any attachment, counted against where it goes.
+ * as any attachment, counted against where it goes. Kept, it is held in the
+ * browser until the caller has put it where it goes and forgets it, so a
+ * reload before then picks it up (`resumeUpload`); a refusal, a cancel or
+ * a dropped connection lets it go.
  */
 export async function uploadDocumentFile(
   initiate: ReturnType<typeof useServerFn<typeof initiateUpload>>,
@@ -77,6 +100,7 @@ export async function uploadDocumentFile(
   destination: UploadDestination | undefined,
   options: UploadOptions = {},
   purpose: MediaPurpose = "document_media",
+  keeping?: Keeping,
 ): Promise<UploadedFile> {
   let initiated: Awaited<ReturnType<typeof initiate>>;
   try {
@@ -98,13 +122,34 @@ export async function uploadDocumentFile(
       { cause: error },
     );
   }
-  await sendFile(
-    `/files/${initiated.id}`,
-    file,
-    initiated.mediaType,
-    options,
-    initiated.partBytes,
-  );
+  if (keeping)
+    await keepUpload({
+      id: initiated.id,
+      scope: keeping.scope,
+      file,
+      name: initiated.name,
+      mediaType: initiated.mediaType,
+      sizeBytes: initiated.sizeBytes,
+      partBytes: initiated.partBytes,
+      meta: keeping.meta ?? {},
+      startedAt: Date.now(),
+    });
+  try {
+    const sent = await whileHolding(initiated.id, async () => {
+      await sendFile(
+        `/files/${initiated.id}`,
+        file,
+        initiated.mediaType,
+        options,
+        initiated.partBytes,
+      );
+      return true;
+    });
+    if (!sent) throw new Error("file.elsewhere");
+  } catch (error) {
+    if (keeping) await forgetUpload(initiated.id);
+    throw error;
+  }
   options.onProgress?.(1);
   warnNearlyFull(initiated.warning);
   if (initiated.videoHoursReached) toast.info(m.fileVideoHoursReached());
@@ -115,6 +160,70 @@ export async function uploadDocumentFile(
     bytes: initiated.sizeBytes,
   };
 }
+
+/**
+ * Finishes an upload begun before a reload: asks the server which parts it
+ * holds and sends the rest, or nothing when it is already in. One another
+ * tab is sending is left to it (`file.elsewhere`), and one the server gave
+ * up on is let go (`file.gone`); a dropped connection keeps it for the
+ * next try. The caller forgets it once it is placed.
+ */
+export async function resumeUpload(
+  kept: KeptUpload,
+  options: UploadOptions = {},
+): Promise<UploadedFile> {
+  const url = `/files/${kept.id}`;
+  let sent: true | null;
+  try {
+    sent = await whileHolding(kept.id, async () => {
+      const state = await uploadState(url);
+      if (state.state === "gone") throw new Error("file.gone");
+      if (state.state === "initiated")
+        await sendFile(
+          url,
+          kept.file,
+          kept.mediaType,
+          options,
+          kept.partBytes,
+          new Set(state.parts),
+        );
+      return true as const;
+    });
+  } catch (error) {
+    if (!interrupted(error)) await forgetUpload(kept.id);
+    throw error;
+  }
+  if (sent === null) throw new Error("file.elsewhere");
+  options.onProgress?.(1);
+  return {
+    fileId: kept.id,
+    name: kept.name,
+    mime: kept.mediaType,
+    bytes: kept.sizeBytes,
+  };
+}
+
+/** A kept upload as the browser's own file again, with its name and type. */
+export const keptFile = (kept: KeptUpload) =>
+  kept.file instanceof File
+    ? kept.file
+    : new File([kept.file], kept.name, { type: kept.mediaType });
+
+/** The kinds of block an editor's kept upload may land as. */
+const KINDS: readonly UploadKind[] = [
+  "image",
+  "file",
+  "media",
+  "captions",
+  "diagram",
+  "scene",
+];
+
+/**
+ * Uploads a page's editors already offered for picking up, so two editors
+ * on one page never both take the same file.
+ */
+const offered = new Set<string>();
 
 /**
  * Lets a document editor embed pictures, sound, video and any file a school
@@ -136,6 +245,11 @@ export function useDocumentMedia(
   const library = useMediaLibrary();
   const type = destination?.type;
   const id = destination?.id;
+  // An editor's uploads are picked up on the page that began them.
+  const scope =
+    typeof window === "undefined"
+      ? null
+      : `editor:${window.location.pathname}${window.location.search}`;
   return useMemo(
     () => ({
       accept: {
@@ -169,14 +283,40 @@ export function useDocumentMedia(
           (await search({ data: { q: query } })).pictures,
         credits: m.pictureCredits(),
       },
-      upload: (file: File, _kind, options = {}) =>
-        uploadDocumentFile(
+      // The editor places a file as soon as it is in, so it is let go then.
+      upload: async (file: File, kind, options = {}) => {
+        const uploaded = await uploadDocumentFile(
           initiate,
           file,
           type && id ? { type, id } : undefined,
           options,
           purpose,
-        ),
+          scope ? { scope, meta: { kind } } : undefined,
+        );
+        await forgetUpload(uploaded.fileId);
+        return uploaded;
+      },
+      ...(scope
+        ? {
+            unfinished: async (): Promise<UnfinishedUpload[]> => {
+              const kept = (await uploadsIn(scope)).filter(
+                (upload) => !offered.has(upload.id),
+              );
+              for (const upload of kept) offered.add(upload.id);
+              return kept.map((upload) => ({
+                id: upload.id,
+                file: keptFile(upload),
+                kind: KINDS.find((kind) => kind === upload.meta.kind) ?? "file",
+                resume: async (options) => {
+                  const uploaded = await resumeUpload(upload, options);
+                  await forgetUpload(upload.id);
+                  return uploaded;
+                },
+                discard: () => forgetUpload(upload.id),
+              }));
+            },
+          }
+        : {}),
     }),
     [
       initiate,
@@ -188,6 +328,7 @@ export function useDocumentMedia(
       type,
       id,
       purpose,
+      scope,
     ],
   );
 }

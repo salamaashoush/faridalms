@@ -20,7 +20,9 @@ export type {
   EditorTools,
   LtiPicking,
   StandardRef,
+  UnfinishedUpload,
   UploadedFile,
+  UploadKind,
   UploadOptions,
 } from "./context";
 export type { EditorColor, EditorStrings } from "./strings";

@@ -10,6 +10,7 @@ import { TextField } from "@faridalms/ui/system/form-field";
 import { RecordEmpty, RecordList } from "@faridalms/ui/system/record-page";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
+import { FileDropZone, UploadQueue } from "@faridalms/ui/system/upload-queue";
 import {
   useMutation,
   useQuery,
@@ -28,7 +29,6 @@ import {
   RotateCcw,
   Trash2,
   Upload,
-  X,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -36,18 +36,21 @@ import * as v from "valibot";
 
 import { fileStrings } from "~/components/content/strings";
 import { UsageBar } from "~/components/files/UsageBar";
-import { useDocumentMedia } from "~/hooks/useDocumentMedia";
+import { VersionsSheet } from "~/components/files/VersionsSheet";
+import { uploadDocumentFile, useDocumentMedia } from "~/hooks/useDocumentMedia";
+import { useUploadQueue } from "~/hooks/useUploadQueue";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { areaFilesQuery } from "~/queries/files";
 import {
   addToArea,
   getFileVersions,
+  initiateUpload,
   renameInArea,
   replaceInArea,
   trashInArea,
 } from "~/server/files";
-import { formatDate, formatList, formatNumber } from "~/utils/datetime";
+import { formatDate, formatList } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 type AreaFile = Awaited<
@@ -215,13 +218,6 @@ function sameKind(
   return accept.file.join(",");
 }
 
-interface Pending {
-  key: string;
-  name: string;
-  progress: number;
-  error: string | null;
-}
-
 export interface AreaFilesProps {
   area: Area;
   title: string;
@@ -264,6 +260,7 @@ export function AreaFiles({ area, title, view, onView }: AreaFilesProps) {
   const add = useServerFn(addToArea);
   const trash = useServerFn(trashInArea);
   const replace = useServerFn(replaceInArea);
+  const fetchVersions = useServerFn(getFileVersions);
   const refreshFacts = useRefreshFileFacts();
   const input = useRef<HTMLInputElement>(null);
   const replacement = useRef<HTMLInputElement>(null);
@@ -275,7 +272,6 @@ export function AreaFiles({ area, title, view, onView }: AreaFilesProps) {
       ...view,
       fileKinds: FILE_KINDS.filter((kind) => next.includes(kind)),
     });
-  const [pending, setPending] = useState<Pending[]>([]);
   const [viewing, setViewing] = useState<AreaFile | null>(null);
   const [renaming, setRenaming] = useState<AreaFile | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
@@ -285,34 +281,30 @@ export function AreaFiles({ area, title, view, onView }: AreaFilesProps) {
       queryKey: ["files", "area", area.type, area.id],
     });
 
-  /** Uploads a file into the area, or as the new bytes of one already there. */
-  const upload = async (file: File, target?: AreaFile) => {
-    const key = crypto.randomUUID();
-    const change = (patch: Partial<Pending>) =>
-      setPending((rows) =>
-        rows.map((row) => (row.key === key ? { ...row, ...patch } : row)),
-      );
-    setPending((rows) => [
-      ...rows,
-      { key, name: file.name, progress: 0, error: null },
-    ]);
-    try {
-      const sent = await media.upload(file, "file", {
-        onProgress: (progress) => change({ progress }),
-      });
-      if (target) {
+  const initiate = useServerFn(initiateUpload);
+  /** Uploads go into the area, or under a file already there as its new bytes. */
+  const queue = useUploadQueue({
+    scope: `files:${area.type}:${area.id}`,
+    upload: (file, options, keeping) =>
+      uploadDocumentFile(
+        initiate,
+        file,
+        area,
+        options,
+        "document_media",
+        keeping,
+      ),
+    place: async (sent, meta) => {
+      if (meta.replace) {
         await replace({
-          data: { area, id: target.id, sourceId: sent.fileId },
+          data: { area, id: meta.replace, sourceId: sent.fileId },
         });
-        refreshFacts([target.id]);
+        refreshFacts([meta.replace]);
         toast.success(m.filesReplaced());
       } else await add({ data: { area, ids: [sent.fileId] } });
-      setPending((rows) => rows.filter((row) => row.key !== key));
       await refresh();
-    } catch (error) {
-      change({ error: getMessageFromError(error) });
-    }
-  };
+    },
+  });
 
   const shown = files.rows;
 
@@ -377,7 +369,11 @@ export function AreaFiles({ area, title, view, onView }: AreaFilesProps) {
   ];
 
   return (
-    <div className="grid gap-4">
+    <FileDropZone
+      className="grid gap-4"
+      label={m.filesDropHere({ title })}
+      onFiles={(dropped) => queue.add(dropped, { replace: null })}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-prose text-[13px] leading-[18px] text-muted-foreground">
           {area.type === "class" ? m.filesClassHint() : m.filesModuleHint()}
@@ -414,7 +410,7 @@ export function AreaFiles({ area, title, view, onView }: AreaFilesProps) {
             onChange={(event) => {
               const chosen = [...(event.target.files ?? [])];
               event.target.value = "";
-              for (const file of chosen) void upload(file);
+              queue.add(chosen, { replace: null });
             }}
           />
           <input
@@ -424,7 +420,8 @@ export function AreaFiles({ area, title, view, onView }: AreaFilesProps) {
             onChange={(event) => {
               const [chosen] = event.target.files ?? [];
               event.target.value = "";
-              if (chosen && replacing) void upload(chosen, replacing);
+              if (chosen && replacing)
+                queue.add([chosen], { replace: replacing.id });
             }}
           />
         </div>
@@ -434,49 +431,13 @@ export function AreaFiles({ area, title, view, onView }: AreaFilesProps) {
         limitBytes={usage.limitBytes}
         className="max-w-md"
       />
-      {pending.length > 0 ? (
-        <ul className="grid gap-2" aria-live="polite">
-          {pending.map((row) => (
-            <li
-              key={row.key}
-              className="grid gap-1.5 rounded-lg border px-4 py-3 text-sm"
-            >
-              <span className="flex items-center justify-between gap-3">
-                <bdi className="truncate">{row.name}</bdi>
-                {row.error ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 max-md:size-10"
-                    aria-label={m.fileDismissNamed({ name: row.name })}
-                    onClick={() =>
-                      setPending((rows) =>
-                        rows.filter((item) => item.key !== row.key),
-                      )
-                    }
-                  >
-                    <X aria-hidden />
-                  </Button>
-                ) : null}
-              </span>
-              {row.error ? (
-                <span className="text-destructive">{row.error}</span>
-              ) : (
-                <progress
-                  className="h-1.5 w-full overflow-hidden rounded-full [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-primary"
-                  value={row.progress}
-                  max={1}
-                  aria-label={m.filesUploadProgress({
-                    name: row.name,
-                    percent: `${formatNumber(Math.round(row.progress * 100))}%`,
-                  })}
-                />
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <UploadQueue
+        label={m.filesUploading()}
+        items={queue.items}
+        onCancel={queue.cancel}
+        onRetry={queue.retry}
+        onDismiss={queue.dismiss}
+      />
       <DataTable
         caption={m.filesCaption({ title })}
         rows={shown}
@@ -558,8 +519,11 @@ export function AreaFiles({ area, title, view, onView }: AreaFilesProps) {
         />
       ) : null}
       <VersionsSheet
-        area={area}
         file={versionsOf}
+        load={(id) => fetchVersions({ data: { area, id } })}
+        restore={(id, versionId) =>
+          replace({ data: { area, id, sourceId: versionId } })
+        }
         onOpenChange={(open) => {
           if (!open) setVersionsOf(null);
         }}
@@ -574,7 +538,7 @@ export function AreaFiles({ area, title, view, onView }: AreaFilesProps) {
         onOpenChange={setTrashOpen}
         onRestored={refresh}
       />
-    </div>
+    </FileDropZone>
   );
 }
 
@@ -704,125 +668,6 @@ function TrashSheet({ area, open, onOpenChange, onRestored }: TrashSheetProps) {
           })}
         </RecordList>
       )}
-    </SheetPanel>
-  );
-}
-
-interface VersionsSheetProps {
-  area: Area;
-  file: AreaFile | null;
-  onOpenChange: (open: boolean) => void;
-  onRestored: (id: string) => Promise<unknown>;
-}
-
-function VersionsSheet({
-  area,
-  file,
-  onOpenChange,
-  onRestored,
-}: VersionsSheetProps) {
-  const fetchVersions = useServerFn(getFileVersions);
-  const restore = useServerFn(replaceInArea);
-  const listed = useQuery({
-    queryKey: ["files", "versions", file?.id],
-    queryFn: () =>
-      file
-        ? fetchVersions({ data: { area, id: file.id } })
-        : Promise.resolve({ versions: [] }),
-    enabled: file !== null,
-  });
-  const [busy, setBusy] = useState<string | null>(null);
-  const [viewing, setViewing] = useState<string | null>(null);
-  const versions = listed.data?.versions ?? [];
-  const shown = versions.find((row) => row.id === viewing);
-  return (
-    <SheetPanel
-      open={file !== null}
-      onOpenChange={onOpenChange}
-      title={file ? `${m.filesVersions()}: ${file.name}` : m.filesVersions()}
-      description={m.filesVersionsHint()}
-    >
-      {listed.isPending ? (
-        <div aria-busy="true" className="min-h-24" />
-      ) : versions.length === 0 ? (
-        <RecordEmpty>{m.filesVersionsEmpty()}</RecordEmpty>
-      ) : (
-        <RecordList>
-          {versions.map((version) => {
-            const until = new Date(
-              new Date(version.replacedAt).getTime() +
-                TRASH_DAYS * 24 * 60 * 60 * 1000,
-            ).toISOString();
-            return (
-              <li key={version.id} className="flex items-center gap-3 py-3">
-                <FileIcon
-                  file={{ name: version.name, mime: version.mediaType }}
-                  className="size-5 shrink-0 text-muted-foreground"
-                />
-                <span className="grid min-w-0 flex-1 gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setViewing(version.id)}
-                    className="truncate text-start text-sm leading-5 font-medium hover:text-primary hover:underline"
-                  >
-                    <bdi>{version.name}</bdi>
-                  </button>
-                  <span className="text-[13px] leading-[18px] text-muted-foreground">
-                    {m.filesVersionFact({
-                      date: formatDate(version.replacedAt),
-                      until: formatDate(until),
-                    })}
-                  </span>
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="max-md:h-10"
-                  disabled={busy !== null || !file}
-                  aria-label={m.filesRestoreNamed({ name: version.name })}
-                  onClick={async () => {
-                    if (!file) return;
-                    setBusy(version.id);
-                    try {
-                      await restore({
-                        data: { area, id: file.id, sourceId: version.id },
-                      });
-                      await Promise.all([
-                        listed.refetch(),
-                        onRestored(file.id),
-                      ]);
-                      toast.success(m.filesVersionRestored());
-                    } catch (error) {
-                      toast.error(getMessageFromError(error));
-                    } finally {
-                      setBusy(null);
-                    }
-                  }}
-                >
-                  <RotateCcw aria-hidden />
-                  {m.filesRestore()}
-                </Button>
-              </li>
-            );
-          })}
-        </RecordList>
-      )}
-      {shown ? (
-        <FileViewer
-          file={{
-            name: shown.name,
-            mime: shown.mediaType,
-            bytes: shown.sizeBytes,
-          }}
-          url={`/files/${shown.id}`}
-          open
-          onOpenChange={(open) => {
-            if (!open) setViewing(null);
-          }}
-          strings={fileStrings()}
-          locale={getLocale()}
-        />
-      ) : null}
     </SheetPanel>
   );
 }

@@ -661,9 +661,6 @@ export interface EditorStrings
   /** A file block's own file, replaced by a version the writer worked on. */
   fileNewVersion: string;
   fileNewVersionFailed: string;
-  retryUpload: string;
-  removeUpload: string;
-  cancelUpload: string;
   uploadTooLarge: string;
   uploadWrongType: string;
   commonsFailed: string;

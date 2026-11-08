@@ -256,6 +256,7 @@
         "@excalidraw/excalidraw": "^0.18.1",
         "@faridalms/domain": "workspace:*",
         "@faridalms/puzzles": "workspace:*",
+        "@faridalms/ui": "workspace:*",
         "@floating-ui/dom": "^1.8.0",
         "@lexical/code": "^0.53.0",
         "@lexical/code-prism": "^0.53.0",

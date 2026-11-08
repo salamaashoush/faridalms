@@ -43,6 +43,8 @@ export interface UploadOptions {
 export interface LibraryChoice extends UploadedFile {
   alt: string;
   credit?: PictureCredit;
+  /** What a picture block starts its caption from. */
+  caption?: string;
 }
 
 /** What a choice may be: pictures, sound and video, video alone, or any file. */
@@ -79,6 +81,19 @@ export interface LibraryPicture {
   full: string;
 }
 
+/**
+ * An upload begun before the page was reloaded, which the host kept so it
+ * can be finished: `resume` sends what the server still lacks and resolves
+ * to the file once it is in; `discard` gives it up.
+ */
+export interface UnfinishedUpload {
+  id: string;
+  file: File;
+  kind: UploadKind;
+  resume: (options?: UploadOptions) => Promise<UploadedFile>;
+  discard: () => Promise<void>;
+}
+
 export interface EditorMedia {
   /** Stores a file; a refusal rejects with the server's code as the message. */
   upload: (
@@ -106,6 +121,8 @@ export interface EditorMedia {
    * takes the school's media service to do.
    */
   canTrim?: () => Promise<boolean>;
+  /** Uploads begun before a reload, for the editor to finish and place at its end. */
+  unfinished?: () => Promise<UnfinishedUpload[]>;
   /** Captions drafted from what a recording says, where the school's media service can. */
   captions?: {
     draft: (fileId: string, language: SpeechLanguage) => Promise<void>;

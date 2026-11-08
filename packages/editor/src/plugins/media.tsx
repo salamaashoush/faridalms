@@ -7,6 +7,7 @@ import {
   commonsPicture,
 } from "@faridalms/domain/commons";
 import { attachable, maxBytesFor, mediaTypeFor } from "@faridalms/domain/file";
+import { UploadQueue } from "@faridalms/ui/system/upload-queue";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DRAG_DROP_PASTE } from "@lexical/rich-text";
 import {
@@ -17,10 +18,9 @@ import {
   COMMAND_PRIORITY_LOW,
   createCommand,
 } from "lexical";
-import { RotateCcw, X } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
-import type { LibraryChoice, UploadedFile } from "../context";
+import type { LibraryChoice, UnfinishedUpload, UploadedFile } from "../context";
 import type { EditorStrings } from "../strings";
 import type { TakeTrim } from "../video-recorder";
 
@@ -52,6 +52,7 @@ export const RECORD_VIDEO_COMMAND = createCommand<undefined>(
 interface Described {
   alt: string;
   credit?: PictureCredit | undefined;
+  caption?: string | undefined;
 }
 
 function $insertUploaded(
@@ -62,9 +63,9 @@ function $insertUploaded(
 ): NodeKey {
   const node: LexicalNode =
     kind === "image"
-      ? $createImageNode(file.fileId, described?.alt).setCredit(
-          described?.credit ?? null,
-        )
+      ? $createImageNode(file.fileId, described?.alt)
+          .setCredit(described?.credit ?? null)
+          .setCaption(described?.caption ?? "")
       : kind === "media"
         ? $createMediaNode(file.fileId, file.mime)
         : $createFileNode(file.fileId, file.name, file.mime, file.bytes);
@@ -84,6 +85,8 @@ interface Upload {
   progress: number;
   error: string | null;
   controller: AbortController;
+  /** Begun before a reload: finished where it stopped, then placed at the end. */
+  unfinished?: UnfinishedUpload | undefined;
   /** The part of a recording to keep, when its maker cut its ends off. */
   trim?: TakeTrim | undefined;
   described?: Described | undefined;
@@ -179,18 +182,26 @@ export function MediaPlugin({
       patch(item.id, { error: refusal(early, strings) });
       return;
     }
+    const stopped = () => item.controller.signal.aborted;
+    if (stopped()) {
+      await item.unfinished?.discard();
+      return;
+    }
     try {
-      const uploaded = await media.upload(item.file, item.kind, {
+      const options = {
         signal: item.controller.signal,
-        onProgress: (progress) => patch(item.id, { progress }),
+        onProgress: (progress: number) => patch(item.id, { progress }),
         ...(item.trim ? { trim: item.trim } : {}),
-      });
+      };
+      const uploaded = item.unfinished
+        ? await item.unfinished.resume(options)
+        : await media.upload(item.file, item.kind, options);
       // A new document's editor starts again when it is first saved; the file
       // goes into the editor showing the document by then.
       const showing = editorInSlot(slot.current) ?? editor;
       showing.update(() => {
         anchor.current = $insertUploaded(
-          showing === editor ? anchor.current : null,
+          showing === editor && !item.unfinished ? anchor.current : null,
           item.kind,
           uploaded,
           item.described,
@@ -198,12 +209,57 @@ export function MediaPlugin({
       });
       setUploads((current) => current.filter((row) => row.id !== item.id));
     } catch (error) {
-      if (item.controller.signal.aborted) return;
+      if (stopped()) return;
+      const code = error instanceof Error ? error.message : "";
+      // Another tab is finishing it, or the server let it go long ago.
+      if (
+        item.unfinished &&
+        (code === "file.elsewhere" || code === "file.gone")
+      ) {
+        setUploads((current) => current.filter((row) => row.id !== item.id));
+        return;
+      }
       patch(item.id, {
-        error: refusal(error instanceof Error ? error.message : "", strings),
+        error: refusal(code, strings),
+        unfinished: undefined,
       });
     }
   };
+
+  // Uploads a reload cut off are finished and land at the end of the text.
+  const pickUp = useEffectEvent((found: UnfinishedUpload[]) => {
+    const kinds: Record<string, MediaKind> = {
+      image: "image",
+      media: "media",
+    };
+    const added: Upload[] = found.map((upload) => ({
+      id: upload.id,
+      file: upload.file,
+      kind: kinds[upload.kind] ?? "file",
+      progress: 0,
+      error: null,
+      controller: new AbortController(),
+      unfinished: upload,
+    }));
+    setUploads((current) => [...current, ...added]);
+    void added.reduce(
+      (previous, item) => previous.then(() => run(item)),
+      Promise.resolve(),
+    );
+  });
+  useEffect(() => {
+    if (!media?.unfinished) return undefined;
+    let open = true;
+    media.unfinished().then(
+      (found) => {
+        if (open && found.length > 0) pickUp(found);
+      },
+      () => undefined,
+    );
+    return () => {
+      open = false;
+    };
+  }, [media]);
 
   const start = (
     files: File[],
@@ -308,7 +364,7 @@ export function MediaPlugin({
             target,
             item,
             target === "image"
-              ? { alt: item.alt, credit: item.credit }
+              ? { alt: item.alt, credit: item.credit, caption: item.caption }
               : undefined,
           );
       });
@@ -386,8 +442,6 @@ export function MediaPlugin({
   }, [editor, media]);
 
   if (!media) return null;
-  const button =
-    "inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium hover:bg-accent [&_svg]:size-4";
   return (
     <>
       <VideoRecorder
@@ -412,101 +466,54 @@ export function MediaPlugin({
           start(files, kindFor(kind));
         }}
       />
-      {uploads.length > 0 ? (
-        <ul className="grid gap-2 px-1 pb-4" aria-label={strings.uploading}>
-          {uploads.map((item) => (
-            <li
-              key={item.id}
-              className="flex items-center gap-3 rounded-lg border bg-background px-3 py-2"
-            >
-              <div className="grid min-w-0 flex-1 gap-1">
-                <span className="flex items-baseline gap-2 text-sm">
-                  <span className="truncate font-medium">
-                    <bdi>{item.file.name}</bdi>
-                  </span>
-                  {/* A picture never fetched has nothing to measure. */}
-                  {item.file.size > 0 || !item.error ? (
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {fileMeta(
-                        {
-                          name: item.file.name,
-                          mime: item.file.type,
-                          bytes: item.file.size,
-                        },
-                        locale,
-                      )}
-                    </span>
-                  ) : null}
-                </span>
-                {item.error ? (
-                  <span role="alert" className="text-xs text-destructive">
-                    {item.error}
-                  </span>
-                ) : (
-                  <progress
-                    aria-label={`${strings.uploading} ${item.file.name}`}
-                    max={100}
-                    value={Math.round(item.progress * 100)}
-                    className="block h-1 w-full appearance-none overflow-hidden rounded-full bg-muted [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-primary"
-                  />
-                )}
-              </div>
-              {item.error ? (
-                <>
-                  {precheck(item.file) ? null : (
-                    <button
-                      type="button"
-                      className={button}
-                      onClick={() => {
-                        const retried = {
-                          ...item,
-                          error: null,
-                          progress: 0,
-                          controller: new AbortController(),
-                        };
-                        setUploads((current) =>
-                          current.map((row) =>
-                            row.id === item.id ? retried : row,
-                          ),
-                        );
-                        void run(retried);
-                      }}
-                    >
-                      <RotateCcw aria-hidden />
-                      {strings.retryUpload}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className={button}
-                    onClick={() =>
-                      setUploads((current) =>
-                        current.filter((row) => row.id !== item.id),
-                      )
-                    }
-                  >
-                    {strings.removeUpload}
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  aria-label={`${strings.cancelUpload}: ${item.file.name}`}
-                  className={button}
-                  onClick={() => {
-                    item.controller.abort();
-                    setUploads((current) =>
-                      current.filter((row) => row.id !== item.id),
-                    );
-                  }}
-                >
-                  <X aria-hidden />
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <UploadQueue
+        label={strings.uploading}
+        className="px-1 pb-4"
+        items={uploads.map((item) => ({
+          id: item.id,
+          name: item.file.name,
+          // A picture never fetched has nothing to measure.
+          ...(item.file.size > 0 || !item.error
+            ? {
+                fact: fileMeta(
+                  {
+                    name: item.file.name,
+                    mime: item.file.type,
+                    bytes: item.file.size,
+                  },
+                  locale,
+                ),
+              }
+            : {}),
+          progress: item.progress,
+          state: item.error ? "failed" : "sending",
+          error: item.error,
+          retryable: item.file.size > 0 && !precheck(item.file),
+        }))}
+        onCancel={(id) => {
+          const item = uploads.find((row) => row.id === id);
+          item?.controller.abort();
+          void item?.unfinished?.discard();
+          setUploads((current) => current.filter((row) => row.id !== id));
+        }}
+        onRetry={(id) => {
+          const item = uploads.find((row) => row.id === id);
+          if (!item) return;
+          const retried = {
+            ...item,
+            error: null,
+            progress: 0,
+            controller: new AbortController(),
+          };
+          setUploads((current) =>
+            current.map((row) => (row.id === id ? retried : row)),
+          );
+          void run(retried);
+        }}
+        onDismiss={(id) =>
+          setUploads((current) => current.filter((row) => row.id !== id))
+        }
+      />
     </>
   );
 }
