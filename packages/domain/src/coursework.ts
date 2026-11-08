@@ -11,6 +11,7 @@ import { declarationSchema } from "./exams";
 import {
   checkBlocks,
   feedbackBandsSchema,
+  fluencyMarkSchema,
   isCheck,
   lessonDocumentSchema,
   MAX_MARKED_TOGETHER,
@@ -940,6 +941,8 @@ export const markQuizAnswerSchema = v.object({
   blockId: id,
   points: v.pipe(v.number(), v.minValue(0), v.maxValue(100)),
   feedback: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ""),
+  /** For a passage read aloud in one attempt, how it was read. */
+  fluency: v.optional(fluencyMarkSchema),
 });
 
 export const discussionPostSchema = v.object({

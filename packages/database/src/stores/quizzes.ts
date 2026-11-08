@@ -1,3 +1,5 @@
+import type { FluencyMark } from "@faridalms/domain/learning";
+
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -104,6 +106,8 @@ export interface QuizAnswerToMark {
   response: Record<string, unknown>;
   fraction: number | null;
   feedback: string | null;
+  /** How a passage read aloud was read, as the teacher last marked it. */
+  fluency: FluencyMark | null;
   marked: boolean;
   sentAt: string;
 }
@@ -130,11 +134,12 @@ export async function quizAnswersToMark(
     response: Record<string, unknown>;
     fraction: string | number | null;
     feedback: string | null;
+    fluency: FluencyMark | null;
     marked: boolean;
     sent_at: string;
   }>(sql`
     select t.id as attempt_id, q.attempt, q.submission_id, q.student_user_id as student_id,
-      q.block_id, q.response, q.fraction, q.feedback, q.state = 'marked' as marked,
+      q.block_id, q.response, q.fraction, q.feedback, q.fluency, q.state = 'marked' as marked,
       ${isoOf(sql`t.submitted_at`)} as sent_at
     from core.quiz_answers q
     join core.submissions s on s.tenant_id = q.tenant_id and s.id = q.submission_id
@@ -153,6 +158,7 @@ export async function quizAnswersToMark(
     response: row.response,
     fraction: row.fraction === null ? null : Number(row.fraction),
     feedback: row.feedback,
+    fluency: row.fluency,
     marked: row.marked,
     sentAt: row.sent_at,
   }));
@@ -253,12 +259,15 @@ export async function markQuizAnswer(
     blockId: string;
     fraction: number | null;
     feedback: string | null;
+    /** How a passage read aloud was read; a mark without it clears the last. */
+    fluency?: FluencyMark | null;
     userId: string;
   },
 ): Promise<boolean> {
   const rows = await tx.execute<{ id: string }>(sql`
     update core.quiz_answers
     set fraction = ${input.fraction}, feedback = ${input.feedback}, state = 'marked',
+        fluency = ${input.fluency ? JSON.stringify(input.fluency) : null}::text::jsonb,
         marked_by_user_id = ${input.userId}::uuid
     where tenant_id = ${input.tenantId}::uuid and submission_id = ${input.submissionId}::uuid
       and attempt = ${input.attempt} and block_id = ${input.blockId}::uuid

@@ -25,7 +25,6 @@ export function QuizAnswers({ assignmentId }: QuizAnswersProps) {
         gallery: false,
         checks: [],
         standards: [],
-        passage: null,
       }))}
       answers={answers.map((answer) => ({
         ...answer,
@@ -37,13 +36,12 @@ export function QuizAnswers({ assignmentId }: QuizAnswersProps) {
         notes: null,
         share: null,
         offered: null,
-        fluency: null,
       }))}
       empty={{
         title: m.quizNothingToMark(),
         description: m.quizNothingToMarkBody(),
       }}
-      mark={async (question, chosen, points, feedback) => {
+      mark={async (question, chosen, points, feedback, fluency) => {
         await markQuizAnswer({
           data: {
             attemptIds: chosen.flatMap((answer) =>
@@ -52,6 +50,7 @@ export function QuizAnswers({ assignmentId }: QuizAnswersProps) {
             blockId: question.blockId,
             points,
             feedback,
+            ...(fluency ? { fluency } : {}),
           },
         });
         await queryClient.invalidateQueries({ queryKey: ["coursework"] });

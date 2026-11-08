@@ -95,6 +95,7 @@ import { classChoices, classTitle, defaultClass } from "../classes/format";
 import { FeedbackBands, keptBands } from "../learning/FeedbackBands";
 import { displayName } from "../people/format";
 import { PHASE_LABEL, PHASE_TONE } from "./format";
+import { prosodyRubric } from "./readyRubrics";
 import { RubricSheet } from "./RubricSheet";
 import { UseAgainSheet } from "./UseAgain";
 
@@ -193,6 +194,9 @@ const REPLY_COUNTS = Array.from(
 const PEER_COUNTS = Array.from({ length: MAX_PEER_REVIEWS }, (_, index) =>
   String(index + 1),
 );
+
+/** The ready-made rubric for reading aloud, offered beside the teacher's own. */
+const READY_PROSODY = "ready:prosody";
 
 const NO_PEER = { on: false, reviews: "2", anonymous: true, dueAt: "" };
 
@@ -1212,12 +1216,17 @@ export function AssignmentEditor({
                         value: row.id,
                         label: row.title,
                       })),
+                      {
+                        value: READY_PROSODY,
+                        label: m.rubricReadyProsody(),
+                      },
                     ]}
                     onChange={(value) => {
                       if (value === "current") return;
-                      const chosen = options.rubrics.find(
-                        (row) => row.id === value,
-                      );
+                      const chosen =
+                        value === READY_PROSODY
+                          ? { id: "", rubric: prosodyRubric() }
+                          : options.rubrics.find((row) => row.id === value);
                       setDraft((current) => ({
                         ...current,
                         rubricId: chosen ? chosen.id : "",

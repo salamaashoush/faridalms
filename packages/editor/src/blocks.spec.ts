@@ -27,7 +27,15 @@ import {
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import { $duplicateBlock, $insertBlock, $moveBlock, $turnInto } from "./blocks";
+import {
+  $duplicateBlock,
+  $insertBlock,
+  $moveBlock,
+  $turnInto,
+  blockDefinitions,
+  blockScope,
+  offered,
+} from "./blocks";
 import { BlocksExtension, sanitiseStyle } from "./extensions";
 import { markdownTransformers } from "./markdown";
 import {
@@ -513,6 +521,23 @@ describe("block operations", () => {
       $convertToMarkdownString(markdownTransformers),
     );
     expect(markdown).toBe("> Trip on Thursday");
+  });
+});
+
+const named = (type: string) =>
+  blockDefinitions.find((block) => block.type === type);
+
+describe("where blocks are offered", () => {
+  it("offers reading aloud in a quiz, and young children's activities only in a lesson", () => {
+    const quiz = blockScope({ questions: true, gates: false });
+    const lesson = blockScope({ questions: true, lessonActivities: true });
+    const reading = named("readingQuestion");
+    const why = named("whyQuestion");
+    if (!reading || !why) throw new Error("the blocks are missing");
+    expect(offered(reading, quiz)).toBe(true);
+    expect(offered(reading, lesson)).toBe(true);
+    expect(offered(why, quiz)).toBe(false);
+    expect(offered(reading, blockScope({}))).toBe(false);
   });
 });
 

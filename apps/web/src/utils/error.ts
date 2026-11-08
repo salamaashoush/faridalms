@@ -698,6 +698,8 @@ export function getMessageFromError(error: unknown): string {
         return m.courseworkErrModuleUnknown();
       case "coursework.like_own":
         return m.discussionErrLikeOwn();
+      case "reading.norm_repeated":
+        return m.readingErrNormRepeated();
       case "coursework.peer_due_early":
         return m.courseworkErrPeerDueEarly();
       case "coursework.peer_no_passage":

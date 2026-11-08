@@ -1376,8 +1376,8 @@ export const blockDefinitions: BlockDefinition[] = [
       "طلاقة",
       "جهرية",
     ],
+    // Read aloud wherever questions are asked: lessons, young lessons and quizzes.
     question: true,
-    activity: true,
   },
   {
     type: "gate",

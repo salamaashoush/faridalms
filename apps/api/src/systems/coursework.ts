@@ -212,6 +212,7 @@ import {
   checkBlocks,
   isTeacherMarked,
   quizViews,
+  readingWords,
   ownResponse,
   responseFiles,
   responseIssue,
@@ -3760,6 +3761,18 @@ export const markQuizAnswer = writeProcedure
       if (!block || !isTeacherMarked(block)) throw new ORPCError("NOT_FOUND");
       if (input.points > block.points)
         throw new ORPCError("BAD_REQUEST", { message: "learning.points_over" });
+      // A reading is marked for the one attempt that read it, word by word
+      // within the passage.
+      const passage = block.type === "written" ? (block.passage ?? "") : "";
+      if (
+        input.fluency &&
+        (!passage ||
+          attempts.length !== 1 ||
+          [...input.fluency.errors, input.fluency.lastWord ?? 0].some(
+            (place) => place >= readingWords(passage).length,
+          ))
+      )
+        throw new ORPCError("BAD_REQUEST", { message: "learning.fluency" });
       const marked = await storeQuizMark(tx, {
         tenantId: context.tenantId,
         submissionId: attempt.submissionId,
@@ -3770,6 +3783,7 @@ export const markQuizAnswer = writeProcedure
             ? null
             : Math.round((input.points / block.points) * 10000) / 10000,
         feedback: input.feedback || null,
+        fluency: input.fluency ?? null,
         userId: context.actor.userId,
       });
       if (!marked) throw new ORPCError("NOT_FOUND");
@@ -3834,6 +3848,8 @@ export const quizAnswers = readProcedure
         kind: block.type,
         prompt: block.prompt,
         points: block.points,
+        /** The passage a reading aloud reads, marked word by word. */
+        passage: block.type === "written" ? (block.passage ?? null) : null,
       })),
       answers: answers.map(({ response, ...answer }) => ({
         ...answer,

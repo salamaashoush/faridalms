@@ -154,9 +154,20 @@ export function YoungSpoken({ block, view, driver }: YoungSpokenProps) {
     void audio.play().catch(() => setPlaying(false));
   };
 
-  if (!canRecord) return null;
+  // A passage to read aloud stands large above the button, and is never
+  // read to the child: reading it is the child's to do.
+  const passage = block.passage ? (
+    <p
+      dir="auto"
+      className="max-w-prose rounded-2xl bg-muted/40 px-6 py-4 text-center text-2xl leading-[1.8] font-medium whitespace-pre-line"
+    >
+      {block.passage}
+    </p>
+  ) : null;
+  if (!canRecord) return passage;
   return (
     <div className="grid justify-items-center gap-6">
+      {passage}
       {state === "idle" ? (
         <div className="flex flex-wrap items-center justify-center gap-6">
           {sent ? (
