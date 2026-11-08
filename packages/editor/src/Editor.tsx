@@ -10,6 +10,7 @@ import {
   contentPlainText,
   readingStats,
 } from "@faridalms/domain/content";
+import { documentWritten } from "@faridalms/domain/translations";
 import { CodePrismExtension } from "@lexical/code-prism";
 import { HistoryExtension } from "@lexical/history";
 import { registerMarkdownShortcuts } from "@lexical/markdown";
@@ -339,6 +340,9 @@ export default function Editor({
   // Counted from what the editor opens with, which the host has already
   // checked, rather than by checking the editor's copy again.
   const [stats] = useState(() => statsStore(statsOf(value)));
+  // Whether the host was last handed words, as it judges a document
+  // written: its starters and notes change when that does.
+  const [written] = useState(() => ({ current: documentWritten(value) }));
   const [synced, setSynced] = useState(false);
   const factory = collaboration?.providerFactory;
   const providerFactory = useMemo(
@@ -355,7 +359,13 @@ export default function Editor({
   );
   const composer = (
     <LexicalExtensionComposer extension={extension} contentEditable={null}>
-      <Surface {...props} stats={stats} synced={synced} onSynced={onSynced} />
+      <Surface
+        {...props}
+        stats={stats}
+        written={written}
+        synced={synced}
+        onSynced={onSynced}
+      />
       {collaboration && providerFactory ? (
         <CollaborationPlugin
           id={collaboration.id}
@@ -383,6 +393,7 @@ interface SurfaceProps extends Omit<
   "value" | "media" | "locale" | "strings" | "assistant"
 > {
   stats: StatsStore;
+  written: { current: boolean };
   synced: boolean;
 }
 
@@ -402,6 +413,7 @@ const Surface = memo(function Surface({
   replace,
   onUploadingChange,
   stats,
+  written,
   synced,
   onSynced,
   language,
@@ -558,8 +570,12 @@ const Surface = memo(function Surface({
   // would put off, so what the page shows from the words (an empty
   // document's starters, a translation's note) settles before the writer's
   // next click; the rest of a burst goes when typing pauses, or a second
-  // in. Leaving the editor, Escape and shortcuts hand it over at once, so
-  // a save never misses the last words typed.
+  // in. Until the host has been handed words, every change goes as a first
+  // one: typing into an empty document within a second of another change
+  // would otherwise leave its starters on the page until the writer
+  // clicked away, and the click would land where they had pushed the page.
+  // Leaving the editor, Escape and shortcuts hand it over at once, so a
+  // save never misses the last words typed.
   useEffect(() => {
     let pending: { state: EditorState; quiet: boolean; since: number } | null =
       null;
@@ -576,7 +592,10 @@ const Surface = memo(function Surface({
       pending = null;
       handed = performance.now();
       const result = v.safeParse(contentDocumentSchema, state.toJSON());
-      if (result.success) stats.set(statsOf(result.output));
+      if (result.success) {
+        stats.set(statsOf(result.output));
+        written.current = documentWritten(result.output);
+      }
       const hand = () => {
         setInvalid(!result.success);
         onValidityChange?.(result.success);
@@ -596,7 +615,7 @@ const Surface = memo(function Surface({
             since: pending?.since ?? now,
           };
           if (frame) return;
-          if (now - handed >= MAX_TYPING_WAIT_MS) {
+          if (!written.current || now - handed >= MAX_TYPING_WAIT_MS) {
             clearTimeout(timer);
             frame = requestAnimationFrame(() => {
               timer = setTimeout(() => settle(true), 0);
@@ -640,7 +659,7 @@ const Surface = memo(function Surface({
       ),
       () => settle(true),
     );
-  }, [editor, stats, onChange, onValidityChange]);
+  }, [editor, stats, written, onChange, onValidityChange]);
 
   const document = variant === "document";
   const errorId = `${id}-error`;

@@ -1,6 +1,8 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { LexicalEditor } from "lexical";
 
+import { emptyContent } from "@faridalms/domain/content-conversion";
+import { documentWritten } from "@faridalms/domain/translations";
 import Editor from "@faridalms/editor/Editor";
 import { largeDocument } from "@faridalms/editor/large-document";
 import { act, render, waitFor } from "@testing-library/react";
@@ -154,5 +156,31 @@ describe("typing in a long document", () => {
     type(editor, 1);
     expect(onChange).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(onChange).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe("typing into an empty document", () => {
+  // A host draws starters beside an empty document and takes them away once
+  // it is written; held back until typing paused, they would move the page
+  // under the writer's next click.
+  it("hands over its first words while typing goes on", async () => {
+    const { editor, onChange } = await mount(emptyContent());
+    editor.update(() => $getRoot().selectEnd(), { discrete: true });
+    // A space writes nothing, and starts a burst the words then join.
+    editor.update(
+      () => {
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) selection.insertText(" ");
+      },
+      { discrete: true },
+    );
+    await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+    for (let key = 0; key < 20; key += 1) {
+      type(editor, 1);
+      await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+    }
+    expect(
+      onChange.mock.calls.map(([value]) => documentWritten(value)),
+    ).toContain(true);
   });
 });
