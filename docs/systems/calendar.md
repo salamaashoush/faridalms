@@ -27,6 +27,28 @@ as school days.
   place. The School days tab runs a range of days on a schedule, or puts
   them back on their periods' own times; weekends are left as they are.
   Removing a schedule puts its days back.
+- A bell schedule may add periods of its own that normal days do not have,
+  such as an assembly or an exam slot, each with its code (unlike any of
+  the year's), names, kind and times. They are periods of the year held
+  only on the schedule's days, never the day's official register. A class
+  or homeroom register can be taken in one that is a lesson or
+  registration (registers stay per class: there is no year-group
+  register), and the cover page gives a class a lesson in one for that day
+  alone, through the same one-day change that covers a lesson: whoever it
+  names takes the lesson and its register, and every week, feed and home
+  page shows it. Such a lesson is removed rather than cancelled. A period
+  of its own, or its schedule, is not removed while a register or one-day
+  lesson holds it.
+- A staff member who manages the calendar can run a single school day as
+  another day of its timetable's cycle from the School days tab: a
+  Tuesday as a Monday (the Monday of the same week, or of week B), or a
+  day as Day 3. Its lessons, registers, cover and every week follow that
+  day, and in a cycle of weeks its periods and times are that weekday's.
+  The days after keep their own places, except in a cycle of days whose
+  closures keep the cycle where it was: there they carry on from the day
+  it ran as, just as they carry on after a closure. Putting the day back
+  undoes it, and both are audited. A day that stops being a school day
+  keeps the choice without using it.
 - A year has one or more timetables, each followed from its first day until
   the next starts; the first is followed from the start of the year. Each
   says how its lessons repeat: week by week (one week, or A/B weeks up to
@@ -39,12 +61,13 @@ as school days.
   one not yet followed can be removed, with its lessons. They are managed
   from the timetable page's Timetables tab.
 - One place, `packages/database/src/stores/day-plan.ts`, decides for each
-  date which timetable it follows, the day of its cycle, its bell schedule
-  and the periods it holds at that day's times. Registers, the cover board,
-  every week (staff, student, family, class, room), print, the home page
-  and calendar feeds read their days from it. A week names each day's day
-  of the cycle or week (A, B), its bell schedule, and gives a lesson its
-  own times on a day that keeps other ones.
+  date which timetable it follows, the day of its cycle (or the one it runs
+  as), its bell schedule and the periods it holds at that day's times,
+  with its schedule's own. Registers, the cover board, every week (staff,
+  student, family, class, room), print, the home page and calendar feeds
+  read their days from it. A week names each day's day of the cycle or
+  week (A, B), the day it runs as, its bell schedule, and gives a lesson
+  its own times on a day that keeps other ones.
 - Every year before timetables existed became one ordinary week from its
   first day, with all its lessons, so nothing a school had changed.
 
