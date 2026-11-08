@@ -124,6 +124,11 @@ import {
   termsOf,
   workingYear,
 } from "@faridalms/database/stores/years";
+import {
+  roomOf,
+  signTicket,
+  TICKET_TTL_SECONDS,
+} from "@faridalms/domain/collab";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import {
   contentOf,
@@ -260,6 +265,7 @@ import {
 import { wordsIssues } from "../core/publication";
 import { requireStudent, requireTaught, teaches } from "../core/reach";
 import { applyRemarks } from "../core/remarks";
+import { signalPacing } from "../core/signals";
 import { checkTranslation } from "../core/translation-review";
 import {
   registerArea,
@@ -2176,6 +2182,7 @@ export const startPaced = writeProcedure
       classId: input.classId,
       userId: context.actor.userId,
     });
+    signalPacing(context, led.id);
     await audit(context, {
       action: "lesson.paced_start",
       objectType: "lesson",
@@ -2347,6 +2354,8 @@ export const pace = writeProcedure
     });
     if (!row)
       throw new ORPCError("CONFLICT", { message: "learning.paced_ended" });
+    if (row.step !== session.step || row.paused !== session.paused)
+      signalPacing(context, session.lessonId);
     return { step: row.step, paused: row.paused, revealed: row.revealed };
   });
 
@@ -2355,12 +2364,14 @@ export const endPaced = writeProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
     const { session, led } = await pacedFor(context, input.id);
-    if (!session.endedAt)
+    if (!session.endedAt) {
       await pacePaced(context.tx, {
         tenantId: context.tenantId,
         id: session.id,
         ended: true,
       });
+      signalPacing(context, led.id);
+    }
     await audit(context, {
       action: "lesson.paced_end",
       objectType: "lesson",
@@ -2381,6 +2392,39 @@ export const pacing = readProcedure
         input.lessonId,
         await classesOfStudent(context, context.actor.userId),
       ),
+    };
+  });
+
+/**
+ * A ticket to listen for a lesson's teacher moving the class, so a player
+ * asks again as soon as the class moves rather than now and then. Whoever
+ * may read where the class is in it may listen: its module's teachers, and
+ * students the module reaches, as a lesson being led opens to them.
+ */
+export const pacingChannel = readProcedure
+  .input(v.object({ lessonId: id }))
+  .handler(async ({ input, context }) => {
+    const listened = await lessonById(
+      context.tx,
+      context.tenantId,
+      input.lessonId,
+    );
+    if (!listened) throw new ORPCError("NOT_FOUND");
+    const owner = await moduleOfSchool(context, listened.moduleId);
+    if (!(await mayEditModule(context, owner))) {
+      requireCapability(context, "learning:read");
+      await openModule(context, owner.id, context.actor.userId);
+    }
+    const ticket = {
+      kind: "pacing" as const,
+      tenantId: context.tenantId,
+      lessonId: listened.id,
+      userId: context.actor.userId,
+      expiresAt: Math.floor(context.now.getTime() / 1000) + TICKET_TTL_SECONDS,
+    };
+    return {
+      room: roomOf(ticket),
+      token: await signTicket(ticket, context.cellSecret),
     };
   });
 

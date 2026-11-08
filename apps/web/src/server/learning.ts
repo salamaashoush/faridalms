@@ -44,6 +44,8 @@ import { reviewTranslationSchema } from "@faridalms/domain/translations";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
+import { env } from "~/env";
+
 import { backend, record } from "./backend";
 import { byId, checked } from "./input";
 
@@ -171,6 +173,24 @@ export const endPaced = createServerFn({ method: "POST" })
 export const getPacing = createServerFn({ method: "GET" })
   .validator(checked(v.object({ lessonId: v.pipe(v.string(), v.uuid()) })))
   .handler(({ data }) => backend().learning.pacing(data));
+
+/**
+ * A ticket to hear a lesson's teacher move the class, with the server to
+ * listen on. Null when the collaboration server is not set up or this
+ * viewer cannot listen, and the player then keeps asking as before.
+ */
+export const pacingChannel = createServerFn({ method: "POST" })
+  .validator(checked(v.object({ lessonId: v.pipe(v.string(), v.uuid()) })))
+  .handler(async ({ data }) => {
+    const url = env.COLLAB_URL;
+    if (!url) return null;
+    try {
+      const ticket = await backend().learning.pacingChannel(data);
+      return { ...ticket, url };
+    } catch {
+      return null;
+    }
+  });
 
 export const openForStudent = createServerFn({ method: "POST" })
   .validator(checked(openForStudentSchema))

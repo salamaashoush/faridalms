@@ -111,6 +111,7 @@ import type { CheckDriver, CheckStudentBlock } from "./Checks";
 
 import { CheckLanguage } from "./checkLanguage";
 import { CheckBlockView, isCheckBlock, isSettled } from "./Checks";
+import { usePacingChannel } from "./pacingChannel";
 import { YoungLesson } from "./young/YoungLesson";
 
 type Played = Awaited<
@@ -809,11 +810,20 @@ export interface LessonPlayerProps {
 export function LessonPlayer({ lessonId }: LessonPlayerProps) {
   const query = lessonQuery(lessonId);
   const data = useSuspenseQuery(query).data;
-  const paced =
-    useQuery({ ...pacingQuery(lessonId), initialData: { paced: data.paced } })
-      .data.paced ?? null;
-  const earlyYears = useCurrentUser().modules.early_years;
   const queryClient = useQueryClient();
+  const pushed = usePacingChannel(
+    lessonId,
+    () =>
+      void queryClient.invalidateQueries({
+        queryKey: pacingQuery(lessonId).queryKey,
+      }),
+  );
+  const paced =
+    useQuery({
+      ...pacingQuery(lessonId, pushed),
+      initialData: { paced: data.paced },
+    }).data.paced ?? null;
+  const earlyYears = useCurrentUser().modules.early_years;
   const navigate = useNavigate();
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["learning"] });

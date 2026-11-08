@@ -88,6 +88,11 @@ export interface ApiDependencies {
    * inbound domain; null leaves families answering the school's address.
    */
   inbound?: InboundMail | null;
+  /**
+   * Where the collaboration server takes the API's signals for its rooms,
+   * on the internal network; none leaves a led lesson's students asking.
+   */
+  signalUrl?: string | null;
 }
 
 export interface RequestContext extends ApiDependencies {

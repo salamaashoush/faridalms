@@ -151,6 +151,20 @@ From [../research/early-years.md](../research/early-years.md).
   (three wrong tries within ten seconds), who has stopped for two minutes,
   who got a question right after missing it, who is working or finished,
   and who is not in a lesson. Students never see it.
+- Teach live, on a lesson of an open module, leads one class through it
+  part by part, the parts split at its Continue blocks. Students reach the
+  parts the teacher has opened and answer nothing while it is paused; the
+  teacher's screen shows who has come in and how the open part was
+  answered, and a class board shows the same without names. Each start,
+  move, pause and end is pushed to the students' players through the
+  collaboration server: the API signs a signal to the lesson's room once
+  the change is committed, and every player listening asks where the class
+  is at once, as the class board does. A player may listen if it may read
+  where the class is: the module's teachers, and students the module
+  reaches. Listening, a player still asks every minute in case a signal
+  was lost; without the channel (no `COLLAB_SIGNAL_URL`, the socket
+  dropped, or a ticket refused) it asks every 3 seconds while the lesson
+  is led and every 15 otherwise, and asks once more on reconnecting.
 - An empty lesson's "Start from a template" menu offers teaching patterns
   filled with a worked sample in the teacher's language: a worked example
   whose steps open one at a time behind Continue, then one step to finish

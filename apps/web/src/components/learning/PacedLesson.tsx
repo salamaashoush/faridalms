@@ -48,6 +48,7 @@ import { endPaced, pace, startPaced } from "~/server/learning";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import { usePacingChannel } from "./pacingChannel";
 import { QuestionCard, Release, STANDING_LABEL } from "./Questions";
 
 type Paced = Awaited<
@@ -696,7 +697,15 @@ export interface PacedBoardProps {
  * teacher shows them.
  */
 export function PacedBoard({ pacedId }: PacedBoardProps) {
-  const data = useSuspenseQuery(pacedQuery(pacedId)).data;
+  const query = pacedQuery(pacedId);
+  const data = useSuspenseQuery(query).data;
+  const queryClient = useQueryClient();
+  // The room's screen follows the teacher's moves at once; answers come in
+  // as the board asks.
+  usePacingChannel(
+    data.lesson.id,
+    () => void queryClient.invalidateQueries({ queryKey: query.queryKey }),
+  );
   const part = data.parts[data.step];
   return (
     <div className="mx-auto grid w-full max-w-5xl content-start gap-8 px-6 py-10">

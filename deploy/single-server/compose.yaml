@@ -173,6 +173,9 @@ services:
       # module reach it as leads.
       INTAKE_URL: ${INTAKE_SECRET:+http://ops:3004/intake/leads}
       INTAKE_SECRET: *intake-secret
+      # Where a lesson led live is pushed to its students, on the internal
+      # network; the edge refuses this path from outside.
+      COLLAB_SIGNAL_URL: http://collab:3002/signal
       # Cloudflare Turnstile on the schools' website forms, both or neither.
       TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}

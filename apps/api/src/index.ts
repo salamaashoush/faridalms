@@ -196,6 +196,7 @@ const server = Bun.serve({
         : null,
     turnstile: turnstileFrom(env),
     inbound,
+    signalUrl: env.COLLAB_SIGNAL_URL ?? null,
   }),
 });
 console.info(

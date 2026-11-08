@@ -119,7 +119,10 @@ export default defineConfig({
     {
       command: "bun apps/api/src/index.ts",
       url: `http://127.0.0.1:${apiPort}/health/ready`,
-      env: { API_PORT: apiPort },
+      env: {
+        API_PORT: apiPort,
+        COLLAB_SIGNAL_URL: `http://127.0.0.1:${collabPort}/signal`,
+      },
       reuseExistingServer: false,
       timeout: 30_000,
     },

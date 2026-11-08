@@ -153,6 +153,10 @@ export const env = v.parse(
       // with the secret the console shares.
       INTAKE_URL: v.optional(v.pipe(v.string(), v.url())),
       INTAKE_SECRET: v.optional(bytes(32)),
+      // The collaboration server's signal address on the internal network,
+      // such as http://collab:3002/signal: a lesson led live is pushed to
+      // its students through it. Unset, their players keep asking.
+      COLLAB_SIGNAL_URL: v.optional(v.pipe(v.string(), v.url())),
     }),
     v.check(
       (value) =>

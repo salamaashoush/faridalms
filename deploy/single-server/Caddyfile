@@ -96,6 +96,10 @@
 
 	@collab host collab.{$PORTAL_DOMAIN}
 	handle @collab {
+		# The API signals rooms on the internal network, never through here.
+		handle /signal {
+			respond 404
+		}
 		reverse_proxy collab:3002 {
 			# Editors keep their socket open across a reload of this file.
 			stream_close_delay 5m

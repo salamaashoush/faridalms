@@ -29,6 +29,11 @@ its URL: `CELL_APP_URL` (`app`), `CELL_SITE_URL` (`site`), `CELL_WORKER_URL`
 `OPS_DIRECTORY_URL` (`directory_admin`), and for the provisioner only
 `CELL_PROVISION_URL` (`provisioner`). `CELL_KEK` and `CELL_SECRET` are 32
 random bytes each in base64; `CELL_SECRET` is shared by the API and collab.
+`COLLAB_SIGNAL_URL` (`http://collab:3002/signal` in the compose file) is
+where the API tells collab that a lesson led live has moved, on the
+internal network; the edge answers 404 for that path, and collab takes
+only signals signed with the cell secret. Unset, students' players keep
+asking every few seconds instead.
 Every service validates its environment at startup and exits on anything
 missing; a variable set to the empty string, as compose passes an unset
 `${NAME:-}`, counts as unset. Without `CELL_WORKER_URL` uploads are never settled and no

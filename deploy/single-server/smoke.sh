@@ -205,6 +205,9 @@ check "collab upgrades a WebSocket" bash -c "
   curl -sk --http1.1 --max-time 3 -o /dev/null -w '%{http_code}' --resolve collab.$portal:$port:127.0.0.1 \
     -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
     -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' https://collab.$portal:$port/ | grep -q 101"
+check "collab's signals are refused from outside, and taken only signed inside" bash -c "
+  [[ \$(curl -sk -o /dev/null -w '%{http_code}' -X POST --data x --resolve collab.$portal:$port:127.0.0.1 https://collab.$portal:$port/signal) == 404 ]] &&
+  [[ \$(docker exec $project-api-1 bun -e \"const r = await fetch('http://collab:3002/signal', { method: 'POST', body: 'x' }); console.log(r.status)\") == 403 ]]"
 check "the files host serves the play page" bash -c "
   curl -sk -D - -o /dev/null --resolve files.$sites:$port:127.0.0.1 https://files.$sites:$port/play | grep -qi \"content-security-policy: default-src 'none'\""
 check "play redirects to the files host" bash -c "

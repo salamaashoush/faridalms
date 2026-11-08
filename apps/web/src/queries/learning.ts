@@ -97,14 +97,17 @@ export const pacedQuery = (id: string) =>
   });
 
 /**
- * Whether a student's class is being led through a lesson: asked every few
- * seconds while it is, and now and then otherwise, to notice it begin.
+ * Whether a student's class is being led through a lesson. While the player
+ * hears the teacher's moves pushed, it asks only now and then in case a
+ * signal was lost; without that channel it asks every few seconds while
+ * the lesson is led, and now and then otherwise, to notice it begin.
  */
-export const pacingQuery = (lessonId: string) =>
+export const pacingQuery = (lessonId: string, pushed = false) =>
   queryOptions({
     queryKey: ["learning", "pacing", lessonId],
     queryFn: () => getPacing({ data: { lessonId } }),
-    refetchInterval: (query) => (query.state.data?.paced ? 3000 : 15_000),
+    refetchInterval: (query) =>
+      pushed ? 60_000 : query.state.data?.paced ? 3000 : 15_000,
   });
 
 /** How a class answered a poll: how many answered, and how many chose each option. */
