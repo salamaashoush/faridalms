@@ -144,6 +144,8 @@ export interface StandardRow {
   parentId: string | null;
   code: string;
   statement: string;
+  /** The school's Arabic wording of the statement, if it gave one. */
+  statementAr: string | null;
   itemType: string;
   position: number;
   /** The CASE identifier of an imported or ready-made item. */
@@ -157,6 +159,7 @@ type StandardRecord = {
   parent_id: string | null;
   code: string;
   statement: string;
+  statement_ar: string | null;
   item_type: string;
   position: number;
   case_identifier: string | null;
@@ -169,13 +172,14 @@ const standardOf = (row: StandardRecord): StandardRow => ({
   parentId: row.parent_id,
   code: row.code,
   statement: row.statement,
+  statementAr: row.statement_ar,
   itemType: row.item_type,
   position: row.position,
   caseIdentifier: row.case_identifier,
 });
 
-const standardColumns = sql`id, version, framework_id, parent_id, code, statement, item_type, position,
-  case_identifier`;
+const standardColumns = sql`id, version, framework_id, parent_id, code, statement, statement_ar,
+  item_type, position, case_identifier`;
 
 /** Every standard of a framework, siblings in order. */
 export async function standardsOf(
@@ -211,13 +215,15 @@ export async function insertStandard(
     parentId: string | null;
     code: string;
     statement: string;
+    statementAr: string | null;
     itemType: string;
   },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.standards (tenant_id, framework_id, parent_id, code, statement, item_type, position)
+    insert into core.standards (tenant_id, framework_id, parent_id, code, statement, statement_ar,
+      item_type, position)
     values (${input.tenantId}::uuid, ${input.frameworkId}::uuid, ${input.parentId}::uuid,
-      ${input.code}, ${input.statement}, ${input.itemType},
+      ${input.code}, ${input.statement}, ${input.statementAr}, ${input.itemType},
       (select coalesce(max(position) + 1, 0) from core.standards
         where tenant_id = ${input.tenantId}::uuid and framework_id = ${input.frameworkId}::uuid
           and parent_id is not distinct from ${input.parentId}::uuid and status = 'active'))
@@ -235,12 +241,14 @@ export async function updateStandard(
     expectedVersion: number;
     code: string;
     statement: string;
+    statementAr: string | null;
     itemType: string;
   },
 ): Promise<number | null> {
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.standards
-    set code = ${input.code}, statement = ${input.statement}, item_type = ${input.itemType}
+    set code = ${input.code}, statement = ${input.statement}, statement_ar = ${input.statementAr},
+      item_type = ${input.itemType}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active'
     returning version`);

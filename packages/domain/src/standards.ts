@@ -49,6 +49,8 @@ export const saveStandardSchema = v.object({
   parentId: v.optional(v.union([v.literal(""), id]), ""),
   code: text(MAX_STANDARD_CODE),
   statement: required(MAX_STANDARD_STATEMENT),
+  /** The school's Arabic wording of the statement; empty for none. */
+  statementAr: v.optional(text(MAX_STANDARD_STATEMENT), ""),
   /** What the framework calls this level: strand, objective, standard. */
   itemType: text(MAX_ITEM_TYPE),
 });

@@ -262,6 +262,11 @@ From [../research/early-years.md](../research/early-years.md).
   (September 2023 revision, Crown copyright under the Open Government
   Licence v3.0, the guidance's page 128). Adding either again brings the
   school's copy back to it.
+- The statements are never machine-translated. A school words any
+  statement of its copy in Arabic itself, beside the English, from the
+  statement's sheet in Standards (`standards.statement_ar`); the English
+  stays the framework's own, and adding the framework again keeps the
+  school's wording.
 - A young class's teacher judges each child expected or emerging per goal
   on the Goals tab, best fit from all they know of the child. Behind the
   note button sits "Exemption applies", the profile's code A: only for an
@@ -278,7 +283,8 @@ From [../research/early-years.md](../research/early-years.md).
   Grades page: every goal with where the child stands, never the notes or
   the work behind a judgement; in Arabic, the EYFS goals and Development
   Matters' areas and bands read in Arabic, its statements in the guidance's
-  English. Sharing again reaches children who joined since.
+  English unless the school has worded them in Arabic. Sharing again
+  reaches children who joined since.
 - On the EYFS goals the Goals tab makes the end-of-year return: the
   partial Common Transfer File (data type FSP, CTF 25 for 2026, 26 from 2027) a school gives its local authority, each child's goals as
   stage assessments (stage EYF, method FA, qualifier FD, result 1, 2 or A,

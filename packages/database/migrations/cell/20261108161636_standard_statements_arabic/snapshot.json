@@ -1,0 +1,76 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "58090849-6c35-4e94-b4b2-a2eeadccba9a",
+  "prevIds": [
+    "7f35e4cd-6496-4d46-a24e-03940b7a1369"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "standards",
+        "statement_ar"
+      ],
+      "writes": [
+        "s|col|core.standards.statement_ar",
+        "n|col|core.standards.statement_ar",
+        "e|col|core.standards.statement_ar"
+      ],
+      "reads": [
+        "n|tbl|core.standards",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "standards"
+      ],
+      "writes": [
+        "s|ck|core.standards.standards_statement_ar_check",
+        "n|ck|core.standards.standards_statement_ar_check",
+        "e|ck|core.standards.standards_statement_ar_check",
+        "n|con|core.standards.standards_statement_ar_check"
+      ],
+      "reads": [
+        "n|tbl|core.standards",
+        "n|sch|core",
+        "n|col|core.standards.statement_ar"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standards",
+        "name": "statement_ar",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standards",
+        "name": "standards_statement_ar_check",
+        "value": "char_length(statement_ar) between 1 and 2000",
+        "entityType": "checks"
+      }
+    }
+  ]
+}

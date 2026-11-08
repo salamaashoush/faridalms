@@ -2239,6 +2239,8 @@
   "standardsCode": "Code",
   "standardsCodeHint": "The publisher's code, such as 7.EE.B.4 or Criterion A.",
   "standardsStatement": "Statement",
+  "standardsStatementAr": "Statement in Arabic",
+  "standardsStatementArHint": "Your school's own wording, which families reading in Arabic see. The statement above stays as the framework gives it.",
   "standardsItemType": "Level",
   "standardsItemTypeHint": "What the framework calls it, such as strand, objective or standard.",
   "standardsUnder": "Under",

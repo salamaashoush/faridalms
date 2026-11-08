@@ -320,4 +320,20 @@ test("a school adds Development Matters to follow younger children", async ({
   await expect(
     page.getByText("Development Matters, the DfE's guidance"),
   ).toBeVisible();
+
+  // The school words a statement in Arabic itself; the English stays.
+  const statement = "Watch someone’s face as they talk.";
+  await page
+    .getByRole("searchbox", { name: "Search standards" })
+    .fill("Watch someone");
+  await page.getByRole("button", { name: `Actions for ${statement}` }).click();
+  await page.getByRole("menuitem", { name: "Edit standard" }).click();
+  const sheet = page.getByRole("dialog", { name: "Edit standard" });
+  await sheet
+    .getByRole("textbox", { name: "Statement in Arabic" })
+    .fill("ينظر إلى وجه من يتحدّث إليه.");
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await expect(sheet).toBeHidden();
+  await expect(page.getByText("ينظر إلى وجه من يتحدّث إليه.")).toBeVisible();
+  await expect(page.getByText(statement)).toBeVisible();
 });

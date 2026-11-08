@@ -1008,4 +1008,82 @@ describe("early learning goals", () => {
     ).toHaveLength(17);
     await office.standards.removeFramework({ id: added.id });
   });
+
+  test("a school words Development Matters' statements in Arabic, keeping the English", async () => {
+    const office = await principal();
+    const added = await office.standards.addDevelopmentMatters();
+    const listed = async () =>
+      (await office.standards.framework({ id: added.id })).standards;
+    const statement = (await listed()).find(
+      (row) => row.statement === "Watch someone’s face as they talk.",
+    );
+    if (!statement) throw new Error("no statement");
+    expect(statement.statementAr).toBeNull();
+    const wording = "ينظر إلى وجه من يتحدّث إليه.";
+    await office.standards.saveStandard({
+      frameworkId: added.id,
+      id: statement.id,
+      expectedVersion: statement.version,
+      parentId: statement.parentId ?? "",
+      code: statement.code,
+      statement: statement.statement,
+      statementAr: wording,
+      itemType: statement.itemType,
+    });
+    // Adding the framework again brings back its English, and keeps the
+    // school's own wording beside it.
+    await office.standards.addDevelopmentMatters();
+    expect(
+      (await listed()).find((row) => row.id === statement.id),
+    ).toMatchObject({
+      statement: "Watch someone’s face as they talk.",
+      statementAr: wording,
+    });
+
+    const family = await sessionFor("northwind", login("parent"));
+    const own = (await family.api.home.family({})).children[0]?.studentId ?? "";
+    let theirs = "";
+    for (const row of (await office.classes.directory({})).rows)
+      if (
+        (await office.classes.record({ id: row.id, on: "" })).roster.some(
+          (sitting) => sitting.userId === own,
+        )
+      )
+        theirs = row.id;
+    await office.standards.shareGoalsReport({
+      classId: theirs,
+      frameworkId: added.id,
+      shared: true,
+    });
+    const read = async (locale: string) =>
+      (
+        await client("northwind", family.token, locale).standards.goalsReport({
+          studentId: own,
+        })
+      ).reports
+        .find((row) => row.id === added.id)
+        ?.goals.find((row) => row.id === statement.id)?.statement;
+    expect(await read("ar")).toBe(wording);
+    expect(await read("en")).toBe("Watch someone’s face as they talk.");
+    // A statement the school has not worded stays in the guidance's English.
+    const other = (await listed()).find(
+      (row) =>
+        row.statement === "Enjoy singing, music and toys that make sounds.",
+    );
+    expect(
+      (
+        await client("northwind", family.token, "ar").standards.goalsReport({
+          studentId: own,
+        })
+      ).reports
+        .find((row) => row.id === added.id)
+        ?.goals.find((row) => row.id === other?.id)?.statement,
+    ).toBe("Enjoy singing, music and toys that make sounds.");
+    await office.standards.shareGoalsReport({
+      classId: theirs,
+      frameworkId: added.id,
+      shared: false,
+    });
+    await office.standards.removeFramework({ id: added.id });
+  });
 });

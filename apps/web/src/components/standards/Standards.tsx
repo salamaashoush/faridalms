@@ -276,6 +276,7 @@ export function StandardSheet({
 }: StandardSheetProps) {
   const [code, setCode] = useState(standard?.code ?? "");
   const [statement, setStatement] = useState(standard?.statement ?? "");
+  const [statementAr, setStatementAr] = useState(standard?.statementAr ?? "");
   const [itemType, setItemType] = useState(standard?.itemType ?? "");
   const [under, setUnder] = useState(standard?.parentId ?? parentId);
   const [search, setSearch] = useState("");
@@ -312,6 +313,7 @@ export function StandardSheet({
           parentId: standard ? (standard.parentId ?? "") : under,
           code,
           statement,
+          statementAr,
           itemType,
         },
       });
@@ -364,6 +366,24 @@ export function StandardSheet({
             maxLength={MAX_STANDARD_STATEMENT}
             value={statement}
             onChange={(event) => setStatement(event.target.value)}
+          />
+        )}
+      </FormField>
+      <FormField
+        id="standard-statement-ar"
+        label={m.standardsStatementAr()}
+        hint={m.standardsStatementArHint()}
+        optional
+      >
+        {(control) => (
+          <Textarea
+            {...control}
+            dir="rtl"
+            lang="ar"
+            rows={4}
+            maxLength={MAX_STANDARD_STATEMENT}
+            value={statementAr}
+            onChange={(event) => setStatementAr(event.target.value)}
           />
         )}
       </FormField>
@@ -442,7 +462,8 @@ export function StandardsTree({
     for (const row of standards)
       if (
         row.code.toLowerCase().includes(words) ||
-        row.statement.toLowerCase().includes(words)
+        row.statement.toLowerCase().includes(words) ||
+        (row.statementAr ?? "").toLowerCase().includes(words)
       )
         for (
           let at: StandardRow | undefined = row;
@@ -566,6 +587,15 @@ export function StandardsTree({
                   {children.length > 0 && !expanded ? (
                     <span className="ms-2 text-xs text-muted-foreground tabular-nums">
                       {formatNumber(children.length)}
+                    </span>
+                  ) : null}
+                  {row.statementAr ? (
+                    <span
+                      className="mt-0.5 block text-muted-foreground"
+                      dir="rtl"
+                      lang="ar"
+                    >
+                      {row.statementAr}
                     </span>
                   ) : null}
                 </p>

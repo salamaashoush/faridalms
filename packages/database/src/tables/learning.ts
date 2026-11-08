@@ -1115,7 +1115,9 @@ export const standardFrameworks = core.table.withRLS(
 
 /**
  * One statement of a framework, under another or at its top, with the code
- * its publisher gives it and what the framework calls its level.
+ * its publisher gives it and what the framework calls its level. The
+ * statement is the framework's own words; `statement_ar` is the school's
+ * Arabic wording of them, which adding a ready-made framework again keeps.
  */
 export const standards = core.table.withRLS(
   "standards",
@@ -1125,6 +1127,7 @@ export const standards = core.table.withRLS(
     parentId: uuid("parent_id"),
     code: text("code").notNull().default(""),
     statement: text("statement").notNull(),
+    statementAr: text("statement_ar"),
     itemType: text("item_type").notNull().default(""),
     position: integer("position").notNull(),
     caseIdentifier: uuid("case_identifier"),
@@ -1144,6 +1147,11 @@ export const standards = core.table.withRLS(
       "standards",
       "statement",
       sql`char_length(statement) between 1 and 2000`,
+    ),
+    ck(
+      "standards",
+      "statement_ar",
+      sql`char_length(statement_ar) between 1 and 2000`,
     ),
     ck("standards", "item_type", sql`char_length(item_type) <= 60`),
     ck("standards", "position", sql`position >= 0`),

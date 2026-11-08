@@ -1,0 +1,2 @@
+ALTER TABLE "core"."standards" ADD COLUMN "statement_ar" text;--> statement-breakpoint
+ALTER TABLE "core"."standards" ADD CONSTRAINT "standards_statement_ar_check" CHECK (char_length(statement_ar) between 1 and 2000);

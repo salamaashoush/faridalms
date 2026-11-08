@@ -2365,6 +2365,8 @@
   "standardsCode": "الرمز",
   "standardsCodeHint": "رمز الجهة الناشرة، مثل 7.EE.B.4 أو المعيار A.",
   "standardsStatement": "النص",
+  "standardsStatementAr": "النص بالعربية",
+  "standardsStatementArHint": "صياغة مدرستك الخاصة، ويراها الأهالي الذين يقرؤون بالعربية. يبقى النص أعلاه كما ورد في الإطار.",
   "standardsItemType": "المستوى",
   "standardsItemTypeHint": "ما يسميه الإطار، مثل محور أو هدف أو معيار.",
   "standardsUnder": "تحت",

@@ -240,6 +240,7 @@ export const saveStandard = writeProcedure
         parentId: input.parentId || null,
         code: input.code,
         statement: input.statement,
+        statementAr: input.statementAr || null,
         itemType: input.itemType,
       });
       await audit(context, {
@@ -258,6 +259,7 @@ export const saveStandard = writeProcedure
       expectedVersion: input.expectedVersion,
       code: input.code,
       statement: input.statement,
+      statementAr: input.statementAr || null,
       itemType: input.itemType,
     });
     if (version === null)
@@ -270,6 +272,7 @@ export const saveStandard = writeProcedure
       change: changeOf("core.standards", own.standard, {
         code: input.code,
         statement: input.statement,
+        statementAr: input.statementAr || null,
         itemType: input.itemType,
       }),
     });
@@ -974,8 +977,9 @@ const ARABIC_NAMES: Readonly<Record<string, string>> = {
 /**
  * One child's goals reports, as their family reads them: each framework a
  * teacher shared, every goal of it with where the child stands, in Arabic
- * where the family reads it and the framework is one Farida ships. A
- * teacher's notes, and the work a judgement came from, stay with staff.
+ * where the family reads it, in the school's own wording of a statement
+ * or else the names Farida ships with a ready-made framework. A teacher's
+ * notes, and the work a judgement came from, stay with staff.
  */
 export const goalsReport = readProcedure
   .input(goalsReportSchema)
@@ -990,8 +994,13 @@ export const goalsReport = readProcedure
     if (reports.length === 0) return { reports: [] };
     const judged = await judgementsOf(context.tx, scope);
     const arabic = localeOf(context) === "ar";
-    const named = (row: { caseIdentifier: string | null }, english: string) =>
-      (arabic && row.caseIdentifier && ARABIC_NAMES[row.caseIdentifier]) ||
+    const named = (
+      row: { caseIdentifier: string | null; statementAr?: string | null },
+      english: string,
+    ) =>
+      (arabic &&
+        (row.statementAr ||
+          (row.caseIdentifier && ARABIC_NAMES[row.caseIdentifier]))) ||
       english;
     return {
       reports: (
