@@ -411,7 +411,7 @@ describe("pictures of students", () => {
     const fileId = await picture();
     // Its own title, apart from the seeded draft the website test keeps hidden.
     const draft = post("Field day", fileId, "public");
-    const saved = await office.news.save(draft);
+    const saved = await office.broadcasts.news.save(draft);
     await office.files.tagPictured({ id: fileId, studentIds: [studentId] });
     const { files } = await office.files.pictured({ ids: [fileId] });
     expect(files[0]?.people.map((row) => [row.id, row.website])).toEqual([
@@ -419,12 +419,18 @@ describe("pictures of students", () => {
     ]);
     expect(
       await rejection(
-        office.news.publish({ id: saved.id, expectedVersion: saved.version }),
+        office.broadcasts.news.publish({
+          id: saved.id,
+          expectedVersion: saved.version,
+        }),
       ),
     ).toMatchObject({ code: "CONFLICT", message: "site.consent" });
 
     await answerFor(family, "photo_school_website", true);
-    await office.news.publish({ id: saved.id, expectedVersion: saved.version });
+    await office.broadcasts.news.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
     const read = await client("northwind").site.publicSitePost({
       school: "northwind",
       locale: "en",
@@ -446,17 +452,23 @@ describe("pictures of students", () => {
     const studentId = await answerFor(family, "photo_school_news", false);
     const office = await principal();
     const fileId = await picture();
-    const saved = await office.news.save(
+    const saved = await office.broadcasts.news.save(
       post("Class assembly", fileId, "school"),
     );
     await office.files.tagPictured({ id: fileId, studentIds: [studentId] });
     expect(
       await rejection(
-        office.news.publish({ id: saved.id, expectedVersion: saved.version }),
+        office.broadcasts.news.publish({
+          id: saved.id,
+          expectedVersion: saved.version,
+        }),
       ),
     ).toMatchObject({ code: "CONFLICT", message: "news.consent" });
     await answerFor(family, "photo_school_news", true);
-    await office.news.publish({ id: saved.id, expectedVersion: saved.version });
+    await office.broadcasts.news.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
   });
 
   test("only those who publish pictures name who is in them", async () => {

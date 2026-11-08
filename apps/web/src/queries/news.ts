@@ -10,7 +10,7 @@ import {
   getNewsOptions,
   getNewsPost,
   getNewsReport,
-} from "~/server/news";
+} from "~/server/broadcasts";
 
 export const newsQuery = (query: NewsListQuery) =>
   queryOptions({

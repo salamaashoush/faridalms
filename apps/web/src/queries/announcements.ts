@@ -10,7 +10,7 @@ import {
   getAnnouncementOptions,
   getAnnouncementReport,
   getManagedAnnouncements,
-} from "~/server/announcements";
+} from "~/server/broadcasts";
 
 export const announcementFeedQuery = (query: FeedQuery) =>
   queryOptions({

@@ -35,7 +35,7 @@ export interface ModuleSpec {
   basic: boolean;
   /** The school switches it on within its entitlement; otherwise it is on when entitled. */
   schoolSwitch: boolean;
-  /** The API namespaces it owns, answered only where it is on. */
+  /** The API namespaces it owns, answered only where it is on; a nested one is `outer.inner`. */
   systems: readonly string[];
 }
 
@@ -70,7 +70,12 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     schoolSwitch: false,
     systems: ["timetable", "cover"],
   },
-  news: { requires: [], basic: true, schoolSwitch: false, systems: ["news"] },
+  news: {
+    requires: [],
+    basic: true,
+    schoolSwitch: false,
+    systems: ["broadcasts.news"],
+  },
   website: {
     requires: [],
     basic: false,
@@ -165,7 +170,7 @@ export const CORE_SYSTEMS = [
   "privacy",
   "rollover",
   "messages",
-  "announcements",
+  "broadcasts.announcements",
   "calendar",
   "notifications",
   "product",

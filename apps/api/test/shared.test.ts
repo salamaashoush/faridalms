@@ -200,7 +200,7 @@ describe("shared blocks", () => {
       content: plainContent("Sign in at the front desk."),
     });
     const body = plainContent("Parents' evening is on Tuesday.");
-    const post = await office.news.save({
+    const post = await office.broadcasts.news.save({
       id: "",
       expectedVersion: 0,
       visibility: "public",
@@ -230,7 +230,10 @@ describe("shared blocks", () => {
     expect(
       (await office.shared.uses({ id: kept.id })).map((row) => row.hostType),
     ).toEqual(["news"]);
-    await office.news.publish({ id: post.id, expectedVersion: post.version });
+    await office.broadcasts.news.publish({
+      id: post.id,
+      expectedVersion: post.version,
+    });
 
     // A change after publishing waits for the next one to reach the website.
     await office.shared.save({

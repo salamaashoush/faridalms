@@ -36,7 +36,7 @@ const draft = (title: string, audiences: AudienceInput[]) => ({
 describe("reading announcements", () => {
   test("a family's feed puts the pinned welcome first and takes an acknowledgement", async () => {
     const family = await mother();
-    const { rows } = await family.announcements.feed({});
+    const { rows } = await family.broadcasts.announcements.feed({});
     expect(rows[0]?.title).toBe("Welcome to the new school year");
     expect(rows[0]?.pinned).toBe(true);
     const trip = rows.find((row) => row.title === "Museum trip permission");
@@ -44,14 +44,19 @@ describe("reading announcements", () => {
     expect(trip.requiresAck).toBe(true);
     expect(trip.acknowledgedAt).toBeNull();
 
-    await family.announcements.seen({ id: trip.id, acknowledge: true });
-    const opened = await family.announcements.record({ id: trip.id });
+    await family.broadcasts.announcements.seen({
+      id: trip.id,
+      acknowledge: true,
+    });
+    const opened = await family.broadcasts.announcements.record({
+      id: trip.id,
+    });
     expect(opened.acknowledgedAt).not.toBeNull();
     expect(opened.report).toBeNull();
 
     const office = await principal();
     const me = await family.identity.currentUser();
-    const report = await office.announcements.report({
+    const report = await office.broadcasts.announcements.report({
       id: trip.id,
       q: me.nameEn ?? "",
     });
@@ -64,44 +69,46 @@ describe("reading announcements", () => {
 describe("writing announcements", () => {
   test("a class announcement reaches that class's families and teachers only", async () => {
     const office = await principal();
-    const { classes } = await office.announcements.options();
+    const { classes } = await office.broadcasts.announcements.options();
     const eight = classes.find((row) => row.titleEn === "8A");
     const seven = classes.find((row) => row.titleEn === "7A");
     if (!eight || !seven) throw new Error("the seed has no 7A or 8A");
-    const saved = await office.announcements.save(
+    const saved = await office.broadcasts.announcements.save(
       draft("8A reading week", [
         { scope: "class", classId: eight.id, gradeId: "" },
       ]),
     );
-    const sent = await office.announcements.publish({
+    const sent = await office.broadcasts.announcements.publish({
       id: saved.id,
       expectedVersion: saved.version,
     });
     expect(sent.recipients).toBeGreaterThan(0);
 
     const family = await mother();
-    const feed = await family.announcements.feed({});
+    const feed = await family.broadcasts.announcements.feed({});
     expect(feed.rows.some((row) => row.id === saved.id)).toBe(true);
     const teacher = await signedIn("northwind", login("teacher", 0, 1));
     expect(
-      (await teacher.announcements.feed({})).rows.some(
+      (await teacher.broadcasts.announcements.feed({})).rows.some(
         (row) => row.id === saved.id,
       ),
     ).toBe(true);
     const outsider = await signedIn("northwind", login("parent", 0, 0));
-    const theirs = await outsider.announcements.feed({});
+    const theirs = await outsider.broadcasts.announcements.feed({});
     if (!theirs.rows.some((row) => row.id === saved.id))
       expect(
-        await rejection(outsider.announcements.record({ id: saved.id })),
+        await rejection(
+          outsider.broadcasts.announcements.record({ id: saved.id }),
+        ),
       ).toMatchObject({ code: "NOT_FOUND" });
   });
 
   test("a scheduled announcement waits, and an update shows it unread again", async () => {
     const office = await principal();
-    const later = await office.announcements.save(
+    const later = await office.broadcasts.announcements.save(
       draft("Next term", [{ scope: "families", classId: "", gradeId: "" }]),
     );
-    const scheduled = await office.announcements.publish({
+    const scheduled = await office.broadcasts.announcements.publish({
       id: later.id,
       expectedVersion: later.version,
       publishAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
@@ -109,35 +116,38 @@ describe("writing announcements", () => {
     expect(scheduled.recipients).toBeGreaterThan(0);
     const family = await mother();
     expect(
-      (await family.announcements.feed({})).rows.some(
+      (await family.broadcasts.announcements.feed({})).rows.some(
         (row) => row.id === later.id,
       ),
     ).toBe(false);
 
-    const now = await office.announcements.save(
+    const now = await office.broadcasts.announcements.save(
       draft("Uniform reminder", [
         { scope: "families", classId: "", gradeId: "" },
       ]),
     );
-    const out = await office.announcements.publish({
+    const out = await office.broadcasts.announcements.publish({
       id: now.id,
       expectedVersion: now.version,
     });
-    await family.announcements.seen({ id: now.id, acknowledge: false });
+    await family.broadcasts.announcements.seen({
+      id: now.id,
+      acknowledge: false,
+    });
     expect(
       await rejection(
-        office.announcements.publish({
+        office.broadcasts.announcements.publish({
           id: now.id,
           expectedVersion: out.version,
         }),
       ),
     ).toMatchObject({ code: "CONFLICT", message: "announcements.already_out" });
-    await office.announcements.publish({
+    await office.broadcasts.announcements.publish({
       id: now.id,
       expectedVersion: out.version,
       sendUpdate: true,
     });
-    const again = await family.announcements.record({ id: now.id });
+    const again = await family.broadcasts.announcements.record({ id: now.id });
     expect(again.readAt).toBeNull();
     expect(again.updateSentAt).not.toBeNull();
   });
@@ -146,7 +156,7 @@ describe("writing announcements", () => {
     const teacher = await sessionFor("northwind", login("teacher", 0, 1));
     expect(
       await rejection(
-        teacher.api.announcements.save(
+        teacher.api.broadcasts.announcements.save(
           draft("Not mine", [{ scope: "school", classId: "", gradeId: "" }]),
         ),
       ),
@@ -164,11 +174,11 @@ describe("announcements going out", () => {
 
   test("a scheduled announcement tells its families once it goes live, and asks them to acknowledge it then", async () => {
     const office = await principal();
-    const saved = await office.announcements.save({
+    const saved = await office.broadcasts.announcements.save({
       ...draft("Book fair permission", families),
       requiresAck: true,
     });
-    await office.announcements.publish({
+    await office.broadcasts.announcements.publish({
       id: saved.id,
       expectedVersion: saved.version,
       publishAt: new Date(Date.now() + 2 * 86_400_000).toISOString(),
@@ -190,7 +200,7 @@ describe("announcements going out", () => {
     expect(told[0]?.needsAction).toBe(true);
     expect(told[0]?.params.preview).toBe("Book fair permission in full.");
     expect(
-      (await family.announcements.feed({})).rows.some(
+      (await family.broadcasts.announcements.feed({})).rows.some(
         (row) => row.id === saved.id,
       ),
     ).toBe(true);
@@ -198,38 +208,42 @@ describe("announcements going out", () => {
 
   test("families read what was sent until an update goes out, told or quietly", async () => {
     const office = await principal();
-    const saved = await office.announcements.save({
+    const saved = await office.broadcasts.announcements.save({
       ...draft("Lunch menu", families),
       body: plainContent("Pasta on Monday."),
     });
-    const sent = await office.announcements.publish({
+    const sent = await office.broadcasts.announcements.publish({
       id: saved.id,
       expectedVersion: saved.version,
     });
     const family = await mother();
-    await family.announcements.seen({ id: saved.id, acknowledge: false });
-    const edited = await office.announcements.save({
+    await family.broadcasts.announcements.seen({
+      id: saved.id,
+      acknowledge: false,
+    });
+    const edited = await office.broadcasts.announcements.save({
       ...draft("Lunch menu", families),
       id: saved.id,
       expectedVersion: sent.version,
       body: plainContent("Rice on Monday."),
     });
     const words = async () =>
-      (await family.announcements.record({ id: saved.id })).body.root
+      (await family.broadcasts.announcements.record({ id: saved.id })).body.root
         .children?.[0]?.children?.[0]?.text;
     expect(await words()).toBe("Pasta on Monday.");
     expect(
-      (await office.announcements.editor({ id: saved.id })).changedSince,
+      (await office.broadcasts.announcements.editor({ id: saved.id }))
+        .changedSince,
     ).toBe(true);
 
-    await office.announcements.publish({
+    await office.broadcasts.announcements.publish({
       id: saved.id,
       expectedVersion: edited.version,
       sendUpdate: true,
       quietly: true,
     });
     expect(await words()).toBe("Rice on Monday.");
-    const read = await family.announcements.record({ id: saved.id });
+    const read = await family.broadcasts.announcements.record({ id: saved.id });
     expect(read.readAt).not.toBeNull();
     expect(read.updateSentAt).toBeNull();
     expect(
@@ -241,33 +255,36 @@ describe("announcements going out", () => {
 
   test("edits taken back to what was sent wait for nothing, and the editor holds that copy", async () => {
     const office = await principal();
-    const saved = await office.announcements.save({
+    const saved = await office.broadcasts.announcements.save({
       ...draft("Bus times", families),
       body: plainContent("The bus leaves at eight."),
     });
-    const sent = await office.announcements.publish({
+    const sent = await office.broadcasts.announcements.publish({
       id: saved.id,
       expectedVersion: saved.version,
     });
-    const edited = await office.announcements.save({
+    const edited = await office.broadcasts.announcements.save({
       ...draft("Bus times", families),
       id: saved.id,
       expectedVersion: sent.version,
       body: plainContent("The bus leaves at nine."),
     });
-    const opened = await office.announcements.editor({ id: saved.id });
+    const opened = await office.broadcasts.announcements.editor({
+      id: saved.id,
+    });
     expect(opened.changedSince).toBe(true);
     expect(opened.sent?.body.root.children?.[0]?.children?.[0]?.text).toBe(
       "The bus leaves at eight.",
     );
-    await office.announcements.save({
+    await office.broadcasts.announcements.save({
       ...draft("Bus times", families),
       id: saved.id,
       expectedVersion: edited.version,
       body: plainContent("The bus leaves at eight."),
     });
     expect(
-      (await office.announcements.editor({ id: saved.id })).changedSince,
+      (await office.broadcasts.announcements.editor({ id: saved.id }))
+        .changedSince,
     ).toBe(false);
   });
 });
@@ -275,7 +292,7 @@ describe("announcements going out", () => {
 describe("announcements in two languages", () => {
   test("a family reads the Arabic, the notice carries its words, and a duplicate keeps both", async () => {
     const office = await principal();
-    const saved = await office.announcements.save({
+    const saved = await office.broadcasts.announcements.save({
       ...draft("Early closing on Thursday", [
         { scope: "families", classId: "", gradeId: "" },
       ]),
@@ -283,19 +300,19 @@ describe("announcements in two languages", () => {
       body: plainContent("School closes at noon on Thursday."),
       translation: plainContent("تنتهي الدراسة ظهر يوم الخميس."),
     });
-    const checked = await office.announcements.review({
+    const checked = await office.broadcasts.announcements.review({
       id: saved.id,
       expectedVersion: saved.version,
       reviewed: true,
     });
     expect(checked.review?.current).toBe(true);
-    await office.announcements.publish({
+    await office.broadcasts.announcements.publish({
       id: saved.id,
       expectedVersion: checked.version,
     });
 
     const family = await mother();
-    const read = await family.announcements.record({ id: saved.id });
+    const read = await family.broadcasts.announcements.record({ id: saved.id });
     expect(read.titleAr).toBe("انصراف مبكر يوم الخميس");
     expect(read.primaryLocale).toBe("en");
     expect(read.translation?.root.children?.[0]?.children?.[0]?.text).toBe(
@@ -309,8 +326,12 @@ describe("announcements in two languages", () => {
     expect(notice?.params.preview).toBe("School closes at noon on Thursday.");
     expect(me.id).toBeTruthy();
 
-    const copy = await office.announcements.duplicate({ id: saved.id });
-    const opened = await office.announcements.editor({ id: copy.id });
+    const copy = await office.broadcasts.announcements.duplicate({
+      id: saved.id,
+    });
+    const opened = await office.broadcasts.announcements.editor({
+      id: copy.id,
+    });
     expect(opened.state).toBe("draft");
     expect(opened.titleAr).toBe("انصراف مبكر يوم الخميس");
     expect(opened.translationReview?.current).toBe(true);
@@ -320,7 +341,7 @@ describe("announcements in two languages", () => {
     const office = await principal();
     expect(
       await rejection(
-        office.announcements.save({
+        office.broadcasts.announcements.save({
           ...draft("", [{ scope: "families", classId: "", gradeId: "" }]),
           primaryLocale: "ar",
           titleEn: "Only English",

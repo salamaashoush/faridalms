@@ -137,8 +137,12 @@ export const router = {
   timetable: owned("timetable", timetableSystem),
   cover: owned("cover", coverSystem),
   messages: owned("messages", messagesSystem),
-  announcements: owned("announcements", announcementsSystem),
-  news: owned("news", newsSystem),
+  // Announcements and news are both broadcasts and share their model; news
+  // is a module of its own, so each part keeps its owner.
+  broadcasts: {
+    announcements: owned("broadcasts.announcements", announcementsSystem),
+    news: owned("broadcasts.news", newsSystem),
+  },
   calendar: owned("calendar", calendarSystem),
   notifications: owned("notifications", notificationsSystem),
   learning: owned("learning", learningSystem),

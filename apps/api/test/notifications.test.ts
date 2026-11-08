@@ -16,7 +16,7 @@ const announce = async (
   title: string,
   urgency: "normal" | "urgent",
 ) => {
-  const saved = await office.announcements.save({
+  const saved = await office.broadcasts.announcements.save({
     id: "",
     expectedVersion: 0,
     primaryLocale: "en" as const,
@@ -31,7 +31,7 @@ const announce = async (
     requiresAck: false,
     ackDueOn: "",
   });
-  await office.announcements.publish({
+  await office.broadcasts.announcements.publish({
     id: saved.id,
     expectedVersion: saved.version,
   });
@@ -49,7 +49,7 @@ function offDay(day: string) {
 describe("the notification centre", () => {
   test("a notice that asks for acknowledgement waits under action until given", async () => {
     const office = await principal();
-    const saved = await office.announcements.save({
+    const saved = await office.broadcasts.announcements.save({
       id: "",
       expectedVersion: 0,
       primaryLocale: "en",
@@ -64,7 +64,7 @@ describe("the notification centre", () => {
       requiresAck: true,
       ackDueOn: "",
     });
-    await office.announcements.publish({
+    await office.broadcasts.announcements.publish({
       id: saved.id,
       expectedVersion: saved.version,
     });
@@ -75,7 +75,10 @@ describe("the notification centre", () => {
     expect(notice.needsAction).toBe(true);
     expect(waiting.waiting).toBeGreaterThan(0);
 
-    await family.announcements.seen({ id: saved.id, acknowledge: true });
+    await family.broadcasts.announcements.seen({
+      id: saved.id,
+      acknowledge: true,
+    });
     const after = await family.notifications.list({ tab: "action" });
     expect(after.rows.some((row) => row.id === notice.id)).toBe(false);
     const all = await family.notifications.list({ tab: "all" });

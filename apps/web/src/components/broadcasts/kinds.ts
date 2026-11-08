@@ -27,8 +27,6 @@ import {
   publishAnnouncement,
   reviewAnnouncementTranslation,
   saveAnnouncement,
-} from "~/server/announcements";
-import {
   archiveNews,
   duplicateNews,
   getNewsEditor,
@@ -36,7 +34,7 @@ import {
   publishNews,
   reviewNewsTranslation,
   saveNews,
-} from "~/server/news";
+} from "~/server/broadcasts";
 
 export type { BroadcastKind };
 

@@ -223,7 +223,11 @@ draft. A publication is a draft, published or archived; published with its
 time still to come is scheduled (`phaseOf` in
 `packages/domain/src/publication.ts`). Announcements and news are the two
 kinds of one broadcast (`core.broadcasts`, its audiences and recipients),
-told through `notify` when they go out. Translations are documents of
+told through `notify` when they go out, and the API answers both under one
+namespace, `broadcasts.announcements` and `broadcasts.news`, which the web
+reaches through one bridge (`apps/web/src/server/broadcasts.ts`); news is
+a module of its own, so its part answers only where the school has it.
+Translations are documents of
 their own linked to their source, and a frozen document (a sent message,
 the wording of a privacy notice) cannot change.
 
