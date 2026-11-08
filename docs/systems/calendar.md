@@ -15,6 +15,39 @@ authority's target. Registers follow the calendar: a day that stops being a
 school day asks for none. Exam days, early dismissals and make-up days count
 as school days.
 
+## Bell times and timetables
+
+- A year's periods (the year record's Periods tab) each have their own
+  times and the weekdays they run on, and may keep other times on some
+  weekdays (Period 1 starts later on Thursdays). A change takes effect from
+  a date, so earlier days keep what they had.
+- A bell schedule gives whole days other times: a late start, an exam day,
+  Ramadan hours. It names the periods held that day by code, each at its
+  time; a period it leaves out is not held, and its lessons do not take
+  place. The School days tab runs a range of days on a schedule, or puts
+  them back on their periods' own times; weekends are left as they are.
+  Removing a schedule puts its days back.
+- A year has one or more timetables, each followed from its first day until
+  the next starts; the first is followed from the start of the year. Each
+  says how its lessons repeat: week by week (one week, or A/B weeks up to
+  four) or over a cycle of 2 to 20 school days, where it stands on its
+  first school day, and whether a closed day or week keeps the cycle where
+  it was or loses its place. A new timetable starts today at the earliest,
+  with the lessons of the one before it (repeated into a longer cycle of
+  weeks) or with none. One already followed that places lessons keeps its
+  cycle and first day; to change them, add a timetable from a date. Only
+  one not yet followed can be removed, with its lessons. They are managed
+  from the timetable page's Timetables tab.
+- One place, `packages/database/src/stores/day-plan.ts`, decides for each
+  date which timetable it follows, the day of its cycle, its bell schedule
+  and the periods it holds at that day's times. Registers, the cover board,
+  every week (staff, student, family, class, room), print, the home page
+  and calendar feeds read their days from it. A week names each day's day
+  of the cycle or week (A, B), its bell schedule, and gives a lesson its
+  own times on a day that keeps other ones.
+- Every year before timetables existed became one ordinary week from its
+  first day, with all its lessons, so nothing a school had changed.
+
 ## Events
 
 - An event has an English and an Arabic title (at least one), a kind with its

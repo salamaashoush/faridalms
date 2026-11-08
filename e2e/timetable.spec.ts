@@ -81,3 +81,79 @@ test("a student reads their week on a phone, a day at a time", async ({
   );
   await expect(page.getByText("Period 1").last()).toBeVisible();
 });
+
+// One browser adds the timetable, since the year's timetables are shared by
+// every project; it starts late in the year and is removed again.
+test("an administrator adds A/B weeks from a date and removes them", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium", "the year's timetables are shared");
+  await signIn(page, "admin");
+  await page.goto("/timetable?view=timetables");
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Add timetable" }).click();
+  const sheet = page.getByRole("dialog");
+  await sheet.getByLabel("Name in English").fill("Summer");
+  await sheet.getByLabel("Starts on").fill("2027-06-06");
+  await expect(
+    sheet.getByRole("combobox", { name: /^Weeks in the cycle/ }),
+  ).toContainText("Weeks A/B");
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText(/Timetable saved/)).toBeVisible();
+  await expect(page.getByText("Weeks A/B · Closed days count")).toBeVisible();
+
+  await page.goto("/timetable?view=classes&from=2027-06-06");
+  await untilHydrated(page);
+  await expect(
+    page.getByRole("columnheader", { name: "Sunday B" }),
+  ).toBeVisible();
+  await page.goto("/timetable?view=teachers&from=2027-06-13");
+  await untilHydrated(page);
+  await expect(page.getByText("Week B", { exact: true })).toBeVisible();
+
+  await page.goto("/timetable?view=timetables");
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Remove Summer" }).click();
+  await page.getByRole("button", { name: "Remove timetable" }).click();
+  await expect(page.getByText("Timetable removed")).toBeVisible();
+  await expect(page.getByText("Summer")).toHaveCount(0);
+});
+
+test("an administrator runs a day on a bell schedule", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium", "the year's calendar is shared");
+  await signIn(page, "admin");
+  await page.goto("/academic-years");
+  await untilHydrated(page);
+  await page.getByRole("link", { name: "2026–2027" }).first().click();
+  await page.getByRole("tab", { name: "Periods" }).click();
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Add bell schedule" }).click();
+  const sheet = page.getByRole("dialog");
+  await sheet.getByLabel("Name in English").fill("Late start");
+  for (const name of ["Registration", "Period 2", "Period 3", "Break"])
+    await sheet.getByRole("checkbox", { name }).click();
+  await sheet.getByLabel("Starts").first().fill("09:00");
+  await sheet.getByLabel("Ends").first().fill("09:45");
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Bell schedule saved")).toBeVisible();
+
+  await page.getByRole("tab", { name: "School days" }).click();
+  await untilHydrated(page);
+  await page.getByRole("button", { name: /^Wednesday, June 9/ }).click();
+  await page.getByRole("button", { name: "Use for these days" }).click();
+  await expect(page.getByText("Days changed: 1")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^Wednesday, June 9, .*on Late start/ }),
+  ).toBeVisible();
+
+  await page.goto("/timetable?view=teachers&from=2027-06-09");
+  await untilHydrated(page);
+  await expect(
+    page.getByRole("columnheader", { name: /Wednesday Jun 9\s*Late start/ }),
+  ).toBeVisible();
+  await expect(page.getByText("09:00–09:45")).toBeVisible();
+});
