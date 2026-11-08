@@ -306,6 +306,11 @@ export const sitePublishedPages = core.table.withRLS(
       .notNull()
       .default(sql`'{}'`),
     visibleFrom: instant("visible_from").notNull(),
+    /**
+     * When a shared section the copy shows last changed it after it was
+     * published; null until one does, and again at its next publication.
+     */
+    revisedAt: instant("revised_at"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [

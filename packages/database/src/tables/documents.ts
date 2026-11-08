@@ -210,7 +210,13 @@ export const healthChanges = health.table.withRLS(
   ],
 );
 
-export type DocumentKind = "rich_text" | "page" | "lesson" | "transcript";
+/** What a document holds: the editor's words, a website page's sections, a lesson, a transcript, or one website section kept to use again. */
+export type DocumentKind =
+  | "rich_text"
+  | "page"
+  | "lesson"
+  | "transcript"
+  | "section";
 
 export const documents = core.table.withRLS(
   "documents",
@@ -246,7 +252,7 @@ export const documents = core.table.withRLS(
     ck(
       "documents",
       "kind",
-      sql`kind in ('rich_text', 'page', 'lesson', 'transcript')`,
+      sql`kind in ('rich_text', 'page', 'lesson', 'transcript', 'section')`,
     ),
     ck("documents", "schema_version", sql`schema_version > 0`),
     ck("documents", "locale", sql`locale in ('ar', 'en')`),
@@ -375,7 +381,7 @@ export const documentTemplates = core.table.withRLS(
     ck(
       "document_templates",
       "kind",
-      sql`kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module', 'message', 'admission_letter')`,
+      sql`kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module', 'message', 'admission_letter', 'section')`,
     ),
     ck(
       "document_templates",
@@ -437,7 +443,8 @@ export const documentTemplates = core.table.withRLS(
  * rules or how to hand work in: each document holds only a reference, so a
  * change here reaches every one. Its content is the document it hosts, so
  * its pictures and files belong to it. A teacher's own are theirs to use;
- * the school's any teacher may.
+ * the school's any teacher may. A shared section is the same for a website:
+ * one section, in both languages, that pages name and draw where they are.
  */
 export const sharedBlocks = core.table.withRLS(
   "shared_blocks",
@@ -446,6 +453,7 @@ export const sharedBlocks = core.table.withRLS(
     orgId: uuid("org_id").notNull(),
     ownerUserId: uuid("owner_user_id").notNull(),
     scope: text("scope").$type<"mine" | "school">().notNull(),
+    kind: text("kind").$type<"block" | "section">().notNull().default("block"),
     title: text("title").notNull(),
     ...entityColumns(),
   },
@@ -459,6 +467,7 @@ export const sharedBlocks = core.table.withRLS(
       [users.tenantId, users.id],
     ),
     ck("shared_blocks", "scope", sql`scope in ('mine', 'school')`),
+    ck("shared_blocks", "kind", sql`kind in ('block', 'section')`),
     ck("shared_blocks", "title", sql`char_length(title) between 1 and 120`),
     index("shared_blocks_org_idx")
       .on(t.tenantId, t.orgId, t.scope)

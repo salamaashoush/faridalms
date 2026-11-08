@@ -1,0 +1,5 @@
+ALTER TABLE "core"."shared_blocks" ADD COLUMN "kind" text DEFAULT 'block' NOT NULL;--> statement-breakpoint
+ALTER TABLE "core"."site_published_pages" ADD COLUMN "revised_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "core"."shared_blocks" ADD CONSTRAINT "shared_blocks_kind_check" CHECK (kind in ('block', 'section'));--> statement-breakpoint
+ALTER TABLE "core"."documents" DROP CONSTRAINT "documents_kind_check", ADD CONSTRAINT "documents_kind_check" CHECK (kind in ('rich_text', 'page', 'lesson', 'transcript', 'section'));--> statement-breakpoint
+ALTER TABLE "core"."document_templates" DROP CONSTRAINT "document_templates_kind_check", ADD CONSTRAINT "document_templates_kind_check" CHECK (kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module', 'message', 'admission_letter', 'section'));
