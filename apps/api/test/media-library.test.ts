@@ -502,7 +502,7 @@ describe("the media library", () => {
   test("uploads staff made in documents are offered for keeping, never a student's work", async () => {
     const office = await sessionFor("northwind", login("principal"));
     const inNews = await uploadPicture(office, "assembly.png", uniquePng());
-    await office.api.news.save({
+    await office.api.broadcasts.news.save({
       id: "",
       expectedVersion: 0,
       visibility: "school",

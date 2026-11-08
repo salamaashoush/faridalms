@@ -1,22 +1,50 @@
 import { AREA_SORTS, FILE_KINDS } from "@faridalms/domain/file";
-import { LIBRARY_USERS } from "@faridalms/domain/media-library";
+import { LIBRARY_MONTH, LIBRARY_USERS } from "@faridalms/domain/media-library";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import * as v from "valibot";
 
 import type { LibraryView } from "~/components/media/MediaLibrary";
 
-import { LIBRARY_LAYOUTS, MediaLibrary } from "~/components/media/MediaLibrary";
+import {
+  LIBRARY_LAYOUTS,
+  LIBRARY_SOURCES,
+  MediaLibrary,
+} from "~/components/media/MediaLibrary";
 import { libraryQuery } from "~/queries/media-library";
 import { currentUserQuery } from "~/queries/user";
 import { requirePage } from "~/utils/page-access";
 
+const ids = v.fallback(
+  v.optional(
+    v.pipe(v.array(v.pipe(v.string(), v.uuid())), v.maxLength(50)),
+    [],
+  ),
+  [],
+);
+
 const searchSchema = v.object({
+  source: v.fallback(
+    v.optional(v.picklist(LIBRARY_SOURCES), "library"),
+    "library",
+  ),
   folder: v.fallback(
     v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
     "",
   ),
   q: v.fallback(v.optional(v.pipe(v.string(), v.maxLength(100)), ""), ""),
   kinds: v.fallback(v.optional(v.array(v.picklist(FILE_KINDS)), []), []),
+  months: v.fallback(
+    v.optional(
+      v.pipe(
+        v.array(v.pipe(v.string(), v.regex(LIBRARY_MONTH))),
+        v.maxLength(24),
+      ),
+      [],
+    ),
+    [],
+  ),
+  uploaders: ids,
+  tags: ids,
   sort: v.fallback(v.optional(v.picklist(AREA_SORTS), "added"), "added"),
   order: v.fallback(v.optional(v.picklist(["asc", "desc"]), "desc"), "desc"),
   page: v.fallback(
@@ -39,6 +67,9 @@ export const Route = createFileRoute("/_app/_staff/media")({
         folderId: deps.folder || null,
         q: deps.q.trim(),
         kinds: deps.kinds,
+        months: deps.months,
+        uploaders: deps.uploaders,
+        tags: deps.tags,
         sort: deps.sort,
         order: deps.order,
         page: deps.page,

@@ -1,15 +1,21 @@
 import type { AreaSort, FileKind } from "@faridalms/domain/file";
 import type { ActionItem } from "@faridalms/ui/system/action-menu";
-import type { Column, DataTableCard } from "@faridalms/ui/system/data-table";
+import type {
+  BatchAction,
+  Column,
+  DataTableCard,
+} from "@faridalms/ui/system/data-table";
 import type { IndexToolbarProps } from "@faridalms/ui/system/index-toolbar";
 
 import { FILE_KINDS } from "@faridalms/domain/file";
+import { monthLabel } from "@faridalms/domain/media-library";
 import { FileIcon, FileViewer } from "@faridalms/editor/files";
 import { Button } from "@faridalms/ui/button";
 import { DataTable } from "@faridalms/ui/system/data-table";
 import { MediaGrid } from "@faridalms/ui/system/media-grid";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { Segmented } from "@faridalms/ui/system/panel";
+import { FileDropZone, UploadQueue } from "@faridalms/ui/system/upload-queue";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -18,37 +24,55 @@ import {
   Eye,
   FolderInput,
   FolderPlus,
+  HardDrive,
+  History,
   Images,
   LayoutGrid,
+  Link2,
   List,
   ListTree,
   Pencil,
+  Replace,
+  Search,
+  Tags,
   Trash2,
   Upload,
   UsersRound,
-  X,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { fileStrings } from "~/components/content/strings";
 import { usePicturePeople } from "~/components/files/PicturedPeople";
-import { useDocumentMedia } from "~/hooks/useDocumentMedia";
+import { VersionsSheet } from "~/components/files/VersionsSheet";
+import { inLocale } from "~/hooks/useCurrentUser";
+import { uploadDocumentFile, useDocumentMedia } from "~/hooks/useDocumentMedia";
+import { useUploadQueue } from "~/hooks/useUploadQueue";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { libraryQuery } from "~/queries/media-library";
+import { initiateUpload } from "~/server/files";
 import {
   addToLibrary,
+  libraryVersions,
   removeLibraryFolder,
+  replaceLibraryItem,
   trashLibraryItem,
+  trashLibraryItems,
 } from "~/server/media-library";
 import { formatDate, formatNumber } from "~/utils/datetime";
-import { getMessageFromError } from "~/utils/error";
 
 import type { LibraryFolderRow, LibraryRow } from "./library-items";
 
 import { CropSheet } from "./CropSheet";
-import { factsOf, isPicture, libraryTile } from "./library-items";
+import {
+  factsOf,
+  isPicture,
+  itemTitle,
+  KIND_LABEL,
+  libraryTile,
+} from "./library-items";
+import { LibraryDocuments } from "./LibraryDocuments";
 import { LibraryFolders } from "./LibraryFolders";
 import {
   DescribeSheet,
@@ -57,34 +81,34 @@ import {
   TrashSheet,
   UsesSheet,
 } from "./LibrarySheets";
+import {
+  ImportLinkSheet,
+  PictureSearchSheet,
+  StorageSheet,
+  TagItemsSheet,
+  TagsSheet,
+} from "./LibraryTools";
 
 export const LIBRARY_LAYOUTS = ["grid", "list"] as const;
 export type LibraryLayout = (typeof LIBRARY_LAYOUTS)[number];
 
+/** Where the page looks: the library itself, or the uploads in documents it could keep. */
+export const LIBRARY_SOURCES = ["library", "documents"] as const;
+export type LibrarySource = (typeof LIBRARY_SOURCES)[number];
+
 /** What the library page shows, kept in its address. */
 export interface LibraryView {
+  source: LibrarySource;
   folder: string;
   q: string;
   kinds: FileKind[];
+  months: string[];
+  uploaders: string[];
+  tags: string[];
   sort: AreaSort;
   order: "asc" | "desc";
   page: number;
   layout: LibraryLayout;
-}
-
-const KIND_LABEL: Record<FileKind, () => string> = {
-  pictures: m.filesTypePictures,
-  documents: m.filesTypeDocuments,
-  audio: m.filesTypeAudio,
-  video: m.filesTypeVideo,
-  other: m.filesTypeOther,
-};
-
-interface Pending {
-  key: string;
-  name: string;
-  progress: number;
-  error: string | null;
 }
 
 interface UsedProps {
@@ -106,6 +130,17 @@ function Used({ item, onShow }: UsedProps) {
   );
 }
 
+/** Several items as one zip, which the browser saves. */
+const download = (items: LibraryRow[]) =>
+  window.location.assign(
+    `/exports/media?ids=${items.map((item) => item.id).join(",")}`,
+  );
+
+const uploaderName = (item: LibraryRow) =>
+  item.uploadedBy
+    ? inLocale(item.uploadedBy.fullNameEn, item.uploadedBy.fullNameAr)
+    : "";
+
 function libraryColumns(
   open: (item: LibraryRow) => void,
   showUses: (item: LibraryRow) => void,
@@ -126,7 +161,7 @@ function libraryColumns(
             file={{ name: item.name, mime: item.mediaType }}
             className="size-4 shrink-0 text-muted-foreground"
           />
-          <bdi className="truncate">{item.name}</bdi>
+          <bdi className="truncate">{itemTitle(item)}</bdi>
         </button>
       ),
     },
@@ -140,6 +175,25 @@ function libraryColumns(
           <span className="text-muted-foreground">
             {m.mediaNoDescription()}
           </span>
+        ),
+    },
+    {
+      id: "tags",
+      header: m.mediaTags(),
+      cell: (item) =>
+        item.tags.length ? (
+          <span className="flex flex-wrap gap-1">
+            {item.tags.map((tag) => (
+              <bdi
+                key={tag.id}
+                className="rounded-md bg-muted px-1.5 text-[13px] leading-[18px]"
+              >
+                {tag.name}
+              </bdi>
+            ))}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">{m.mediaNoTags()}</span>
         ),
     },
     {
@@ -162,8 +216,9 @@ function libraryColumns(
       header: m.filesColumnAdded(),
       sort: "added",
       cell: (item) => (
-        <span className="whitespace-nowrap text-muted-foreground">
-          {formatDate(item.createdAt)}
+        <span className="grid whitespace-nowrap text-muted-foreground">
+          <span>{formatDate(item.createdAt)}</span>
+          {uploaderName(item) ? <bdi>{uploaderName(item)}</bdi> : null}
         </span>
       ),
     },
@@ -188,7 +243,7 @@ function libraryCard(
           className="size-5 text-muted-foreground"
         />
       ),
-    title: (item) => <bdi>{item.name}</bdi>,
+    title: (item) => <bdi>{itemTitle(item)}</bdi>,
     fact: (item) => (
       <span className="grid gap-0.5">
         <span>{factsOf(item)}</span>
@@ -204,10 +259,13 @@ export interface MediaLibraryProps {
 }
 
 /**
- * The school's media library: folders, a search by name or description
- * across all of them, pictures as a grid or everything as a list, and for
- * each item where it is used. Deleting moves an item to a trash kept for
- * 30 days, and an item in use says so first.
+ * The school's media library: folders, a search across all of them by
+ * name, title, description or caption, filters by kind, month, uploader
+ * and tag, pictures as a grid or everything as a list, and for each item
+ * where it is used. Files dropped or pasted on the page upload into the
+ * open folder, and an upload a reload cut off is picked up again. Deleting
+ * moves an item to a trash kept for 30 days, and an item in use says so
+ * first.
  */
 export function MediaLibrary({ view, onView }: MediaLibraryProps) {
   const folderId = view.folder || null;
@@ -216,6 +274,9 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
       folderId,
       q: view.q.trim(),
       kinds: view.kinds,
+      months: view.months,
+      uploaders: view.uploaders,
+      tags: view.tags,
       sort: view.sort,
       order: view.order,
       page: view.page,
@@ -224,46 +285,62 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
   const keeper = data.keeper;
   const queryClient = useQueryClient();
   const media = useDocumentMedia();
+  const initiate = useServerFn(initiateUpload);
   const add = useServerFn(addToLibrary);
   const trash = useServerFn(trashLibraryItem);
+  const trashMany = useServerFn(trashLibraryItems);
+  const replace = useServerFn(replaceLibraryItem);
+  const fetchVersions = useServerFn(libraryVersions);
   const removeFolder = useServerFn(removeLibraryFolder);
   const people = usePicturePeople("website");
   const input = useRef<HTMLInputElement>(null);
-  const [pending, setPending] = useState<Pending[]>([]);
+  const replacement = useRef<HTMLInputElement>(null);
+  const [replacing, setReplacing] = useState<LibraryRow | null>(null);
   const [viewing, setViewing] = useState<LibraryRow | null>(null);
   const [describing, setDescribing] = useState<LibraryRow | null>(null);
   const [moving, setMoving] = useState<LibraryRow[] | null>(null);
+  const [tagging, setTagging] = useState<LibraryRow[] | null>(null);
   const [cropping, setCropping] = useState<LibraryRow | null>(null);
   const [usesOf, setUsesOf] = useState<LibraryRow | null>(null);
+  const [versionsOf, setVersionsOf] = useState<LibraryRow | null>(null);
   const [folderSheet, setFolderSheet] = useState<{
     folder: LibraryFolderRow | null;
   } | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [storageOpen, setStorageOpen] = useState(false);
 
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["media-library"] });
 
-  const upload = async (file: File) => {
-    const key = crypto.randomUUID();
-    const change = (patch: Partial<Pending>) =>
-      setPending((rows) =>
-        rows.map((row) => (row.key === key ? { ...row, ...patch } : row)),
-      );
-    setPending((rows) => [
-      ...rows,
-      { key, name: file.name, progress: 0, error: null },
-    ]);
-    try {
-      const sent = await media.upload(file, "file", {
-        onProgress: (progress) => change({ progress }),
-      });
-      await add({ data: { ids: [sent.fileId], folderId } });
-      setPending((rows) => rows.filter((row) => row.key !== key));
+  const queue = useUploadQueue({
+    scope: "library",
+    upload: (file, options, keeping) =>
+      uploadDocumentFile(
+        initiate,
+        file,
+        undefined,
+        options,
+        "document_media",
+        keeping,
+      ),
+    place: async (sent, meta) => {
+      if (meta.replace) {
+        await replace({ data: { id: meta.replace, sourceId: sent.fileId } });
+        toast.success(m.filesReplaced());
+      } else {
+        const added = await add({
+          data: { ids: [sent.fileId], folderId: meta.folderId ?? null },
+        });
+        for (const twin of added.twins)
+          toast.info(m.mediaTwin({ name: twin.twinName }));
+      }
       await refresh();
-    } catch (error) {
-      change({ error: getMessageFromError(error) });
-    }
-  };
+    },
+  });
+  const upload = (files: File[]) => queue.add(files, { folderId });
 
   const itemActions = (item: LibraryRow): ActionItem[] => [
     { label: m.fileOpen(), icon: Eye, onSelect: () => setViewing(item) },
@@ -293,6 +370,11 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
             icon: Pencil,
             onSelect: () => setDescribing(item),
           },
+          {
+            label: m.mediaTagAction(),
+            icon: Tags,
+            onSelect: () => setTagging([item]),
+          },
           ...(isPicture(item)
             ? [
                 {
@@ -308,11 +390,24 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
             onSelect: () => setMoving([item]),
           },
           {
+            label: m.filesReplace(),
+            icon: Replace,
+            onSelect: () => {
+              setReplacing(item);
+              replacement.current?.click();
+            },
+          },
+          {
+            label: m.filesVersions(),
+            icon: History,
+            onSelect: () => setVersionsOf(item),
+          },
+          {
             label: m.filesDelete(),
             icon: Trash2,
             destructive: true as const,
             confirm: {
-              title: m.filesDeleteTitle({ name: item.name }),
+              title: m.filesDeleteTitle({ name: itemTitle(item) }),
               body:
                 item.uses > 0
                   ? m.mediaDeleteUsed({
@@ -324,6 +419,53 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
             },
             onSelect: async () => {
               await trash({ data: { id: item.id, trashed: true } });
+              await refresh();
+              toast.success(m.filesDeleted());
+            },
+          },
+        ]
+      : []),
+  ];
+
+  const batchActions: BatchAction<LibraryRow>[] = [
+    { label: m.mediaDownloadZip(), icon: Download, onSelect: download },
+    ...(keeper
+      ? [
+          {
+            label: m.mediaTagAction(),
+            icon: Tags,
+            onSelect: (rows: LibraryRow[]) => setTagging(rows),
+          },
+          {
+            label: m.mediaMove(),
+            icon: FolderInput,
+            onSelect: (rows: LibraryRow[]) => setMoving(rows),
+          },
+          {
+            label: m.filesDelete(),
+            icon: Trash2,
+            destructive: true as const,
+            confirm: (rows: LibraryRow[]) => {
+              const used = rows.filter((row) => row.uses > 0).length;
+              return {
+                title: m.mediaDeleteMany({
+                  count: rows.length,
+                  value: formatNumber(rows.length),
+                }),
+                body:
+                  used > 0
+                    ? m.mediaDeleteManyUsed({
+                        count: used,
+                        value: formatNumber(used),
+                      })
+                    : m.filesDeleteUnused(),
+                label: m.filesDelete(),
+              };
+            },
+            onSelect: async (rows: LibraryRow[]) => {
+              await trashMany({
+                data: { ids: rows.map((row) => row.id), trashed: true },
+              });
               await refresh();
               toast.success(m.filesDeleted());
             },
@@ -380,8 +522,39 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
             page: 1,
           }),
       },
+      {
+        id: "month",
+        label: m.mediaAddedIn(),
+        options: data.facets.months.map((row) => ({
+          value: row.month,
+          label: monthLabel(row.month, getLocale()),
+          count: row.count,
+        })),
+        selected: view.months,
+        onChange: (months) => onView({ months, page: 1 }),
+      },
+      {
+        id: "uploader",
+        label: m.mediaUploadedBy(),
+        options: data.facets.uploaders.map((row) => ({
+          value: row.id,
+          label:
+            inLocale(row.fullNameEn, row.fullNameAr) || m.commonNotRecorded(),
+          count: row.count,
+        })),
+        selected: view.uploaders,
+        onChange: (uploaders) => onView({ uploaders, page: 1 }),
+      },
     ],
-    onReset: () => onView({ q: "", kinds: [], page: 1 }),
+    onReset: () =>
+      onView({
+        q: "",
+        kinds: [],
+        months: [],
+        uploaders: [],
+        tags: [],
+        page: 1,
+      }),
   };
 
   const layoutSwitch = (
@@ -404,7 +577,52 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
     />
   );
 
-  const folders = view.q.trim() ? null : (
+  const filtering =
+    view.q.trim() !== "" ||
+    view.months.length > 0 ||
+    view.uploaders.length > 0 ||
+    view.tags.length > 0;
+
+  const tagFilter =
+    data.facets.tags.length > 0 ? (
+      <fieldset className="flex flex-wrap items-center gap-1.5">
+        <legend className="sr-only">{m.mediaTagFilter()}</legend>
+        <span
+          aria-hidden
+          className="me-1 text-[13px] leading-[18px] text-muted-foreground"
+        >
+          {m.mediaTags()}
+        </span>
+        {data.facets.tags.map((tag) => {
+          const on = view.tags.includes(tag.id);
+          return (
+            <Button
+              key={tag.id}
+              type="button"
+              size="sm"
+              variant={on ? "secondary" : "outline"}
+              aria-pressed={on}
+              className="h-7 rounded-full px-2.5 max-md:h-9"
+              onClick={() =>
+                onView({
+                  tags: on
+                    ? view.tags.filter((id) => id !== tag.id)
+                    : [...view.tags, tag.id],
+                  page: 1,
+                })
+              }
+            >
+              <bdi>{tag.name}</bdi>
+              <span className="text-muted-foreground tabular-nums">
+                {formatNumber(tag.count)}
+              </span>
+            </Button>
+          );
+        })}
+      </fieldset>
+    ) : null;
+
+  const folders = filtering ? null : (
     <LibraryFolders
       path={data.path}
       folders={data.children}
@@ -412,6 +630,14 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
       folderActions={folderActions}
     />
   );
+
+  const leading =
+    tagFilter || folders ? (
+      <div className="grid gap-3">
+        {tagFilter}
+        {folders}
+      </div>
+    ) : null;
 
   const pagination =
     data.items.pages > 1
@@ -431,9 +657,20 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
   };
 
   const columns = libraryColumns(setViewing, setUsesOf);
+  const inLibrary = view.source === "library";
 
   return (
-    <>
+    <FileDropZone
+      onFiles={upload}
+      label={
+        data.path.at(-1)
+          ? m.mediaDropInto({ name: data.path.at(-1)?.name ?? "" })
+          : m.mediaDropHere()
+      }
+      pastePage={inLibrary}
+      disabled={!inLibrary}
+      className="grid gap-4"
+    >
       <PageHeader
         title={m.mediaTitle()}
         description={m.mediaHint()}
@@ -442,8 +679,22 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
           icon: Upload,
           onClick: () => input.current?.click(),
         }}
-        menu={
-          keeper
+        menu={[
+          {
+            label: m.mediaImportTitle(),
+            icon: Link2,
+            onSelect: () => setImporting(true),
+          },
+          ...(media.pictures
+            ? [
+                {
+                  label: m.mediaPictureSearch(),
+                  icon: Search,
+                  onSelect: () => setSearching(true),
+                },
+              ]
+            : []),
+          ...(keeper
             ? [
                 {
                   label: m.mediaFolderNew(),
@@ -451,13 +702,23 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
                   onSelect: () => setFolderSheet({ folder: null }),
                 },
                 {
+                  label: m.mediaTags(),
+                  icon: Tags,
+                  onSelect: () => setTagsOpen(true),
+                },
+                {
+                  label: m.mediaStorage(),
+                  icon: HardDrive,
+                  onSelect: () => setStorageOpen(true),
+                },
+                {
                   label: m.filesTrash(),
                   icon: Trash2,
                   onSelect: () => setTrashOpen(true),
                 },
               ]
-            : []
-        }
+            : []),
+        ]}
       />
       <input
         ref={input}
@@ -472,73 +733,69 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
         onChange={(event) => {
           const chosen = [...(event.target.files ?? [])];
           event.target.value = "";
-          for (const file of chosen) void upload(file);
+          upload(chosen);
         }}
       />
-      {pending.length > 0 ? (
-        <ul className="mb-4 grid gap-2" aria-live="polite">
-          {pending.map((row) => (
-            <li
-              key={row.key}
-              className="grid gap-1.5 rounded-lg border px-4 py-3 text-sm"
-            >
-              <span className="flex items-center justify-between gap-3">
-                <bdi className="truncate">{row.name}</bdi>
-                {row.error ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 max-md:size-10"
-                    aria-label={m.fileDismissNamed({ name: row.name })}
-                    onClick={() =>
-                      setPending((rows) =>
-                        rows.filter((item) => item.key !== row.key),
-                      )
-                    }
-                  >
-                    <X aria-hidden />
-                  </Button>
-                ) : null}
-              </span>
-              {row.error ? (
-                <span className="text-destructive">{row.error}</span>
-              ) : (
-                <progress
-                  className="h-1.5 w-full overflow-hidden rounded-full [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-primary"
-                  value={row.progress}
-                  max={1}
-                  aria-label={m.filesUploadProgress({
-                    name: row.name,
-                    percent: `${formatNumber(Math.round(row.progress * 100))}%`,
-                  })}
-                />
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {view.layout === "grid" ? (
+      <input
+        ref={replacement}
+        type="file"
+        hidden
+        onChange={(event) => {
+          const [chosen] = event.target.files ?? [];
+          event.target.value = "";
+          if (chosen && replacing)
+            queue.add([chosen], { replace: replacing.id });
+        }}
+      />
+      <UploadQueue
+        label={m.filesUploading()}
+        items={queue.items}
+        onCancel={queue.cancel}
+        onRetry={queue.retry}
+        onDismiss={queue.dismiss}
+      />
+      <Segmented
+        label={m.mediaSource()}
+        value={view.source}
+        className="justify-self-start"
+        options={[
+          { value: "library", label: m.mediaSourceLibrary() },
+          { value: "documents", label: m.mediaInDocuments() },
+        ]}
+        onChange={(source) => onView({ source, page: 1 })}
+      />
+      {!inLibrary ? (
+        <Suspense fallback={<div aria-busy="true" className="min-h-24" />}>
+          <LibraryDocuments
+            q={view.q}
+            page={view.page}
+            folderId={folderId}
+            onSearch={(q) => onView({ q, page: 1 })}
+            onPage={(page) => onView({ page })}
+          />
+        </Suspense>
+      ) : view.layout === "grid" ? (
         <MediaGrid
           caption={m.mediaTitle()}
           items={data.items.rows}
           tile={libraryTile}
           toolbar={toolbar}
           actions={layoutSwitch}
-          leading={folders}
+          leading={leading}
           onOpen={setViewing}
           itemActions={itemActions}
+          batchActions={batchActions}
           pagination={pagination}
           empty={empty}
         />
       ) : (
         <div className="grid gap-4">
-          {folders}
+          {leading}
           <DataTable
             caption={m.mediaTitle()}
             rows={data.items.rows}
             columns={columns}
-            rowLabel={(item) => item.name}
+            rowLabel={itemTitle}
             rowActions={itemActions}
             toolbar={toolbar}
             actions={layoutSwitch}
@@ -547,17 +804,7 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
               direction: view.order,
               onChange: (sort, order) => onView({ sort, order, page: 1 }),
             }}
-            batchActions={
-              keeper
-                ? [
-                    {
-                      label: m.mediaMove(),
-                      icon: FolderInput,
-                      onSelect: (rows) => setMoving(rows),
-                    },
-                  ]
-                : undefined
-            }
+            batchActions={batchActions}
             card={libraryCard(setUsesOf)}
             pagination={pagination}
             empty={empty}
@@ -596,6 +843,13 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
           onMoved={refresh}
         />
       ) : null}
+      {tagging ? (
+        <TagItemsSheet
+          items={tagging}
+          onClose={() => setTagging(null)}
+          onTagged={refresh}
+        />
+      ) : null}
       {cropping ? (
         <CropSheet
           key={cropping.id}
@@ -612,18 +866,51 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
           onSaved={refresh}
         />
       ) : null}
+      {importing ? (
+        <ImportLinkSheet
+          folderId={folderId}
+          onClose={() => setImporting(false)}
+          onImported={refresh}
+        />
+      ) : null}
+      <PictureSearchSheet
+        open={searching}
+        onOpenChange={setSearching}
+        onPick={(file) => upload([file])}
+        onUpload={() => input.current?.click()}
+      />
       <UsesSheet
         item={usesOf}
         onOpenChange={(open) => {
           if (!open) setUsesOf(null);
         }}
       />
+      <VersionsSheet
+        file={
+          versionsOf ? { id: versionsOf.id, name: itemTitle(versionsOf) } : null
+        }
+        load={(id) => fetchVersions({ data: { id } })}
+        restore={(id, versionId) =>
+          replace({ data: { id, sourceId: versionId } })
+        }
+        onOpenChange={(open) => {
+          if (!open) setVersionsOf(null);
+        }}
+        onRestored={refresh}
+      />
       <TrashSheet
         open={trashOpen}
         onOpenChange={setTrashOpen}
         onRestored={refresh}
       />
+      <TagsSheet
+        open={tagsOpen}
+        tags={data.facets.tags}
+        onOpenChange={setTagsOpen}
+        onChanged={refresh}
+      />
+      <StorageSheet open={storageOpen} onOpenChange={setStorageOpen} />
       {people.sheet}
-    </>
+    </FileDropZone>
   );
 }

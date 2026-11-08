@@ -4,12 +4,19 @@ import {
   cropItemSchema,
   describeItemSchema,
   folderRefSchema,
+  importLinkSchema,
+  inDocumentsQuerySchema,
   itemRefSchema,
   keepInLibrarySchema,
   libraryQuerySchema,
   moveItemsSchema,
   renameFolderSchema,
+  renameTagSchema,
+  replaceItemSchema,
+  tagItemsSchema,
+  tagRefSchema,
   trashItemSchema,
+  trashItemsSchema,
 } from "@faridalms/domain/media-library";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
@@ -74,3 +81,39 @@ export const trashLibraryItem = createServerFn({ method: "POST" })
 export const cropLibraryItem = createServerFn({ method: "POST" })
   .validator(checked(cropItemSchema))
   .handler(({ data }) => backend().mediaLibrary.crop(data));
+
+export const trashLibraryItems = createServerFn({ method: "POST" })
+  .validator(checked(trashItemsSchema))
+  .handler(({ data }) => backend().mediaLibrary.trashMany(data));
+
+export const tagLibraryItems = createServerFn({ method: "POST" })
+  .validator(checked(tagItemsSchema))
+  .handler(({ data }) => backend().mediaLibrary.tag(data));
+
+export const renameLibraryTag = createServerFn({ method: "POST" })
+  .validator(checked(renameTagSchema))
+  .handler(({ data }) => backend().mediaLibrary.renameTag(data));
+
+export const removeLibraryTag = createServerFn({ method: "POST" })
+  .validator(checked(tagRefSchema))
+  .handler(({ data }) => backend().mediaLibrary.removeTag(data));
+
+export const libraryVersions = createServerFn({ method: "GET" })
+  .validator(checked(itemRefSchema))
+  .handler(({ data }) => backend().mediaLibrary.versions(data));
+
+export const replaceLibraryItem = createServerFn({ method: "POST" })
+  .validator(checked(replaceItemSchema))
+  .handler(({ data }) => backend().mediaLibrary.replace(data));
+
+export const libraryInDocuments = createServerFn({ method: "GET" })
+  .validator(checked(inDocumentsQuerySchema))
+  .handler(({ data }) => backend().mediaLibrary.inDocuments(data));
+
+export const libraryStorage = createServerFn({ method: "GET" }).handler(() =>
+  backend().mediaLibrary.storage(),
+);
+
+export const importLibraryLink = createServerFn({ method: "POST" })
+  .validator(checked(importLinkSchema))
+  .handler(({ data }) => backend().mediaLibrary.importLink(data));

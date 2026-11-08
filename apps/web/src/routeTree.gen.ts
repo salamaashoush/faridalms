@@ -36,6 +36,7 @@ import { Route as AuthRegisterRouteImport } from './routes/_auth/register'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AdminSplatRouteImport } from './routes/admin.$'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ExportsMediaRouteImport } from './routes/exports/media'
 import { Route as FilesFileIdRouteImport } from './routes/files/$fileId'
 import { Route as LtiAuthRouteImport } from './routes/lti/auth'
 import { Route as LtiDeepLinkRouteImport } from './routes/lti/deep-link'
@@ -275,6 +276,11 @@ const AdminSplatRoute = AdminSplatRouteImport.update({
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExportsMediaRoute = ExportsMediaRouteImport.update({
+  id: '/exports/media',
+  path: '/exports/media',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FilesFileIdRoute = FilesFileIdRouteImport.update({
@@ -854,6 +860,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof AuthSignInRoute
   '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
+  '/exports/media': typeof ExportsMediaRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/lti/auth': typeof LtiAuthRoute
   '/lti/deep-link': typeof LtiDeepLinkRoute
@@ -985,6 +992,7 @@ export interface FileRoutesByTo {
   '/sign-in': typeof AuthSignInRoute
   '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
+  '/exports/media': typeof ExportsMediaRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/lti/auth': typeof LtiAuthRoute
   '/lti/deep-link': typeof LtiDeepLinkRoute
@@ -1121,6 +1129,7 @@ export interface FileRoutesById {
   '/_auth/sign-in': typeof AuthSignInRoute
   '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
+  '/exports/media': typeof ExportsMediaRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/lti/auth': typeof LtiAuthRoute
   '/lti/deep-link': typeof LtiDeepLinkRoute
@@ -1256,6 +1265,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/admin/$'
     | '/api/health'
+    | '/exports/media'
     | '/files/$fileId'
     | '/lti/auth'
     | '/lti/deep-link'
@@ -1387,6 +1397,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/admin/$'
     | '/api/health'
+    | '/exports/media'
     | '/files/$fileId'
     | '/lti/auth'
     | '/lti/deep-link'
@@ -1522,6 +1533,7 @@ export interface FileRouteTypes {
     | '/_auth/sign-in'
     | '/admin/$'
     | '/api/health'
+    | '/exports/media'
     | '/files/$fileId'
     | '/lti/auth'
     | '/lti/deep-link'
@@ -1641,6 +1653,7 @@ export interface RootRouteChildren {
   WelcomeRoute: typeof WelcomeRoute
   AdminSplatRoute: typeof AdminSplatRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ExportsMediaRoute: typeof ExportsMediaRoute
   FilesFileIdRoute: typeof FilesFileIdRouteWithChildren
   LtiAuthRoute: typeof LtiAuthRoute
   LtiDeepLinkRoute: typeof LtiDeepLinkRoute
@@ -1848,6 +1861,13 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/exports/media': {
+      id: '/exports/media'
+      path: '/exports/media'
+      fullPath: '/exports/media'
+      preLoaderRoute: typeof ExportsMediaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/files/$fileId': {
@@ -2904,6 +2924,7 @@ const rootRouteChildren: RootRouteChildren = {
   WelcomeRoute: WelcomeRoute,
   AdminSplatRoute: AdminSplatRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ExportsMediaRoute: ExportsMediaRoute,
   FilesFileIdRoute: FilesFileIdRouteWithChildren,
   LtiAuthRoute: LtiAuthRoute,
   LtiDeepLinkRoute: LtiDeepLinkRoute,

@@ -1,8 +1,10 @@
 import type { PictureCredit } from "@faridalms/domain/commons";
 
 import {
+  MAX_CAPTION,
   MAX_DESCRIPTION,
   MAX_FOLDER_NAME,
+  MAX_TITLE,
 } from "@faridalms/domain/media-library";
 import { FileIcon } from "@faridalms/editor/files";
 import { Button } from "@faridalms/ui/button";
@@ -47,13 +49,16 @@ export interface DescribeSheetProps {
 }
 
 /**
- * An item's name and what it says of itself: the description every use
- * starts from, which a use may say otherwise, and who made it.
+ * An item's file name and what it says of itself: a title for people, the
+ * description and caption every use starts from, which a use may say
+ * otherwise, and who made it.
  */
 export function DescribeSheet({ item, onClose, onSaved }: DescribeSheetProps) {
   const describe = useServerFn(describeLibraryItem);
   const [name, setName] = useState(item.name);
+  const [title, setTitle] = useState(item.title);
   const [description, setDescription] = useState(item.description);
+  const [caption, setCaption] = useState(item.caption);
   const [author, setAuthor] = useState(item.credit?.author ?? "");
   const [licence, setLicence] = useState(item.credit?.licence ?? "");
   const credit: PictureCredit | null =
@@ -66,7 +71,9 @@ export function DescribeSheet({ item, onClose, onSaved }: DescribeSheetProps) {
       : null;
   const mutation = useMutation({
     mutationFn: () =>
-      describe({ data: { id: item.id, name, description, credit } }),
+      describe({
+        data: { id: item.id, name, title, description, caption, credit },
+      }),
   });
   return (
     <SheetForm
@@ -74,7 +81,7 @@ export function DescribeSheet({ item, onClose, onSaved }: DescribeSheetProps) {
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      title={m.mediaDescribeTitle({ name: item.name })}
+      title={m.mediaDescribeTitle({ name: item.title || item.name })}
       pending={mutation.isPending}
       error={mutation.error ? getMessageFromError(mutation.error) : null}
       onSubmit={async () => {
@@ -90,8 +97,19 @@ export function DescribeSheet({ item, onClose, onSaved }: DescribeSheetProps) {
       }}
     >
       <TextField
+        id="media-item-title"
+        label={m.mediaItemTitle()}
+        optional
+        hint={m.mediaItemTitleHint()}
+        dir="auto"
+        maxLength={MAX_TITLE}
+        autoComplete="off"
+        value={title}
+        onChange={(event) => setTitle(event.target.value)}
+      />
+      <TextField
         id="media-item-name"
-        label={m.filesColumnName()}
+        label={m.mediaFileName()}
         dir="auto"
         maxLength={255}
         autoComplete="off"
@@ -112,6 +130,23 @@ export function DescribeSheet({ item, onClose, onSaved }: DescribeSheetProps) {
             maxLength={MAX_DESCRIPTION}
             value={description}
             onChange={(event) => setDescription(event.target.value)}
+          />
+        )}
+      </FormField>
+      <FormField
+        id="media-item-caption"
+        label={m.mediaCaption()}
+        optional
+        hint={m.mediaCaptionHint()}
+      >
+        {(control) => (
+          <Textarea
+            {...control}
+            dir="auto"
+            rows={2}
+            maxLength={MAX_CAPTION}
+            value={caption}
+            onChange={(event) => setCaption(event.target.value)}
           />
         )}
       </FormField>

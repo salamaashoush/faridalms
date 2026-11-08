@@ -361,6 +361,19 @@ export function getMessageFromError(error: unknown): string {
         return m.errorMediaFolderNotEmpty();
       case "media.not_kept":
         return m.errorMediaNotKept();
+      case "media.link_address":
+      case "media.link_scheme":
+        return m.errorMediaLinkAddress();
+      case "media.link_unavailable":
+        return m.errorMediaLinkUnavailable();
+      case "media.link_too_large":
+        return m.errorMediaLinkTooLarge();
+      case "media.link_type":
+        return m.errorMediaLinkType();
+      case "media.link_slow":
+        return m.errorMediaLinkSlow();
+      case "file.elsewhere":
+        return m.uploadElsewhere();
       case "enrollment.future_placement":
         return m.errorFuturePlacement();
       case "auth.wrong_password":
@@ -743,6 +756,7 @@ export function getMessageFromError(error: unknown): string {
         return m.errorFileNotAttachable();
       case "file.not_pending":
       case "file.part_missing":
+      case "file.gone":
         return m.fileErrUploadAgain();
       case "file.failed":
         return m.fileUploadFailed();
@@ -1086,7 +1100,11 @@ export function getMessageFromError(error: unknown): string {
       case "calendar_feed.exists":
         return m.ltiErrRace();
       case "file_subject.exists":
+      case "media_item_tag.exists":
+      case "media_item_text.exists":
         return m.errorConflictVersion();
+      case "media_tag.name_taken":
+        return m.errorMediaTagTaken();
       case "user.username_taken":
         return m.signInLoginTaken();
       case "user.birth_date_early":

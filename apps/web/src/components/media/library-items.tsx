@@ -13,6 +13,18 @@ export type LibraryPage = Awaited<ReturnType<typeof listLibrary>>;
 export type LibraryRow = LibraryPage["items"]["rows"][number];
 export type LibraryFolderRow = LibraryPage["folders"][number];
 
+/** What each kind of file is called in a filter or a breakdown. */
+export const KIND_LABEL: Record<FileKind, () => string> = {
+  pictures: m.filesTypePictures,
+  documents: m.filesTypeDocuments,
+  audio: m.filesTypeAudio,
+  video: m.filesTypeVideo,
+  other: m.filesTypeOther,
+};
+
+/** What an item is called: its title, or its file's name where it has none. */
+export const itemTitle = (row: LibraryRow) => row.title || row.name;
+
 /** The kinds of file each kind of choice may be. */
 export const KINDS_OF: Record<LibraryKind, FileKind[]> = {
   image: ["pictures"],
@@ -37,13 +49,14 @@ export const choiceOf = (row: LibraryRow): LibraryChoice => ({
   mime: row.mediaType,
   bytes: row.sizeBytes,
   alt: row.description,
+  ...(row.caption ? { caption: row.caption } : {}),
   ...(row.credit ? { credit: row.credit } : {}),
 });
 
 export const libraryTile: MediaGridTile<LibraryRow> = {
   src: (row) => (isPicture(row) ? `/files/${row.id}` : null),
   icon: (row) => <FileIcon file={{ name: row.name, mime: row.mediaType }} />,
-  title: (row) => row.name,
+  title: itemTitle,
   fact: (row) => row.description || factsOf(row),
 };
 

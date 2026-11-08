@@ -36,7 +36,11 @@ const row = (id: string, name: string, description: string): LibraryRow => ({
   trashedAt: null,
   folderId: null,
   description,
+  title: "",
+  caption: "",
   credit: null,
+  uploadedBy: null,
+  tags: [],
   uses: 0,
 });
 
@@ -46,6 +50,7 @@ const page = (rows: LibraryRow[]): LibraryPage => ({
   children: [{ id: FOLDER, name: "Sports day", parentId: null, items: 4 }],
   items: { rows, total: rows.length, page: 1, pages: 1, pageSize: 25 },
   kinds: { pictures: rows.length },
+  facets: { months: [], uploaders: [], tags: [] },
   keeper: false,
 });
 
