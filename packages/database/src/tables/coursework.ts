@@ -123,6 +123,7 @@ export type SubmissionFormat =
 export type QuizKeep = "highest" | "latest" | "average" | "first";
 export type QuizReveal = "answers" | "feedback" | "marks" | "returned";
 export type Audience = "class" | "selected";
+export type PeerHelpfulness = "very" | "somewhat" | "not";
 
 /**
  * Coursework for one class, and the gradebook line item its results belong
@@ -193,6 +194,9 @@ export const assignments = core.table.withRLS(
     peerAnonymous: boolean("peer_anonymous"),
     peerStartedAt: instant("peer_started_at"),
     peerReleasedAt: instant("peer_released_at"),
+    /** When reviews are due, and when reviewers still writing were reminded of it. */
+    peerDueAt: instant("peer_due_at"),
+    peerRemindedAt: instant("peer_reminded_at"),
     /** The language the brief is written in, when the teacher says. */
     language: text("language").$type<"en" | "ar">(),
     /** The title in the language of the brief's translation, when it has one. */
@@ -289,7 +293,7 @@ export const assignments = core.table.withRLS(
     ck(
       "assignments",
       "peer",
-      sql`(peer_reviews is null) = (peer_anonymous is null) and (peer_reviews is null or (peer_reviews between 1 and 5 and submission_format in ('online', 'files', 'both', 'online_and_files'))) and (peer_started_at is null or peer_reviews is not null) and (peer_released_at is null or peer_started_at is not null)`,
+      sql`(peer_reviews is null) = (peer_anonymous is null) and (peer_reviews is null or (peer_reviews between 1 and 5 and submission_format in ('online', 'files', 'both', 'online_and_files', 'quiz', 'discussion'))) and (peer_started_at is null or peer_reviews is not null) and (peer_released_at is null or peer_started_at is not null) and (peer_due_at is null or peer_reviews is not null) and (peer_reminded_at is null or peer_due_at is not null)`,
     ),
     ck(
       "assignments",
@@ -902,6 +906,8 @@ export const peerReviews = core.table.withRLS(
     sentAt: instant("sent_at"),
     hiddenAt: instant("hidden_at"),
     hiddenByUserId: uuid("hidden_by_user_id"),
+    /** How helpful the work's author found it, once they read it. */
+    helpfulness: text("helpfulness").$type<PeerHelpfulness>(),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -953,6 +959,11 @@ export const peerReviews = core.table.withRLS(
       "hidden",
       sql`(hidden_at is null) = (hidden_by_user_id is null)`,
     ),
+    ck(
+      "peer_reviews",
+      "helpfulness",
+      sql`helpfulness is null or (helpfulness in ('very', 'somewhat', 'not') and sent_at is not null)`,
+    ),
     uniqueIndex("peer_reviews_key")
       .on(t.tenantId, t.assignmentId, t.reviewerUserId, t.authorUserId)
       .where(sql`status = 'active'`),
@@ -963,6 +974,44 @@ export const peerReviews = core.table.withRLS(
     // A review is both its writer's words and about its author's work.
     ...eraseAndDelete(
       sql`${erasureOf("reviewer_user_id")} or ${erasureOf("author_user_id")}`,
+    ),
+  ],
+);
+
+/**
+ * A reviewer's comment on a passage of the classmate's work they review,
+ * anchored to the frozen attempt as a teacher's is. It goes to the author
+ * with the review, and with it when the review is erased.
+ */
+export const peerReviewComments = core.table.withRLS(
+  "peer_review_comments",
+  {
+    ...tenantColumns(),
+    reviewId: uuid("review_id").notNull(),
+    anchor: jsonb("anchor").$type<Record<string, unknown>>().notNull(),
+    body: text("body").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("peer_review_comments", t.tenantId, t.id),
+    ...baseConstraints("peer_review_comments", t, tenants),
+    fk(
+      "peer_review_comments",
+      [t.tenantId, t.reviewId],
+      [peerReviews.tenantId, peerReviews.id],
+    ),
+    ck("peer_review_comments", "anchor", sql`jsonb_typeof(anchor) = 'object'`),
+    ck(
+      "peer_review_comments",
+      "body",
+      sql`char_length(body) between 1 and 2000`,
+    ),
+    index("peer_review_comments_review_idx")
+      .on(t.tenantId, t.reviewId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    ...eraseAndDelete(
+      sql`exists (select 1 from core.peer_reviews r where r.tenant_id = peer_review_comments.tenant_id and r.id = peer_review_comments.review_id and (app.erasure_approved(r.tenant_id, r.reviewer_user_id) or app.erasure_approved(r.tenant_id, r.author_user_id)))`,
     ),
   ],
 );

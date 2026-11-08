@@ -645,7 +645,14 @@ export async function eraseSubject(
       sql`core.${sql.identifier(table)}`,
       sql`student_user_id = ${s}::uuid`,
     );
-  // The reviews they wrote, and the ones written of their work.
+  // The reviews they wrote, and the ones written of their work, with the
+  // passages each review comments on.
+  await remove(
+    "peer_review_comments",
+    sql`core.peer_review_comments`,
+    sql`review_id in (select id from core.peer_reviews where tenant_id = ${t}::uuid
+      and (reviewer_user_id = ${s}::uuid or author_user_id = ${s}::uuid))`,
+  );
   await remove(
     "peer_reviews",
     sql`core.peer_reviews`,

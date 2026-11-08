@@ -107,6 +107,7 @@ import {
   ltiReplays,
   ltiScores,
   ltiTools,
+  peerReviewComments,
   peerReviews,
   passkeys,
   quizAnswers,
@@ -693,15 +694,29 @@ export async function completeFixture(
     .where(eq(submissionAttempts.tenantId, tenantId))
     .limit(1);
   if (!reviewed) throw new Error("the development seed hands nothing in");
-  await tx.insert(peerReviews).values({
+  const [review] = await tx
+    .insert(peerReviews)
+    .values({
+      tenantId,
+      assignmentId: reviewed.assignmentId,
+      attemptId: reviewed.id,
+      authorUserId: reviewed.studentUserId,
+      reviewerUserId: userId,
+      strengths: "The opening question pulls the reader in.",
+      suggestion: "Say where the river starts.",
+      sentAt: new Date("2026-09-22T10:00:00Z"),
+      helpfulness: "very",
+    })
+    .returning({ id: peerReviews.id });
+  if (!review) throw new Error("no peer review");
+  await tx.insert(peerReviewComments).values({
     tenantId,
-    assignmentId: reviewed.assignmentId,
-    attemptId: reviewed.id,
-    authorUserId: reviewed.studentUserId,
-    reviewerUserId: userId,
-    strengths: "The opening question pulls the reader in.",
-    suggestion: "Say where the river starts.",
-    sentAt: new Date("2026-09-22T10:00:00Z"),
+    reviewId: review.id,
+    anchor: {
+      start: { block: "b1", offset: 0 },
+      end: { block: "b1", offset: 5 },
+    },
+    body: "This line made me want to read on.",
   });
   const [simulator] = await tx
     .insert(ltiTools)

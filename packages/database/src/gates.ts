@@ -30,7 +30,7 @@ delete_allowed(name, role) as (values
   ('core.goal_reports', 'retention'),
   ('core.standard_observations', 'retention'),
   ('core.peer_reviews', 'retention'), ('core.lti_replays', 'retention'), ('core.lti_scores', 'retention'),
-  ('core.discussion_likes', 'retention'),
+  ('core.discussion_likes', 'retention'), ('core.peer_review_comments', 'retention'),
   ('core.module_audiences', 'retention'), ('core.lesson_openings', 'retention'),
   ('core.document_holds', 'retention')),
 unversioned_update_allowed(name, role) as (values

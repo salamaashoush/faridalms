@@ -31,6 +31,7 @@ const DELETE_ALLOWED = new Set([
   "core.standard_observations",
   "core.peer_reviews",
   "core.discussion_likes",
+  "core.peer_review_comments",
   "core.lti_replays",
   "core.lti_scores",
   "core.module_audiences",
