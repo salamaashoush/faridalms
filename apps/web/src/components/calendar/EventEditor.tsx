@@ -770,11 +770,6 @@ export function EventEditor({
             </DetailsSection>
             {draft.bilingual && translation ? (
               <DetailsSection title={m.translationTitle()}>
-                <TranslationNote
-                  state={translation}
-                  review={review}
-                  language={LOCALE_NAME[other]()}
-                />
                 <CheckboxRow
                   label={m.translationReviewedCheck()}
                   hint={m.translationReviewedHint({
@@ -784,6 +779,11 @@ export function EventEditor({
                   onChange={(checked) => {
                     if (pending !== "review") void markReviewed(checked);
                   }}
+                />
+                <TranslationNote
+                  state={translation}
+                  review={review}
+                  language={LOCALE_NAME[other]()}
                 />
                 <Button
                   type="button"

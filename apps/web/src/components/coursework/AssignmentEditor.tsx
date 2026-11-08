@@ -1500,11 +1500,6 @@ export function AssignmentEditor({
               ) : null}
               {language && translated && translation ? (
                 <>
-                  <TranslationNote
-                    state={translation}
-                    review={translationCheck}
-                    language={LOCALE_NAME[otherLocale(language)]()}
-                  />
                   <CheckboxRow
                     label={m.translationReviewedCheck()}
                     hint={m.translationReviewedHint({
@@ -1513,6 +1508,11 @@ export function AssignmentEditor({
                     checked={translation === "reviewed"}
                     disabled={reviewing || !storedId}
                     onChange={(checked) => void markReviewed(checked)}
+                  />
+                  <TranslationNote
+                    state={translation}
+                    review={translationCheck}
+                    language={LOCALE_NAME[otherLocale(language)]()}
                   />
                   <AssistantTranslate
                     host={

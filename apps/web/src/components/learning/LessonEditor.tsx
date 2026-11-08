@@ -859,11 +859,6 @@ export function LessonEditor({
             </DetailsSection>
             {language && translated && translation ? (
               <DetailsSection title={m.translationTitle()}>
-                <TranslationNote
-                  state={translation}
-                  review={translationCheck}
-                  language={LOCALE_NAME[otherLocale(language)]()}
-                />
                 <CheckboxRow
                   label={m.translationReviewedCheck()}
                   hint={m.translationReviewedHint({
@@ -872,6 +867,11 @@ export function LessonEditor({
                   checked={translation === "reviewed"}
                   disabled={reviewing || !storedId}
                   onChange={(checked) => void markReviewed(checked)}
+                />
+                <TranslationNote
+                  state={translation}
+                  review={translationCheck}
+                  language={LOCALE_NAME[otherLocale(language)]()}
                 />
                 <AssistantTranslate
                   host={storedId ? { type: "lesson", id: storedId } : null}

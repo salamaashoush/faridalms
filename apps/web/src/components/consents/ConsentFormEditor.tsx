@@ -483,11 +483,6 @@ export function ConsentFormEditor({
             </DetailsSection>
             {draft.bilingual && translation ? (
               <DetailsSection title={m.translationTitle()}>
-                <TranslationNote
-                  state={translation}
-                  review={review}
-                  language={LOCALE_NAME[other]()}
-                />
                 <CheckboxRow
                   label={m.translationReviewedCheck()}
                   hint={m.translationReviewedHint({
@@ -497,6 +492,11 @@ export function ConsentFormEditor({
                   onChange={(checked) => {
                     if (!reviewing && stored) void markReviewed(checked);
                   }}
+                />
+                <TranslationNote
+                  state={translation}
+                  review={review}
+                  language={LOCALE_NAME[other]()}
                 />
                 <Button
                   type="button"
