@@ -1,0 +1,11 @@
+-- What the generated migration cannot express for liking discussion posts:
+-- the row trigger, forced row level security and the grants.
+
+create trigger row_meta before insert or update on core.discussion_likes for each row execute function app.row_meta();
+
+alter table core.discussion_likes force row level security;
+
+grant select, insert, update on core.discussion_likes to app, worker, cell_io;
+grant select on core.discussion_likes to retention;
+grant update (status, metadata) on core.discussion_likes to retention;
+grant delete on core.discussion_likes to retention;
