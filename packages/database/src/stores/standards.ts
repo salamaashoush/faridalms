@@ -401,6 +401,11 @@ export async function standardsByIds(
  * CASE identifier, so one imported before is updated where it is, and
  * items the package no longer has taken out of use. Items given parents
  * before their children.
+ *
+ * An item the package leaves as it was is not written at all. Every write
+ * moves a standard's version on, so importing a framework again unchanged
+ * would otherwise turn away the save of anyone wording one of its
+ * standards meanwhile.
  */
 export async function importStandards(
   tx: Tx,
@@ -421,9 +426,9 @@ export async function importStandards(
   const CHUNK = 500;
   for (let start = 0; start < input.items.length; start += CHUNK) {
     const chunk = input.items.slice(start, start + CHUNK);
-    const rows = await tx.execute<{ id: string; case_identifier: string }>(sql`
-      insert into core.standards (tenant_id, framework_id, parent_id, code, statement, item_type,
-        position, case_identifier)
+    await tx.execute(sql`
+      insert into core.standards as s (tenant_id, framework_id, parent_id, code, statement,
+        item_type, position, case_identifier)
       values ${sql.join(
         chunk.map(
           (
@@ -436,25 +441,38 @@ export async function importStandards(
       )}
       on conflict (tenant_id, framework_id, case_identifier)
         where status = 'active' and case_identifier is not null
-      do update set parent_id = null, code = excluded.code, statement = excluded.statement,
+      do update set code = excluded.code, statement = excluded.statement,
         item_type = excluded.item_type, position = excluded.position
-      returning id, case_identifier`);
+      where (s.code, s.statement, s.item_type, s.position)
+        is distinct from (excluded.code, excluded.statement, excluded.item_type, excluded.position)`);
+    const rows = await tx.execute<{ id: string; case_identifier: string }>(sql`
+      select id, case_identifier from core.standards
+      where tenant_id = ${input.tenantId}::uuid and framework_id = ${input.frameworkId}::uuid
+        and status = 'active'
+        and case_identifier = any(${uuidArray(chunk.map((item) => item.identifier))})`);
     for (const row of rows) ids.set(row.case_identifier, row.id);
   }
-  const parented = input.items.flatMap((item) => {
+  const placed = input.items.flatMap((item) => {
     const id = ids.get(item.identifier);
     const parent = item.parentIdentifier
-      ? ids.get(item.parentIdentifier)
-      : undefined;
-    return id && parent ? [{ id, parent }] : [];
+      ? (ids.get(item.parentIdentifier) ?? null)
+      : null;
+    return id ? [{ id, parent }] : [];
   });
-  for (let start = 0; start < parented.length; start += CHUNK) {
-    const chunk = parented.slice(start, start + CHUNK);
+  for (let start = 0; start < placed.length; start += CHUNK) {
+    const chunk = placed.slice(start, start + CHUNK);
+    const parents = sql.join(
+      chunk.map((row) =>
+        row.parent === null ? sql`null::uuid` : sql`${row.parent}::uuid`,
+      ),
+      sql`, `,
+    );
     await tx.execute(sql`
       update core.standards s set parent_id = v.parent
       from unnest(${uuidArray(chunk.map((row) => row.id))},
-        ${uuidArray(chunk.map((row) => row.parent))}) as v(id, parent)
-      where s.tenant_id = ${input.tenantId}::uuid and s.id = v.id`);
+        array[${parents}]) as v(id, parent)
+      where s.tenant_id = ${input.tenantId}::uuid and s.id = v.id
+        and s.parent_id is distinct from v.parent`);
   }
   await tx.execute(sql`
     update core.standards set status = 'tobedeleted'

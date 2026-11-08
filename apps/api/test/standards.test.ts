@@ -988,10 +988,16 @@ describe("early learning goals", () => {
   test("a school adds Development Matters to follow younger children", async () => {
     const office = await principal();
     const added = await office.standards.addDevelopmentMatters();
+    const first = await office.standards.framework({ id: added.id });
     expect((await office.standards.addDevelopmentMatters()).id).toBe(added.id);
     const { framework, standards } = await office.standards.framework({
       id: added.id,
     });
+    // Adding it again unchanged writes nothing, so a statement someone is
+    // wording meanwhile still saves.
+    expect(standards.map((row) => [row.id, row.version, row.parentId])).toEqual(
+      first.standards.map((row) => [row.id, row.version, row.parentId]),
+    );
     expect(framework.title).toBe("Development Matters");
     const kinds = (itemType: string) =>
       standards.filter((row) => row.itemType === itemType);
