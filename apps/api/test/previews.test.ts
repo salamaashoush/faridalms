@@ -141,7 +141,9 @@ async function claimPreview(
   fileKey: string,
   can = { pdf: true, office: true },
 ): Promise<PreviewJob | null> {
-  for (let tries = 0; tries < 30; tries += 1) {
+  // Every picture other suites uploaded waits in the same queue, so the
+  // queue is walked to its end; a claimed job leaves it, so the walk ends.
+  for (;;) {
     const response = await call("/v1/media/claim", {
       streams: false,
       captions: false,
@@ -154,7 +156,6 @@ async function claimPreview(
       error: "not this test's",
     });
   }
-  return null;
 }
 
 const tenantId = () => seeded().tenants[0]?.tenantId ?? "";
