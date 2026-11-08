@@ -671,6 +671,98 @@ test("classmates review each other's work unnamed, and read the reviews once the
   await author.context.close();
 });
 
+test("a reviewer comments on a passage by its review date, and the author says how helpful the review was", async ({
+  browser,
+}) => {
+  const { api: teacher } = await signedInApi(TEACHER);
+  const { classes } = await teacher.coursework.options();
+  const arabic = classes.find((row) => row.titleEn === "8A Arabic");
+  if (!arabic) throw new Error("the seed has no 8A Arabic");
+  const reviewsDue = new Date(Date.now() + 3 * 86_400_000).toISOString();
+  const saved = await teacher.coursework.save({
+    classId: arabic.id,
+    title: `Sea poem ${crypto.randomUUID().slice(0, 6)}`,
+    brief: plainContent("Write the sea a poem."),
+    audience: "class",
+    latePolicy: "accept",
+    submissionFormat: "online",
+    points: 10,
+    rubric: null,
+    peer: { reviews: 1, anonymous: true, dueAt: reviewsDue },
+  });
+  await teacher.coursework.publish({
+    id: saved.id,
+    expectedVersion: saved.version,
+  });
+  for (const [email, words] of [
+    ["student1008@northwind.example.com", "Waves carry shells to the shore."],
+    [ACCOUNTS.student.email, "The sea sings at night."],
+  ] as const) {
+    const { api } = await signedInApi(email);
+    const drafted = await api.coursework.saveDraft({
+      assignmentId: saved.id,
+      expectedVersion: 0,
+      content: plainContent(words),
+    });
+    await api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: drafted.version,
+    });
+  }
+  await teacher.peer.start({ assignmentId: saved.id });
+
+  const reviewerContext = await browser.newContext();
+  const reviewer = await reviewerContext.newPage();
+  await signInWith(
+    reviewer,
+    "student1008@northwind.example.com",
+    PASSWORD,
+    ACCOUNTS.student.home,
+  );
+  await reviewer.goto(`/assignments/${saved.id}`);
+  await untilHydrated(reviewer);
+  const reviewing = reviewer.getByRole("region", { name: "Peer review" });
+  await expect(reviewing.getByText(/^Reviews are due /)).toBeVisible();
+  await reviewing.getByText("sings").dblclick();
+  await reviewing
+    .getByRole("textbox", { name: /Your comment on/ })
+    .fill("A sea that sings is a lovely picture.");
+  await reviewing.getByRole("button", { name: "Add comment" }).click();
+  await expect(
+    reviewing.getByText("A sea that sings is a lovely picture."),
+  ).toBeVisible();
+  await reviewing
+    .getByRole("textbox", { name: "What works well" })
+    .fill("The night makes it calm.");
+  await reviewing
+    .getByRole("textbox", { name: "Even better if" })
+    .fill("Say what the song sounds like.");
+  await reviewing.getByRole("button", { name: "Send review" }).click();
+  await expect(reviewer.getByText("Review sent.")).toBeVisible();
+  await reviewerContext.close();
+
+  await teacher.peer.release({ assignmentId: saved.id });
+  const authorContext = await browser.newContext();
+  const author = await authorContext.newPage();
+  await signInWith(
+    author,
+    ACCOUNTS.student.email,
+    PASSWORD,
+    ACCOUNTS.student.home,
+  );
+  await author.goto(`/assignments/${saved.id}`);
+  await untilHydrated(author);
+  const said = author.getByRole("region", { name: "What classmates said" });
+  await expect(said.getByText("sings", { exact: true })).toBeVisible();
+  await expect(
+    said.getByText("A sea that sings is a lovely picture."),
+  ).toBeVisible();
+  const helpful = said.getByRole("button", { name: "Very helpful" });
+  await helpful.click();
+  await expect(helpful).toHaveAttribute("aria-pressed", "true");
+  await authorContext.close();
+});
+
 test("a brief written in two languages opens in the reader's own", async ({
   browser,
   page,

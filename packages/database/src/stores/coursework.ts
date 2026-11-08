@@ -62,6 +62,8 @@ export interface AssignmentRow {
   peerAnonymous: boolean | null;
   peerStartedAt: string | null;
   peerReleasedAt: string | null;
+  peerDueAt: string | null;
+  peerRemindedAt: string | null;
   language: ContentLocale | null;
   translationTitle: string | null;
   publishedAt: string | null;
@@ -105,6 +107,8 @@ type AssignmentRecord = {
   peer_anonymous: boolean | null;
   peer_started_at: string | null;
   peer_released_at: string | null;
+  peer_due_at: string | null;
+  peer_reminded_at: string | null;
   language: ContentLocale | null;
   translation_title: string | null;
   published_at: string | null;
@@ -121,6 +125,8 @@ const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id, a.class_typ
   a.module_id, a.peer_reviews, a.peer_anonymous,
   to_char(a.peer_started_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_started_at,
   to_char(a.peer_released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_released_at,
+  to_char(a.peer_due_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_due_at,
+  to_char(a.peer_reminded_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_reminded_at,
   a.language, a.translation_title,
   to_char(a.published_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as published_at`;
 
@@ -163,6 +169,8 @@ function assignmentOf(row: AssignmentRecord): AssignmentRow {
     peerAnonymous: row.peer_anonymous,
     peerStartedAt: row.peer_started_at,
     peerReleasedAt: row.peer_released_at,
+    peerDueAt: row.peer_due_at,
+    peerRemindedAt: row.peer_reminded_at,
     language: row.language,
     translationTitle: row.translation_title,
     publishedAt: row.published_at,
@@ -245,6 +253,7 @@ export interface AssignmentFields {
   moduleId: string | null;
   peerReviews: number | null;
   peerAnonymous: boolean | null;
+  peerDueAt: string | null;
   language: ContentLocale | null;
   translationTitle: string | null;
 }
@@ -264,7 +273,7 @@ export async function insertAssignment(
       late_policy, late_deduction_percent, submission_format, max_files, resubmission, points, rubric,
       quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle, quiz_time_limit, quiz_practice, quiz_bands, category_id,
       grade_after_answers, discussion_post_first, discussion_replies, module_id, peer_reviews,
-      peer_anonymous, language, translation_title)
+      peer_anonymous, peer_due_at, language, translation_title)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
       ${input.classRow.classType}, ${input.classRow.schoolYearId}::uuid,
       ${input.gradingPeriodId}::uuid, ${input.authorUserId}::uuid, ${input.title},
@@ -275,8 +284,8 @@ export async function insertAssignment(
       ${input.quizShuffle}, ${input.quizTimeLimit}, ${input.quizPractice},
       ${JSON.stringify(input.quizBands)}::text::jsonb, ${input.categoryId}::uuid,
       ${input.gradeAfterAnswers}, ${input.discussionPostFirst}, ${input.discussionReplies},
-      ${input.moduleId}::uuid, ${input.peerReviews}, ${input.peerAnonymous}, ${input.language},
-      ${input.translationTitle})
+      ${input.moduleId}::uuid, ${input.peerReviews}, ${input.peerAnonymous}, ${input.peerDueAt}::timestamptz,
+      ${input.language}, ${input.translationTitle})
     returning id, version`);
   if (!row) throw new Error("assignment was not created");
   return row;
@@ -314,6 +323,10 @@ export async function updateAssignment(
         discussion_replies = ${input.discussionReplies},
         module_id = ${input.moduleId}::uuid,
         peer_reviews = ${input.peerReviews}, peer_anonymous = ${input.peerAnonymous},
+        peer_due_at = ${input.peerDueAt}::timestamptz,
+        -- A new review date earns its own reminder.
+        peer_reminded_at = case when peer_due_at is not distinct from ${input.peerDueAt}::timestamptz
+          then peer_reminded_at end,
         language = ${input.language}, translation_title = ${input.translationTitle}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active' and state <> 'archived'

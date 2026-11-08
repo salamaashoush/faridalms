@@ -143,6 +143,13 @@ export function noticeText(notice: Notice): { title: string; body: string } {
         body: [title, date ? formatDate(date) : ""].filter(Boolean).join(" · "),
       };
     case "reminder":
+      if (params.peerReview)
+        return {
+          title: m.ntfPeerDue(),
+          body: [title, date ? m.ntfDue({ date: formatDate(date) }) : ""]
+            .filter(Boolean)
+            .join(" · "),
+        };
       if (params.cover)
         return {
           title: (params.cancelled ? m.ntfCoverOff : m.ntfCover)({
@@ -230,6 +237,13 @@ export function noticeText(notice: Notice): { title: string; body: string } {
               .join(" · "),
           };
     case "assignment":
+      if (params.peerReview)
+        return {
+          title: m.ntfPeerHandedOut(),
+          body: [title, date ? m.ntfDue({ date: formatDate(date) }) : ""]
+            .filter(Boolean)
+            .join(" · "),
+        };
       return {
         title: params.studentName
           ? m.ntfAssignmentFor({
@@ -515,6 +529,17 @@ export function NoticeLink({
         </Link>
       );
     case "reminder":
+      if (notice.params.peerReview)
+        return (
+          <Link
+            {...rest}
+            to="/assignments/$assignmentId"
+            params={{ assignmentId: id }}
+            search={{ tab: "reviews" }}
+          >
+            {children}
+          </Link>
+        );
       if (notice.params.cover && notice.params.cancelled)
         return (
           <Link {...rest} to="/timetable">

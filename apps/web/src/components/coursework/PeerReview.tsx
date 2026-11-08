@@ -1,9 +1,11 @@
-import type { Rubric } from "@faridalms/domain/coursework";
+import type { PeerHelpfulness, Rubric } from "@faridalms/domain/coursework";
 
+import { PEER_HELPFULNESS } from "@faridalms/domain/coursework";
 import { Button } from "@faridalms/ui/button";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { FormField, SelectField } from "@faridalms/ui/system/form-field";
+import { Segmented } from "@faridalms/ui/system/panel";
 import {
   RecordEmpty,
   RecordList,
@@ -24,6 +26,7 @@ import * as m from "~/i18n/messages";
 import { myPeerReviewsQuery, peerOverviewQuery } from "~/queries/coursework";
 import {
   hidePeerReview,
+  ratePeerReview,
   releasePeerReviews,
   sendPeerReview,
   startPeerReview,
@@ -31,10 +34,22 @@ import {
 import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import type { PeerComment } from "./PeerPassages";
+
+import { PeerCommentList, PeerPassages } from "./PeerPassages";
+
+const HELPFULNESS_LABEL: Record<PeerHelpfulness, () => string> = {
+  very: m.peerHelpfulVery,
+  somewhat: m.peerHelpfulSomewhat,
+  not: m.peerHelpfulNot,
+};
+
 interface Written {
   rubricScores: Record<string, string>;
   strengths: string;
   suggestion: string;
+  comments?: PeerComment[];
+  helpfulness?: PeerHelpfulness | null;
 }
 
 interface ReviewTextProps {
@@ -42,7 +57,10 @@ interface ReviewTextProps {
   review: Written;
 }
 
-/** What a review said: the rubric's levels, then the two prompts. */
+/**
+ * What a review said: the rubric's levels, the two prompts, its comments on
+ * passages, and how helpful its author found it.
+ */
 function ReviewText({ rubric, review }: ReviewTextProps) {
   return (
     <div className="grid gap-3">
@@ -77,7 +95,45 @@ function ReviewText({ rubric, review }: ReviewTextProps) {
           </dd>
         </div>
       </dl>
+      <PeerCommentList comments={review.comments ?? []} />
+      {review.helpfulness ? (
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.peerRatedAs({
+            rating: HELPFULNESS_LABEL[review.helpfulness](),
+          })}
+        </p>
+      ) : null}
     </div>
+  );
+}
+
+interface RateReviewProps {
+  reviewId: string;
+  value: PeerHelpfulness | null;
+}
+
+/** The author says how helpful a classmate's review of their work was. */
+function RateReview({ reviewId, value }: RateReviewProps) {
+  const queryClient = useQueryClient();
+  const rate = useMutation({
+    mutationFn: (helpfulness: PeerHelpfulness) =>
+      ratePeerReview({ data: { reviewId, helpfulness } }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["coursework"] }),
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  return (
+    <Segmented<PeerHelpfulness | "">
+      label={m.peerHowHelpful()}
+      value={value ?? ""}
+      options={PEER_HELPFULNESS.map((rating) => ({
+        value: rating,
+        label: HELPFULNESS_LABEL[rating](),
+      }))}
+      onChange={(rating) => {
+        if (rating) rate.mutate(rating);
+      }}
+    />
   );
 }
 
@@ -161,6 +217,11 @@ export function PeerReviewPanel({ assignmentId }: PeerReviewPanelProps) {
           <p className="text-[13px] leading-[18px] text-muted-foreground">
             {data.releasedAt ? m.peerReleasedHint() : m.peerReleaseHint()}
           </p>
+          {data.dueAt && !data.releasedAt ? (
+            <p className="text-[13px] leading-[18px] text-muted-foreground">
+              {m.peerDueOn({ date: formatInstant(data.dueAt) })}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           {data.waiting > 0 ? (
@@ -499,10 +560,50 @@ function GiveItem({ assignmentId, data, review }: GiveItemProps) {
         <>
           <div className="grid gap-3 rounded-lg border p-4">
             {review.content ? (
-              <ContentView
+              <PeerPassages
+                reviewId={review.id}
                 document={review.content}
-                fileUrl={(id) => `/files/${id}`}
+                comments={review.comments}
+                editable={!data.released}
               />
+            ) : null}
+            {review.answers.length ? (
+              <ol className="grid gap-3">
+                {review.answers.map((answer) => (
+                  <li key={answer.blockId} className="grid gap-1">
+                    <p dir="auto" className="text-sm leading-5 font-medium">
+                      {answer.prompt}
+                    </p>
+                    <p
+                      dir="auto"
+                      className="text-sm leading-6 whitespace-pre-wrap"
+                    >
+                      {answer.text || m.peerAnswerNotTyped()}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+            {review.posts.length ? (
+              <ol className="grid divide-y">
+                {review.posts.map((post) => (
+                  <li
+                    key={post.id}
+                    className="grid gap-1 py-3 first:pt-0 last:pb-0"
+                  >
+                    <p className="text-[13px] leading-[18px] text-muted-foreground">
+                      {[
+                        post.reply ? m.peerPostReply() : m.peerPostAnswer(),
+                        formatInstant(post.createdAt),
+                      ].join(" · ")}
+                    </p>
+                    <ContentView
+                      document={post.content}
+                      fileUrl={(id) => `/files/${id}`}
+                    />
+                  </li>
+                ))}
+              </ol>
             ) : null}
             <FileList files={review.files} />
           </div>
@@ -542,7 +643,15 @@ export function PeerReviewWork({ assignmentId }: PeerReviewWorkProps) {
     : m.peerHowNamed({ count: data.reviews ?? 1 });
   return (
     <>
-      <RecordSection variant="page" title={m.peerSection()} description={how}>
+      <RecordSection
+        variant="page"
+        title={m.peerSection()}
+        description={
+          data.dueAt && !data.released
+            ? `${how} ${m.peerDueOn({ date: formatInstant(data.dueAt) })}`
+            : how
+        }
+      >
         {data.toGive.length === 0 ? (
           <RecordEmpty>
             {data.started ? m.peerNoneForYou() : m.peerNotYet()}
@@ -577,7 +686,11 @@ export function PeerReviewWork({ assignmentId }: PeerReviewWorkProps) {
                           })}
                     </bdi>
                   </h4>
-                  <ReviewText rubric={data.rubric} review={review} />
+                  <ReviewText
+                    rubric={data.rubric}
+                    review={{ ...review, helpfulness: null }}
+                  />
+                  <RateReview reviewId={review.id} value={review.helpfulness} />
                 </li>
               ))}
             </RecordList>

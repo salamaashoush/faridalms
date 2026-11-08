@@ -1,8 +1,12 @@
+import type { AssignmentRow } from "@faridalms/database/stores/coursework";
+import type { PeerReviewRow } from "@faridalms/database/stores/peer-reviews";
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { Rubric } from "@faridalms/domain/coursework";
+import type { CommentAnchor, Rubric } from "@faridalms/domain/coursework";
 
 import {
   assignmentById,
+  attemptById,
+  discussionPostsOf,
   isRecipient,
   namesOf,
   studentWork,
@@ -11,16 +15,28 @@ import { documentOf } from "@faridalms/database/stores/documents";
 import { filesOfHost } from "@faridalms/database/stores/files";
 import {
   hidePeerReview,
+  insertPeerComment,
   insertPeerReviews,
   markPeerReview,
+  peerCommentById,
+  peerCommentsOf,
   peerReviewById,
   peerReviewsOf,
+  ratePeerReview,
+  removePeerComment,
   sendPeerReview,
 } from "@faridalms/database/stores/peer-reviews";
+import { quizAnswersOf } from "@faridalms/database/stores/quizzes";
+import { withBlockIds, wordsAt } from "@faridalms/domain/content";
 import {
   hidePeerReviewSchema,
+  peerCommentSchema,
   peerReviewInputSchema,
+  ratePeerReviewSchema,
+  removePeerCommentSchema,
 } from "@faridalms/domain/coursework";
+import { quoteOf } from "@faridalms/domain/document-comments";
+import { checkBlocks, isTeacherMarked } from "@faridalms/domain/learning";
 import { allocateReviews } from "@faridalms/domain/peer-review";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
@@ -34,6 +50,8 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { teachingScope, tellReviewers } from "../core/teaching-notices";
+import { attemptQuizzes, publishedQuiz } from "../quizzes/quiz";
 
 const byAssignment = v.object({ assignmentId: v.pipe(v.string(), v.uuid()) });
 
@@ -77,9 +95,149 @@ const numbered = (reviews: Reviews, side: "reviewerId" | "authorId") => {
   );
 };
 
+/** The passage comments of these reviews, by review, each with the words it points at. */
+async function commentsByReview(
+  context: UnitContext,
+  reviews: readonly { id: string; attemptId: string }[],
+) {
+  const rows = await peerCommentsOf(context.tx, {
+    tenantId: context.tenantId,
+    reviewIds: reviews.map((review) => review.id),
+  });
+  const attempts = new Map(
+    reviews.map((review) => [review.id, review.attemptId]),
+  );
+  const works = new Map(
+    await Promise.all(
+      [...new Set(rows.map((row) => attempts.get(row.reviewId) ?? ""))].map(
+        async (attemptId) => {
+          const document = await documentOf(context.tx, context.tenantId, {
+            type: "submission_attempt",
+            id: attemptId,
+          });
+          const content = document?.content as ContentDocument | undefined;
+          return [attemptId, content ? withBlockIds(content) : null] as const;
+        },
+      ),
+    ),
+  );
+  return Map.groupBy(
+    rows.map((row) => {
+      const anchor = row.anchor as unknown as CommentAnchor;
+      const work = works.get(attempts.get(row.reviewId) ?? "");
+      return {
+        id: row.id,
+        reviewId: row.reviewId,
+        anchor,
+        words: work ? quoteOf(wordsAt(work, anchor)) : "",
+        body: row.body,
+      };
+    }),
+    (row) => row.reviewId,
+  );
+}
+
+/**
+ * What a reviewer reads of a classmate's work: the page and files they
+ * handed in, a quiz's answers only a teacher can mark, or what they posted
+ * in a discussion, hidden posts left out.
+ */
+async function workUnderReview(
+  context: UnitContext,
+  assignment: AssignmentRow,
+  review: PeerReviewRow,
+) {
+  const none = {
+    content: null as ContentDocument | null,
+    files: [] as {
+      id: string;
+      name: string;
+      mediaType: string;
+      sizeBytes: number;
+    }[],
+    answers: [] as { blockId: string; prompt: string; text: string }[],
+    posts: [] as {
+      id: string;
+      reply: boolean;
+      content: ContentDocument;
+      createdAt: string;
+    }[],
+  };
+  if (assignment.submissionFormat === "quiz") {
+    const [attempt, document] = await Promise.all([
+      attemptById(context.tx, context.tenantId, review.attemptId),
+      publishedQuiz(context, assignment.id),
+    ]);
+    if (!attempt || !document) return none;
+    const [quizzes, answers] = await Promise.all([
+      attemptQuizzes(context, document, attempt.submissionId),
+      quizAnswersOf(context.tx, {
+        tenantId: context.tenantId,
+        submissionId: attempt.submissionId,
+        attempt: attempt.number,
+      }),
+    ]);
+    return {
+      ...none,
+      answers: checkBlocks(quizzes.of(attempt.number))
+        .filter(isTeacherMarked)
+        .map((block) => {
+          const response = answers.find(
+            (answer) => answer.blockId === block.id,
+          )?.response;
+          return {
+            blockId: block.id,
+            prompt: block.prompt,
+            text: typeof response?.text === "string" ? response.text : "",
+          };
+        }),
+    };
+  }
+  if (assignment.submissionFormat === "discussion") {
+    const posts = await discussionPostsOf(context.tx, {
+      tenantId: context.tenantId,
+      assignmentId: assignment.id,
+    });
+    return {
+      ...none,
+      posts: posts
+        .filter(
+          (post) =>
+            post.authorUserId === review.authorId &&
+            !post.hidden &&
+            !post.redacted,
+        )
+        .map((post) => ({
+          id: post.id,
+          reply: post.parentPostId !== null,
+          content: post.content as unknown as ContentDocument,
+          createdAt: post.createdAt,
+        })),
+    };
+  }
+  const host = { type: "submission_attempt", id: review.attemptId };
+  const [document, files] = await Promise.all([
+    documentOf(context.tx, context.tenantId, host),
+    filesOfHost(context.tx, context.tenantId, host),
+  ]);
+  return {
+    ...none,
+    content: document?.content
+      ? withBlockIds(document.content as unknown as ContentDocument)
+      : null,
+    files: files.map((file) => ({
+      id: file.id,
+      name: file.name,
+      mediaType: file.mediaType,
+      sizeBytes: file.sizeBytes,
+    })),
+  };
+}
+
 /**
  * Peer review of an assignment as its teacher runs it: who reviews whom,
- * what each wrote, and how much handed-in work waits to join.
+ * what each wrote and how helpful its author found it, and how much
+ * handed-in work waits to join.
  */
 export const overview = readProcedure
   .input(byAssignment)
@@ -95,14 +253,18 @@ export const overview = readProcedure
     const placed = new Set(
       reviews.flatMap((review) => [review.reviewerId, review.authorId]),
     );
-    const students = await namesOf(context.tx, context.tenantId, [
-      ...new Set([...placed, ...work.map((row) => row.studentId)]),
+    const [students, comments] = await Promise.all([
+      namesOf(context.tx, context.tenantId, [
+        ...new Set([...placed, ...work.map((row) => row.studentId)]),
+      ]),
+      commentsByReview(context, reviews),
     ]);
     return {
       reviews: assignment.peerReviews,
       anonymous: assignment.peerAnonymous ?? true,
       startedAt: assignment.peerStartedAt,
       releasedAt: assignment.peerReleasedAt,
+      dueAt: assignment.peerDueAt,
       rubric: assignment.rubric as unknown as Rubric | null,
       handedIn: work.length,
       waiting: work.filter((row) => !placed.has(row.studentId)).length,
@@ -116,13 +278,15 @@ export const overview = readProcedure
         suggestion: review.suggestion,
         sentAt: review.sentAt,
         hidden: review.hiddenAt !== null,
+        helpfulness: review.helpfulness,
+        comments: comments.get(review.id) ?? [],
       })),
     };
   });
 
 /**
  * Hands reviews out among the students whose work is in, or brings work
- * handed in since into the review.
+ * handed in since into the review, and tells each reviewer given work.
  */
 export const start = writeProcedure
   .input(byAssignment)
@@ -161,6 +325,12 @@ export const start = writeProcedure
       assignmentId: assignment.id,
       stage: "started",
     });
+    await tellReviewers(
+      teachingScope(context),
+      assignment,
+      [...new Set(added.map((pair) => pair.reviewerId))],
+      "assignment",
+    );
     await audit(context, {
       action: "peer_review.start",
       objectType: "assignment",
@@ -245,8 +415,9 @@ async function learnerReviewed(context: UnitContext, assignmentId: string) {
 
 /**
  * Peer review as a student meets it: the classmates' work they were given
- * to review, with what they wrote, and, once released, what classmates
- * wrote of theirs. Anonymous, each side goes by a number.
+ * to review, with what they wrote and the passages they commented on, and,
+ * once released, what classmates wrote of theirs. Anonymous, each side
+ * goes by a number.
  */
 export const mine = readProcedure
   .input(byAssignment)
@@ -267,16 +438,16 @@ export const mine = readProcedure
             review.hiddenAt === null,
         )
       : [];
-    const names = new Map(
+    const [named, comments] = await Promise.all([
       anonymous
         ? []
-        : (
-            await namesOf(context.tx, context.tenantId, [
-              ...toGive.map((review) => review.authorId),
-              ...received.map((review) => review.reviewerId),
-            ])
-          ).map((row) => [row.id, row]),
-    );
+        : namesOf(context.tx, context.tenantId, [
+            ...toGive.map((review) => review.authorId),
+            ...received.map((review) => review.reviewerId),
+          ]),
+      commentsByReview(context, [...toGive, ...received]),
+    ]);
+    const names = new Map(named.map((row) => [row.id, row]));
     const works = numbered(reviews, "reviewerId");
     const reviewers = numbered(reviews, "authorId");
     return {
@@ -284,32 +455,21 @@ export const mine = readProcedure
       reviews: assignment.peerReviews,
       started: assignment.peerStartedAt !== null,
       released: assignment.peerReleasedAt !== null,
+      dueAt: assignment.peerDueAt,
       rubric: assignment.rubric as unknown as Rubric | null,
       toGive: await Promise.all(
-        toGive.map(async (review) => {
-          const host = { type: "submission_attempt", id: review.attemptId };
-          const [document, files] = await Promise.all([
-            documentOf(context.tx, context.tenantId, host),
-            filesOfHost(context.tx, context.tenantId, host),
-          ]);
-          const content = (document?.content ?? null) as ContentDocument | null;
-          return {
-            id: review.id,
-            number: works.get(review.id) ?? 0,
-            author: names.get(review.authorId) ?? null,
-            content,
-            files: files.map((file) => ({
-              id: file.id,
-              name: file.name,
-              mediaType: file.mediaType,
-              sizeBytes: file.sizeBytes,
-            })),
-            rubricScores: review.rubricScores,
-            strengths: review.strengths,
-            suggestion: review.suggestion,
-            sentAt: review.sentAt,
-          };
-        }),
+        toGive.map(async (review) => ({
+          id: review.id,
+          number: works.get(review.id) ?? 0,
+          author: names.get(review.authorId) ?? null,
+          ...(await workUnderReview(context, assignment, review)),
+          comments: comments.get(review.id) ?? [],
+          rubricScores: review.rubricScores,
+          strengths: review.strengths,
+          suggestion: review.suggestion,
+          sentAt: review.sentAt,
+          helpfulness: review.helpfulness,
+        })),
       ),
       received: received.map((review) => ({
         id: review.id,
@@ -318,9 +478,24 @@ export const mine = readProcedure
         rubricScores: review.rubricScores,
         strengths: review.strengths,
         suggestion: review.suggestion,
+        comments: comments.get(review.id) ?? [],
+        helpfulness: review.helpfulness,
       })),
     };
   });
+
+/** A review the student was given to write, while the reviews are not yet released. */
+async function ownReview(context: UnitContext, reviewId: string) {
+  requireCapability(context, "own-work:submit");
+  const review = await peerReviewById(context.tx, context.tenantId, reviewId);
+  if (!review || review.reviewerId !== context.actor.userId)
+    throw new ORPCError("NOT_FOUND");
+  const assignment = await learnerReviewed(context, review.assignmentId);
+  await requireOpenYear(context, assignment.schoolYearId);
+  if (assignment.peerReleasedAt)
+    throw new ORPCError("CONFLICT", { message: "coursework.peer_released" });
+  return { review, assignment };
+}
 
 /**
  * A student sends their review of a classmate's work: a level for each
@@ -330,18 +505,7 @@ export const mine = readProcedure
 export const send = writeProcedure
   .input(peerReviewInputSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "own-work:submit");
-    const review = await peerReviewById(
-      context.tx,
-      context.tenantId,
-      input.reviewId,
-    );
-    if (!review || review.reviewerId !== context.actor.userId)
-      throw new ORPCError("NOT_FOUND");
-    const assignment = await learnerReviewed(context, review.assignmentId);
-    await requireOpenYear(context, assignment.schoolYearId);
-    if (assignment.peerReleasedAt)
-      throw new ORPCError("CONFLICT", { message: "coursework.peer_released" });
+    const { review, assignment } = await ownReview(context, input.reviewId);
     const rubric = assignment.rubric as unknown as Rubric | null;
     const scored = Object.entries(input.rubricScores);
     if (
@@ -370,4 +534,69 @@ export const send = writeProcedure
       details: { reviewId: review.id },
     });
     return {};
+  });
+
+/**
+ * A reviewer comments on a passage of the classmate's page they review,
+ * anchored as a teacher's comment is; the author reads it with the review.
+ */
+export const comment = writeProcedure
+  .input(peerCommentSchema)
+  .handler(async ({ input, context }) => {
+    const { review, assignment } = await ownReview(context, input.reviewId);
+    const work = await workUnderReview(context, assignment, review);
+    if (!work.content)
+      throw new ORPCError("BAD_REQUEST", {
+        message: "coursework.peer_no_passage",
+      });
+    return insertPeerComment(context.tx, {
+      tenantId: context.tenantId,
+      reviewId: review.id,
+      anchor: input.anchor,
+      body: input.body,
+    });
+  });
+
+/** A reviewer takes back one of their passage comments before the release. */
+export const uncomment = writeProcedure
+  .input(removePeerCommentSchema)
+  .handler(async ({ input, context }) => {
+    const found = await peerCommentById(context.tx, context.tenantId, input.id);
+    if (!found) throw new ORPCError("NOT_FOUND");
+    await ownReview(context, found.reviewId);
+    await removePeerComment(context.tx, {
+      tenantId: context.tenantId,
+      id: found.id,
+    });
+    return {};
+  });
+
+/**
+ * The author says how helpful a classmate's review of their work was, once
+ * it is theirs to read; the teacher reads it beside the review.
+ */
+export const rate = writeProcedure
+  .input(ratePeerReviewSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "own-work:read");
+    const review = await peerReviewById(
+      context.tx,
+      context.tenantId,
+      input.reviewId,
+    );
+    if (
+      !review ||
+      review.authorId !== context.actor.userId ||
+      review.sentAt === null ||
+      review.hiddenAt !== null
+    )
+      throw new ORPCError("NOT_FOUND");
+    const assignment = await learnerReviewed(context, review.assignmentId);
+    if (!assignment.peerReleasedAt) throw new ORPCError("NOT_FOUND");
+    await ratePeerReview(context.tx, {
+      tenantId: context.tenantId,
+      id: review.id,
+      helpfulness: input.helpfulness,
+    });
+    return { helpfulness: input.helpfulness };
   });

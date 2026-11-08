@@ -1,8 +1,9 @@
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
+import type { PeerHelpfulness } from "../tables/coursework";
 
-import { isoOf } from "./sql";
+import { isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -18,6 +19,7 @@ export interface PeerReviewRow {
   suggestion: string;
   sentAt: string | null;
   hiddenAt: string | null;
+  helpfulness: PeerHelpfulness | null;
 }
 
 type PeerReviewRecord = {
@@ -32,6 +34,7 @@ type PeerReviewRecord = {
   suggestion: string;
   sent_at: string | null;
   hidden_at: string | null;
+  helpfulness: PeerHelpfulness | null;
 };
 
 const reviewOf = (row: PeerReviewRecord): PeerReviewRow => ({
@@ -46,11 +49,12 @@ const reviewOf = (row: PeerReviewRecord): PeerReviewRow => ({
   suggestion: row.suggestion,
   sentAt: row.sent_at,
   hiddenAt: row.hidden_at,
+  helpfulness: row.helpfulness,
 });
 
 const reviewColumns = sql`id, version, assignment_id, attempt_id, author_user_id, reviewer_user_id,
   rubric_scores, strengths, suggestion, ${isoOf(sql`sent_at`)} as sent_at,
-  ${isoOf(sql`hidden_at`)} as hidden_at`;
+  ${isoOf(sql`hidden_at`)} as hidden_at, helpfulness`;
 
 /**
  * An assignment's reviews in the order they were handed out, so each
@@ -192,4 +196,145 @@ export async function attemptUnderReview(
         and status = 'active'
     ) as found`);
   return row?.found ?? false;
+}
+
+/** An author says how helpful a review of their work was, or changes it. */
+export async function ratePeerReview(
+  tx: Tx,
+  input: { tenantId: string; id: string; helpfulness: PeerHelpfulness },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.peer_reviews set helpfulness = ${input.helpfulness}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and status = 'active'`);
+}
+
+export interface PeerCommentRow {
+  id: string;
+  reviewId: string;
+  anchor: Record<string, unknown>;
+  body: string;
+  createdAt: string;
+}
+
+/** The passage comments of these reviews, in the order they were written. */
+export async function peerCommentsOf(
+  tx: Tx,
+  input: { tenantId: string; reviewIds: readonly string[] },
+): Promise<PeerCommentRow[]> {
+  if (input.reviewIds.length === 0) return [];
+  const rows = await tx.execute<{
+    id: string;
+    review_id: string;
+    anchor: Record<string, unknown>;
+    body: string;
+    created_at: string;
+  }>(sql`
+    select id, review_id, anchor, body, ${isoOf(sql`created_at`)} as created_at
+    from core.peer_review_comments
+    where tenant_id = ${input.tenantId}::uuid and review_id = any(${uuidArray(input.reviewIds)})
+      and status = 'active'
+    order by created_at, id`);
+  return rows.map((row) => ({
+    id: row.id,
+    reviewId: row.review_id,
+    anchor: row.anchor,
+    body: row.body,
+    createdAt: row.created_at,
+  }));
+}
+
+export async function insertPeerComment(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    reviewId: string;
+    anchor: Record<string, unknown>;
+    body: string;
+  },
+): Promise<{ id: string }> {
+  const [row] = await tx.execute<{ id: string }>(sql`
+    insert into core.peer_review_comments (tenant_id, review_id, anchor, body)
+    values (${input.tenantId}::uuid, ${input.reviewId}::uuid,
+      ${JSON.stringify(input.anchor)}::text::jsonb, ${input.body})
+    returning id`);
+  if (!row) throw new Error("the comment was not kept");
+  return row;
+}
+
+export async function peerCommentById(
+  tx: Tx,
+  tenantId: string,
+  id: string,
+): Promise<{ id: string; reviewId: string } | null> {
+  const [row] = await tx.execute<{ id: string; review_id: string }>(sql`
+    select id, review_id from core.peer_review_comments
+    where tenant_id = ${tenantId}::uuid and id = ${id}::uuid and status = 'active'`);
+  return row ? { id: row.id, reviewId: row.review_id } : null;
+}
+
+export async function removePeerComment(
+  tx: Tx,
+  input: { tenantId: string; id: string },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.peer_review_comments set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and status = 'active'`);
+}
+
+export interface DueReviewRow {
+  id: string;
+  orgId: string;
+  title: string;
+  peerDueAt: string;
+  /** Those given work to review who have not yet sent every review. */
+  reviewerIds: string[];
+}
+
+/**
+ * Assignments whose reviews fall due within the hours given and whose
+ * reviewers have not been reminded, claimed so two replicas never remind
+ * twice.
+ */
+export async function peerReviewsDueSoon(
+  tx: Tx,
+  input: { tenantId: string; now: Date; withinHours: number; limit: number },
+): Promise<DueReviewRow[]> {
+  const now = input.now.toISOString();
+  const rows = await tx.execute<{
+    id: string;
+    org_id: string;
+    title: string;
+    peer_due_at: string;
+    reviewer_ids: string[] | null;
+  }>(sql`
+    select a.id, a.org_id, a.title, ${isoOf(sql`a.peer_due_at`)} as peer_due_at,
+      (select array_agg(distinct r.reviewer_user_id) from core.peer_reviews r
+        where r.tenant_id = a.tenant_id and r.assignment_id = a.id and r.status = 'active'
+          and r.sent_at is null) as reviewer_ids
+    from core.assignments a
+    where a.tenant_id = ${input.tenantId}::uuid and a.status = 'active' and a.state = 'published'
+      and a.peer_started_at is not null and a.peer_released_at is null
+      and a.peer_reminded_at is null
+      and a.peer_due_at > ${now}::timestamptz
+      and a.peer_due_at <= ${now}::timestamptz + make_interval(hours => ${input.withinHours})
+    order by a.peer_due_at
+    limit ${input.limit}
+    for update of a skip locked`);
+  return rows.map((row) => ({
+    id: row.id,
+    orgId: row.org_id,
+    title: row.title,
+    peerDueAt: row.peer_due_at,
+    reviewerIds: row.reviewer_ids ?? [],
+  }));
+}
+
+/** Marks an assignment's reviewers reminded of its review date. */
+export async function markPeerReminded(
+  tx: Tx,
+  input: { tenantId: string; assignmentId: string },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.assignments set peer_reminded_at = statement_timestamp()
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.assignmentId}::uuid`);
 }

@@ -58,12 +58,18 @@ export type DiscussionSettings = v.InferOutput<typeof discussionSchema>;
 
 export const MAX_PEER_REVIEWS = 5;
 export const MAX_PEER_COMMENT = 2000;
-/** The formats whose handed-in work classmates can read and review. */
+/**
+ * The formats whose handed-in work classmates can read and review: written
+ * work and files, a quiz's answers its teacher marks, and a discussion's
+ * posts.
+ */
 export const PEER_FORMATS: readonly SubmissionFormat[] = [
   "online",
   "files",
   "both",
   "online_and_files",
+  "quiz",
+  "discussion",
 ];
 
 /**
@@ -80,6 +86,11 @@ export const peerReviewSchema = v.object({
     v.maxValue(MAX_PEER_REVIEWS),
   ),
   anonymous: v.boolean(),
+  /** When the reviews are due; reviewers still writing are reminded the day before. */
+  dueAt: v.optional(
+    v.union([v.literal(""), v.pipe(v.string(), v.isoTimestamp())]),
+    "",
+  ),
 });
 export type PeerReviewSettings = v.InferOutput<typeof peerReviewSchema>;
 
@@ -310,6 +321,7 @@ export type AssignmentIssue =
   | "coursework.quiz_needed"
   | "coursework.discussion_needed"
   | "coursework.peer_format"
+  | "coursework.peer_due_early"
   | "coursework.unreviewed"
   | "coursework.quiz_questions"
   | "coursework.quiz_incomplete"
@@ -361,6 +373,11 @@ export function assignmentIssue(input: SaveAssignment): AssignmentIssue | null {
     return "coursework.discussion_needed";
   if (input.peer && !PEER_FORMATS.includes(input.submissionFormat))
     return "coursework.peer_format";
+  // Reviews follow the work they review.
+  const reviewsDue = instantOf(input.peer?.dueAt ?? "");
+  const workDue = instantOf(input.dueAt);
+  if (reviewsDue !== null && workDue !== null && reviewsDue < workDue)
+    return "coursework.peer_due_early";
   if (input.quiz) {
     if (input.rubric) return "coursework.quiz_rubric";
     if (input.brief.root.children?.some((node) => node.type === "gate"))
@@ -606,6 +623,24 @@ export const hidePeerReviewSchema = v.object({
   reviewId: id,
   hidden: v.boolean(),
 });
+
+/** How helpful an author found a classmate's review of their work. */
+export const PEER_HELPFULNESS = ["very", "somewhat", "not"] as const;
+export type PeerHelpfulness = (typeof PEER_HELPFULNESS)[number];
+
+export const ratePeerReviewSchema = v.object({
+  reviewId: id,
+  helpfulness: v.picklist(PEER_HELPFULNESS),
+});
+
+/** A reviewer's comment on a passage of the work they review. */
+export const peerCommentSchema = v.object({
+  reviewId: id,
+  anchor: anchorSchema,
+  body: peerComment,
+});
+
+export const removePeerCommentSchema = v.object({ id });
 
 /**
  * A comment's passage in handed-in work. Handed-in work never changes, so

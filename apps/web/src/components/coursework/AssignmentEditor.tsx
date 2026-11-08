@@ -127,7 +127,8 @@ interface Draft {
   quiz: QuizDraft;
   /** The module it stands in, empty for none. */
   discussion: { postFirst: boolean; replies: string; moduleId: string };
-  peer: { on: boolean; reviews: string; anonymous: boolean };
+  /** The review date as the date field holds it, empty for none. */
+  peer: { on: boolean; reviews: string; anonymous: boolean; dueAt: string };
   language: ContentLocale | "auto";
   /** The brief in the other language: its title, empty for the original's, and its words. */
   translation: { title: string; content: ContentDocument } | null;
@@ -193,7 +194,7 @@ const PEER_COUNTS = Array.from({ length: MAX_PEER_REVIEWS }, (_, index) =>
   String(index + 1),
 );
 
-const NO_PEER = { on: false, reviews: "2", anonymous: true };
+const NO_PEER = { on: false, reviews: "2", anonymous: true, dueAt: "" };
 
 const ATTEMPTS = [
   "unlimited",
@@ -346,6 +347,7 @@ function initialDraft(
           on: true,
           reviews: String(existing.peer.reviews),
           anonymous: existing.peer.anonymous,
+          dueAt: localInput(existing.peer.dueAt || null),
         }
       : NO_PEER,
     language: existing.language ?? "auto",
@@ -627,6 +629,7 @@ export function AssignmentEditor({
             ? {
                 reviews: Number(value.peer.reviews),
                 anonymous: value.peer.anonymous,
+                dueAt: instantFromLocal(value.peer.dueAt),
               }
             : null,
         language: value.language === "auto" ? null : value.language,
@@ -1523,6 +1526,21 @@ export function AssignmentEditor({
                       checked={draft.peer.anonymous}
                       onChange={(anonymous) =>
                         set("peer", { ...draft.peer, anonymous })
+                      }
+                    />
+                    <TextField
+                      id="peer-due"
+                      label={m.peerDue()}
+                      hint={m.peerDueHint()}
+                      optional
+                      type="datetime-local"
+                      min={draft.dueAt || undefined}
+                      value={draft.peer.dueAt}
+                      onChange={(event) =>
+                        set("peer", {
+                          ...draft.peer,
+                          dueAt: event.target.value,
+                        })
                       }
                     />
                   </>

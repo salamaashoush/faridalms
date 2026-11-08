@@ -714,9 +714,14 @@ export const editor = readProcedure
 const peerSettingsOf = (assignment: {
   peerReviews: number | null;
   peerAnonymous: boolean | null;
+  peerDueAt: string | null;
 }) =>
   assignment.peerReviews !== null && assignment.peerAnonymous !== null
-    ? { reviews: assignment.peerReviews, anonymous: assignment.peerAnonymous }
+    ? {
+        reviews: assignment.peerReviews,
+        anonymous: assignment.peerAnonymous,
+        dueAt: assignment.peerDueAt ?? "",
+      }
     : null;
 
 function fieldsOf(input: SaveAssignment) {
@@ -751,6 +756,7 @@ function fieldsOf(input: SaveAssignment) {
     moduleId: input.discussion?.moduleId || null,
     peerReviews: input.peer?.reviews ?? null,
     peerAnonymous: input.peer?.anonymous ?? null,
+    peerDueAt: input.peer?.dueAt || null,
   };
 }
 
@@ -833,6 +839,7 @@ export const reuse = writeProcedure
           : null,
       peerReviews: source.peerReviews,
       peerAnonymous: source.peerAnonymous,
+      peerDueAt: null,
       language: source.language,
       translationTitle: source.translationTitle,
     });

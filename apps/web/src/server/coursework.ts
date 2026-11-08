@@ -6,7 +6,10 @@ import {
   hideDiscussionPostSchema,
   likeDiscussionPostSchema,
   hidePeerReviewSchema,
+  peerCommentSchema,
   peerReviewInputSchema,
+  ratePeerReviewSchema,
+  removePeerCommentSchema,
   extendSchema,
   feedbackRecordingSchema,
   handInSchema,
@@ -301,6 +304,18 @@ export const getMyPeerReviews = createServerFn({ method: "GET" })
 export const sendPeerReview = createServerFn({ method: "POST" })
   .validator(checked(peerReviewInputSchema))
   .handler(({ data }) => backend().peer.send(data));
+
+export const commentInPeerReview = createServerFn({ method: "POST" })
+  .validator(checked(peerCommentSchema))
+  .handler(({ data }) => backend().peer.comment(data));
+
+export const removePeerComment = createServerFn({ method: "POST" })
+  .validator(checked(removePeerCommentSchema))
+  .handler(({ data }) => backend().peer.uncomment(data));
+
+export const ratePeerReview = createServerFn({ method: "POST" })
+  .validator(checked(ratePeerReviewSchema))
+  .handler(({ data }) => backend().peer.rate(data));
 
 export const reviewBriefTranslation = createServerFn({ method: "POST" })
   .validator(checked(reviewTranslationSchema))

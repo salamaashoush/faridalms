@@ -16,6 +16,7 @@ import { startAdmissionsClock } from "./core/admissions-clock";
 import { createKeyRing } from "./core/keys";
 import { createLoginIndex, startLoginIndex } from "./core/login-index";
 import { startPartitionUpkeep } from "./core/partitions";
+import { startPeerReviewClock } from "./core/peer-clock";
 import { startPublicationClock } from "./core/publication";
 import { turnstileFrom } from "./core/turnstile";
 import { env } from "./env";
@@ -289,6 +290,20 @@ const stopPublicationClock = env.CELL_WORKER_URL
     })
   : null;
 
+// Reviewers still writing hear of a review date the day before it.
+const stopPeerReviewClock = env.CELL_WORKER_URL
+  ? startPeerReviewClock({
+      cell,
+      directory,
+      cellId: env.CELL_ID,
+      channels: {
+        email: gateways.email !== null,
+        sms: Boolean(env.SMS_WEBHOOK_URL),
+      },
+      intervalMs: 5 * 60_000,
+    })
+  : null;
+
 const stopQuizClock = env.CELL_WORKER_URL
   ? startQuizClock({
       cell,
@@ -336,6 +351,7 @@ async function shutdown() {
   await stopQuizClock?.();
   await stopPublicationClock?.();
   await stopAdmissionsClock?.();
+  await stopPeerReviewClock?.();
   await stopPartitions?.();
   await stopProgramReruns?.();
   await stopHostChecks?.();

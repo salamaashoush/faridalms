@@ -195,3 +195,29 @@ export async function tellPeriodGrades(
     },
   });
 }
+
+/**
+ * Tells reviewers of a classmate's work to review, as reviews are handed
+ * out, or reminds those still writing that the reviews are due. Only the
+ * students hear: reviewing is between classmates.
+ */
+export async function tellReviewers(
+  scope: NoticeScope,
+  assignment: Assignment & { peerDueAt: string | null },
+  reviewerIds: readonly string[],
+  kind: "assignment" | "reminder",
+): Promise<number> {
+  if (reviewerIds.length === 0) return 0;
+  const zone = await schoolZone(scope.tx, scope.schoolId);
+  return notifyIn(scope, reviewerIds, {
+    kind,
+    subject: { type: "assignment", id: assignment.id },
+    params: {
+      ...titlesOf(assignment),
+      peerReview: true,
+      ...(assignment.peerDueAt
+        ? { date: schoolDate(zone, new Date(assignment.peerDueAt)) }
+        : {}),
+    },
+  });
+}

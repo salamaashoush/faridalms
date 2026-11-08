@@ -74,6 +74,8 @@ export interface NoticeParams {
   until?: string;
   /** Work sent back for the student to revise, rather than returned marked. */
   revise?: boolean;
+  /** Classmates' work handed out to review, or a reminder that the reviews are due. */
+  peerReview?: boolean;
   /** A grade held back while its comments waited for answers, now shown. */
   gradeShown?: boolean;
   /** A tour, assessment or interview the reader attends: when, where, and for which application. */

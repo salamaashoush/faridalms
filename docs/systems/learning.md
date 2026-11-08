@@ -300,6 +300,23 @@ From [../research/early-years.md](../research/early-years.md).
   back; nobody likes their own, and a hidden post takes no likes. Students
   see how many like a post; its teacher also sees who.
 
+## Peer review
+
+- Written work, files, a quiz and a discussion can be set for peer review.
+  A quiz's reviewer reads the classmate's answers to the questions only a
+  teacher marks (typed words; a spoken or drawn answer says so); a
+  discussion's reviewer reads the classmate's posts, hidden ones left out.
+- Reviews may have a date of their own, no earlier than the work's due
+  date. Handing reviews out tells each reviewer, with the date, and the
+  worker reminds those who have not sent every review once, within the
+  day before it. A new date earns a new reminder.
+- On written work a reviewer selects words and comments on them, anchored
+  as a teacher's comment is, until the reviews are released. The author
+  reads each comment with the words it is on, and the teacher reads them
+  with the review.
+- An author says how helpful each review of their work was: very,
+  somewhat or not. The teacher sees it beside the review.
+
 ## Next
 
 What lessons, quizzes and the editor still lack, and the order of work, is
