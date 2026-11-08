@@ -1,0 +1,2 @@
+CREATE INDEX "xapi_statements_sent_idx" ON "core"."xapi_statements" ("tenant_id","sent_at") WHERE state = 'sent';--> statement-breakpoint
+CREATE POLICY "p_delete" ON "core"."xapi_statements" AS PERMISSIVE FOR DELETE TO "retention" USING (state = 'sent' and sent_at < statement_timestamp() - interval '30 days');

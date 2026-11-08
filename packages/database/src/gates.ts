@@ -84,7 +84,7 @@ union all
 select name, p.polname || ' lets retention change rows without an erasure approval' from t
   join pg_policy p on p.polrelid = t.oid
   where p.polcmd in ('w', 'd') and p.polroles @> array[(select oid from pg_roles where rolname = 'retention')]
-    and name not in ('core.tenant_keys', 'core.auth_attempts', 'core.lti_replays')
+    and name not in ('core.tenant_keys', 'core.auth_attempts', 'core.lti_replays', 'core.xapi_statements')
     and coalesce(pg_get_expr(p.polqual, p.polrelid), '') not like '%erasure_%'
 union all
 select name, 'names an outside contact without an erasure rule' from t

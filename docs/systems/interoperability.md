@@ -87,8 +87,11 @@ store refuses for its content goes again one statement at a time by
 `PUT ?statementId=`; `409` counts as sent; any other `4xx` leaves the
 statement failed with the store's status; anything else is retried on
 the delivery backoff (one minute to half a day, five tries). A sent row
-keeps its id and time without its body. Failed statements are sent again
-from settings. A student's statements go when they are erased.
+keeps its id and time without its body for 30 days
+(`SENT_STATEMENT_DAYS`), then a pass on the files sweep's timer deletes
+it as `retention`, whose policy on the table refuses any sent more
+lately. Failed statements are sent again from settings. A student's
+statements go when they are erased.
 
 ## Course packages (cmi5)
 

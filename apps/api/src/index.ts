@@ -334,6 +334,7 @@ const stopStatements = env.CELL_WORKER_URL
       cellId: env.CELL_ID,
       cellSecret,
       intervalMs: 15_000,
+      purgeMs: env.FILE_SWEEP_MS,
     })
   : null;
 

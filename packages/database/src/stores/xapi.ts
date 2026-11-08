@@ -254,3 +254,24 @@ export async function retryFailed(
     returning 1`);
   return rows.length;
 }
+
+/**
+ * Deletes, as retention, statements the school's store took before a day,
+ * a batch at a time; the table's policy refuses any sent more lately than
+ * its window.
+ */
+export async function purgeSentStatements(
+  tx: Tx,
+  input: { tenantId: string; sentBefore: Date; limit: number },
+): Promise<number> {
+  const rows = await tx.execute(sql`
+    delete from core.xapi_statements
+    where tenant_id = ${input.tenantId}::uuid and id in (
+      select id from core.xapi_statements
+      where tenant_id = ${input.tenantId}::uuid and state = 'sent'
+        and sent_at < ${input.sentBefore.toISOString()}::timestamptz
+      order by sent_at
+      limit ${input.limit})
+    returning 1`);
+  return rows.length;
+}

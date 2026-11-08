@@ -15,6 +15,7 @@ import {
   baseConstraints,
   ck,
   core,
+  deleteExpired,
   entityColumns,
   entityProfile,
   eraseAndDelete,
@@ -71,9 +72,9 @@ export type XapiSendState = "queued" | "sending" | "sent" | "failed";
 /**
  * A statement waiting to go to a school's record store, or gone: queued as
  * the learning happens, taken by the sender for a while, and kept once sent
- * without its body. One the store refused, or that kept failing, stays
- * failed with the store's reason. A student's statements go when they are
- * erased.
+ * without its body until the purge deletes it. One the store refused, or
+ * that kept failing, stays failed with the store's reason. A student's
+ * statements go when they are erased.
  */
 export const xapiStatements = core.table.withRLS(
   "xapi_statements",
@@ -132,7 +133,14 @@ export const xapiStatements = core.table.withRLS(
       .on(t.tenantId, t.dueAt)
       .where(sql`status = 'active' and state in ('queued', 'sending')`),
     index("xapi_statements_student_idx").on(t.tenantId, t.studentUserId),
+    index("xapi_statements_sent_idx")
+      .on(t.tenantId, t.sentAt)
+      .where(sql`state = 'sent'`),
     ...entityProfile(),
     ...eraseAndDelete(erasureOf("student_user_id")),
+    // SENT_STATEMENT_DAYS in the domain; the store never asks for less.
+    ...deleteExpired(
+      sql`state = 'sent' and sent_at < statement_timestamp() - interval '30 days'`,
+    ),
   ],
 );

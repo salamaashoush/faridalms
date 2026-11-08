@@ -4,15 +4,17 @@ import type { ClaimedStatement } from "@faridalms/database/stores/xapi";
 
 import {
   claimStatements,
+  purgeSentStatements,
   recordStoreOf,
   settleStatements,
 } from "@faridalms/database/stores/xapi";
 import { retryDelayMs } from "@faridalms/domain/notifications";
-import { XAPI_VERSION } from "@faridalms/domain/xapi";
+import { SENT_STATEMENT_DAYS, XAPI_VERSION } from "@faridalms/domain/xapi";
 
 import type { Resolve } from "../files/fetch-link";
 
 import { LinkError, publicTarget } from "../files/fetch-link";
+import { everyTenant } from "../files/upkeep";
 import { recordStoreSecrets } from "./statements";
 
 /** How many statements one pass takes for a tenant, and how long it holds them. */
@@ -245,9 +247,30 @@ export async function sendTenantStatements(
 }
 
 /**
+ * Deletes one tenant's statements sent longer ago than the window, so the
+ * queue keeps only what is waiting, failed or lately gone.
+ */
+export async function purgeTenantStatements(
+  cell: Cell,
+  tenantId: string,
+  now: Date,
+  limit = 1000,
+): Promise<number> {
+  return cell.withRetention(asWorker(tenantId), (tx) =>
+    purgeSentStatements(tx, {
+      tenantId,
+      sentBefore: new Date(now.getTime() - SENT_STATEMENT_DAYS * 86_400_000),
+      limit,
+    }),
+  );
+}
+
+/**
  * Sends statements to schools' record stores, tenant by tenant, on a
  * timer. Each pass waits for the previous one, and one tenant's failure is
- * logged without stopping the rest.
+ * logged without stopping the rest. Where the cell can log in as
+ * retention, statements sent past their window are purged on the sweep's
+ * timer.
  */
 export function startStatementSender(input: {
   cell: Cell;
@@ -255,7 +278,19 @@ export function startStatementSender(input: {
   cellId: string;
   cellSecret: Uint8Array<ArrayBuffer>;
   intervalMs: number;
+  purgeMs: number;
 }): () => Promise<void> {
+  const stopPurge = input.cell.canErase()
+    ? everyTenant({
+        name: "xapi.purge",
+        directory: input.directory,
+        cellId: input.cellId,
+        intervalMs: input.purgeMs,
+        run: async (tenantId) => {
+          await purgeTenantStatements(input.cell, tenantId, new Date());
+        },
+      })
+    : null;
   let stopped = false;
   let running: Promise<void> | null = null;
   const pass = async () => {
@@ -288,6 +323,6 @@ export function startStatementSender(input: {
   return async () => {
     stopped = true;
     clearInterval(timer);
-    await running;
+    await Promise.all([running, stopPurge?.()]);
   };
 }

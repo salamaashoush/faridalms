@@ -13,6 +13,12 @@ import type { QuestionKind } from "./content";
 
 export const XAPI_VERSION = "1.0.3";
 
+/**
+ * How long a statement the school's store took stays as a row without its
+ * body, long enough to see what went lately, before the sweep deletes it.
+ */
+export const SENT_STATEMENT_DAYS = 30;
+
 const VERB = "http://adlnet.gov/expapi/verbs";
 const ACTIVITY = "http://adlnet.gov/expapi/activities";
 

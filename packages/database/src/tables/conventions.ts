@@ -293,6 +293,13 @@ export function ephemeralProfile(expiry: SQL) {
       using: sql`true`,
       withCheck: sql`true`,
     }),
+    ...deleteExpired(expiry),
+  ];
+}
+
+/** Lets retention delete the rows a table no longer needs, and only those. */
+export function deleteExpired(expiry: SQL) {
+  return [
     pgPolicy("p_delete", { for: "delete", to: roles.retention, using: expiry }),
   ];
 }

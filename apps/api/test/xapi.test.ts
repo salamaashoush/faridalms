@@ -1,5 +1,7 @@
 import type { LessonBlock } from "@faridalms/domain/learning";
 
+import { uuidArray } from "@faridalms/database/stores/sql";
+import { purgeSentStatements } from "@faridalms/database/stores/xapi";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { contentOfLesson } from "@faridalms/domain/lesson-content";
 import { LTI_AGS_CLAIM, LTI_AGS_SCOPES } from "@faridalms/domain/lti";
@@ -9,7 +11,10 @@ import { decodeJwt, exportJWK, generateKeyPair } from "jose";
 
 import type { Resolve } from "../src/files/fetch-link";
 
-import { sendTenantStatements } from "../src/xapi/sender";
+import {
+  purgeTenantStatements,
+  sendTenantStatements,
+} from "../src/xapi/sender";
 import {
   DOMAINS,
   login,
@@ -450,6 +455,69 @@ describe("a school's learning sent to its own record store", () => {
         enabled: false,
       });
     }
+  });
+
+  test("statements sent past their window are purged, the rest kept", async () => {
+    const school = seeded().tenants[0]?.schools.find(
+      (row) => row.slug === "northwind",
+    );
+    const work = {
+      tenantId: tenantId(),
+      requestId: crypto.randomUUID(),
+      actor: { kind: "system" as const },
+    };
+    const rows = await seeded().cell.withWorker(work, "write", async (tx) => {
+      const [student] = await tx.execute<{ id: string }>(sql`
+        select id from core.users where tenant_id = ${tenantId()}::uuid limit 1`);
+      const made = { old: "", recent: "", waiting: "", failed: "" };
+      for (const [name, state, age] of [
+        ["old", "sent", 31],
+        ["recent", "sent", 10],
+        ["waiting", "queued", null],
+        ["failed", "failed", null],
+      ] as const) {
+        const [row] = await tx.execute<{ id: string }>(sql`
+          insert into core.xapi_statements
+            (tenant_id, org_id, statement_id, student_user_id, statement, state, sent_at)
+          values (${tenantId()}::uuid, ${school?.id ?? ""}::uuid, ${crypto.randomUUID()}::uuid,
+            ${student?.id ?? ""}::uuid,
+            ${state === "sent" ? null : JSON.stringify({ verb: "x" })}::text::jsonb,
+            ${state}, ${age === null ? null : sql`statement_timestamp() - make_interval(days => ${age})`})
+          returning id`);
+        made[name] = row?.id ?? "";
+      }
+      return made;
+    });
+    const left = () =>
+      seeded().cell.withWorker(work, "read", async (tx) =>
+        (
+          await tx.execute<{ id: string }>(sql`
+            select id from core.xapi_statements
+            where tenant_id = ${tenantId()}::uuid
+              and id = any(${uuidArray(Object.values(rows))})`)
+        ).map((row) => row.id),
+      );
+    expect(
+      await purgeTenantStatements(seeded().cell, tenantId(), new Date()),
+    ).toBe(1);
+    const kept = new Set([rows.recent, rows.waiting, rows.failed]);
+    expect(new Set(await left())).toEqual(kept);
+    // Asked for everything sent, retention still deletes nothing within the window.
+    expect(
+      await seeded().cell.withRetention(work, (tx) =>
+        purgeSentStatements(tx, {
+          tenantId: tenantId(),
+          sentBefore: new Date(),
+          limit: 1000,
+        }),
+      ),
+    ).toBe(0);
+    expect(new Set(await left())).toEqual(kept);
+    await seeded().cell.withWorker(work, "write", (tx) =>
+      tx.execute(sql`
+        update core.xapi_statements set status = 'tobedeleted'
+        where tenant_id = ${tenantId()}::uuid and id = any(${uuidArray([...kept])})`),
+    );
   });
 
   test("an outside tool's score goes once the tool has marked it", async () => {
