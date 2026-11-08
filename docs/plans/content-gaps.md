@@ -13,28 +13,26 @@ table with an `erasure-rules.ts` entry, capabilities through
 components in `packages/ui` with named props, a spec and a
 `docs/design-system.md` entry, and no feature lost on the way.
 
-## H. Editor core
+## Editor
 
-1. One question-and-answer model shared by quizzes, forms and admission
-   forms. D and E have landed, so it can start.
-2. The picture, gallery, file and recording blocks' floating bars tested
-   in the browser with real uploads.
+The question model is one (`docs/systems/questions.md`), the editor holds
+its key-press budget on a 336-block lesson (`docs/content-editor.md`), and
+the picture, file, video, audio and embed bars are exercised with real
+uploads. Left:
+
+1. Keys typed straight after inserting a formula are lost while its field
+   loads.
+2. Each gallery picture says who it shows, as a single picture does, so
+   the consent check covers galleries (owner's decision).
+3. The maths bar, question blocks' bars and recording capture exercised
+   in a browser.
 
 ## Decided by the owner (2026-11-08)
 
-To build:
-
-1. **Saved sections** in the website builder join the one reuse system:
-   templates and shared blocks learn a section kind.
-2. **Wikimedia Commons** in the picture search, for staff only, behind a
-   school setting; students never see it.
-3. **A language model** for teachers, opt-in per school with a named
-   provider: question suggestions, levelling a text and translating.
-   Only what teachers wrote is sent, never student work.
-4. **Video streams count against the school's storage**; our own pipeline
-   stays the one video path (no hosted adapters).
-5. **Timetable:** a single date can run as another weekday or cycle day,
-   and a bell schedule can add a period normal days do not have.
+Built: saved sections in the one reuse system, Commons for staff behind
+a school setting, an opt-in language model for teachers (lessons and
+briefs), video streams counted against storage, and timetable dates run
+as another day with schedule-only periods.
 
 Settled, nothing to build:
 
@@ -49,19 +47,18 @@ Settled, nothing to build:
 
 ## Left by the landed workstreams
 
-- Media: the news cover picture is not drawn from its sizes yet; office
-  previews need LibreOffice configured (`MEDIA_OFFICE_CONVERTER`) and are
-  untested against it; a page published before its picture's sizes existed
-  gets them at its next publication; an import from a link keeps the
-  ordinary upload limit, so video cannot come in that way.
-- Collaboration: a module discussion belongs to one class, not the module's
-  every class; a quiz's peer reviewer reads typed answers only.
-- Early years: Development Matters statements are in English only.
-- Interoperability: sent statements keep their rows without bodies, so
-  the queue table grows; a cmi5 package's satisfaction does not complete
-  its lesson; every cmi5 launch is in Normal mode.
+- A shared section's earlier versions are kept, with no restore in the
+  builder yet.
+- Commons pictures are offered from the media library's search only: a
+  question's picture keeps no credit.
+- The language model helps in lessons and assignment briefs only, and
+  hides students' full names, not a given name alone.
 
 ## Outside the code
+
+- Firefox cannot start on the owner's Mac: it may not create
+  `~/Library/Application Support/Firefox` ("Operation not permitted",
+  likely a device-management or security rule). CI runs Firefox on Linux.
 
 - Offer the Lexical fix upstream, then drop the patch (an outside pull
   request in the owner's name).
