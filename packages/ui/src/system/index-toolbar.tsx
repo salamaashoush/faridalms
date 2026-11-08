@@ -32,6 +32,7 @@ import { ChevronDown, ListFilter, Search, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { phoneMenuItem } from "./action-menu";
+import { optionGroups } from "./form-field";
 import { useDesignSystem } from "./provider";
 
 const NO_FACETS: Facet[] = [];
@@ -42,6 +43,8 @@ export interface FacetOption {
   count?: number;
   /** Shown where a count would be when there is no count to give. */
   hint?: string;
+  /** The heading the option is listed under, as in `SelectField`. */
+  group?: string;
 }
 
 export interface Facet {
@@ -279,14 +282,47 @@ function FacetFilter({ facet }: FacetFilterProps) {
         <ChevronDown className="text-muted-foreground" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-auto min-w-56">
+        {optionGroups(facet.options).map(({ group, options }) => (
+          <FacetOptions
+            key={group ?? ""}
+            facet={facet}
+            label={group ?? facet.label}
+            options={options}
+          />
+        ))}
+        {active && !facet.single ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className={phoneMenuItem}
+              onClick={() => facet.onChange(facet.defaultSelected ?? [])}
+            >
+              {strings.clearFilter}
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+interface FacetOptionsProps {
+  facet: Facet;
+  label: string;
+  options: FacetOption[];
+}
+
+/** One heading's options; a single-choice facet keeps one choice across them. */
+function FacetOptions({ facet, label, options }: FacetOptionsProps) {
+  return (
         <DropdownMenuGroup>
-          <DropdownMenuLabel>{facet.label}</DropdownMenuLabel>
+          <DropdownMenuLabel>{label}</DropdownMenuLabel>
           {facet.single ? (
             <DropdownMenuRadioGroup
               value={facet.selected[0] ?? ""}
               onValueChange={(next: string) => facet.onChange([next])}
             >
-              {facet.options.map((option) => (
+              {options.map((option) => (
                 <DropdownMenuRadioItem
                   key={option.value}
                   value={option.value}
@@ -299,7 +335,7 @@ function FacetFilter({ facet }: FacetFilterProps) {
               ))}
             </DropdownMenuRadioGroup>
           ) : (
-            facet.options.map((option) => (
+            options.map((option) => (
               <DropdownMenuCheckboxItem
                 key={option.value}
                 className={phoneMenuItem}
@@ -320,19 +356,6 @@ function FacetFilter({ facet }: FacetFilterProps) {
             ))
           )}
         </DropdownMenuGroup>
-        {active && !facet.single ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className={phoneMenuItem}
-              onClick={() => facet.onChange(facet.defaultSelected ?? [])}
-            >
-              {strings.clearFilter}
-            </DropdownMenuItem>
-          </>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 

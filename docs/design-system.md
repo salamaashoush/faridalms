@@ -182,6 +182,10 @@ Carbon data table, shadcn tasks).
   toolbar, kept in the URL. Its default is the workspace year (the current
   year), and Reset returns to it; picking another year narrows this list only,
   so a shared link opens the same year.
+- A choice of classes lists the viewer's own first. For someone who
+  oversees the school as well, the options carry a `group` ("Your classes",
+  "Other classes"), which a facet and a `SelectField` show as headed groups;
+  a list with one group shows no heading.
 - Selection and batch actions are a desktop tool. Below 768px cards have no
   checkboxes and each card keeps its own `•••` menu, so anything phones need
   must not exist only as a batch action.

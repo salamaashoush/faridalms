@@ -3,7 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { ENGLISH } from "./english";
-import { CheckboxGroupField, TextField } from "./form-field";
+import {
+  CheckboxGroupField,
+  optionGroups,
+  SelectField,
+  TextField,
+} from "./form-field";
 import { renderWithSystem } from "./testing";
 
 describe("TextField", () => {
@@ -110,5 +115,47 @@ describe("CheckboxGroupField", () => {
     expect(screen.getByRole("checkbox", { name: "Video" })).toBeChecked();
     await userEvent.click(screen.getByRole("checkbox", { name: "Coding" }));
     expect(onChange).toHaveBeenCalledWith(["coding", "video"]);
+  });
+});
+
+describe("option groups", () => {
+  it("gather options under their headings, in the order each first comes", () => {
+    expect(
+      optionGroups([
+        { value: "a", label: "7A", group: "Yours" },
+        { value: "b", label: "7B", group: "Others" },
+        { value: "c", label: "8A", group: "Yours" },
+      ]),
+    ).toEqual([
+      {
+        group: "Yours",
+        options: [
+          { value: "a", label: "7A", group: "Yours" },
+          { value: "c", label: "8A", group: "Yours" },
+        ],
+      },
+      { group: "Others", options: [{ value: "b", label: "7B", group: "Others" }] },
+    ]);
+  });
+
+  it("list a select's options under their headings", async () => {
+    renderWithSystem(
+      <SelectField
+        label="Class"
+        value="a"
+        options={[
+          { value: "a", label: "7A", group: "Your classes" },
+          { value: "b", label: "7B", group: "Other classes" },
+        ]}
+        onChange={() => undefined}
+      />,
+    );
+    await userEvent.click(screen.getByRole("combobox", { name: /Class/ }));
+    expect(
+      await screen.findByRole("group", { name: "Your classes" }),
+    ).toHaveTextContent("7A");
+    expect(screen.getByRole("group", { name: "Other classes" })).toHaveTextContent(
+      "7B",
+    );
   });
 });

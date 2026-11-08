@@ -7,7 +7,9 @@ import { RadioGroup, RadioGroupItem } from "../radio-group";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "../select";
@@ -210,6 +212,24 @@ export function TextField({
 export interface FieldOption<T extends string> {
   value: T;
   label: string;
+  /**
+   * The heading the option is listed under. Options sharing one are listed
+   * together under it, in the order the first of them comes.
+   */
+  group?: string;
+}
+
+/** Options gathered under their headings, or one run without a heading. */
+export function optionGroups<O extends { group?: string }>(
+  options: readonly O[],
+): { group: string | undefined; options: O[] }[] {
+  const groups: { group: string | undefined; options: O[] }[] = [];
+  for (const option of options) {
+    const found = groups.find((entry) => entry.group === option.group);
+    if (found) found.options.push(option);
+    else groups.push({ group: option.group, options: [option] });
+  }
+  return groups;
 }
 
 export interface SelectFieldProps<T extends string> {
@@ -272,11 +292,24 @@ export function SelectField<T extends string>({
             <SelectValue className="block min-w-0 truncate" />
           </SelectTrigger>
           <SelectContent>
-            {options.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
+            {optionGroups(options).map(({ group, options: listed }) =>
+              group === undefined ? (
+                listed.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectGroup key={group}>
+                  <SelectLabel>{group}</SelectLabel>
+                  {listed.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ),
+            )}
           </SelectContent>
         </Select>
       )}
