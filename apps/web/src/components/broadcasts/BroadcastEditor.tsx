@@ -272,11 +272,32 @@ export function BroadcastEditor({
       const englishTitle = value.titleEn.trim();
       if (isNews && !value.slug && !fallbackSlug.current)
         fallbackSlug.current = slugOf(englishTitle);
-      const saved = await view.save(
-        isNews ? { ...value, slug: value.slug || fallbackSlug.current } : value,
-        id.current,
-        version.current,
-      );
+      const send = (slug: string) =>
+        view.save(
+          isNews ? { ...value, slug } : value,
+          id.current,
+          version.current,
+        );
+      const slug = value.slug || fallbackSlug.current;
+      // The address follows the title until the writer sets one, and another
+      // post may already stand there; refusing it would refuse every save
+      // of the draft's words after. It takes a free one instead, as a copy
+      // of a post does, and the writer can still change it.
+      const saved = await send(slug).catch(async (error: unknown) => {
+        if (
+          !isNews ||
+          slugTouched.current ||
+          !(error instanceof Error) ||
+          error.message !== "site.slug_taken"
+        )
+          throw error;
+        const free = `${slug.slice(0, 60)}-${Date.now().toString(36)}`;
+        fallbackSlug.current = free;
+        setDraft((current) =>
+          current.slug === value.slug ? { ...current, slug: free } : current,
+        );
+        return send(free);
+      });
       const created = !id.current;
       id.current = saved.id;
       version.current = saved.version;
