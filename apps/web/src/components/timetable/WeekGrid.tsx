@@ -11,13 +11,19 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { formatDate, formatDayRange, formatWeekday } from "~/utils/datetime";
 
+import type { CycleShape } from "./cycle";
+
+import { cycleDayLabel } from "./cycle";
+
 export interface GridPeriod {
   id: string;
+  /** Names one period across its versions, so a dated week finds it each day. */
+  code?: string;
   nameEn: string | null;
   nameAr: string | null;
   startTime: string | null;
   endTime: string | null;
-  /** The days of the week it runs on; every day when not given. */
+  /** The days of the grid it runs on; every day when not given. */
   weekdays?: readonly number[];
 }
 
@@ -25,6 +31,16 @@ export interface GridMeeting {
   id: string;
   weekday: number;
   periodId: string;
+  /** The date a dated week holds it on. */
+  on?: string;
+}
+
+/** A period as one date holds it, at that date's times. */
+export interface DatePeriod {
+  id: string;
+  code: string;
+  startTime: string;
+  endTime: string;
 }
 
 /** A day of a dated week, with what the school calendar marks it as. */
@@ -35,6 +51,13 @@ export interface GridDate {
   closed: boolean;
   noteEn: string | null;
   noteAr: string | null;
+  /** The day of its timetable's cycle, and the cycle, when lessons are held. */
+  cycleDay?: number | null;
+  cycle?: CycleShape | null;
+  /** The bell schedule it runs on instead of its periods' own times. */
+  schedule?: { nameEn: string | null; nameAr: string | null } | null;
+  /** The lesson periods it holds; without them every period runs as planned. */
+  periods?: readonly DatePeriod[];
 }
 
 /** Why a day differs from an ordinary school day, or nothing when it doesn't. */
@@ -51,14 +74,68 @@ export function periodName(period: GridPeriod) {
   return inLocale(period.nameEn, period.nameAr);
 }
 
-const runsOn = (period: GridPeriod, day: number) =>
-  !period.weekdays || period.weekdays.includes(day);
+/**
+ * The period a cell holds: on a dated day, the version and times that day
+ * keeps for the row's period, or null when the day does not hold it.
+ */
+function heldPeriod(
+  period: GridPeriod,
+  day: number,
+  date: GridDate | undefined,
+): GridPeriod | null {
+  if (date?.periods) {
+    const held = date.periods.find((row) => row.code === period.code);
+    return held
+      ? {
+          ...period,
+          id: held.id,
+          startTime: held.startTime,
+          endTime: held.endTime,
+        }
+      : null;
+  }
+  return !period.weekdays || period.weekdays.includes(day) ? period : null;
+}
+
+/** What a dated day shows under its name: its day of the cycle and its bell schedule. */
+function dayDetail(date: GridDate | undefined): string | null {
+  if (!date || date.closed) return null;
+  const parts = [
+    date.cycle?.kind === "days" && date.cycleDay
+      ? cycleDayLabel(date.cycle, date.cycleDay)
+      : null,
+    date.schedule ? inLocale(date.schedule.nameEn, date.schedule.nameAr) : null,
+  ].filter((part) => part !== null);
+  return parts.length ? parts.join(" · ") : null;
+}
 
 function NoPeriod() {
   return (
     <span className="grid h-full min-h-10 place-items-center text-muted-foreground">
       <span aria-hidden>—</span>
       <span className="sr-only">{m.periodsNotOnDay()}</span>
+    </span>
+  );
+}
+
+interface OtherTimesProps {
+  row: GridPeriod;
+  held: GridPeriod;
+}
+
+/** A cell's own times, shown only when the day keeps the period at other times. */
+function OtherTimes({ row, held }: OtherTimesProps) {
+  if (
+    !held.startTime ||
+    !held.endTime ||
+    (held.startTime === row.startTime && held.endTime === row.endTime)
+  )
+    return null;
+  return (
+    <span className="block px-2 pb-0.5 text-xs leading-4 font-medium text-primary tabular-nums">
+      <bdi dir="ltr">
+        {m.ttTimeRange({ from: held.startTime, to: held.endTime })}
+      </bdi>
     </span>
   );
 }
@@ -87,6 +164,8 @@ function PeriodLabel({ period }: PeriodLabelProps) {
 export interface WeekGridProps<T extends GridMeeting> {
   caption: string;
   days: readonly number[];
+  /** How a column is named; an undated grid of a cycle names its days. */
+  dayLabel?: (day: number, width?: "long" | "short") => string;
   dates?: readonly GridDate[];
   periods: readonly GridPeriod[];
   meetings: readonly T[];
@@ -101,12 +180,14 @@ export interface WeekGridProps<T extends GridMeeting> {
 /**
  * Periods down, days across, mirrored in Arabic by the page's direction. On
  * phones one day shows at a time, picked from the days of the week. A dated
- * week names each day's date, and a day the school is shut shows why
- * instead of its lessons.
+ * week names each day's date, its day of the cycle and bell schedule, gives
+ * a lesson its own times on a day that keeps other ones, and shows why a
+ * day the school is shut has none.
  */
 export function WeekGrid<T extends GridMeeting>({
   caption,
   days,
+  dayLabel = formatWeekday,
   dates,
   periods,
   meetings,
@@ -116,10 +197,27 @@ export function WeekGrid<T extends GridMeeting>({
   const [picked, setPicked] = useState(
     today !== undefined && days.includes(today) ? today : (days[0] ?? 1),
   );
-  const at = (day: number, period: GridPeriod) =>
-    meetings.find((row) => row.weekday === day && row.periodId === period.id) ??
-    null;
   const dateOf = (day: number) => dates?.find((row) => row.day === day);
+  const at = (day: number, held: GridPeriod) => {
+    const date = dateOf(day);
+    return (
+      meetings.find((row) =>
+        date && row.on !== undefined
+          ? row.on === date.date && row.periodId === held.id
+          : row.weekday === day && row.periodId === held.id,
+      ) ?? null
+    );
+  };
+  const slot = (day: number, period: GridPeriod) => {
+    const held = heldPeriod(period, day, dateOf(day));
+    if (!held) return <NoPeriod />;
+    return (
+      <>
+        <OtherTimes row={period} held={held} />
+        {cell({ meeting: at(day, held), day, period: held })}
+      </>
+    );
+  };
   const pickedDate = dateOf(picked);
   return (
     <>
@@ -137,6 +235,7 @@ export function WeekGrid<T extends GridMeeting>({
               {days.map((day) => {
                 const date = dateOf(day);
                 const note = date && !date.closed ? dayNote(date) : null;
+                const detail = dayDetail(date);
                 return (
                   <th
                     key={day}
@@ -147,7 +246,7 @@ export function WeekGrid<T extends GridMeeting>({
                     )}
                   >
                     <span className="block">
-                      {formatWeekday(day)}
+                      {date ? formatWeekday(day) : dayLabel(day)}
                       {date ? (
                         <span className="font-normal tabular-nums">
                           {" "}
@@ -158,6 +257,11 @@ export function WeekGrid<T extends GridMeeting>({
                         <span className="sr-only"> {m.ttToday()}</span>
                       ) : null}
                     </span>
+                    {detail ? (
+                      <span className="block text-xs leading-5 font-normal">
+                        {detail}
+                      </span>
+                    ) : null}
                     {note ? (
                       <span
                         className={cn(
@@ -204,11 +308,7 @@ export function WeekGrid<T extends GridMeeting>({
                         day === today && "bg-muted/30",
                       )}
                     >
-                      {runsOn(period, day) ? (
-                        cell({ meeting: at(day, period), day, period })
-                      ) : (
-                        <NoPeriod />
-                      )}
+                      {slot(day, period)}
                     </td>
                   );
                 })}
@@ -236,7 +336,7 @@ export function WeekGrid<T extends GridMeeting>({
                   date?.closed && day !== picked && "border-dashed",
                 )}
               >
-                {formatWeekday(day, "short")}
+                {date ? formatWeekday(day, "short") : dayLabel(day, "short")}
                 {date ? (
                   <span className="text-xs font-normal tabular-nums">
                     {formatDate(date.date, "short")}
@@ -252,6 +352,11 @@ export function WeekGrid<T extends GridMeeting>({
           </p>
         ) : (
           <>
+            {dayDetail(pickedDate) ? (
+              <p className="text-[13px] leading-6 text-muted-foreground">
+                {dayDetail(pickedDate)}
+              </p>
+            ) : null}
             {pickedDate && dayNote(pickedDate) ? (
               <p
                 className={cn(
@@ -273,13 +378,7 @@ export function WeekGrid<T extends GridMeeting>({
                   <div className="px-1 py-1">
                     <PeriodLabel period={period} />
                   </div>
-                  <div className="min-w-0">
-                    {runsOn(period, picked) ? (
-                      cell({ meeting: at(picked, period), day: picked, period })
-                    ) : (
-                      <NoPeriod />
-                    )}
-                  </div>
+                  <div className="min-w-0">{slot(picked, period)}</div>
                 </li>
               ))}
             </ul>

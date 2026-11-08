@@ -10,6 +10,7 @@ import {
   getTeacherWeek,
   getTimetableGrid,
   getTimetableOptions,
+  getTimetables,
 } from "~/server/timetable";
 
 export const timetableOptionsQuery = queryOptions({
@@ -21,6 +22,12 @@ export const timetableGridQuery = (classId: string, on = "") =>
   queryOptions({
     queryKey: ["timetable", "grid", classId, on],
     queryFn: () => getTimetableGrid({ data: { classId, on } }),
+  });
+
+export const timetablesQuery = (yearId: string) =>
+  queryOptions({
+    queryKey: ["timetable", "timetables", yearId],
+    queryFn: () => getTimetables({ data: { yearId } }),
   });
 
 export const clashesQuery = (on = "") =>

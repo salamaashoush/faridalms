@@ -26,11 +26,12 @@ import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { timetableGridQuery, timetableOptionsQuery } from "~/queries/timetable";
 import { checkPlacement, clearCell, placeMeeting } from "~/server/timetable";
-import { formatWeekday, formatDate } from "~/utils/datetime";
+import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import type { GridPeriod } from "./WeekGrid";
 
+import { cycleDayLabel, cycleName } from "./cycle";
 import { FreeCell, MeetingCard, periodName, WeekGrid } from "./WeekGrid";
 import { roomLabel, teacherLabel, todayOf } from "./Weeks";
 
@@ -70,6 +71,9 @@ interface PlaceSheetProps {
   from: string;
   onClose: () => void;
 }
+
+const dayOf = (grid: Grid) => (day: number, width?: "long" | "short") =>
+  cycleDayLabel(grid.timetable, day, width);
 
 function PlaceSheet({ grid, options, cell, from, onClose }: PlaceSheetProps) {
   const queryClient = useQueryClient();
@@ -114,7 +118,7 @@ function PlaceSheet({ grid, options, cell, from, onClose }: PlaceSheetProps) {
           if (!open) onClose();
         }}
         title={m.ttCellTitle({
-          day: formatWeekday(cell.day),
+          day: dayOf(grid)(cell.day),
           period: periodName(cell.period),
         })}
         pending={save.isPending}
@@ -271,11 +275,12 @@ function PlaceSheet({ grid, options, cell, from, onClose }: PlaceSheetProps) {
 
 interface PlannerCellProps {
   cell: Cell;
+  dayLabel: string;
   editable: boolean;
   onOpen: () => void;
 }
 
-function PlannerCell({ cell, editable, onOpen }: PlannerCellProps) {
+function PlannerCell({ cell, dayLabel, editable, onOpen }: PlannerCellProps) {
   const hydrated = useHydrated();
   const content = cell.meeting ? (
     <MeetingCard
@@ -298,7 +303,7 @@ function PlannerCell({ cell, editable, onOpen }: PlannerCellProps) {
       disabled={!hydrated}
       onClick={onOpen}
       aria-label={m.ttEditCell({
-        day: formatWeekday(cell.day),
+        day: dayLabel,
         period: periodName(cell.period),
       })}
       className={cn(
@@ -311,11 +316,16 @@ function PlannerCell({ cell, editable, onOpen }: PlannerCellProps) {
   );
 }
 
-function plannerCell(editable: boolean, onOpen: (cell: Cell) => void) {
+function plannerCell(
+  label: (day: number) => string,
+  editable: boolean,
+  onOpen: (cell: Cell) => void,
+) {
   return function renderCell(cell: Cell) {
     return (
       <PlannerCell
         cell={cell}
+        dayLabel={label(cell.day)}
         editable={editable}
         onOpen={() => onOpen(cell)}
       />
@@ -323,27 +333,89 @@ function plannerCell(editable: boolean, onOpen: (cell: Cell) => void) {
   };
 }
 
+const timetableLabel = (row: Grid["timetables"][number], index: number) =>
+  inLocale(row.nameEn, row.nameAr) ||
+  (index === 0
+    ? m.ttTimetableFirst()
+    : m.ttTimetableFrom({ date: formatDate(row.startsOn) }));
+
+interface TimetableBarProps {
+  grid: Grid;
+  onFrom: (from: string) => void;
+}
+
+/**
+ * Which of the year's timetables the grid edits, how it repeats, and the
+ * way to another: picking one plans from its first day, or from today
+ * while it is followed.
+ */
+function TimetableBar({ grid, onFrom }: TimetableBarProps) {
+  const current = grid.timetable;
+  const startOf = (index: number) => {
+    const row = grid.timetables[index];
+    const next = grid.timetables[index + 1];
+    if (!row) return grid.on;
+    const from = index === 0 ? grid.year.startsOn : row.startsOn;
+    const until = next ? next.startsOn : grid.year.lastDay;
+    return grid.today >= from && grid.today < until ? grid.today : from;
+  };
+  return (
+    <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+      {grid.timetables.length > 1 ? (
+        <SelectField
+          id="timetable-version"
+          label={m.ttTimetable()}
+          width="name"
+          className="w-64"
+          value={current?.id ?? ""}
+          options={grid.timetables.map((row, index) => ({
+            value: row.id,
+            label: timetableLabel(row, index),
+          }))}
+          onChange={(id) =>
+            onFrom(startOf(grid.timetables.findIndex((row) => row.id === id)))
+          }
+        />
+      ) : null}
+      {current ? (
+        <p className="text-[13px] leading-9 text-muted-foreground">
+          {cycleName(current)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export interface PlannerProps {
   classId: string;
   from: string;
+  onFrom: (from: string) => void;
 }
 
 /** One homeroom's week, each cell edited from the day changes apply. */
-export function Planner({ classId, from }: PlannerProps) {
+export function Planner({ classId, from, onFrom }: PlannerProps) {
   const options = useSuspenseQuery(timetableOptionsQuery).data;
   const grid = useSuspenseQuery(timetableGridQuery(classId, from)).data;
   const user = useCurrentUser();
   const [open, setOpen] = useState<{ cell: Cell; key: number } | null>(null);
   const editable = !grid.year.closed;
+  const label = dayOf(grid);
+  const today = todayOf(user.today);
   return (
     <>
+      <TimetableBar grid={grid} onFrom={onFrom} />
       <WeekGrid
         caption={m.ttGridCaption({ lesson: classTitle(grid.class) })}
         days={grid.days}
+        dayLabel={label}
         periods={grid.periods}
         meetings={grid.meetings}
-        today={todayOf(user.today)}
-        cell={plannerCell(editable, (cell) =>
+        today={
+          grid.timetable?.kind === "days" || (grid.timetable?.length ?? 1) > 1
+            ? undefined
+            : today
+        }
+        cell={plannerCell(label, editable, (cell) =>
           setOpen((current) => ({ cell, key: (current?.key ?? 0) + 1 })),
         )}
       />

@@ -22,7 +22,9 @@ import type { CardCell } from "~/components/timetable/Weeks";
 import { classTitle } from "~/components/classes/format";
 import { displayName } from "~/components/people/format";
 import { CoverDay } from "~/components/timetable/Cover";
+import { cycleDayLabel } from "~/components/timetable/cycle";
 import { Planner } from "~/components/timetable/Planner";
+import { Timetables } from "~/components/timetable/Timetables";
 import {
   roomLabel,
   RoomWeek,
@@ -39,9 +41,9 @@ import {
   teacherWeekQuery,
   timetableGridQuery,
   timetableOptionsQuery,
+  timetablesQuery,
 } from "~/queries/timetable";
 import { currentUserQuery } from "~/queries/user";
-import { formatWeekday } from "~/utils/datetime";
 import { requirePage } from "~/utils/page-access";
 
 const VIEWS = [
@@ -51,6 +53,7 @@ const VIEWS = [
   "rooms",
   "cover",
   "clashes",
+  "timetables",
 ] as const;
 type View = (typeof VIEWS)[number];
 type SchoolView = Exclude<View, "mine">;
@@ -106,6 +109,8 @@ export const Route = createFileRoute("/_app/_staff/timetable")({
       await queryClient.ensureQueryData(coverDayQuery(picked.from));
     else if (view === "clashes")
       await queryClient.ensureQueryData(clashesQuery(picked.from));
+    else if (view === "timetables" && options.year)
+      await queryClient.ensureQueryData(timetablesQuery(options.year.id));
   },
   component: TimetablePage,
 });
@@ -182,6 +187,7 @@ const VIEW_LABEL: Record<View, () => string> = {
   rooms: m.ttByRoom,
   cover: m.ttCover,
   clashes: m.ttClashes,
+  timetables: m.ttTimetables,
 };
 
 type Clash = Awaited<
@@ -215,9 +221,16 @@ function clashLesson(row: Clash) {
   });
 }
 
+type ClashCycle = Awaited<
+  ReturnType<NonNullable<ReturnType<typeof clashesQuery>["queryFn"]>>
+>["timetable"];
+
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function clashColumns(periods: Map<string, string>): Column<Clash>[] {
+function clashColumns(
+  periods: Map<string, string>,
+  cycle: ClashCycle,
+): Column<Clash>[] {
   return [
     {
       id: "grid",
@@ -230,7 +243,7 @@ function clashColumns(periods: Map<string, string>): Column<Clash>[] {
       id: "when",
       header: m.ttWhen(),
       cell: (row) =>
-        `${formatWeekday(row.weekday)} · ${periods.get(row.periodId) ?? ""}`,
+        `${cycleDayLabel(cycle, row.weekday)} · ${periods.get(row.periodId) ?? ""}`,
     },
     {
       id: "teacher",
@@ -241,11 +254,12 @@ function clashColumns(periods: Map<string, string>): Column<Clash>[] {
   ];
 }
 
-const clashCard = {
+const clashCard = (cycle: ClashCycle) => ({
   title: (row: Clash) => <ClashGrid row={row} />,
   status: () => <StatusText tone="warning">{m.ttClash()}</StatusText>,
-  fact: (row: Clash) => `${clashLesson(row)} · ${formatWeekday(row.weekday)}`,
-};
+  fact: (row: Clash) =>
+    `${clashLesson(row)} · ${cycleDayLabel(cycle, row.weekday)}`,
+});
 
 interface ClashesProps {
   from: string;
@@ -263,9 +277,9 @@ function Clashes({ from }: ClashesProps) {
     <DataTable
       caption={m.ttClashesCaption()}
       rows={data.rows}
-      columns={clashColumns(periods)}
+      columns={clashColumns(periods, data.timetable)}
       rowLabel={(row) => clashLesson(row)}
-      card={clashCard}
+      card={clashCard(data.timetable)}
       empty={{
         icon: CalendarCheck2,
         title: m.ttNoClashes(),
@@ -372,6 +386,7 @@ function SchoolTimetable({ view, search, patch }: SchoolTimetableProps) {
         onChange={(roomId) => patch({ roomId })}
       />
     ) : null;
+  if (view === "timetables") return <Timetables yearId={options.year.id} />;
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-end gap-3">
@@ -401,7 +416,11 @@ function SchoolTimetable({ view, search, patch }: SchoolTimetableProps) {
         </div>
       </div>
       {view === "classes" && picked.classId ? (
-        <Planner classId={picked.classId} from={picked.from} />
+        <Planner
+          classId={picked.classId}
+          from={picked.from}
+          onFrom={(from) => patch({ from })}
+        />
       ) : view === "teachers" && picked.teacherId ? (
         <TeacherWeek teacherId={picked.teacherId} on={picked.from} />
       ) : view === "rooms" && picked.roomId ? (

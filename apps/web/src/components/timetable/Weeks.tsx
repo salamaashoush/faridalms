@@ -23,6 +23,7 @@ import { formatDate } from "~/utils/datetime";
 
 import type { GridDate, GridPeriod } from "./WeekGrid";
 
+import { weekOfCycle } from "./cycle";
 import { FreeCell, MeetingCard, WeekGrid, WeekStep } from "./WeekGrid";
 
 type Week = NonNullable<
@@ -202,20 +203,26 @@ export function Week({
       cell={weekCell(lines, cell, own)}
     />
   );
+  const cycleWeek = weekOfCycle(week.dates);
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        {onWeek ? (
-          <WeekStep
-            dates={week.dates}
-            today={week.today}
-            year={week.year}
-            pending={pending}
-            onWeek={onWeek}
-          />
-        ) : (
-          <span />
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          {onWeek ? (
+            <WeekStep
+              dates={week.dates}
+              today={week.today}
+              year={week.year}
+              pending={pending}
+              onWeek={onWeek}
+            />
+          ) : null}
+          {cycleWeek ? (
+            <span className="rounded-md bg-muted px-2 text-sm leading-7 font-medium">
+              {cycleWeek}
+            </span>
+          ) : null}
+        </div>
         <div className="flex items-center gap-2">
           {subscribe ? <Subscribe /> : null}
           {week.meetings.length > 0 ? (

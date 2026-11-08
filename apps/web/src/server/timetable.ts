@@ -9,10 +9,13 @@ import {
   gridQuerySchema,
   placeSchema,
   removeAbsenceSchema,
+  removeTimetableSchema,
   roomWeekSchema,
+  saveTimetableSchema,
   staffAbsenceSchema,
   studentWeekSchema,
   teacherWeekSchema,
+  timetablesQuerySchema,
   weekQuerySchema,
 } from "@faridalms/domain/timetable";
 import { createServerFn } from "@tanstack/react-start";
@@ -27,6 +30,18 @@ export const getTimetableOptions = createServerFn({ method: "GET" }).handler(
 export const getTimetableGrid = createServerFn({ method: "GET" })
   .validator(checked(gridQuerySchema))
   .handler(({ data }) => record(backend().timetable.grid(data)));
+
+export const getTimetables = createServerFn({ method: "GET" })
+  .validator(checked(timetablesQuerySchema))
+  .handler(({ data }) => backend().timetable.timetables(data));
+
+export const saveTimetable = createServerFn({ method: "POST" })
+  .validator(checked(saveTimetableSchema))
+  .handler(({ data }) => backend().timetable.saveTimetable(data));
+
+export const removeTimetable = createServerFn({ method: "POST" })
+  .validator(checked(removeTimetableSchema))
+  .handler(({ data }) => backend().timetable.removeTimetable(data));
 
 export const checkPlacement = createServerFn({ method: "POST" })
   .validator(checked(clashCheckSchema))

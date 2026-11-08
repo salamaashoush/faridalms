@@ -28,6 +28,11 @@ export function validationMessage(issue: { message?: string }): string {
       return m.periodsOfficialTwice();
     case "validation.official_break":
       return m.periodsOfficialBreak();
+    case "validation.day_times":
+      return m.periodsDayTimesInvalid();
+    case "validation.cycle":
+      return m.ttErrCycle();
+
     case "validation.subject_code":
       return m.validationSubjectCode();
     case "validation.name_required":

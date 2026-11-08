@@ -15,7 +15,6 @@ import {
   meetingTitle,
   roomLabel,
   teacherLabel,
-  todayOf,
 } from "~/components/timetable/Weeks";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -36,12 +35,15 @@ export interface StudentTodayProps {
 export function StudentToday({ studentId, today }: StudentTodayProps) {
   const { week } = useSuspenseQuery(studentWeekQuery(studentId)).data;
   if (!week) return null;
-  const day = todayOf(today);
-  const lessons = week.periods.flatMap((period) => {
+  const held = week.dates.find((row) => row.date === today)?.periods ?? [];
+  const lessons = held.flatMap((times) => {
+    const period = week.periods.find((row) => row.code === times.code);
     const meeting = week.meetings.find(
-      (row) => row.weekday === day && row.periodId === period.id,
+      (row) => row.on === today && row.periodId === times.id,
     );
-    return meeting ? [{ period, meeting }] : [];
+    return period && meeting
+      ? [{ period: { ...period, ...times }, meeting }]
+      : [];
   });
   return (
     <RecordSection

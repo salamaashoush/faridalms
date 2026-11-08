@@ -543,6 +543,17 @@ export function getMessageFromError(error: unknown): string {
         return m.ttNotSchoolDay();
       case "timetable.no_period":
         return m.ttNoPeriod();
+      case "timetable.cycle_in_use":
+        return m.ttErrCycleInUse();
+      case "timetable.started":
+        return m.ttErrStarted();
+      case "timetable.first_fixed":
+        return m.ttErrFirstFixed();
+      case "timetable.start":
+        return m.ttErrStart();
+      case "timetable.cannot_copy":
+        return m.ttErrCannotCopy();
+
       case "class_period.outside_year":
         return m.periodsOutsideYear();
       case "class_period.no_days":
