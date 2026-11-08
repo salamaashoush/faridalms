@@ -368,6 +368,7 @@ export const teacher = readProcedure.handler(async ({ context }) => {
       on: context.today,
       clashAccepted: false,
       clashing: false,
+      oneDay: false,
     }));
   const slots = slotsOf(
     [...meetings, ...daily],

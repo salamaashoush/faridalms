@@ -1,11 +1,17 @@
 import {
   BellScheduleConflict,
+  extraPeriodsOf,
   insertBellSchedule,
   removeBellSchedule,
   scheduleDays,
+  setExtraPeriods,
   updateBellSchedule,
 } from "@faridalms/database/stores/bell-schedules";
-import { bellSchedulesOf } from "@faridalms/database/stores/day-plan";
+import {
+  bellSchedulesOf,
+  dayPlan,
+  timetablesOf,
+} from "@faridalms/database/stores/day-plan";
 import { historyOf } from "@faridalms/database/stores/history";
 import {
   givePeriods,
@@ -21,6 +27,7 @@ import {
   dayIn,
   holdYear,
   paintDays,
+  runDayAs,
   schoolWeek,
   schoolYears,
   setTargetDays,
@@ -32,12 +39,14 @@ import {
   yearDirectory,
 } from "@faridalms/database/stores/years";
 import { paintDaysSchema, targetDaysSchema } from "@faridalms/domain/calendar";
+import { cycleDays, timetableOn } from "@faridalms/domain/cycle";
 import { historyQuerySchema } from "@faridalms/domain/history";
 import { PAGE_SIZE } from "@faridalms/domain/paging";
 import { addDays } from "@faridalms/domain/school";
 import {
   periodsQuerySchema,
   removeBellScheduleSchema,
+  runDayAsSchema,
   saveBellScheduleSchema,
   savePeriodsSchema,
   scheduleDaysSchema,
@@ -286,7 +295,10 @@ export const lifecycle = writeProcedure
     return { id: year.id, replaced };
   });
 
-/** A year's school calendar day by day, with its terms and the count it aims at. */
+/**
+ * A year's school calendar day by day, with its terms, the count it aims
+ * at, and the timetables whose cycles a day can run as another day of.
+ */
 export const days = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
@@ -297,13 +309,18 @@ export const days = readProcedure
       "calendar:manage",
     );
     const year = await yearOf(context, input.id);
-    const [calendar, terms, schedules] = await Promise.all([
+    const [calendar, terms, schedules, timetables, week] = await Promise.all([
       yearCalendar(context.tx, context.tenantId, year.id),
       termsOf(context.tx, context.tenantId, year.id),
       bellSchedulesOf(context.tx, {
         tenantId: context.tenantId,
         yearIds: [year.id],
       }),
+      timetablesOf(context.tx, {
+        tenantId: context.tenantId,
+        yearIds: [year.id],
+      }),
+      schoolWeek(context.tx, context.tenantId, context.schoolId),
     ]);
     return {
       ...calendar,
@@ -313,6 +330,13 @@ export const days = readProcedure
         nameEn: row.nameEn,
         nameAr: row.nameAr,
       })),
+      timetables: timetables.map((row) => ({
+        id: row.id,
+        startsOn: row.startsOn,
+        kind: row.kind,
+        length: row.length,
+      })),
+      weekdays: schoolDays(week.weekStart, week.weekendDays),
       canEdit: can(context, "calendar:manage") && year.lifecycle !== "closed",
     };
   });
@@ -359,6 +383,65 @@ export const paint = writeProcedure
       details: { from: input.from, to: input.to, kind: input.kind, changed },
     });
     return { changed };
+  });
+
+/**
+ * Runs one school day as another day of its timetable's cycle, so its
+ * lessons, registers and cover are that day's, or puts it back with null.
+ * Where the timetable's closures hold its cycle of days in place, the days
+ * after carry on from the day it ran as.
+ */
+export const runDay = writeProcedure
+  .input(runDayAsSchema)
+  .handler(async ({ input, context }) => {
+    const year = await openYear(context, input.yearId);
+    if (input.day < year.startsOn || input.day >= year.endsBefore)
+      throw new ORPCError("BAD_REQUEST", { message: "calendar.range" });
+    if (input.runsAs !== null) {
+      const [plan, timetables, week] = await Promise.all([
+        dayPlan(context.tx, {
+          tenantId: context.tenantId,
+          schoolId: context.schoolId,
+          day: input.day,
+        }),
+        timetablesOf(context.tx, {
+          tenantId: context.tenantId,
+          yearIds: [year.id],
+        }),
+        schoolWeek(context.tx, context.tenantId, context.schoolId),
+      ]);
+      if (!plan.open)
+        throw new ORPCError("BAD_REQUEST", {
+          message: "calendar.runs_as_closed",
+        });
+      const timetable = timetableOn(timetables, input.day);
+      if (
+        !timetable ||
+        !cycleDays(
+          timetable,
+          schoolDays(week.weekStart, week.weekendDays),
+        ).includes(input.runsAs)
+      )
+        throw new ORPCError("BAD_REQUEST", { message: "calendar.runs_as_day" });
+    }
+    const changed = await runDayAs(context.tx, {
+      tenantId: context.tenantId,
+      yearId: year.id,
+      day: input.day,
+      runsAs: input.runsAs,
+    });
+    if (!changed) throw new ORPCError("NOT_FOUND");
+    await audit(context, {
+      action: "calendar.runs_as",
+      objectType: "academic_session",
+      objectId: year.id,
+      change: {
+        table: "core.calendar_dates",
+        before: { day: input.day, runsAs: changed.before },
+        after: { day: input.day, runsAs: input.runsAs },
+      },
+    });
+    return { day: input.day, runsAs: input.runsAs };
   });
 
 export const target = writeProcedure
@@ -410,6 +493,10 @@ export const periods = readProcedure
         yearIds: [year.id],
       }),
     ]);
+    const extras = await extraPeriodsOf(context.tx, {
+      tenantId: context.tenantId,
+      scheduleIds: schedules.map((row) => row.id),
+    });
     return {
       year: {
         id: year.id,
@@ -428,6 +515,17 @@ export const periods = readProcedure
         nameEn: row.nameEn,
         nameAr: row.nameAr,
         times: row.times,
+        extras: extras
+          .filter((extra) => extra.scheduleId === row.id)
+          .map((extra) => ({
+            id: extra.id,
+            code: extra.code,
+            nameEn: extra.nameEn,
+            nameAr: extra.nameAr,
+            kind: extra.kind,
+            startTime: extra.startTime,
+            endTime: extra.endTime,
+          })),
       })),
       periods: rows.map((row) => ({
         id: row.id,
@@ -546,6 +644,22 @@ export const savePeriods = writeProcedure
     return { from: input.from, ...outcome };
   });
 
+const extraView = (row: {
+  code: string;
+  nameEn: string | null;
+  nameAr: string | null;
+  kind: string;
+  startTime: string;
+  endTime: string;
+}) => ({
+  code: row.code,
+  nameEn: row.nameEn,
+  nameAr: row.nameAr,
+  kind: row.kind,
+  startTime: row.startTime,
+  endTime: row.endTime,
+});
+
 /** A year this school may still plan the day of, for a bell schedule change. */
 async function plannedYear(context: UnitContext, yearId: string) {
   requireCapability(context, "years:manage", "timetable:manage");
@@ -564,8 +678,9 @@ function scheduleRefused(error: unknown): never {
 
 /**
  * Adds a bell schedule to a year, or changes one: other times for the
- * periods held on the days that choose it. Periods it leaves out are not
- * held on those days.
+ * periods held on the days that choose it, and periods of its own (an
+ * assembly, an exam slot) that only its days hold. Periods it leaves out
+ * are not held on those days.
  */
 export const saveSchedule = writeProcedure
   .input(saveBellScheduleSchema)
@@ -587,6 +702,12 @@ export const saveSchedule = writeProcedure
         ).find((row) => row.id === input.id)
       : undefined;
     if (input.id && !before) throw new ORPCError("NOT_FOUND");
+    const extrasBefore = input.id
+      ? await extraPeriodsOf(context.tx, {
+          tenantId: context.tenantId,
+          scheduleIds: [input.id],
+        })
+      : [];
     let saved = input.id ?? "";
     if (input.id)
       await updateBellSchedule(context.tx, {
@@ -599,6 +720,14 @@ export const saveSchedule = writeProcedure
         ...values,
         schoolId: context.schoolId,
       });
+    const extras = await setExtraPeriods(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      year,
+      scheduleId: saved,
+      times: input.times,
+      extras: input.extras,
+    }).catch(scheduleRefused);
     await audit(context, {
       action: input.id ? "bell_schedule.update" : "bell_schedule.create",
       objectType: "bell_schedule",
@@ -610,14 +739,17 @@ export const saveSchedule = writeProcedure
               nameEn: before.nameEn,
               nameAr: before.nameAr,
               times: before.times,
+              extras: extrasBefore.map(extraView),
             }
           : null,
         after: {
           nameEn: input.nameEn,
           nameAr: input.nameAr,
           times: input.times,
+          extras: input.extras.map(extraView),
         },
       },
+      details: extras,
     });
     return { id: saved };
   });
@@ -639,6 +771,10 @@ export const removeSchedule = writeProcedure
     const schedule = schedules.find((row) => row.id === input.id);
     if (!schedule) throw new ORPCError("NOT_FOUND");
     await plannedYear(context, schedule.yearId);
+    const extras = await extraPeriodsOf(context.tx, {
+      tenantId: context.tenantId,
+      scheduleIds: [schedule.id],
+    });
     const removed = await removeBellSchedule(context.tx, {
       tenantId: context.tenantId,
       id: input.id,
@@ -654,6 +790,7 @@ export const removeSchedule = writeProcedure
           nameEn: schedule.nameEn,
           nameAr: schedule.nameAr,
           times: schedule.times,
+          extras: extras.map(extraView),
         },
         after: null,
       },

@@ -9,7 +9,12 @@ import type {
 import type { SQL } from "drizzle-orm";
 
 import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
-import { cycleDaysOn, timetableOn } from "@faridalms/domain/cycle";
+import {
+  cycleDaysOn,
+  inCycle,
+  timetableOn,
+  weekdayOfCycleDay,
+} from "@faridalms/domain/cycle";
 import { isoWeekday, timesOnWeekday } from "@faridalms/domain/timetable";
 import { sql } from "drizzle-orm";
 
@@ -120,6 +125,8 @@ export interface PlannedPeriod {
   /** Its own times, which most days keep. */
   ownStartTime: string;
   ownEndTime: string;
+  /** The bell schedule whose own period it is, held only on its days; null for the year's. */
+  scheduleId: string | null;
 }
 
 /** What a date holds: whether it is open, where its timetable's cycle stands, its periods and their times. */
@@ -131,6 +138,8 @@ export interface DayPlan {
   timetable: TimetableRow | null;
   /** The day of the timetable's cycle; null when no lessons are held. */
   cycleDay: number | null;
+  /** The day of the cycle the date runs as instead of its own, when it does. */
+  runsAs: number | null;
   schedule: { id: string; nameEn: string | null; nameAr: string | null } | null;
   /** Every period held that day, whatever its kind, in the order of the day. */
   periods: PlannedPeriod[];
@@ -151,6 +160,7 @@ interface PeriodVersion {
   dayTimes: DayTimes[];
   from: string;
   until: string;
+  scheduleId: string | null;
 }
 
 async function periodVersions(
@@ -171,10 +181,12 @@ async function periodVersions(
     weekdays: number[];
     day_times: DayTimes[];
     valid_during: string;
+    bell_schedule_id: string | null;
   }>(sql`
     select id, school_year_id, code, name_en, name_ar, sequence, kind,
            to_char(start_time, 'HH24:MI') as start_time, to_char(end_time, 'HH24:MI') as end_time,
-           official_attendance, weekdays, day_times, valid_during::text as valid_during
+           official_attendance, weekdays, day_times, valid_during::text as valid_during,
+           bell_schedule_id
     from core.class_periods
     where tenant_id = ${input.tenantId}::uuid and school_year_id = any(${uuidArray(input.yearIds)})
       and status = 'active'
@@ -196,6 +208,7 @@ async function periodVersions(
       dayTimes: row.day_times,
       from: range.from,
       until: range.to ?? range.from,
+      scheduleId: row.bell_schedule_id,
     };
   });
 }
@@ -208,8 +221,10 @@ async function calendarOf(
     day: string;
     meaning: string;
     bell_schedule_id: string | null;
+    runs_as: number | null;
   }>(sql`
-    select to_char(d.day_on, 'YYYY-MM-DD') as day, e.system_meaning as meaning, d.bell_schedule_id
+    select to_char(d.day_on, 'YYYY-MM-DD') as day, e.system_meaning as meaning, d.bell_schedule_id,
+           d.runs_as
     from core.calendar_dates d
     join core.calendars c on c.tenant_id = d.tenant_id and c.id = d.calendar_id
       and c.kind = 'school' and c.status = 'active'
@@ -220,23 +235,31 @@ async function calendarOf(
 }
 
 /**
- * The periods a day holds and their times: those in force that run on its
- * weekday, at the times its bell schedule gives them, else at their own
- * times for that weekday. A period its bell schedule leaves out is not held.
+ * The periods a day holds and their times: those in force that run on the
+ * weekday it runs as, at the times its bell schedule gives them, else at
+ * their own times for that weekday. A period its bell schedule leaves out is
+ * not held; the schedule's own periods are held on its days alone, at
+ * their own times.
  */
 function periodsOfDay(
   versions: readonly PeriodVersion[],
   day: string,
+  weekday: number,
   schedule: BellScheduleRow | null,
 ): PlannedPeriod[] {
-  const weekday = isoWeekday(day);
-  return versions.flatMap((period) => {
+  const held = versions.flatMap((period) => {
     if (period.from > day || period.until <= day) return [];
-    const own = timesOnWeekday(period, weekday);
+    if (period.scheduleId !== null && period.scheduleId !== schedule?.id)
+      return [];
+    const own =
+      period.scheduleId === null
+        ? timesOnWeekday(period, weekday)
+        : { startTime: period.startTime, endTime: period.endTime };
     if (!own) return [];
-    const times = schedule
-      ? schedule.times.find((row) => row.code === period.code)
-      : own;
+    const times =
+      schedule && period.scheduleId === null
+        ? schedule.times.find((row) => row.code === period.code)
+        : own;
     if (!times) return [];
     return [
       {
@@ -252,9 +275,16 @@ function periodsOfDay(
         weekdays: period.weekdays,
         ownStartTime: period.startTime,
         ownEndTime: period.endTime,
+        scheduleId: period.scheduleId,
       },
     ];
   });
+  return schedule
+    ? held.toSorted(
+        (a, b) =>
+          a.startTime.localeCompare(b.startTime) || a.sequence - b.sequence,
+      )
+    : held;
 }
 
 /**
@@ -288,6 +318,7 @@ export async function dayPlans(
   ]);
   const cycleCalendar: CycleCalendar = {
     meaningOf: (day) => calendar.get(day)?.meaning ?? null,
+    runsAsOf: (day) => calendar.get(day)?.runs_as ?? null,
     weekStart: week.weekStart,
     weekendDays: week.weekendDays,
   };
@@ -328,6 +359,14 @@ export async function dayPlans(
           day,
         )
       : null;
+    const runsAs =
+      open && timetable && mark?.runs_as && inCycle(timetable, mark.runs_as)
+        ? mark.runs_as
+        : null;
+    const weekday =
+      runsAs !== null && timetable
+        ? (weekdayOfCycleDay(timetable, runsAs) ?? isoWeekday(day))
+        : isoWeekday(day);
     plans.set(day, {
       day,
       yearId: year?.id ?? null,
@@ -335,6 +374,7 @@ export async function dayPlans(
       open,
       timetable,
       cycleDay: open ? (cycleDayOf.get(day) ?? null) : null,
+      runsAs,
       schedule: schedule
         ? { id: schedule.id, nameEn: schedule.nameEn, nameAr: schedule.nameAr }
         : null,
@@ -342,6 +382,7 @@ export async function dayPlans(
         ? periodsOfDay(
             versions.filter((row) => row.yearId === year.id),
             day,
+            weekday,
             schedule,
           )
         : [],
@@ -375,7 +416,9 @@ export async function dayPlan(
       open: false,
       timetable: null,
       cycleDay: null,
+      runsAs: null,
       schedule: null,
+
       periods: [],
     }
   );

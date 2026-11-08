@@ -174,11 +174,14 @@ export interface PeriodRow {
   endTime: string | null;
   official: boolean;
   weekdays: number[];
+  /** The bell schedule whose own period it is; null for the year's. */
+  scheduleId: string | null;
 }
 
 /**
  * The periods of a school day registers can be taken in, at that day's
- * times: none its bell schedule leaves out, none that skip its weekday.
+ * times and in the order of the day: none its bell schedule leaves out,
+ * none that skip the weekday it runs as, and any its schedule adds.
  */
 export async function periodsOn(
   tx: Tx,
@@ -204,6 +207,7 @@ export async function periodsOn(
       endTime: row.endTime,
       official: row.official,
       weekdays: row.weekdays,
+      scheduleId: row.scheduleId,
     }));
 }
 
@@ -507,9 +511,10 @@ export interface BoardRow {
 }
 
 /**
- * A school day's registers: every homeroom's daily register and every class
- * the timetable has meeting that day unless cancelled for it, taken or not,
- * and any other register taken that day.
+ * A school day's registers: every homeroom's daily register, every class
+ * the timetable has meeting that day unless cancelled for it, and every
+ * one-day lesson in a period its bell schedule adds, taken or not, and any
+ * other register taken that day, in the order of the day.
  */
 export async function dayBoard(
   tx: Tx,
@@ -522,6 +527,13 @@ export async function dayBoard(
   },
 ): Promise<BoardRow[]> {
   const plan = await dayPlan(tx, input);
+  const added = plan.periods
+    .filter(
+      (row) =>
+        row.scheduleId !== null &&
+        (row.kind === "lesson" || row.kind === "registration"),
+    )
+    .map((row) => row.id);
   const rows = await tx.execute<{
     class_id: string;
     code: string;
@@ -561,6 +573,11 @@ export async function dayBoard(
             and x.class_id = m.class_id and x.class_period_id = m.class_period_id
             and x.day_on = ${input.day}::date)
       union
+      select x.class_id, x.class_period_id from core.lesson_changes x
+      where x.tenant_id = ${input.tenantId}::uuid and x.org_id = ${input.schoolId}::uuid
+        and x.status = 'active' and not x.cancelled and x.day_on = ${input.day}::date
+        and x.class_period_id = any(${uuidArray(added)})
+      union
       select g.class_id, g.class_period_id from core.attendance_registers g
       where g.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.schoolId}::uuid
         and g.taken_on = ${input.day}::date and g.status = 'active'
@@ -590,7 +607,9 @@ export async function dayBoard(
     group by c.id, c.code, c.title_en, c.title_ar, c.class_type, c.tenant_id, c.homeroom_class_id,
              p.id, p.name_en, p.name_ar, p.sequence, g.id, g.state, u.full_name_en, u.full_name_ar,
              g.submitted_at
-    order by p.sequence, c.class_type, c.code`);
+    order by array_position(${uuidArray(plan.periods.map((row) => row.id))}, p.id), p.sequence,
+             c.class_type, c.code`);
+
   return rows.map((row) => ({
     classId: row.class_id,
     classCode: row.code,

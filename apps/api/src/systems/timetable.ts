@@ -122,9 +122,10 @@ function yearView(year: SchoolYear) {
 /**
  * The periods and days a dated week is drawn with: each date with what the
  * school calendar marks it as, the day of its timetable's cycle, the bell
- * schedule it runs on and the lesson periods it holds at that day's times.
- * Rows are the week's periods by code, so a period changed mid-week stays
- * one row, labelled with its own times.
+ * schedule it runs on and the lesson periods it holds at that day's times,
+ * with the periods of its schedule's own, and the day of the cycle it runs
+ * as when it is not its own. Rows are the week's periods by code, so a
+ * period changed mid-week stays one row, labelled with its own times.
  */
 async function frame(context: UnitContext, year: SchoolYear, on: string) {
   const week = await schoolWeek(context.tx, context.tenantId, context.schoolId);
@@ -144,7 +145,11 @@ async function frame(context: UnitContext, year: SchoolYear, on: string) {
     }),
   ]);
   const lessonsOn = (day: string) =>
-    plans.get(day)?.periods.filter((period) => period.kind === "lesson") ?? [];
+    plans
+      .get(day)
+      ?.periods.filter(
+        (period) => period.kind === "lesson" || period.scheduleId !== null,
+      ) ?? [];
   const rows = new Map<string, ReturnType<typeof lessonsOn>[number]>();
   for (const day of [on, ...dated.map((row) => row.date)])
     for (const period of lessonsOn(day))
@@ -169,6 +174,7 @@ async function frame(context: UnitContext, year: SchoolYear, on: string) {
         noteEn: mark?.noteEn ?? null,
         noteAr: mark?.noteAr ?? null,
         cycleDay: plan?.cycleDay ?? null,
+        runsAs: plan?.runsAs ?? null,
         cycle: plan?.timetable
           ? { kind: plan.timetable.kind, length: plan.timetable.length }
           : null,
@@ -184,7 +190,12 @@ async function frame(context: UnitContext, year: SchoolYear, on: string) {
       };
     }),
     periods: [...rows.values()]
-      .toSorted((a, b) => a.sequence - b.sequence)
+      .toSorted(
+        (a, b) =>
+          a.sequence - b.sequence ||
+          a.ownStartTime.localeCompare(b.ownStartTime),
+      )
+
       .map((period) => ({
         id: period.id,
         code: period.code,
@@ -278,6 +289,7 @@ function meetingView(row: MeetingRow) {
     on: row.on,
     clashAccepted: row.clashAccepted,
     clashing: row.clashing,
+    oneDay: row.oneDay,
   };
 }
 

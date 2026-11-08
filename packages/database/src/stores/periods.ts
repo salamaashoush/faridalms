@@ -61,7 +61,7 @@ export async function periodsInForce(
            official_attendance, weekdays, day_times, valid_during::text as valid_during
     from core.class_periods
     where tenant_id = ${input.tenantId}::uuid and school_year_id = ${input.yearId}::uuid
-      and status = 'active' and valid_during @> ${input.on}::date
+      and status = 'active' and valid_during @> ${input.on}::date and bell_schedule_id is null
     order by sequence`);
   return rows.map((row) => {
     const range = bounds(row.valid_during);
@@ -93,7 +93,7 @@ export async function periodChangeDays(
     select distinct to_char(lower(valid_during), 'YYYY-MM-DD') as day
     from core.class_periods
     where tenant_id = ${input.tenantId}::uuid and school_year_id = ${input.yearId}::uuid
-      and status = 'active'
+      and status = 'active' and bell_schedule_id is null
     order by day`);
   return rows.map((row) => row.day);
 }
@@ -127,11 +127,11 @@ export async function copyPeriods(
     from core.class_periods p
     join core.academic_sessions y on y.tenant_id = p.tenant_id and y.id = p.school_year_id
     where p.tenant_id = ${input.tenantId}::uuid and p.school_year_id = ${input.sourceYearId}::uuid
-      and p.status = 'active' and p.valid_during @> (upper(y.span) - 1)
+      and p.status = 'active' and p.valid_during @> (upper(y.span) - 1) and p.bell_schedule_id is null
       and not exists (
         select 1 from core.class_periods t
         where t.tenant_id = ${input.tenantId}::uuid and t.school_year_id = ${input.target.id}::uuid
-          and t.status = 'active')
+          and t.status = 'active' and t.bell_schedule_id is null)
     returning id`);
   return rows.length;
 }
@@ -150,7 +150,7 @@ export async function givePeriods(
   const [held] = await tx.execute<{ held: boolean }>(sql`
     select exists (select 1 from core.class_periods
       where tenant_id = ${input.tenantId}::uuid and school_year_id = ${input.target.id}::uuid
-        and status = 'active') as held`);
+        and status = 'active' and bell_schedule_id is null) as held`);
   if (held?.held) return "kept";
   const [source] = await tx.execute<{ id: string; own: boolean }>(sql`
     select y.id, y.org_id = ${input.schoolId}::uuid as own
@@ -159,7 +159,7 @@ export async function givePeriods(
       and y.id <> ${input.target.id}::uuid
       and exists (select 1 from core.class_periods p
         where p.tenant_id = y.tenant_id and p.school_year_id = y.id and p.status = 'active'
-          and p.valid_during @> (upper(y.span) - 1))
+          and p.bell_schedule_id is null and p.valid_during @> (upper(y.span) - 1))
     order by y.org_id = ${input.schoolId}::uuid desc,
       lower(y.span) < ${input.target.startsOn}::date desc,
       case when lower(y.span) < ${input.target.startsOn}::date then lower(y.span) end desc,
@@ -319,6 +319,7 @@ export async function replacePeriodsFrom(
       update core.class_periods set sequence = sequence + 25
       where ${scope} and id = ${old.id}::uuid`);
 
+  // A bell schedule's own periods keep their codes, so a new period never takes one.
   const codes = new Set(
     (
       await tx.execute<{ code: string }>(sql`
@@ -334,7 +335,7 @@ export async function replacePeriodsFrom(
   };
   const [boundary] = await tx.execute<{ day: string | null }>(sql`
     select to_char(min(lower(valid_during)), 'YYYY-MM-DD') as day from core.class_periods
-    where ${scope} and school_year_id = ${input.yearId}::uuid
+    where ${scope} and school_year_id = ${input.yearId}::uuid and bell_schedule_id is null
       and lower(valid_during) > ${input.from}::date`);
   const segmentEnd = [
     ...current.map((row) => row.until),

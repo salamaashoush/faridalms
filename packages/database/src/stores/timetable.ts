@@ -6,6 +6,7 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 import type { ClassType } from "../tables/teaching";
+import type { DayPlan } from "./day-plan";
 
 import { dayPlan, dayPlans } from "./day-plan";
 import { textArray, uuidArray } from "./sql";
@@ -139,6 +140,11 @@ export interface MeetingRow {
   clashAccepted: boolean;
   /** Another meeting shares this teacher or room at the same time. */
   clashing: boolean;
+  /**
+   * A lesson held that day alone, in a period of the day's bell schedule:
+   * its change says who takes it and where, and its id is the change's.
+   */
+  oneDay: boolean;
 }
 
 type MeetingFilter =
@@ -162,6 +168,94 @@ function filterOf(filter: MeetingFilter): SQL {
     or m.class_id = any(${uuidArray(filter.classIds ?? [])}))`;
 }
 
+/** Which one-day lessons a meeting filter reaches: by class, by room, or the school's. */
+function oneDayFilterOf(filter: MeetingFilter): SQL {
+  if ("teacherId" in filter || "teacherIds" in filter) return sql`false`;
+  if ("roomId" in filter) return sql`x.location_id = ${filter.roomId}::uuid`;
+  if ("schoolId" in filter)
+    return filter.clashesOnly
+      ? sql`false`
+      : sql`x.org_id = ${filter.schoolId}::uuid`;
+  return sql`(g.id = any(${uuidArray(filter.groupIds)})
+    or x.class_id = any(${uuidArray(filter.classIds ?? [])}))`;
+}
+
+/**
+ * The one-day lessons a filter reaches in the periods only a day's bell
+ * schedule holds, as meetings of that day. Their teacher and room are their
+ * change's, so the rows carry neither.
+ */
+async function oneDayLessons(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; filter: MeetingFilter },
+  plans: readonly DayPlan[],
+): Promise<MeetingRow[]> {
+  const slots = plans.flatMap((plan) =>
+    plan.periods
+      .filter((period) => period.scheduleId !== null)
+      .map((period) => ({ plan, periodId: period.id })),
+  );
+  if (slots.length === 0) return [];
+  const planOf = new Map(plans.map((plan) => [plan.day, plan]));
+  const rows = await tx.execute<{
+    id: string;
+    class_id: string;
+    class_code: string;
+    class_title_en: string | null;
+    class_title_ar: string | null;
+    class_type: ClassType;
+    group_class_id: string;
+    group_code: string;
+    group_title_en: string | null;
+    group_title_ar: string | null;
+    class_period_id: string;
+    day_on: string;
+  }>(sql`
+    select x.id, x.class_id, c.code as class_code, c.title_en as class_title_en,
+           c.title_ar as class_title_ar, c.class_type, g.id as group_class_id, g.code as group_code,
+           g.title_en as group_title_en, g.title_ar as group_title_ar, x.class_period_id,
+           to_char(x.day_on, 'YYYY-MM-DD') as day_on
+    from core.lesson_changes x
+    join unnest(${textArray(slots.map((slot) => slot.plan.day))}::date[],
+        ${uuidArray(slots.map((slot) => slot.periodId))}) as w(d, p)
+      on x.day_on = w.d and x.class_period_id = w.p
+    join core.classes c on c.tenant_id = x.tenant_id and c.id = x.class_id
+    join core.classes g on g.tenant_id = x.tenant_id and g.id = coalesce(c.homeroom_class_id, c.id)
+    where x.tenant_id = ${input.tenantId}::uuid and x.org_id = ${input.schoolId}::uuid
+      and x.status = 'active' and not x.cancelled and ${oneDayFilterOf(input.filter)}
+    order by x.day_on, g.code, c.code`);
+  return rows.map((row) => {
+    const plan = planOf.get(row.day_on);
+    return {
+      id: row.id,
+      classId: row.class_id,
+      classCode: row.class_code,
+      classTitleEn: row.class_title_en,
+      classTitleAr: row.class_title_ar,
+      classType: row.class_type,
+      groupClassId: row.group_class_id,
+      groupCode: row.group_code,
+      groupTitleEn: row.group_title_en,
+      groupTitleAr: row.group_title_ar,
+      timetableId: plan?.timetable?.id ?? "",
+      weekday: plan?.cycleDay ?? 0,
+      periodId: row.class_period_id,
+      teacherId: null,
+      teacherNameEn: null,
+      teacherNameAr: null,
+      roomId: null,
+      roomCode: null,
+      roomNameEn: null,
+      roomNameAr: null,
+      from: row.day_on,
+      on: row.day_on,
+      clashAccepted: false,
+      clashing: false,
+      oneDay: true,
+    };
+  });
+}
+
 const everyRow = () => true;
 
 const smallints = (values: readonly number[]) => `{${values.join(",")}}`;
@@ -169,7 +263,8 @@ const smallints = (values: readonly number[]) => `{${values.join(",")}}`;
 /**
  * The meetings for a grid, a teacher, a room or a student at a school: those
  * of the timetable followed on `on` and in force then, or with `days`, those
- * held on each of them, on its day of the cycle and in a period it keeps.
+ * held on each of them, on its day of the cycle and in a period it keeps,
+ * with the one-day lessons of the periods only their bell schedule holds.
  */
 export async function meetingsOn(
   tx: Tx,
@@ -183,12 +278,14 @@ export async function meetingsOn(
 ): Promise<MeetingRow[]> {
   let day: SQL;
   let keeps: (row: { on: string; periodId: string }) => boolean = everyRow;
+  let oneDay: MeetingRow[] = [];
   if (input.days) {
     const plans = await dayPlans(tx, {
       tenantId: input.tenantId,
       schoolId: input.schoolId,
       days: input.days,
     });
+    oneDay = await oneDayLessons(tx, input, [...plans.values()]);
     const held = [...plans.values()].flatMap((plan) =>
       plan.timetable && plan.cycleDay !== null
         ? [
@@ -200,7 +297,7 @@ export async function meetingsOn(
           ]
         : [],
     );
-    if (held.length === 0) return [];
+    if (held.length === 0) return oneDay;
     day = sql`join unnest(${textArray(held.map((row) => row.day))}::date[],
         ${uuidArray(held.map((row) => row.timetableId))},
         ${smallints(held.map((row) => row.cycleDay))}::smallint[]) as w(d, t, k)
@@ -267,7 +364,7 @@ export async function meetingsOn(
     where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
       and m.status = 'active' and ${filterOf(input.filter)}
     order by w.d, m.weekday, m.class_period_id, g.code, c.code`);
-  return rows.flatMap((row) => {
+  const meetings = rows.flatMap((row) => {
     const meeting: MeetingRow = {
       id: row.id,
       classId: row.class_id,
@@ -293,9 +390,11 @@ export async function meetingsOn(
       on: row.day_on,
       clashAccepted: row.clash_accepted,
       clashing: row.clashing,
+      oneDay: false,
     };
     return keeps(meeting) ? [meeting] : [];
   });
+  return [...meetings, ...oneDay];
 }
 
 export interface Booking {

@@ -325,3 +325,272 @@ describe("the times a day keeps", () => {
     expect(monday?.periods.length).toBe(lessons.length);
   });
 });
+
+describe("a date run as another day", () => {
+  test("a Tuesday runs as Sunday, its lessons follow, and the days around it keep theirs", async () => {
+    const api = await principal();
+    const { classId, yearId } = await homeroom(api);
+    const TUESDAY = "2027-05-25";
+    const before = await weekOf(api, classId, WEEK_A);
+    const slots = (week: typeof before, date: string) =>
+      lessonsOn(week, date)
+        .map((row) => `${row.classId}:${row.periodId}`)
+        .toSorted();
+    expect(slots(before, TUESDAY)).not.toEqual(slots(before, WEEK_A));
+
+    expect(
+      await rejection(api.years.runDay({ yearId, day: TUESDAY, runsAs: 6 })),
+    ).toMatchObject({ code: "BAD_REQUEST", message: "calendar.runs_as_day" });
+    expect(
+      await rejection(
+        api.years.runDay({ yearId, day: "2027-05-28", runsAs: SUNDAY }),
+      ),
+    ).toMatchObject({
+      code: "BAD_REQUEST",
+      message: "calendar.runs_as_closed",
+    });
+
+    await api.years.runDay({ yearId, day: TUESDAY, runsAs: SUNDAY });
+    try {
+      const week = await weekOf(api, classId, WEEK_A);
+      const tuesday = week.dates.find((row) => row.date === TUESDAY);
+      expect(tuesday?.cycleDay).toBe(SUNDAY);
+      expect(tuesday?.runsAs).toBe(SUNDAY);
+      expect(week.dates.map((row) => row.cycleDay)).toEqual([7, 1, 7, 3, 4]);
+      expect(slots(week, TUESDAY)).toEqual(slots(before, WEEK_A));
+      expect(slots(week, "2027-05-26")).toEqual(slots(before, "2027-05-26"));
+      const days = await api.years.days({ id: yearId });
+      expect(days.days.find((row) => row.day === TUESDAY)?.runsAs).toBe(SUNDAY);
+    } finally {
+      await api.years.runDay({ yearId, day: TUESDAY, runsAs: null });
+    }
+    const back = await weekOf(api, classId, WEEK_A);
+    expect(back.dates.find((row) => row.date === TUESDAY)?.runsAs).toBeNull();
+    expect(slots(back, TUESDAY)).toEqual(slots(before, TUESDAY));
+  });
+
+  test("a cycle of days carries on from the day a date runs as only when closures hold it", async () => {
+    const api = await principal();
+    const { classId, yearId } = await homeroom(api);
+    const cycle = {
+      yearId,
+      nameEn: "Six days",
+      nameAr: "ستة أيام",
+      startsOn: WEEK_A,
+      kind: "days" as const,
+      length: 6,
+      firstDay: 1,
+      closuresMove: false,
+      start: "empty" as const,
+    };
+    const { id } = await api.timetable.saveTimetable(cycle);
+    const MONDAY = "2027-05-24";
+    try {
+      await api.years.runDay({ yearId, day: MONDAY, runsAs: 5 });
+      const kept = await weekOf(api, classId, WEEK_A);
+      expect(kept.dates.map((row) => row.cycleDay)).toEqual([1, 5, 3, 4, 5]);
+      const { timetables } = await api.timetable.timetables({ yearId });
+      const saved = timetables.find((row) => row.id === id);
+      if (!saved) throw new Error("no timetable");
+      await api.timetable.saveTimetable({
+        ...cycle,
+        id,
+        version: saved.version,
+        closuresMove: true,
+      });
+      const moved = await weekOf(api, classId, WEEK_A);
+      expect(moved.dates.map((row) => row.cycleDay)).toEqual([1, 5, 6, 1, 2]);
+      const next = await weekOf(api, classId, WEEK_B);
+      expect(next.dates[0]?.cycleDay).toBe(3);
+    } finally {
+      await api.years.runDay({ yearId, day: MONDAY, runsAs: null });
+      const { timetables } = await api.timetable.timetables({ yearId });
+      const saved = timetables.find((row) => row.id === id);
+      if (saved)
+        await api.timetable.removeTimetable({ id, version: saved.version });
+    }
+  });
+});
+
+describe("a bell schedule's own periods", () => {
+  test("an assembly and an exam slot exist on the schedule's days alone, and carry one-day lessons", async () => {
+    const api = await principal();
+    const { classId, yearId } = await homeroom(api);
+    const MONDAY = "2027-05-24";
+    const day = await api.years.periods({ id: yearId, on: WEEK_A });
+    const times = day.periods.map((row) => ({
+      code: row.code,
+      startTime: row.startTime,
+      endTime: row.endTime,
+    }));
+    const assembly = {
+      code: "asm",
+      nameEn: "Assembly",
+      nameAr: "الطابور",
+      kind: "registration" as const,
+      startTime: "06:30",
+      endTime: "07:00",
+    };
+    const exam = {
+      code: "exam",
+      nameEn: "Exam",
+      nameAr: "امتحان",
+      kind: "lesson" as const,
+      startTime: "15:00",
+      endTime: "16:00",
+    };
+    const taken = day.periods[0]?.code ?? "";
+    expect(
+      await rejection(
+        api.years.saveSchedule({
+          yearId,
+          nameEn: "Assembly day",
+          nameAr: "يوم الطابور",
+          times: times.filter((row) => row.code !== taken),
+          extras: [{ ...assembly, code: taken }],
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "bell_schedule.code_taken" });
+
+    const schedule = await api.years.saveSchedule({
+      yearId,
+      nameEn: "Assembly day",
+      nameAr: "يوم الطابور",
+      times,
+      extras: [assembly, exam],
+    });
+    try {
+      await api.years.scheduleRange({
+        yearId,
+        from: MONDAY,
+        to: MONDAY,
+        scheduleId: schedule.id,
+      });
+      const read = await api.years.periods({ id: yearId, on: WEEK_A });
+      const saved = read.schedules.find((row) => row.id === schedule.id);
+      expect(saved?.extras.map((row) => row.code)).toEqual(["asm", "exam"]);
+      expect(read.periods.map((row) => row.code)).not.toContain("asm");
+      const assemblyId = saved?.extras[0]?.id ?? "";
+      const examId = saved?.extras[1]?.id ?? "";
+
+      const week = await weekOf(api, classId, WEEK_A);
+      const monday = week.dates.find((row) => row.date === MONDAY);
+      expect(monday?.periods.map((row) => row.code)).toContain("exam");
+      expect(monday?.periods[0]?.code).toBe("asm");
+      expect(
+        week.dates
+          .filter((row) => row.date !== MONDAY)
+          .flatMap((row) => row.periods.map((period) => period.code)),
+      ).not.toContain("exam");
+      expect(week.periods.map((row) => row.code)).toContain("asm");
+
+      const cover = await api.cover.day({ on: MONDAY });
+      expect(
+        cover.cover?.periods.filter((row) => row.oneDay).map((row) => row.id),
+      ).toEqual([assemblyId, examId]);
+      expect(cover.cover?.classes.some((row) => row.id === classId)).toBe(true);
+      const sunday = await api.cover.day({ on: WEEK_A });
+      expect(sunday.cover?.periods.some((row) => row.oneDay)).toBe(false);
+
+      const register = await api.attendance.register({
+        classId,
+        date: MONDAY,
+        periodId: assemblyId,
+      });
+      expect(register.period.id).toBe(assemblyId);
+      expect(
+        await rejection(
+          api.attendance.register({
+            classId,
+            date: WEEK_A,
+            periodId: assemblyId,
+          }),
+        ),
+      ).toMatchObject({
+        code: "BAD_REQUEST",
+        message: "attendance.no_period",
+      });
+
+      const lesson = { classId, periodId: examId, on: MONDAY };
+      const options = await api.cover.options(lesson);
+      const leader = options.candidates[0];
+      if (!leader) throw new Error("nobody is free to lead it");
+      expect(
+        await rejection(
+          api.cover.changeLesson({
+            ...lesson,
+            expected: "",
+            coverId: "",
+            roomId: "",
+            cancelled: true,
+            note: "",
+          }),
+        ),
+      ).toMatchObject({
+        code: "BAD_REQUEST",
+        message: "timetable.one_day_cancel",
+      });
+      await api.cover.changeLesson({
+        ...lesson,
+        expected: "",
+        coverId: leader.userId,
+        roomId: "",
+        cancelled: false,
+        note: "Bring a calculator",
+      });
+
+      const held = await weekOf(api, classId, WEEK_A);
+      const one = lessonsOn(held, MONDAY, examId)[0];
+      expect(one?.oneDay).toBe(true);
+      expect(one?.change?.coverId).toBe(leader.userId);
+      const board = await api.cover.day({ on: MONDAY });
+      const listed = board.cover?.lessons.find(
+        (row) => row.periodId === examId && row.classId === classId,
+      );
+      expect(listed?.oneDay).toBe(true);
+      const theirs = await api.timetable.teacherWeek({
+        teacherId: leader.userId,
+        on: WEEK_A,
+      });
+      expect(
+        theirs.week?.meetings.some(
+          (row) => row.periodId === examId && row.cover,
+        ),
+      ).toBe(true);
+
+      const without = await rejection(
+        api.years.saveSchedule({
+          yearId,
+          id: schedule.id,
+          version: saved?.version ?? 1,
+          nameEn: "Assembly day",
+          nameAr: "يوم الطابور",
+          times,
+          extras: [{ ...assembly, id: assemblyId }],
+        }),
+      );
+      expect(without).toMatchObject({
+        code: "CONFLICT",
+        message: `bell_schedule.period_in_use:${MONDAY}`,
+      });
+
+      await api.cover.clearLessonChange({
+        ...lesson,
+        expected: listed?.change?.id ?? "",
+      });
+      const cleared = await weekOf(api, classId, WEEK_A);
+      expect(lessonsOn(cleared, MONDAY, examId)).toHaveLength(0);
+    } finally {
+      const { schedules } = await api.years.periods({ id: yearId, on: WEEK_A });
+      const saved = schedules.find((row) => row.id === schedule.id);
+      if (saved)
+        await api.years.removeSchedule({
+          id: saved.id,
+          version: saved.version,
+        });
+    }
+    const back = await weekOf(api, classId, WEEK_A);
+    const monday = back.dates.find((row) => row.date === MONDAY);
+    expect(monday?.periods.map((row) => row.code)).not.toContain("asm");
+  });
+});

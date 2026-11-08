@@ -239,6 +239,8 @@ export interface CalendarDay {
   provisional: boolean;
   /** The bell schedule the day runs on instead of its periods' own times. */
   scheduleId: string | null;
+  /** The day of the timetable's cycle it runs as instead of its own. */
+  runsAs: number | null;
 }
 
 /** Every day of a year's school calendar with what it is, and the count it aims at. */
@@ -273,9 +275,10 @@ export async function calendarDays(
     note_ar: string | null;
     provisional: boolean;
     bell_schedule_id: string | null;
+    runs_as: number | null;
   }>(sql`
     select to_char(d.day_on, 'YYYY-MM-DD') as day, e.system_meaning as meaning,
-           d.note_en, d.note_ar, d.provisional, d.bell_schedule_id
+           d.note_en, d.note_ar, d.provisional, d.bell_schedule_id, d.runs_as
     from core.calendar_dates d
     join core.calendars c on c.tenant_id = d.tenant_id and c.id = d.calendar_id
       and c.kind = 'school' and c.status = 'active'
@@ -290,7 +293,34 @@ export async function calendarDays(
     noteAr: row.note_ar,
     provisional: row.provisional,
     scheduleId: row.bell_schedule_id,
+    runsAs: row.runs_as,
   }));
+}
+
+/**
+ * Runs one day of the school calendar as another day of its timetable's
+ * cycle, or as its own with null, returning what it ran as before; null
+ * when the calendar has no such day.
+ */
+export async function runDayAs(
+  tx: CellTransaction,
+  input: {
+    tenantId: string;
+    yearId: string;
+    day: string;
+    runsAs: number | null;
+  },
+): Promise<{ before: number | null } | null> {
+  const [row] = await tx.execute<{ before: number | null }>(sql`
+    update core.calendar_dates d
+    set runs_as = ${input.runsAs}::smallint
+    from core.calendar_dates o, core.calendars c
+    where d.tenant_id = ${input.tenantId}::uuid and d.school_year_id = ${input.yearId}::uuid
+      and d.status = 'active' and d.day_on = ${input.day}::date
+      and o.tenant_id = d.tenant_id and o.id = d.id
+      and c.tenant_id = d.tenant_id and c.id = d.calendar_id and c.kind = 'school' and c.status = 'active'
+    returning o.runs_as as before`);
+  return row ? { before: row.before } : null;
 }
 
 /**
