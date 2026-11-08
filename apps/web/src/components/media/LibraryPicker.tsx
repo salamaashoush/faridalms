@@ -40,6 +40,13 @@ const TITLE: Record<LibraryKind, () => string> = {
   file: m.mediaChooseFile,
 };
 
+const EMPTY: Record<LibraryKind, () => string> = {
+  image: m.mediaEmptyChoose,
+  media: m.mediaEmptyChooseMedia,
+  video: m.mediaEmptyChooseVideo,
+  file: m.mediaEmptyChooseFile,
+};
+
 export interface LibraryChooserProps {
   kind: LibraryKind;
   options: LibraryChooseOptions;
@@ -167,7 +174,7 @@ export function LibraryChooser({ kind, options, onDone }: LibraryChooserProps) {
           }
           empty={{
             icon: Images,
-            title: folderId ? m.mediaFolderEmpty() : m.mediaEmptyChoose(),
+            title: folderId ? m.mediaFolderEmpty() : EMPTY[kind](),
             description: m.mediaEmptyChooseBody(),
           }}
         />
