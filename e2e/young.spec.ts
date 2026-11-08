@@ -305,7 +305,7 @@ test("a Reception teacher records an exemption, shares the goals report and make
 
 test("a school adds Development Matters to follow younger children", async ({
   page,
-}) => {
+}, testInfo) => {
   await signInWith(
     page,
     "principal.northwind@northwind.example.com",
@@ -324,23 +324,37 @@ test("a school adds Development Matters to follow younger children", async ({
   ).toBeVisible();
 
   // The school words a statement in Arabic itself; the English stays.
-  const statement = "Watch someone’s face as they talk.";
-  await page
-    .getByRole("searchbox", { name: "Search standards" })
-    .fill("Watch someone");
+  // Every browser adds the one framework, so each words its own statement:
+  // a save names the version it read, and another browser's save of the
+  // same statement would turn it away.
+  const { search, statement, arabic } = {
+    firefox: {
+      search: "Recognise and are calmed",
+      statement: "Recognise and are calmed by a familiar and friendly voice.",
+      arabic: "يتعرّف على الصوت المألوف الودود ويهدأ عند سماعه.",
+    },
+    webkit: {
+      search: "Enjoy singing",
+      statement: "Enjoy singing, music and toys that make sounds.",
+      arabic: "يستمتع بالغناء والموسيقى والألعاب التي تصدر أصواتًا.",
+    },
+  }[testInfo.project.name] ?? {
+    search: "Watch someone",
+    statement: "Watch someone’s face as they talk.",
+    arabic: "ينظر إلى وجه من يتحدّث إليه.",
+  };
+  await page.getByRole("searchbox", { name: "Search standards" }).fill(search);
   await page.getByRole("button", { name: `Actions for ${statement}` }).click();
   await page.getByRole("menuitem", { name: "Edit standard" }).click();
   const sheet = page.getByRole("dialog", { name: "Edit standard" });
   await sheet
     .getByRole("textbox", { name: "Statement in Arabic" })
-    .fill("ينظر إلى وجه من يتحدّث إليه.");
+    .fill(arabic);
   await sheet.getByRole("button", { name: "Save" }).click();
   await expect(sheet).toBeHidden();
   const standards = page.getByRole("list", {
     name: "Standards in this framework",
   });
-  await expect(
-    standards.getByText("ينظر إلى وجه من يتحدّث إليه."),
-  ).toBeVisible();
+  await expect(standards.getByText(arabic)).toBeVisible();
   await expect(standards.getByText(statement)).toBeVisible();
 });
