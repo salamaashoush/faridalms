@@ -492,18 +492,23 @@ const bellTimesSchema = v.pipe(
   ),
 );
 
+/** The most periods of its own a bell schedule adds to its days. */
+export const MAX_EXTRA_PERIODS = 10;
+
 /**
- * A day of the year run on other times: the periods it holds, each at its
- * time that day. A period it leaves out is not held on its days.
+ * A period only a bell schedule's days hold, such as an assembly or an
+ * exam slot. It is never the day's official register.
  */
-export const saveBellScheduleSchema = v.pipe(
+export const extraPeriodSchema = v.pipe(
   v.object({
-    yearId: id,
+    /** The period this one carries on from; none for a new one. */
     id: v.optional(id),
-    version: v.optional(version),
+    code: periodCode,
     nameEn: periodName,
     nameAr: periodName,
-    times: v.pipe(v.array(bellTimesSchema), v.minLength(1), v.maxLength(50)),
+    kind: v.picklist(PERIOD_KINDS),
+    startTime: clock,
+    endTime: clock,
   }),
   v.forward(
     v.check(
@@ -513,13 +518,58 @@ export const saveBellScheduleSchema = v.pipe(
     ["nameAr"],
   ),
   v.forward(
+    v.check((value) => value.endTime > value.startTime, "validation.end_time"),
+    ["endTime"],
+  ),
+);
+export type ExtraPeriodInput = v.InferOutput<typeof extraPeriodSchema>;
+
+/**
+ * A day of the year run on other times: the periods it holds, each at its
+ * time that day, and any periods of its own. A period it leaves out is not
+ * held on its days.
+ */
+export const saveBellScheduleSchema = v.pipe(
+  v.object({
+    yearId: id,
+    id: v.optional(id),
+    version: v.optional(version),
+    nameEn: periodName,
+    nameAr: periodName,
+    times: v.pipe(v.array(bellTimesSchema), v.maxLength(50)),
+    extras: v.optional(
+      v.pipe(v.array(extraPeriodSchema), v.maxLength(MAX_EXTRA_PERIODS)),
+      [],
+    ),
+  }),
+  v.forward(
+    v.check(
+      (value) => value.nameEn !== null || value.nameAr !== null,
+      "validation.name_required",
+    ),
+    ["nameAr"],
+  ),
+  v.forward(
+    v.check((value) => {
+      const count = value.times.length + value.extras.length;
+      return count > 0 && count <= 50;
+    }, "validation.schedule_empty"),
+    ["times"],
+  ),
+  v.forward(
+    v.check((value) => {
+      const held = [...value.times, ...value.extras];
+      return new Set(held.map((row) => row.code)).size === held.length;
+    }, "validation.schedule_code"),
+    ["times"],
+  ),
+  v.forward(
     v.check(
       (value) =>
-        new Set(value.times.map((row) => row.code)).size ===
-          value.times.length &&
         periodIssue(
-          value.times.map((row) => ({
-            ...row,
+          [...value.times, ...value.extras].map((row) => ({
+            startTime: row.startTime,
+            endTime: row.endTime,
             official: false,
             weekdays: EVERY_DAY,
             dayTimes: [],
@@ -548,6 +598,17 @@ export const scheduleDaysSchema = v.pipe(
   ),
 );
 export type ScheduleDays = v.InferOutput<typeof scheduleDaysSchema>;
+
+/**
+ * Runs one date as another day of its timetable's cycle (a Tuesday as a
+ * Monday, a day as Day 3), or as its own day again with null.
+ */
+export const runDayAsSchema = v.object({
+  yearId: id,
+  day: isoDate,
+  runsAs: v.nullable(cycleDay),
+});
+export type RunDayAs = v.InferOutput<typeof runDayAsSchema>;
 
 /** How a new timetable starts: with the lessons of the one before it, or with none. */
 export const TIMETABLE_STARTS = ["copy", "empty"] as const;

@@ -47,6 +47,18 @@ export function weekdayOfCycleDay(
   return cycle.kind === "weeks" ? ((day - 1) % 7) + 1 : null;
 }
 
+/** Whether a day number is one of the cycle's days. */
+export function inCycle(
+  cycle: Pick<Cycle, "kind" | "length">,
+  day: number,
+): boolean {
+  return (
+    Number.isInteger(day) &&
+    day >= 1 &&
+    day <= (cycle.kind === "days" ? cycle.length : cycle.length * 7)
+  );
+}
+
 /** Which week of its cycle a cycle day sits in, from 0. */
 export const weekOfCycleDay = (day: number) => Math.floor((day - 1) / 7);
 
@@ -78,10 +90,11 @@ const weekStartOf = (day: string, weekStart: number) =>
 /**
  * What a day is for counting a cycle: open when lessons are held, a rest
  * day when it is the weekend. A day the calendar does not mark is open on
- * a school weekday.
+ * a school weekday. An open day may run as another day of the cycle.
  */
 export interface CycleCalendar {
   meaningOf: (day: string) => string | null;
+  runsAsOf?: (day: string) => number | null;
   weekStart: number;
   weekendDays: readonly number[];
 }
@@ -100,7 +113,10 @@ function restOn(calendar: CycleCalendar, day: string) {
 
 /**
  * The day of its cycle each of `days` falls on, or null on a day no
- * lessons are held. Counting starts on the timetable's first day.
+ * lessons are held. Counting starts on the timetable's first day. A day
+ * run as another day of the cycle is that day; where closures hold a cycle
+ * of days in place, the days after it carry on from there, as they would
+ * after a closure, and otherwise they keep their own places.
  */
 export function cycleDaysOn(
   cycle: Cycle & { startsOn: string },
@@ -125,6 +141,13 @@ export function cycleDaysOn(
       : cycle.closuresMove
         ? openOn(calendar, day)
         : !restOn(calendar, day);
+  const runsAs = (day: string) => {
+    const value = calendar.runsAsOf?.(day) ?? null;
+    return value !== null && openOn(calendar, day) && inCycle(cycle, value)
+      ? value
+      : null;
+  };
+  const resumes = cycle.kind === "days" && cycle.closuresMove;
   const step = cycle.kind === "weeks" ? 7 : 1;
   const unitOf = (day: string) =>
     cycle.kind === "weeks" ? weekStartOf(day, calendar.weekStart) : day;
@@ -138,12 +161,20 @@ export function cycleDaysOn(
     if (counts(unit)) before += 1;
   let seen = -before;
   for (let unit = start; unit <= end; unit = addDays(unit, step)) {
+    const runs = resumes && unit >= anchor ? runsAs(unit) : null;
+    if (runs !== null)
+      seen += mod(runs - 1 - (cycle.firstDay - 1 + seen), cycle.length);
     position.set(unit, seen);
     if (counts(unit)) seen += 1;
   }
   for (const day of sorted) {
     if (!openOn(calendar, day)) {
       out.set(day, null);
+      continue;
+    }
+    const runs = runsAs(day);
+    if (runs !== null) {
+      out.set(day, runs);
       continue;
     }
     const elapsed = position.get(unitOf(day)) ?? 0;

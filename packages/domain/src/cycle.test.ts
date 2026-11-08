@@ -126,6 +126,57 @@ describe("the day of the cycle a date falls on", () => {
     expect([...moved.values()]).toEqual([1, null, 2]);
   });
 
+  it("runs a date as another weekday, leaving the days around it", () => {
+    const runs = {
+      ...calendar(),
+      runsAsOf: (day: string) => (day === "2026-09-08" ? 7 : null),
+    };
+    const found = cycleDaysOn(
+      cycle({ kind: "weeks", length: 2 }),
+      span("2026-09-06", 4),
+      runs,
+    );
+    expect([...found.values()]).toEqual([7, 1, 7, 3]);
+    const later = cycleDaysOn(
+      cycle({ kind: "weeks", length: 2 }),
+      ["2026-09-15"],
+      runs,
+    );
+    expect(later.get("2026-09-15")).toBe(9);
+  });
+
+  it("carries a cycle of days on from a day run as another only when closures move it", () => {
+    const days = span("2026-09-06", 5);
+    const runs = {
+      ...calendar(),
+      runsAsOf: (day: string) => (day === "2026-09-07" ? 5 : null),
+    };
+    const kept = cycleDaysOn(cycle({ kind: "days", length: 6 }), days, runs);
+    expect([...kept.values()]).toEqual([1, 5, 3, 4, 5]);
+    const moved = cycleDaysOn(
+      cycle({ kind: "days", length: 6, closuresMove: true }),
+      days,
+      runs,
+    );
+    expect([...moved.values()]).toEqual([1, 5, 6, 1, 2]);
+    const far = cycleDaysOn(
+      cycle({ kind: "days", length: 6, closuresMove: true }),
+      ["2026-09-10"],
+      runs,
+    );
+    expect(far.get("2026-09-10")).toBe(2);
+  });
+
+  it("ignores a run-as day the cycle does not have, or a closed date", () => {
+    const days = ["2026-09-06", "2026-09-07"];
+    const runs = {
+      ...calendar(["2026-09-07"]),
+      runsAsOf: () => 9,
+    };
+    const found = cycleDaysOn(cycle({ kind: "days", length: 6 }), days, runs);
+    expect([...found.values()]).toEqual([1, null]);
+  });
+
   it("reads a date far into the year the same as walking to it", () => {
     const later = cycleDaysOn(
       cycle({ kind: "days", length: 6 }),

@@ -232,4 +232,38 @@ describe("a bell schedule", () => {
       ]).success,
     ).toBe(false);
   });
+
+  it("adds periods of its own that keep clear of the others", () => {
+    const assembly = {
+      code: "asm",
+      nameEn: "Assembly",
+      nameAr: "الطابور",
+      kind: "registration" as const,
+      startTime: "08:00",
+      endTime: "08:30",
+    };
+    const withExtras = (
+      times: { code: string; startTime: string; endTime: string }[],
+      extras: (typeof assembly)[],
+    ) =>
+      v.safeParse(saveBellScheduleSchema, {
+        yearId,
+        nameEn: "Assembly day",
+        times,
+        extras,
+      });
+    const first = { code: "1", startTime: "08:30", endTime: "09:10" };
+    expect(withExtras([first], [assembly]).success).toBe(true);
+    expect(withExtras([], [assembly]).success).toBe(true);
+    expect(withExtras([], []).success).toBe(false);
+    expect(
+      withExtras([{ ...first, startTime: "08:20" }], [assembly]).success,
+    ).toBe(false);
+    expect(withExtras([{ ...first, code: "asm" }], [assembly]).success).toBe(
+      false,
+    );
+    expect(
+      withExtras([first], [{ ...assembly, nameEn: "", nameAr: "" }]).success,
+    ).toBe(false);
+  });
 });
