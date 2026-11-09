@@ -1402,6 +1402,13 @@ async function seedSchool(
     teachers,
     pupils,
   );
+  // Everything below joins the people and classes just written, in this same
+  // transaction, before autovacuum has counted any of them. Without counts
+  // the planner takes a school of hundreds for a handful, and its audience
+  // and guardian queries outlast a statement's limit on a small server.
+  await tx.execute(sql`
+    analyze core.users, core.user_roles, core.user_relationships,
+      core.enrollments, core.classes`);
   await seedTimetable(tx, tenantId, schoolId, yearId);
   await seedCoursework(tx, tenantId, schoolId, yearId);
   await seedAttendance(tx, tenantId, schoolId, yearId, context.attendanceUntil);
