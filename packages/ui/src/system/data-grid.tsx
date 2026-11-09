@@ -1062,6 +1062,54 @@ export function CheckCell({ id, label, checked, onChange }: CheckCellProps) {
   );
 }
 
+export interface TimeCellProps {
+  id: string;
+  /** The cell's full name, such as "Starts, Period 3". */
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  /** The earliest time it may take, such as the start for an end. */
+  min?: string;
+}
+
+/**
+ * A time of day in a grid cell, in the browser's own time field, which
+ * keeps the arrow keys for its hours and minutes; times run left to right
+ * in either script.
+ */
+export function TimeCell({ id, label, value, onChange, min }: TimeCellProps) {
+  const { issues, report } = useContext(GridContext);
+  const describedBy = useId();
+  const issue = issues.get(id);
+  return (
+    <span className="flex">
+      <input
+        id={id}
+        type="time"
+        dir="ltr"
+        data-grid-cell=""
+        aria-label={label}
+        aria-invalid={issue ? true : undefined}
+        aria-describedby={issue ? describedBy : undefined}
+        min={min}
+        value={value}
+        className={cn(
+          CELL_SURFACE,
+          "w-[5.25rem] px-1.5 tabular-nums [&::-webkit-calendar-picker-indicator]:hidden",
+        )}
+        onFocus={() => report({ id, label })}
+        onBlur={() => report(null)}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {issue ? (
+        <span id={describedBy} className="sr-only">
+          {issue}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 /** One choice of a row to add. */
 export interface GridAddChoice {
   value: string;

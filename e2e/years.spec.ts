@@ -84,16 +84,17 @@ test("the office sets a year's periods and their days, and a later change keeps 
   );
   await sheet.getByRole("button", { name: "Remove Period 6" }).click();
   await sheet.getByRole("button", { name: "Add period", exact: true }).click();
-  const added = sheet.getByRole("group", { name: "Period 8" });
-  await added
-    .getByRole("textbox", { name: "Name in English", exact: true })
+  await sheet
+    .getByRole("textbox", { name: "Name in English, Period 8", exact: true })
     .fill("Clubs");
-  const club = sheet.getByRole("group", { name: "Clubs", exact: true });
-  await club.getByLabel("Starts", { exact: true }).fill("13:30");
-  await club.getByLabel("Ends", { exact: true }).fill("13:00");
-  await club.getByRole("checkbox", { name: "Thursday" }).click();
+  await sheet.getByLabel("Starts, Clubs", { exact: true }).fill("13:30");
+  await sheet.getByLabel("Ends, Clubs", { exact: true }).fill("13:00");
+  await sheet
+    .getByRole("group", { name: "Days of Clubs" })
+    .getByRole("checkbox", { name: "Thursday" })
+    .click();
   await sheet.getByRole("button", { name: "Save", exact: true }).click();
-  const ends = club.getByLabel("Ends", { exact: true });
+  const ends = sheet.getByLabel("Ends, Clubs", { exact: true });
   await expect(ends).toHaveAttribute("aria-invalid", "true");
   await expect(ends).toHaveAccessibleDescription(
     "A lesson must end after it starts.",
@@ -112,8 +113,7 @@ test("the office sets a year's periods and their days, and a later change keeps 
   await page.getByRole("button", { name: "Change periods" }).click();
   await sheet.getByLabel("From", { exact: true }).fill(dates.later);
   await sheet
-    .getByRole("group", { name: "Clubs", exact: true })
-    .getByRole("textbox", { name: "Name in English", exact: true })
+    .getByRole("textbox", { name: "Name in English, Clubs", exact: true })
     .fill("Sports");
   await sheet.getByRole("button", { name: "Save", exact: true }).click();
   await expect(sheet).toHaveCount(0);
@@ -141,10 +141,7 @@ test("a change to the school day cannot reach back over a register already taken
   await page.getByRole("button", { name: "Change periods" }).click();
   const sheet = page.getByRole("dialog", { name: "Change periods" });
   await sheet.getByLabel("From", { exact: true }).fill(startsOn);
-  await sheet
-    .getByRole("group", { name: "Registration", exact: true })
-    .getByLabel("Ends", { exact: true })
-    .fill("07:55");
+  await sheet.getByLabel("Ends, Registration", { exact: true }).fill("07:55");
   await sheet.getByRole("button", { name: "Save", exact: true }).click();
   const from = sheet.getByLabel("From", { exact: true });
   await expect(from).toHaveAttribute("aria-invalid", "true");

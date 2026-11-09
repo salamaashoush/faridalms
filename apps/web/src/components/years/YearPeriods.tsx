@@ -1,11 +1,21 @@
 import type { PeriodKind } from "@faridalms/domain/timetable";
+import type { GridColumn, GridIssue } from "@faridalms/ui/system/data-grid";
 
 import { addDays } from "@faridalms/domain/school";
 import { PERIOD_KINDS, savePeriodsSchema } from "@faridalms/domain/timetable";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { cn } from "@faridalms/ui/cn";
-import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import {
+  DataGrid,
+  GridAddButton,
+  GridRemoveButton,
+  SelectCell,
+  TextCell,
+  TimeCell,
+  useFocusAfterRender,
+} from "@faridalms/ui/system/data-grid";
+import { TextField } from "@faridalms/ui/system/form-field";
 import {
   Fact,
   Facts,
@@ -23,11 +33,10 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Plus, X } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { Plus } from "lucide-react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { CheckboxRow } from "~/components/people/fields";
 import { BellSchedules } from "~/components/years/BellSchedules";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -150,25 +159,19 @@ function otherTimesLabel(period: Pick<Period, "dayTimes">) {
   );
 }
 
-interface OtherTimesFieldsProps {
+interface OtherTimesProps {
   draft: Draft;
   legend: string;
   days: readonly number[];
-  error?: string;
   onChange: (dayTimes: DayTimesDraft[]) => void;
 }
 
 /**
  * The days a period keeps other times on, each set of days with its own
- * start and end; only the days the period runs on can be chosen.
+ * start and end on one line; only the days the period runs on can be
+ * chosen.
  */
-function OtherTimesFields({
-  draft,
-  legend,
-  days,
-  error,
-  onChange,
-}: OtherTimesFieldsProps) {
+function OtherTimes({ draft, legend, days, onChange }: OtherTimesProps) {
   const runs = days.filter((day) => draft.weekdays.includes(day));
   const change = (key: number, next: Partial<DayTimesDraft>) =>
     onChange(
@@ -177,64 +180,49 @@ function OtherTimesFields({
       ),
     );
   return (
-    <div className="grid gap-3 sm:col-span-2">
+    <div className="grid justify-items-start gap-2">
       {draft.dayTimes.map((entry) => (
-        <fieldset
+        <div
           key={entry.key}
-          className="relative grid gap-4 rounded-md border border-dashed p-3 pt-5 sm:grid-cols-2"
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md bg-muted/40 px-2 py-1.5"
         >
-          <legend className="px-1 text-[13px] leading-[18px] font-medium">
+          <span className="text-[13px] leading-[18px] text-muted-foreground">
             {m.periodsOtherTimes()}
-          </legend>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="absolute end-1 top-1 max-md:size-10"
-            aria-label={m.periodsOtherTimesRemove({ name: legend })}
-            onClick={() =>
-              onChange(draft.dayTimes.filter((one) => one.key !== entry.key))
-            }
-          >
-            <X aria-hidden />
-          </Button>
+          </span>
           <DayChoices
+            id={`period-other-days-${draft.key}-${entry.key}`}
             legend={legend}
             days={runs}
             value={entry.weekdays}
             onChange={(weekdays) => change(entry.key, { weekdays })}
           />
-          <TextField
+          <TimeCell
             id={`period-other-starts-${draft.key}-${entry.key}`}
-            label={m.periodsStarts()}
-            type="time"
-            width="date"
+            label={m.periodsOtherStartsOf({ name: legend })}
             value={entry.startTime}
-            onChange={(event) =>
-              change(entry.key, { startTime: event.target.value })
-            }
+            onChange={(startTime) => change(entry.key, { startTime })}
           />
-          <TextField
+          <TimeCell
             id={`period-other-ends-${draft.key}-${entry.key}`}
-            label={m.periodsEnds()}
-            type="time"
-            width="date"
+            label={m.periodsOtherEndsOf({ name: legend })}
             min={entry.startTime || undefined}
             value={entry.endTime}
-            onChange={(event) =>
-              change(entry.key, { endTime: event.target.value })
+            onChange={(endTime) => change(entry.key, { endTime })}
+          />
+          <GridRemoveButton
+            label={m.periodsOtherTimesRemove({ name: legend })}
+            onRemove={() =>
+              onChange(draft.dayTimes.filter((one) => one.key !== entry.key))
             }
           />
-        </fieldset>
+        </div>
       ))}
-      {error ? (
-        <p className="text-[13px] leading-[18px] text-destructive">{error}</p>
-      ) : null}
       {runs.length > 1 ? (
         <Button
           type="button"
           variant="ghost"
-          className="justify-self-start max-md:h-10"
+          size="sm"
+          className="-ms-2 max-md:h-10"
           onClick={() =>
             onChange([
               ...draft.dayTimes,
@@ -256,33 +244,29 @@ function OtherTimesFields({
 }
 
 interface DayChoicesProps {
+  /** The first day's id, so a problem with the days can lead to it. */
+  id: string;
   legend: string;
   days: readonly number[];
   value: readonly number[];
   onChange: (next: number[]) => void;
-  error?: string;
 }
 
-function DayChoices({ legend, days, value, onChange, error }: DayChoicesProps) {
-  const id = useId();
+function DayChoices({ id, legend, days, value, onChange }: DayChoicesProps) {
   return (
-    <fieldset
-      className="grid gap-2 sm:col-span-2"
-      aria-describedby={error ? `${id}-error` : undefined}
-    >
-      <legend className="mb-2 text-sm leading-5 font-medium">
-        <span aria-hidden>{m.periodsDays()}</span>
-        <span className="sr-only">{m.periodsDaysOf({ name: legend })}</span>
-      </legend>
-      <div className="flex flex-wrap gap-x-5 gap-y-3">
-        {days.map((day) => (
+    <fieldset className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+      <legend className="sr-only">{m.periodsDaysOf({ name: legend })}</legend>
+      {days.map((day, index) => {
+        const dayId = index === 0 ? id : `${id}-${day}`;
+        return (
           <label
             key={day}
-            htmlFor={`${id}-${day}`}
-            className="flex items-center gap-2 text-sm leading-5"
+            htmlFor={dayId}
+            className="flex min-h-8 items-center gap-2 text-sm leading-5 max-md:min-h-10"
           >
             <Checkbox
-              id={`${id}-${day}`}
+              id={dayId}
+              aria-label={formatWeekday(day)}
               checked={value.includes(day)}
               onCheckedChange={(checked) =>
                 onChange(
@@ -292,20 +276,172 @@ function DayChoices({ legend, days, value, onChange, error }: DayChoicesProps) {
                 )
               }
             />
-            {formatWeekday(day)}
+            <span aria-hidden>{formatWeekday(day, "short")}</span>
           </label>
-        ))}
-      </div>
-      {error ? (
-        <p
-          id={`${id}-error`}
-          className="text-[13px] leading-[18px] text-destructive"
-        >
-          {error}
-        </p>
-      ) : null}
+        );
+      })}
     </fieldset>
   );
+}
+
+const legendOf = (draft: Draft, index: number) =>
+  inLocale(draft.nameEn || null, draft.nameAr || null) ||
+  m.periodsNumber({ number: formatNumber(index + 1) });
+
+/** The cell each field's problem is shown on and leads to. */
+function periodTarget(draft: Draft, field: string) {
+  switch (field) {
+    case "nameEn":
+      return `period-name-en-${draft.key}`;
+    case "startTime":
+      return `period-starts-${draft.key}`;
+    case "endTime":
+      return `period-ends-${draft.key}`;
+    case "kind":
+      return `period-kind-${draft.key}`;
+    case "dayTimes": {
+      const first = draft.dayTimes[0];
+      return first
+        ? `period-other-starts-${draft.key}-${first.key}`
+        : `period-days-${draft.key}`;
+    }
+    case "weekdays":
+      return `period-days-${draft.key}`;
+    default:
+      return `period-name-ar-${draft.key}`;
+  }
+}
+
+function periodIssues(
+  drafts: readonly Draft[],
+  errors: Partial<Record<Field, string>>,
+): GridIssue[] {
+  return Object.entries(errors).flatMap(([key, message]) => {
+    const [at, field] = key.split(".");
+    const draft = drafts[Number(at)];
+    if (!draft || !field || !message) return [];
+    return [
+      {
+        target: periodTarget(draft, field),
+        label: legendOf(draft, Number(at)),
+        message,
+      },
+    ];
+  });
+}
+
+interface PeriodGridOptions {
+  drafts: Draft[];
+  days: readonly number[];
+  change: (key: number, next: Partial<Draft>) => void;
+  remove: (key: number) => void;
+}
+
+// Built per render: headers read the request's locale.
+function periodGrid({ drafts, days, change, remove }: PeriodGridOptions) {
+  const legend = (draft: Draft) => legendOf(draft, drafts.indexOf(draft));
+  const rowHeader = {
+    header: m.periodsColEnglish(),
+    cell: (draft: Draft) => (
+      <TextCell
+        id={`period-name-en-${draft.key}`}
+        label={m.periodsNameEnglishOf({ name: legend(draft) })}
+        dir="ltr"
+        maxLength={60}
+        value={draft.nameEn}
+        onChange={(nameEn) => change(draft.key, { nameEn })}
+      />
+    ),
+  };
+  const columns: GridColumn<Draft>[] = [
+    {
+      id: "ar",
+      header: m.periodsColArabic(),
+      cell: (draft) => (
+        <TextCell
+          id={`period-name-ar-${draft.key}`}
+          label={m.periodsNameArabicOf({ name: legend(draft) })}
+          lang="ar"
+          maxLength={60}
+          value={draft.nameAr}
+          onChange={(nameAr) => change(draft.key, { nameAr })}
+        />
+      ),
+    },
+    {
+      id: "starts",
+      header: m.periodsStarts(),
+      cell: (draft) => (
+        <TimeCell
+          id={`period-starts-${draft.key}`}
+          label={m.periodsStartsOf({ name: legend(draft) })}
+          value={draft.startTime}
+          onChange={(startTime) => change(draft.key, { startTime })}
+        />
+      ),
+    },
+    {
+      id: "ends",
+      header: m.periodsEnds(),
+      cell: (draft) => (
+        <TimeCell
+          id={`period-ends-${draft.key}`}
+          label={m.periodsEndsOf({ name: legend(draft) })}
+          min={draft.startTime || undefined}
+          value={draft.endTime}
+          onChange={(endTime) => change(draft.key, { endTime })}
+        />
+      ),
+    },
+  ];
+  const rowEnd = (draft: Draft) => (
+    <GridRemoveButton
+      label={m.periodsRemove({ name: legend(draft) })}
+      onRemove={() => remove(draft.key)}
+    />
+  );
+  const rowDetail = (draft: Draft) => (
+    <div className="grid gap-1.5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <span className="w-32">
+          <SelectCell
+            id={`period-kind-${draft.key}`}
+            label={m.periodsKindOf({ name: legend(draft) })}
+            value={draft.kind}
+            options={PERIOD_KINDS.map((kind) => ({
+              value: kind,
+              label: KIND_LABEL[kind](),
+            }))}
+            onChange={(kind) => change(draft.key, { kind })}
+          />
+        </span>
+        <DayChoices
+          id={`period-days-${draft.key}`}
+          legend={legend(draft)}
+          days={days}
+          value={draft.weekdays}
+          onChange={(weekdays) => change(draft.key, { weekdays })}
+        />
+        {draft.kind === "break" ? null : (
+          <label className="flex min-h-8 items-center gap-2 text-sm leading-5 max-md:min-h-10">
+            <Checkbox
+              aria-label={m.periodsOfficialOf({ name: legend(draft) })}
+              checked={draft.official}
+              onCheckedChange={(official) => change(draft.key, { official })}
+            />
+            {m.periodsOfficial()}
+          </label>
+        )}
+      </div>
+      <OtherTimes
+        draft={draft}
+        legend={legend(draft)}
+        days={days}
+        onChange={(dayTimes) => change(draft.key, { dayTimes })}
+      />
+    </div>
+  );
+  return { rowHeader, columns, rowEnd, rowDetail };
 }
 
 const fieldOf = (key: string, path: readonly unknown[]): Field | undefined => {
@@ -328,6 +464,7 @@ function PeriodsSheet({ data, open, onClose }: PeriodsSheetProps) {
   const segment = segmentOf(data);
   const lastDay = addDays(segment.until, -1);
   const nextKey = useRef(data.periods.length + 1);
+  const focusLater = useFocusAfterRender();
   const [from, setFrom] = useState(() =>
     clamp(data.today, segment.from, lastDay),
   );
@@ -369,10 +506,6 @@ function PeriodsSheet({ data, open, onClose }: PeriodsSheetProps) {
         draft.key === key ? { ...draft, ...next } : draft,
       ),
     );
-  };
-  const error = (index: number, field: string) => {
-    const found = errors[`${index}.${field}`];
-    return found ? [found] : undefined;
   };
   const refusal = refusalOf(mutation.error, {});
   const code = mutation.error?.message ?? "";
@@ -426,145 +559,52 @@ function PeriodsSheet({ data, open, onClose }: PeriodsSheetProps) {
               : undefined
         }
       />
-      {drafts.map((draft, index) => {
-        const legend =
-          inLocale(draft.nameEn || null, draft.nameAr || null) ||
-          m.periodsNumber({ number: formatNumber(index + 1) });
-        return (
-          <fieldset
-            key={draft.key}
-            className="relative grid gap-4 rounded-lg border p-4 pt-6 sm:grid-cols-2"
-          >
-            <legend className="px-1 text-sm leading-5 font-semibold">
-              {legend}
-            </legend>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute end-2 top-2 max-md:size-10"
-              aria-label={m.periodsRemove({ name: legend })}
-              onClick={() => {
-                setErrors({});
-                setDrafts((current) =>
-                  current.filter((item) => item.key !== draft.key),
-                );
-              }}
-            >
-              <X aria-hidden />
-            </Button>
-            <TextField
-              id={`period-name-ar-${draft.key}`}
-              label={m.periodsNameArabic()}
-              dir="rtl"
-              maxLength={60}
-              autoComplete="off"
-              value={draft.nameAr}
-              onChange={(event) =>
-                change(draft.key, { nameAr: event.target.value })
-              }
-              errors={error(index, "nameAr")}
-            />
-            <TextField
-              id={`period-name-en-${draft.key}`}
-              label={m.periodsNameEnglish()}
-              dir="ltr"
-              maxLength={60}
-              autoComplete="off"
-              value={draft.nameEn}
-              onChange={(event) =>
-                change(draft.key, { nameEn: event.target.value })
-              }
-            />
-            <SelectField
-              id={`period-kind-${draft.key}`}
-              label={m.periodsKind()}
-              value={draft.kind}
-              options={PERIOD_KINDS.map((kind) => ({
-                value: kind,
-                label: KIND_LABEL[kind](),
-              }))}
-              onChange={(kind) => change(draft.key, { kind })}
-              className="sm:col-span-2"
-            />
-            <TextField
-              id={`period-starts-${draft.key}`}
-              label={m.periodsStarts()}
-              type="time"
-              width="date"
-              value={draft.startTime}
-              onChange={(event) =>
-                change(draft.key, { startTime: event.target.value })
-              }
-              errors={error(index, "startTime")}
-            />
-            <TextField
-              id={`period-ends-${draft.key}`}
-              label={m.periodsEnds()}
-              type="time"
-              width="date"
-              min={draft.startTime || undefined}
-              value={draft.endTime}
-              onChange={(event) =>
-                change(draft.key, { endTime: event.target.value })
-              }
-              errors={error(index, "endTime")}
-            />
-            <DayChoices
-              legend={legend}
-              days={data.days}
-              value={draft.weekdays}
-              onChange={(weekdays) => change(draft.key, { weekdays })}
-              error={error(index, "weekdays")?.[0]}
-            />
-            <OtherTimesFields
-              draft={draft}
-              legend={legend}
-              days={data.days}
-              error={error(index, "dayTimes")?.[0]}
-              onChange={(dayTimes) => change(draft.key, { dayTimes })}
-            />
-            {draft.kind === "break" ? null : (
-              <div className="sm:col-span-2">
-                <CheckboxRow
-                  label={m.periodsOfficial()}
-                  hint={m.periodsOfficialHint()}
-                  checked={draft.official}
-                  onChange={(official) => change(draft.key, { official })}
-                />
-              </div>
-            )}
-          </fieldset>
-        );
-      })}
-      <Button
-        type="button"
-        variant="outline"
-        className="justify-self-start max-md:h-10"
-        onClick={() => {
-          const key = nextKey.current;
-          nextKey.current += 1;
-          const last = drafts.at(-1);
-          setErrors({});
-          setDrafts([
-            ...drafts,
-            {
-              key,
-              nameEn: "",
-              nameAr: "",
-              kind: "lesson",
-              startTime: last?.endTime ?? "",
-              endTime: "",
-              official: false,
-              weekdays: [...data.days],
-              dayTimes: [],
-            },
-          ]);
-        }}
-      >
-        <Plus aria-hidden />
-        {m.periodsAdd()}
-      </Button>
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
+        {m.periodsOfficialHint()}
+      </p>
+      <DataGrid<Draft>
+        caption={m.periodsTable()}
+        editing
+        surface="sheet"
+        {...periodGrid({
+          drafts,
+          days: data.days,
+          change,
+          remove: (key) => {
+            setErrors({});
+            setDrafts((current) => current.filter((item) => item.key !== key));
+          },
+        })}
+        groups={[{ id: "periods", title: "", rows: drafts }]}
+        rowKey={(draft) => String(draft.key)}
+        issues={periodIssues(drafts, errors)}
+        footer={
+          <GridAddButton
+            label={m.periodsAdd()}
+            onAdd={() => {
+              const key = nextKey.current;
+              nextKey.current += 1;
+              const last = drafts.at(-1);
+              setErrors({});
+              setDrafts([
+                ...drafts,
+                {
+                  key,
+                  nameEn: "",
+                  nameAr: "",
+                  kind: "lesson",
+                  startTime: last?.endTime ?? "",
+                  endTime: "",
+                  official: false,
+                  weekdays: [...data.days],
+                  dayTimes: [],
+                },
+              ]);
+              focusLater(`period-name-en-${key}`);
+            }}
+          />
+        }
+      />
     </SheetForm>
   );
 }
