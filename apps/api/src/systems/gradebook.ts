@@ -22,6 +22,7 @@ import {
 } from "@faridalms/database/stores/years";
 import {
   classBookSchema,
+  isLate,
   releasePeriodSchema,
   savePeriodGradesSchema,
 } from "@faridalms/domain/coursework";
@@ -66,14 +67,14 @@ export const classBook = readProcedure
     requireCapability(context, "submissions:grade");
     const { classRow, year } = await taughtClass(context, input.classId);
     const terms = await termsOf(context.tx, context.tenantId, year.id);
-    const period =
-      terms.find((row) => row.id === input.periodId) ??
+    const current =
       terms.find(
         (row) =>
           row.startsOn <= context.today && context.today < row.endsBefore,
       ) ??
       terms[0] ??
       null;
+    const period = terms.find((row) => row.id === input.periodId) ?? current;
     const roster = await rosterOf(
       context.tx,
       context.tenantId,
@@ -168,6 +169,7 @@ export const classBook = readProcedure
         titleAr: row.titleAr,
       })),
       periodId: period?.id ?? null,
+      currentPeriodId: current?.id ?? null,
       assignments: work
         .filter(
           (row) =>
@@ -187,6 +189,9 @@ export const classBook = readProcedure
       students,
       results: results.map((row) => ({
         ...row,
+        // Nothing in, and anything handed in now would be late.
+        missing:
+          !row.handedIn && !row.excused && isLate(row.dueAt, context.now),
         grade: grade(
           row.gradeScaleVersionId,
           row.effectiveScore ?? row.score,

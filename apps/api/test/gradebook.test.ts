@@ -1,3 +1,4 @@
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 
 import { login, rejection, signedIn } from "./harness";
@@ -83,6 +84,49 @@ describe("gradebook", () => {
         }),
       ),
     ).toMatchObject({ message: "gradebook.score_range" });
+  });
+
+  test("a class book says whose work is in, late or missing, and which term is under way", async () => {
+    const api = await arabicTeacher();
+    const { book, me, student } = await studentClass(api);
+    const saved = await api.coursework.save({
+      classId: book.class.id,
+      title: `Overdue ${Date.now()}`,
+      brief: plainContent("Write about rivers."),
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "online",
+      points: 10,
+      rubric: null,
+      dueAt: new Date(Date.now() - 86_400_000).toISOString(),
+    });
+    await api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const draft = await student.coursework.saveDraft({
+      assignmentId: saved.id,
+      expectedVersion: 0,
+      content: plainContent("Rivers widen near the sea."),
+    });
+    await student.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: draft.version,
+    });
+    const after = await api.gradebook.classBook({ classId: book.class.id });
+    const of = (mine: boolean) =>
+      after.results.find(
+        (row) =>
+          row.assignmentId === saved.id && (row.studentId === me.id) === mine,
+      );
+    expect(of(true)).toMatchObject({
+      handedIn: true,
+      isLate: true,
+      missing: false,
+      score: null,
+    });
+    expect(of(false)).toMatchObject({ handedIn: false, missing: true });
+    expect(after.currentPeriodId).toBe(book.periodId);
   });
 
   test("a teacher who does not teach the class opens no book", async () => {

@@ -10,8 +10,12 @@ export interface ResultCell {
   score: number | null;
   effectiveScore: number | null;
   released: boolean;
+  /** An attempt is in, whether or not it has been marked. */
+  handedIn: boolean;
   isLate: boolean;
   excused: boolean;
+  /** When this student's work is due: their own extension, else the work's. */
+  dueAt: string | null;
   gradeScaleVersionId: string | null;
 }
 
@@ -27,13 +31,16 @@ export async function classResults(
     score: string | null;
     effective_score: string | null;
     released: boolean | null;
+    handed_in: boolean;
     is_late: boolean | null;
     excused: boolean | null;
+    due_at: string | null;
     grade_scale_version_id: string | null;
   }>(sql`
     select r.assignment_id, r.student_user_id as student_id, x.score::text as score,
       x.effective_score::text as effective_score, x.released_at is not null as released,
-      t.is_late, s.excused, x.grade_scale_version_id
+      t.id is not null as handed_in, t.is_late, s.excused, x.grade_scale_version_id,
+      to_char(coalesce(r.due_at, a.due_at) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as due_at
     from core.assignment_recipients r
     join core.assignments a on a.tenant_id = r.tenant_id and a.id = r.assignment_id
     left join core.submissions s on s.tenant_id = r.tenant_id and s.assignment_id = r.assignment_id
@@ -52,8 +59,10 @@ export async function classResults(
     effectiveScore:
       row.effective_score === null ? null : Number(row.effective_score),
     released: row.released ?? false,
+    handedIn: row.handed_in,
     isLate: row.is_late ?? false,
     excused: row.excused ?? false,
+    dueAt: row.due_at,
     gradeScaleVersionId: row.grade_scale_version_id,
   }));
 }
