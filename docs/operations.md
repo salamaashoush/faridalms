@@ -248,16 +248,26 @@ directory lists as open; the `migrate` job lists its own cell, once, from
 already there as it is.
 
 `demo --slug <code>` fills a school created empty (no year yet) for showing
-the product: staff, two classes of twenty in each grade from KG2 to grade 9
-with their families, a timetable, coursework, registers up to yesterday,
-messages, news, admissions and enquiries. A website the school already has
-stays as it is. Every login it makes shares `DEMO_PASSWORD` (at least 12
-characters, passed in the environment:
+the product to a school: staff, two classes of twenty in each grade from KG2
+to grade 9 with their families, a timetable, and a term in progress dated
+from the day it runs. Registers are taken through today. Each class has
+work set, handed in and marked, with feedback and a released term-to-date
+grade, written for its age and subject (the Arabic classes' in Arabic).
+KG classes have young children's lessons, and older ones a module per
+subject. Families and teachers have conversations, the school has
+announcements, news and a calendar around today, a few children have
+medical alerts, and admissions and enquiries are under way. A website the
+school already has stays as it is. The content lives in
+`packages/database/src/demo.ts`; the development seed is unchanged.
+Every login it makes shares `DEMO_PASSWORD` (at least 12 characters,
+passed in the environment:
 `DEMO_PASSWORD=... docker compose run --rm -e DEMO_PASSWORD admin demo --slug demo`)
 and is named at `--domain`, `<code>.example.com` unless given. None has an
 email contact, and no seeded phone takes SMS, so nothing done in the
 demonstration sends a message off the platform. A school that already has a
-year is refused, so it cannot run twice.
+year is refused, so it cannot run twice. The fill writes each message and
+record with the time it happened, which the cell keeps because the owner,
+like the importer, is trusted with the times it writes.
 
 Locally, `bun install` generates `PROVISION_SECRET` and `.env.example` sets
 `CELL_PROVISION_URL`, so `bun run dev` starts the provisioner on

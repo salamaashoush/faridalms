@@ -1,3 +1,4 @@
+import type { ContentDocument } from "@faridalms/domain/content";
 import type { LessonBlock, LessonCompletion } from "@faridalms/domain/learning";
 import type { FormQuestion } from "@faridalms/domain/questions";
 
@@ -132,7 +133,7 @@ import { attendanceEvents } from "./tables/partitioned";
 import { provisionTenant } from "./tenants";
 
 /** A small deterministic generator, so every reset produces the same people. */
-function random(seed: number) {
+export function random(seed: number) {
   let state = seed >>> 0;
   return () => {
     state = (state + 0x6d2b79f5) >>> 0;
@@ -143,9 +144,9 @@ function random(seed: number) {
   };
 }
 
-type Name = [en: string, ar: string];
+export type Name = [en: string, ar: string];
 
-const GIRLS: Name[] = [
+export const GIRLS: Name[] = [
   ["Mariam", "مريم"],
   ["Salma", "سلمى"],
   ["Nour", "نور"],
@@ -159,7 +160,7 @@ const GIRLS: Name[] = [
   ["Dina", "دينا"],
   ["Aya", "آية"],
 ];
-const BOYS: Name[] = [
+export const BOYS: Name[] = [
   ["Omar", "عمر"],
   ["Youssef", "يوسف"],
   ["Adam", "آدم"],
@@ -173,7 +174,7 @@ const BOYS: Name[] = [
   ["Seif", "سيف"],
   ["Hamza", "حمزة"],
 ];
-const FAMILIES: Name[] = [
+export const FAMILIES: Name[] = [
   ["Mansour", "منصور"],
   ["Hamdy", "حمدي"],
   ["Fathy", "فتحي"],
@@ -187,7 +188,7 @@ const FAMILIES: Name[] = [
   ["Helmy", "حلمي"],
   ["Kamel", "كامل"],
 ];
-const MOTHERS: Name[] = [
+export const MOTHERS: Name[] = [
   ["Amira", "أميرة"],
   ["Heba", "هبة"],
   ["Mona", "منى"],
@@ -198,7 +199,22 @@ const MOTHERS: Name[] = [
   ["Ghada", "غادة"],
 ];
 
-interface Names {
+/** The family who enquires and applies, in the seeded admissions office. */
+export interface Visitor {
+  given: Name;
+  family: Name;
+  child: Name;
+}
+
+const DEV_VISITOR: Visitor = {
+  given: ["Salama", "سلامة"],
+  family: ["Ashoush", "عشوش"],
+  child: ["Omar", "عمر"],
+};
+
+const emailName = (visitor: Visitor) => visitor.given[0].toLowerCase();
+
+export interface Names {
   girls: readonly Name[];
   boys: readonly Name[];
   families: readonly Name[];
@@ -210,69 +226,6 @@ const DEV_NAMES: Names = {
   boys: BOYS,
   families: FAMILIES,
   mothers: MOTHERS,
-};
-
-// A demonstration school has hundreds of children; drawn from the short
-// lists alone, every class would hold the same few names twice.
-const DEMO_NAMES: Names = {
-  girls: [
-    ...GIRLS,
-    ["Habiba", "حبيبة"],
-    ["Lina", "لينا"],
-    ["Reem", "ريم"],
-    ["Nada", "ندى"],
-    ["Jomana", "جمانة"],
-    ["Sama", "سما"],
-    ["Layan", "ليان"],
-    ["Hagar", "هاجر"],
-    ["Yara", "يارا"],
-    ["Basmala", "بسملة"],
-    ["Rahma", "رحمة"],
-    ["Shahd", "شهد"],
-  ],
-  boys: [
-    ...BOYS,
-    ["Mohamed", "محمد"],
-    ["Ahmed", "أحمد"],
-    ["Mahmoud", "محمود"],
-    ["Ibrahim", "إبراهيم"],
-    ["Mazen", "مازن"],
-    ["Marwan", "مروان"],
-    ["Yassin", "ياسين"],
-    ["Malek", "مالك"],
-    ["Eyad", "إياد"],
-    ["Hazem", "حازم"],
-    ["Taha", "طه"],
-    ["Amr", "عمرو"],
-  ],
-  families: [
-    ...FAMILIES,
-    ["Abdelaziz", "عبدالعزيز"],
-    ["Gamal", "جمال"],
-    ["Shawky", "شوقي"],
-    ["Badawi", "بدوي"],
-    ["Ezzat", "عزت"],
-    ["Sharaf", "شرف"],
-    ["Lotfy", "لطفي"],
-    ["Ragab", "رجب"],
-    ["Soliman", "سليمان"],
-    ["Fouad", "فؤاد"],
-    ["Hegazy", "حجازي"],
-    ["Radwan", "رضوان"],
-  ],
-  mothers: [
-    ...MOTHERS,
-    ["Eman", "إيمان"],
-    ["Shaimaa", "شيماء"],
-    ["Marwa", "مروة"],
-    ["Nermeen", "نرمين"],
-    ["Doaa", "دعاء"],
-    ["Hala", "هالة"],
-    ["Reham", "ريهام"],
-    ["Inas", "إيناس"],
-    ["Abeer", "عبير"],
-    ["Nesma", "نسمة"],
-  ],
 };
 
 const DEV_PASSWORD = "farida-development-password";
@@ -302,9 +255,13 @@ export interface SeededTenant extends ProvisionedTenant {
 
 export const SEED_PASSWORD = DEV_PASSWORD;
 
-type Tx = CellTransaction;
+export type Tx = CellTransaction;
 
-async function descriptorIds(tx: Tx, tenantId: string, namespace: string) {
+export async function descriptorIds(
+  tx: Tx,
+  tenantId: string,
+  namespace: string,
+) {
   const rows = await tx
     .select({ id: descriptors.id, code: descriptors.codeValue })
     .from(descriptors)
@@ -317,7 +274,7 @@ async function descriptorIds(tx: Tx, tenantId: string, namespace: string) {
   return new Map(rows.map((row) => [row.code, row.id]));
 }
 
-const need = <K, V>(map: Map<K, V>, key: K): V => {
+export const need = <K, V>(map: Map<K, V>, key: K): V => {
   const value = map.get(key);
   if (value === undefined) throw new Error(`Seed is missing ${String(key)}`);
   return value;
@@ -342,7 +299,7 @@ interface YearPlan {
   }[];
 }
 
-const YEAR: YearPlan = {
+export const YEAR: YearPlan = {
   start: "2026-09-13",
   end: "2027-06-18",
   schoolYear: 2027,
@@ -530,7 +487,7 @@ async function seedYear(
   return { yearId, calendarId };
 }
 
-interface Person {
+export interface Person {
   id: string;
   en: string;
   ar: string;
@@ -644,12 +601,17 @@ async function role(
   });
 }
 
-interface SchoolPlan {
+export interface SchoolPlan {
   slug: string;
   grades: string[];
   studentsPerGrade: number;
   /** Homerooms per grade, A, B and on; one unless given. */
   sections?: number;
+  /**
+   * Each class teacher also teaches one subject to their own class, as in a
+   * real school; otherwise class teachers are taken from the staff in turn.
+   */
+  classTeacherTeaches?: boolean;
   basic?: boolean;
   /** An admissions office with next year's intakes and applications. */
   admissions?: boolean;
@@ -707,6 +669,7 @@ async function seedClasses(
   grades: readonly string[],
   teachers: readonly Person[],
   pupils: ReadonlyMap<string, readonly (readonly string[])[]>,
+  classTeacherTeaches = false,
 ) {
   const [gradeIds, subjectIds, positions] = await Promise.all([
     descriptorIds(tx, tenantId, "grade_level"),
@@ -755,7 +718,11 @@ async function seedClasses(
       await tx.insert(enrollments).values([
         {
           ...homeroom,
-          userId: teacherOf(homeroomIndex).id,
+          userId: teacherOf(
+            classTeacherTeaches
+              ? (homeroomIndex % BLOCK) + 1 + block * BLOCK
+              : homeroomIndex,
+          ).id,
           role: "teacher",
           isPrimary: true,
           classroomPositionDescriptorId: need(positions, "teacher_of_record"),
@@ -1049,13 +1016,34 @@ async function seedCoursework(
   }
 }
 
-async function seedSchool(
+/** What a school's own content is written against, once its people and classes exist. */
+export interface FilledSchool {
+  tenantId: string;
+  schoolId: string;
+  yearId: string;
+  principalId: string;
+  officeId: string;
+  teachers: readonly Person[];
+  /** Each grade's students, by section. */
+  pupils: ReadonlyMap<string, readonly (readonly string[])[]>;
+  kek: KeyEncryptionKey;
+  cell: string;
+  next: () => number;
+}
+
+export async function seedSchool(
   tx: Tx,
   tenantId: string,
   schoolId: string,
   plan: SchoolPlan,
   context: {
     passwordHash: string;
+    visitor: Visitor;
+    /**
+     * Writes the school's coursework, lessons, messages, notices, news and
+     * events in place of the development seed's few examples.
+     */
+    content?: (tx: Tx, school: FilledSchool) => Promise<void>;
     /** Whether a seeded login is also an address the school writes to. */
     reachable: boolean;
     names: Names;
@@ -1401,6 +1389,7 @@ async function seedSchool(
     plan.grades,
     teachers,
     pupils,
+    plan.classTeacherTeaches,
   );
   // Everything below joins the people and classes just written, in this same
   // transaction, before autovacuum has counted any of them. Without counts
@@ -1410,26 +1399,61 @@ async function seedSchool(
     analyze core.users, core.user_roles, core.user_relationships,
       core.enrollments, core.classes`);
   await seedTimetable(tx, tenantId, schoolId, yearId);
-  await seedCoursework(tx, tenantId, schoolId, yearId);
-  await seedAttendance(tx, tenantId, schoolId, yearId, context.attendanceUntil);
-  await seedMessages(tx, tenantId, schoolId, yearId);
-  await seedAnnouncements(tx, tenantId, schoolId);
-  await seedSchoolNews(tx, tenantId, schoolId);
-  await seedConsents(
-    tx,
-    tenantId,
-    schoolId,
-    (pupils.get(plan.grades[1] ?? "") ?? []).flat(),
-  );
-  await seedEvents(tx, tenantId, schoolId, yearId);
-  await seedNotifications(tx, tenantId, schoolId);
-  await seedLearning(tx, tenantId, schoolId, yearId);
-  await seedSite(tx, tenantId, schoolId);
-  await seedEnquiries(tx, tenantId, schoolId, office.id);
+  if (context.content) {
+    await seedAttendance(
+      tx,
+      tenantId,
+      schoolId,
+      yearId,
+      context.attendanceUntil,
+    );
+    await context.content(tx, {
+      tenantId,
+      schoolId,
+      yearId,
+      principalId: principal.id,
+      officeId: office.id,
+      teachers,
+      pupils,
+      kek: context.kek,
+      cell: context.cell,
+      next,
+    });
+    await seedConsents(
+      tx,
+      tenantId,
+      schoolId,
+      (pupils.get(plan.grades[1] ?? "") ?? []).flat(),
+    );
+  } else {
+    await seedCoursework(tx, tenantId, schoolId, yearId);
+    await seedAttendance(
+      tx,
+      tenantId,
+      schoolId,
+      yearId,
+      context.attendanceUntil,
+    );
+    await seedMessages(tx, tenantId, schoolId, yearId);
+    await seedAnnouncements(tx, tenantId, schoolId);
+    await seedSchoolNews(tx, tenantId, schoolId);
+    await seedConsents(
+      tx,
+      tenantId,
+      schoolId,
+      (pupils.get(plan.grades[1] ?? "") ?? []).flat(),
+    );
+    await seedEvents(tx, tenantId, schoolId, yearId);
+    await seedNotifications(tx, tenantId, schoolId);
+    await seedLearning(tx, tenantId, schoolId, yearId);
+  }
+  await seedSite(tx, tenantId, schoolId, context.visitor);
+  await seedEnquiries(tx, tenantId, schoolId, office.id, context.visitor);
   if (plan.admissions)
     await seedAdmissions(tx, tenantId, schoolId, {
       passwordHash: context.passwordHash,
       reachable: context.reachable,
+      visitor: context.visitor,
       login: `applicant.${plan.slug}@${context.domain}`,
       logins: context.logins,
       officeId: office.id,
@@ -1545,42 +1569,56 @@ async function seedAnnouncements(tx: Tx, tenantId: string, schoolId: string) {
       and r.role in ('principal', 'site_administrator') and r.status = 'active'
     order by r.role, r.user_id limit 1`);
   if (!principal) return;
-  const on = "2026-09-27";
-  const plans: {
-    title: string;
-    body: string;
-    audience: Audience;
-    urgency: "normal" | "important";
-    pinnedUntil?: string;
-    requiresAck?: boolean;
-    ackDueOn?: string;
-    publishAt: Date | null;
-  }[] = [
-    {
-      title: "Welcome to the new school year",
-      body: "Registers open at 7:45 each morning. The timetable and the reading lists for the term are in the app.",
-      audience: { scope: "school", classId: null, gradeId: null },
-      urgency: "normal",
-      pinnedUntil: "2027-06-18",
-      publishAt: new Date("2026-09-13T06:00:00Z"),
-    },
-    {
-      title: "Museum trip permission",
-      body: "The museum trip is on 15 October. Please acknowledge that your child may join by 8 October.",
-      audience: { scope: "families", classId: null, gradeId: null },
-      urgency: "important",
-      requiresAck: true,
-      ackDueOn: "2026-10-08",
-      publishAt: new Date("2026-09-24T09:00:00Z"),
-    },
-    {
-      title: "Parents' evening",
-      body: "Parents' evening dates will follow once teachers confirm their slots.",
-      audience: { scope: "families", classId: null, gradeId: null },
-      urgency: "normal",
-      publishAt: null,
-    },
-  ];
+  await insertAnnouncements(
+    tx,
+    { tenantId, schoolId, authorId: principal.user_id, on: "2026-09-27" },
+    [
+      {
+        title: "Welcome to the new school year",
+        body: "Registers open at 7:45 each morning. The timetable and the reading lists for the term are in the app.",
+        audience: { scope: "school", classId: null, gradeId: null },
+        urgency: "normal",
+        pinnedUntil: "2027-06-18",
+        publishAt: new Date("2026-09-13T06:00:00Z"),
+      },
+      {
+        title: "Museum trip permission",
+        body: "The museum trip is on 15 October. Please acknowledge that your child may join by 8 October.",
+        audience: { scope: "families", classId: null, gradeId: null },
+        urgency: "important",
+        requiresAck: true,
+        ackDueOn: "2026-10-08",
+        publishAt: new Date("2026-09-24T09:00:00Z"),
+      },
+      {
+        title: "Parents' evening",
+        body: "Parents' evening dates will follow once teachers confirm their slots.",
+        audience: { scope: "families", classId: null, gradeId: null },
+        urgency: "normal",
+        publishAt: null,
+      },
+    ],
+  );
+}
+
+export interface AnnouncementPlan {
+  title: string;
+  body: string;
+  audience: Audience;
+  urgency: "normal" | "important";
+  pinnedUntil?: string;
+  requiresAck?: boolean;
+  ackDueOn?: string;
+  publishAt: Date | null;
+}
+
+/** Announcements by one author, each reaching its audience as it stood `on` that day. */
+export async function insertAnnouncements(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; authorId: string; on: string },
+  plans: readonly AnnouncementPlan[],
+) {
+  const { tenantId, schoolId, on } = input;
   for (const plan of plans) {
     const id = Bun.randomUUIDv7();
     await tx.insert(broadcasts).values({
@@ -1596,7 +1634,7 @@ async function seedAnnouncements(tx: Tx, tenantId: string, schoolId: string) {
       pinnedUntil: plan.pinnedUntil ?? null,
       requiresAck: plan.requiresAck ?? false,
       ackDueOn: plan.ackDueOn ?? null,
-      authorUserId: principal.user_id,
+      authorUserId: input.authorId,
     });
     await tx.insert(broadcastAudiences).values({
       tenantId,
@@ -1612,13 +1650,13 @@ async function seedAnnouncements(tx: Tx, tenantId: string, schoolId: string) {
       content: plainContent(plan.body) as unknown as Record<string, unknown>,
       plainText: plan.body,
       mediaIds: [],
-      userId: principal.user_id,
+      userId: input.authorId,
     });
     if (plan.publishAt) {
       await snapshotPublish(tx, {
         tenantId,
         documentId: words.id,
-        userId: principal.user_id,
+        userId: input.authorId,
       });
       await addRecipients(tx, {
         tenantId,
@@ -1665,54 +1703,78 @@ async function seedSchoolNews(tx: Tx, tenantId: string, schoolId: string) {
       and r.role in ('principal', 'site_administrator') and r.status = 'active'
     order by r.role, r.user_id limit 1`);
   if (!principal) return;
-  const plans = [
-    {
-      slug: "september-newsletter",
-      title: "September newsletter",
-      publishAt: new Date("2026-09-18T07:00:00Z"),
-      english: headedContent([
-        part(
-          "From the principal",
-          "A warm welcome back to every family. The first weeks have gone smoothly, and the new timetable is settling in.",
-        ),
-        part(
-          "Dates for October",
-          "The museum trip is on 15 October and parents' evening follows at the end of the month.",
-        ),
-        part(
-          "Clubs",
-          "Chess, robotics and choir start next week. Sign-up sheets are with homeroom teachers.",
-        ),
-      ]),
-      arabic: headedContent([
-        part(
-          "كلمة المديرة",
-          "مرحبًا بعودة جميع الأسر. مرت الأسابيع الأولى بسلاسة، والجدول الجديد يستقر.",
-        ),
-        part(
-          "مواعيد أكتوبر",
-          "رحلة المتحف في 15 أكتوبر، ويليها لقاء أولياء الأمور في نهاية الشهر.",
-        ),
-        part("الأندية", "تبدأ أندية الشطرنج والروبوتات والكورال الأسبوع المقبل."),
-      ]),
-    },
-    {
-      slug: "october-newsletter",
-      title: "October newsletter",
-      publishAt: null,
-      english: headedContent([
-        part("From the principal", "Notes for October will follow."),
-      ]),
-      arabic: null,
-    },
-  ];
+  await insertNews(
+    tx,
+    { tenantId, schoolId, authorId: principal.user_id, on: "2026-09-27" },
+    [
+      {
+        slug: "september-newsletter",
+        title: "September newsletter",
+        publishAt: new Date("2026-09-18T07:00:00Z"),
+        english: headedContent([
+          part(
+            "From the principal",
+            "A warm welcome back to every family. The first weeks have gone smoothly, and the new timetable is settling in.",
+          ),
+          part(
+            "Dates for October",
+            "The museum trip is on 15 October and parents' evening follows at the end of the month.",
+          ),
+          part(
+            "Clubs",
+            "Chess, robotics and choir start next week. Sign-up sheets are with homeroom teachers.",
+          ),
+        ]),
+        arabic: headedContent([
+          part(
+            "كلمة المديرة",
+            "مرحبًا بعودة جميع الأسر. مرت الأسابيع الأولى بسلاسة، والجدول الجديد يستقر.",
+          ),
+          part(
+            "مواعيد أكتوبر",
+            "رحلة المتحف في 15 أكتوبر، ويليها لقاء أولياء الأمور في نهاية الشهر.",
+          ),
+          part(
+            "الأندية",
+            "تبدأ أندية الشطرنج والروبوتات والكورال الأسبوع المقبل.",
+          ),
+        ]),
+      },
+      {
+        slug: "october-newsletter",
+        title: "October newsletter",
+        publishAt: null,
+        english: headedContent([
+          part("From the principal", "Notes for October will follow."),
+        ]),
+        arabic: null,
+      },
+    ],
+  );
+}
+
+export interface NewsPlan {
+  slug: string;
+  title: string;
+  publishAt: Date | null;
+  english: ContentDocument;
+  arabic: ContentDocument | null;
+}
+
+/** News for the whole school by one author, the published told to everyone `on` that day. */
+export async function insertNews(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; authorId: string; on: string },
+  plans: readonly NewsPlan[],
+) {
+  const { tenantId, schoolId } = input;
   const audience: Audience = { scope: "school", classId: null, gradeId: null };
   for (const plan of plans) {
     const created = await insertBroadcast(tx, {
       ...newsFields,
       tenantId,
       schoolId,
-      authorId: principal.user_id,
+      authorId: input.authorId,
       kind: "news",
       slug: plan.slug,
       titleEn: plan.title,
@@ -1733,7 +1795,7 @@ async function seedSchoolNews(tx: Tx, tenantId: string, schoolId: string) {
       content: plan.english as unknown as Record<string, unknown>,
       plainText: contentPlainText(plan.english),
       mediaIds: [],
-      userId: principal.user_id,
+      userId: input.authorId,
     });
     const translation = plan.arabic
       ? await saveTranslation(tx, {
@@ -1746,7 +1808,7 @@ async function seedSchoolNews(tx: Tx, tenantId: string, schoolId: string) {
           content: plan.arabic as unknown as Record<string, unknown>,
           plainText: contentPlainText(plan.arabic),
           mediaIds: [],
-          userId: principal.user_id,
+          userId: input.authorId,
         })
       : null;
     if (!plan.publishAt) continue;
@@ -1763,16 +1825,14 @@ async function seedSchoolNews(tx: Tx, tenantId: string, schoolId: string) {
         await snapshotPublish(tx, {
           tenantId,
           documentId: document.id,
-          userId: principal.user_id,
+          userId: input.authorId,
         });
     await addRecipients(tx, {
       tenantId,
       broadcastId: created.id,
-      userIds: await audienceUsers(
-        tx,
-        { tenantId, schoolId, on: "2026-09-27" },
-        [audience],
-      ),
+      userIds: await audienceUsers(tx, { tenantId, schoolId, on: input.on }, [
+        audience,
+      ]),
     });
   }
 }
@@ -2021,21 +2081,7 @@ async function seedEvents(
     gradeId: null,
   };
   const staff: Audience = { scope: "staff", classId: null, gradeId: null };
-  const plans: {
-    title: string;
-    titleAr: string;
-    public?: boolean;
-    category: "trip" | "meeting" | "sport" | "performance";
-    startsOn: string;
-    endsOn?: string;
-    startTime?: string;
-    endTime?: string;
-    location?: string;
-    provisional?: boolean;
-    cancelled?: boolean;
-    audiences: Audience[];
-    body: string;
-  }[] = [
+  await insertEvents(tx, { tenantId, schoolId, authorId: principal.user_id }, [
     {
       title: "Staff meeting",
       titleAr: "اجتماع المعلمين",
@@ -2105,7 +2151,32 @@ async function seedEvents(
       audiences: [school],
       body: "Races, relays and a picnic. Families are welcome to watch.",
     },
-  ];
+  ]);
+}
+
+export interface EventPlan {
+  title: string;
+  titleAr: string;
+  public?: boolean;
+  category: "trip" | "meeting" | "sport" | "performance";
+  startsOn: string;
+  endsOn?: string;
+  startTime?: string;
+  endTime?: string;
+  location?: string;
+  provisional?: boolean;
+  cancelled?: boolean;
+  audiences: Audience[];
+  body: string;
+}
+
+/** Calendar events by one author, each described and published. */
+export async function insertEvents(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; authorId: string },
+  plans: readonly EventPlan[],
+) {
+  const { tenantId, schoolId } = input;
   for (const plan of plans) {
     const id = Bun.randomUUIDv7();
     await tx.insert(calendarEvents).values({
@@ -2123,7 +2194,7 @@ async function seedEvents(
       location: plan.location ?? null,
       provisional: plan.provisional ?? false,
       cancelled: plan.cancelled ?? false,
-      authorUserId: principal.user_id,
+      authorUserId: input.authorId,
     });
     await tx.insert(calendarEventAudiences).values(
       plan.audiences.map((audience) => ({
@@ -2141,12 +2212,12 @@ async function seedEvents(
       content: plainContent(plan.body) as unknown as Record<string, unknown>,
       plainText: plan.body,
       mediaIds: [],
-      userId: principal.user_id,
+      userId: input.authorId,
     });
     await snapshotPublish(tx, {
       tenantId,
       documentId: description.id,
-      userId: principal.user_id,
+      userId: input.authorId,
     });
   }
 }
@@ -2155,7 +2226,11 @@ async function seedEvents(
  * The trip notice waiting on each family it reached, with the email the
  * development cell could not send for want of a gateway.
  */
-async function seedNotifications(tx: Tx, tenantId: string, schoolId: string) {
+export async function seedNotifications(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+) {
   const rows = await tx.execute<{
     id: string;
     title: string;
@@ -2977,6 +3052,7 @@ export async function seedCell(
       const context: Parameters<typeof seedSchool>[4] = {
         passwordHash,
         reachable: true,
+        visitor: DEV_VISITOR,
         names: DEV_NAMES,
         attendanceUntil: "2026-09-24",
         next,
@@ -3031,107 +3107,6 @@ export async function seedCell(
     });
   }
   return result;
-}
-
-export interface DemoOptions {
-  kek: KeyEncryptionKey;
-  cell: string;
-  tenantId: string;
-  schoolId: string;
-  slug: string;
-  /** Where the logins' addresses are; a domain that takes no mail. */
-  domain: string;
-  /** The one password every demonstration login shares. */
-  password: string;
-}
-
-export class DemoRefusedError extends Error {}
-
-const DEMO_PLAN: SchoolPlan = {
-  slug: "",
-  grades: [
-    "kg2",
-    "grade_1",
-    "grade_2",
-    "grade_3",
-    "grade_4",
-    "grade_5",
-    "grade_6",
-    "grade_7",
-    "grade_8",
-    "grade_9",
-  ],
-  studentsPerGrade: 40,
-  sections: 2,
-  admissions: true,
-};
-
-/**
- * Fills a school that was provisioned empty with a year in progress: staff,
- * two classes of twenty in each grade from KG2 to grade 9 with their
- * families, timetable, coursework, registers up to yesterday, messages,
- * news, admissions and enquiries, for showing the product to a school. A
- * website the school already has is left as it is.
- *
- * No seeded address can be written to: the logins carry no email contact
- * and the families' phones take no SMS, so nothing a demonstration does
- * leaves the platform. Every login shares `password`.
- */
-export async function seedDemoSchool(
-  owner: ReturnType<typeof openOwner>,
-  options: DemoOptions,
-): Promise<SeededTenant["logins"]> {
-  const passwordHash = await Bun.password.hash(options.password, {
-    algorithm: "argon2id",
-  });
-  const logins: SeededTenant["logins"] = [];
-  await owner.asOwner(options.tenantId, "demo", async (tx) => {
-    const [school] = await tx
-      .select({ timeZone: orgs.timeZone })
-      .from(orgs)
-      .where(
-        and(eq(orgs.tenantId, options.tenantId), eq(orgs.id, options.schoolId)),
-      );
-    if (!school) throw new DemoRefusedError("The school is not in this cell.");
-    const [year] = await tx
-      .select({ id: academicSessions.id })
-      .from(academicSessions)
-      .where(
-        and(
-          eq(academicSessions.tenantId, options.tenantId),
-          eq(academicSessions.orgId, options.schoolId),
-        ),
-      )
-      .limit(1);
-    if (year)
-      throw new DemoRefusedError(
-        "The school already has a year, so it is not the empty school a demonstration fills.",
-      );
-    const today = new Intl.DateTimeFormat("en-CA", {
-      timeZone: school.timeZone ?? "UTC",
-    }).format(new Date());
-    const yesterday = addDays(today, -1);
-    await seedSchool(
-      tx,
-      options.tenantId,
-      options.schoolId,
-      { ...DEMO_PLAN, slug: options.slug },
-      {
-        passwordHash,
-        reachable: false,
-        names: DEMO_NAMES,
-        attendanceUntil:
-          yesterday < YEAR.end ? yesterday : addDays(YEAR.end, -1),
-        next: random(0xde70),
-        kek: options.kek,
-        cell: options.cell,
-        domain: options.domain,
-        logins,
-        shared: { reference: 1000 },
-      },
-    );
-  });
-  return logins;
 }
 
 const seedChecklist = (labels: [string, string, string][]) =>
@@ -3210,6 +3185,7 @@ async function seedAdmissions(
   context: {
     passwordHash: string;
     reachable: boolean;
+    visitor: Visitor;
     login: string;
     logins: SeededTenant["logins"];
     officeId: string;
@@ -3317,7 +3293,7 @@ async function seedAdmissions(
     letters: {},
   });
 
-  const parent = person(["Salama", "سلامة"], ["Ashoush", "عشوش"], "male");
+  const parent = person(context.visitor.given, context.visitor.family, "male");
   await insertPerson(tx, tenantId, parent, { primaryOrgId: schoolId });
   await giveAccount(tx, tenantId, parent.id, context.login, context);
   await openApplicantRole(tx, {
@@ -3330,7 +3306,7 @@ async function seedAdmissions(
     loginName: context.login,
     schoolId,
   });
-  const child = person(["Omar", "عمر"], ["Ashoush", "عشوش"], "male");
+  const child = person(context.visitor.child, context.visitor.family, "male");
   await insertPerson(tx, tenantId, child, {
     primaryOrgId: schoolId,
     birthDate: "2023-03-14",
@@ -3558,6 +3534,7 @@ async function seedEnquiries(
   tenantId: string,
   schoolId: string,
   officeId: string,
+  visitor: Visitor,
 ) {
   await tx.insert(siteEnquiries).values([
     {
@@ -3566,7 +3543,7 @@ async function seedEnquiries(
       source: "phone",
       locale: "en",
       purpose: "visit",
-      name: "Salama Ashoush",
+      name: `${visitor.given[0]} ${visitor.family[0]}`,
       phone: "+20 122 555 0144",
       childName: "Yusuf",
       childYear: "Grade 4",
@@ -3580,8 +3557,8 @@ async function seedEnquiries(
       tenantId,
       orgId: schoolId,
       purpose: "general",
-      name: "سلامة عشوش",
-      email: "salama.bus@example.com",
+      name: `${visitor.given[1]} ${visitor.family[1]}`,
+      email: `${emailName(visitor)}.bus@example.com`,
       locale: "ar",
       message: "هل توفر المدرسة حافلة من المعادي؟",
       state: "closed",
@@ -3631,7 +3608,12 @@ async function seedEnquiries(
   }
 }
 
-async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
+async function seedSite(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  visitor: Visitor,
+) {
   const [existing] = await tx.execute<{ id: string }>(sql`
     select id from core.site_settings
     where tenant_id = ${tenantId}::uuid and org_id = ${schoolId}::uuid limit 1`);
@@ -3903,8 +3885,8 @@ async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
       and status = 'active'`);
   for (const enquiry of [
     {
-      name: "Salama Ashoush",
-      email: "salama.family@example.com",
+      name: `${visitor.given[0]} ${visitor.family[0]}`,
+      email: `${emailName(visitor)}.family@example.com`,
       phone: "+971 50 000 0001",
       childYear: "Grade 2",
       message:
@@ -3913,7 +3895,7 @@ async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
       locale: "en" as const,
     },
     {
-      name: "سلامة عشوش",
+      name: `${visitor.given[1]} ${visitor.family[1]}`,
       email: "family.ar@example.com",
       phone: "",
       childYear: "الروضة الأولى",

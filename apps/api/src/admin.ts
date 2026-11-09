@@ -16,12 +16,12 @@ import type { Provider } from "@faridalms/mail/providers";
 
 import { openOwner } from "@faridalms/database/context";
 import { localKek } from "@faridalms/database/crypto";
+import { DemoRefusedError, seedDemoSchool } from "@faridalms/database/demo";
 import {
   openDirectoryAdmin,
   SlugTakenError,
 } from "@faridalms/database/directory/admin";
 import { openDirectory } from "@faridalms/database/directory/client";
-import { DemoRefusedError, seedDemoSchool } from "@faridalms/database/seed";
 import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
 import { BASIC_ENTITLEMENTS, settableOf } from "@faridalms/domain/plans";
 import { newSchoolSchema } from "@faridalms/domain/provisioning";

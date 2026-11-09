@@ -1,9 +1,11 @@
 import { plainContent } from "@faridalms/domain/content-conversion";
+import { lessonDocumentSchema } from "@faridalms/domain/learning";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
+import * as v from "valibot";
 
 import { openOwner } from "../src/context";
-import { DemoRefusedError, seedDemoSchool } from "../src/seed";
+import { DemoRefusedError, demoLessons, seedDemoSchool } from "../src/demo";
 import { insertForm } from "../src/stores/consents";
 import { saveDocument } from "../src/stores/documents";
 import { openEnquiryConversation } from "../src/stores/enquiries";
@@ -14,6 +16,14 @@ import { createTenant } from "../src/tenants";
 import { CELL, harness, kek, urlFor } from "./harness";
 
 describe("filling a demonstration school", () => {
+  test("every lesson it writes is one the lesson editor accepts", () => {
+    for (const lesson of demoLessons())
+      expect(
+        v.safeParse(lessonDocumentSchema, { version: 2, blocks: lesson.blocks })
+          .issues,
+      ).toBeUndefined();
+  });
+
   test("the owner it opens works under its own transaction limit, not the provisioner login's minute", async () => {
     const tenantId = harness().a.tenantId;
     for (const [options, expected] of [
