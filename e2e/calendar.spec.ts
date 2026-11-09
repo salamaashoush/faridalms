@@ -132,8 +132,8 @@ test("staff plan a week, moving and lengthening events by dragging or from the k
     `/calendar?view=week&month=${monday.slice(0, 7)}&day=${monday}`,
   );
   await untilHydrated(page);
-  await expect(page.getByRole("tab", { name: "Week" })).toHaveAttribute(
-    "aria-selected",
+  await expect(page.getByRole("button", { name: "Week" })).toHaveAttribute(
+    "aria-pressed",
     "true",
   );
   const week = page.getByRole("table", { name: "Events by day this week" });

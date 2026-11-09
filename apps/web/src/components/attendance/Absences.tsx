@@ -227,46 +227,6 @@ export function Absences({ query, onChange }: AbsencesProps) {
   const min = data.year?.startsOn ?? "";
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="grid gap-1.5">
-          <label
-            htmlFor="absences-from"
-            className="text-sm leading-5 font-medium"
-          >
-            {m.attFrom()}
-          </label>
-          <Input
-            id="absences-from"
-            type="date"
-            className="w-40 max-md:h-10"
-            value={data.from}
-            min={min}
-            max={data.to}
-            onChange={(event) =>
-              event.target.value && onChange({ from: event.target.value })
-            }
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <label
-            htmlFor="absences-to"
-            className="text-sm leading-5 font-medium"
-          >
-            {m.attTo()}
-          </label>
-          <Input
-            id="absences-to"
-            type="date"
-            className="w-40 max-md:h-10"
-            value={data.to}
-            min={data.from}
-            max={data.today}
-            onChange={(event) =>
-              event.target.value && onChange({ to: event.target.value })
-            }
-          />
-        </div>
-      </div>
       <DataTable
         caption={m.attAbsencesCaption()}
         rows={data.rows}
@@ -281,6 +241,34 @@ export function Absences({ query, onChange }: AbsencesProps) {
           },
           facets: [showFacet],
           onReset: () => onChange({ q: "", show: "unexplained" }),
+          period: (
+            <>
+              <Input
+                id="absences-from"
+                type="date"
+                aria-label={m.attFrom()}
+                className="h-8 w-40 max-md:h-10"
+                value={data.from}
+                min={min}
+                max={data.to}
+                onChange={(event) =>
+                  event.target.value && onChange({ from: event.target.value })
+                }
+              />
+              <Input
+                id="absences-to"
+                type="date"
+                aria-label={m.attTo()}
+                className="h-8 w-40 max-md:h-10"
+                value={data.to}
+                min={data.from}
+                max={data.today}
+                onChange={(event) =>
+                  event.target.value && onChange({ to: event.target.value })
+                }
+              />
+            </>
+          ),
         }}
         rowActions={rowActions}
         batchActions={batch}

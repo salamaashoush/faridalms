@@ -328,7 +328,7 @@ test("calendar events keep their details, open from the agenda and move between 
   await page.keyboard.press("Escape");
   await expect(event).toHaveCount(0);
 
-  await page.getByRole("tab", { name: "Month", exact: true }).click();
+  await page.getByRole("button", { name: "Month", exact: true }).click();
   await expect(page).not.toHaveURL(/view=agenda/);
   const monthLabel = page.locator("h2[aria-live=polite]");
   const shown = await monthLabel.innerText();

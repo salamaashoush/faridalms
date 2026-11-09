@@ -5,6 +5,7 @@ import type {
 import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
 import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -187,17 +188,23 @@ export function MyRegisters({ date, onDate }: MyRegistersProps) {
   const max = data.today < data.year.lastDay ? data.today : data.year.lastDay;
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base leading-6 font-semibold">
-          {formatDate(data.date, "weekday")}
-        </h2>
-        <DayNav
-          id="attendance-date"
-          date={data.date}
-          min={data.year.startsOn}
-          max={max}
-          today={data.today}
-          onChange={onDate}
+      <div className="mb-4">
+        <IndexToolbar
+          period={
+            <>
+              <DayNav
+                id="attendance-date"
+                date={data.date}
+                min={data.year.startsOn}
+                max={max}
+                today={data.today}
+                onChange={onDate}
+              />
+              <h2 aria-live="polite" className="text-sm leading-5 font-medium">
+                {formatDate(data.date, "weekday")}
+              </h2>
+            </>
+          }
         />
       </div>
       <DataTable

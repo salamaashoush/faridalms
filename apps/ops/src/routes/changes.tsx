@@ -130,15 +130,13 @@ function Changes() {
       id: "when",
       label: "When",
       single: true,
-      defaultSelected: ["all"],
-      options: CHANGE_PERIODS.map((period) => ({
-        value: period,
-        label: CHANGE_PERIOD_NAMES[period],
-      })),
-      selected: [query.when],
+      options: CHANGE_PERIODS.filter((period) => period !== "all").map(
+        (period) => ({ value: period, label: CHANGE_PERIOD_NAMES[period] }),
+      ),
+      selected: query.when === "all" ? [] : [query.when],
       onChange: ([next]) => {
         const period = CHANGE_PERIODS.find((one) => one === next);
-        if (period) go({ when: period });
+        go({ when: period ?? "all" });
       },
     },
   ];

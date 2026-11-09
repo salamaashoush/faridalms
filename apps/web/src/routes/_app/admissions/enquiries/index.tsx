@@ -12,6 +12,7 @@ import {
 } from "@faridalms/domain/enquiries";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
@@ -180,7 +181,7 @@ function EnquiriesPage() {
   const views: EnquiryView[] = [...ENQUIRY_STATES, "all"];
   const total = Object.values(data.counts).reduce((sum, n) => sum + n, 0);
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.admTitle()}
         count={search.q ? undefined : total}
@@ -223,15 +224,11 @@ function EnquiriesPage() {
                 id: "source",
                 label: m.admColSource(),
                 single: true,
-                defaultSelected: ["all"],
-                selected: [search.source],
-                options: [
-                  { value: "all", label: m.admAnySource() },
-                  ...ENQUIRY_SOURCES.map((value) => ({
-                    value,
-                    label: SOURCE_LABEL[value](),
-                  })),
-                ],
+                selected: search.source === "all" ? [] : [search.source],
+                options: ENQUIRY_SOURCES.map((value) => ({
+                  value,
+                  label: SOURCE_LABEL[value](),
+                })),
                 onChange: ([source]) =>
                   update({
                     source: (source ?? "all") as EnquiryListQuery["source"],
@@ -241,15 +238,11 @@ function EnquiriesPage() {
                 id: "purpose",
                 label: m.admFieldPurpose(),
                 single: true,
-                defaultSelected: ["all"],
-                selected: [search.purpose],
-                options: [
-                  { value: "all", label: m.admAnyPurpose() },
-                  ...ENQUIRY_PURPOSES.map((value) => ({
-                    value,
-                    label: PURPOSE_LABEL[value](),
-                  })),
-                ],
+                selected: search.purpose === "all" ? [] : [search.purpose],
+                options: ENQUIRY_PURPOSES.map((value) => ({
+                  value,
+                  label: PURPOSE_LABEL[value](),
+                })),
                 onChange: ([purpose]) =>
                   update({
                     purpose: (purpose ?? "all") as EnquiryListQuery["purpose"],
@@ -259,10 +252,8 @@ function EnquiriesPage() {
                 id: "assignee",
                 label: m.admColAssignee(),
                 single: true,
-                defaultSelected: ["all"],
-                selected: [search.assignee],
+                selected: search.assignee === "all" ? [] : [search.assignee],
                 options: [
-                  { value: "all", label: m.admAnyone() },
                   { value: "me", label: m.admMine() },
                   { value: "none", label: m.admNobody() },
                   ...data.staff
@@ -309,6 +300,6 @@ function EnquiriesPage() {
           staff={data.staff}
         />
       ) : null}
-    </>
+    </Page>
   );
 }

@@ -19,8 +19,10 @@ test("an administrator changes a lesson from a day and the week shows it", async
   await signIn(page, "admin");
   await page.goto("/timetable?from=2026-11-05");
   await untilHydrated(page);
-  await page.getByRole("combobox", { name: /^Class/ }).click();
-  await page.getByRole("option", { name: homeroom, exact: true }).click();
+  await page.getByRole("button", { name: /^Class(?!es)/ }).click();
+  await page
+    .getByRole("menuitemradio", { name: homeroom, exact: true })
+    .click();
   const cell = page.getByRole("button", { name: "Edit Thursday, Period 6" });
   const before = (await cell.textContent()) ?? "";
   await cell.click();
@@ -44,8 +46,10 @@ test("an administrator changes a lesson from a day and the week shows it", async
 
   await page.goto("/timetable?from=2026-11-04");
   await untilHydrated(page);
-  await page.getByRole("combobox", { name: /^Class/ }).click();
-  await page.getByRole("option", { name: homeroom, exact: true }).click();
+  await page.getByRole("button", { name: /^Class(?!es)/ }).click();
+  await page
+    .getByRole("menuitemradio", { name: homeroom, exact: true })
+    .click();
   await expect(
     page.getByRole("button", { name: "Edit Thursday, Period 6" }),
   ).toContainText(original);

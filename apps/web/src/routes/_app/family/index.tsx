@@ -4,9 +4,9 @@ import type { LinkProps } from "@tanstack/react-router";
 
 import { NEXT_YEAR_INTENTIONS } from "@faridalms/domain/rollover";
 import { Button } from "@faridalms/ui/button";
-import { cn } from "@faridalms/ui/cn";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
 import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordColumns } from "@faridalms/ui/system/record-page";
@@ -68,9 +68,6 @@ const PRESENCE: Record<
   absent_unexplained: { label: m.homeAbsentUnexplained, tone: "danger" },
   none: null,
 };
-
-const chip =
-  "inline-flex min-h-9 items-center rounded-full border px-3 text-sm hover:bg-muted aria-[current=page]:border-primary aria-[current=page]:bg-primary/10 aria-[current=page]:text-primary";
 
 function attentionOf(
   item: Child["attention"][number],
@@ -323,6 +320,7 @@ function ChildCard({ child, single }: ChildCardProps) {
  */
 function FamilyHome() {
   const { child } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const data = useSuspenseQuery(familyHomeQuery(child)).data;
   const aside = [
     data.messages.unread > 0 ? (
@@ -427,32 +425,24 @@ function FamilyHome() {
     <Page width="list">
       <PageHeader title={m.navHome()} description={formatDate(data.today)} />
       {data.choices.length > 1 ? (
-        <nav aria-label={m.homeChildren()} className="mb-6">
-          <ul className="flex flex-wrap gap-2">
-            <li>
-              <Link
-                to="/family"
-                search={{}}
-                aria-current={child === "" ? "page" : undefined}
-                className={chip}
-              >
-                {m.homeAllChildren()}
-              </Link>
-            </li>
-            {data.choices.map((choice) => (
-              <li key={choice.studentId}>
-                <Link
-                  to="/family"
-                  search={{ child: choice.studentId }}
-                  aria-current={child === choice.studentId ? "page" : undefined}
-                  className={cn(chip)}
-                >
-                  {displayName(choice)}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div className="mb-6">
+          <IndexToolbar
+            facets={[
+              {
+                id: "child",
+                label: m.courseworkChild(),
+                single: true,
+                options: data.choices.map((choice) => ({
+                  value: choice.studentId,
+                  label: displayName(choice),
+                })),
+                selected: child ? [child] : [],
+                onChange: ([next]) =>
+                  void navigate({ search: { child: next ?? "" } }),
+              },
+            ]}
+          />
+        </div>
       ) : null}
       {data.choices.length === 0 ? (
         <EmptyState

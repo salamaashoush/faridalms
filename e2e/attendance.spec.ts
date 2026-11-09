@@ -49,8 +49,8 @@ test("a homeroom teacher takes a register on a phone", async ({
   const anyMark = page.getByRole("radio", { name: "Present" }).first();
   await expect(anyMark).toBeEnabled();
   if (period) {
-    await page.getByRole("combobox", { name: /^Period/ }).click();
-    await page.getByRole("option", { name: period }).click();
+    await page.getByRole("button", { name: /^Period/ }).click();
+    await page.getByRole("menuitemradio", { name: period }).click();
     await expect(page).toHaveURL(/periodId=/);
     await expect(anyMark).toBeEnabled();
   }

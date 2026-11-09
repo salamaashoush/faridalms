@@ -10,6 +10,7 @@ import {
 } from "@faridalms/domain/admissions";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
@@ -189,7 +190,7 @@ function ApplicationsPage() {
         : countOf(view);
   const intake = data.intakes.find((row) => row.id === search.intake);
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.aplTitle()}
         count={search.q ? undefined : count("live")}
@@ -243,15 +244,11 @@ function ApplicationsPage() {
                 id: "intake",
                 label: m.aplColGrade(),
                 single: true,
-                defaultSelected: [""],
-                selected: [search.intake],
-                options: [
-                  { value: "", label: m.aplAnyGrade() },
-                  ...data.intakes.map((row) => ({
-                    value: row.id,
-                    label: inLocale(row.gradeEn, row.gradeAr),
-                  })),
-                ],
+                selected: search.intake ? [search.intake] : [],
+                options: data.intakes.map((row) => ({
+                  value: row.id,
+                  label: inLocale(row.gradeEn, row.gradeAr),
+                })),
                 onChange: ([intakeId]) => update({ intake: intakeId ?? "" }),
               },
             ]}
@@ -281,6 +278,6 @@ function ApplicationsPage() {
           />
         </div>
       </RecordTabs>
-    </>
+    </Page>
   );
 }

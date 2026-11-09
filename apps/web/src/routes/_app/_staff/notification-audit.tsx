@@ -9,6 +9,7 @@ import {
 } from "@faridalms/domain/notifications";
 import { DataTable } from "@faridalms/ui/system/data-table";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -147,7 +148,7 @@ function DeliveryLogPage() {
       search: (previous) => ({ ...previous, page: 1, ...next }),
     });
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.ntfLogTitle()}
         count={data.total}
@@ -166,15 +167,11 @@ function DeliveryLogPage() {
               id: "state",
               label: m.ntfColState(),
               single: true,
-              defaultSelected: ["all"],
-              selected: [search.state],
-              options: [
-                { value: "all", label: m.ntfAll() },
-                ...DELIVERY_STATES.map((state) => ({
-                  value: state,
-                  label: STATE_LABEL[state](),
-                })),
-              ],
+              selected: search.state === "all" ? [] : [search.state],
+              options: DELIVERY_STATES.map((state) => ({
+                value: state,
+                label: STATE_LABEL[state](),
+              })),
               onChange: ([state]) =>
                 update({
                   state: (state ?? "all") as DeliveryLogQuery["state"],
@@ -184,15 +181,11 @@ function DeliveryLogPage() {
               id: "channel",
               label: m.ntfColChannel(),
               single: true,
-              defaultSelected: ["all"],
-              selected: [search.channel],
-              options: [
-                { value: "all", label: m.ntfAll() },
-                ...DELIVERY_CHANNELS.map((channel) => ({
-                  value: channel,
-                  label: CHANNEL_LABEL[channel](),
-                })),
-              ],
+              selected: search.channel === "all" ? [] : [search.channel],
+              options: DELIVERY_CHANNELS.map((channel) => ({
+                value: channel,
+                label: CHANNEL_LABEL[channel](),
+              })),
               onChange: ([channel]) =>
                 update({
                   channel: (channel ?? "all") as DeliveryLogQuery["channel"],
@@ -222,6 +215,6 @@ function DeliveryLogPage() {
           }}
         />
       </div>
-    </>
+    </Page>
   );
 }

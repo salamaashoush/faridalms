@@ -8,23 +8,16 @@ import type { QueryClient } from "@tanstack/react-query";
 import { INBOX_VIEWS } from "@faridalms/domain/messages";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
-import { Input } from "@faridalms/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@faridalms/ui/select";
 import { Skeleton } from "@faridalms/ui/skeleton";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
 import {
   EmptyState,
   FilteredEmptyState,
 } from "@faridalms/ui/system/empty-state";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
 import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
-import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
+import { Segmented } from "@faridalms/ui/system/panel";
 import {
   useMutation,
   useQueryClient,
@@ -36,7 +29,6 @@ import {
   Inbox as InboxIcon,
   Paperclip,
   PenSquare,
-  Search,
   Trash2,
 } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
@@ -445,63 +437,49 @@ function ThreadList({ search, onSearch }: ThreadListProps) {
           : MAILBOX_LABEL[box]();
   return (
     <div className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] content-start">
-      <div className="grid gap-2 border-b p-3">
-        <label htmlFor="inbox-search" className="sr-only">
-          {m.msgSearch()}
-        </label>
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            id="inbox-search"
-            type="search"
-            className="ps-8 max-md:h-10"
-            placeholder={m.msgSearchPlaceholder()}
-            value={search.q}
-            onChange={(event) => onSearch({ q: event.target.value })}
-          />
-        </div>
-        {views.length || search.box !== "drafts" ? (
-          <div className="flex items-center gap-2">
-            {views.length ? (
-              <Select
-                value={search.box}
-                onValueChange={(box) => {
-                  if (box) onSearch({ box });
-                }}
-              >
-                <SelectTrigger
-                  size="sm"
-                  aria-label={m.msgBox()}
-                  className="min-w-0 flex-1 max-md:h-10"
-                >
-                  <SelectValue>{boxLabel(search.box)}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {views.map((box) => (
-                    <SelectItem key={box} value={box}>
-                      {boxLabel(box)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : null}
-            {search.box === "drafts" ? null : (
-              <Tabs
+      <div className="border-b p-3">
+        <IndexToolbar
+          search={{
+            value: search.q,
+            onChange: (q) => onSearch({ q }),
+            label: m.msgSearch(),
+            placeholder: m.msgSearchPlaceholder(),
+          }}
+          facets={
+            views.length
+              ? [
+                  {
+                    id: "box",
+                    label: m.msgBox(),
+                    single: true,
+                    defaultSelected: ["all"],
+                    selected: [search.box],
+                    options: views.map((box) => ({
+                      value: box,
+                      label: boxLabel(box),
+                    })),
+                    onChange: ([box]) => {
+                      const view = views.find((one) => one === box);
+                      if (view) onSearch({ box: view });
+                    },
+                  },
+                ]
+              : []
+          }
+          view={
+            search.box === "drafts" ? undefined : (
+              <Segmented
+                label={m.msgShow()}
                 value={search.show}
-                onValueChange={(show: "all" | "unread") => onSearch({ show })}
-                className={cn(!views.length && "flex-1")}
-              >
-                <TabsList aria-label={m.msgShow()}>
-                  <TabsTrigger value="all">{m.msgShowAll()}</TabsTrigger>
-                  <TabsTrigger value="unread">{m.msgShowUnread()}</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            )}
-          </div>
-        ) : null}
+                options={[
+                  { value: "all", label: m.msgShowAll() },
+                  { value: "unread", label: m.msgShowUnread() },
+                ]}
+                onChange={(show) => onSearch({ show })}
+              />
+            )
+          }
+        />
       </div>
       {search.box === "drafts" ? (
         <Suspense fallback={<PaneFallback />}>

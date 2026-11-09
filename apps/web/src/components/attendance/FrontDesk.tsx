@@ -9,6 +9,7 @@ import {
   SelectField,
   TextField,
 } from "@faridalms/ui/system/form-field";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { StatusText } from "@faridalms/ui/system/status";
 import { Textarea } from "@faridalms/ui/textarea";
@@ -118,37 +119,43 @@ export function FrontDesk({ date, onDate }: FrontDeskProps) {
   const today = data.date === data.today;
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <DayNav
-          id="front-desk-date"
-          date={data.date}
-          min={data.year?.startsOn ?? data.today}
-          max={data.today}
-          today={data.today}
-          onChange={onDate}
-        />
-        {today ? (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              className="max-md:h-10"
-              onClick={() => setSigning("in")}
-            >
-              <LogIn aria-hidden />
-              {m.deskSignIn()}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="max-md:h-10"
-              onClick={() => setSigning("out")}
-            >
-              <LogOut aria-hidden />
-              {m.deskSignOut()}
-            </Button>
-          </div>
-        ) : null}
-      </div>
+      <IndexToolbar
+        period={
+          <DayNav
+            id="front-desk-date"
+            date={data.date}
+            min={data.year?.startsOn ?? data.today}
+            max={data.today}
+            today={data.today}
+            onChange={onDate}
+          />
+        }
+        actions={
+          today ? (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                className="max-md:h-10"
+                onClick={() => setSigning("in")}
+              >
+                <LogIn aria-hidden />
+                {m.deskSignIn()}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="max-md:h-10"
+                onClick={() => setSigning("out")}
+              >
+                <LogOut aria-hidden />
+                {m.deskSignOut()}
+              </Button>
+            </>
+          ) : undefined
+        }
+      />
       <DataTable
         caption={m.deskTab()}
         rows={data.movements}

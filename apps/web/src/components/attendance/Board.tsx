@@ -3,6 +3,7 @@ import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 import type { Facet } from "@faridalms/ui/system/index-toolbar";
 
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
 import { Fact, Facts, RecordSection } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -183,19 +184,23 @@ export function Board({ date, states, onChange }: BoardProps) {
   const max = data.today < data.year.lastDay ? data.today : data.year.lastDay;
   return (
     <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base leading-6 font-semibold">
-          {formatDate(data.date, "weekday")}
-        </h2>
-        <DayNav
-          id="board-date"
-          date={data.date}
-          min={data.year.startsOn}
-          max={max}
-          today={data.today}
-          onChange={(next) => onChange({ date: next })}
-        />
-      </div>
+      <IndexToolbar
+        period={
+          <>
+            <DayNav
+              id="board-date"
+              date={data.date}
+              min={data.year.startsOn}
+              max={max}
+              today={data.today}
+              onChange={(next) => onChange({ date: next })}
+            />
+            <h2 aria-live="polite" className="text-sm leading-5 font-medium">
+              {formatDate(data.date, "weekday")}
+            </h2>
+          </>
+        }
+      />
       {data.schoolDay === false ? (
         <p className="rounded-lg border bg-card p-5 text-sm leading-5 text-muted-foreground">
           {m.attNotSchoolDay()}

@@ -12,9 +12,10 @@ import { addDays, shiftMonth } from "@faridalms/domain/school";
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
 import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
+import { Segmented, ToolbarRow } from "@faridalms/ui/system/panel";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
@@ -228,114 +229,120 @@ function CalendarPage() {
             : undefined
         }
       />
-      <Tabs
-        value={view}
-        onValueChange={(next: View) =>
-          void navigate({ search: (previous) => ({ ...previous, view: next }) })
-        }
-        className="grid gap-4"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-1 max-md:w-full">
-            <ButtonLink
-              to="/calendar"
-              search={(previous) => ({ ...previous, ...step(-1) })}
-              variant="outline"
-              size="icon"
-              className="max-md:size-10"
-              aria-label={week ? m.calPreviousWeek() : m.calPrevious()}
-            >
-              <ChevronLeft className="rtl:rotate-180" aria-hidden />
-            </ButtonLink>
-            <h2
-              className="min-w-44 text-center text-lg leading-7 font-semibold max-md:flex-1"
-              aria-live="polite"
-            >
-              {week
-                ? formatDayRange(window.from, window.to)
-                : formatMonthLabel(month)}
-            </h2>
-            <ButtonLink
-              to="/calendar"
-              search={(previous) => ({ ...previous, ...step(1) })}
-              variant="outline"
-              size="icon"
-              className="max-md:size-10"
-              aria-label={week ? m.calNextWeek() : m.calNext()}
-            >
-              <ChevronRight className="rtl:rotate-180" aria-hidden />
-            </ButtonLink>
-            {atToday ? null : (
+      <div className="grid gap-4">
+        <ToolbarRow.Provider value>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-1 max-md:w-full">
               <ButtonLink
                 to="/calendar"
-                search={(previous) => ({ ...previous, month: "", day: "" })}
-                variant="ghost"
-                className="ms-1 max-md:hidden"
+                search={(previous) => ({ ...previous, ...step(-1) })}
+                variant="outline"
+                size="icon-sm"
+                className="max-md:size-10"
+                aria-label={week ? m.calPreviousWeek() : m.calPrevious()}
               >
-                {m.calToday()}
+                <ChevronLeft className="rtl:rotate-180" aria-hidden />
               </ButtonLink>
-            )}
-            <label htmlFor="calendar-jump" className="sr-only">
-              {m.calJumpToDate()}
-            </label>
-            <Input
-              id="calendar-jump"
-              type="date"
-              className="ms-1 w-40 max-md:ms-0 max-md:h-10 max-md:w-full"
-              value={window.anchor}
-              onChange={(event) => {
-                if (event.target.value) jump(event.target.value);
-              }}
-            />
-          </div>
-          <div className="flex items-center gap-2 max-md:w-full">
-            <TabsList aria-label={m.calView()}>
-              <TabsTrigger value="month">{m.calViewMonth()}</TabsTrigger>
-              <TabsTrigger value="week">{m.calViewWeek()}</TabsTrigger>
-              <TabsTrigger value="agenda">{m.calViewAgenda()}</TabsTrigger>
-            </TabsList>
-            {atToday ? null : (
+              <h2
+                className="min-w-44 text-center text-base leading-6 font-semibold max-md:flex-1"
+                aria-live="polite"
+              >
+                {week
+                  ? formatDayRange(window.from, window.to)
+                  : formatMonthLabel(month)}
+              </h2>
               <ButtonLink
                 to="/calendar"
-                search={(previous) => ({ ...previous, month: "", day: "" })}
-                variant="ghost"
-                className="h-10 md:hidden"
+                search={(previous) => ({ ...previous, ...step(1) })}
+                variant="outline"
+                size="icon-sm"
+                className="max-md:size-10"
+                aria-label={week ? m.calNextWeek() : m.calNext()}
               >
-                {m.calToday()}
+                <ChevronRight className="rtl:rotate-180" aria-hidden />
               </ButtonLink>
-            )}
-            <div className="flex items-center gap-2 max-md:ms-auto">
-              <div className="md:hidden">
-                <KindFilter
-                  categories={categories}
-                  hidden={hidden}
-                  onToggle={toggle}
-                  onShowAll={showAll}
-                />
+              {atToday ? null : (
+                <ButtonLink
+                  to="/calendar"
+                  search={(previous) => ({ ...previous, month: "", day: "" })}
+                  variant="ghost"
+                  size="sm"
+                  className="ms-1 max-md:hidden"
+                >
+                  {m.calToday()}
+                </ButtonLink>
+              )}
+              <label htmlFor="calendar-jump" className="sr-only">
+                {m.calJumpToDate()}
+              </label>
+              <Input
+                id="calendar-jump"
+                type="date"
+                className="ms-1 h-8 w-40 max-md:ms-0 max-md:h-10 max-md:w-full"
+                value={window.anchor}
+                onChange={(event) => {
+                  if (event.target.value) jump(event.target.value);
+                }}
+              />
+            </div>
+            <div className="flex items-center gap-2 max-md:w-full">
+              <Segmented<View>
+                label={m.calView()}
+                value={view}
+                options={[
+                  { value: "month", label: m.calViewMonth() },
+                  { value: "week", label: m.calViewWeek() },
+                  { value: "agenda", label: m.calViewAgenda() },
+                ]}
+                onChange={(next) =>
+                  void navigate({
+                    search: (previous) => ({ ...previous, view: next }),
+                  })
+                }
+              />
+              {atToday ? null : (
+                <ButtonLink
+                  to="/calendar"
+                  search={(previous) => ({ ...previous, month: "", day: "" })}
+                  variant="ghost"
+                  className="h-10 md:hidden"
+                >
+                  {m.calToday()}
+                </ButtonLink>
+              )}
+              <div className="flex items-center gap-2 max-md:ms-auto">
+                <div className="md:hidden">
+                  <KindFilter
+                    categories={categories}
+                    hidden={hidden}
+                    onToggle={toggle}
+                    onShowAll={showAll}
+                  />
+                </div>
+                <Subscribe />
               </div>
-              <Subscribe />
             </div>
           </div>
-        </div>
+        </ToolbarRow.Provider>
         {children.length > 1 ? (
-          <nav aria-label={m.calChildren()} className="flex flex-wrap gap-2">
-            {[{ id: "", nameEn: null, nameAr: null }, ...children].map(
-              (child) => (
-                <ButtonLink
-                  key={child.id || "all"}
-                  to="/calendar"
-                  search={(previous) => ({ ...previous, child: child.id })}
-                  variant="outline"
-                  aria-current={search.child === child.id ? "page" : undefined}
-                  className="h-9 rounded-full aria-[current=page]:border-primary aria-[current=page]:bg-primary/10 aria-[current=page]:text-primary max-md:h-10"
-                >
-                  {child.id
-                    ? inLocale(child.nameEn, child.nameAr)
-                    : m.calAllChildren()}
-                </ButtonLink>
-              ),
-            )}
-          </nav>
+          <IndexToolbar
+            facets={[
+              {
+                id: "child",
+                label: m.courseworkChild(),
+                single: true,
+                options: children.map((child) => ({
+                  value: child.id,
+                  label: inLocale(child.nameEn, child.nameAr),
+                })),
+                selected: search.child ? [search.child] : [],
+                onChange: ([next]) =>
+                  void navigate({
+                    search: (previous) => ({ ...previous, child: next ?? "" }),
+                  }),
+              },
+            ]}
+          />
         ) : null}
         <fieldset className="flex flex-wrap items-center gap-1.5 max-md:hidden">
           <legend className="sr-only">{m.calLegend()}</legend>
@@ -345,7 +352,7 @@ function CalendarPage() {
               type="button"
               aria-pressed={!hidden.has(category)}
               onClick={() => toggle(category)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted aria-pressed:border-border aria-pressed:bg-card aria-pressed:text-foreground [&:not([aria-pressed=true])]:border-dashed [&:not([aria-pressed=true])]:line-through"
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-transparent px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted aria-pressed:border-border aria-pressed:bg-card aria-pressed:text-foreground [&:not([aria-pressed=true])]:line-through"
             >
               <CategoryIcon
                 category={category}
@@ -367,64 +374,68 @@ function CalendarPage() {
             </button>
           ) : null}
         </fieldset>
-        <TabsContent value="month" className="grid gap-2">
-          <div className="max-md:hidden">
-            <MonthGrid
-              month={month}
-              weekStart={weekStart}
-              weekend={user.school.weekendDays}
+        {view === "month" ? (
+          <div className="grid gap-2">
+            <div className="max-md:hidden">
+              <MonthGrid
+                month={month}
+                weekStart={weekStart}
+                weekend={user.school.weekendDays}
+                today={user.today}
+                events={events}
+                days={days}
+                actions={actions}
+              />
+            </div>
+            {moving ? <MoveHint /> : null}
+            <div className="md:hidden">
+              <MonthCompact
+                month={month}
+                weekStart={weekStart}
+                weekend={user.school.weekendDays}
+                today={user.today}
+                events={events}
+                days={days}
+              />
+            </div>
+          </div>
+        ) : view === "week" ? (
+          <div className="grid gap-2">
+            <div className="max-md:hidden">
+              <WeekGrid
+                day={window.anchor}
+                weekStart={weekStart}
+                weekend={user.school.weekendDays}
+                today={user.today}
+                events={events}
+                days={days}
+                actions={actions}
+              />
+            </div>
+            {moving ? <MoveHint /> : null}
+            <Agenda
+              from={window.from}
+              to={window.to}
               today={user.today}
               events={events}
               days={days}
-              actions={actions}
+              className="md:hidden"
+              everyDay
+              canAdd={actions.canAdd}
             />
           </div>
-          {moving ? <MoveHint /> : null}
-          <div className="md:hidden">
-            <MonthCompact
-              month={month}
-              weekStart={weekStart}
-              weekend={user.school.weekendDays}
+        ) : (
+          <div>
+            <Agenda
+              from={window.anchor}
+              to={last}
               today={user.today}
               events={events}
               days={days}
             />
           </div>
-        </TabsContent>
-        <TabsContent value="week" className="grid gap-2">
-          <div className="max-md:hidden">
-            <WeekGrid
-              day={window.anchor}
-              weekStart={weekStart}
-              weekend={user.school.weekendDays}
-              today={user.today}
-              events={events}
-              days={days}
-              actions={actions}
-            />
-          </div>
-          {moving ? <MoveHint /> : null}
-          <Agenda
-            from={window.from}
-            to={window.to}
-            today={user.today}
-            events={events}
-            days={days}
-            className="md:hidden"
-            everyDay
-            canAdd={actions.canAdd}
-          />
-        </TabsContent>
-        <TabsContent value="agenda">
-          <Agenda
-            from={window.anchor}
-            to={last}
-            today={user.today}
-            events={events}
-            days={days}
-          />
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
       {dialog}
       <EventSheet
         eventId={search.event || null}

@@ -13,6 +13,8 @@ import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { RecordHeader } from "@faridalms/ui/system/record-page";
 import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
 import {
@@ -725,78 +727,85 @@ export function Register({
   ];
   const max = data.today < data.year.lastDay ? data.today : data.year.lastDay;
   return (
-    <div className="mx-auto grid w-full max-w-3xl gap-4">
-      <RecordHeader
-        title={classTitle(data.class)}
-        facts={facts}
-        status={{ label: STATE_LABEL[state](), tone: STATE_TONE[state] }}
-        action={
-          data.access.editable &&
-          data.students.length > 0 &&
-          (data.checkIn.touch || data.checkIn.qr || data.checkIn.nfc)
-            ? {
-                label: m.attCheckInOpen(),
-                icon: MonitorSmartphone,
-                onClick: () => setChecking(true),
-              }
-            : undefined
-        }
-      />
-      {checking ? (
-        <CheckInScreen
-          classId={classId}
-          date={data.date}
-          periodId={data.period.id}
-          onClose={() => setChecking(false)}
+    <Page width="form">
+      <div className="grid gap-4">
+        <RecordHeader
+          title={classTitle(data.class)}
+          facts={facts}
+          status={{ label: STATE_LABEL[state](), tone: STATE_TONE[state] }}
+          action={
+            data.access.editable &&
+            data.students.length > 0 &&
+            (data.checkIn.touch || data.checkIn.qr || data.checkIn.nfc)
+              ? {
+                  label: m.attCheckInOpen(),
+                  icon: MonitorSmartphone,
+                  onClick: () => setChecking(true),
+                }
+              : undefined
+          }
         />
-      ) : null}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <DayNav
-          id="register-date"
-          date={loading?.date || data.date}
-          min={data.year.startsOn}
-          max={max < data.date ? data.date : max}
-          today={data.today}
-          onChange={(next) => onChange({ date: next })}
-        />
-        <SelectField
-          id="register-period"
-          label={m.attPeriod()}
-          labelHidden
-          width="name"
-          className="w-56"
-          value={loading?.periodId || data.period.id}
-          options={data.periods.map((period) => ({
-            value: period.id,
-            label: period.startTime
-              ? m.attPeriodAt({
-                  period: inLocale(period.nameEn, period.nameAr),
-                  time: period.startTime,
-                })
-              : inLocale(period.nameEn, period.nameAr),
-          }))}
-          onChange={(next) => onChange({ periodId: next })}
-        />
-      </div>
-      {data.access.editable ? null : (
-        <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm leading-5">
-          <CircleAlert
-            className="mt-0.5 size-4 shrink-0 text-warning"
-            aria-hidden
+        {checking ? (
+          <CheckInScreen
+            classId={classId}
+            date={data.date}
+            periodId={data.period.id}
+            onClose={() => setChecking(false)}
           />
-          {ACCESS_NOTE[data.access.reason]()}
-        </p>
-      )}
-      {data.students.length === 0 ? (
-        <EmptyState icon={Users} title={m.attNoStudents()} />
-      ) : (
-        <RegisterForm
-          key={`${data.date}|${data.period.id}|${shown}`}
-          data={data}
-          loading={loading !== undefined}
-          onDirtyChange={setEditing}
+        ) : null}
+        <IndexToolbar
+          facets={[
+            {
+              id: "period",
+              label: m.attPeriod(),
+              single: true,
+              defaultSelected: [data.period.id],
+              selected: [loading?.periodId || data.period.id],
+              options: data.periods.map((period) => ({
+                value: period.id,
+                label: period.startTime
+                  ? m.attPeriodAt({
+                      period: inLocale(period.nameEn, period.nameAr),
+                      time: period.startTime,
+                    })
+                  : inLocale(period.nameEn, period.nameAr),
+              })),
+              onChange: ([next]) => {
+                if (next) onChange({ periodId: next });
+              },
+            },
+          ]}
+          period={
+            <DayNav
+              id="register-date"
+              date={loading?.date || data.date}
+              min={data.year.startsOn}
+              max={max < data.date ? data.date : max}
+              today={data.today}
+              onChange={(next) => onChange({ date: next })}
+            />
+          }
         />
-      )}
-    </div>
+        {data.access.editable ? null : (
+          <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm leading-5">
+            <CircleAlert
+              className="mt-0.5 size-4 shrink-0 text-warning"
+              aria-hidden
+            />
+            {ACCESS_NOTE[data.access.reason]()}
+          </p>
+        )}
+        {data.students.length === 0 ? (
+          <EmptyState icon={Users} title={m.attNoStudents()} />
+        ) : (
+          <RegisterForm
+            key={`${data.date}|${data.period.id}|${shown}`}
+            data={data}
+            loading={loading !== undefined}
+            onDirtyChange={setEditing}
+          />
+        )}
+      </div>
+    </Page>
   );
 }

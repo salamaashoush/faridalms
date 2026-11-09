@@ -1,9 +1,11 @@
 import type { Capability } from "@faridalms/domain/capabilities";
 import type { Column } from "@faridalms/ui/system/data-table";
+import type { Facet } from "@faridalms/ui/system/index-toolbar";
 
 import { Input } from "@faridalms/ui/input";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
-import { SelectField } from "@faridalms/ui/system/form-field";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
@@ -308,7 +310,7 @@ function TimetablePage() {
       />
     );
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.ttTitle()}
         description={view === "mine" ? m.ttTeacherHint() : m.ttAdminHint()}
@@ -330,8 +332,29 @@ function TimetablePage() {
       ) : (
         body
       )}
-    </>
+    </Page>
   );
+}
+
+/** The one class, teacher or room a school view shows. */
+function pickerFacet(
+  id: string,
+  label: string,
+  value: string,
+  choices: Facet["options"],
+  onChange: (value: string) => void,
+): Facet {
+  return {
+    id,
+    label,
+    single: true,
+    defaultSelected: [value],
+    selected: [value],
+    options: choices,
+    onChange: ([next]) => {
+      if (next) onChange(next);
+    },
+  };
 }
 
 interface SchoolTimetableProps {
@@ -345,66 +368,56 @@ function SchoolTimetable({ view, search, patch }: SchoolTimetableProps) {
   const picked = pickedOf(search, options);
   if (!options.year) return <NoSchoolYear shows={m.noYearShowsTimetable()} />;
   const picker =
-    view === "classes" ? (
-      <SelectField
-        id="timetable-class"
-        label={m.ttGrid()}
-        width="name"
-        className="w-64"
-        value={picked.classId}
-        options={options.grids.map((row) => ({
-          value: row.id,
-          label: classTitle(row),
-        }))}
-        onChange={(classId) => patch({ classId })}
-      />
-    ) : view === "teachers" ? (
-      <SelectField
-        id="timetable-teacher"
-        label={m.ttTeacher()}
-        width="name"
-        className="w-64"
-        value={picked.teacherId}
-        options={options.teachers.map((row) => ({
-          value: row.userId,
-          label: displayName(row),
-        }))}
-        onChange={(teacherId) => patch({ teacherId })}
-      />
-    ) : view === "rooms" ? (
-      <SelectField
-        id="timetable-room"
-        label={m.ttRoom()}
-        width="name"
-        className="w-64"
-        value={picked.roomId}
-        options={options.rooms.map((row) => ({
-          value: row.id,
-          label: inLocale(row.nameEn, row.nameAr) || (row.code ?? ""),
-        }))}
-        onChange={(roomId) => patch({ roomId })}
-      />
-    ) : null;
+    view === "classes"
+      ? pickerFacet(
+          "class",
+          m.ttGrid(),
+          picked.classId,
+          options.grids.map((row) => ({
+            value: row.id,
+            label: classTitle(row),
+          })),
+          (classId) => patch({ classId }),
+        )
+      : view === "teachers"
+        ? pickerFacet(
+            "teacher",
+            m.ttTeacher(),
+            picked.teacherId,
+            options.teachers.map((row) => ({
+              value: row.userId,
+              label: displayName(row),
+            })),
+            (teacherId) => patch({ teacherId }),
+          )
+        : view === "rooms"
+          ? pickerFacet(
+              "room",
+              m.ttRoom(),
+              picked.roomId,
+              options.rooms.map((row) => ({
+                value: row.id,
+                label: inLocale(row.nameEn, row.nameAr) || (row.code ?? ""),
+              })),
+              (roomId) => patch({ roomId }),
+            )
+          : null;
   if (view === "timetables") return <Timetables yearId={options.year.id} />;
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-end gap-3">
-        {picker}
-        <div className="grid gap-1.5">
-          <label
-            htmlFor="timetable-from"
-            className="text-sm leading-5 font-medium"
-          >
-            {view === "classes"
-              ? m.ttChangesFrom()
-              : view === "cover"
-                ? m.ttDay()
-                : m.ttWeekOf()}
-          </label>
+      <IndexToolbar
+        facets={picker ? [picker] : []}
+        period={
           <Input
-            id="timetable-from"
             type="date"
-            className="w-40 max-md:h-10"
+            aria-label={
+              view === "classes"
+                ? m.ttChangesFrom()
+                : view === "cover"
+                  ? m.ttDay()
+                  : m.ttWeekOf()
+            }
+            className="h-8 w-40 max-md:h-10"
             value={picked.from}
             min={options.year.startsOn}
             max={options.year.lastDay}
@@ -412,8 +425,8 @@ function SchoolTimetable({ view, search, patch }: SchoolTimetableProps) {
               event.target.value && patch({ from: event.target.value })
             }
           />
-        </div>
-      </div>
+        }
+      />
       {view === "classes" && picked.classId ? (
         <Planner
           classId={picked.classId}

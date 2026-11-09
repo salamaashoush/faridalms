@@ -1,7 +1,10 @@
 import { addDays } from "@faridalms/domain/school";
 import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
+import { ToolbarRow } from "@faridalms/ui/system/panel";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useContext } from "react";
 
 import * as m from "~/i18n/messages";
 
@@ -22,13 +25,14 @@ export function DayNav({ id, date, min, max, today, onChange }: DayNavProps) {
   const previous = addDays(date, -1);
   const next = addDays(date, 1);
   const inRange = (day: string) => day >= min && day <= max;
+  const compact = useContext(ToolbarRow);
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div className="flex items-center gap-1">
         <Button
           type="button"
           variant="outline"
-          size="icon"
+          size={compact ? "icon-sm" : "icon"}
           className="max-md:size-10"
           aria-label={m.attPreviousDay()}
           disabled={!inRange(previous)}
@@ -42,7 +46,7 @@ export function DayNav({ id, date, min, max, today, onChange }: DayNavProps) {
         <Input
           id={id}
           type="date"
-          className="w-40 max-md:h-10"
+          className={cn("w-40 max-md:h-10", compact && "h-8")}
           value={date}
           min={min}
           max={max}
@@ -54,7 +58,7 @@ export function DayNav({ id, date, min, max, today, onChange }: DayNavProps) {
         <Button
           type="button"
           variant="outline"
-          size="icon"
+          size={compact ? "icon-sm" : "icon"}
           className="max-md:size-10"
           aria-label={m.attNextDay()}
           disabled={!inRange(next)}
@@ -67,6 +71,7 @@ export function DayNav({ id, date, min, max, today, onChange }: DayNavProps) {
         <Button
           type="button"
           variant="ghost"
+          size={compact ? "sm" : "default"}
           className="max-md:h-10"
           onClick={() => onChange(today)}
         >

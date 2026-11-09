@@ -3,8 +3,10 @@ import { quoteReference } from "@faridalms/domain/quotes";
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { DocumentView } from "@faridalms/ui/system/document-view";
 import { FormField } from "@faridalms/ui/system/form-field";
 import { Page } from "@faridalms/ui/system/page";
+import { Segmented } from "@faridalms/ui/system/panel";
 import {
   RecordColumns,
   RecordHeader,
@@ -47,6 +49,7 @@ const LANGUAGES = [
 function QuotePage() {
   const data = Route.useLoaderData();
   const { language } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const { quote, party } = data;
   const [editing, setEditing] = useState(false);
   const accepting = useSheet();
@@ -177,27 +180,23 @@ function QuotePage() {
                 <Change data={data} onCancel={() => setEditing(false)} />
               </RecordSection>
             ) : null}
-            <div className="grid gap-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
-                <nav
-                  aria-label="Print in"
-                  className="flex gap-1 rounded-lg bg-muted p-1"
-                >
-                  {LANGUAGES.map((choice) => (
-                    <Link
-                      key={choice.value}
-                      to="/quotes/$quoteId"
-                      params={{ quoteId: quote.id }}
-                      search={{ language: choice.value }}
-                      aria-current={
-                        choice.value === language ? "true" : undefined
-                      }
-                      className="inline-flex min-h-8 items-center rounded-md px-3 text-[13px] font-medium text-muted-foreground hover:text-foreground aria-[current=true]:bg-background aria-[current=true]:text-foreground aria-[current=true]:shadow-sm"
-                    >
-                      {choice.label}
-                    </Link>
-                  ))}
-                </nav>
+            <DocumentView
+              label={`Quote ${quoteReference(quote.number, quote.version)}`}
+              tools={
+                <Segmented
+                  label="Print in"
+                  value={language}
+                  options={[...LANGUAGES]}
+                  onChange={(next) =>
+                    void navigate({
+                      search: (previous) => ({ ...previous, language: next }),
+                      replace: true,
+                      resetScroll: false,
+                    })
+                  }
+                />
+              }
+              actions={
                 <Button
                   type="button"
                   variant="outline"
@@ -207,24 +206,23 @@ function QuotePage() {
                   <Printer aria-hidden />
                   Print or save as PDF
                 </Button>
-              </div>
-              <div className="rounded-lg border bg-card p-2 shadow-sm print:border-0 print:p-0 print:shadow-none">
-                <QuoteDocument
-                  quote={quote}
-                  party={
-                    party ?? {
-                      name: "",
-                      nameAr: null,
-                      address: null,
-                      taxNumber: null,
-                    }
+              }
+            >
+              <QuoteDocument
+                quote={quote}
+                party={
+                  party ?? {
+                    name: "",
+                    nameAr: null,
+                    address: null,
+                    taxNumber: null,
                   }
-                  business={data.business}
-                  vatName={data.vatName}
-                  language={language}
-                />
-              </div>
-            </div>
+                }
+                business={data.business}
+                vatName={data.vatName}
+                language={language}
+              />
+            </DocumentView>
           </>
         }
         aside={

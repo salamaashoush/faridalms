@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@faridalms/ui/dialog";
 import { SelectField } from "@faridalms/ui/system/form-field";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import {
   useMutation,
@@ -360,25 +361,30 @@ function TimetableBar({ grid, onFrom }: TimetableBarProps) {
     return grid.today >= from && grid.today < until ? grid.today : from;
   };
   return (
-    <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {grid.timetables.length > 1 ? (
-        <SelectField
-          id="timetable-version"
-          label={m.ttTimetable()}
-          width="name"
-          className="w-64"
-          value={current?.id ?? ""}
-          options={grid.timetables.map((row, index) => ({
-            value: row.id,
-            label: timetableLabel(row, index),
-          }))}
-          onChange={(id) =>
-            onFrom(startOf(grid.timetables.findIndex((row) => row.id === id)))
-          }
+        <IndexToolbar
+          facets={[
+            {
+              id: "timetable",
+              label: m.ttTimetable(),
+              single: true,
+              defaultSelected: [current?.id ?? ""],
+              selected: [current?.id ?? ""],
+              options: grid.timetables.map((row, index) => ({
+                value: row.id,
+                label: timetableLabel(row, index),
+              })),
+              onChange: ([id]) =>
+                onFrom(
+                  startOf(grid.timetables.findIndex((row) => row.id === id)),
+                ),
+            },
+          ]}
         />
       ) : null}
       {current ? (
-        <p className="text-[13px] leading-9 text-muted-foreground">
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
           {cycleName(current)}
         </p>
       ) : null}

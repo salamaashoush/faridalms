@@ -48,6 +48,7 @@ export function Subscribe() {
         render={
           <Button
             variant="outline"
+            size="sm"
             className="max-md:size-10 max-md:px-0"
             disabled={!hydrated}
           />

@@ -202,8 +202,10 @@ test("a new message written from Markdown is kept as a draft, survives a reload,
   await reopened.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByText("Kept in Drafts.")).toBeVisible();
   await expect(reopened).toBeHidden();
-  await page.getByRole("combobox", { name: "Mailbox" }).click();
-  await page.getByRole("option", { name: "Drafts", exact: true }).click();
+  await page.getByRole("button", { name: /^Mailbox/ }).click();
+  await page
+    .getByRole("menuitemradio", { name: "Drafts", exact: true })
+    .click();
   const drafts = page.getByRole("list", { name: "Drafts" });
   await drafts.getByRole("button").filter({ hasText: words }).click();
   const again = page.getByRole("dialog", { name: "New message" });

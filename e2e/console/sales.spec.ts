@@ -110,7 +110,7 @@ test("a demonstration request becomes a lead, a quote in both languages, and a c
   await expect(document).toContainText("119,700.00");
   await expect(document).toContainText("Acme Learning");
 
-  await page.getByRole("link", { name: "Arabic" }).click();
+  await page.getByRole("button", { name: "Arabic" }).click();
   const arabic = page.getByRole("article", { name: /^عرض سعر/ });
   await expect(arabic).toHaveAttribute("dir", "rtl");
   await expect(arabic).toContainText("ضريبة القيمة المضافة");
