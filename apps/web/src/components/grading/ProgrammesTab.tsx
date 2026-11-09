@@ -277,7 +277,7 @@ function CategorySheet({
           ? m.gradingCategoryEdit({ category: categoryName(category) })
           : m.gradingAddCategory()
       }
-      submitLabel={m.rowDone()}
+      submitLabel={category ? m.gradingCategorySave() : m.gradingAddCategory()}
       onSubmit={() => {
         setTried(true);
         if (unnamed || weightless) return;

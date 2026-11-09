@@ -18,7 +18,7 @@ test("a school adds a grade scale and changes its grades one at a time", async (
   await adding.getByRole("button", { name: "U", exact: true }).click();
   const grade = page.getByRole("dialog", { name: "Change U" });
   await grade.getByRole("textbox", { name: "Grade", exact: true }).fill("X");
-  await grade.getByRole("button", { name: "Done" }).click();
+  await grade.getByRole("button", { name: "Save grade" }).click();
   await expect(grade).toBeHidden();
   await expect(
     adding.getByRole("row", { name: /^X / }).getByRole("cell", {
@@ -90,7 +90,7 @@ test("a programme's categories are added one at a time and weigh 100 together", 
     const category = page.getByRole("dialog", { name: "Add a category" });
     await category.getByRole("textbox", { name: "Name in English" }).fill(name);
     await category.getByRole("textbox", { name: "Weight %" }).fill(weight);
-    await category.getByRole("button", { name: "Done" }).click();
+    await category.getByRole("button", { name: "Add a category" }).click();
     await expect(category).toBeHidden();
   };
   await addCategory("Homework", "40");
@@ -108,7 +108,7 @@ test("a programme's categories are added one at a time and weigh 100 together", 
   await expect(
     exams.getByText("With this, the weights add up to 100 of 100."),
   ).toBeVisible();
-  await exams.getByRole("button", { name: "Done" }).click();
+  await exams.getByRole("button", { name: "Save category" }).click();
   await expect(
     programme.getByRole("table").getByText("100 of 100"),
   ).toBeVisible();

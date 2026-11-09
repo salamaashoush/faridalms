@@ -493,7 +493,7 @@ function BandSheet({ bands, band, target, open, onClose }: BandSheetProps) {
       title={
         band ? m.gradingBandEdit({ grade: bandName(band) }) : m.gradingAddBand()
       }
-      submitLabel={save.dated ? undefined : m.rowDone()}
+      submitLabel={band ? m.gradingBandSave() : m.gradingAddBand()}
       pending={save.mutation.isPending}
       error={
         save.mutation.error ? getMessageFromError(save.mutation.error) : null

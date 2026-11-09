@@ -221,9 +221,12 @@ Every editor below is now the portal's standard `DataTable`:
   (norms, bands, periods, schedules, links), the sheet's Save writes that
   row and the rest go as they were. Where the list belongs to a record
   being written in a form with its own Save (a class, an intake, a
-  lesson's messages by score), the sheet's Done puts the row in that
-  form, and the form's Save keeps it with the rest of the record, as
-  Shopify's product form does with a variant.
+  lesson's messages by score, a scale or programme being added), the
+  sheet puts the row in that form, and the form's Save keeps it with the
+  rest of the record, as Shopify's product form does with a variant and
+  the console does with a new invoice's lines. Either way the sheet's
+  button names its job ("Add a grade", "Save grade"), as the console's
+  do.
 
 #### Sources, across editors
 
@@ -291,7 +294,7 @@ Grade scales.
   because a saved scale's grades are versioned, the date the change is
   used from and why, kept in the history. Remove takes the same date and
   reason. A new scale's grades are changed the same way before it is
-  added, with Done putting the grade into the scale.
+  added, each sheet putting the grade into the scale.
 - **Why it departs from the products, and why that is safe.** They edit
   the set together because a band's range depends on its neighbour. Here
   a band holds only its lower bound and the range is derived, so one
@@ -317,7 +320,7 @@ Grade scales.
 - **Decision.** The programme's categories are the standard table inside
   its sheet, the weight a column and a Total row under it ("90 of 100").
   Each category opens in its own sheet with its names and weight, whose
-  hint says what the weights add up to with this change; Done puts it in
+  hint says what the weights add up to with this change; its Save puts it in
   the programme. The programme's Save refuses weights that do not make
   100, saying so under the table, as Classroom does.
 - **Why it fits.** Weights are one share of 100: changing one always means
