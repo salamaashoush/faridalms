@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 import { API_ORIGIN, signedInApi } from "./fixtures/api";
 import {
   ACCOUNTS,
+  chooseFromMenu,
   openWith,
   PASSWORD,
   portal,
@@ -266,15 +267,31 @@ test("a teacher writes a rubric, grades by its levels, and the student reads wha
   await studentContext.close();
 });
 
+// Each browser keeps the term grades of its own class, since releasing
+// sends out every grade of a class that waits.
+const GRADEBOOK_CLASS: Record<string, string> = {
+  chromium: "7A Arabic",
+  firefox: "8A Arabic",
+  webkit: "9A Arabic",
+};
+
 test("a teacher's gradebook shows the class's work and term grades", async ({
   page,
-}) => {
+}, testInfo) => {
   await signInWith(page, TEACHER, PASSWORD, "/today");
   await page.goto("/gradebook");
   await untilHydrated(page);
   await expect(
     page.getByRole("heading", { level: 1, name: "Gradebook" }),
   ).toBeVisible();
+  const className = GRADEBOOK_CLASS[testInfo.project.name] ?? "7A Arabic";
+  await chooseFromMenu(
+    page.getByRole("button", { name: /^Class/ }),
+    page.getByRole("menuitemradio", { name: className, exact: true }),
+  );
+  await expect(page.getByRole("button", { name: /^Class/ })).toContainText(
+    className,
+  );
   const sheet = page.getByRole("table");
   await expect(
     sheet.getByRole("columnheader", { name: "Chapter 1 review" }),
@@ -283,16 +300,50 @@ test("a teacher's gradebook shows the class's work and term grades", async ({
     sheet.getByRole("columnheader", { name: "Term grade" }),
   ).toBeVisible();
   const grades = sheet.getByRole("textbox", { name: /^Term grade for / });
+  // A grade over 100 is refused as it is typed, named in a list linked to
+  // its cell, and held back while the rest still save.
+  const was = await grades.first().inputValue();
   await grades.first().fill("120");
-  await page.getByRole("button", { name: "Save grades" }).click();
   await expect(
     page
       .getByRole("alert")
       .getByRole("link", { name: /term grade is more than 100/ }),
   ).toBeVisible();
+  await expect(
+    page.getByText("Not saved: a term grade is over 100"),
+  ).toBeVisible();
   await expect(grades.first()).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(grades.first()).toHaveValue(was);
+  await expect(page.getByRole("alert")).toHaveCount(0);
   await page.keyboard.press("ArrowDown");
   await expect(grades.nth(1)).toBeFocused();
+
+  // A term grade saves as it is typed, and Release sends it out once asked.
+  const label = (await grades.nth(1).getAttribute("aria-label")) ?? "";
+  const name = label.replace(/^Term grade for /, "");
+  const next = (await grades.nth(1).inputValue()) === "91" ? "92" : "91";
+  await page.keyboard.type(next);
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.reload();
+  await untilHydrated(page);
+  await expect(sheet.getByRole("textbox", { name: label })).toHaveValue(next);
+
+  await sheet.getByRole("button", { name: new RegExp(`^${name}`) }).click();
+  const panel = page.getByRole("complementary", { name });
+  await expect(panel.getByRole("textbox", { name: "Term grade" })).toHaveValue(
+    next,
+  );
+  await panel.getByRole("button", { name: "Close" }).click();
+
+  await page.getByRole("button", { name: "Release grades" }).click();
+  const confirm = page.getByRole("dialog", { name: /^Release \d+ term grade/ });
+  await confirm.getByRole("button", { name: "Release grades" }).click();
+  await expect(page.getByText(/grades? released$/)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Release grades" }),
+  ).toHaveCount(0);
 });
 
 test("a quiz is answered question by question, marked at hand-in, and its results shown", async ({
