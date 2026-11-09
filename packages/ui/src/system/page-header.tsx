@@ -7,6 +7,7 @@ import type { ActionItem } from "./action-menu";
 import { Button } from "../button";
 import { ActionMenu } from "./action-menu";
 import { ButtonLink } from "./button-link";
+import { PageActions } from "./page-actions";
 import { useDesignSystem } from "./provider";
 
 const NO_ACTIONS: ActionItem[] = [];
@@ -41,6 +42,13 @@ export interface PageHeaderProps {
   status?: ReactNode;
 }
 
+/**
+ * A list's, a form's or settings' header, which is the top bar: the
+ * breadcrumb already names the page, so the title is the page's heading
+ * for screen readers alone, the count stands beside the breadcrumb, and the
+ * status, menu and action sit at the bar's end. Only the description takes
+ * room on the page, one line above its content.
+ */
 export function PageHeader({
   title,
   count,
@@ -50,27 +58,23 @@ export function PageHeader({
   status,
 }: PageHeaderProps) {
   const { strings, formatNumber } = useDesignSystem();
-  // The action shares the title's line and the description runs beneath
-  // both, so on a phone a long description never pushes the action onto a
-  // row of its own.
   return (
-    <header className="mb-6 grid gap-1">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-h-9 min-w-0 items-center gap-2 max-md:min-h-10">
-          <h1 className="text-2xl leading-8 font-semibold tracking-tight">
-            {title}
-          </h1>
-          {count === undefined ? null : (
-            <p className="text-2xl leading-8 text-muted-foreground tabular-nums">
+    <>
+      <h1 className="sr-only">{title}</h1>
+      <PageActions
+        meta={
+          count === undefined ? undefined : (
+            <p className="text-sm text-muted-foreground tabular-nums">
               <span aria-hidden>{formatNumber(count)}</span>
               <span className="sr-only">
                 {strings.countInTotal(formatNumber(count))}
               </span>
             </p>
-          )}
-        </div>
+          )
+        }
+      >
         {action || menu.length || status ? (
-          <div className="flex min-h-9 shrink-0 items-center gap-2 max-md:min-h-10">
+          <div data-keeps-global-tools className="flex items-center gap-2">
             {status}
             <ActionMenu
               label={strings.moreActions}
@@ -81,13 +85,13 @@ export function PageHeader({
             {action ? <HeaderActionButton action={action} /> : null}
           </div>
         ) : null}
-      </div>
+      </PageActions>
       {description ? (
-        <p className="text-[13px] leading-[18px] text-muted-foreground">
+        <p className="mb-4 text-[13px] leading-[18px] text-muted-foreground">
           {description}
         </p>
       ) : null}
-    </header>
+    </>
   );
 }
 
@@ -96,10 +100,14 @@ interface HeaderActionButtonProps {
 }
 
 function HeaderActionButton({ action }: HeaderActionButtonProps) {
+  // A phone's bar also holds search and notifications, so an action with
+  // an icon shows the icon alone there.
   const content = (
     <>
       {action.icon ? <action.icon aria-hidden /> : null}
-      {action.label}
+      <span className={action.icon ? "max-sm:sr-only" : undefined}>
+        {action.label}
+      </span>
     </>
   );
   return "link" in action ? (

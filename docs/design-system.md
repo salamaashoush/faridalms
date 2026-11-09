@@ -124,8 +124,16 @@ Interface text is 14px (Carbon, Atlassian, Fluent, Primer all default to
 
 One 48px top bar per page (Polaris, Notion, Linear):
 
-- start: sidebar toggle, then the breadcrumb;
-- end: the page's own actions when it has any, otherwise nothing.
+- start: sidebar toggle, then the breadcrumb, then what qualifies the
+  page's name, such as a list's count;
+- end: the page's own status and actions when it has any, otherwise
+  nothing.
+
+A page names itself once. The breadcrumb names where the page sits and
+the page itself, so a list, a form or a settings page draws no title of
+its own above its content (Linear, Notion; NN/g on breadcrumbs: a trail
+of one step only repeats the heading). The vertical space goes to the
+work: on a 720px screen a 110px title block was a sixth of it.
 
 The sidebar lists the app's sections (`ShellNavSection`), each a short
 titled group of links (Polaris, Linear). Two rules keep it calm for
@@ -148,8 +156,8 @@ someone whose role reaches much of the app (`docs/plans/navigation.md`):
 Global tools live in the sidebar header on desktop: search (Ctrl/Cmd+K),
 notifications, and the school-year switch. The sidebar footer holds the
 account, language and theme. On phones the bar keeps search and the
-notification bell at the end and page actions collapse into a `•••` menu
-(Primer PageHeader).
+notification bell at the end, after the page's actions, which show their
+icons alone there (Primer PageHeader).
 
 Page padding is 24px, 16px on phones.
 
@@ -188,12 +196,23 @@ Top to bottom, every page in either app (Polaris page, Primer PageHeader,
 Atlassian page header):
 
 1. **Header**: `PageHeader` for a list, a form or settings, `RecordHeader`
-   for one record. Title (24px; a document's 30px), an optional count, at
-   most one muted line of description, and the actions at the end: at most
-   one filled button and a `•••` menu. A page whose work saves as it is
-   typed (the gradebook) says how it stands just before them in small muted
-   text (`status`: "Saving…", "Saved", "Couldn't save · Retry"), as a
-   content editor does in its top bar. 24px below it.
+   for one record.
+   - `PageHeader` is the top bar. Its title is the page's `h1` for screen
+     readers only, since the breadcrumb shows it; its count stands beside
+     the breadcrumb; its actions sit at the bar's end: at most one filled
+     button and a `•••` menu, the button shown as its icon alone on a
+     phone. A page whose work saves as it is typed (the gradebook) says
+     how it stands just before them in small muted text (`status`:
+     "Saving…", "Saved", "Couldn't save · Retry"), as a content editor
+     does. On the page it leaves at most one muted line of description,
+     16px above the content, and only where the line says something the
+     page does not: what happens next, a rule that is not visible. A line
+     that restates the page's name ("Conversations, newest first") is
+     left out.
+   - `RecordHeader` keeps its place on the page, because it carries more
+     than a name: the record's identity, state and summary. The breadcrumb
+     then names the area and the kind of record ("Students › Student
+     record"), never the record again. 24px below it.
 2. **Figures and To do** (`MetricGrid`, `AttentionList`), only where a
    number or an item decides what to do next.
 3. **Tabs** (`RecordTabs`), one per thing the page holds or one per fixed

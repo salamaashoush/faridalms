@@ -58,6 +58,7 @@ import {
   PageActionsProvider,
   PageActionsSlot,
   PageLeadingSlot,
+  PageMetaSlot,
 } from "./page-actions";
 import { useDesignSystem, useSystemStrings } from "./provider";
 
@@ -637,7 +638,10 @@ export function AppShell({
               className="size-8 max-md:size-10 rtl:rotate-180"
             />
             <PageLeadingSlot />
-            <div className="min-w-0 flex-1">{breadcrumb}</div>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="min-w-0">{breadcrumb}</div>
+              <PageMetaSlot />
+            </div>
             <PageActionsSlot />
             {barTools ? (
               <div

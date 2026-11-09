@@ -1,35 +1,90 @@
-import { screen } from "@testing-library/react";
+import type { ReactNode } from "react";
+
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  PageActionsProvider,
+  PageActionsSlot,
+  PageMetaSlot,
+} from "./page-actions";
 import { PageHeader } from "./page-header";
 import { renderPageWithSystem, renderWithSystem } from "./testing";
 
+interface InShellProps {
+  children: ReactNode;
+}
+
+/** The top bar's slots and the page beneath, as the app shell draws them. */
+function InShell({ children }: InShellProps) {
+  return (
+    <PageActionsProvider>
+      <header aria-label="Top bar">
+        <PageMetaSlot />
+        <PageActionsSlot />
+      </header>
+      <section aria-label="Page">{children}</section>
+    </PageActionsProvider>
+  );
+}
+
+const topBar = () => screen.getByRole("banner", { name: "Top bar" });
+const page = () => screen.getByRole("region", { name: "Page" });
+
 describe("PageHeader", () => {
-  it("shows the title with its count, read out as a total", () => {
-    renderWithSystem(<PageHeader title="Schools" count={1234} />);
+  it("names the page for screen readers alone, the breadcrumb showing it", () => {
+    renderWithSystem(
+      <InShell>
+        <PageHeader title="Schools" />
+      </InShell>,
+    );
     expect(
       screen.getByRole("heading", { level: 1, name: "Schools" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("1,234 in total")).toHaveClass("sr-only");
+    ).toHaveClass("sr-only");
   });
 
-  it("offers one primary action as a button", async () => {
+  it("shows the count beside the breadcrumb, read out as a total", async () => {
+    renderWithSystem(
+      <InShell>
+        <PageHeader title="Schools" count={1234} />
+      </InShell>,
+    );
+    const total = await within(topBar()).findByText("1,234 in total");
+    expect(total).toHaveClass("sr-only");
+  });
+
+  it("keeps the description on the page, above its content", () => {
+    renderWithSystem(
+      <InShell>
+        <PageHeader title="Messages" description="Newest first." />
+      </InShell>,
+    );
+    expect(within(page()).getByText("Newest first.")).toBeVisible();
+  });
+
+  it("offers one primary action as a button in the top bar", async () => {
     const onClick = vi.fn<() => void>();
     renderWithSystem(
-      <PageHeader title="Leads" action={{ label: "Add lead", onClick }} />,
+      <InShell>
+        <PageHeader title="Leads" action={{ label: "Add lead", onClick }} />
+      </InShell>,
     );
-    await userEvent.click(screen.getByRole("button", { name: "Add lead" }));
+    await userEvent.click(
+      await within(topBar()).findByRole("button", { name: "Add lead" }),
+    );
     expect(onClick).toHaveBeenCalledOnce();
   });
 
   it("offers an action that goes somewhere as a link", async () => {
     renderPageWithSystem(
       () => (
-        <PageHeader
-          title="Schools"
-          action={{ label: "New school", link: { to: "/" } }}
-        />
+        <InShell>
+          <PageHeader
+            title="Schools"
+            action={{ label: "New school", link: { to: "/" } }}
+          />
+        </InShell>
       ),
       { path: "/schools", paths: ["/"] },
     );
@@ -39,16 +94,20 @@ describe("PageHeader", () => {
     expect(await screen.findByText("/")).toBeInTheDocument();
   });
 
-  it("says how the page's work stands before its actions", () => {
+  it("says how the page's work stands before its actions", async () => {
     renderWithSystem(
-      <PageHeader
-        title="Gradebook"
-        status={<span>Saved</span>}
-        action={{ label: "Release grades", onClick: vi.fn() }}
-      />,
+      <InShell>
+        <PageHeader
+          title="Gradebook"
+          status={<span>Saved</span>}
+          action={{ label: "Release grades", onClick: vi.fn() }}
+        />
+      </InShell>,
     );
+    const release = await screen.findByRole("button", {
+      name: "Release grades",
+    });
     const saved = screen.getByText("Saved");
-    const release = screen.getByRole("button", { name: "Release grades" });
     expect(
       saved.compareDocumentPosition(release) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
@@ -57,12 +116,16 @@ describe("PageHeader", () => {
   it("keeps further actions in the more menu", async () => {
     const onSelect = vi.fn<() => void>();
     renderWithSystem(
-      <PageHeader
-        title="Billing"
-        menu={[{ label: "Export", onSelect }]}
-      />,
+      <InShell>
+        <PageHeader
+          title="Billing"
+          menu={[{ label: "Export", onSelect }]}
+        />
+      </InShell>,
     );
-    await userEvent.click(screen.getByRole("button", { name: "More actions" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "More actions" }),
+    );
     await userEvent.click(
       await screen.findByRole("menuitem", { name: "Export" }),
     );
