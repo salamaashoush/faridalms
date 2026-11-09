@@ -232,4 +232,23 @@ describe("DataTable", () => {
     expect(link).toHaveAttribute("href", "https://pay.example.com/a");
     expect(link).toHaveAttribute("target", "_blank");
   });
+
+  it("draws its rows as cards at every width when asked to", async () => {
+    renderPageWithSystem(() => (
+      <DataTable
+        caption="Messages by score"
+        layout="cards"
+        rows={SCHOOLS}
+        columns={COLUMNS}
+        rowLabel={(row) => row.name}
+        card={{ title: (row) => row.name }}
+        empty={{ title: "Add a message" }}
+      />
+    ));
+    const list = await screen.findByRole("list", { name: "Messages by score" });
+    expect(list).not.toHaveClass("md:hidden");
+    expect(
+      screen.getByRole("table", { hidden: true }).closest(".hidden"),
+    ).not.toHaveClass("md:block");
+  });
 });

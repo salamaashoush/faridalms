@@ -528,7 +528,15 @@ export interface DataTableProps<T extends { id: string }, S extends string> {
    * offers the same action.
    */
   actions?: ReactNode;
+  /**
+   * `cards` draws the rows as the phone's cards at every width, for a table
+   * held in a column too narrow for its columns, such as an editor's
+   * settings panel.
+   */
+  layout?: DataTableLayout;
 }
+
+export type DataTableLayout = "responsive" | "cards";
 
 /**
  * The index page's list: a table on wide screens and cards on phones, with
@@ -548,7 +556,9 @@ export function DataTable<T extends { id: string }, S extends string>({
   empty,
   totals = NO_TOTALS,
   actions,
+  layout = "responsive",
 }: DataTableProps<T, S>) {
+  const cards = layout === "cards";
   const { strings, formatNumber } = useDesignSystem();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(EMPTY);
   // Selection belongs to the rows on screen: another page or filter starts
@@ -627,7 +637,12 @@ export function DataTable<T extends { id: string }, S extends string>({
         )
       ) : (
         <>
-          <div className="hidden overflow-hidden rounded-lg border bg-card md:block">
+          <div
+            className={cn(
+              "hidden overflow-hidden rounded-lg border bg-card",
+              !cards && "md:block",
+            )}
+          >
             <div className="relative overflow-x-auto overflow-y-hidden">
               <table className="w-full text-sm">
                 <caption className="sr-only">{caption}</caption>
@@ -809,7 +824,10 @@ export function DataTable<T extends { id: string }, S extends string>({
               which a table row cannot do reliably, hence the script above. */}
           <ul
             aria-label={caption}
-            className="divide-y overflow-hidden rounded-lg border bg-card md:hidden"
+            className={cn(
+              "divide-y overflow-hidden rounded-lg border bg-card",
+              !cards && "md:hidden",
+            )}
           >
             {rows.map((row) => (
               <li
