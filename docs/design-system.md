@@ -18,7 +18,7 @@ package gains it first, with a test and a line in this table.
 | Rule           | Module                                                                                                                                                                                                                                             |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, section More, area pages, breadcrumb steps), `page-actions`                                                                                                                 |
-| Index page     | `page-header`, `index-toolbar`, `data-table`, `selection-bar` (`SelectionBar`), `cell-note` (`CellWithNote`), `empty-state`                                                                                                                        |
+| Index page     | `page-header`, `index-toolbar`, `data-table` (`DataTable`, `RowLink`, `RowButton`), `selection-bar` (`SelectionBar`), `cell-note` (`CellWithNote`), `empty-state`                                                                                  |
 | Page width     | `page` (`Page`; `SettingsPage` and `RecordForm` take theirs from it)                                                                                                                                                                               |
 | Record page    | `record-page` (`RecordHeader`, `RecordStack`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `stage-path` (`StagePath`), `attention-list` (`AttentionList`), `value`                                              |
 | Record content | `usage-list` (`UsageList`), `summary-list` (`SummaryList`), `change-log` (`ChangeLog`), `dns-records` (`DnsRecords`), `copy-button`, `document-view` (`DocumentView`, a printable document in a tab, printed alone)                                |
@@ -226,7 +226,9 @@ Carbon data table, shadcn tasks).
   Cancel.
 - Rows are 48px. The whole row opens the record. The last cell is a `•••` menu;
   at most one action is pulled out inline (Primer). Delete is last, after a
-  separator.
+  separator. A row with no page of its own, such as a line of a draft
+  invoice, opens its sheet instead: its primary cell is a `RowButton`
+  rather than a `RowLink`, and the row presses it wherever it is clicked.
 - Pagination in the footer, 25 or 50 per page.
 - Empty state: an action-led title and one primary button. A filtered view with
   no results offers "Clear filters" instead. Both follow Empty states below.

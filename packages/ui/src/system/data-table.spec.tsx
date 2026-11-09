@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Column } from "./data-table";
 
-import { DataTable, RowLink } from "./data-table";
+import { DataTable, RowButton, RowLink } from "./data-table";
 import { renderPageWithSystem } from "./testing";
 
 interface School {
@@ -68,6 +68,37 @@ describe("DataTable", () => {
     const table = await screen.findByRole("table", { name: "Schools" });
     await userEvent.click(within(table).getByText("Suspended"));
     expect(await screen.findByText("/")).toBeInTheDocument();
+  });
+
+  it("opens a row's own sheet when anywhere in the row is clicked", async () => {
+    const open = vi.fn<(name: string) => void>();
+    const columns: Column<School>[] = [
+      {
+        id: "name",
+        header: "School",
+        primary: true,
+        cell: (row) => (
+          <RowButton onClick={() => open(row.name)}>{row.name}</RowButton>
+        ),
+      },
+      { id: "state", header: "State", cell: (row) => row.state },
+    ];
+    renderPageWithSystem(() => (
+      <DataTable
+        caption="Schools"
+        rows={SCHOOLS}
+        columns={columns}
+        rowLabel={(row) => row.name}
+        card={{ title: (row) => row.name }}
+        empty={{ title: "Add your first school" }}
+      />
+    ));
+    const table = await screen.findByRole("table", { name: "Schools" });
+    await userEvent.click(within(table).getByText("Suspended"));
+    expect(open).toHaveBeenCalledExactlyOnceWith("Birch");
+    await userEvent.click(within(table).getByRole("button", { name: "Aspen" }));
+    expect(open).toHaveBeenLastCalledWith("Aspen");
+    expect(open).toHaveBeenCalledTimes(2);
   });
 
   it("shows its empty state when there are no rows", async () => {

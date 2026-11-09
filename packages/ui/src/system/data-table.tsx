@@ -137,13 +137,38 @@ function RowAnchor({ className, children, ...props }: RowAnchorProps) {
 
 export const RowLink = createLink(RowAnchor);
 
+export type RowButtonProps = Omit<ComponentProps<"button">, "type">;
+
+/**
+ * The primary cell of a row that opens in a sheet rather than on a page of
+ * its own, such as a line of a draft invoice: clicking anywhere in the row
+ * presses it, as it would follow a `RowLink`.
+ */
+export function RowButton({ className, children, ...props }: RowButtonProps) {
+  return (
+    <button
+      {...props}
+      type="button"
+      data-slot="row-link"
+      dir="auto"
+      className={cn(
+        "inline-block max-w-full cursor-pointer truncate rounded-sm text-start align-top font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring/60",
+        className,
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 const interactive =
   "a, button, input, label, select, textarea, [role=checkbox], [role=menuitem]";
 
 /**
- * Clicking anywhere in a row follows the link in its primary cell, so the row
- * is one big target for a pointer while keyboard and screen reader users meet
- * a single real link, not a focusable row that duplicates it.
+ * Clicking anywhere in a row follows the link in its primary cell, or
+ * presses its `RowButton`, so the row is one big target for a pointer while
+ * keyboard and screen reader users meet a single real control, not a
+ * focusable row that duplicates it.
  */
 function followRowLink(event: MouseEvent<HTMLElement>) {
   const target = event.target;
@@ -154,11 +179,14 @@ function followRowLink(event: MouseEvent<HTMLElement>) {
   if (target.closest(interactive) || target.closest("[data-row-control]"))
     return;
   if (window.getSelection()?.toString()) return;
-  const link = event.currentTarget.querySelector<HTMLAnchorElement>(
-    "a[data-slot=row-link]",
+  const link = event.currentTarget.querySelector<HTMLElement>(
+    "[data-slot=row-link]",
   );
   if (!link) return;
-  if (event.metaKey || event.ctrlKey || event.shiftKey) {
+  if (
+    link instanceof HTMLAnchorElement &&
+    (event.metaKey || event.ctrlKey || event.shiftKey)
+  ) {
     window.open(link.href, "_blank", "noopener");
     return;
   }
