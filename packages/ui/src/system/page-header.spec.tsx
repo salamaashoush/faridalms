@@ -39,6 +39,21 @@ describe("PageHeader", () => {
     expect(await screen.findByText("/")).toBeInTheDocument();
   });
 
+  it("says how the page's work stands before its actions", () => {
+    renderWithSystem(
+      <PageHeader
+        title="Gradebook"
+        status={<span>Saved</span>}
+        action={{ label: "Release grades", onClick: vi.fn() }}
+      />,
+    );
+    const saved = screen.getByText("Saved");
+    const release = screen.getByRole("button", { name: "Release grades" });
+    expect(
+      saved.compareDocumentPosition(release) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("keeps further actions in the more menu", async () => {
     const onSelect = vi.fn<() => void>();
     renderWithSystem(

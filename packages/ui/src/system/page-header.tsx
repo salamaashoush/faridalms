@@ -1,5 +1,6 @@
 import type { LinkProps } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 import type { ActionItem } from "./action-menu";
 
@@ -33,6 +34,11 @@ export interface PageHeaderProps {
   description?: string;
   action?: HeaderAction;
   menu?: ActionItem[];
+  /**
+   * How the page's work stands, before its actions: whether what was typed
+   * is saved, as a page edited in place says ("Saving…", "Saved").
+   */
+  status?: ReactNode;
 }
 
 export function PageHeader({
@@ -41,6 +47,7 @@ export function PageHeader({
   description,
   action,
   menu = NO_ACTIONS,
+  status,
 }: PageHeaderProps) {
   const { strings, formatNumber } = useDesignSystem();
   // The action shares the title's line and the description runs beneath
@@ -62,8 +69,9 @@ export function PageHeader({
             </p>
           )}
         </div>
-        {action || menu.length ? (
-          <div className="flex shrink-0 items-center gap-2">
+        {action || menu.length || status ? (
+          <div className="flex min-h-9 shrink-0 items-center gap-2 max-md:min-h-10">
+            {status}
             <ActionMenu
               label={strings.moreActions}
               actions={menu}
