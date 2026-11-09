@@ -60,48 +60,49 @@ All of it is `packages/ui/src/system/data-grid.tsx`.
 
 ## Ranking, worst first
 
-| #   | Editor                                   | Where                                                     | State                                          |
-| --- | ---------------------------------------- | --------------------------------------------------------- | ---------------------------------------------- |
-| 1   | Reading norms                            | `apps/web/src/components/reading/ReadingNorms.tsx`        | Rebuilt: read view, Edit, groups, source marks |
-| 2   | Gradebook term grades                    | `apps/web/src/routes/_app/_staff/gradebook.tsx`           | Rebuilt: calm cells, range check, leave guard  |
-| 3   | Grade bands                              | `apps/web/src/components/grading/ScalesTab.tsx`           | Rebuilt: per-cell checks, scores covered       |
-| 4   | Grading categories (weights)             | `apps/web/src/components/grading/ProgrammesTab.tsx`       | Rebuilt: per-cell checks, Total row            |
-| 5   | Rubric (criteria by levels)              | `apps/web/src/components/coursework/RubricSheet.tsx`      | Left                                           |
-| 6   | Intake checklist, fees and priorities    | `apps/web/src/components/admissions/IntakeEditor.tsx`     | Left                                           |
-| 7   | Periods                                  | `apps/web/src/components/years/YearPeriods.tsx`           | Left                                           |
-| 8   | Invoice and credit note lines (console)  | `apps/ops/src/components/InvoiceLinesForm.tsx`            | Left                                           |
-| 9   | Quote and provisioning add-ons (console) | `apps/ops/src/components/QuoteForm.tsx`, `provisioning.*` | Left                                           |
-| 10  | Bell schedule extras                     | `apps/web/src/components/years/BellSchedules.tsx`         | Left                                           |
-| 11  | Prices (console)                         | `apps/ops/src/components/PriceFields.tsx`                 | Left                                           |
-| 12  | Feedback bands                           | `apps/web/src/components/learning/FeedbackBands.tsx`      | Left                                           |
-| 13  | Rollover classes                         | `apps/web/src/components/years/Rollover.tsx`              | Left                                           |
-| 14  | Previous schools (apply)                 | `apps/web/src/components/admissions/ApplicationForm.tsx`  | Left                                           |
-| 15  | Hosts in provisioning (console)          | `apps/ops/src/routes/provisioning.$draftId.tsx`           | Left                                           |
-| 16  | Schools in a school spec (console)       | `apps/ops/src/components/SchoolSpecForm.tsx`              | Left                                           |
-| 17  | Limits (console)                         | `apps/ops/src/components/LimitFields.tsx`                 | Left                                           |
-| 18  | Social links                             | `apps/web/src/components/site/SiteSettings.tsx`           | Left                                           |
-| 19  | Audience list                            | `apps/web/src/components/broadcasts/AudienceList.tsx`     | Left                                           |
-| 20  | Class subjects                           | `apps/web/src/components/classes/ClassEditor.tsx`         | Left                                           |
-| 21  | Guardians                                | `apps/web/src/components/people/StudentEditor.tsx`        | Left                                           |
-| 22  | Notification preferences                 | `apps/web/src/routes/_app/notification-preferences.tsx`   | Fine                                           |
-| 23  | Module toggles (console)                 | `apps/ops/src/components/ModuleFields.tsx`                | Fine                                           |
-| 24  | Role capabilities                        | `apps/web/src/components/admin/AccessRolesPanel.tsx`      | Fine                                           |
-| 25  | Attendance register                      | `apps/web/src/components/attendance/Register.tsx`         | Fine, the model for work entered as the job    |
+| #   | Editor                                   | Where                                                     | State                                                |
+| --- | ---------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------- |
+| 1   | Reading norms                            | `apps/web/src/components/reading/ReadingNorms.tsx`        | Rebuilt: read view, Edit, groups, source marks       |
+| 2   | Gradebook term grades                    | `apps/web/src/routes/_app/_staff/gradebook.tsx`           | Rebuilt: calm cells, range check, leave guard        |
+| 3   | Grade bands                              | `apps/web/src/components/grading/ScalesTab.tsx`           | Rebuilt: per-cell checks, scores covered             |
+| 4   | Grading categories (weights)             | `apps/web/src/components/grading/ProgrammesTab.tsx`       | Rebuilt: per-cell checks, Total row                  |
+| 5   | Rubric (criteria by levels)              | `apps/web/src/components/coursework/RubricSheet.tsx`      | Rebuilt: levels as rows, description on its own line |
+| 6   | Intake checklist, fees and priorities    | `apps/web/src/components/admissions/IntakeEditor.tsx`     | Rebuilt: checklist and fees; priorities left         |
+| 7   | Periods                                  | `apps/web/src/components/years/YearPeriods.tsx`           | Rebuilt: times in columns, days on each row's line   |
+| 8   | Invoice and credit note lines (console)  | `apps/ops/src/components/InvoiceLinesForm.tsx`            | Rebuilt: lines with net, details on their line       |
+| 9   | Quote and provisioning add-ons (console) | `apps/ops/src/components/QuoteForm.tsx`, `provisioning.*` | Quote add-ons rebuilt; provisioning add-ons left     |
+| 10  | Bell schedule extras                     | `apps/web/src/components/years/BellSchedules.tsx`         | Rebuilt: day's times and own periods as rows         |
+| 11  | Prices (console)                         | `apps/ops/src/components/PriceFields.tsx`                 | Rebuilt                                              |
+| 12  | Feedback bands                           | `apps/web/src/components/learning/FeedbackBands.tsx`      | Rebuilt                                              |
+| 13  | Rollover classes                         | `apps/web/src/components/years/Rollover.tsx`              | Left                                                 |
+| 14  | Previous schools (apply)                 | `apps/web/src/components/admissions/ApplicationForm.tsx`  | Left                                                 |
+| 15  | Hosts in provisioning (console)          | `apps/ops/src/routes/provisioning.$draftId.tsx`           | Rebuilt                                              |
+| 16  | Schools in a school spec (console)       | `apps/ops/src/components/SchoolSpecForm.tsx`              | Left                                                 |
+| 17  | Limits (console)                         | `apps/ops/src/components/LimitFields.tsx`                 | Left                                                 |
+| 18  | Social links                             | `apps/web/src/components/site/SiteSettings.tsx`           | Rebuilt                                              |
+| 19  | Audience list                            | `apps/web/src/components/broadcasts/AudienceList.tsx`     | Left                                                 |
+| 20  | Class subjects                           | `apps/web/src/components/classes/ClassEditor.tsx`         | Rebuilt: added from a menu of subjects               |
+| 21  | Guardians                                | `apps/web/src/components/people/StudentEditor.tsx`        | Left                                                 |
+| 22  | Notification preferences                 | `apps/web/src/routes/_app/notification-preferences.tsx`   | Fine                                                 |
+| 23  | Module toggles (console)                 | `apps/ops/src/components/ModuleFields.tsx`                | Fine                                                 |
+| 24  | Role capabilities                        | `apps/web/src/components/admin/AccessRolesPanel.tsx`      | Fine                                                 |
+| 25  | Attendance register                      | `apps/web/src/components/attendance/Register.tsx`         | Fine, the model for work entered as the job          |
 
 ## What the ones left need
 
-- **Rubric**: a criteria by levels matrix with the level names as columns
-  and points in each column's header, descriptions as cells; today each
-  criterion is a stack of boxes and levels cannot be compared across.
-- **Intake**: the fees are a fixed list of money figures (`NumberCell`
-  with a currency); the checklist is like rows with kind and required.
-- **Periods and bell extras**: one row per period with start and end time
-  cells and the weekdays as a compact toggle row; needs a time cell.
-- **Invoice lines, add-ons, prices (console)**: like rows with quantity,
-  price and discount as figure cells and the line's net worked out beside
-  it, then a Total row; the description goes on the row's second line.
-- **Feedback bands**: like bands, from-score and message, with the range
-  covered beside each.
+- **Intake priorities**: an ordered list with up and down buttons; it
+  wants a reorderable list (drag and the keyboard), which DataGrid does
+  not do yet.
+- **Provisioning add-ons (console)**: the same rows as a quote's add-ons,
+  with a per-school check box group beside them.
+- **Rollover classes**: a fixed list of homerooms with an include check,
+  code, grade, names and teacher; a DataGrid with CheckCell, TextCell
+  and SelectCell, the names on each row's own line.
+- **Previous schools (apply)**: a family's form on a phone; cards suit it,
+  so it stays unless the owner wants it otherwise.
+- **Schools in a school spec, limits, audience list, guardians**: each
+  row is a record of its own (a school, a guardian) or a dependent pair of
+  choices; they read well as they are.
 
 ## For the owner to decide
 
