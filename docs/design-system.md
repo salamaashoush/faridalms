@@ -36,6 +36,7 @@ package gains it first, with a test and a line in this table.
 | Media          | `media-grid` (`MediaGrid`, pictures and files as tiles that open, are chosen or are selected for a batch), `crop-frame` (`CropFrame`), `upload-queue` (`UploadQueue`, `FileDropZone`), `focus-picker` (`FocusPicker`) |
 | Metrics        | `metrics` (`MetricGrid`, `Metric`), `trend-chart` (`TrendChart`, one measure over time against a reference line)                                                                                                      |
 | Steps          | `step-nav` (`StepNav`), `form-footer` (`FormFooter`)                                                                                                                                                                  |
+| Setup          | `setup-guide` (`SetupGuide`, an organisation's first setup as ordered steps ticked from its data)                                                                                                                     |
 | Status pages   | `status-page` (`StatusPage`, `ErrorPage`, `NotFoundPage`)                                                                                                                                                             |
 | Sign-in pages  | `auth-layout` (`AuthLayout`, `AuthBand`, `AuthHeading`), `theme-toggle`                                                                                                                                               |
 
@@ -427,6 +428,25 @@ kept as a draft and filled in step by step (GOV.UK question pages, Polaris).
   start side, with Back beside it; the step's error appears above them.
 - Leaving a step saves it, so a draft can be finished later or by someone
   else; the last step reviews everything before the record is made.
+
+### Setup guide
+
+A new organisation's first setup (a school's details, year, classes, staff,
+students, timetable) is a `SetupGuide` on its administrators' home, after
+Stripe's and Linear's setup lists and NN/g's advice that an empty product
+points straight at the task that fills it.
+
+- One card at the top of the home page while setup is under way: the title,
+  "3 of 8 steps done" and a thin progress bar in the primary colour.
+- The steps are numbered in the order each depends on the last, every one
+  ticked from what the data shows, never by hand, so two administrators
+  never disagree about what is left.
+- The next step is tinted and its link is the card's one filled button,
+  Start; the rest are outline Open or, once done, Review. Each link is
+  named for its step, since they share a word.
+- A step the viewer may not take shows who does instead of a link.
+- Optional steps (the website, admissions) say so and never hold the setup
+  open. Hide appears only once everything else is done.
 
 ### Settings page
 

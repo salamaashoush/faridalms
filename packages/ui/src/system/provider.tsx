@@ -105,6 +105,14 @@ export interface SystemStrings {
   selectRow: (name: string) => string;
   selectedCount: (count: string) => string;
   selectionActions: string;
+  setupDone: string;
+  setupHide: string;
+  setupOpen: string;
+  setupOptional: string;
+  setupProgress: (done: string, total: string) => string;
+  setupReview: string;
+  setupStart: string;
+  setupToDo: string;
   clearSelection: string;
   skipToContent: string;
   sortBy: string;
