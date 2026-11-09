@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { GridColumn, GridIssue } from "./data-grid";
 
 import {
+  CheckCell,
   DataGrid,
   GridAddButton,
   GridFigure,
@@ -13,6 +14,7 @@ import {
   NoteCell,
   NumberCell,
   readNumber,
+  SelectCell,
   TextCell,
   writeNumber,
 } from "./data-grid";
@@ -395,6 +397,85 @@ describe("DataGrid with a line under each row", () => {
       }),
     ).toBeVisible();
     expect(about).toHaveAttribute("aria-invalid", "true");
+  });
+});
+
+interface Step {
+  key: string;
+  kind: "document" | "visit";
+  required: boolean;
+}
+
+function stepParts(steps: Step[], onSteps: (steps: Step[]) => void) {
+  const set = (key: string, patch: Partial<Step>) =>
+    onSteps(
+      steps.map((step) => (step.key === key ? { ...step, ...patch } : step)),
+    );
+  return {
+    rowHeader: { header: "Step", cell: (step: Step) => step.key },
+    columns: [
+      {
+        id: "kind",
+        header: "Kind",
+        cell: (step: Step) => (
+          <SelectCell
+            id={`kind-${step.key}`}
+            label={`Kind of ${step.key}`}
+            value={step.kind}
+            options={[
+              { value: "document" as const, label: "Document" },
+              { value: "visit" as const, label: "Visit" },
+            ]}
+            onChange={(kind) => set(step.key, { kind })}
+          />
+        ),
+      },
+      {
+        id: "required",
+        header: "Required",
+        cell: (step: Step) => (
+          <CheckCell
+            id={`required-${step.key}`}
+            label={`${step.key} is required`}
+            checked={step.required}
+            onChange={(required) => set(step.key, { required })}
+          />
+        ),
+      },
+    ],
+  };
+}
+
+function Steps() {
+  const [steps, setSteps] = useState<Step[]>([
+    { key: "one", kind: "document", required: true },
+    { key: "two", kind: "visit", required: false },
+  ]);
+  return (
+    <DataGrid<Step>
+      caption="Steps"
+      editing
+      {...stepParts(steps, setSteps)}
+      groups={[{ id: "all", title: "", rows: steps }]}
+      rowKey={(step) => step.key}
+    />
+  );
+}
+
+describe("DataGrid with choices and checks", () => {
+  it("toggles a check by Space, moves down the column, and shows each row's choice", async () => {
+    renderWithSystem(<Steps />);
+    expect(
+      screen.getByRole("combobox", { name: "Kind of two" }),
+    ).toHaveTextContent("Visit");
+    const first = screen.getByRole("checkbox", { name: "one is required" });
+    first.focus();
+    await userEvent.keyboard(" ");
+    expect(first).not.toBeChecked();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(
+      screen.getByRole("checkbox", { name: "two is required" }),
+    ).toHaveFocus();
   });
 });
 

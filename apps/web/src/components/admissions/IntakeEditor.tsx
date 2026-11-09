@@ -6,6 +6,7 @@ import type {
   PriorityRule,
   SaveIntake,
 } from "@faridalms/domain/admissions";
+import type { GridColumn, GridIssue } from "@faridalms/ui/system/data-grid";
 
 import {
   CHECKLIST_KINDS,
@@ -18,13 +19,23 @@ import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { Input } from "@faridalms/ui/input";
 import {
+  CheckCell,
+  DataGrid,
+  GridAddButton,
+  GridRemoveButton,
+  NumberCell,
+  SelectCell,
+  TextCell,
+  useFocusAfterRender,
+} from "@faridalms/ui/system/data-grid";
+import {
   FormField,
   SelectField,
   TextField,
 } from "@faridalms/ui/system/form-field";
 import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -33,6 +44,7 @@ import type { intakeOptionsQuery } from "~/queries/admissions";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { saveIntake } from "~/server/admissions";
+import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import {
@@ -175,6 +187,138 @@ function saveInput(draft: IntakeDraft): SaveIntake {
 const wholeIn = (value: string, min: number, max: number) =>
   /^\d+$/.test(value.trim()) && Number(value) >= min && Number(value) <= max;
 
+const itemCell = (
+  item: ChecklistItem,
+  field: "en" | "ar" | "kind" | "required",
+) => `item-${item.key}-${field}`;
+
+/** A step with no name in either language, tied to its English cell. */
+function checklistIssues(checklist: readonly ChecklistItem[]): GridIssue[] {
+  return checklist.flatMap((item, index) =>
+    item.labelEn.trim() || item.labelAr.trim()
+      ? []
+      : [
+          {
+            target: itemCell(item, "en"),
+            label: m.itkItemStep({ number: formatNumber(index + 1) }),
+            message: m.itkErrChecklist(),
+          },
+        ],
+  );
+}
+
+interface ChecklistGridOptions {
+  checklist: ChecklistItem[];
+  change: (key: string, patch: Partial<ChecklistItem>) => void;
+  remove: (key: string) => void;
+}
+
+// Built per render: headers read the request's locale.
+function checklistGrid({ checklist, change, remove }: ChecklistGridOptions) {
+  const number = (item: ChecklistItem) =>
+    formatNumber(checklist.indexOf(item) + 1);
+  const rowHeader = {
+    header: m.itkItemLabelEn(),
+    cell: (item: ChecklistItem) => (
+      <TextCell
+        id={itemCell(item, "en")}
+        label={m.itkItemLabelEnOf({ number: number(item) })}
+        dir="ltr"
+        maxLength={120}
+        value={item.labelEn}
+        onChange={(labelEn) => change(item.key, { labelEn })}
+      />
+    ),
+  };
+  const columns: GridColumn<ChecklistItem>[] = [
+    {
+      id: "ar",
+      header: m.itkItemLabelAr(),
+      cell: (item) => (
+        <TextCell
+          id={itemCell(item, "ar")}
+          label={m.itkItemLabelArOf({ number: number(item) })}
+          lang="ar"
+          maxLength={120}
+          value={item.labelAr}
+          onChange={(labelAr) => change(item.key, { labelAr })}
+        />
+      ),
+    },
+    {
+      id: "kind",
+      header: m.itkItemKind(),
+      cell: (item) => (
+        <SelectCell
+          id={itemCell(item, "kind")}
+          label={m.itkItemKindOf({ number: number(item) })}
+          value={item.kind}
+          options={CHECKLIST_KINDS.map((kind) => ({
+            value: kind,
+            label: CHECKLIST_KIND_LABEL[kind](),
+          }))}
+          onChange={(kind) => change(item.key, { kind })}
+        />
+      ),
+    },
+    {
+      id: "required",
+      header: m.itkItemRequired(),
+      cell: (item) => (
+        <CheckCell
+          id={itemCell(item, "required")}
+          label={m.itkItemRequiredOf({ number: number(item) })}
+          checked={item.required}
+          onChange={(required) => change(item.key, { required })}
+        />
+      ),
+    },
+  ];
+  const rowEnd = (item: ChecklistItem) => (
+    <GridRemoveButton
+      label={m.itkItemRemove({
+        item: item.labelEn || item.labelAr || number(item),
+      })}
+      onRemove={() => remove(item.key)}
+    />
+  );
+  return { rowHeader, columns, rowEnd };
+}
+
+interface FeeGridOptions {
+  fees: Record<FeeKind, string>;
+  currency: Currency;
+  change: (kind: FeeKind, amount: string) => void;
+}
+
+// Built per render: headers read the request's locale.
+function feeGrid({ fees, currency, change }: FeeGridOptions) {
+  const rowHeader = {
+    header: m.itkFee(),
+    cell: (kind: FeeKind) => FEE_KIND_LABEL[kind](),
+  };
+  const columns: GridColumn<FeeKind>[] = [
+    {
+      id: "amount",
+      header: m.itkFeeAmount({ currency }),
+      numeric: true,
+      cell: (kind) => (
+        <NumberCell
+          id={`fee-${kind}`}
+          label={FEE_KIND_LABEL[kind]()}
+          decimals={2}
+          placeholder="—"
+          value={fees[kind].trim() === "" ? null : Number(fees[kind])}
+          onChange={(amount) =>
+            change(kind, amount === null ? "" : String(amount))
+          }
+        />
+      ),
+    },
+  ];
+  return { rowHeader, columns };
+}
+
 export interface IntakeEditorProps {
   options: Options;
   initial: IntakeDraft;
@@ -192,6 +336,7 @@ export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
   const [draft, setDraft] = useState(initial);
   const leaving = useRef(false);
   const [tried, setTried] = useState(false);
+  const focusLater = useFocusAfterRender();
   const set = <K extends keyof IntakeDraft>(key: K, value: IntakeDraft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
   const creating = draft.id === "";
@@ -260,13 +405,23 @@ export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
     }));
   };
 
-  const setItem = (index: number, patch: Partial<ChecklistItem>) =>
-    set(
-      "checklist",
-      draft.checklist.map((item, at) =>
-        at === index ? { ...item, ...patch } : item,
-      ),
-    );
+  const addStep = (
+    <GridAddButton
+      label={m.itkItemAdd()}
+      disabled={draft.checklist.length >= 20}
+      onAdd={() => {
+        const added: ChecklistItem = {
+          key: crypto.randomUUID(),
+          kind: "document",
+          labelEn: "",
+          labelAr: "",
+          required: true,
+        };
+        set("checklist", [...draft.checklist, added]);
+        focusLater(itemCell(added, "en"));
+      }}
+    />
+  );
 
   const movePriority = (rule: PriorityRule, by: -1 | 1) => {
     const list = [...draft.priorities];
@@ -433,95 +588,33 @@ export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
         title={m.itkSectionChecklist()}
         description={m.itkSectionChecklistHint()}
       >
-        <ol className="grid gap-4" aria-label={m.itkSectionChecklist()}>
-          {draft.checklist.map((item, index) => (
-            <li key={item.key} className="grid gap-3 rounded-lg border p-4">
-              <div className="flex flex-wrap items-end gap-3">
-                <SelectField
-                  id={`item-${item.key}-kind`}
-                  label={m.itkItemKind()}
-                  value={item.kind}
-                  options={CHECKLIST_KINDS.map((kind) => ({
-                    value: kind,
-                    label: CHECKLIST_KIND_LABEL[kind](),
-                  }))}
-                  onChange={(kind) => setItem(index, { kind })}
-                  className="w-44"
-                />
-                <label className="flex min-h-9 items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={item.required}
-                    onCheckedChange={(required) => setItem(index, { required })}
-                  />
-                  {m.itkItemRequired()}
-                </label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="ms-auto"
-                  aria-label={m.itkItemRemove({
-                    item: item.labelEn || item.labelAr || String(index + 1),
-                  })}
-                  onClick={() =>
-                    set(
-                      "checklist",
-                      draft.checklist.filter((_, at) => at !== index),
-                    )
-                  }
-                >
-                  <Trash2 aria-hidden className="size-4" />
-                </Button>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <TextField
-                  id={`item-${item.key}-en`}
-                  label={m.itkItemLabelEn()}
-                  dir="ltr"
-                  value={item.labelEn}
-                  maxLength={120}
-                  onChange={(event) =>
-                    setItem(index, { labelEn: event.target.value })
-                  }
-                />
-                <TextField
-                  id={`item-${item.key}-ar`}
-                  label={m.itkItemLabelAr()}
-                  dir="rtl"
-                  value={item.labelAr}
-                  maxLength={120}
-                  onChange={(event) =>
-                    setItem(index, { labelAr: event.target.value })
-                  }
-                />
-              </div>
-            </li>
-          ))}
-        </ol>
-        {tried && errors.checklist ? (
-          <p className="text-[13px] text-destructive">{errors.checklist}</p>
-        ) : null}
-        <Button
-          type="button"
-          variant="outline"
-          className="justify-self-start"
-          disabled={draft.checklist.length >= 20}
-          onClick={() =>
-            set("checklist", [
-              ...draft.checklist,
-              {
-                key: crypto.randomUUID(),
-                kind: "document",
-                labelEn: "",
-                labelAr: "",
-                required: true,
-              },
-            ])
-          }
-        >
-          <Plus aria-hidden className="size-4" />
-          {m.itkItemAdd()}
-        </Button>
+        {draft.checklist.length ? (
+          <DataGrid<ChecklistItem>
+            caption={m.itkChecklistTable()}
+            editing
+            {...checklistGrid({
+              checklist: draft.checklist,
+              change: (key, patch) =>
+                set(
+                  "checklist",
+                  draft.checklist.map((item) =>
+                    item.key === key ? { ...item, ...patch } : item,
+                  ),
+                ),
+              remove: (key) =>
+                set(
+                  "checklist",
+                  draft.checklist.filter((item) => item.key !== key),
+                ),
+            })}
+            groups={[{ id: "steps", title: "", rows: draft.checklist }]}
+            rowKey={(item) => item.key}
+            issues={tried ? checklistIssues(draft.checklist) : []}
+            footer={addStep}
+          />
+        ) : (
+          <div>{addStep}</div>
+        )}
       </FormSection>
 
       <FormSection
@@ -539,25 +632,18 @@ export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
           onChange={(currency) => set("currency", currency)}
           width="code"
         />
-        <div className="grid gap-4 sm:grid-cols-2">
-          {FEE_KINDS.map((kind) => (
-            <TextField
-              key={kind}
-              id={`fee-${kind}`}
-              label={FEE_KIND_LABEL[kind]()}
-              optional
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step="0.01"
-              dir="ltr"
-              value={draft.fees[kind]}
-              onChange={(event) =>
-                set("fees", { ...draft.fees, [kind]: event.target.value })
-              }
-            />
-          ))}
-        </div>
+        <DataGrid<FeeKind>
+          caption={m.itkFeesTable({ currency: draft.currency })}
+          editing
+          {...feeGrid({
+            fees: draft.fees,
+            currency: draft.currency,
+            change: (kind, amount) =>
+              set("fees", { ...draft.fees, [kind]: amount }),
+          })}
+          groups={[{ id: "fees", title: "", rows: [...FEE_KINDS] }]}
+          rowKey={(kind) => kind}
+        />
       </FormSection>
 
       <FormSection title={m.itkSectionDecisions()}>

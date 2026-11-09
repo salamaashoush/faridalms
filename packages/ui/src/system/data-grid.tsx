@@ -16,6 +16,7 @@ import {
 import type { ActionItem } from "./action-menu";
 
 import { Button } from "../button";
+import { Checkbox } from "../checkbox";
 import { cn } from "../cn";
 import {
   DropdownMenu,
@@ -23,6 +24,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../select";
 import { ActionMenu, phoneMenuItem } from "./action-menu";
 import { useDesignSystem, useSystemStrings } from "./provider";
 
@@ -231,11 +239,12 @@ export function useFocusAfterRender(): (id: string) => void {
  * arrows, Enter and Shift+Enter, F2 to edit the text in place.
  */
 export function moveInGrid(
-  event: KeyboardEvent<HTMLInputElement>,
+  event: KeyboardEvent<HTMLElement>,
   direction: "ltr" | "rtl",
 ) {
-  const input = event.currentTarget;
-  const cell = input.closest<HTMLTableCellElement>("td, th");
+  const control = event.currentTarget;
+  const input = control instanceof HTMLInputElement ? control : null;
+  const cell = control.closest<HTMLTableCellElement>("td, th");
   if (!cell) return;
   const forward = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
   const back = direction === "rtl" ? "ArrowRight" : "ArrowLeft";
@@ -253,6 +262,7 @@ export function moveInGrid(
       moveRow(cell, event.shiftKey ? -1 : 1);
       return;
     case "F2": {
+      if (!input) return;
       input.dataset.gridMode = "edit";
       const end = input.value.length;
       input.setSelectionRange(end, end);
@@ -261,11 +271,11 @@ export function moveInGrid(
     }
     case forward:
     case back:
-      if (!arrowsLeaveCell(input)) return;
+      if (input && !arrowsLeaveCell(input)) return;
       moved = moveColumn(cell, event.key === forward ? 1 : -1);
       break;
     default:
-      if (event.key.length === 1 && !input.dataset.gridMode)
+      if (input && event.key.length === 1 && !input.dataset.gridMode)
         input.dataset.gridMode = "enter";
       return;
   }
@@ -962,6 +972,92 @@ export function NoteCell({
           {issue}
         </span>
       ) : null}
+    </span>
+  );
+}
+
+/** One choice of a `SelectCell`. */
+export interface GridOption<T extends string> {
+  value: T;
+  label: string;
+}
+
+export interface SelectCellProps<T extends string> {
+  id: string;
+  /** The cell's full name, such as "Kind of item 2". */
+  label: string;
+  value: T;
+  options: readonly GridOption<T>[];
+  onChange: (value: T) => void;
+}
+
+/**
+ * A choice from a short fixed list in a grid cell, such as a checklist
+ * item's kind: the same calm tint as the other cells, opening the design's
+ * own list. The arrows belong to the list once it opens, so they move
+ * between cells only from the cells beside it.
+ */
+export function SelectCell<T extends string>({
+  id,
+  label,
+  value,
+  options,
+  onChange,
+}: SelectCellProps<T>) {
+  const { report } = useContext(GridContext);
+  return (
+    <Select
+      items={options}
+      value={value}
+      onValueChange={(next) => {
+        const match = options.find((option) => option.value === next);
+        if (match) onChange(match.value);
+      }}
+    >
+      <SelectTrigger
+        id={id}
+        data-grid-cell=""
+        aria-label={label}
+        onFocus={() => report({ id, label })}
+        onBlur={() => report(null)}
+        className="h-8 w-full min-w-28 border-transparent bg-muted/60 shadow-none hover:border-input max-md:h-10 dark:bg-muted/60"
+      >
+        <SelectValue className="block min-w-0 truncate" />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export interface CheckCellProps {
+  id: string;
+  /** The cell's full name, such as "Item 2 is required". */
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+/** A yes or no in a grid cell, toggled by Space; the arrows leave it. */
+export function CheckCell({ id, label, checked, onChange }: CheckCellProps) {
+  const { direction, report } = useContext(GridContext);
+  return (
+    <span className="flex min-h-8 items-center justify-center max-md:min-h-10">
+      <Checkbox
+        id={id}
+        data-grid-cell=""
+        aria-label={label}
+        checked={checked}
+        onCheckedChange={(next) => onChange(next)}
+        onFocus={() => report({ id, label })}
+        onBlur={() => report(null)}
+        onKeyDown={(event) => moveInGrid(event, direction)}
+      />
     </span>
   );
 }
