@@ -1,12 +1,67 @@
 import type { FeedbackBand } from "@faridalms/domain/learning";
+import type { GridColumn } from "@faridalms/ui/system/data-grid";
 
 import { MAX_FEEDBACK_BANDS } from "@faridalms/domain/learning";
-import { Button } from "@faridalms/ui/button";
-import { Input } from "@faridalms/ui/input";
-import { Plus, X } from "lucide-react";
+import {
+  DataGrid,
+  GridAddButton,
+  GridRemoveButton,
+  NumberCell,
+  TextCell,
+  useFocusAfterRender,
+} from "@faridalms/ui/system/data-grid";
 import { useId } from "react";
 
 import * as m from "~/i18n/messages";
+import { formatNumber } from "~/utils/datetime";
+
+interface BandGridOptions {
+  bands: FeedbackBand[];
+  change: (index: number, patch: Partial<FeedbackBand>) => void;
+  remove: (index: number) => void;
+}
+
+// Built per render: headers read the request's locale.
+function bandGrid({ bands, change, remove }: BandGridOptions) {
+  const at = (band: FeedbackBand) => bands.indexOf(band);
+  const rowHeader = {
+    header: m.bandsFromHeader(),
+    cell: (band: FeedbackBand) => (
+      <NumberCell
+        id={`band-${band.id}-from`}
+        label={m.bandsFromOf({ number: formatNumber(at(band) + 1) })}
+        value={band.from}
+        onChange={(from) =>
+          change(at(band), { from: Math.min(100, Math.max(0, from ?? 0)) })
+        }
+      />
+    ),
+  };
+  const columns: GridColumn<FeedbackBand>[] = [
+    {
+      id: "text",
+      header: m.bandsMessageHeader(),
+      fill: true,
+      cell: (band) => (
+        <TextCell
+          id={`band-${band.id}-text`}
+          label={m.bandsText({ from: band.from })}
+          placeholder={m.bandsPlaceholder()}
+          maxLength={500}
+          value={band.text}
+          onChange={(text) => change(at(band), { text })}
+        />
+      ),
+    },
+  ];
+  const rowEnd = (band: FeedbackBand) => (
+    <GridRemoveButton
+      label={m.bandsRemove({ from: band.from })}
+      onRemove={() => remove(at(band))}
+    />
+  );
+  return { rowHeader, columns, rowEnd };
+}
 
 export interface FeedbackBandsProps {
   bands: FeedbackBand[];
@@ -26,10 +81,26 @@ export function FeedbackBands({
   hint = m.bandsHint(),
 }: FeedbackBandsProps) {
   const id = useId();
+  const focusLater = useFocusAfterRender();
   const change = (index: number, patch: Partial<FeedbackBand>) =>
     onChange(
       bands.map((band, at) => (at === index ? { ...band, ...patch } : band)),
     );
+  const add =
+    bands.length < MAX_FEEDBACK_BANDS ? (
+      <GridAddButton
+        label={m.bandsAdd()}
+        onAdd={() => {
+          const added = {
+            id: crypto.randomUUID(),
+            from: bands.length === 0 ? 80 : 0,
+            text: "",
+          };
+          onChange([...bands, added]);
+          focusLater(`band-${added.id}-text`);
+        }}
+      />
+    ) : null;
   return (
     <fieldset className="grid min-w-0 gap-2" aria-describedby={`${id}-hint`}>
       <legend className="text-sm leading-5 font-medium">
@@ -41,82 +112,27 @@ export function FeedbackBands({
       >
         {hint}
       </p>
-      {bands.map((band, index) => (
-        <div key={band.id} className="grid gap-1.5 rounded-md border p-2">
-          <div className="flex items-center gap-2">
-            <label
-              htmlFor={`${id}-${band.id}-from`}
-              className="text-[13px] leading-[18px] text-muted-foreground"
-            >
-              {m.bandsFrom()}
-            </label>
-            <Input
-              id={`${id}-${band.id}-from`}
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={100}
-              value={band.from}
-              onChange={(event) =>
-                change(index, {
-                  from: Math.min(
-                    100,
-                    Math.max(0, Math.round(Number(event.target.value) || 0)),
-                  ),
-                })
-              }
-              className="h-8 w-20 tabular-nums"
-            />
-            <span aria-hidden className="text-sm text-muted-foreground">
-              %
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="ms-auto max-md:size-10"
-              aria-label={m.bandsRemove({ from: band.from })}
-              onClick={() => onChange(bands.filter((_, at) => at !== index))}
-            >
-              <X aria-hidden />
-            </Button>
-          </div>
-          <Input
-            aria-label={m.bandsText({ from: band.from })}
-            placeholder={m.bandsPlaceholder()}
-            value={band.text}
-            maxLength={500}
-            dir="auto"
-            onChange={(event) => change(index, { text: event.target.value })}
-            className="h-8"
-          />
-        </div>
-      ))}
+      {bands.length ? (
+        <DataGrid<FeedbackBand>
+          caption={m.bandsTitle()}
+          editing
+          surface="page"
+          {...bandGrid({
+            bands,
+            change,
+            remove: (index) => onChange(bands.filter((_, at) => at !== index)),
+          })}
+          groups={[{ id: "bands", title: "", rows: bands }]}
+          rowKey={(band) => band.id}
+          footer={add}
+        />
+      ) : (
+        <div>{add}</div>
+      )}
       {new Set(bands.map((band) => band.from)).size < bands.length ? (
         <p className="text-[13px] leading-[18px] text-destructive">
           {m.bandsTwice()}
         </p>
-      ) : null}
-      {bands.length < MAX_FEEDBACK_BANDS ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="w-fit max-md:h-10"
-          onClick={() =>
-            onChange([
-              ...bands,
-              {
-                id: crypto.randomUUID(),
-                from: bands.length === 0 ? 80 : 0,
-                text: "",
-              },
-            ])
-          }
-        >
-          <Plus aria-hidden />
-          {m.bandsAdd()}
-        </Button>
       ) : null}
     </fieldset>
   );

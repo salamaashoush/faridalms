@@ -41,6 +41,8 @@ export interface GridColumn<Row> {
   header: ReactNode;
   /** Figures sit at the end of the cell in tabular digits. */
   numeric?: boolean;
+  /** Takes the width the other columns leave, such as a message. */
+  fill?: boolean;
   cell: (row: Row) => ReactNode;
 }
 
@@ -367,6 +369,7 @@ export function DataGrid<Row>({
                     className={cn(
                       "px-1 py-2 font-medium whitespace-nowrap",
                       column.numeric ? "text-end" : "text-start",
+                      column.fill && "w-full",
                     )}
                   >
                     {column.header}
