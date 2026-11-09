@@ -144,10 +144,21 @@ export type RowButtonProps = Omit<ComponentProps<"button">, "type">;
  * its own, such as a line of a draft invoice: clicking anywhere in the row
  * presses it, as it would follow a `RowLink`.
  */
-export function RowButton({ className, children, ...props }: RowButtonProps) {
+export function RowButton({
+  className,
+  children,
+  onClick,
+  ...props
+}: RowButtonProps) {
   return (
     <button
       {...props}
+      // Safari leaves focus where it was when a button is clicked, so the
+      // sheet the row opens would hand focus back to the page, not the row.
+      onClick={(event) => {
+        event.currentTarget.focus();
+        onClick?.(event);
+      }}
       type="button"
       data-slot="row-link"
       dir="auto"

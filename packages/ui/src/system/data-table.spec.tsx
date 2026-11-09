@@ -98,6 +98,8 @@ describe("DataTable", () => {
     expect(open).toHaveBeenCalledExactlyOnceWith("Birch");
     await userEvent.click(within(table).getByRole("button", { name: "Aspen" }));
     expect(open).toHaveBeenLastCalledWith("Aspen");
+    // The sheet it opens hands focus back to it on closing.
+    expect(within(table).getByRole("button", { name: "Aspen" })).toHaveFocus();
     expect(open).toHaveBeenCalledTimes(2);
   });
 
