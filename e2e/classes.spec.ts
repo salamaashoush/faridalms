@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 
 import { expect, test } from "@playwright/test";
 
-import { chooseFromMenu, signIn, untilHydrated } from "./fixtures/sign-in";
+import { signIn, untilHydrated } from "./fixtures/sign-in";
 
 // Each browser project runs against the same seeded school, so each moves
 // its own student and none finds a roster another has already changed.
@@ -52,10 +52,13 @@ test("an administrator adds a class and a student from another class joins it", 
   await page.getByRole("textbox", { name: /^Class code/ }).fill(`T-${unique}`);
   await page.getByRole("combobox", { name: /^Grade/ }).click();
   await page.getByRole("option", { name: "Grade 8", exact: true }).click();
-  await chooseFromMenu(
-    page.getByRole("button", { name: "Add subject", exact: true }),
-    page.getByRole("menuitem", { name: "Arabic", exact: true }),
-  );
+  // A subject is added in its own sheet and kept with the class.
+  await page.getByRole("button", { name: "Add subject", exact: true }).click();
+  const subject = page.getByRole("dialog", { name: "Add subject" });
+  await subject.getByRole("combobox", { name: /^Subject (?!teacher)/ }).click();
+  await page.getByRole("option", { name: "Arabic", exact: true }).click();
+  await subject.getByRole("button", { name: "Add subject" }).click();
+  await expect(subject).toBeHidden();
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page).toHaveURL(/\/classes/);
 

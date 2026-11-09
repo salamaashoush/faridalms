@@ -1,20 +1,20 @@
-import type { GridColumn, GridOption } from "@faridalms/ui/system/data-grid";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
+import type { FieldOption } from "@faridalms/ui/system/form-field";
+import type { ReactNode } from "react";
 
 import { saveClassSchema } from "@faridalms/domain/classes";
-import {
-  DataGrid,
-  GridAddButton,
-  GridRemoveButton,
-  SelectCell,
-  useFocusAfterRender,
-} from "@faridalms/ui/system/data-grid";
+import { Button } from "@faridalms/ui/button";
+import { DataTable, RowButton } from "@faridalms/ui/system/data-table";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { Value } from "@faridalms/ui/system/value";
 import {
   useMutation,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
+import { CircleAlert, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -88,60 +88,231 @@ function initialDraft(record: ClassData | null): Draft {
   };
 }
 
-interface SubjectGridOptions {
-  rows: SubjectDraft[];
-  subjects: GridOption<string>[];
-  teachers: GridOption<string>[];
-  change: (key: number, next: Partial<SubjectDraft>) => void;
-  remove: (key: number) => void;
+interface SubjectChoices {
+  subjects: FieldOption<string>[];
+  teachers: FieldOption<string>[];
 }
 
+type SubjectRow = SubjectDraft & { id: string };
+
+type SubjectOpener = (row: SubjectDraft) => ReactNode;
+
+const NO_TEACHER = "none";
+
+const optionLabel = (options: readonly FieldOption<string>[], value: string) =>
+  options.find((option) => option.value === value)?.label ?? "";
+
 // Built per render: headers read the request's locale.
-function subjectGrid({
-  rows,
-  subjects,
-  teachers,
-  change,
-  remove,
-}: SubjectGridOptions) {
-  const number = (row: SubjectDraft) => rows.indexOf(row) + 1;
-  const rowHeader = {
-    header: m.classesSubject(),
-    cell: (row: SubjectDraft) => (
-      <SelectCell
-        id={`class-subject-${row.key}`}
-        label={m.classesSubjectNumber({ number: number(row) })}
-        value={row.subjectId}
-        options={subjects}
-        onChange={(subjectId) => change(row.key, { subjectId })}
-      />
-    ),
-  };
-  const columns: GridColumn<SubjectDraft>[] = [
+function subjectColumns(
+  choices: SubjectChoices,
+  opener: SubjectOpener,
+): Column<SubjectRow>[] {
+  return [
+    {
+      id: "subject",
+      header: m.classesSubject(),
+      primary: true,
+      cell: opener,
+    },
     {
       id: "teacher",
       header: m.classesSubjectTeacher(),
-      fill: true,
-      cell: (row) => (
-        <SelectCell
-          id={`class-subject-teacher-${row.key}`}
-          label={m.classesSubjectTeacherOf({ number: number(row) })}
-          value={row.teacherId || "none"}
-          options={teachers}
-          onChange={(value) =>
-            change(row.key, { teacherId: value === "none" ? "" : value })
-          }
-        />
-      ),
+      cell: (row) =>
+        row.teacherId ? (
+          optionLabel(choices.teachers, row.teacherId)
+        ) : (
+          <Value absent={m.classesNoTeacherYet()} />
+        ),
     },
   ];
-  const rowEnd = (row: SubjectDraft) => (
-    <GridRemoveButton
-      label={m.classesRemoveSubject({ number: number(row) })}
-      onRemove={() => remove(row.key)}
-    />
+}
+
+function subjectCard(choices: SubjectChoices, opener: SubjectOpener) {
+  return {
+    title: opener,
+    fact: (row: SubjectDraft) =>
+      row.teacherId
+        ? optionLabel(choices.teachers, row.teacherId)
+        : m.classesNoTeacherYet(),
+  };
+}
+
+interface SubjectSheetProps {
+  rows: SubjectDraft[];
+  /** The subject being changed; none to add one. */
+  row: SubjectDraft | null;
+  choices: SubjectChoices;
+  nextKey: () => number;
+  open: boolean;
+  onDone: (rows: SubjectDraft[]) => void;
+  onClose: () => void;
+}
+
+/**
+ * One subject of the class and who teaches it, kept with the class when it
+ * is saved. Only subjects the class lacks are offered.
+ */
+function SubjectSheet({
+  rows,
+  row,
+  choices,
+  nextKey,
+  open,
+  onDone,
+  onClose,
+}: SubjectSheetProps) {
+  const offered = choices.subjects.filter(
+    (option) =>
+      option.value === row?.subjectId ||
+      !rows.some((other) => other.subjectId === option.value),
   );
-  return { rowHeader, columns, rowEnd };
+  const [subjectId, setSubjectId] = useState(
+    () => row?.subjectId ?? offered[0]?.value ?? "",
+  );
+  const [teacherId, setTeacherId] = useState(row?.teacherId ?? "");
+  const [tried, setTried] = useState(false);
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title={
+        row
+          ? m.classesSubjectEdit({
+              subject: optionLabel(choices.subjects, row.subjectId),
+            })
+          : m.classesAddSubject()
+      }
+      submitLabel={row ? m.classesSubjectSave() : m.classesAddSubject()}
+      onSubmit={() => {
+        setTried(true);
+        if (!subjectId) return;
+        const next = { key: row?.key ?? nextKey(), subjectId, teacherId };
+        onDone(
+          row
+            ? rows.map((other) => (other.key === row.key ? next : other))
+            : [...rows, next],
+        );
+        onClose();
+      }}
+    >
+      <SelectField
+        id="class-subject"
+        label={m.classesSubject()}
+        value={subjectId}
+        options={offered}
+        onChange={setSubjectId}
+        errors={tried && !subjectId ? [m.classesSubjectNeeded()] : undefined}
+        width="name"
+      />
+      <SelectField
+        id="class-subject-teacher"
+        label={m.classesSubjectTeacher()}
+        optional
+        value={teacherId || NO_TEACHER}
+        options={[
+          ...choices.teachers,
+          { value: NO_TEACHER, label: m.classesNoTeacherYet() },
+        ]}
+        onChange={(value) => setTeacherId(value === NO_TEACHER ? "" : value)}
+        width="name"
+      />
+    </SheetForm>
+  );
+}
+
+interface ClassSubjectsProps {
+  rows: SubjectDraft[];
+  choices: SubjectChoices;
+  error?: string;
+  nextKey: () => number;
+  onChange: (rows: SubjectDraft[]) => void;
+}
+
+/** The class's subjects as a table, each opened and changed on its own. */
+function ClassSubjects({
+  rows,
+  choices,
+  error,
+  nextKey,
+  onChange,
+}: ClassSubjectsProps) {
+  const [sheet, setSheet] = useState<{
+    row: SubjectDraft | null;
+    key: number;
+    open: boolean;
+  } | null>(null);
+  const open = (row: SubjectDraft | null) =>
+    setSheet((current) => ({ row, key: (current?.key ?? 0) + 1, open: true }));
+  const name = (row: SubjectDraft) =>
+    optionLabel(choices.subjects, row.subjectId);
+  const opener: SubjectOpener = (row) => (
+    <RowButton onClick={() => open(row)}>{name(row)}</RowButton>
+  );
+  const add = (variant: "default" | "outline") =>
+    rows.length < choices.subjects.length ? (
+      <Button
+        type="button"
+        variant={variant}
+        className="max-md:h-10"
+        onClick={() => open(null)}
+      >
+        <Plus aria-hidden />
+        {m.classesAddSubject()}
+      </Button>
+    ) : undefined;
+  const rowActions = (row: SubjectDraft): RowAction[] => [
+    { label: m.recordEdit(), icon: Pencil, onSelect: () => open(row) },
+    {
+      label: m.classesSubjectRemove(),
+      icon: Trash2,
+      destructive: true,
+      confirm: {
+        title: m.classesSubjectRemoveTitle({ subject: name(row) }),
+        body: m.classesSubjectRemoveBody(),
+        label: m.classesSubjectRemove(),
+      },
+      onSelect: () => onChange(rows.filter((other) => other.key !== row.key)),
+    },
+  ];
+  return (
+    <>
+      <DataTable
+        caption={m.classesSubjects()}
+        rows={rows.map((row) => Object.assign({ id: String(row.key) }, row))}
+        columns={subjectColumns(choices, opener)}
+        rowLabel={name}
+        rowActions={rowActions}
+        actions={add("outline")}
+        card={subjectCard(choices, opener)}
+        empty={{ title: m.classesSubjectsNone(), action: add("outline") }}
+      />
+      {error ? (
+        <p
+          role="alert"
+          className="flex items-start gap-1.5 text-[13px] leading-[18px] text-destructive"
+        >
+          <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+          {error}
+        </p>
+      ) : null}
+      {sheet ? (
+        <SubjectSheet
+          key={sheet.key}
+          rows={rows}
+          row={sheet.row}
+          choices={choices}
+          nextKey={nextKey}
+          open={sheet.open}
+          onDone={onChange}
+          onClose={() =>
+            setSheet((current) => current && { ...current, open: false })
+          }
+        />
+      ) : null}
+    </>
+  );
 }
 
 export interface ExistingClassEditorProps {
@@ -172,7 +343,6 @@ export function ClassEditor({
   const year = options.years.find((row) => row.id === yearId);
   const leaving = useRef(false);
   const nextKey = useRef((record?.subjects.length ?? 0) + 1);
-  const focusLater = useFocusAfterRender();
   const [initial] = useState(() => initialDraft(record));
   const [draft, setDraft] = useState(initial);
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
@@ -193,22 +363,11 @@ export function ClassEditor({
     value: subject.id,
     label: labelOf(subject) ?? subject.code,
   }));
-  const addSubject = (
-    <GridAddButton
-      label={m.classesAddSubject()}
-      choices={subjectOptions.filter(
-        (option) =>
-          !draft.subjects.some((row) => row.subjectId === option.value),
-      )}
-      onAdd={(subjectId) => {
-        if (!subjectId) return;
-        const key = nextKey.current;
-        nextKey.current += 1;
-        set("subjects", [...draft.subjects, { key, subjectId, teacherId: "" }]);
-        focusLater(`class-subject-teacher-${key}`);
-      }}
-    />
-  );
+  const takeKey = () => {
+    const key = nextKey.current;
+    nextKey.current += 1;
+    return key;
+  };
   const payload = {
     ...(record ? { id: record.id, expectedVersion: record.version } : {}),
     yearId,
@@ -345,45 +504,13 @@ export function ClassEditor({
         title={m.classesSubjects()}
         description={m.classesSubjectsHint()}
       >
-        {draft.subjects.length ? (
-          <DataGrid<SubjectDraft>
-            caption={m.classesSubjects()}
-            editing
-            surface="page"
-            {...subjectGrid({
-              rows: draft.subjects,
-              subjects: subjectOptions,
-              teachers: [...teachers, noTeacher],
-              change: (key, next) =>
-                set(
-                  "subjects",
-                  draft.subjects.map((item) =>
-                    item.key === key ? { ...item, ...next } : item,
-                  ),
-                ),
-              remove: (key) =>
-                set(
-                  "subjects",
-                  draft.subjects.filter((item) => item.key !== key),
-                ),
-            })}
-            groups={[{ id: "subjects", title: "", rows: draft.subjects }]}
-            rowKey={(row) => String(row.key)}
-            issues={
-              errors.subjects && draft.subjects[0]
-                ? [
-                    {
-                      target: `class-subject-${draft.subjects[0].key}`,
-                      message: errors.subjects,
-                    },
-                  ]
-                : []
-            }
-            footer={addSubject}
-          />
-        ) : (
-          <div>{addSubject}</div>
-        )}
+        <ClassSubjects
+          rows={draft.subjects}
+          choices={{ subjects: subjectOptions, teachers }}
+          error={errors.subjects}
+          nextKey={takeKey}
+          onChange={(subjects) => set("subjects", subjects)}
+        />
       </FormSection>
     </RecordForm>
   );

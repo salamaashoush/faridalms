@@ -4,12 +4,7 @@ import { plainContent } from "@faridalms/domain/content-conversion";
 import { expect, test } from "@playwright/test";
 
 import { apiAs } from "./fixtures/api";
-import {
-  chooseFromMenu,
-  openWith,
-  signIn,
-  untilHydrated,
-} from "./fixtures/sign-in";
+import { openWith, signIn, untilHydrated } from "./fixtures/sign-in";
 
 async function fillNames(
   scope: Locator,
@@ -54,16 +49,23 @@ test("class forms explain invalid fields, recover on correction and protect unsa
 
   // A subject the class already has is not offered again, so it cannot be
   // added twice.
-  const addSubject = page.getByRole("button", {
-    name: "Add subject",
-    exact: true,
-  });
-  const offered = (name: string) =>
-    page.getByRole("menuitem", { name, exact: true });
-  await chooseFromMenu(addSubject, offered("Mathematics"));
-  await openWith(addSubject, offered("Arabic"));
-  await expect(offered("Mathematics")).toHaveCount(0);
-  await offered("Arabic").click();
+  // Each subject is added in its own sheet, which offers only the subjects
+  // the class lacks. The control was a menu of subjects under the grid.
+  const addSubject = async (name: string, absent?: string) => {
+    await page
+      .getByRole("button", { name: "Add subject", exact: true })
+      .click();
+    const sheet = page.getByRole("dialog", { name: "Add subject" });
+    await sheet.getByRole("combobox", { name: /^Subject (?!teacher)/ }).click();
+    const offered = (option: string) =>
+      page.getByRole("option", { name: option, exact: true });
+    if (absent) await expect(offered(absent)).toHaveCount(0);
+    await offered(name).click();
+    await sheet.getByRole("button", { name: "Add subject" }).click();
+    await expect(sheet).toBeHidden();
+  };
+  await addSubject("Mathematics");
+  await addSubject("Arabic", "Mathematics");
 
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   const leave = page.getByRole("dialog", {

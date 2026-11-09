@@ -350,6 +350,26 @@ Grade scales.
   and the other cards' Saves send the links as saved, so saving the
   banner can no longer send a half-typed link with it.
 
+### A class's subjects and teachers
+
+`apps/web/src/components/classes/ClassEditor.tsx`, a class's editor.
+
+- **Sources.** PowerSchool adds a co-teacher to a section from Add on the
+  section's page, one staff member, role and dates at a time (a school's
+  own PowerSchool guide). Google Classroom invites teachers one at a time
+  from the People tab (support.google.com/edu/classroom/answer/6190760).
+- **Decision.** The subjects are the standard table in the class's form,
+  the subject and its teacher as columns, "No teacher yet" where there is
+  none. A subject opens in a sheet with the subject, chosen from those the
+  class lacks, and its teacher; Add opens it empty. Remove asks first,
+  since saving the class then drops that subject's class and teacher.
+  The sheet puts the row in the class, and the class's Save keeps it.
+- **Why it fits.** A class is written as one record in a form with its
+  own Save and leave guard, and a new class has nothing yet to save a
+  subject to, so the rows are kept with it as a new invoice's lines are.
+  Choosing the subject inside the sheet, not from a menu that added a
+  blank row, means a row never exists without its subject.
+
 ## Ranking, worst first
 
 | #   | Editor                                   | Where                                                       | State                                                                  |
@@ -373,7 +393,7 @@ Grade scales.
 | 17  | Limits (console)                         | `apps/ops/src/components/LimitFields.tsx`                   | Left                                                                   |
 | 18  | Social links                             | `apps/web/src/components/site/SiteSettings.tsx`             | Rows: each link saved from its sheet                                   |
 | 19  | Audience list                            | `apps/web/src/components/broadcasts/AudienceList.tsx`       | Left                                                                   |
-| 20  | Class subjects                           | `apps/web/src/components/classes/ClassEditor.tsx`           | Rebuilt: added from a menu of subjects                                 |
+| 20  | Class subjects                           | `apps/web/src/components/classes/ClassEditor.tsx`           | Rows: a subject per row, kept with the class                           |
 | 21  | Guardians                                | `apps/web/src/components/people/StudentEditor.tsx`          | Left                                                                   |
 | 22  | Notification preferences                 | `apps/web/src/routes/_app/notification-preferences.tsx`     | Fine                                                                   |
 | 23  | Module toggles (console)                 | `apps/ops/src/components/ModuleFields.tsx`                  | Fine                                                                   |
