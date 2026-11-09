@@ -1,7 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 import { API_ORIGIN, signedInApi } from "./fixtures/api";
-import { PASSWORD, portal, signIn, untilHydrated } from "./fixtures/sign-in";
+import {
+  chooseFromMenu,
+  PASSWORD,
+  portal,
+  signIn,
+  untilHydrated,
+} from "./fixtures/sign-in";
 
 test("an administrator builds a bilingual page from sections and visitors read it in either language", async ({
   browser,
@@ -111,6 +117,53 @@ test("a stale address on a school's website shows the school's own not-found pag
   await expect(
     page.getByRole("link", { name: "الأخبار" }).first(),
   ).toBeVisible();
+});
+
+test("an administrator adds, changes and removes the website's social links one at a time", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await page.goto("/website?tab=settings");
+  await untilHydrated(page);
+  const links = page.getByRole("region", { name: "Social links" });
+  await links.getByRole("button", { name: "Add link" }).click();
+  const adding = page.getByRole("dialog", { name: "Add link" });
+  await adding.getByRole("combobox", { name: /^Network/ }).click();
+  await page.getByRole("option", { name: "Instagram", exact: true }).click();
+  const address = adding.getByRole("textbox", { name: "Address" });
+  await address.fill("http://instagram.com/northwind");
+  await adding.getByRole("button", { name: "Add link" }).click();
+  await expect(address).toHaveAccessibleDescription(/https/);
+  await address.fill("https://instagram.com/northwind");
+  await adding.getByRole("button", { name: "Add link" }).click();
+  await expect(adding).toBeHidden();
+  await expect(page.getByText("Website settings saved")).toBeVisible();
+
+  const row = links.getByRole("row", { name: /^Instagram/ });
+  await row.getByRole("button", { name: "Instagram", exact: true }).click();
+  const changing = page.getByRole("dialog", {
+    name: "Change the Instagram link",
+  });
+  await changing
+    .getByRole("textbox", { name: "Address" })
+    .fill("https://instagram.com/northwind.school");
+  await changing.getByRole("button", { name: "Save link" }).click();
+  await expect(changing).toBeHidden();
+  await page.reload();
+  await untilHydrated(page);
+  await expect(links.getByRole("row", { name: /^Instagram/ })).toContainText(
+    "https://instagram.com/northwind.school",
+  );
+
+  await chooseFromMenu(
+    links.getByRole("button", { name: "Actions for Instagram" }),
+    page.getByRole("menuitem", { name: "Remove" }),
+  );
+  await page
+    .getByRole("dialog", { name: "Remove the Instagram link?" })
+    .getByRole("button", { name: "Remove" })
+    .click();
+  await expect(links.getByRole("row", { name: /^Instagram/ })).toHaveCount(0);
 });
 
 test("a family sends an enquiry and the school finds it in the enquiry inbox", async ({

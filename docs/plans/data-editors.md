@@ -329,6 +329,27 @@ Grade scales.
   the total is checked once, when the programme is saved, which is where
   the domain checks it too.
 
+### Social links
+
+`apps/web/src/components/site/SiteSettings.tsx`, Website, Settings.
+
+- **Sources.** Shopify's Dawn theme gives each network a fixed field of
+  its own (github.com/Shopify/dawn, config/settings_schema.json);
+  Squarespace keeps a list with Add social link, a link opened to change
+  it and Remove confirmed (seen in secondary sources only). Vercel's
+  domains and Stripe's lists edit one entry at a time from its row.
+- **Decision.** The links are the standard table in their settings card,
+  the network and the address as columns. A link opens in a sheet with
+  the network and the address, which must be a whole https address; Add
+  opens it empty, up to ten. Saving a link writes the website's settings
+  as they are saved with only that link changed; Remove asks first.
+- **Why it fits.** A school adds its pages once and changes one when an
+  account moves. The address was the only thing that could be wrong, and
+  a blank row used to be dropped silently on save; now the sheet says
+  what is wrong on the field. The card no longer has a Save of its own,
+  and the other cards' Saves send the links as saved, so saving the
+  banner can no longer send a half-typed link with it.
+
 ## Ranking, worst first
 
 | #   | Editor                                   | Where                                                       | State                                                                  |
@@ -350,7 +371,7 @@ Grade scales.
 | 15  | Hosts in provisioning (console)          | `apps/ops/src/components/DraftHosts.tsx`                    | Rebuilt: a table, each host saved from its sheet                       |
 | 16  | Schools in a school spec (console)       | `apps/ops/src/components/SchoolSpecForm.tsx`                | Left                                                                   |
 | 17  | Limits (console)                         | `apps/ops/src/components/LimitFields.tsx`                   | Left                                                                   |
-| 18  | Social links                             | `apps/web/src/components/site/SiteSettings.tsx`             | Rebuilt                                                                |
+| 18  | Social links                             | `apps/web/src/components/site/SiteSettings.tsx`             | Rows: each link saved from its sheet                                   |
 | 19  | Audience list                            | `apps/web/src/components/broadcasts/AudienceList.tsx`       | Left                                                                   |
 | 20  | Class subjects                           | `apps/web/src/components/classes/ClassEditor.tsx`           | Rebuilt: added from a menu of subjects                                 |
 | 21  | Guardians                                | `apps/web/src/components/people/StudentEditor.tsx`          | Left                                                                   |
