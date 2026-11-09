@@ -160,6 +160,34 @@ for (const root of PROPS_ROOTS)
       );
   }
 
+// A page's width comes from its kind, through `Page`, so two pages of one
+// kind are never different widths; widths written by hand beside a page's
+// header drifted to five different measures before this check.
+const PAGE_HEADER = /<(?:PageHeader|RecordHeader)\b/;
+const PAGE = /<Page\b/;
+const HAND_WIDTH =
+  /\bmx-auto\b[^\n]*\bmax-w-[^\n]*\n(?:\s*\)\}\n)?(?:\s*>\n)?\s*<(?:PageHeader|RecordHeader)\b/;
+for (const file of files) {
+  if (
+    !file.path.endsWith(".tsx") ||
+    !(
+      file.path.startsWith("apps/web/src/") ||
+      file.path.startsWith("apps/ops/src/")
+    ) ||
+    // The school's public website draws its own sections, one of them
+    // also called a page header.
+    file.path.startsWith("apps/web/src/components/site/render/") ||
+    !PAGE_HEADER.test(file.text)
+  )
+    continue;
+  if (!PAGE.test(file.text))
+    problems.push(
+      `${file.path}: renders a page header outside a Page; set its width with Page`,
+    );
+  if (HAND_WIDTH.test(file.text))
+    problems.push(`${file.path}: sets a page's width by hand; use Page`);
+}
+
 problems.push(...errorCodeProblems(files));
 
 // Every action the audit log records reads as words in a history, never as

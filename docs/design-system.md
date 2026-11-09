@@ -19,7 +19,7 @@ package gains it first, with a test and a line in this table.
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, section More, area pages, breadcrumb steps), `page-actions`                                                                                    |
 | Index page     | `page-header`, `index-toolbar`, `data-table`, `selection-bar` (`SelectionBar`), `cell-note` (`CellWithNote`), `empty-state`                                                                                           |
-| Page width     | `page` (`Page`)                                                                                                                                                                                                       |
+| Page width     | `page` (`Page`; `SettingsPage` and `RecordForm` take theirs from it)                                                                                                                                                  |
 | Record page    | `record-page` (`RecordHeader`, `RecordStack`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `stage-path` (`StagePath`), `attention-list` (`AttentionList`), `value`                 |
 | Record content | `usage-list` (`UsageList`), `summary-list` (`SummaryList`), `change-log` (`ChangeLog`), `dns-records` (`DnsRecords`), `copy-button`, `document-view` (`DocumentView`, a printable document in a tab, printed alone)   |
 | Content editor | `editing-hold` (`EditingHold`, who else is editing and taking over), `version-compare` (`VersionCompare`, two versions side by side, keep one)                                                                        |
@@ -156,13 +156,54 @@ Page padding is 24px, 16px on phones.
 
 Every page sets its width once, by its kind, with `Page` (Polaris and
 Shopify's app guidelines draw the same three lines). The content is centred
-in the space the shell leaves.
+in the space the shell leaves, and the header, the tabs and every tab share
+that one width, so changing tab never moves the page's edges.
 
-| Kind                         | Width  | Why                                          |
-| ---------------------------- | ------ | -------------------------------------------- |
-| Index, board, home, report   | 1600px | Tables and boards need the room for columns. |
-| Record                       | 1280px | Tables in a tab keep their columns readable. |
-| Form, settings, step-by-step | 720px  | One column, one path from top to bottom.     |
+| Kind                                                      | Width  | Why                                          |
+| --------------------------------------------------------- | ------ | -------------------------------------------- |
+| Index, board, home, report, dashboard                     | 1600px | Tables and boards need the room for columns. |
+| Record, and an account page such as Billing               | 1280px | Tables in a tab keep their columns readable. |
+| Form, settings (the whole settings area), steps, a reader | 720px  | One column, one path from top to bottom.     |
+
+- **Settings are 720px throughout**, the settings area's header, tabs and
+  every tab included, tables too (GitHub's and Linear's settings hold their
+  lists in the same column). A settings tab never runs wider than its
+  neighbours.
+- **A document read as a page** (a post, an assignment's brief, a lesson)
+  reads at 720px, and its reader's Wide switch widens it to the list width.
+- **A document editor** keeps its own anatomy (Content editor below): a
+  720px writing column with its 280px settings panel beside it.
+- **The width lives in the components.** `SettingsPage` and `RecordForm`
+  take the form width from `Page` themselves. A `Page` inside a wider page
+  narrows at the start edge (a settings tab under a hub's wider tabs keeps
+  its measure), and one inside a page as narrow adds nothing.
+- `scripts/check-sources.ts` refuses a file in either app that draws a page
+  header (`PageHeader`, `RecordHeader`) without a `Page`, or that caps a
+  page's width by hand (`mx-auto max-w-…` around the header).
+
+### Page anatomy
+
+Top to bottom, every page in either app (Polaris page, Primer PageHeader,
+Atlassian page header):
+
+1. **Header**: `PageHeader` for a list, a form or settings, `RecordHeader`
+   for one record. Title (24px; a document's 30px), an optional count, at
+   most one muted line of description, and the actions at the end: at most
+   one filled button and a `•••` menu. 24px below it.
+2. **Figures and To do** (`MetricGrid`, `AttentionList`), only where a
+   number or an item decides what to do next.
+3. **Tabs** (`RecordTabs`), one per thing the page holds or one per fixed
+   queue of a list with its count (Polaris index tabs); a tab is never a
+   filter that a facet could be.
+4. **The toolbar row** (`IndexToolbar`, or a table's `toolbar`), then the
+   table, grid or sections.
+5. **Sections**: parts of a page that are not a table are titled.
+   `RecordSection` frames a part as a card on a page and rules it off with
+   `variant="page"` inside a tab; `SettingsSection` frames a settings card
+   with its own Save; `SummaryList` frames name-and-value rows. Parts stack
+   24px apart (`RecordStack`), ruled sections in a tab 40px apart. A heading
+   is never written by hand under a page header, and a card is never a
+   hand-built `rounded-lg border bg-card` box.
 
 ### Index page
 
@@ -172,9 +213,10 @@ Carbon data table, shadcn tasks).
 - Header: title with the count in muted text, an optional one-line
   description, and the create action as the only primary button at the end.
 - Toolbar (32px controls, 40px on phones): search up to 240px, at most three
-  faceted filters, a Reset link, and the view or sort menu at the end. The
-  search narrows first and the toolbar then wraps, with the view menu kept at
-  the end; it never pushes past the page edge.
+  facets, a Reset link, and the view or sort menu at the end, by the rules of
+  Filters, scope, search and views below. The search narrows first and the
+  toolbar then wraps, with the view menu kept at the end; it never pushes
+  past the page edge.
 - A control in a toolbar or any other row of controls carries its name as
   `aria-label` (or a placeholder that states it), never a visible label
   stacked above it: a stacked label shifts the row off its line. Every
@@ -188,7 +230,7 @@ Carbon data table, shadcn tasks).
 - Empty state: an action-led title and one primary button. A filtered view with
   no results offers "Clear filters" instead. Both follow Empty states below.
 - Below 768px rows become stacked cards (name, status, one key fact) and the
-  filters move into a sheet.
+  filters move into a sheet; a scope stays in the row.
 - The count beside the title is the size of the list for the chosen year. It
   is hidden while a search is active, because it would then count matches; the
   footer states the number of results.
@@ -228,6 +270,44 @@ Carbon data table, shadcn tasks).
   second line of the row's primary cell (`CellWithNote`): one muted line cut
   off with an ellipsis, whole on hover and to a screen reader. Columns are
   for values someone compares or sorts down the table.
+
+### Filters, scope, search and views
+
+One control per job, in one row (`IndexToolbar`), in this order: search,
+scope, filters, period, Reset, then the view switch and the list's own
+actions at the end. Every control in the row is 32px (40px on phones) and
+named by `aria-label` or its own text, never a label stacked above it.
+
+| Job                                                              | Control                                       | Looks                                                                                                                                                                          |
+| ---------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Search a list                                                    | the toolbar's `search`                        | first in the row, up to 240px, the query in the URL after a 250ms pause                                                                                                        |
+| Scope: one value always chosen (school year, class, child, term) | a `single` facet with `defaultSelected`       | solid, the label then its value, a radio menu; stays in the row on a phone; Reset returns it to its default                                                                    |
+| Filter: narrows from everything (kind, grade, status, assignee)  | a facet with no default, `single` or multiple | unset: dashed, the label alone; set: solid, the label then the chosen values (three or more read "3 selected"); Clear filter in its menu; folds into the phone's Filters sheet |
+| Period (a day, a week, a date range)                             | the toolbar's `period` slot: `DayNav`, dates  | 32px stepper and date fields named by `aria-label`, after the filters; kept when the list is empty                                                                             |
+| View: the same list shown another way, or a two-way quick switch | `Segmented` in the toolbar's `view` slot      | 32px, one pressed, at the row's end (grid or list, month, week or agenda, All or Unread)                                                                                       |
+
+- **When dashed is right.** A dashed facet is an offer to add a filter that
+  is not applied, as in Polaris's filter pills and shadcn's faceted filter;
+  once it holds a value it is solid and shows the value, as Polaris, Linear
+  and Primer do. A choice that always holds a value is never dashed, so a
+  school year is solid even at its default, and there is no "Any" or "All"
+  option: an unset filter already means all.
+- **Focus never doubles up.** The dashed edge turns solid on hover, on
+  focus and while the menu is open, so the focus ring circles one solid
+  line, as every other control's does.
+- At most three facets; a list needing more needs a design first. Reset
+  appears only while something is narrowed and clears search and filters
+  back to every scope's default.
+- Scopes, filters and periods live in the URL (`validateSearch`), so a
+  shared link opens the same list.
+- A labelled `SelectField` is a form field that saves a value; it never
+  filters a page. Chips and tabs never filter a list either, except a
+  list's fixed queues with counts as tabs.
+
+Sources: Polaris Filters and FilterPill (dashed while unset, solid once
+selected), shadcn's tasks faceted filter, Linear's filter chips, Primer's
+filter buttons and SegmentedControl, Carbon's data table toolbar, GOV.UK's
+filter a list pattern (selected filters shown, one Clear filters).
 
 ### Record page
 
@@ -791,8 +871,11 @@ above where a marketing page needs to, and only there.
 ## Sources
 
 - Polaris: page, resource index, resource details and settings layouts,
-  badge, contextual save bar (github.com/Shopify/polaris,
+  badge, contextual save bar, Filters and FilterPill
+  (github.com/Shopify/polaris, polaris-react/src/components/Filters,
   shopify.dev/docs/apps/design/user-experience/forms)
+- shadcn: the tasks example's faceted filter (ui.shadcn.com/examples/tasks);
+  Linear's filters (linear.app/docs/filters)
 - Primer: saving pattern, PageHeader, StateLabel, Label, DataTable
   (primer.style/product)
 - Atlassian: form, button, lozenge, page header (atlassian.design/components)
