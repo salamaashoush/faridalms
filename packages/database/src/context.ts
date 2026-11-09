@@ -5,9 +5,15 @@ import { drizzle } from "drizzle-orm/bun-sql/postgres";
 import type { ActorKind } from "./tables/partitioned";
 import type { TenantLifecycle } from "./tables/records";
 
-function open(url: string, max: number) {
+function open(url: string, max: number, connection?: Record<string, string>) {
   return drizzle({
-    client: new SQL({ url, max, idleTimeout: 30, connectionTimeout: 10 }),
+    client: new SQL({
+      url,
+      max,
+      idleTimeout: 30,
+      connectionTimeout: 10,
+      ...(connection ? { connection } : {}),
+    }),
   });
 }
 
@@ -225,8 +231,24 @@ export type Collab = ReturnType<typeof openCollab>;
  * seed. The owner is bound by the isolation policy too, so each call still
  * names one tenant.
  */
-export function openOwner(url: string) {
-  const pool = open(url, 2);
+export function openOwner(
+  url: string,
+  options: {
+    /**
+     * Each transaction's limit, in place of the login's own (a minute for
+     * the provisioner). Postgres arms the limit at BEGIN, so it is sent when
+     * the connection opens; a SET inside the transaction comes too late.
+     */
+    transactionTimeout?: string;
+  } = {},
+) {
+  const pool = open(
+    url,
+    2,
+    options.transactionTimeout
+      ? { transaction_timeout: options.transactionTimeout }
+      : undefined,
+  );
   return {
     asOwner: <T>(
       tenantId: string,

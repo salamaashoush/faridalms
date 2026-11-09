@@ -13,6 +13,26 @@ import { createTenant } from "../src/tenants";
 import { CELL, harness, kek, urlFor } from "./harness";
 
 describe("filling a demonstration school", () => {
+  test("the owner it opens works under its own transaction limit, not the provisioner login's minute", async () => {
+    const tenantId = harness().a.tenantId;
+    for (const [options, expected] of [
+      [{}, "1min"],
+      [{ transactionTimeout: "15min" }, "15min"],
+    ] as const) {
+      const owner = openOwner(urlFor("provisioner"), options);
+      try {
+        const [row] = await owner.asOwner(tenantId, "test", (tx) =>
+          tx.execute<{ limit: string }>(
+            sql`select current_setting('transaction_timeout') as limit`,
+          ),
+        );
+        expect(row?.limit).toBe(expected);
+      } finally {
+        await owner.close();
+      }
+    }
+  });
+
   test("a school created empty gets a full school whose people the platform cannot write to, and keeps what it had", async () => {
     const owner = openOwner(urlFor("provisioner"));
     const tenantId = Bun.randomUUIDv7();

@@ -162,7 +162,11 @@ async function demo(
     );
   const domain =
     typeof flags.domain === "string" ? flags.domain : `${slug}.example.com`;
-  const owner = openOwner(env.CELL_PROVISION_URL);
+  // The fill is one transaction, so a failure leaves the school as it was;
+  // on the production server it outlasts the provisioner's one-minute limit.
+  const owner = openOwner(env.CELL_PROVISION_URL, {
+    transactionTimeout: "15min",
+  });
   const directory = openDirectory(env.DIRECTORY_URL);
   try {
     const school = await directory.bySlug(slug);
