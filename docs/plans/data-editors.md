@@ -66,7 +66,7 @@ All of it is `packages/ui/src/system/data-grid.tsx`.
 | 2   | Gradebook term grades                    | `apps/web/src/routes/_app/_staff/gradebook.tsx`           | Rebuilt: calm cells, range check, leave guard        |
 | 3   | Grade bands                              | `apps/web/src/components/grading/ScalesTab.tsx`           | Rebuilt: per-cell checks, scores covered             |
 | 4   | Grading categories (weights)             | `apps/web/src/components/grading/ProgrammesTab.tsx`       | Rebuilt: per-cell checks, Total row                  |
-| 5   | Rubric (criteria by levels)              | `apps/web/src/components/coursework/RubricSheet.tsx`      | Rebuilt: levels as rows, description on its own line |
+| 5   | Rubric (criteria by levels)              | `apps/web/src/components/coursework/RubricSheet.tsx`      | Redesigned: a matrix, one criterion opened at a time |
 | 6   | Intake checklist, fees and priorities    | `apps/web/src/components/admissions/IntakeEditor.tsx`     | Rebuilt: checklist and fees; priorities left         |
 | 7   | Periods                                  | `apps/web/src/components/years/YearPeriods.tsx`           | Rebuilt: times in columns, days on each row's line   |
 | 8   | Invoice and credit note lines (console)  | `apps/ops/src/components/InvoiceLinesForm.tsx`            | Rebuilt: lines with net, details on their line       |
@@ -104,6 +104,140 @@ All of it is `packages/ui/src/system/data-grid.tsx`.
   row is a record of its own (a school, a guardian) or a dependent pair of
   choices; they read well as they are.
 
+## Rubric
+
+The rubric was the editor least suited to a `DataGrid`. Put into one, a
+four-level criterion became a table of name and points with each
+description squeezed onto the row's second line, every criterion of the
+rubric open as one long form at once, and nothing in it looked like the
+rubric a grader or a student meets. The research below is why it is now
+its own component (`packages/ui/src/system/rubric.tsx`).
+
+### What the products do
+
+- **Canvas** (classic and enhanced rubrics): a matrix of criteria rows,
+  ratings belonging to each criterion so criteria may differ in count,
+  points on every rating and the criterion's total beside it. The
+  enhanced builder edits one criterion in its own dialog: name,
+  description, then each rating's points, name and description, with a
+  live "Total points possible"; ratings are inserted between others and
+  dragged to reorder. Criteria are edited, duplicated, deleted, and moved
+  up or down from a menu or by a drag handle. Settings choose points or
+  ranges ("Enable range") and the rating order, high to low or low to
+  high. Rubrics are imported from another course or a CSV template.
+  SpeedGrader offers three views: the grid, horizontal (criteria side by
+  side), and vertical (levels stacked under each criterion); a rating is
+  chosen by clicking its box, totals add up and can be overridden, and
+  each criterion takes a comment.
+- **Google Classroom**: each criterion is a card with its title and
+  levels (points, title, description), up to 10 levels and 50 criteria,
+  levels per criterion. Criteria are added, duplicated and moved up or
+  down from a menu (no drag). Points can be sorted descending or
+  ascending and levels sort by points. Rubrics are reused from any class
+  (a copy), exported to and imported from Sheets. The grading panel
+  lists criteria with their levels; one is clicked, Clear undoes it, the
+  score adds up and can be overridden. On a phone criteria are collapsed
+  and levels are swiped or tapped. Students see the chosen level
+  outlined in colour.
+- **Schoology**: a matrix edited in place: "+ Criteria" adds a row, a
+  hover "+" adds a scale column, rows drag to reorder. A course grading
+  scale can replace the columns. Rubrics live in Resources and copy to
+  any course; grading clicks a cell per criterion, with a total
+  override; "Show to students" shows it with the assignment.
+- **Turnitin Feedback Studio**: standard (scale values as column
+  headers, criteria weighted to 100%), qualitative and custom (points in
+  every cell) rubrics and grading forms (a list with no levels); up to
+  20 scales and 50 criteria; import from a spreadsheet. Marking opens a
+  compact side panel listing criteria, a criterion's description shown
+  below it, with a button to expand the full grid.
+- **Toddle and ManageBac** (IB): rubrics as criteria rows and level
+  columns with descriptors, kept in a school library of templates. MYP
+  criteria A to D carry achievement-level bands (0, 1 to 2, 3 to 4, 5 to
+  6, 7 to 8) with descriptors set per subject, which a teacher clarifies
+  for a task; the gradebook shows the descriptors beside the work while
+  marking. The help centres refuse automated reading, so these points
+  come from their published summaries.
+- **Microsoft Teams Assignments**: a grid of criteria rows and level
+  columns shared by every criterion, points per level and optional
+  weights per row that must make 100. Rows are added, copied and
+  deleted. Every rubric attached is kept in the teacher's list and can
+  be downloaded or uploaded as CSV. Marking shows one criterion at a
+  time beside the document, the chosen cell turning blue, with a
+  feedback box per criterion and the full grid a click away.
+- **Brightspace**: analytic or holistic rubrics; levels are columns
+  shared by every criterion (Points) or per criterion (Custom points);
+  no ranges. Levels are added at either edge, criteria added, copied and
+  moved up or down, and the level order can be reversed. Cells take a
+  description, points and initial feedback. Marking moves a slider per
+  criterion with the chosen level's description below it, and the
+  level's feedback fills the criterion's comment.
+
+Sources read: Google Classroom help on creating and grading with rubrics
+(support.google.com/edu/classroom/answer/9335069 and 9335428, desktop
+and Android); Microsoft's "Create and manage grading rubrics in
+Microsoft Teams" (support.microsoft.com/en-us/education/assignments);
+PowerSchool's Schoology "Create rubrics" and "Use rubrics"
+(uc.powerschool-docs.com/en/schoology/latest); Canvas's enhanced rubrics
+through university guides that mirror Instructure's articles
+(ready.msudenver.edu create and grade with a rubric,
+help.canvas.brown.edu, utsa.screenstepslive.com); Turnitin through City
+University's guide (city-uk-ett.libguides.com); Brightspace through
+Utrecht's and CUNY's guides (brightspace-support.sites.uu.nl,
+openlab.sps.cuny.edu). Instructure's, D2L's, Turnitin's, ManageBac's and
+Toddle's own help centres refuse automated reading; their search
+summaries were used and are marked as such above.
+
+### What they agree on
+
+- **The matrix is how a rubric is read.** Every product shows criteria
+  by levels, with points on each level and the criterion's most beside
+  its name, to the teacher, the grader and the student alike.
+- **Long descriptors are not written in a cell.** The products that
+  handle long text well (Canvas enhanced, Classroom) take one criterion
+  out of the matrix to edit it, its levels one per row with the
+  description given the room.
+- **Moving is a menu.** Move up and Move down sit in a criterion's menu
+  everywhere; drag is the extra. Duplicating a criterion is everywhere.
+- **Marking is a choice per criterion beside the work**, with the
+  descriptors in view, Clear to undo, a comment per criterion and the
+  total adding up but able to be overridden.
+- **On a phone** criteria come one after another and levels stack.
+- **Reuse is a copy**: from another class, a library or a file.
+
+### What we decided
+
+- **One component for every place a rubric appears**:
+  `RubricMatrix` (written, read by the student and the family),
+  `RubricLevelPicker` (the grader and a classmate's review) and
+  `RubricLevelEditor` (a criterion's levels). An awarded level and a
+  chosen one share the same outline, so the rubric a student reads looks
+  like the one the teacher marked.
+- **The sheet reads as the matrix** and is 960px wide, so four levels
+  stand side by side with their descriptions. Each criterion has Edit
+  and a `•••` (Move up, Move down, Duplicate, Remove, which asks).
+- **One criterion is written at a time, in place** (Canvas's criterion
+  dialog, without a second layer over the sheet): its name, its levels
+  one per row (name, points, description growing with its text, each
+  with Move up, Move down, Remove), then its standards, with Done and
+  Cancel. Done, opening another, adding one or using the rubric checks
+  it first. A new rubric opens on its first criterion with the four
+  starting levels.
+- **Levels stay per criterion**, as Canvas and Classroom keep them, since
+  the prosody rubric and IB criteria need their own levels. Levels stand
+  side by side while each gets about 9rem and stack below that.
+- **The grader chooses from radio rows**, each with its points and
+  description (Canvas's vertical view), in the 480px grading sheet;
+  Clear takes a choice back; the score fills from the levels and stays
+  editable. A classmate's review uses the same rows without points.
+- **The student and the family read the whole matrix** with the reached
+  level outlined and named "Awarded" (Classroom), the criterion's
+  "3 of 4 points", and the grader's comment under it, instead of only
+  the level reached, so they see what the next level asks for.
+- **Kept as before**: every criterion, level, point value, description,
+  order and standard; keeping a rubric among the teacher's own, changing
+  or removing it; the ready-made prosody rubric; per-criterion comments
+  and comments on passages linked to a criterion.
+
 ## For the owner to decide
 
 - Percentiles that fall along a row are now refused by the server too. A
@@ -111,3 +245,15 @@ All of it is `packages/ui/src/system/data-grid.tsx`.
   again; none of the seeds do.
 - Enter moves down a column in every grid, as in a spreadsheet, rather
   than submitting the form, so saving is always the Save button.
+- Rubrics: a level is worth one figure. Canvas offers point ranges and
+  IB criteria use bands (5 to 6); either needs a change to the rubric's
+  schema and to how a mark is worked out, so it waits for a decision.
+- Rubrics: levels keep the order written (the starting levels run from
+  the highest). Canvas, Classroom and Brightspace add a switch for the
+  order; a teacher here moves levels instead.
+- Rubrics: students see a rubric only once their work is returned.
+  Every product reviewed lets a student read it with the brief; that is
+  one `RubricMatrix` on the brief, and is the owner's call.
+- Rubrics: on a phone a returned rubric shows every level of every
+  criterion. Classroom collapses each criterion to its reached level;
+  that would hide what the next level asks for.
