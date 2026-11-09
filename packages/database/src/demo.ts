@@ -930,9 +930,9 @@ const TASKS: Record<Exclude<Band, "kg">, Record<Subject, Task[]>> = {
 /** One thing a KG class does at home, per subject, due within the week. */
 const KG_ACTIVITIES: Record<Subject, { title: string; brief: string }> = {
   arabic: {
-    title: "ابحث عن حرف الميم",
+    title: "اِبْحَثْ عَنْ حَرْفِ الْمِيمِ",
     brief:
-      "مع أحد والديك، ابحثوا في البيت عن ثلاثة أشياء يبدأ اسمها بحرف الميم (مثل: موز، مفتاح، مقص).",
+      "مَعَ أَحَدِ وَالِدَيْكَ، اِبْحَثُوا فِي الْبَيْتِ عَنْ ثَلَاثَةِ أَشْيَاءَ يَبْدَأُ اسْمُهَا بِحَرْفِ الْمِيمِ (مِثْلَ: مَوْز، مِفْتَاح، مِقَصّ).",
   },
   english: {
     title: "Show and tell: my favourite toy",
@@ -1401,30 +1401,30 @@ const written = (prompt: string, points = 4): LessonBlock => ({
 function kgModules(): Record<Subject, ModulePlan> {
   return {
     arabic: {
-      title: "حروفي الأولى",
-      summary: "نتعرف على أصوات الحروف ونكوّن كلمات صغيرة.",
+      title: "حُرُوفِي الْأُولَى",
+      summary: "نَتَعَرَّفُ عَلَى أَصْوَاتِ الْحُرُوفِ وَنُكَوِّنُ كَلِمَاتٍ صَغِيرَةً.",
       lessons: [
         {
-          title: "حرف الميم",
+          title: "حَرْفُ الْمِيمِ",
           completion: "view",
           blocks: [
             reading(
-              "هذا حرف الميم: م\n\nموز يبدأ بالميم. مفتاح يبدأ بالميم. ماما تبدأ بالميم.",
+              "هَذَا حَرْفُ الْمِيمِ: م\n\nمَوْزٌ يَبْدَأُ بِالْمِيمِ. مِفْتَاحٌ يَبْدَأُ بِالْمِيمِ. مَامَا تَبْدَأُ بِالْمِيمِ.",
             ),
           ],
         },
         {
-          title: "أي كلمة تبدأ بالميم؟",
+          title: "أَيُّ كَلِمَةٍ تَبْدَأُ بِالْمِيمِ؟",
           completion: "quiz",
           blocks: [
-            choice("أي كلمة تبدأ بحرف الميم؟", "موز", ["تفاح", "برتقال"]),
-            choice("أي كلمة تبدأ بحرف الباء؟", "باب", ["قلم", "نار"]),
+            choice("أَيُّ كَلِمَةٍ تَبْدَأُ بِحَرْفِ الْمِيمِ؟", "مَوْز", ["تُفَّاح", "بُرْتُقَال"]),
+            choice("أَيُّ كَلِمَةٍ تَبْدَأُ بِحَرْفِ الْبَاءِ؟", "بَابٌ", ["قَلَمٌ", "نَارٌ"]),
           ],
         },
         {
-          title: "نكوّن كلمة",
+          title: "نُكَوِّنُ كَلِمَةً",
           completion: "quiz",
-          blocks: [spelling("كوّن كلمة «باب»", ["ب", "ا", "ب"], ["م"])],
+          blocks: [spelling("كَوِّنْ كَلِمَةَ «بَاب»", ["ب", "ا", "ب"], ["م"])],
         },
       ],
     },
@@ -1536,26 +1536,26 @@ function schoolModules(): Record<
   return {
     lower: {
       arabic: {
-        title: "المد بالألف والواو والياء",
-        summary: "نقرأ كلمات فيها مد ونميّز بين أنواعه.",
+        title: "الْمَدُّ بِالْأَلِفِ وَالْوَاوِ وَالْيَاءِ",
+        summary: "نَقْرَأُ كَلِمَاتٍ فِيهَا مَدٌّ وَنُمَيِّزُ بَيْنَ أَنْوَاعِهِ.",
         lessons: [
           {
-            title: "ما هو المد؟",
+            title: "مَا هُوَ الْمَدُّ؟",
             completion: "view",
             blocks: [
               reading(
-                "المد صوت طويل. نقول: بااااب.\n\nالمد بالألف: باب. المد بالواو: نور. المد بالياء: فيل.",
+                "الْمَدُّ صَوْتٌ طَوِيلٌ. نَقُولُ: بَااااب.\n\nالْمَدُّ بِالْأَلِفِ: بَاب. الْمَدُّ بِالْوَاوِ: نُور. الْمَدُّ بِالْيَاءِ: فِيل.",
               ),
             ],
           },
           {
-            title: "نميز نوع المد",
+            title: "نُمَيِّزُ نَوْعَ الْمَدِّ",
             completion: "quiz",
             blocks: [
-              sorting("صنّف الكلمات حسب نوع المد", [
-                ["مد بالألف", ["نار", "باب"]],
-                ["مد بالواو", ["نور", "فول"]],
-                ["مد بالياء", ["فيل", "تين"]],
+              sorting("صَنِّفِ الْكَلِمَاتِ حَسَبَ نَوْعِ الْمَدِّ", [
+                ["مَدٌّ بِالْأَلِفِ", ["نَارٌ", "بَابٌ"]],
+                ["مَدٌّ بِالْوَاوِ", ["نُورٌ", "فُولٌ"]],
+                ["مَدٌّ بِالْيَاءِ", ["فِيلٌ", "تِينٌ"]],
               ]),
             ],
           },
@@ -2898,11 +2898,20 @@ async function health(tx: Tx, school: FilledSchool) {
   });
 }
 
-/** The demonstration's lessons, for checking each block against what the editor accepts. */
-export function demoLessons(): LessonPlan[] {
+/**
+ * The demonstration's lessons, for checking them: every block against what
+ * the editor accepts, and the young children's Arabic against what a voice
+ * may read aloud.
+ */
+export function demoLessons(): { young: LessonPlan[]; older: LessonPlan[] } {
   const older = schoolModules();
-  return [
-    ...Object.values(kgModules()),
-    ...Object.values(older).flatMap((bySubject) => Object.values(bySubject)),
-  ].flatMap((module) => module.lessons);
+  return {
+    young: [...Object.values(kgModules()), older.lower.arabic].flatMap(
+      (module) => module.lessons,
+    ),
+    older: Object.values(older)
+      .flatMap((bySubject) => Object.values(bySubject))
+      .filter((module) => module !== older.lower.arabic)
+      .flatMap((module) => module.lessons),
+  };
 }

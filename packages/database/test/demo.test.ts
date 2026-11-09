@@ -1,3 +1,5 @@
+import { voiceCanRead } from "@faridalms/domain/arabic";
+import { contentPlainText } from "@faridalms/domain/content";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { lessonDocumentSchema } from "@faridalms/domain/learning";
 import { describe, expect, test } from "bun:test";
@@ -17,11 +19,30 @@ import { CELL, harness, kek, urlFor } from "./harness";
 
 describe("filling a demonstration school", () => {
   test("every lesson it writes is one the lesson editor accepts", () => {
-    for (const lesson of demoLessons())
+    const { young, older } = demoLessons();
+    for (const lesson of [...young, ...older])
       expect(
         v.safeParse(lessonDocumentSchema, { version: 2, blocks: lesson.blocks })
           .issues,
       ).toBeUndefined();
+  });
+
+  test("young children's Arabic carries its vowels, so a voice may read it to them", () => {
+    const texts = demoLessons().young.flatMap((lesson) => [
+      lesson.title,
+      ...lesson.blocks.flatMap((block) => [
+        "prompt" in block ? block.prompt : "",
+        "content" in block ? contentPlainText(block.content) : "",
+        ...("options" in block
+          ? block.options.map((option) => option.text)
+          : []),
+        ...("items" in block ? block.items.map((item) => item.text) : []),
+        ...("groups" in block ? block.groups.map((group) => group.name) : []),
+      ]),
+    ]);
+    const arabic = texts.filter((text) => /[\u0621-\u064a]/.test(text));
+    expect(arabic.length).toBeGreaterThan(10);
+    expect(arabic.filter((text) => !voiceCanRead(text))).toEqual([]);
   });
 
   test("the owner it opens works under its own transaction limit, not the provisioner login's minute", async () => {
