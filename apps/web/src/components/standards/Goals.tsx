@@ -935,72 +935,69 @@ export interface GoalsReportProps {
  */
 export function GoalsReport({ studentId }: GoalsReportProps) {
   const data = useSuspenseQuery(goalsReportQuery(studentId)).data;
-  const heading = useId();
   if (data.reports.length === 0) return null;
   return (
-    <section aria-labelledby={heading} className="grid gap-4">
-      <div className="grid gap-1">
-        <h2 id={heading} className="text-lg leading-7 font-semibold">
-          {m.goalsReportTitle()}
-        </h2>
-        <p className="text-sm leading-5 text-muted-foreground">
-          {m.goalsReportFamilyHint()}
-        </p>
-      </div>
-      {data.reports.map((report) => {
-        const levels = new Map(
-          report.levels.map((row) => [row.standardId, row.level]),
-        );
-        const groups = goalGroups(report.goals);
-        return (
-          <RecordSection
-            key={report.id}
-            title={report.title}
-            description={
-              <>
-                {m.goalsReportSharedOn({ when: formatAgo(report.sharedAt) })}
-                {" · "}
-                {countsLine(
-                  groups.flatMap((group) =>
-                    group.goals.map((goal) => levels.get(goal.id) ?? null),
-                  ),
-                )}
-              </>
-            }
-          >
-            <div className="grid gap-5">
-              {groups.map((group) => (
-                <div key={group.area?.id ?? "top"} className="grid gap-1">
-                  {group.area ? (
-                    <h3
-                      dir="auto"
-                      className="text-[13px] leading-[18px] font-medium text-muted-foreground"
-                    >
-                      {groupName(report.goals, group.area)}
-                    </h3>
-                  ) : null}
-                  <ul className="grid divide-y">
-                    {group.goals.map((goal) => (
-                      <li
-                        key={goal.id}
-                        className="flex flex-wrap items-start justify-between gap-x-6 gap-y-1 py-2.5 first:pt-1 last:pb-0"
+    <RecordSection
+      variant="page"
+      title={m.goalsReportTitle()}
+      description={m.goalsReportFamilyHint()}
+    >
+      <div className="grid gap-4">
+        {data.reports.map((report) => {
+          const levels = new Map(
+            report.levels.map((row) => [row.standardId, row.level]),
+          );
+          const groups = goalGroups(report.goals);
+          return (
+            <RecordSection
+              key={report.id}
+              title={report.title}
+              description={
+                <>
+                  {m.goalsReportSharedOn({ when: formatAgo(report.sharedAt) })}
+                  {" · "}
+                  {countsLine(
+                    groups.flatMap((group) =>
+                      group.goals.map((goal) => levels.get(goal.id) ?? null),
+                    ),
+                  )}
+                </>
+              }
+            >
+              <div className="grid gap-5">
+                {groups.map((group) => (
+                  <div key={group.area?.id ?? "top"} className="grid gap-1">
+                    {group.area ? (
+                      <h3
+                        dir="auto"
+                        className="text-[13px] leading-[18px] font-medium text-muted-foreground"
                       >
-                        <span
-                          dir="auto"
-                          className="min-w-0 flex-1 basis-56 text-sm leading-5"
+                        {groupName(report.goals, group.area)}
+                      </h3>
+                    ) : null}
+                    <ul className="grid divide-y">
+                      {group.goals.map((goal) => (
+                        <li
+                          key={goal.id}
+                          className="flex flex-wrap items-start justify-between gap-x-6 gap-y-1 py-2.5 first:pt-1 last:pb-0"
                         >
-                          {goalName(goal)}
-                        </span>
-                        <GoalMark level={levels.get(goal.id) ?? null} />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </RecordSection>
-        );
-      })}
-    </section>
+                          <span
+                            dir="auto"
+                            className="min-w-0 flex-1 basis-56 text-sm leading-5"
+                          >
+                            {goalName(goal)}
+                          </span>
+                          <GoalMark level={levels.get(goal.id) ?? null} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </RecordSection>
+          );
+        })}
+      </div>
+    </RecordSection>
   );
 }

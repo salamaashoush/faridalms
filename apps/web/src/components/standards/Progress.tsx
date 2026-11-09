@@ -633,15 +633,11 @@ export interface SkillsSectionProps {
  */
 export function SkillsSection({ studentId }: SkillsSectionProps) {
   const data = useSuspenseQuery(studentProgressQuery(studentId)).data;
-  const heading = useId();
   if (data.standards.length === 0 && data.goalFrameworks.length === 0)
     return null;
   return (
-    <section aria-labelledby={heading} className="grid gap-4">
-      <h2 id={heading} className="text-lg leading-7 font-semibold">
-        {m.skillsTab()}
-      </h2>
+    <RecordSection variant="page" title={m.skillsTab()}>
       <StudentSkills studentId={studentId} />
-    </section>
+    </RecordSection>
   );
 }

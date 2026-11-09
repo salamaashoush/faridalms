@@ -37,7 +37,7 @@ import { Progress } from "@faridalms/ui/progress";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { Page } from "@faridalms/ui/system/page";
 import { Segmented } from "@faridalms/ui/system/panel";
-import { RecordHeader } from "@faridalms/ui/system/record-page";
+import { RecordHeader, RecordSection } from "@faridalms/ui/system/record-page";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import {
   useMutation,
@@ -1199,30 +1199,22 @@ export function LessonPlayer({ lessonId }: LessonPlayerProps) {
           </div>
         ) : null}
         {data.review ? (
-          <section
-            aria-labelledby="lesson-review"
-            className="grid gap-6 border-t pt-6"
+          <RecordSection
+            variant="page"
+            title={m.lrnOnceMore()}
+            description={m.lrnOnceMoreHint()}
           >
-            <div className="grid gap-1">
-              <h2
-                id="lesson-review"
-                className="text-lg leading-7 font-semibold"
-              >
-                {m.lrnOnceMore()}
-              </h2>
-              <p className="text-sm leading-5 text-muted-foreground">
-                {m.lrnOnceMoreHint()}
-              </p>
+            <div className="grid gap-6">
+              {shown.review?.blocks.filter(isCheckBlock).map((block) => (
+                <CheckBlockView
+                  key={block.id}
+                  block={block}
+                  view={shown.review?.checks[block.id]}
+                  driver={reviewDriver}
+                />
+              ))}
             </div>
-            {shown.review?.blocks.filter(isCheckBlock).map((block) => (
-              <CheckBlockView
-                key={block.id}
-                block={block}
-                view={shown.review?.checks[block.id]}
-                driver={reviewDriver}
-              />
-            ))}
-          </section>
+          </RecordSection>
         ) : null}
         <HeldResults
           held={held}

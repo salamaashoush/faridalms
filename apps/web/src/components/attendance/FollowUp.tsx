@@ -8,6 +8,8 @@ import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { FormField } from "@faridalms/ui/system/form-field";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { RecordSection } from "@faridalms/ui/system/record-page";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { StatusText } from "@faridalms/ui/system/status";
 import { Value } from "@faridalms/ui/system/value";
@@ -290,25 +292,27 @@ export function FollowUp({ date, onDate }: FollowUpProps) {
   ];
   return (
     <div className="grid gap-8">
-      <DayNav
-        id="follow-up-date"
-        date={data.date}
-        min={data.year.startsOn}
-        max={data.today}
-        today={data.today}
-        onChange={onDate}
+      <IndexToolbar
+        period={
+          <DayNav
+            id="follow-up-date"
+            date={data.date}
+            min={data.year.startsOn}
+            max={data.today}
+            today={data.today}
+            onChange={onDate}
+          />
+        }
       />
-      <section aria-labelledby="follow-calls" className="grid gap-3">
-        <div className="grid gap-1">
-          <h2 id="follow-calls" className="text-base leading-6 font-semibold">
-            {data.date === data.today
-              ? m.fupCalls()
-              : m.fupCallsOn({ date: formatDate(data.date) })}
-          </h2>
-          <p className="text-sm leading-5 text-muted-foreground">
-            {m.fupCallsHint()}
-          </p>
-        </div>
+      <RecordSection
+        variant="page"
+        title={
+          data.date === data.today
+            ? m.fupCalls()
+            : m.fupCallsOn({ date: formatDate(data.date) })
+        }
+        description={m.fupCallsHint()}
+      >
         {data.calls.length === 0 ? (
           <EmptyState placement="section" kind="done" title={m.fupNoCalls()} />
         ) : (
@@ -318,16 +322,12 @@ export function FollowUp({ date, onDate }: FollowUpProps) {
             ))}
           </ul>
         )}
-      </section>
-      <section aria-labelledby="follow-overdue" className="grid gap-3">
-        <div className="grid gap-1">
-          <h2 id="follow-overdue" className="text-base leading-6 font-semibold">
-            {m.fupOverdue()}
-          </h2>
-          <p className="text-sm leading-5 text-muted-foreground">
-            {m.fupOverdueHint({ date: formatDate(data.dueBefore) })}
-          </p>
-        </div>
+      </RecordSection>
+      <RecordSection
+        variant="page"
+        title={m.fupOverdue()}
+        description={m.fupOverdueHint({ date: formatDate(data.dueBefore) })}
+      >
         <DataTable
           caption={m.fupOverdue()}
           rows={data.overdue.rows.map((row) => ({
@@ -358,16 +358,14 @@ export function FollowUp({ date, onDate }: FollowUpProps) {
           }
           empty={{ icon: CircleCheck, title: m.fupNoOverdue() }}
         />
-      </section>
-      <section aria-labelledby="follow-support" className="grid gap-3">
-        <div className="grid gap-1">
-          <h2 id="follow-support" className="text-base leading-6 font-semibold">
-            {m.fupSupport()}
-          </h2>
-          <p className="text-sm leading-5 text-muted-foreground">
-            {m.fupSupportHint({ percent: formatNumber(data.chronicPercent) })}
-          </p>
-        </div>
+      </RecordSection>
+      <RecordSection
+        variant="page"
+        title={m.fupSupport()}
+        description={m.fupSupportHint({
+          percent: formatNumber(data.chronicPercent),
+        })}
+      >
         <DataTable
           caption={m.fupSupport()}
           rows={data.support.rows.map((row) => ({
@@ -398,7 +396,7 @@ export function FollowUp({ date, onDate }: FollowUpProps) {
           }
           empty={{ icon: ShieldAlert, title: m.fupNoSupport() }}
         />
-      </section>
+      </RecordSection>
       {logging ? (
         <ContactSheet
           call={logging}

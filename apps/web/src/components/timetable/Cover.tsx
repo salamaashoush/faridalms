@@ -11,6 +11,7 @@ import {
   SelectField,
   TextField,
 } from "@faridalms/ui/system/form-field";
+import { RecordSection } from "@faridalms/ui/system/record-page";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { StatusText } from "@faridalms/ui/system/status";
 import { Textarea } from "@faridalms/ui/textarea";
@@ -320,11 +321,10 @@ export function CoverDay({ on }: CoverDayProps) {
 
   return (
     <div className="grid gap-8">
-      <section aria-labelledby="cover-away" className="grid gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="cover-away" className="text-base leading-6 font-semibold">
-            {m.coverAway()}
-          </h2>
+      <RecordSection
+        variant="page"
+        title={m.coverAway()}
+        action={
           <Button
             type="button"
             variant="outline"
@@ -334,7 +334,8 @@ export function CoverDay({ on }: CoverDayProps) {
             <UserMinus aria-hidden />
             {m.coverAddAbsence()}
           </Button>
-        </div>
+        }
+      >
         <DataTable
           caption={m.coverAway()}
           rows={data.absences}
@@ -348,23 +349,21 @@ export function CoverDay({ on }: CoverDayProps) {
             description: m.coverNobodyAwayBody(),
           }}
         />
-      </section>
-      <section aria-labelledby="cover-lessons" className="grid gap-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 id="cover-lessons" className="text-base leading-6 font-semibold">
-            {m.coverLessons()}
-          </h2>
-          {lessons.length > 0 ? (
-            <p
-              aria-live="polite"
-              className="text-sm leading-5 text-muted-foreground"
-            >
+      </RecordSection>
+      <RecordSection
+        variant="page"
+        title={m.coverLessons()}
+        description={
+          lessons.length > 0 ? (
+            <span aria-live="polite">
               {open > 0
                 ? m.coverStillOpen({ count: open })
                 : m.coverAllArranged()}
-            </p>
-          ) : null}
-          {oneDayPeriods.length > 0 && data.classes.length > 0 ? (
+            </span>
+          ) : undefined
+        }
+        action={
+          oneDayPeriods.length > 0 && data.classes.length > 0 ? (
             <Button
               type="button"
               variant="outline"
@@ -374,8 +373,9 @@ export function CoverDay({ on }: CoverDayProps) {
               <CalendarPlus aria-hidden />
               {m.coverOneDayAdd()}
             </Button>
-          ) : null}
-        </div>
+          ) : undefined
+        }
+      >
         <DataTable
           caption={m.coverLessons()}
           rows={lessons}
@@ -389,7 +389,7 @@ export function CoverDay({ on }: CoverDayProps) {
             description: m.coverNoLessonsBody(),
           }}
         />
-      </section>
+      </RecordSection>
       <AbsenceSheet
         key={adding ? "open" : "closed"}
         open={adding}
