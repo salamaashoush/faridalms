@@ -1,3 +1,4 @@
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -13,9 +14,9 @@ export const Route = createFileRoute("/_app/me/modules")({
 
 function MyModulesPage() {
   return (
-    <>
+    <Page width="list">
       <PageHeader title={m.navModules()} description={m.lrnMeHint()} />
       <StudentModuleList studentId="" />
-    </>
+    </Page>
   );
 }

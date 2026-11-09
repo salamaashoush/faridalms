@@ -1,5 +1,6 @@
 import { cn } from "@faridalms/ui/cn";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { phoneLink, RecordSection } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -38,7 +39,7 @@ function ChildrenPage() {
   const children = useSuspenseQuery(personRecordQuery(user.id)).data.children;
   const modules = user.modules.elearning;
   return (
-    <>
+    <Page width="list">
       <PageHeader title={m.navChildren()} description={m.homeChildrenHint()} />
       {children.length === 0 ? (
         <EmptyState
@@ -139,6 +140,6 @@ function ChildrenPage() {
           })}
         </div>
       )}
-    </>
+    </Page>
   );
 }

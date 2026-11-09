@@ -12,6 +12,7 @@ import { addDays, shiftMonth } from "@faridalms/domain/school";
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -213,7 +214,7 @@ function CalendarPage() {
       }),
     });
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.calTitle()}
         description={m.calHint()}
@@ -433,6 +434,6 @@ function CalendarPage() {
           })
         }
       />
-    </>
+    </Page>
   );
 }

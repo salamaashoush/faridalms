@@ -1,5 +1,6 @@
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { FormField } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { Fact, Facts, RecordSection } from "@faridalms/ui/system/record-page";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
@@ -123,7 +124,7 @@ function ChildDetails({ studentId }: ChildDetailsProps) {
   const [asking, setAsking] = useState(false);
   const name = displayName(child);
   return (
-    <>
+    <Page width="record">
       <PageHeader
         title={m.familyDetailsTitle({ name })}
         description={
@@ -196,7 +197,7 @@ function ChildDetails({ studentId }: ChildDetailsProps) {
           onClose={() => setAsking(false)}
         />
       ) : null}
-    </>
+    </Page>
   );
 }
 
@@ -207,14 +208,14 @@ function FamilyDetailsPage() {
   const studentId = search.studentId ?? children[0]?.studentId;
   if (!studentId)
     return (
-      <>
+      <Page width="record">
         <PageHeader title={m.familyDetails()} />
         <EmptyState
           icon={Users}
           title={m.courseworkNoChildren()}
           description={m.courseworkNoChildrenBody()}
         />
-      </>
+      </Page>
     );
   return <ChildDetails key={studentId} studentId={studentId} />;
 }

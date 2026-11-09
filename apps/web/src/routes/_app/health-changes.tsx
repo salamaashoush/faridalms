@@ -4,6 +4,7 @@ import type { Column } from "@faridalms/ui/system/data-table";
 import { decideHealthChangeSchema } from "@faridalms/domain/people";
 import { DataTable } from "@faridalms/ui/system/data-table";
 import { ChoiceField, FormField } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { Fact, Facts } from "@faridalms/ui/system/record-page";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
@@ -355,7 +356,7 @@ function HealthChangesPage() {
   ).data;
   const [reviewing, setReviewing] = useState<Change | null>(null);
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.healthChangesTitle()}
         count={queue.changes.length}
@@ -421,6 +422,6 @@ function HealthChangesPage() {
           onClose={() => setReviewing(null)}
         />
       ) : null}
-    </>
+    </Page>
   );
 }

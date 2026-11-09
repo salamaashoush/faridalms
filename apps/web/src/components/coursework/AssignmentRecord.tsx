@@ -9,6 +9,7 @@ import type { HeaderFact, RecordTab } from "@faridalms/ui/system/record-page";
 import { cn } from "@faridalms/ui/cn";
 import { DataTable } from "@faridalms/ui/system/data-table";
 import { TextField } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import {
   Fact,
   Facts,
@@ -777,12 +778,7 @@ export function AssignmentRecord({
                 }),
   }));
   return (
-    <div
-      className={cn(
-        "mx-auto w-full",
-        width.wide ? "max-w-none" : "max-w-[720px]",
-      )}
-    >
+    <Page width={width.wide ? "list" : "form"}>
       <RecordHeader
         variant="document"
         title={titleRead(data, readingOf(data, reading?.read))}
@@ -901,6 +897,6 @@ export function AssignmentRecord({
           onClose={() => setReusing((current) => ({ ...current, open: false }))}
         />
       ) : null}
-    </div>
+    </Page>
   );
 }

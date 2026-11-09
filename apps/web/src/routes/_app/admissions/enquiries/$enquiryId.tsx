@@ -5,6 +5,7 @@ import { responseMinutes } from "@faridalms/domain/enquiries";
 import { Button } from "@faridalms/ui/button";
 import { Skeleton } from "@faridalms/ui/skeleton";
 import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
+import { Page } from "@faridalms/ui/system/page";
 import {
   Fact,
   Facts,
@@ -241,7 +242,7 @@ function EnquiryPage() {
     school: enquiry.school,
   };
   return (
-    <>
+    <Page width="record">
       <RecordHeader
         title={enquiry.name}
         status={{
@@ -428,6 +429,6 @@ function EnquiryPage() {
           />
         </>
       ) : null}
-    </>
+    </Page>
   );
 }

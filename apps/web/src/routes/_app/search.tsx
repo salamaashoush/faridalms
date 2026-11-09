@@ -8,6 +8,7 @@ import {
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -144,7 +145,7 @@ function SearchPage() {
   const choose = (kind: (typeof TABS)[number]) =>
     void navigate({ search: { q, kind } });
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.searchResultsTitle()}
         description={m.searchResultsHint()}
@@ -198,6 +199,6 @@ function SearchPage() {
           <OneKind q={q} kind={tab} />
         )}
       </RecordTabs>
-    </>
+    </Page>
   );
 }

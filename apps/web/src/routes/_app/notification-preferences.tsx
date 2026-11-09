@@ -12,6 +12,7 @@ import {
   SMS_MODES,
 } from "@faridalms/domain/notifications";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import {
   SettingsPage,
@@ -138,7 +139,7 @@ function PreferencesPage() {
     isDirty: dirty,
   };
   return (
-    <>
+    <Page width="form">
       <PageHeader title={m.notifPreferences()} description={m.ntfPrefsHint()} />
       <SettingsPage>
         <SettingsSection
@@ -275,6 +276,6 @@ function PreferencesPage() {
           />
         </SettingsSection>
       </SettingsPage>
-    </>
+    </Page>
   );
 }

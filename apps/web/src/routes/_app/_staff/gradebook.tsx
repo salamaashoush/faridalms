@@ -12,6 +12,7 @@ import {
 } from "@faridalms/ui/system/data-grid";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { StatusText } from "@faridalms/ui/system/status";
 import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
@@ -450,14 +451,14 @@ function GradebookPage() {
   const classId = search.classId ?? defaultClass(options.classes)?.id;
   if (!classId)
     return (
-      <>
+      <Page width="list">
         <PageHeader title={m.gradebookTitle()} />
         <EmptyState
           icon={BookOpen}
           title={m.gradebookNoClasses()}
           description={m.gradebookNoClassesBody()}
         />
-      </>
+      </Page>
     );
   return (
     <Book
@@ -510,7 +511,7 @@ function Book({ classId, periodId, onChange, classes }: BookProps) {
     onChange: ([next]) => onChange({ periodId: next }),
   };
   return (
-    <>
+    <Page width="list">
       <PageHeader title={m.gradebookTitle()} description={m.gradebookHint()} />
       <div className="grid gap-4">
         <IndexToolbar facets={[classFacet, termFacet]} />
@@ -520,6 +521,6 @@ function Book({ classId, periodId, onChange, classes }: BookProps) {
           <Sheet key={`${classId}-${book.periodId ?? ""}`} book={book} />
         )}
       </div>
-    </>
+    </Page>
   );
 }

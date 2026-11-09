@@ -1,4 +1,5 @@
 import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
+import { Page } from "@faridalms/ui/system/page";
 import { RecordEmpty, RecordHeader } from "@faridalms/ui/system/record-page";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -54,7 +55,7 @@ function FrameworkPage() {
     queryClient.invalidateQueries({ queryKey: ["standards"] });
   const { framework, standards, canManage } = data;
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <Page width="record">
       <RecordHeader
         title={framework.title}
         facts={[
@@ -162,6 +163,6 @@ function FrameworkPage() {
           />
         </>
       ) : null}
-    </div>
+    </Page>
   );
 }

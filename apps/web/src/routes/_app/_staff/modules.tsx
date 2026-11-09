@@ -8,6 +8,7 @@ import type { HeaderAction } from "@faridalms/ui/system/page-header";
 
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
@@ -201,7 +202,7 @@ function ModulesPage() {
       </>
     );
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.navModules()}
         description={m.lrnTeachHint()}
@@ -268,6 +269,6 @@ function ModulesPage() {
           }}
         />
       </RecordTabs>
-    </>
+    </Page>
   );
 }

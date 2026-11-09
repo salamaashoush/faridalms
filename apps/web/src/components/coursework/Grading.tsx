@@ -28,6 +28,7 @@ import {
   SelectField,
   TextField,
 } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import { PageActions } from "@faridalms/ui/system/page-actions";
 import { RecordEmpty } from "@faridalms/ui/system/record-page";
 import { Textarea } from "@faridalms/ui/textarea";
@@ -887,85 +888,87 @@ export function Grading({ assignmentId, studentId }: GradingProps) {
         ) : null}
       </PageActions>
       <div className={cn(grading && "lg:pe-[480px]")}>
-        <article className="mx-auto grid w-full max-w-[720px] gap-6 pb-24">
-          <header className="grid gap-1">
-            <Link
-              to="/assignments/$assignmentId"
-              params={{ assignmentId }}
-              search={{ tab: "work" }}
-              className="text-[13px] leading-[18px] text-muted-foreground hover:underline"
-            >
-              {data.assignment.title}
-            </Link>
-            <h1 className="text-[30px] leading-[38px] font-semibold tracking-tight">
-              <bdi>{displayName(data.student)}</bdi>
-            </h1>
-            {facts.length ? (
-              <p className="text-sm leading-5 text-muted-foreground">
-                {facts.join(" · ")}
-              </p>
-            ) : null}
-            {assessed ? (
-              <p className="text-sm leading-5">
-                {[
-                  assessed.score === null
-                    ? null
-                    : resultText(
-                        assessed.grade,
-                        assessed.effectiveScore ?? assessed.score,
-                        data.assignment.points,
-                        "teacher",
-                      ),
-                  assessed.releasedAt
-                    ? m.courseworkStateReturned()
-                    : assessed.commentsReleasedAt
-                      ? m.courseworkGradeHeld()
-                      : m.courseworkDraftGrade(),
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-            ) : null}
-          </header>
-          {data.quiz ? (
-            <QuizAttempts
-              quiz={data.quiz}
-              onMarked={() =>
-                queryClient.invalidateQueries({ queryKey: ["coursework"] })
-              }
-            />
-          ) : data.discussion ? (
-            <DiscussionPosts
-              standing={data.discussion}
-              posts={data.discussion.posts}
-            />
-          ) : attempt ? (
-            <div className="grid gap-4">
-              {attempt.content ? (
-                <CommentedWork
-                  document={attempt.content}
-                  comments={attempt.comments}
-                  active={active}
-                  reveal={reveal}
-                  attemptId={attempt.id}
-                  criteria={data.assignment.rubric?.criteria}
-                  commentOn={commentOn}
-                  onPassages={setPassages}
-                  onOpen={setActive}
-                />
+        <Page width="form">
+          <article className="grid gap-6 pb-24">
+            <header className="grid gap-1">
+              <Link
+                to="/assignments/$assignmentId"
+                params={{ assignmentId }}
+                search={{ tab: "work" }}
+                className="text-[13px] leading-[18px] text-muted-foreground hover:underline"
+              >
+                {data.assignment.title}
+              </Link>
+              <h1 className="text-[30px] leading-[38px] font-semibold tracking-tight">
+                <bdi>{displayName(data.student)}</bdi>
+              </h1>
+              {facts.length ? (
+                <p className="text-sm leading-5 text-muted-foreground">
+                  {facts.join(" · ")}
+                </p>
               ) : null}
-              <FileList files={attempt.files} />
-            </div>
-          ) : (
-            <RecordEmpty>{m.courseworkNothingHandedIn()}</RecordEmpty>
-          )}
-          {data.assignment.peer ? (
-            <StudentPeerReviews
-              assignmentId={data.assignment.id}
-              studentId={studentId}
-            />
-          ) : null}
-        </article>
+              {assessed ? (
+                <p className="text-sm leading-5">
+                  {[
+                    assessed.score === null
+                      ? null
+                      : resultText(
+                          assessed.grade,
+                          assessed.effectiveScore ?? assessed.score,
+                          data.assignment.points,
+                          "teacher",
+                        ),
+                    assessed.releasedAt
+                      ? m.courseworkStateReturned()
+                      : assessed.commentsReleasedAt
+                        ? m.courseworkGradeHeld()
+                        : m.courseworkDraftGrade(),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              ) : null}
+            </header>
+            {data.quiz ? (
+              <QuizAttempts
+                quiz={data.quiz}
+                onMarked={() =>
+                  queryClient.invalidateQueries({ queryKey: ["coursework"] })
+                }
+              />
+            ) : data.discussion ? (
+              <DiscussionPosts
+                standing={data.discussion}
+                posts={data.discussion.posts}
+              />
+            ) : attempt ? (
+              <div className="grid gap-4">
+                {attempt.content ? (
+                  <CommentedWork
+                    document={attempt.content}
+                    comments={attempt.comments}
+                    active={active}
+                    reveal={reveal}
+                    attemptId={attempt.id}
+                    criteria={data.assignment.rubric?.criteria}
+                    commentOn={commentOn}
+                    onPassages={setPassages}
+                    onOpen={setActive}
+                  />
+                ) : null}
+                <FileList files={attempt.files} />
+              </div>
+            ) : (
+              <RecordEmpty>{m.courseworkNothingHandedIn()}</RecordEmpty>
+            )}
+            {data.assignment.peer ? (
+              <StudentPeerReviews
+                assignmentId={data.assignment.id}
+                studentId={studentId}
+              />
+            ) : null}
+          </article>
+        </Page>
       </div>
       {attempt ? (
         <GradeSheet

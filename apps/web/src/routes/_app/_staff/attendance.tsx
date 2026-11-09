@@ -4,6 +4,7 @@ import {
   absencesQuerySchema,
   reportQuerySchema,
 } from "@faridalms/domain/attendance";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
@@ -152,7 +153,7 @@ function AttendancePage() {
   const patch = (change: Partial<Search>) =>
     void navigate({ search: (previous) => ({ ...previous, ...change }) });
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.attendanceTitle()}
         description={tab === "mine" ? m.attTeacherHint() : m.attAdminHint()}
@@ -190,7 +191,7 @@ function AttendancePage() {
       ) : (
         <AttendanceTab tab={tab} search={search} patch={patch} />
       )}
-    </>
+    </Page>
   );
 }
 

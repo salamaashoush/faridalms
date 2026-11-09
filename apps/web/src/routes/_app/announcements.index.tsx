@@ -5,6 +5,7 @@ import { pageField } from "@faridalms/domain/paging";
 import { Pagination } from "@faridalms/ui/system/data-table";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -135,7 +136,7 @@ function AnnouncementsPage() {
   const onPage = (page: number) =>
     void navigate({ search: (previous) => ({ ...previous, page }) });
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.annTitle()}
         description={m.annHint()}
@@ -187,6 +188,6 @@ function AnnouncementsPage() {
           )}
         </div>
       </RecordTabs>
-    </>
+    </Page>
   );
 }

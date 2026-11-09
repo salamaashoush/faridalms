@@ -12,6 +12,7 @@ import type { HeaderAction } from "@faridalms/ui/system/page-header";
 import { TEACHER_TABS, teacherListSchema } from "@faridalms/domain/coursework";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
@@ -252,7 +253,7 @@ function CourseworkPage() {
       : []),
   ];
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.courseworkTitlePage()}
         description={m.courseworkHint()}
@@ -310,6 +311,6 @@ function CourseworkPage() {
           }
         />
       ) : null}
-    </>
+    </Page>
   );
 }

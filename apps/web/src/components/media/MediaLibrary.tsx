@@ -14,6 +14,7 @@ import { FileIcon, FileViewer } from "@faridalms/editor/files";
 import { Button } from "@faridalms/ui/button";
 import { DataTable } from "@faridalms/ui/system/data-table";
 import { MediaGrid } from "@faridalms/ui/system/media-grid";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { Segmented } from "@faridalms/ui/system/panel";
 import { FileDropZone, UploadQueue } from "@faridalms/ui/system/upload-queue";
@@ -695,276 +696,280 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
   const inLibrary = view.source === "library";
 
   return (
-    <FileDropZone
-      onFiles={upload}
-      label={
-        data.path.at(-1)
-          ? m.mediaDropInto({ name: data.path.at(-1)?.name ?? "" })
-          : m.mediaDropHere()
-      }
-      pastePage={inLibrary}
-      disabled={!inLibrary}
-      className="grid gap-4"
-    >
-      <PageHeader
-        title={m.navMedia()}
-        description={m.mediaHint()}
-        action={{
-          label: m.filesUpload(),
-          icon: Upload,
-          onClick: () => input.current?.click(),
-        }}
-        menu={[
-          {
-            label: m.mediaImportTitle(),
-            icon: Link2,
-            onSelect: () => setImporting(true),
-          },
-          ...(media.pictures
-            ? [
-                {
-                  label: m.mediaPictureSearch(),
-                  icon: Search,
-                  onSelect: () => setSearching(true),
-                },
-              ]
-            : []),
-          ...(keeper
-            ? [
-                {
-                  label: m.mediaFolderNew(),
-                  icon: FolderPlus,
-                  onSelect: () => setFolderSheet({ folder: null }),
-                },
-                {
-                  label: m.mediaTags(),
-                  icon: Tags,
-                  onSelect: () => setTagsOpen(true),
-                },
-                {
-                  label: m.mediaStorage(),
-                  icon: HardDrive,
-                  onSelect: () => setStorageOpen(true),
-                },
-                {
-                  label: m.filesTrash(),
-                  icon: Trash2,
-                  onSelect: () => setTrashOpen(true),
-                },
-              ]
-            : []),
-        ]}
-      />
-      <input
-        ref={input}
-        type="file"
-        multiple
-        hidden
-        accept={[
-          ...media.accept.image,
-          ...media.accept.media,
-          ...media.accept.file,
-        ].join(",")}
-        onChange={(event) => {
-          const chosen = [...(event.target.files ?? [])];
-          event.target.value = "";
-          upload(chosen);
-        }}
-      />
-      <input
-        ref={replacement}
-        type="file"
-        hidden
-        onChange={(event) => {
-          const [chosen] = event.target.files ?? [];
-          event.target.value = "";
-          if (chosen && replacing)
-            queue.add([chosen], { replace: replacing.id });
-        }}
-      />
-      <UploadQueue
-        label={m.filesUploading()}
-        items={queue.items}
-        onCancel={queue.cancel}
-        onRetry={queue.retry}
-        onDismiss={queue.dismiss}
-      />
-      <Segmented
-        label={m.mediaSource()}
-        value={view.source}
-        className="justify-self-start"
-        options={[
-          { value: "library", label: m.mediaSourceLibrary() },
-          { value: "documents", label: m.mediaInDocuments() },
-        ]}
-        onChange={(source) => onView({ source, page: 1 })}
-      />
-      {!inLibrary ? (
-        <Suspense fallback={<div aria-busy="true" className="min-h-24" />}>
-          <LibraryDocuments
-            q={view.q}
-            page={view.page}
-            folderId={folderId}
-            onSearch={(q) => onView({ q, page: 1 })}
-            onPage={(page) => onView({ page })}
-          />
-        </Suspense>
-      ) : view.layout === "grid" ? (
-        <MediaGrid
-          caption={m.mediaTitle()}
-          items={data.items.rows}
-          tile={libraryTile}
-          toolbar={toolbar}
-          actions={layoutSwitch}
-          leading={leading}
-          onOpen={setViewing}
-          itemActions={itemActions}
-          batchActions={batchActions}
-          pagination={pagination}
-          empty={empty}
+    <Page width="list">
+      <FileDropZone
+        onFiles={upload}
+        label={
+          data.path.at(-1)
+            ? m.mediaDropInto({ name: data.path.at(-1)?.name ?? "" })
+            : m.mediaDropHere()
+        }
+        pastePage={inLibrary}
+        disabled={!inLibrary}
+        className="grid gap-4"
+      >
+        <PageHeader
+          title={m.navMedia()}
+          description={m.mediaHint()}
+          action={{
+            label: m.filesUpload(),
+            icon: Upload,
+            onClick: () => input.current?.click(),
+          }}
+          menu={[
+            {
+              label: m.mediaImportTitle(),
+              icon: Link2,
+              onSelect: () => setImporting(true),
+            },
+            ...(media.pictures
+              ? [
+                  {
+                    label: m.mediaPictureSearch(),
+                    icon: Search,
+                    onSelect: () => setSearching(true),
+                  },
+                ]
+              : []),
+            ...(keeper
+              ? [
+                  {
+                    label: m.mediaFolderNew(),
+                    icon: FolderPlus,
+                    onSelect: () => setFolderSheet({ folder: null }),
+                  },
+                  {
+                    label: m.mediaTags(),
+                    icon: Tags,
+                    onSelect: () => setTagsOpen(true),
+                  },
+                  {
+                    label: m.mediaStorage(),
+                    icon: HardDrive,
+                    onSelect: () => setStorageOpen(true),
+                  },
+                  {
+                    label: m.filesTrash(),
+                    icon: Trash2,
+                    onSelect: () => setTrashOpen(true),
+                  },
+                ]
+              : []),
+          ]}
         />
-      ) : (
-        <div className="grid gap-4">
-          {leading}
-          <DataTable
+        <input
+          ref={input}
+          type="file"
+          multiple
+          hidden
+          accept={[
+            ...media.accept.image,
+            ...media.accept.media,
+            ...media.accept.file,
+          ].join(",")}
+          onChange={(event) => {
+            const chosen = [...(event.target.files ?? [])];
+            event.target.value = "";
+            upload(chosen);
+          }}
+        />
+        <input
+          ref={replacement}
+          type="file"
+          hidden
+          onChange={(event) => {
+            const [chosen] = event.target.files ?? [];
+            event.target.value = "";
+            if (chosen && replacing)
+              queue.add([chosen], { replace: replacing.id });
+          }}
+        />
+        <UploadQueue
+          label={m.filesUploading()}
+          items={queue.items}
+          onCancel={queue.cancel}
+          onRetry={queue.retry}
+          onDismiss={queue.dismiss}
+        />
+        <Segmented
+          label={m.mediaSource()}
+          value={view.source}
+          className="justify-self-start"
+          options={[
+            { value: "library", label: m.mediaSourceLibrary() },
+            { value: "documents", label: m.mediaInDocuments() },
+          ]}
+          onChange={(source) => onView({ source, page: 1 })}
+        />
+        {!inLibrary ? (
+          <Suspense fallback={<div aria-busy="true" className="min-h-24" />}>
+            <LibraryDocuments
+              q={view.q}
+              page={view.page}
+              folderId={folderId}
+              onSearch={(q) => onView({ q, page: 1 })}
+              onPage={(page) => onView({ page })}
+            />
+          </Suspense>
+        ) : view.layout === "grid" ? (
+          <MediaGrid
             caption={m.mediaTitle()}
-            rows={data.items.rows}
-            columns={columns}
-            rowLabel={itemTitle}
-            rowActions={itemActions}
+            items={data.items.rows}
+            tile={libraryTile}
             toolbar={toolbar}
             actions={layoutSwitch}
-            sort={{
-              value: view.sort,
-              direction: view.order,
-              onChange: (sort, order) => onView({ sort, order, page: 1 }),
-            }}
+            leading={leading}
+            onOpen={setViewing}
+            itemActions={itemActions}
             batchActions={batchActions}
-            card={libraryCard(setUsesOf)}
             pagination={pagination}
             empty={empty}
           />
-        </div>
-      )}
-      {viewing ? (
-        <FileViewer
-          file={{
-            name: viewing.name,
-            mime: viewing.mediaType,
-            bytes: viewing.sizeBytes,
-            pdf: viewing.pdf,
-          }}
-          url={`/files/${viewing.id}`}
-          open
+        ) : (
+          <div className="grid gap-4">
+            {leading}
+            <DataTable
+              caption={m.mediaTitle()}
+              rows={data.items.rows}
+              columns={columns}
+              rowLabel={itemTitle}
+              rowActions={itemActions}
+              toolbar={toolbar}
+              actions={layoutSwitch}
+              sort={{
+                value: view.sort,
+                direction: view.order,
+                onChange: (sort, order) => onView({ sort, order, page: 1 }),
+              }}
+              batchActions={batchActions}
+              card={libraryCard(setUsesOf)}
+              pagination={pagination}
+              empty={empty}
+            />
+          </div>
+        )}
+        {viewing ? (
+          <FileViewer
+            file={{
+              name: viewing.name,
+              mime: viewing.mediaType,
+              bytes: viewing.sizeBytes,
+              pdf: viewing.pdf,
+            }}
+            url={`/files/${viewing.id}`}
+            open
+            onOpenChange={(open) => {
+              if (!open) setViewing(null);
+            }}
+            strings={fileStrings()}
+            locale={getLocale()}
+          />
+        ) : null}
+        {describing ? (
+          <DescribeSheet
+            key={describing.id}
+            item={describing}
+            onClose={() => setDescribing(null)}
+            onSaved={refresh}
+          />
+        ) : null}
+        {moving ? (
+          <MoveSheet
+            items={moving}
+            folders={data.folders}
+            onClose={() => setMoving(null)}
+            onMoved={refresh}
+          />
+        ) : null}
+        {tagging ? (
+          <TagItemsSheet
+            items={tagging}
+            onClose={() => setTagging(null)}
+            onTagged={refresh}
+          />
+        ) : null}
+        {cropping ? (
+          <CropSheet
+            key={cropping.id}
+            item={cropping}
+            onClose={() => setCropping(null)}
+            onCropped={refresh}
+          />
+        ) : null}
+        {focusing ? (
+          <FocusSheet
+            key={focusing.id}
+            item={focusing}
+            onClose={() => setFocusing(null)}
+            onSaved={refresh}
+          />
+        ) : null}
+        {folderSheet ? (
+          <FolderSheet
+            folder={folderSheet.folder}
+            parentId={folderId}
+            onClose={() => setFolderSheet(null)}
+            onSaved={refresh}
+          />
+        ) : null}
+        {importing ? (
+          <ImportLinkSheet
+            folderId={folderId}
+            onClose={() => setImporting(false)}
+            onImported={refresh}
+          />
+        ) : null}
+        <PictureSearchSheet
+          open={searching}
+          onOpenChange={setSearching}
+          onPick={(file, picture) =>
+            queue.add([file], {
+              folderId,
+              found: picture.credit
+                ? JSON.stringify({
+                    description: picture.alt ?? "",
+                    credit: picture.credit,
+                  })
+                : null,
+            })
+          }
+          onUpload={() => input.current?.click()}
+        />
+        <UsesSheet
+          item={usesOf}
           onOpenChange={(open) => {
-            if (!open) setViewing(null);
+            if (!open) setUsesOf(null);
           }}
-          strings={fileStrings()}
-          locale={getLocale()}
         />
-      ) : null}
-      {describing ? (
-        <DescribeSheet
-          key={describing.id}
-          item={describing}
-          onClose={() => setDescribing(null)}
-          onSaved={refresh}
+        <VersionsSheet
+          file={
+            versionsOf
+              ? { id: versionsOf.id, name: itemTitle(versionsOf) }
+              : null
+          }
+          load={(id) => fetchVersions({ data: { id } })}
+          restore={(id, versionId) =>
+            replace({ data: { id, sourceId: versionId } })
+          }
+          onOpenChange={(open) => {
+            if (!open) setVersionsOf(null);
+          }}
+          onRestored={refresh}
         />
-      ) : null}
-      {moving ? (
-        <MoveSheet
-          items={moving}
-          folders={data.folders}
-          onClose={() => setMoving(null)}
-          onMoved={refresh}
+        <TrashSheet
+          open={trashOpen}
+          onOpenChange={setTrashOpen}
+          onRestored={refresh}
         />
-      ) : null}
-      {tagging ? (
-        <TagItemsSheet
-          items={tagging}
-          onClose={() => setTagging(null)}
-          onTagged={refresh}
+        <TagsSheet
+          open={tagsOpen}
+          tags={data.facets.tags}
+          onOpenChange={setTagsOpen}
+          onChanged={refresh}
         />
-      ) : null}
-      {cropping ? (
-        <CropSheet
-          key={cropping.id}
-          item={cropping}
-          onClose={() => setCropping(null)}
-          onCropped={refresh}
-        />
-      ) : null}
-      {focusing ? (
-        <FocusSheet
-          key={focusing.id}
-          item={focusing}
-          onClose={() => setFocusing(null)}
-          onSaved={refresh}
-        />
-      ) : null}
-      {folderSheet ? (
-        <FolderSheet
-          folder={folderSheet.folder}
-          parentId={folderId}
-          onClose={() => setFolderSheet(null)}
-          onSaved={refresh}
-        />
-      ) : null}
-      {importing ? (
-        <ImportLinkSheet
-          folderId={folderId}
-          onClose={() => setImporting(false)}
-          onImported={refresh}
-        />
-      ) : null}
-      <PictureSearchSheet
-        open={searching}
-        onOpenChange={setSearching}
-        onPick={(file, picture) =>
-          queue.add([file], {
-            folderId,
-            found: picture.credit
-              ? JSON.stringify({
-                  description: picture.alt ?? "",
-                  credit: picture.credit,
-                })
-              : null,
-          })
-        }
-        onUpload={() => input.current?.click()}
-      />
-      <UsesSheet
-        item={usesOf}
-        onOpenChange={(open) => {
-          if (!open) setUsesOf(null);
-        }}
-      />
-      <VersionsSheet
-        file={
-          versionsOf ? { id: versionsOf.id, name: itemTitle(versionsOf) } : null
-        }
-        load={(id) => fetchVersions({ data: { id } })}
-        restore={(id, versionId) =>
-          replace({ data: { id, sourceId: versionId } })
-        }
-        onOpenChange={(open) => {
-          if (!open) setVersionsOf(null);
-        }}
-        onRestored={refresh}
-      />
-      <TrashSheet
-        open={trashOpen}
-        onOpenChange={setTrashOpen}
-        onRestored={refresh}
-      />
-      <TagsSheet
-        open={tagsOpen}
-        tags={data.facets.tags}
-        onOpenChange={setTagsOpen}
-        onChanged={refresh}
-      />
-      <StorageSheet open={storageOpen} onOpenChange={setStorageOpen} />
-      {people.sheet}
-    </FileDropZone>
+        <StorageSheet open={storageOpen} onOpenChange={setStorageOpen} />
+        {people.sheet}
+      </FileDropZone>
+    </Page>
   );
 }

@@ -3,6 +3,7 @@ import type { HeaderFact } from "@faridalms/ui/system/record-page";
 import { cn } from "@faridalms/ui/cn";
 import { Progress } from "@faridalms/ui/progress";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { Page } from "@faridalms/ui/system/page";
 import {
   phoneLink,
   RecordColumns,
@@ -211,7 +212,7 @@ export function ModuleOutline({ moduleId, studentId }: ModuleOutlineProps) {
     },
   ];
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <Page width="record">
       <RecordHeader
         title={data.title}
         facts={facts}
@@ -385,6 +386,6 @@ export function ModuleOutline({ moduleId, studentId }: ModuleOutlineProps) {
           </>
         }
       />
-    </div>
+    </Page>
   );
 }

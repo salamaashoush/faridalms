@@ -7,6 +7,7 @@ import { cn } from "@faridalms/ui/cn";
 import { ActionMenu } from "@faridalms/ui/system/action-menu";
 import { initialsOf } from "@faridalms/ui/system/app-shell";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { Page } from "@faridalms/ui/system/page";
 import {
   phoneLink,
   RecordColumns,
@@ -545,7 +546,7 @@ export function ClassRecord({
       />
     );
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <Page width="record">
       <RecordHeader
         title={title}
         initials={initialsOf(title)}
@@ -589,6 +590,6 @@ export function ClassRecord({
       >
         {body}
       </RecordTabs>
-    </div>
+    </Page>
   );
 }

@@ -1,3 +1,4 @@
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -25,12 +26,12 @@ export const Route = createFileRoute("/_app/me/grades")({
 function MyGradesPage() {
   const standards = useCurrentUser().modules.standards;
   return (
-    <>
+    <Page width="list">
       <PageHeader title={m.gradesTitle()} description={m.gradesHint()} />
       <div className="grid gap-10">
         <StudentGrades />
         {standards ? <SkillsSection studentId="" /> : null}
       </div>
-    </>
+    </Page>
   );
 }

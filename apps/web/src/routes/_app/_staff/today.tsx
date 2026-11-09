@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordColumns } from "@faridalms/ui/system/record-page";
 import { createFileRoute } from "@tanstack/react-router";
@@ -94,7 +95,7 @@ function FullDay() {
 /** A staff member's day: what needs them first, what is coming beside it. */
 function Day({ today, main, aside }: DayCards) {
   return (
-    <>
+    <Page width="list">
       <PageHeader title={m.navToday()} description={formatDate(today)} />
       {main.length + aside.length === 0 ? (
         <EmptyState
@@ -108,6 +109,6 @@ function Day({ today, main, aside }: DayCards) {
           aside={main.length && aside.length ? aside : undefined}
         />
       )}
-    </>
+    </Page>
   );
 }

@@ -3,6 +3,7 @@ import { Button, buttonVariants } from "@faridalms/ui/button";
 import { ActionMenu } from "@faridalms/ui/system/action-menu";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordSection } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
@@ -312,7 +313,7 @@ function ApplicationCard({ row }: ApplicationCardProps) {
 function FamilyApplications() {
   const data = useSuspenseQuery(myApplicationsQuery).data;
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.famAppsTitle()}
         description={m.famAppsHint()}
@@ -335,6 +336,6 @@ function FamilyApplications() {
           description={m.famAppsEmptyBody()}
         />
       )}
-    </>
+    </Page>
   );
 }

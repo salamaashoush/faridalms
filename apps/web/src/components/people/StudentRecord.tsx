@@ -11,6 +11,7 @@ import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { ActionMenu } from "@faridalms/ui/system/action-menu";
 import { initialsOf } from "@faridalms/ui/system/app-shell";
+import { Page } from "@faridalms/ui/system/page";
 import {
   Fact,
   Facts,
@@ -930,7 +931,7 @@ export function StudentRecord({
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <Page width="record">
       <RecordHeader
         title={name}
         initials={initialsOf(name)}
@@ -1028,7 +1029,7 @@ export function StudentRecord({
           onClose={() => setSheet((current) => ({ ...current, open: false }))}
         />
       ) : null}
-    </div>
+    </Page>
   );
 }
 

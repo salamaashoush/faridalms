@@ -5,8 +5,8 @@ import { contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import { documentWritten } from "@faridalms/domain/translations";
 import { Button } from "@faridalms/ui/button";
-import { cn } from "@faridalms/ui/cn";
 import { FormField } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import {
   RecordEmpty,
   RecordHeader,
@@ -545,65 +545,64 @@ export function LearnerWork({ assignmentId }: LearnerWorkProps) {
       : null,
   );
   return (
-    <div
-      className={cn(
-        "mx-auto grid w-full gap-6",
-        width.wide ? "max-w-none" : "max-w-[720px]",
-      )}
-    >
-      <RecordHeader
-        variant="document"
-        title={reading.title}
-        facts={facts}
-        tools={<ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />}
-        status={{
-          label: STATE_LABEL[data.state](),
-          tone: STATE_TONE[data.state],
-        }}
-        menu={[briefPrint.action, workPrint.action].filter(
-          (action) => action !== null,
+    <Page width={width.wide ? "list" : "form"}>
+      <div className="grid gap-6">
+        <RecordHeader
+          variant="document"
+          title={reading.title}
+          facts={facts}
+          tools={
+            <ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />
+          }
+          status={{
+            label: STATE_LABEL[data.state](),
+            tone: STATE_TONE[data.state],
+          }}
+          menu={[briefPrint.action, workPrint.action].filter(
+            (action) => action !== null,
+          )}
+        />
+        {reading.switcher}
+        {reading.brief ? (
+          <div lang={reading.lang} dir={reading.dir}>
+            <ContentView
+              document={reading.brief}
+              fileUrl={(id) => `/files/${id}`}
+            />
+          </div>
+        ) : (
+          <RecordEmpty>{m.courseworkNoBrief()}</RecordEmpty>
         )}
-      />
-      {reading.switcher}
-      {reading.brief ? (
-        <div lang={reading.lang} dir={reading.dir}>
-          <ContentView
-            document={reading.brief}
-            fileUrl={(id) => `/files/${id}`}
+        {data.quiz ? (
+          <QuizWork
+            key={data.attempts.length}
+            data={data}
+            reading={reading.lang}
           />
-        </div>
-      ) : (
-        <RecordEmpty>{m.courseworkNoBrief()}</RecordEmpty>
-      )}
-      {data.quiz ? (
-        <QuizWork
-          key={data.attempts.length}
-          data={data}
-          reading={reading.lang}
-        />
-      ) : data.assignment.submissionFormat === "discussion" ? (
-        <Discussion assignmentId={data.assignment.id} />
-      ) : (
-        <YourWork
-          key={`${data.submission.version}-${data.attempts.length}`}
-          data={data}
-        />
-      )}
-      {data.quiz ? null : <OutstandingDeclaration data={data} />}
-      {data.assignment.peer ? (
-        <PeerReviewWork assignmentId={data.assignment.id} />
-      ) : null}
-      {attempts.length > 0 ? (
-        <RecordSection variant="page" title={m.courseworkAttempts()}>
-          <RecordList>
-            {attempts.toReversed().map((attempt) => (
-              <AttemptItem key={attempt.id} data={data} attempt={attempt} />
-            ))}
-          </RecordList>
-        </RecordSection>
-      ) : null}
-      {briefPrint.sheet}
-      {workPrint.sheet}
-    </div>
+        ) : data.assignment.submissionFormat === "discussion" ? (
+          <Discussion assignmentId={data.assignment.id} />
+        ) : (
+          <YourWork
+            key={`${data.submission.version}-${data.attempts.length}`}
+            data={data}
+          />
+        )}
+        {data.quiz ? null : <OutstandingDeclaration data={data} />}
+        {data.assignment.peer ? (
+          <PeerReviewWork assignmentId={data.assignment.id} />
+        ) : null}
+        {attempts.length > 0 ? (
+          <RecordSection variant="page" title={m.courseworkAttempts()}>
+            <RecordList>
+              {attempts.toReversed().map((attempt) => (
+                <AttemptItem key={attempt.id} data={data} attempt={attempt} />
+              ))}
+            </RecordList>
+          </RecordSection>
+        ) : null}
+        {briefPrint.sheet}
+        {workPrint.sheet}
+      </div>
+    </Page>
   );
 }

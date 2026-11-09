@@ -281,7 +281,7 @@ function SchoolsStep({ data }: StepProps) {
   const { tenant, people } = data.draft.spec;
   if (data.draft.tenantId)
     return (
-      <div className="max-w-3xl">
+      <div>
         <RecordSection
           title="Schools"
           description="Creating it has begun, so its schools are in the directory and their addresses no longer change here."
@@ -1081,27 +1081,29 @@ function Created({ data }: StepProps) {
     .map((school, index) => schoolLabel(school, index))
     .join(", ");
   return (
-    <div className="grid" aria-live="polite">
-      <PageHeader title={`${names} created`} />
-      <RecordSection title="Links sent">
-        <Sent sent={data.draft.progress.provisioned?.sent ?? []} />
-      </RecordSection>
-      <div className="mt-6 flex flex-wrap gap-2">
-        {schoolId ? (
-          <ButtonLink to="/schools/$schoolId" params={{ schoolId }}>
-            Open the school
-          </ButtonLink>
-        ) : null}
-        {data.subscriptionId ? (
-          <ButtonLink
-            to="/subscriptions/$subscriptionId"
-            params={{ subscriptionId: data.subscriptionId }}
-            variant="outline"
-          >
-            Open its subscription
-          </ButtonLink>
-        ) : null}
+    <Page width="form">
+      <div className="grid" aria-live="polite">
+        <PageHeader title={`${names} created`} />
+        <RecordSection title="Links sent">
+          <Sent sent={data.draft.progress.provisioned?.sent ?? []} />
+        </RecordSection>
+        <div className="mt-6 flex flex-wrap gap-2">
+          {schoolId ? (
+            <ButtonLink to="/schools/$schoolId" params={{ schoolId }}>
+              Open the school
+            </ButtonLink>
+          ) : null}
+          {data.subscriptionId ? (
+            <ButtonLink
+              to="/subscriptions/$subscriptionId"
+              params={{ subscriptionId: data.subscriptionId }}
+              variant="outline"
+            >
+              Open its subscription
+            </ButtonLink>
+          ) : null}
+        </div>
       </div>
-    </div>
+    </Page>
   );
 }

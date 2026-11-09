@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "@faridalms/ui/cn";
 import { initialsOf } from "@faridalms/ui/system/app-shell";
+import { Page } from "@faridalms/ui/system/page";
 import {
   phoneLink,
   RecordColumns,
@@ -400,7 +401,7 @@ export function PersonRecord({ userId, tab, onTab }: PersonRecordProps) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <Page width="record">
       <RecordHeader
         title={name}
         initials={initialsOf(name)}
@@ -458,7 +459,7 @@ export function PersonRecord({ userId, tab, onTab }: PersonRecordProps) {
           }}
         />
       ) : null}
-    </div>
+    </Page>
   );
 }
 

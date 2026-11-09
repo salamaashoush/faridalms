@@ -3,6 +3,7 @@ import type { Facet } from "@faridalms/ui/system/index-toolbar";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
@@ -53,14 +54,14 @@ function YearMapPage() {
     );
   if (!map.classId)
     return (
-      <>
+      <Page width="list">
         <PageHeader title={m.yearMapTitle()} />
         <EmptyState
           icon={CalendarRange}
           title={m.lrnNoClasses()}
           description={m.lrnNoClassesBody()}
         />
-      </>
+      </Page>
     );
   const classFacet: Facet = {
     id: "class",
@@ -74,7 +75,7 @@ function YearMapPage() {
     },
   };
   return (
-    <>
+    <Page width="list">
       <PageHeader title={m.yearMapTitle()} description={m.yearMapHint()} />
       <div className="grid gap-4">
         {map.classes.length > 1 ? <IndexToolbar facets={[classFacet]} /> : null}
@@ -94,6 +95,6 @@ function YearMapPage() {
           <YearMap map={{ ...map, year: map.year }} today={user.today} />
         )}
       </div>
-    </>
+    </Page>
   );
 }

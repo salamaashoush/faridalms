@@ -9,6 +9,7 @@ import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import {
   Fact,
   Facts,
@@ -992,7 +993,7 @@ export function ModuleRecord({
   ];
   const ref = { id: data.id, expectedVersion: data.version };
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <Page width="record">
       <RecordHeader
         title={data.title}
         facts={facts}
@@ -1161,6 +1162,6 @@ export function ModuleRecord({
           />
         )}
       </RecordTabs>
-    </div>
+    </Page>
   );
 }

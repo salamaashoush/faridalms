@@ -7,6 +7,7 @@ import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordColumns } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
@@ -423,7 +424,7 @@ function FamilyHome() {
     ) : null,
   ].filter(Boolean);
   return (
-    <>
+    <Page width="list">
       <PageHeader title={m.navHome()} description={formatDate(data.today)} />
       {data.choices.length > 1 ? (
         <nav aria-label={m.homeChildren()} className="mb-6">
@@ -471,6 +472,6 @@ function FamilyHome() {
           aside={aside.length ? aside : undefined}
         />
       )}
-    </>
+    </Page>
   );
 }

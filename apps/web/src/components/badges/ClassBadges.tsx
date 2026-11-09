@@ -3,6 +3,7 @@ import { ActionMenu, useRunAndReport } from "@faridalms/ui/system/action-menu";
 import { initialsOf } from "@faridalms/ui/system/app-shell";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordList, RecordSection } from "@faridalms/ui/system/record-page";
 import {
@@ -96,7 +97,7 @@ export function ClassBadges({ classId }: ClassBadgesProps) {
   const runAndReport = useRunAndReport();
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <Page width="form">
       <PageHeader
         title={m.badgesTitle()}
         description={m.badgesIntro({ days: formatNumber(BADGE_DAYS) })}
@@ -207,6 +208,6 @@ export function ClassBadges({ classId }: ClassBadgesProps) {
           onDone={done}
         />
       ) : null}
-    </div>
+    </Page>
   );
 }

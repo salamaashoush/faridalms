@@ -2,6 +2,7 @@ import type { Facet } from "@faridalms/ui/system/index-toolbar";
 
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -53,7 +54,7 @@ function FamilyModulesPage() {
     },
   };
   return (
-    <>
+    <Page width="list">
       <PageHeader title={m.navModules()} description={m.lrnFamilyHint()} />
       {current ? (
         <div className="grid gap-6">
@@ -67,6 +68,6 @@ function FamilyModulesPage() {
           description={m.courseworkNoChildrenBody()}
         />
       )}
-    </>
+    </Page>
   );
 }

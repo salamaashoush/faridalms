@@ -10,6 +10,7 @@ import { Button } from "@faridalms/ui/button";
 import { ActionMenu } from "@faridalms/ui/system/action-menu";
 import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
 import { FormField, SelectField } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import {
   Fact,
   Facts,
@@ -139,7 +140,7 @@ function ApplicationPage() {
       : []),
   ];
   return (
-    <>
+    <Page width="record">
       <RecordHeader
         title={inLocale(row.child.nameEn, row.child.nameAr)}
         initials={inLocale(row.child.nameEn, row.child.nameAr).slice(0, 1)}
@@ -278,7 +279,7 @@ function ApplicationPage() {
           onOpenChange={setWithdrawing}
         />
       ) : null}
-    </>
+    </Page>
   );
 }
 

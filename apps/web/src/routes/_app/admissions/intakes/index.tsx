@@ -4,6 +4,7 @@ import { intakeWindow } from "@faridalms/domain/admissions";
 import { formQuestions } from "@faridalms/domain/questions";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
@@ -241,7 +242,7 @@ function IntakesPage() {
     (consent) => consent.meaning !== "marketing" && !consent.published,
   );
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.itkTitle()}
         description={m.itkHint()}
@@ -348,6 +349,6 @@ function IntakesPage() {
           />
         )}
       </RecordTabs>
-    </>
+    </Page>
   );
 }

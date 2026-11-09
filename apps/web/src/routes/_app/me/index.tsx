@@ -1,5 +1,6 @@
 import { Progress } from "@faridalms/ui/progress";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordColumns } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
@@ -182,7 +183,7 @@ function StudentHome() {
     ) : null,
   ].filter(Boolean);
   return (
-    <>
+    <Page width="list">
       <PageHeader title={m.navHome()} description={formatDate(data.today)} />
       {main.length + aside.length === 0 ? (
         <EmptyState
@@ -193,6 +194,6 @@ function StudentHome() {
       ) : (
         <RecordColumns main={main} aside={aside.length ? aside : undefined} />
       )}
-    </>
+    </Page>
   );
 }

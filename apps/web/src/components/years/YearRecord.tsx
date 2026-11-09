@@ -1,6 +1,7 @@
 import type { HeaderFact, RecordTab } from "@faridalms/ui/system/record-page";
 
 import { cn } from "@faridalms/ui/cn";
+import { Page } from "@faridalms/ui/system/page";
 import {
   Fact,
   Facts,
@@ -161,7 +162,7 @@ export function YearRecord({ yearId, tab, on, onTab }: YearRecordProps) {
     label: TAB_LABEL[value](),
   }));
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <Page width="record">
       <RecordHeader
         title={title}
         facts={facts}
@@ -220,6 +221,6 @@ export function YearRecord({ yearId, tab, on, onTab }: YearRecordProps) {
         )}
       </RecordTabs>
       {lifecycle.sheet}
-    </div>
+    </Page>
   );
 }

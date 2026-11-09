@@ -1,3 +1,4 @@
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -14,12 +15,12 @@ export const Route = createFileRoute("/_app/me/attendance")({
 
 function MyAttendancePage() {
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.attendanceTitle()}
         description={m.attStudentHint()}
       />
       <StudentAttendance />
-    </>
+    </Page>
   );
 }

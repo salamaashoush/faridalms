@@ -4,6 +4,7 @@ import type { BatchAction, Column } from "@faridalms/ui/system/data-table";
 import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { Metric, MetricGrid } from "@faridalms/ui/system/metrics";
+import { Page } from "@faridalms/ui/system/page";
 import { RecordHeader, RecordTabs } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -379,7 +380,7 @@ function BoardPage() {
       }
     : {};
   return (
-    <>
+    <Page width="record">
       <RecordHeader
         title={titleOf(board.intake)}
         facts={[
@@ -455,6 +456,6 @@ function BoardPage() {
           onOpenChange={(next) => !next && setDeciding(null)}
         />
       ) : null}
-    </>
+    </Page>
   );
 }

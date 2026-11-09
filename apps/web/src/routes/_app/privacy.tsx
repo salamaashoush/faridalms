@@ -1,5 +1,6 @@
 import type { HeaderAction } from "@faridalms/ui/system/page-header";
 
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -116,7 +117,7 @@ function PrivacyPage() {
     },
   };
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.privacyTitle()}
         description={m.privacySubtitle()}
@@ -268,6 +269,6 @@ function PrivacyPage() {
           onClose={close}
         />
       ) : null}
-    </>
+    </Page>
   );
 }

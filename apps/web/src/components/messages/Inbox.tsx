@@ -22,6 +22,7 @@ import {
   EmptyState,
   FilteredEmptyState,
 } from "@faridalms/ui/system/empty-state";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import {
@@ -603,7 +604,7 @@ export function MessagesPage({ search, onSearch }: MessagesPageProps) {
     .pages[0];
   const open = search.thread !== "";
   return (
-    <>
+    <Page width="list">
       <div className={cn(open && "max-lg:hidden")}>
         <PageHeader
           title={m.msgTitle()}
@@ -665,6 +666,6 @@ export function MessagesPage({ search, onSearch }: MessagesPageProps) {
           }
         />
       ) : null}
-    </>
+    </Page>
   );
 }

@@ -3,6 +3,7 @@ import type { Column } from "@faridalms/ui/system/data-table";
 
 import { DataTable } from "@faridalms/ui/system/data-table";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -148,7 +149,7 @@ function ReportsPage() {
     id: row.state,
   }));
   return (
-    <>
+    <Page width="list">
       <PageHeader title={m.adrTitle()} description={m.adrHint()} />
       <div className="mb-6">
         <IndexToolbar
@@ -288,6 +289,6 @@ function ReportsPage() {
           </div>
         )}
       </RecordTabs>
-    </>
+    </Page>
   );
 }

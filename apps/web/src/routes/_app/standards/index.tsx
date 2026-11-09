@@ -2,6 +2,7 @@ import type { Column } from "@faridalms/ui/system/data-table";
 import type { HeaderAction } from "@faridalms/ui/system/page-header";
 
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -117,7 +118,7 @@ function FrameworksPage() {
       }
     : undefined;
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.standardsTitle()}
         description={m.standardsHint()}
@@ -203,6 +204,6 @@ function FrameworksPage() {
           />
         </>
       ) : null}
-    </>
+    </Page>
   );
 }

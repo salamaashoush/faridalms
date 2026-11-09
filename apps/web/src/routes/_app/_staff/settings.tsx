@@ -4,6 +4,7 @@ import { Skeleton } from "@faridalms/ui/skeleton";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { RowLink } from "@faridalms/ui/system/data-table";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { Fact, Facts, RecordTabs } from "@faridalms/ui/system/record-page";
 import {
@@ -166,7 +167,7 @@ function SettingsRoute() {
           }
         : undefined;
   return (
-    <>
+    <Page width="form">
       <PageHeader
         title={m.adminSettingsTitle()}
         description={m.adminSettingsSubtitle()}
@@ -211,7 +212,7 @@ function SettingsRoute() {
           </Suspense>
         )}
       </RecordTabs>
-    </>
+    </Page>
   );
 }
 

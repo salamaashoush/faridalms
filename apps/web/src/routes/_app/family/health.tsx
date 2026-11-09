@@ -4,6 +4,7 @@ import { FAMILY_HEALTH_KINDS } from "@faridalms/domain/people";
 import { Button } from "@faridalms/ui/button";
 import { ActionMenu } from "@faridalms/ui/system/action-menu";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import {
   RecordColumns,
@@ -312,7 +313,7 @@ interface ChildHealthProps {
 function ChildHealth({ studentId, name }: ChildHealthProps) {
   const summary = useSuspenseQuery(familyHealthQuery(studentId)).data;
   return (
-    <>
+    <Page width="record">
       <PageHeader
         title={m.medicalTitle({ name })}
         description={summary.permitted ? m.medicalHint({ name }) : undefined}
@@ -326,7 +327,7 @@ function ChildHealth({ studentId, name }: ChildHealthProps) {
           description={m.medicalNotSharedBody({ name })}
         />
       )}
-    </>
+    </Page>
   );
 }
 
@@ -339,14 +340,14 @@ function FamilyHealthPage() {
     (search.studentId ? null : children[0]);
   if (!child)
     return (
-      <>
+      <Page width="record">
         <PageHeader title={m.medicalTitleShort()} />
         <EmptyState
           icon={Users}
           title={m.courseworkNoChildren()}
           description={m.courseworkNoChildrenBody()}
         />
-      </>
+      </Page>
     );
   return (
     <ChildHealth

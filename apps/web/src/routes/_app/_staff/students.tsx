@@ -11,6 +11,7 @@ import { studentDirectorySchema } from "@faridalms/domain/people";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { isFiltered } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { StatusText } from "@faridalms/ui/system/status";
 import { Value } from "@faridalms/ui/system/value";
@@ -274,10 +275,10 @@ function StudentsPage() {
   };
   if (!data.year)
     return (
-      <>
+      <Page width="list">
         <PageHeader title={m.adminStudentsTitle()} />
         <NoSchoolYear shows={m.noYearShowsStudents()} />
-      </>
+      </Page>
     );
   const yearFacet: Facet = {
     id: "year",
@@ -366,7 +367,7 @@ function StudentsPage() {
   };
   const firstRun = data.total === 0 && !isFiltered(toolbar);
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.adminStudentsTitle()}
         count={search.q ? undefined : data.total}
@@ -508,6 +509,6 @@ function StudentsPage() {
           }}
         />
       ) : null}
-    </>
+    </Page>
   );
 }

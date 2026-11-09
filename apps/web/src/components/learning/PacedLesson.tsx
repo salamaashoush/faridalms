@@ -13,6 +13,7 @@ import {
 } from "@faridalms/ui/system/dialog";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { SelectField } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import {
   phoneLink,
   RecordColumns,
@@ -230,7 +231,7 @@ export function PacedLesson({ pacedId }: PacedLessonProps) {
     { label: m.lrnPacedHereFact(), value: hereOf(data) },
   ];
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <Page width="record">
       <RecordHeader
         title={data.lesson.title}
         status={
@@ -456,7 +457,7 @@ export function PacedLesson({ pacedId }: PacedLessonProps) {
           </>
         }
       />
-    </div>
+    </Page>
   );
 }
 

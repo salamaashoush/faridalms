@@ -15,6 +15,7 @@ import {
 
 import { EmptyStateScope } from "./empty-state";
 import { mayMoveFocus } from "./focus-after-submit";
+import { Page } from "./page";
 import { useSystemStrings } from "./provider";
 import { UnsavedChangesGuard } from "./unsaved-changes-guard";
 
@@ -32,8 +33,9 @@ export interface SettingsPageProps {
 }
 
 /**
- * The page guards unsaved edits once for all of its sections, so leaving with
- * two cards changed asks once rather than once per card.
+ * Settings read at the form width, as a page of their own or as a tab of a
+ * wider page. The page guards unsaved edits once for all of its sections, so
+ * leaving with two cards changed asks once rather than once per card.
  */
 export function SettingsPage({ children }: SettingsPageProps) {
   const [sections, setSections] = useState<ReadonlyMap<string, Unsaved>>(
@@ -52,7 +54,9 @@ export function SettingsPage({ children }: SettingsPageProps) {
   const all = [...sections.values()];
   return (
     <UnsavedContext.Provider value={register}>
-      <div className="grid w-full max-w-[720px] gap-6">{children}</div>
+      <Page width="form">
+        <div className="grid gap-6">{children}</div>
+      </Page>
       <UnsavedChangesGuard
         isDirty={() => all.some((section) => section.isDirty())}
         pending={all.some((section) => section.pending)}

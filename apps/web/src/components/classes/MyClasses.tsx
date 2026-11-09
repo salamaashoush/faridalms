@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { School } from "lucide-react";
@@ -94,7 +95,7 @@ export function MyClasses({ year, title, frame }: MyClassesProps) {
   const data = useSuspenseQuery(myClassesQuery(year)).data;
   const options = useSuspenseQuery(classOptionsQuery).data;
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={title}
         description={
@@ -123,6 +124,6 @@ export function MyClasses({ year, title, frame }: MyClassesProps) {
           />
         ),
       )}
-    </>
+    </Page>
   );
 }

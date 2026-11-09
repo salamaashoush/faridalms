@@ -6,6 +6,7 @@ import { pageField } from "@faridalms/domain/paging";
 import { Pagination, ViewMenu } from "@faridalms/ui/system/data-table";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -190,7 +191,7 @@ function NewsPage() {
     </div>
   );
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.newsTitle()}
         description={m.newsHint()}
@@ -222,6 +223,6 @@ function NewsPage() {
       ) : (
         body
       )}
-    </>
+    </Page>
   );
 }

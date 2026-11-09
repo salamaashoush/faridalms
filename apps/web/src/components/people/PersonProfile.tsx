@@ -1,6 +1,7 @@
 import type { HeaderFact } from "@faridalms/ui/system/record-page";
 
 import { initialsOf } from "@faridalms/ui/system/app-shell";
+import { Page } from "@faridalms/ui/system/page";
 import { RecordColumns, RecordHeader } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -56,7 +57,7 @@ export function PersonProfile({ userId }: PersonProfileProps) {
       ),
     });
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <Page width="record">
       <RecordHeader
         title={name}
         initials={initialsOf(name)}
@@ -104,6 +105,6 @@ export function PersonProfile({ userId }: PersonProfileProps) {
           }}
         />
       ) : null}
-    </div>
+    </Page>
   );
 }

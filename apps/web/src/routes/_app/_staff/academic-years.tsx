@@ -3,6 +3,7 @@ import type { HeaderAction } from "@faridalms/ui/system/page-header";
 
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -149,7 +150,7 @@ function YearsPage() {
     ...lifecycleActions(row, data.access, lifecycle.open),
   ];
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.academicYearsTitle()}
         description={m.yearsHint()}
@@ -176,6 +177,6 @@ function YearsPage() {
         }}
       />
       {lifecycle.sheet}
-    </>
+    </Page>
   );
 }

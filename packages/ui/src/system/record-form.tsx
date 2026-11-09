@@ -7,6 +7,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { ConfirmDialog } from "./confirm-dialog";
 import { mayMoveFocus } from "./focus-after-submit";
+import { Page } from "./page";
 import { PageHeader } from "./page-header";
 import { useDesignSystem } from "./provider";
 import { UnsavedChangesGuard } from "./unsaved-changes-guard";
@@ -366,7 +367,7 @@ export function RecordForm({
   };
 
   return (
-    <div className="w-full max-w-[680px]">
+    <Page width="form">
       <PageHeader title={title} description={description} />
       <form
         ref={formRef}
@@ -435,6 +436,6 @@ export function RecordForm({
       </form>
       {danger ? <DangerZone action={danger} /> : null}
       <UnsavedChangesGuard isDirty={isDirty} pending={pending} />
-    </div>
+    </Page>
   );
 }

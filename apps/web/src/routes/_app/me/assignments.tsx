@@ -1,6 +1,7 @@
 import type { LearnerTab } from "@faridalms/domain/coursework";
 
 import { LEARNER_TABS } from "@faridalms/domain/coursework";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -51,7 +52,7 @@ function ToDoPage() {
     done: m.courseworkNothingDone(),
   };
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.courseworkToDoTitle()}
         description={m.courseworkToDoHint()}
@@ -84,6 +85,6 @@ function ToDoPage() {
       <div className="mt-6">
         <MyReading />
       </div>
-    </>
+    </Page>
   );
 }

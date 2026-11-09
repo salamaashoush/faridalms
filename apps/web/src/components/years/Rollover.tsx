@@ -19,6 +19,7 @@ import { ActionMenu } from "@faridalms/ui/system/action-menu";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
 import {
@@ -116,37 +117,39 @@ function RolloverApplied({ data }: RolloverAppliedProps) {
   const outcome = data.outcome;
   if (!outcome) return null;
   return (
-    <div className="mx-auto grid w-full max-w-3xl gap-6">
-      <PageHeader
-        title={m.rolloverTitle({ target: yearTitle(data.target) })}
-        description={m.rolloverAppliedSummary({
-          source: yearTitle(data.source),
-          classes: outcome.classes.length,
-          placed: outcome.placed,
-          left: outcome.left + outcome.graduated,
-        })}
-      />
-      <RecordSection title={m.rolloverNewClasses()}>
-        <RecordList>
-          {outcome.classes.map((row) => (
-            <li key={row.classId} className="py-3">
-              <Link
-                to="/classes/$classId"
-                params={{ classId: row.classId }}
-                search={{}}
-                dir="ltr"
-                className={cn(
-                  "text-sm leading-5 font-medium hover:text-primary hover:underline",
-                  phoneLink,
-                )}
-              >
-                {row.code}
-              </Link>
-            </li>
-          ))}
-        </RecordList>
-      </RecordSection>
-    </div>
+    <Page width="form">
+      <div className="grid gap-6">
+        <PageHeader
+          title={m.rolloverTitle({ target: yearTitle(data.target) })}
+          description={m.rolloverAppliedSummary({
+            source: yearTitle(data.source),
+            classes: outcome.classes.length,
+            placed: outcome.placed,
+            left: outcome.left + outcome.graduated,
+          })}
+        />
+        <RecordSection title={m.rolloverNewClasses()}>
+          <RecordList>
+            {outcome.classes.map((row) => (
+              <li key={row.classId} className="py-3">
+                <Link
+                  to="/classes/$classId"
+                  params={{ classId: row.classId }}
+                  search={{}}
+                  dir="ltr"
+                  className={cn(
+                    "text-sm leading-5 font-medium hover:text-primary hover:underline",
+                    phoneLink,
+                  )}
+                >
+                  {row.code}
+                </Link>
+              </li>
+            ))}
+          </RecordList>
+        </RecordSection>
+      </div>
+    </Page>
   );
 }
 

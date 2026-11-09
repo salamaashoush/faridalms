@@ -3,6 +3,7 @@ import type { Facet } from "@faridalms/ui/system/index-toolbar";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -51,7 +52,7 @@ function CurriculumMapPage() {
   );
   if (!map.frameworkId)
     return (
-      <>
+      <Page width="list">
         {header}
         <EmptyState
           icon={Grid3x3}
@@ -63,7 +64,7 @@ function CurriculumMapPage() {
             </ButtonLink>
           }
         />
-      </>
+      </Page>
     );
   const frameworkFacet: Facet = {
     id: "framework",
@@ -78,7 +79,7 @@ function CurriculumMapPage() {
     },
   };
   return (
-    <>
+    <Page width="list">
       {header}
       <div className="grid gap-4">
         <IndexToolbar facets={[frameworkFacet]} />
@@ -114,6 +115,6 @@ function CurriculumMapPage() {
           </>
         )}
       </div>
-    </>
+    </Page>
   );
 }

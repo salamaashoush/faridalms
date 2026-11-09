@@ -6,6 +6,7 @@ import { bandFor } from "@faridalms/domain/learning";
 import { Button } from "@faridalms/ui/button";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { Page } from "@faridalms/ui/system/page";
 import { RecordHeader } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -95,22 +96,24 @@ export function PracticePlayer({
 
   if (!data.enough)
     return (
-      <div className="mx-auto grid w-full max-w-3xl gap-6">
-        <EmptyState
-          icon={Shuffle}
-          title={m.lrnPracticeTitle()}
-          description={m.lrnPracticeNotYet()}
-          action={
-            <ButtonLink
-              to="/modules/$moduleId"
-              params={{ moduleId }}
-              variant="outline"
-            >
-              {m.lrnPracticeBack()}
-            </ButtonLink>
-          }
-        />
-      </div>
+      <Page width="form">
+        <div className="grid gap-6">
+          <EmptyState
+            icon={Shuffle}
+            title={m.lrnPracticeTitle()}
+            description={m.lrnPracticeNotYet()}
+            action={
+              <ButtonLink
+                to="/modules/$moduleId"
+                params={{ moduleId }}
+                variant="outline"
+              >
+                {m.lrnPracticeBack()}
+              </ButtonLink>
+            }
+          />
+        </div>
+      </Page>
     );
 
   const blocks = items.map((item) => item.block);
@@ -148,59 +151,61 @@ export function PracticePlayer({
       : null,
   );
   return (
-    <article className="mx-auto grid w-full max-w-3xl gap-6">
-      <div>
-        <RecordHeader
-          title={m.lrnPracticeTitle()}
-          facts={[{ label: m.lrnSectionModule(), value: data.module.title }]}
-        />
-        <p className="text-sm leading-6 text-muted-foreground">
-          {m.lrnPracticeIntro()}
-        </p>
-      </div>
-      {items.map((item, index) =>
-        isCheckBlock(item.block) ? (
-          <section key={item.block.id} className="grid gap-2">
-            <p className="text-[13px] leading-[18px] text-muted-foreground">
-              {m.lrnPracticeFrom({
-                number: formatNumber(index + 1),
-                lesson: item.lessonTitle,
-              })}
-            </p>
-            <CheckBlockView
-              block={item.block}
-              view={views[item.block.id]}
-              driver={driver}
-            />
-          </section>
-        ) : null,
-      )}
-      <div aria-live="polite">
-        {settled ? (
-          <section className="grid justify-items-start gap-4 rounded-lg border bg-card p-5">
-            <p className="text-base leading-6 font-semibold">
-              {m.lrnPracticeDone({
-                count: formatNumber(firstTime),
-                total: formatNumber(questions.length),
-              })}
-            </p>
-            {band ? (
-              <p dir="auto" className="text-sm leading-5">
-                {band.text}
+    <Page width="form">
+      <article className="grid gap-6">
+        <div>
+          <RecordHeader
+            title={m.lrnPracticeTitle()}
+            facts={[{ label: m.lrnSectionModule(), value: data.module.title }]}
+          />
+          <p className="text-sm leading-6 text-muted-foreground">
+            {m.lrnPracticeIntro()}
+          </p>
+        </div>
+        {items.map((item, index) =>
+          isCheckBlock(item.block) ? (
+            <section key={item.block.id} className="grid gap-2">
+              <p className="text-[13px] leading-[18px] text-muted-foreground">
+                {m.lrnPracticeFrom({
+                  number: formatNumber(index + 1),
+                  lesson: item.lessonTitle,
+                })}
               </p>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={() => onRound(round + 1)}>
-                <Shuffle aria-hidden />
-                {m.lrnPracticeAgain()}
-              </Button>
-              <Button type="button" variant="outline" onClick={back}>
-                {m.lrnPracticeBack()}
-              </Button>
-            </div>
-          </section>
-        ) : null}
-      </div>
-    </article>
+              <CheckBlockView
+                block={item.block}
+                view={views[item.block.id]}
+                driver={driver}
+              />
+            </section>
+          ) : null,
+        )}
+        <div aria-live="polite">
+          {settled ? (
+            <section className="grid justify-items-start gap-4 rounded-lg border bg-card p-5">
+              <p className="text-base leading-6 font-semibold">
+                {m.lrnPracticeDone({
+                  count: formatNumber(firstTime),
+                  total: formatNumber(questions.length),
+                })}
+              </p>
+              {band ? (
+                <p dir="auto" className="text-sm leading-5">
+                  {band.text}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={() => onRound(round + 1)}>
+                  <Shuffle aria-hidden />
+                  {m.lrnPracticeAgain()}
+                </Button>
+                <Button type="button" variant="outline" onClick={back}>
+                  {m.lrnPracticeBack()}
+                </Button>
+              </div>
+            </section>
+          ) : null}
+        </div>
+      </article>
+    </Page>
   );
 }

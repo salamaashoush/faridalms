@@ -1,3 +1,4 @@
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -14,9 +15,9 @@ export const Route = createFileRoute("/_app/me/timetable")({
 
 function MyTimetablePage() {
   return (
-    <>
+    <Page width="list">
       <PageHeader title={m.ttTitle()} description={m.ttStudentHint()} />
       <StudentWeek />
-    </>
+    </Page>
   );
 }

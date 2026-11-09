@@ -35,6 +35,7 @@ import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Progress } from "@faridalms/ui/progress";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { Page } from "@faridalms/ui/system/page";
 import { Segmented } from "@faridalms/ui/system/panel";
 import { RecordHeader } from "@faridalms/ui/system/record-page";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
@@ -1106,199 +1107,204 @@ export function LessonPlayer({ lessonId }: LessonPlayerProps) {
       </YoungContext.Provider>
     );
   return (
-    <article className="mx-auto grid w-full max-w-3xl gap-6">
-      <Progress
-        value={((data.index + 1) / data.total) * 100}
-        aria-label={m.lrnPlace()}
-        getAriaValueText={() => place}
-        className="gap-1"
-      >
-        <span className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
-          {place}
-        </span>
-      </Progress>
-      <RecordHeader
-        title={title}
-        menu={printing.action ? [printing.action] : []}
-        status={
-          data.completedAt
-            ? { label: m.lrnLessonDone(), tone: "success" }
-            : undefined
-        }
-        facts={[
-          ...(data.score === null
-            ? []
-            : [
-                {
-                  label: m.lrnScore(),
-                  value: m.lrnScoreIs({ value: formatNumber(data.score) }),
-                },
-              ]),
-          ...(data.attempt > 1
-            ? [
-                {
-                  label: m.lrnAttempt(),
-                  value: m.lrnAttemptIs({
-                    number: formatNumber(data.attempt),
-                  }),
-                },
-              ]
-            : []),
-        ]}
-      />
-      {languages || vowels.toggle ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {languages}
-          {vowels.toggle}
-        </div>
-      ) : null}
-      {paced ? (
-        <output className="flex items-start gap-2 rounded-lg border border-info/30 bg-info/5 px-4 py-3 text-sm leading-5">
-          <Radio aria-hidden className="mt-0.5 size-4 shrink-0 text-info" />
-          {paced.paused ? m.lrnPacedPaused() : m.lrnPacedBanner()}
-        </output>
-      ) : null}
-      <div inert={paced?.paused} className="grid gap-6">
-        <YoungContext.Provider value={data.young && earlyYears}>
-          <ReaderContext.Provider value={data.readAloud}>
-            <OwnCodeContext.Provider value={ownCode}>
-              <OwnProjectsContext.Provider value={ownProjects}>
-                <LessonBody
-                  key={data.attempt}
-                  blocks={shown.blocks}
-                  checks={shown.checks}
-                  driver={driver}
-                  position={data.position}
-                  onReach={reach}
-                  watch={watch}
-                  watches={data.watches}
-                  paced={paced}
-                  language={data.reading}
-                  retry={
-                    // Once the whole lesson is answered, its own Start again shows below.
-                    canRetry
-                      ? undefined
-                      : {
-                          pending: retry.isPending,
-                          onRetry: () => retry.mutate(),
-                        }
-                  }
-                />
-              </OwnProjectsContext.Provider>
-            </OwnCodeContext.Provider>
-          </ReaderContext.Provider>
-        </YoungContext.Provider>
-      </div>
-      {paced?.paused ? (
-        <div className="pointer-events-none fixed inset-x-0 bottom-20 z-20 flex justify-center px-4 md:bottom-6">
-          <p className="rounded-full bg-foreground px-4 py-2 text-sm leading-5 font-medium text-background shadow-lg">
-            {m.lrnPacedPaused()}
-          </p>
-        </div>
-      ) : null}
-      {data.review ? (
-        <section
-          aria-labelledby="lesson-review"
-          className="grid gap-6 border-t pt-6"
+    <Page width="form">
+      <article className="grid gap-6">
+        <Progress
+          value={((data.index + 1) / data.total) * 100}
+          aria-label={m.lrnPlace()}
+          getAriaValueText={() => place}
+          className="gap-1"
         >
-          <div className="grid gap-1">
-            <h2 id="lesson-review" className="text-lg leading-7 font-semibold">
-              {m.lrnOnceMore()}
-            </h2>
-            <p className="text-sm leading-5 text-muted-foreground">
-              {m.lrnOnceMoreHint()}
-            </p>
+          <span className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
+            {place}
+          </span>
+        </Progress>
+        <RecordHeader
+          title={title}
+          menu={printing.action ? [printing.action] : []}
+          status={
+            data.completedAt
+              ? { label: m.lrnLessonDone(), tone: "success" }
+              : undefined
+          }
+          facts={[
+            ...(data.score === null
+              ? []
+              : [
+                  {
+                    label: m.lrnScore(),
+                    value: m.lrnScoreIs({ value: formatNumber(data.score) }),
+                  },
+                ]),
+            ...(data.attempt > 1
+              ? [
+                  {
+                    label: m.lrnAttempt(),
+                    value: m.lrnAttemptIs({
+                      number: formatNumber(data.attempt),
+                    }),
+                  },
+                ]
+              : []),
+          ]}
+        />
+        {languages || vowels.toggle ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {languages}
+            {vowels.toggle}
           </div>
-          {shown.review?.blocks.filter(isCheckBlock).map((block) => (
-            <CheckBlockView
-              key={block.id}
-              block={block}
-              view={shown.review?.checks[block.id]}
-              driver={reviewDriver}
-            />
-          ))}
-        </section>
-      ) : null}
-      <HeldResults
-        held={held}
-        pending={results.isPending}
-        onSee={() => results.mutate()}
-      />
-      {data.completedAt ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/30 bg-success/5 px-5 py-4">
-          <div className="grid gap-1">
-            <p className="inline-flex items-center gap-2 text-sm leading-5 font-medium">
-              <CircleCheck aria-hidden className="size-4 text-success" />
-              {data.score === null
-                ? m.lrnLessonFinished()
-                : m.lrnFinishedScore({ value: formatNumber(data.score) })}
-            </p>
-            {data.band ? (
-              <p dir="auto" className="ps-6 text-sm leading-5">
-                {data.band}
-              </p>
-            ) : null}
-            {data.sent.length > 0 ? (
-              <div className="grid gap-1 ps-6 text-sm leading-5">
-                <p>{m.lrnSentFrom()}</p>
-                <ul className="grid gap-1">
-                  {data.sent.map((item) => (
-                    <li key={item.lessonId}>
-                      <Link
-                        to="/lessons/$lessonId"
-                        params={{ lessonId: item.lessonId }}
-                        search={{}}
-                        className="font-medium text-primary underline-offset-4 hover:underline"
-                      >
-                        {m.lrnConditionElsewhere({
-                          lesson: item.title,
-                          module: item.moduleTitle,
-                        })}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-          {canRetry ? (
-            <RetryButton
-              pending={retry.isPending}
-              onRetry={() => retry.mutate()}
-            />
-          ) : null}
+        ) : null}
+        {paced ? (
+          <output className="flex items-start gap-2 rounded-lg border border-info/30 bg-info/5 px-4 py-3 text-sm leading-5">
+            <Radio aria-hidden className="mt-0.5 size-4 shrink-0 text-info" />
+            {paced.paused ? m.lrnPacedPaused() : m.lrnPacedBanner()}
+          </output>
+        ) : null}
+        <div inert={paced?.paused} className="grid gap-6">
+          <YoungContext.Provider value={data.young && earlyYears}>
+            <ReaderContext.Provider value={data.readAloud}>
+              <OwnCodeContext.Provider value={ownCode}>
+                <OwnProjectsContext.Provider value={ownProjects}>
+                  <LessonBody
+                    key={data.attempt}
+                    blocks={shown.blocks}
+                    checks={shown.checks}
+                    driver={driver}
+                    position={data.position}
+                    onReach={reach}
+                    watch={watch}
+                    watches={data.watches}
+                    paced={paced}
+                    language={data.reading}
+                    retry={
+                      // Once the whole lesson is answered, its own Start again shows below.
+                      canRetry
+                        ? undefined
+                        : {
+                            pending: retry.isPending,
+                            onRetry: () => retry.mutate(),
+                          }
+                    }
+                  />
+                </OwnProjectsContext.Provider>
+              </OwnCodeContext.Provider>
+            </ReaderContext.Provider>
+          </YoungContext.Provider>
         </div>
-      ) : hint || data.completion === "mark" || canRetry ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-4">
-          <p className="text-sm leading-5 text-muted-foreground">
-            {canRetry && data.completion === "score"
-              ? m.lrnBelowPass({ score: formatNumber(data.passScore ?? 100) })
-              : hint}
-          </p>
-          <div className="flex flex-wrap gap-2">
+        {paced?.paused ? (
+          <div className="pointer-events-none fixed inset-x-0 bottom-20 z-20 flex justify-center px-4 md:bottom-6">
+            <p className="rounded-full bg-foreground px-4 py-2 text-sm leading-5 font-medium text-background shadow-lg">
+              {m.lrnPacedPaused()}
+            </p>
+          </div>
+        ) : null}
+        {data.review ? (
+          <section
+            aria-labelledby="lesson-review"
+            className="grid gap-6 border-t pt-6"
+          >
+            <div className="grid gap-1">
+              <h2
+                id="lesson-review"
+                className="text-lg leading-7 font-semibold"
+              >
+                {m.lrnOnceMore()}
+              </h2>
+              <p className="text-sm leading-5 text-muted-foreground">
+                {m.lrnOnceMoreHint()}
+              </p>
+            </div>
+            {shown.review?.blocks.filter(isCheckBlock).map((block) => (
+              <CheckBlockView
+                key={block.id}
+                block={block}
+                view={shown.review?.checks[block.id]}
+                driver={reviewDriver}
+              />
+            ))}
+          </section>
+        ) : null}
+        <HeldResults
+          held={held}
+          pending={results.isPending}
+          onSee={() => results.mutate()}
+        />
+        {data.completedAt ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/30 bg-success/5 px-5 py-4">
+            <div className="grid gap-1">
+              <p className="inline-flex items-center gap-2 text-sm leading-5 font-medium">
+                <CircleCheck aria-hidden className="size-4 text-success" />
+                {data.score === null
+                  ? m.lrnLessonFinished()
+                  : m.lrnFinishedScore({ value: formatNumber(data.score) })}
+              </p>
+              {data.band ? (
+                <p dir="auto" className="ps-6 text-sm leading-5">
+                  {data.band}
+                </p>
+              ) : null}
+              {data.sent.length > 0 ? (
+                <div className="grid gap-1 ps-6 text-sm leading-5">
+                  <p>{m.lrnSentFrom()}</p>
+                  <ul className="grid gap-1">
+                    {data.sent.map((item) => (
+                      <li key={item.lessonId}>
+                        <Link
+                          to="/lessons/$lessonId"
+                          params={{ lessonId: item.lessonId }}
+                          search={{}}
+                          className="font-medium text-primary underline-offset-4 hover:underline"
+                        >
+                          {m.lrnConditionElsewhere({
+                            lesson: item.title,
+                            module: item.moduleTitle,
+                          })}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
             {canRetry ? (
               <RetryButton
                 pending={retry.isPending}
                 onRetry={() => retry.mutate()}
               />
             ) : null}
-            {data.completion === "mark" ? (
-              <Button
-                type="button"
-                className="max-md:h-10"
-                disabled={complete.isPending}
-                onClick={() => complete.mutate()}
-              >
-                <CircleCheck aria-hidden />
-                {m.lrnMarkDone()}
-              </Button>
-            ) : null}
           </div>
-        </div>
-      ) : null}
-      <Footer data={data} />
-      {printing.sheet}
-    </article>
+        ) : hint || data.completion === "mark" || canRetry ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-4">
+            <p className="text-sm leading-5 text-muted-foreground">
+              {canRetry && data.completion === "score"
+                ? m.lrnBelowPass({ score: formatNumber(data.passScore ?? 100) })
+                : hint}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {canRetry ? (
+                <RetryButton
+                  pending={retry.isPending}
+                  onRetry={() => retry.mutate()}
+                />
+              ) : null}
+              {data.completion === "mark" ? (
+                <Button
+                  type="button"
+                  className="max-md:h-10"
+                  disabled={complete.isPending}
+                  onClick={() => complete.mutate()}
+                >
+                  <CircleCheck aria-hidden />
+                  {m.lrnMarkDone()}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+        <Footer data={data} />
+        {printing.sheet}
+      </article>
+    </Page>
   );
 }
 
@@ -1567,108 +1573,113 @@ export function LessonPreview({ lessonId, framed }: LessonPreviewProps) {
     },
   };
   return (
-    <article className="mx-auto grid w-full max-w-3xl gap-6">
-      <RecordHeader
-        title={data.title}
-        status={{ label: m.lrnPreview(), tone: "info" }}
-        facts={[
-          {
-            label: m.lrnCompletion(),
-            value: ruleText(data.completion, data.passScore) ?? m.lrnRuleView(),
-          },
-        ]}
-        alerts={
-          framed ? [] : [{ label: m.lrnPreviewHint(), tone: "info", icon: Eye }]
-        }
-        action={
-          framed
-            ? undefined
-            : { label: m.lrnEditLesson(), icon: Pencil, onClick: edit }
-        }
-        menu={
-          framed
-            ? []
-            : [...(printing.action ? [printing.action] : []), startOver]
-        }
-      />
-      {framed ? null : (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <Segmented
-            label={m.lrnPreviewScreen()}
-            value={screen}
-            onChange={setScreen}
-            options={[
-              { value: "desktop", label: m.lrnPreviewDesktop() },
-              { value: "tablet", label: m.lrnPreviewTablet() },
-              { value: "phone", label: m.lrnPreviewPhone() },
-            ]}
-          />
-          <Segmented
-            label={m.lrnPreviewLanguage()}
-            value={language}
-            onChange={setLanguage}
-            options={[
-              { value: "en", label: LOCALE_LABEL.en() },
-              { value: "ar", label: LOCALE_LABEL.ar() },
-            ]}
-          />
-          <Segmented
-            label={m.lrnPreviewStudents()}
-            value={students}
-            onChange={setStudents}
-            options={[
-              { value: "everyone", label: m.lrnPreviewEveryone() },
-              { value: "reader", label: m.lrnPreviewReader() },
-            ]}
-          />
-        </div>
-      )}
-      {elsewhere ? (
-        // The frame shows the page as the server draws it, with no scripts
-        // of its own: answering is tried in the teacher's own view.
-        <iframe
-          key={`${screen}:${language}`}
-          sandbox="allow-same-origin"
-          title={m.lrnPreviewFrame({ title: data.title })}
-          src={`/lesson-frame/${data.id}?ui=${language}&theme=${resolvedTheme === "dark" ? "dark" : "light"}`}
-          style={{ maxWidth: SCREEN_WIDTH[screen] }}
-          className="mx-auto h-[min(80dvh,900px)] w-full rounded-xl border bg-background shadow-sm"
+    <Page width="form">
+      <article className="grid gap-6">
+        <RecordHeader
+          title={data.title}
+          status={{ label: m.lrnPreview(), tone: "info" }}
+          facts={[
+            {
+              label: m.lrnCompletion(),
+              value:
+                ruleText(data.completion, data.passScore) ?? m.lrnRuleView(),
+            },
+          ]}
+          alerts={
+            framed
+              ? []
+              : [{ label: m.lrnPreviewHint(), tone: "info", icon: Eye }]
+          }
+          action={
+            framed
+              ? undefined
+              : { label: m.lrnEditLesson(), icon: Pencil, onClick: edit }
+          }
+          menu={
+            framed
+              ? []
+              : [...(printing.action ? [printing.action] : []), startOver]
+          }
         />
-      ) : (
-        <>
-          {vowels.toggle}
-          <YoungContext.Provider value={data.young && earlyYears}>
-            <ReaderContext.Provider value={!framed && students === "reader"}>
-              <LessonBody
-                key={round}
-                blocks={blocks}
-                checks={checks}
-                driver={driver}
-                language={reading}
-                retry={{
-                  pending: false,
-                  onRetry: () => {
-                    setRows([]);
-                    setRound((current) => current + 1);
-                  },
-                }}
-              />
-            </ReaderContext.Provider>
-          </YoungContext.Provider>
-          <HeldResults
-            held={heldOf(blocks.filter(isCheckBlock), checks)}
-            pending={false}
-            onSee={() =>
-              setShownFeedback((current) => ({ ...current, end: true }))
-            }
-            onShowClass={() =>
-              setShownFeedback((current) => ({ ...current, teacher: true }))
-            }
+        {framed ? null : (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Segmented
+              label={m.lrnPreviewScreen()}
+              value={screen}
+              onChange={setScreen}
+              options={[
+                { value: "desktop", label: m.lrnPreviewDesktop() },
+                { value: "tablet", label: m.lrnPreviewTablet() },
+                { value: "phone", label: m.lrnPreviewPhone() },
+              ]}
+            />
+            <Segmented
+              label={m.lrnPreviewLanguage()}
+              value={language}
+              onChange={setLanguage}
+              options={[
+                { value: "en", label: LOCALE_LABEL.en() },
+                { value: "ar", label: LOCALE_LABEL.ar() },
+              ]}
+            />
+            <Segmented
+              label={m.lrnPreviewStudents()}
+              value={students}
+              onChange={setStudents}
+              options={[
+                { value: "everyone", label: m.lrnPreviewEveryone() },
+                { value: "reader", label: m.lrnPreviewReader() },
+              ]}
+            />
+          </div>
+        )}
+        {elsewhere ? (
+          // The frame shows the page as the server draws it, with no scripts
+          // of its own: answering is tried in the teacher's own view.
+          <iframe
+            key={`${screen}:${language}`}
+            sandbox="allow-same-origin"
+            title={m.lrnPreviewFrame({ title: data.title })}
+            src={`/lesson-frame/${data.id}?ui=${language}&theme=${resolvedTheme === "dark" ? "dark" : "light"}`}
+            style={{ maxWidth: SCREEN_WIDTH[screen] }}
+            className="mx-auto h-[min(80dvh,900px)] w-full rounded-xl border bg-background shadow-sm"
           />
-        </>
-      )}
-      {printing.sheet}
-    </article>
+        ) : (
+          <>
+            {vowels.toggle}
+            <YoungContext.Provider value={data.young && earlyYears}>
+              <ReaderContext.Provider value={!framed && students === "reader"}>
+                <LessonBody
+                  key={round}
+                  blocks={blocks}
+                  checks={checks}
+                  driver={driver}
+                  language={reading}
+                  retry={{
+                    pending: false,
+                    onRetry: () => {
+                      setRows([]);
+                      setRound((current) => current + 1);
+                    },
+                  }}
+                />
+              </ReaderContext.Provider>
+            </YoungContext.Provider>
+            <HeldResults
+              held={heldOf(blocks.filter(isCheckBlock), checks)}
+              pending={false}
+              onSee={() =>
+                setShownFeedback((current) => ({ ...current, end: true }))
+              }
+              onShowClass={() =>
+                setShownFeedback((current) => ({ ...current, teacher: true }))
+              }
+            />
+          </>
+        )}
+        {printing.sheet}
+      </article>
+    </Page>
   );
 }
 

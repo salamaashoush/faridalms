@@ -1,6 +1,7 @@
 import type { Column } from "@faridalms/ui/system/data-table";
 
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -95,7 +96,7 @@ const card = {
 function Queue() {
   const data = useSuspenseQuery(courseworkListQuery(QUEUE)).data;
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={m.courseworkToReview()}
         description={m.courseworkToReviewHint()}
@@ -112,7 +113,7 @@ function Queue() {
           description: m.courseworkNothingToReviewBody(),
         }}
       />
-    </>
+    </Page>
   );
 }
 

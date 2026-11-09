@@ -8,6 +8,7 @@ import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
 import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
 import { DataTable } from "@faridalms/ui/system/data-table";
+import { Page } from "@faridalms/ui/system/page";
 import {
   Fact,
   Facts,
@@ -365,141 +366,143 @@ export function BroadcastRecord({ kind, id }: BroadcastRecordProps) {
   const editable = data.canManage && data.shown !== "archived";
   const out = data.shown === "published";
   return (
-    <div
-      className={cn(
-        "mx-auto grid w-full gap-6",
-        width.wide ? "max-w-none" : "max-w-[720px]",
-      )}
-    >
-      <RecordHeader
-        variant="document"
-        title={title}
-        facts={facts}
-        tools={<ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />}
-        status={
-          !out
-            ? { label: STATE_LABEL[data.shown](), tone: STATE_TONE[data.shown] }
-            : data.urgency === "normal"
-              ? undefined
-              : {
-                  label: URGENCY_LABEL[data.urgency](),
-                  tone: URGENCY_TONE[data.urgency],
+    <Page width={width.wide ? "list" : "form"}>
+      <div className="grid gap-6">
+        <RecordHeader
+          variant="document"
+          title={title}
+          facts={facts}
+          tools={
+            <ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />
+          }
+          status={
+            !out
+              ? {
+                  label: STATE_LABEL[data.shown](),
+                  tone: STATE_TONE[data.shown],
                 }
-        }
-        action={
-          editable
-            ? {
-                label: m.annEdit(),
-                icon: Pencil,
-                onClick: () => openEditor(data.id),
-              }
-            : undefined
-        }
-        menu={[
-          ...(printing.action ? [printing.action] : []),
-          ...(data.canManage
-            ? [
-                {
-                  label: view.copy.duplicate(),
-                  icon: Copy,
-                  onSelect: () => void copy(),
-                },
-                ...(kind === "announcement" && out
-                  ? [
-                      {
-                        label: view.copy.revise(),
-                        icon: Send,
-                        onSelect: () =>
-                          void run(
-                            () => revise.mutateAsync(),
-                            view.copy.revised(),
-                          ),
-                      },
-                    ]
-                  : []),
-                ...(editable
-                  ? [
-                      {
-                        label: m.annArchive(),
-                        icon: Archive,
-                        onSelect: () =>
-                          void run(
-                            () => archive.mutateAsync(),
-                            view.copy.archived(),
-                          ),
-                      },
-                    ]
-                  : []),
-              ]
-            : []),
-        ]}
-      />
-      {data.updatedAt ? (
-        <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {m.annUpdatedOn({ date: formatInstant(data.updatedAt) })}
-        </p>
-      ) : null}
-      {data.canManage && data.preview ? (
-        <Notice>{m.bcastPreviewNotice()}</Notice>
-      ) : null}
-      {editable && data.changedSince && out ? (
-        <Notice
-          action={{
-            label: view.copy.revise(),
-            pending: revise.isPending,
-            onClick: () =>
-              void run(() => revise.mutateAsync(), view.copy.revised()),
-          }}
-        >
-          {m.bcastEditsWaiting()}
-        </Notice>
-      ) : null}
-      <TranslatedView
-        body={data.body}
-        translation={data.translation}
-        primary={data.primaryLocale}
-        locale={shownLocale}
-        onLocaleChange={setLocale}
-      />
-      {data.requiresAck && !data.canManage ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/50 px-5 py-4">
-          {data.acknowledgedAt ? (
-            <StatusText tone="success">
-              {m.annAcknowledgedOn({
-                date: formatInstant(data.acknowledgedAt),
-              })}
-            </StatusText>
-          ) : (
-            <>
-              <p className="min-w-0 flex-1 text-sm leading-5">
-                {data.ackDueOn
-                  ? m.annAckDue({ date: formatDate(data.ackDueOn) })
-                  : m.annAckNeeded()}
-              </p>
-              <Button
-                type="button"
-                className="max-md:h-10"
-                disabled={acknowledge.isPending}
-                onClick={() =>
-                  void run(() => acknowledge.mutateAsync(), m.annThanks())
+              : data.urgency === "normal"
+                ? undefined
+                : {
+                    label: URGENCY_LABEL[data.urgency](),
+                    tone: URGENCY_TONE[data.urgency],
+                  }
+          }
+          action={
+            editable
+              ? {
+                  label: m.annEdit(),
+                  icon: Pencil,
+                  onClick: () => openEditor(data.id),
                 }
-              >
-                <CircleCheck aria-hidden />
-                {m.annAcknowledge()}
-              </Button>
-            </>
-          )}
-        </div>
-      ) : null}
-      {reported ? (
-        <Report
-          view={view}
-          data={data}
-          open={reporting}
-          onOpenChange={setReporting}
+              : undefined
+          }
+          menu={[
+            ...(printing.action ? [printing.action] : []),
+            ...(data.canManage
+              ? [
+                  {
+                    label: view.copy.duplicate(),
+                    icon: Copy,
+                    onSelect: () => void copy(),
+                  },
+                  ...(kind === "announcement" && out
+                    ? [
+                        {
+                          label: view.copy.revise(),
+                          icon: Send,
+                          onSelect: () =>
+                            void run(
+                              () => revise.mutateAsync(),
+                              view.copy.revised(),
+                            ),
+                        },
+                      ]
+                    : []),
+                  ...(editable
+                    ? [
+                        {
+                          label: m.annArchive(),
+                          icon: Archive,
+                          onSelect: () =>
+                            void run(
+                              () => archive.mutateAsync(),
+                              view.copy.archived(),
+                            ),
+                        },
+                      ]
+                    : []),
+                ]
+              : []),
+          ]}
         />
-      ) : null}
-      {printing.sheet}
-    </div>
+        {data.updatedAt ? (
+          <p className="text-[13px] leading-[18px] text-muted-foreground">
+            {m.annUpdatedOn({ date: formatInstant(data.updatedAt) })}
+          </p>
+        ) : null}
+        {data.canManage && data.preview ? (
+          <Notice>{m.bcastPreviewNotice()}</Notice>
+        ) : null}
+        {editable && data.changedSince && out ? (
+          <Notice
+            action={{
+              label: view.copy.revise(),
+              pending: revise.isPending,
+              onClick: () =>
+                void run(() => revise.mutateAsync(), view.copy.revised()),
+            }}
+          >
+            {m.bcastEditsWaiting()}
+          </Notice>
+        ) : null}
+        <TranslatedView
+          body={data.body}
+          translation={data.translation}
+          primary={data.primaryLocale}
+          locale={shownLocale}
+          onLocaleChange={setLocale}
+        />
+        {data.requiresAck && !data.canManage ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/50 px-5 py-4">
+            {data.acknowledgedAt ? (
+              <StatusText tone="success">
+                {m.annAcknowledgedOn({
+                  date: formatInstant(data.acknowledgedAt),
+                })}
+              </StatusText>
+            ) : (
+              <>
+                <p className="min-w-0 flex-1 text-sm leading-5">
+                  {data.ackDueOn
+                    ? m.annAckDue({ date: formatDate(data.ackDueOn) })
+                    : m.annAckNeeded()}
+                </p>
+                <Button
+                  type="button"
+                  className="max-md:h-10"
+                  disabled={acknowledge.isPending}
+                  onClick={() =>
+                    void run(() => acknowledge.mutateAsync(), m.annThanks())
+                  }
+                >
+                  <CircleCheck aria-hidden />
+                  {m.annAcknowledge()}
+                </Button>
+              </>
+            )}
+          </div>
+        ) : null}
+        {reported ? (
+          <Report
+            view={view}
+            data={data}
+            open={reporting}
+            onOpenChange={setReporting}
+          />
+        ) : null}
+        {printing.sheet}
+      </div>
+    </Page>
   );
 }

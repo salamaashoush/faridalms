@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { isFiltered } from "@faridalms/ui/system/index-toolbar";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { StatusText } from "@faridalms/ui/system/status";
 import { Value } from "@faridalms/ui/system/value";
@@ -158,10 +159,10 @@ export function ClassDirectory({
   const options = useSuspenseQuery(classOptionsQuery).data;
   if (!data.year)
     return (
-      <>
+      <Page width="list">
         <PageHeader title={title} />
         {frame(<NoSchoolYear shows={m.noYearShowsClasses()} />)}
-      </>
+      </Page>
     );
   const year = data.year;
   const yearFacet: Facet = {
@@ -225,7 +226,7 @@ export function ClassDirectory({
     onReset: () => patch({ q: "", grade: [], year: "" }),
   };
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title={title}
         count={search.q ? undefined : data.rows.length}
@@ -255,6 +256,6 @@ export function ClassDirectory({
           }}
         />,
       )}
-    </>
+    </Page>
   );
 }
