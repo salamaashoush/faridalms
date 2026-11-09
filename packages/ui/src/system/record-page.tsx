@@ -12,6 +12,7 @@ import type { ActionItem, PrimaryAction } from "./action-menu";
 import type { Tone } from "./status";
 
 import { ActionMenu } from "./action-menu";
+import { EmptyState, EmptyStateScope } from "./empty-state";
 import { PageActions } from "./page-actions";
 import { useDesignSystem, useSystemStrings } from "./provider";
 import { StatusBadge, toneSurface } from "./status";
@@ -446,7 +447,9 @@ export function RecordSection({
           </div>
         ) : null}
       </div>
-      <div className={page ? "pt-3" : "px-5 pt-3 pb-5"}>{children}</div>
+      <div className={page ? "pt-3" : "px-5 pt-3 pb-5"}>
+        <EmptyStateScope>{children}</EmptyStateScope>
+      </div>
     </section>
   );
 }
@@ -525,12 +528,12 @@ export function RecordList({ children }: RecordListProps) {
 }
 
 export interface RecordEmptyProps {
-  children: ReactNode;
+  children: string;
 }
 
-/** A section with nothing in it yet, said in a line. */
+/** A section with nothing in it yet: the section's `EmptyState`, title only. */
 export function RecordEmpty({ children }: RecordEmptyProps) {
-  return <p className="text-sm leading-5 text-muted-foreground">{children}</p>;
+  return <EmptyState placement="section" title={children} />;
 }
 
 export interface RecordStackProps {

@@ -13,6 +13,7 @@ import {
   useState,
 } from "react";
 
+import { EmptyStateScope } from "./empty-state";
 import { mayMoveFocus } from "./focus-after-submit";
 import { useSystemStrings } from "./provider";
 import { UnsavedChangesGuard } from "./unsaved-changes-guard";
@@ -125,7 +126,7 @@ export function SettingsSection({
           {error}
         </p>
       ) : null}
-      {children}
+      <EmptyStateScope>{children}</EmptyStateScope>
     </div>
   );
   const footerRow = "flex flex-wrap items-center gap-3 border-t px-5 py-4";

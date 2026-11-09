@@ -28,6 +28,7 @@ package gains it first, with a test and a line in this table.
 | Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                                                                                                               |
 | Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `CheckboxGroupField`, `FieldError`), `combobox-field`, `time-zone-field`                                                                        |
 | Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                                                                                                                 |
+| Empty states   | `empty-state` (`EmptyState`, `FilteredEmptyState`, `EmptyStateScope`), `record-page` (`RecordEmpty`), `value` (`Value absent`)                                                                                        |
 | Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                                                                                                                           |
 | Comments       | `comment-thread` (`CommentThread`, `CommentComposer`), `side-panel` (`SidePanel`)                                                                                                                                     |
 | Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                                                                                                                   |
@@ -165,7 +166,7 @@ Carbon data table, shadcn tasks).
   separator.
 - Pagination in the footer, 25 or 50 per page.
 - Empty state: an action-led title and one primary button. A filtered view with
-  no results offers "Clear filters" instead.
+  no results offers "Clear filters" instead. Both follow Empty states below.
 - Below 768px rows become stacked cards (name, status, one key fact) and the
   filters move into a sheet.
 - The count beside the title is the size of the list for the chosen year. It
@@ -502,6 +503,74 @@ by colour alone. One y-axis from zero with three recessive gridlines; time
 runs in the reading direction. Each point names itself when hovered or
 focused, and the same figures always stand in a table beside the chart.
 
+## Empty states
+
+Something that has nothing in it says so in one of four ways, chosen by
+where it stands and why it is empty, never drawn by hand. Polaris keeps
+its empty state for a whole page and says less inside a card; Carbon
+separates large spaces from small tiles and panels, and first use from
+no results and from what a person may not see; Primer gives each one
+short title, one line of what happens next and at most one action.
+
+| Kind                                          | Draw it with                                       |
+| --------------------------------------------- | -------------------------------------------------- |
+| A page, tab or index with nothing yet         | `EmptyState` (page)                                |
+| A search or filter that matched nothing       | `FilteredEmptyState`                               |
+| A section, card, panel, sheet or popover list | `EmptyState placement="section"`, or `RecordEmpty` |
+| A value or a table cell with nothing in it    | `Value absent` (or `Value` for "Not recorded")     |
+| Nothing left to do                            | `EmptyState kind="done"`                           |
+| Something the viewer may not see or use       | `EmptyState kind="restricted"`                     |
+
+- **Page.** The area a page's or tab's list would fill: a 40px round icon
+  of the thing the list holds in muted ink, the title at 16/24 semibold as
+  the area's heading, one sentence at 14/20 muted, and the one action that
+  fills it as a primary button, all centred in a dashed card 64px tall
+  above and below. A table, a grid and a board draw it through their
+  `empty`; nothing else draws a framed empty box.
+- **Section.** Inside anything with its own heading (a `RecordSection`, a
+  `SettingsSection`, a `PanelGroup`, a home card) the heading already names
+  what is missing, so the empty state is a line: the title at 14/20 muted,
+  start-aligned, an optional sentence under it at 13/18, and its action
+  below them. No icon of the thing, no frame, no
+  centring: a box inside a box is the inconsistency this rule removes.
+  Those containers wrap their content in `EmptyStateScope`, so an
+  `EmptyState` or a `DataTable` inside them draws as a section by itself;
+  a sheet, a popover, a split pane or a block in a lesson says
+  `placement="section"`. `RecordEmpty` is the same line for a record's
+  section.
+- **Filtered.** `FilteredEmptyState` says "Nothing matches your search or
+  filters" with the search icon, or a title naming what was searched ("No
+  word matches."), and always offers Clear filters when the filters can be
+  cleared from where it stands. It is never the first-use state: an empty
+  list with a search typed is filtered, one without is empty.
+- **Value.** A value that is not there is never a blank: `Value` says "Not
+  recorded" where the record is missing it, a dash where it cannot apply,
+  and `absent` says what its absence means where there is simply none
+  ("No guardian", "Nobody yet", "No due date"), muted, not italic.
+- **Done.** Nothing to do is good news: a success check before the title
+  in either placement. An `AttentionList` with `empty` draws it.
+- **Restricted.** A part the viewer may not see, or the school cannot use
+  yet, carries a lock and says who can change that ("The school has not
+  shared this"; "Ask Farida LMS support to switch it on"). A page the
+  viewer may not open at all is the 404 page, never an empty state.
+
+Wording:
+
+- A page title is action-led where the viewer can fill it ("Add the
+  people to write to"), else says what will be here or that there is none
+  yet ("No invoices yet"). No full stop on a page title; a section line is
+  a sentence and keeps its own.
+- The sentence under it says what fills the space and how, or why it is
+  empty; it never repeats the title or the heading above it.
+- A family or a student is never told to do what only staff can do; their
+  empty states say what will appear and when.
+- One action at most, the same action the page or section offers once it
+  has content; an empty state never removes an action, and its button
+  names the job ("New invoice"), not "Get started".
+
+`scripts/empty-states.spec.ts` fails on muted text or a dashed box that
+says a thing is empty without one of the components above.
+
 ## Feedback
 
 - Toasts confirm an action that happened elsewhere on screen; they never carry
@@ -629,8 +698,11 @@ above where a marketing page needs to, and only there.
 - Primer: saving pattern, PageHeader, StateLabel, Label, DataTable
   (primer.style/product)
 - Atlassian: form, button, lozenge, page header (atlassian.design/components)
-- Carbon: forms pattern, data table, status indicators, global header
-  (carbondesignsystem.com)
+- Carbon: forms pattern, data table, status indicators, global header,
+  empty states pattern (carbondesignsystem.com)
+- Primer: empty states pattern, Blankslate (primer.style/product)
+- Polaris: EmptyState, for a whole page and not single elements
+  (polaris.shopify.com, from github.com/Shopify/polaris)
 - GOV.UK: question pages, text input, error summary, validation, button
   (design-system.service.gov.uk)
 - NN/g: required fields, web form design, cancel vs close, efficiency vs

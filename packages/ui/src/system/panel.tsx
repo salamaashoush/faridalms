@@ -5,6 +5,8 @@ import { ToggleGroup } from "@base-ui/react/toggle-group";
 import { cn } from "../cn";
 import { useId } from "react";
 
+import { EmptyStateScope } from "./empty-state";
+
 export interface PanelGroupProps {
   title: string;
   hint?: string;
@@ -34,7 +36,7 @@ export function PanelGroup({ title, hint, children, action }: PanelGroupProps) {
           {hint}
         </p>
       ) : null}
-      {children}
+      <EmptyStateScope>{children}</EmptyStateScope>
     </section>
   );
 }

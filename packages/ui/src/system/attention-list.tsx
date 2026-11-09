@@ -2,9 +2,10 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "../cn";
-import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
+import { CircleAlert, Info, TriangleAlert } from "lucide-react";
 import { useId } from "react";
 
+import { EmptyState } from "./empty-state";
 import { useDesignSystem } from "./provider";
 
 /** How urgent an item is: it decides the icon and its colour. */
@@ -70,11 +71,10 @@ export function AttentionList({ title, items, empty }: AttentionListProps) {
           </span>
         ) : null}
       </h2>
-      {sorted.length === 0 ? (
-        <p className="flex items-center gap-3 px-4 py-3 text-sm leading-5 text-muted-foreground">
-          <CircleCheck aria-hidden className="size-4 shrink-0 text-success" />
-          {empty}
-        </p>
+      {sorted.length === 0 && empty ? (
+        <div className="px-4 py-3">
+          <EmptyState placement="section" kind="done" title={empty} />
+        </div>
       ) : null}
       <ul className="divide-y empty:hidden">
         {sorted.map((item) => {
