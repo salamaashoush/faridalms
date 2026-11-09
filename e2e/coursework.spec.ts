@@ -320,17 +320,18 @@ test("a teacher's gradebook shows the class's work and term grades", async ({
   await expect(grades.nth(1)).toBeFocused();
 
   // A term grade saves as it is typed, and Release sends it out once asked.
-  const label = (await grades.nth(1).getAttribute("aria-label")) ?? "";
-  const name = label.replace(/^Term grade for /, "");
+  // The seed can give two students one name, so the row is found by place.
+  const row = sheet.locator("tbody tr").nth(1);
+  const name = (await row.getByRole("button").first().textContent()) ?? "";
   const next = (await grades.nth(1).inputValue()) === "91" ? "92" : "91";
   await page.keyboard.type(next);
   await page.keyboard.press("Enter");
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await page.reload();
   await untilHydrated(page);
-  await expect(sheet.getByRole("textbox", { name: label })).toHaveValue(next);
+  await expect(row.getByRole("textbox")).toHaveValue(next);
 
-  await sheet.getByRole("button", { name: new RegExp(`^${name}`) }).click();
+  await row.getByRole("button").first().click();
   const panel = page.getByRole("complementary", { name });
   await expect(panel.getByRole("textbox", { name: "Term grade" })).toHaveValue(
     next,
