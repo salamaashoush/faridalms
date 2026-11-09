@@ -45,6 +45,37 @@ describe("ActionMenu", () => {
     expect(onSelect).toHaveBeenCalledOnce();
   });
 
+  it("confirms a regular action without the destructive colour", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn(() => Promise.resolve());
+    render(
+      <ActionMenu
+        label="More actions"
+        actions={[
+          {
+            label: "Use calculated grades",
+            confirm: {
+              title: "Use the calculated grades?",
+              body: "Comments stay as they are.",
+              label: "Use calculated grades",
+            },
+            onSelect,
+          },
+        ]}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Use calculated grades" }),
+    );
+    const button = await screen.findByRole("button", {
+      name: "Use calculated grades",
+    });
+    expect(button).toHaveClass("bg-primary");
+    await user.click(button);
+    expect(onSelect).toHaveBeenCalledOnce();
+  });
+
   it("closes the confirmation once the action succeeds", async () => {
     const onSelect = vi.fn(() => Promise.resolve());
     await confirmDelete(onSelect);

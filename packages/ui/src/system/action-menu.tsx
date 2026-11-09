@@ -173,6 +173,7 @@ export function ActionMenu({
           title={confirming.confirm.title}
           body={confirming.confirm.body}
           confirmLabel={confirming.confirm.label}
+          destructive={confirming.destructive === true}
           pending={pending}
           error={error ?? undefined}
           onCancel={() => setConfirming(null)}
