@@ -62,6 +62,20 @@ test("a parent hands the device to a young child and a grown-up's answer brings 
   await expect(page).toHaveURL(/\/me$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Hello, /);
   await expect(page.getByRole("button", { name: "Account" })).toHaveCount(0);
+  // The child finds every page a young child may open, and no other.
+  const navigation = page.getByRole("navigation", { name: "Primary" });
+  for (const name of ["Home", "To do", "Timetable", "Modules", "News"])
+    await expect(
+      navigation.getByRole("link", { name, exact: true }),
+    ).toBeVisible();
+  for (const name of ["Grades", "Attendance", "Messages", "Calendar"])
+    await expect(
+      navigation.getByRole("link", { name, exact: true }),
+    ).toHaveCount(0);
+  await navigation.getByRole("link", { name: "Modules", exact: true }).click();
+  await expect(page).toHaveURL(/\/me\/modules$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Modules");
+  await navigation.getByRole("link", { name: "Home", exact: true }).click();
 
   await page.getByRole("button", { name: "Grown-ups" }).click();
   const gate = page.getByRole("dialog", {

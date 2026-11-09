@@ -94,8 +94,7 @@ function useVisibleNavigation(): ShellNavSection[] {
         (item) =>
           holds(item, user.capabilities) &&
           pageOn(user.modules, item.to) &&
-          (!item.pages || pagesOf(item, user).length > 0) &&
-          (user.profile !== "young_student" || item.young),
+          (!item.pages || pagesOf(item, user).length > 0),
       );
       const { items, more } = arrange(visible);
       return {

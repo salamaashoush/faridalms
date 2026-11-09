@@ -55,8 +55,6 @@ export interface NavItem {
   capability?: Capability | readonly Capability[];
   /** Match the route exactly, for section index pages. */
   exact?: boolean;
-  /** Kept for young children, whose home holds everything they open. */
-  young?: boolean;
   /** What waits there, counted beside the label. */
   count?: "messages";
   /**
@@ -373,16 +371,36 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           label: m.navHome,
           icon: House,
           exact: true,
-          young: true,
         },
-        { to: "/me/assignments", label: m.navToDo, icon: ListTodo },
-        { to: "/me/grades", label: m.navGrades, icon: BookOpen },
-        { to: "/me/attendance", label: m.navAttendance, icon: UserCheck },
-        { to: "/me/timetable", label: m.navTimetable, icon: Table2 },
+        {
+          to: "/me/assignments",
+          label: m.navToDo,
+          icon: ListTodo,
+          capability: "own-work:read",
+        },
+        {
+          to: "/me/grades",
+          label: m.navGrades,
+          icon: BookOpen,
+          capability: "grades:read",
+        },
+        {
+          to: "/me/attendance",
+          label: m.navAttendance,
+          icon: UserCheck,
+          capability: "attendance:read",
+        },
+        {
+          to: "/me/timetable",
+          label: m.navTimetable,
+          icon: Table2,
+          capability: "timetable:read",
+        },
         {
           to: "/me/modules",
           label: m.navModules,
           icon: Layers,
+          capability: "learning:read",
         },
       ],
     },
@@ -395,10 +413,16 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           label: m.navMessages,
           icon: Inbox,
           count: "messages",
+          capability: "messages:read",
         },
         { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
         { to: "/news", label: m.navNews, icon: Newspaper },
-        { to: "/calendar", label: m.navCalendar, icon: CalendarDays },
+        {
+          to: "/calendar",
+          label: m.navCalendar,
+          icon: CalendarDays,
+          capability: "calendar:read",
+        },
       ],
     },
   ],
