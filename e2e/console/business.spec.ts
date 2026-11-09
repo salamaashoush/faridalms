@@ -334,9 +334,13 @@ test("a group set up as a draft is left, resumed, and finished after a refusal",
   await expect(page.getByRole("form", { name: "Plan" })).toBeVisible();
   await page.getByRole("button", { name: "Save and continue" }).click();
 
+  // Each host is added in its own sheet and saved to the draft at once.
   const addresses = page.getByRole("form", { name: "Addresses" });
-  await addresses.getByRole("button", { name: "Add a host" }).click();
-  await addresses.getByLabel("Hostname").fill(taken);
+  await addresses.getByRole("button", { name: "Add host" }).click();
+  const adding = page.getByRole("form", { name: "Add a host" });
+  await adding.getByLabel("Hostname").fill(taken);
+  await adding.getByRole("button", { name: "Add host" }).click();
+  await expect(page.getByText("Host added.")).toBeVisible();
   await addresses.getByRole("button", { name: "Save and continue" }).click();
 
   const people = page.getByRole("form", { name: "People" });
@@ -367,7 +371,11 @@ test("a group set up as a draft is left, resumed, and finished after a refusal",
 
   // The host is changed and creating resumes where it stopped.
   await page.getByRole("link", { name: "4. Addresses" }).click();
-  await addresses.getByLabel("Hostname").fill(`www.${slug}-east.example.com`);
+  await addresses.getByRole("button", { name: `Edit ${taken}` }).click();
+  const changing = page.getByRole("form", { name: `Edit ${taken}` });
+  await changing.getByLabel("Hostname").fill(`www.${slug}-east.example.com`);
+  await changing.getByRole("button", { name: "Save host" }).click();
+  await expect(page.getByText("Host saved.")).toBeVisible();
   await addresses.getByRole("button", { name: "Save and continue" }).click();
   await page.getByRole("link", { name: "6. Review" }).click();
   await page
