@@ -4,7 +4,12 @@ import { plainContent } from "@faridalms/domain/content-conversion";
 import { expect, test } from "@playwright/test";
 
 import { apiAs } from "./fixtures/api";
-import { openWith, signIn, untilHydrated } from "./fixtures/sign-in";
+import {
+  chooseFromMenu,
+  openWith,
+  signIn,
+  untilHydrated,
+} from "./fixtures/sign-in";
 
 async function fillNames(
   scope: Locator,
@@ -47,28 +52,18 @@ test("class forms explain invalid fields, recover on correction and protect unsa
   await code.fill(`S-${crypto.randomUUID().slice(0, 8)}`);
   await expect(code).not.toHaveAttribute("aria-invalid", "true");
 
-  const subject = async (number: number, name: string) => {
-    await page
-      .getByRole("group", { name: `Subject ${number}`, exact: true })
-      .getByRole("combobox", { name: /^Subject(?! teacher)/ })
-      .click();
-    await page.getByRole("option", { name, exact: true }).click();
-  };
+  // A subject the class already has is not offered again, so it cannot be
+  // added twice.
   const addSubject = page.getByRole("button", {
     name: "Add subject",
     exact: true,
   });
-  await addSubject.click();
-  await subject(1, "Mathematics");
-  await addSubject.click();
-  await subject(2, "Mathematics");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  const twice = page.getByText("Each subject can be added once.", {
-    exact: true,
-  });
-  await expect(twice).toBeVisible();
-  await subject(2, "Arabic");
-  await expect(twice).toHaveCount(0);
+  const offered = (name: string) =>
+    page.getByRole("menuitem", { name, exact: true });
+  await chooseFromMenu(addSubject, offered("Mathematics"));
+  await openWith(addSubject, offered("Arabic"));
+  await expect(offered("Mathematics")).toHaveCount(0);
+  await offered("Arabic").click();
 
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   const leave = page.getByRole("dialog", {
