@@ -223,7 +223,7 @@ export function PlanForm({
         <BasicsFields basics={basics} newOne={!from} submitted={submitted} />
       </FormSection>
       <FormSection title="Prices">
-        <PriceFields drafts={prices} onChange={setPrices} />
+        <PriceFields drafts={prices} onChange={setPrices} checked={submitted} />
       </FormSection>
       <FormSection title="Modules">
         <ModuleFields modules={modules} onChange={setModules} labelHidden />
@@ -389,7 +389,7 @@ export function AddOnForm({
         ) : null}
       </FormSection>
       <FormSection title="Prices">
-        <PriceFields drafts={prices} onChange={setPrices} />
+        <PriceFields drafts={prices} onChange={setPrices} checked={submitted} />
       </FormSection>
       <WhyField
         value={basics.reason}

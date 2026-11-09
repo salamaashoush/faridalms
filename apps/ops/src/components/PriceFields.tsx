@@ -3,12 +3,18 @@ import type {
   Price,
   PriceUnit,
 } from "@faridalms/domain/subscriptions";
+import type { GridColumn } from "@faridalms/ui/system/data-grid";
 
 import { CURRENCIES, PRICE_UNITS } from "@faridalms/domain/subscriptions";
-import { Button } from "@faridalms/ui/button";
+import {
+  DataGrid,
+  GridAddButton,
+  GridRemoveButton,
+  NumberCell,
+  SelectCell,
+  useFocusAfterRender,
+} from "@faridalms/ui/system/data-grid";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
-import { SelectField, TextField } from "@faridalms/ui/system/form-field";
-import { Plus } from "lucide-react";
 
 import { formatMoney, minorOf } from "../format";
 
@@ -65,106 +71,168 @@ const UNIT_OPTIONS = PRICE_UNITS.map((unit) => ({
   label: UNIT_NAMES[unit],
 }));
 
+const priceCell = (index: number, field: string) => `price-${index}-${field}`;
+
+const figureOf = (text: string) => {
+  const value = Number(text);
+  return text.trim() === "" || !Number.isFinite(value) ? null : value;
+};
+
+const written = (value: number | null) =>
+  value === null ? "" : value.toFixed(2);
+
+interface PriceGridOptions {
+  drafts: PriceDraft[];
+  set: (index: number, change: Partial<PriceDraft>) => void;
+  remove: (index: number) => void;
+}
+
+function priceGrid({ drafts, set, remove }: PriceGridOptions) {
+  const at = (draft: PriceDraft) => drafts.indexOf(draft);
+  const name = (draft: PriceDraft) => `price ${at(draft) + 1}`;
+  const rowHeader = {
+    header: "Currency",
+    cell: (draft: PriceDraft) => (
+      <SelectCell
+        id={priceCell(at(draft), "currency")}
+        label={`Currency, ${name(draft)}`}
+        value={draft.currency}
+        options={CURRENCY_OPTIONS}
+        size="code"
+        onChange={(currency) => set(at(draft), { currency })}
+      />
+    ),
+  };
+  const columns: GridColumn<PriceDraft>[] = [
+    {
+      id: "unit",
+      header: "Charged",
+      cell: (draft) => (
+        <SelectCell
+          id={priceCell(at(draft), "unit")}
+          label={`Charged, ${name(draft)}`}
+          value={draft.unit}
+          options={UNIT_OPTIONS}
+          onChange={(unit) => set(at(draft), { unit })}
+        />
+      ),
+    },
+    {
+      id: "amount",
+      header: "Amount",
+      numeric: true,
+      cell: (draft) => (
+        <NumberCell
+          id={priceCell(at(draft), "amount")}
+          label={`Amount, ${name(draft)}`}
+          decimals={2}
+          placeholder="350.00"
+          value={figureOf(draft.amount)}
+          onChange={(amount) => set(at(draft), { amount: written(amount) })}
+        />
+      ),
+    },
+    {
+      id: "minimum",
+      header: "At least",
+      numeric: true,
+      cell: (draft) => (
+        <NumberCell
+          id={priceCell(at(draft), "minimum")}
+          label={`Least a year, ${name(draft)}`}
+          decimals={2}
+          placeholder="None"
+          value={figureOf(draft.minimum)}
+          onChange={(minimum) => set(at(draft), { minimum: written(minimum) })}
+        />
+      ),
+    },
+  ];
+  const rowEnd = (draft: PriceDraft) => (
+    <GridRemoveButton
+      label={`Remove ${name(draft)}`}
+      onRemove={() => remove(at(draft))}
+    />
+  );
+  return { rowHeader, columns, rowEnd };
+}
+
 export interface PriceFieldsProps {
   drafts: PriceDraft[];
   onChange: (drafts: PriceDraft[]) => void;
+  /** Save was tried: a price with no amount shows on its cell. */
+  checked?: boolean;
 }
 
 /**
- * List prices, each a group of its own: currency and unit, the amount, and
- * the least a school pays a year. A heading above names the list, so its
- * legend is for screen readers.
+ * List prices as rows: currency and unit, the amount, and the least a
+ * school pays a year, each removed by its own button.
  */
-export function PriceFields({ drafts, onChange }: PriceFieldsProps) {
+export function PriceFields({
+  drafts,
+  onChange,
+  checked = false,
+}: PriceFieldsProps) {
+  const focusLater = useFocusAfterRender();
   const set = (index: number, change: Partial<PriceDraft>) =>
     onChange(
       drafts.map((draft, at) =>
         at === index ? { ...draft, ...change } : draft,
       ),
     );
+  const add = (
+    <GridAddButton
+      label="Add a price"
+      onAdd={() => {
+        onChange([
+          ...drafts,
+          {
+            currency: drafts[0]?.currency ?? "EGP",
+            unit: "student_year",
+            amount: "",
+            minimum: "",
+          },
+        ]);
+        focusLater(priceCell(drafts.length, "amount"));
+      }}
+    />
+  );
+  if (drafts.length === 0)
+    return (
+      <EmptyState
+        placement="section"
+        title="No list price: each contract sets its own."
+        action={add}
+      />
+    );
   return (
-    <fieldset className="grid min-w-0 gap-3">
-      <legend className="sr-only">Prices</legend>
-      {drafts.length === 0 ? (
-        <EmptyState
-          placement="section"
-          title="No list price: each contract sets its own."
-        />
-      ) : null}
-      {drafts.map((draft, index) => (
-        <fieldset
-          key={index}
-          className="grid min-w-0 gap-4 rounded-lg border px-4 pt-2 pb-4"
-        >
-          <legend className="sr-only">Price {index + 1}</legend>
-          <div className="flex min-h-8 items-center justify-between gap-2">
-            <span aria-hidden className="text-sm leading-5 font-medium">
-              Price {index + 1}
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="-me-2 text-muted-foreground"
-              aria-label={`Remove price ${index + 1}`}
-              onClick={() => onChange(drafts.filter((_, at) => at !== index))}
-            >
-              Remove
-            </Button>
-          </div>
-          <div className="grid grid-cols-[7rem_minmax(0,1fr)] items-start gap-4">
-            <SelectField
-              label="Currency"
-              value={draft.currency}
-              options={CURRENCY_OPTIONS}
-              onChange={(currency) => set(index, { currency })}
-            />
-            <SelectField
-              label="Charged"
-              value={draft.unit}
-              options={UNIT_OPTIONS}
-              onChange={(unit) => set(index, { unit })}
-            />
-          </div>
-          <div className="grid grid-cols-2 items-start gap-4">
-            <TextField
-              label="Amount"
-              inputMode="decimal"
-              value={draft.amount}
-              placeholder="350.00"
-              onChange={(event) => set(index, { amount: event.target.value })}
-            />
-            <TextField
-              label="Least a year"
-              optional
-              inputMode="decimal"
-              value={draft.minimum}
-              placeholder="None"
-              onChange={(event) => set(index, { minimum: event.target.value })}
-            />
-          </div>
-        </fieldset>
-      ))}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="justify-self-start"
-        onClick={() =>
-          onChange([
-            ...drafts,
-            {
-              currency: drafts[0]?.currency ?? "EGP",
-              unit: "student_year",
-              amount: "",
-              minimum: "",
-            },
-          ])
-        }
-      >
-        <Plus aria-hidden />
-        Add a price
-      </Button>
-    </fieldset>
+    <DataGrid<PriceDraft>
+      caption="Prices"
+      editing
+      surface="sheet"
+      {...priceGrid({
+        drafts,
+        set,
+        remove: (index) => onChange(drafts.filter((_, at) => at !== index)),
+      })}
+      groups={[{ id: "prices", title: "", rows: drafts }]}
+      rowKey={(draft) => `price-${drafts.indexOf(draft)}`}
+      issues={
+        checked
+          ? drafts.flatMap((draft, index) =>
+              minorOf(draft.amount) === null
+                ? [
+                    {
+                      target: priceCell(index, "amount"),
+                      label: `Price ${index + 1}`,
+                      message: "Give it an amount, or remove it.",
+                    },
+                  ]
+                : [],
+            )
+          : []
+      }
+      footer={add}
+    />
   );
 }
