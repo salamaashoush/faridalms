@@ -505,11 +505,11 @@ focused, and the same figures always stand in a table beside the chart.
 
 ## Empty states
 
-Something that has nothing in it says so in one of four ways, chosen by
-where it stands and why it is empty, never drawn by hand. Polaris keeps
+Something that has nothing in it says so in one of the ways below,
+chosen by where it stands and why it is empty, never drawn by hand. Polaris keeps
 its empty state for a whole page and says less inside a card; Carbon
 separates large spaces from small tiles and panels, and first use from
-no results and from what a person may not see; Primer gives each one
+no results and from what a person may not see; Primer gives each a
 short title, one line of what happens next and at most one action.
 
 | Kind                                          | Draw it with                                       |
@@ -524,15 +524,15 @@ short title, one line of what happens next and at most one action.
 - **Page.** The area a page's or tab's list would fill: a 40px round icon
   of the thing the list holds in muted ink, the title at 16/24 semibold as
   the area's heading, one sentence at 14/20 muted, and the one action that
-  fills it as a primary button, all centred in a dashed card 64px tall
-  above and below. A table, a grid and a board draw it through their
-  `empty`; nothing else draws a framed empty box.
+  fills it as a primary button, centred in a dashed card with 64px above
+  and below. A table, a grid and a board draw it through their `empty`,
+  any other page area with `EmptyState`.
 - **Section.** Inside anything with its own heading (a `RecordSection`, a
   `SettingsSection`, a `PanelGroup`, a home card) the heading already names
   what is missing, so the empty state is a line: the title at 14/20 muted,
   start-aligned, an optional sentence under it at 13/18, and its action
-  below them. No icon of the thing, no frame, no
-  centring: a box inside a box is the inconsistency this rule removes.
+  below them. No icon of the thing, no frame, no centring: a box inside
+  a box is the inconsistency this rule removes.
   Those containers wrap their content in `EmptyStateScope`, so an
   `EmptyState` or a `DataTable` inside them draws as a section by itself;
   a sheet, a popover, a split pane or a block in a lesson says
