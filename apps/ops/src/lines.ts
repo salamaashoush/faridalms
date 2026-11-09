@@ -73,6 +73,48 @@ function priceOf(typed: string): number | null {
   return minor !== null && minor <= MOST_MINOR ? minor : null;
 }
 
+/** A priced line's figures as an operator types them. */
+export interface FigureDraft {
+  quantity: string;
+  price: string;
+  discount: string;
+}
+
+/** The figures read, or what is wrong with which of them. */
+export type ReadFigures =
+  | {
+      ok: true;
+      quantity: number;
+      unitPriceMinor: number;
+      discountPercent: number;
+    }
+  | { ok: false; errors: Partial<Record<keyof FigureDraft, string>> };
+
+/**
+ * A whole quantity from 1, a price, and a discount from 0 to 100, as an
+ * invoice line, a quote's add-on and a quote's plan take them.
+ */
+export function readFigures(draft: FigureDraft): ReadFigures {
+  const quantity = quantityOf(draft.quantity);
+  const unitPriceMinor = priceOf(draft.price);
+  const discountPercent = discountOf(draft.discount);
+  if (quantity !== null && unitPriceMinor !== null && discountPercent !== null)
+    return { ok: true, quantity, unitPriceMinor, discountPercent };
+  const errors: Partial<Record<keyof FigureDraft, string>> = {};
+  if (quantity === null)
+    errors.quantity = "Give a whole number from 1 to 1,000,000.";
+  if (unitPriceMinor === null) errors.price = "Give its unit price.";
+  if (discountPercent === null)
+    errors.discount = "Give a discount between 0 and 100.";
+  return { ok: false, errors };
+}
+
+/** What the figures come to after the discount, once they can be read. */
+export function figuresNet(draft: FigureDraft): number | null {
+  const read = readFigures(draft);
+  return read.ok ? netMinor(read) : null;
+}
+
 /**
  * A line as the server takes it, or what stops it, by the rules of
  * `invoiceLineSchema`: both descriptions, a whole quantity from 1, a
@@ -85,26 +127,15 @@ export function readLine(draft: LineDraft): ReadLine {
   const descriptionAr = draft.descriptionAr.trim();
   if (!descriptionEn) errors.descriptionEn = "Describe it in English.";
   if (!descriptionAr) errors.descriptionAr = "Describe it in Arabic.";
-  const quantity = quantityOf(draft.quantity);
-  if (quantity === null)
-    errors.quantity = "Give a whole number from 1 to 1,000,000.";
-  const unitPriceMinor = priceOf(draft.price);
-  if (unitPriceMinor === null) errors.price = "Give its unit price.";
-  const discountPercent = discountOf(draft.discount);
-  if (discountPercent === null)
-    errors.discount = "Give a discount between 0 and 100.";
+  const figures = readFigures(draft);
+  if (!figures.ok) Object.assign(errors, figures.errors);
   if (
     draft.periodStart &&
     draft.periodEnd &&
     draft.periodEnd < draft.periodStart
   )
     errors.periodEnd = "End it on or after the day it starts.";
-  if (
-    quantity === null ||
-    unitPriceMinor === null ||
-    discountPercent === null ||
-    Object.keys(errors).length > 0
-  )
+  if (!figures.ok || Object.keys(errors).length > 0)
     return { ok: false, errors };
   return {
     ok: true,
@@ -114,22 +145,15 @@ export function readLine(draft: LineDraft): ReadLine {
       itemCode: draft.itemCode.trim() || null,
       periodStart: draft.periodStart || null,
       periodEnd: draft.periodEnd || null,
-      quantity,
-      unitPriceMinor,
-      discountPercent,
+      quantity: figures.quantity,
+      unitPriceMinor: figures.unitPriceMinor,
+      discountPercent: figures.discountPercent,
     },
   };
 }
 
 /** What a line comes to after its discount, once its figures can be read. */
-export function draftNet(draft: LineDraft): number | null {
-  const quantity = quantityOf(draft.quantity);
-  const unitPriceMinor = priceOf(draft.price);
-  const discountPercent = discountOf(draft.discount);
-  if (quantity === null || unitPriceMinor === null || discountPercent === null)
-    return null;
-  return netMinor({ quantity, unitPriceMinor, discountPercent });
-}
+export const draftNet = (draft: LineDraft): number | null => figuresNet(draft);
 
 /** Only the fields a line is saved with. */
 export const plainLine = (line: InvoiceLine): InvoiceLine => ({

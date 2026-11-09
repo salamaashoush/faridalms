@@ -1,7 +1,14 @@
 import { businessToday } from "@faridalms/domain/subscriptions";
 import { expect, test } from "@playwright/test";
 
-import { addPlan, choose, OWNER, signInAs, unique } from "../fixtures/console";
+import {
+  addPlan,
+  choose,
+  hydrated,
+  OWNER,
+  signInAs,
+  unique,
+} from "../fixtures/console";
 import { BARE, PASSWORD, portal, signInWith } from "../fixtures/sign-in";
 
 // The business's details and VAT come first: the quotes below print them.
@@ -190,4 +197,68 @@ test("a school's administrator asks about a module its plan does not have, and t
     .first();
   await lead.getByRole("link").click();
   await expect(page.getByText(/asked about Coding and blocks/i)).toBeVisible();
+});
+
+test("a quote sells add-ons, each chosen and priced in its own sheet", async ({
+  page,
+}) => {
+  await signInAs(page, OWNER);
+  await page.goto("/catalogue");
+  const menu = page.getByRole("button", { name: "More actions" });
+  await hydrated(menu);
+  await menu.click();
+  await page.getByRole("menuitem", { name: "New add-on" }).click();
+  const addOn = page.getByRole("form", { name: "New add-on" });
+  const addOnName = `Tutoring ${unique()}`;
+  await addOn.getByLabel("Code").fill(`e2e_${unique()}`);
+  await addOn.getByLabel("Name in English").fill(addOnName);
+  await addOn.getByLabel("Name in Arabic").fill("الدروس");
+  await choose(addOn, "Kind", "Service");
+  await addOn.getByRole("button", { name: "Add price" }).click();
+  const price = page.getByRole("form", { name: "Add a price" });
+  await choose(price, "Charged", "per school a year");
+  await price.getByLabel("Amount (EGP)").fill("1200");
+  await price.getByRole("button", { name: "Add price" }).click();
+  await addOn.getByLabel("Why").fill("Sold beside the plan");
+  await addOn.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Add-on saved.")).toBeVisible();
+
+  await page.goto("/customers");
+  await page.getByRole("button", { name: "New customer" }).click();
+  const customer = page.getByRole("form", { name: "New customer" });
+  const name = `Rowan ${unique()}`;
+  await customer.getByLabel("Legal name in English").fill(name);
+  await customer.getByLabel("Why").fill("Asked for tutoring");
+  await customer.getByRole("button", { name: "Create customer" }).click();
+  await expect(page.getByRole("heading", { name })).toBeVisible();
+  const customerId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+
+  await page.goto(`/quotes/new?customerId=${customerId}`);
+  const quote = page.getByRole("form", { name: "Quote" });
+  await quote.getByRole("button", { name: "Add add-on" }).click();
+  const adding = page.getByRole("form", { name: "Add an add-on" });
+  await choose(adding, "Add-on", `${addOnName} version 1`);
+  await expect(adding.getByLabel("Unit price (EGP)")).toHaveValue("1200.00");
+  await adding.getByLabel("Quantity").fill("2");
+  await adding.getByLabel("Discount (%)").fill("25");
+  // 2 at 1,200.00 less 25% is 1,800.00.
+  await expect(adding).toContainText("EGP 1,800.00");
+  await adding.getByRole("button", { name: "Add add-on" }).click();
+  const addOns = quote.getByRole("table", { name: "Add-ons" });
+  const row = addOns.getByRole("row", { name: new RegExp(addOnName) });
+  await expect(row).toContainText("EGP 1,800.00");
+  await addOns
+    .getByRole("button", { name: `Edit ${addOnName} version 1` })
+    .click();
+  const changing = page.getByRole("form", {
+    name: `Edit ${addOnName} version 1`,
+  });
+  await changing.getByLabel("Discount (%)").fill("0");
+  await changing.getByRole("button", { name: "Save add-on" }).click();
+  await expect(row).toContainText("EGP 2,400.00");
+  await quote.getByRole("button", { name: "Save the quote" }).click();
+  // 2,400.00 and 14% VAT makes 2,736.00.
+  const document = page.getByRole("article", { name: /^Quote Q-/ });
+  await expect(document).toContainText(addOnName);
+  await expect(document).toContainText("2,736.00");
 });

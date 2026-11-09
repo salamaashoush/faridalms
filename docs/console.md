@@ -161,6 +161,14 @@ total under them, so what will be issued is checked before it is saved.
 The lines are kept on the page until Save the draft, which opens the
 draft.
 
+A quote, new or changed, is a form at the form width: what is sold (the
+currency, how long it stands, the plan with its quantity, unit price and
+discount), its add-ons as a table (each add-on, quantity, unit price,
+discount when one has one, and net) with Add add-on, an add-on's row or
+its Edit opening that one in a sheet that starts at its list price in the
+quote's currency, then the term and the notes. The quote saves as a
+whole, since changing a sent one makes a new version.
+
 Credit it opens the credit note as a page at the form width (Stripe's,
 Chargebee's and Recurly's credit notes all start from the invoice): the
 lines it takes back as the same table, Take back a line (a menu of the
