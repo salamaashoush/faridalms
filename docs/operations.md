@@ -247,6 +247,18 @@ directory lists as open; the `migrate` job lists its own cell, once, from
 `CELL_REGION` default to `self-hosted` and `default`), and leaves a row
 already there as it is.
 
+`demo --slug <code>` fills a school created empty (no year yet) for showing
+the product: staff, two classes of twenty in each grade from KG2 to grade 9
+with their families, a timetable, coursework, registers up to yesterday,
+messages, news, admissions and enquiries. A website the school already has
+stays as it is. Every login it makes shares `DEMO_PASSWORD` (at least 12
+characters, passed in the environment:
+`DEMO_PASSWORD=... docker compose run --rm -e DEMO_PASSWORD admin demo --slug demo`)
+and is named at `--domain`, `<code>.example.com` unless given. None has an
+email contact, and no seeded phone takes SMS, so nothing done in the
+demonstration sends a message off the platform. A school that already has a
+year is refused, so it cannot run twice.
+
 Locally, `bun install` generates `PROVISION_SECRET` and `.env.example` sets
 `CELL_PROVISION_URL`, so `bun run dev` starts the provisioner on
 127.0.0.1:3005; run the console with `PROVISION_URL=http://127.0.0.1:3005`

@@ -26,10 +26,14 @@ const settings = v.object({
   EMAIL_FROM: v.optional(v.string()),
   EMAIL_WEBHOOK_URL: v.optional(v.pipe(v.string(), v.url())),
   NOTIFY_WEBHOOK_TOKEN: v.optional(v.string()),
+  DEMO_PASSWORD: v.optional(v.string()),
 });
 
 export type AdminEnv = v.InferOutput<typeof settings>;
 
-/** What `admin.ts` needs: the provisioner's login, the directory's, and mail. */
+/**
+ * What `admin.ts` needs: the provisioner's login, the directory's, mail, and
+ * a demonstration's password.
+ */
 export const adminEnv = (): AdminEnv =>
   v.parse(settings, presentVariables(process.env));

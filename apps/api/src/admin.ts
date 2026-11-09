@@ -1,11 +1,13 @@
 /**
  * The operator console's two jobs from a shell on the server, for a cell run
- * without the console, as a self-hosted school's usually is:
+ * without the console, as a self-hosted school's usually is, and filling a
+ * demonstration school:
  *
  *   create-school  writes the school to the directory, creates it in the
  *                  cell with its first administrator, and sends that
  *                  administrator a link to choose a password
  *   invite         sends a school's administrator a new link
+ *   demo           fills a school created empty with a year in progress
  *
  * With compose: `docker compose run --rm admin create-school --help`.
  */
@@ -19,6 +21,7 @@ import {
   SlugTakenError,
 } from "@faridalms/database/directory/admin";
 import { openDirectory } from "@faridalms/database/directory/client";
+import { DemoRefusedError, seedDemoSchool } from "@faridalms/database/seed";
 import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
 import { BASIC_ENTITLEMENTS, settableOf } from "@faridalms/domain/plans";
 import { newSchoolSchema } from "@faridalms/domain/provisioning";
@@ -43,12 +46,19 @@ const USAGE = `Usage:
                 [--locale en|ar] [--jurisdiction <XX>] [--print-link]
                 [--modules all|<id,id,...>]
   invite --slug <code> [--email <administrator's email>] [--print-link]
+  demo --slug <code> [--domain <domain>]
 
 --print-link prints the email, with its link, instead of sending it: for a
 server with no email gateway, or to hand the link over yourself.
 
 --modules gives the school more than Basic: every module, or the ones named
-(${MODULE_IDS.join(", ")}).`;
+(${MODULE_IDS.join(", ")}).
+
+demo fills a school that has no year yet with staff, two classes in each
+grade from KG2 to grade 9 with their families, and the year so far. Every
+login it makes shares the password in DEMO_PASSWORD (at least 12
+characters), is named at --domain (default <code>.example.com, which takes
+no mail), and has no address the school can write to.`;
 
 /** Shows the message the administrator would have been sent. */
 const printer: Provider = {
@@ -139,6 +149,53 @@ function schoolFrom(
   return parsed.output;
 }
 
+async function demo(
+  flags: Record<string, string | boolean | undefined>,
+  env: AdminEnv,
+) {
+  const slug = typeof flags.slug === "string" ? flags.slug : "";
+  if (!slug) throw new UsageError("--slug is required");
+  const password = env.DEMO_PASSWORD ?? "";
+  if (password.length < 12)
+    throw new UsageError(
+      "DEMO_PASSWORD must hold the demonstration's password, at least 12 characters.",
+    );
+  const domain =
+    typeof flags.domain === "string" ? flags.domain : `${slug}.example.com`;
+  const owner = openOwner(env.CELL_PROVISION_URL);
+  const directory = openDirectory(env.DIRECTORY_URL);
+  try {
+    const school = await directory.bySlug(slug);
+    if (!school) throw new UsageError(`No school has the code ${slug}.`);
+    const logins = await seedDemoSchool(owner, {
+      kek: localKek(
+        new Uint8Array(Buffer.from(env.CELL_KEK, "base64")),
+        `local:${env.CELL_ID}`,
+      ),
+      cell: env.CELL_ID,
+      tenantId: school.tenantId,
+      schoolId: school.schoolId,
+      slug,
+      domain,
+      password,
+    });
+    console.info(
+      `Filled ${slug}, at https://${slug}.${env.PORTAL_DOMAIN}. Every login below shares DEMO_PASSWORD.`,
+    );
+    const shown = new Set<string>();
+    for (const login of logins)
+      if (!shown.has(login.role)) {
+        shown.add(login.role);
+        console.info(`  ${login.role.padEnd(12)} ${login.loginName}`);
+      }
+    console.info(
+      `  (${logins.length} logins in all, teacher1 to teacher${logins.filter((login) => login.role === "teacher").length})`,
+    );
+  } finally {
+    await Promise.all([owner.close(), directory.close()]);
+  }
+}
+
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
   const { values: flags } = parseArgs({
@@ -156,17 +213,25 @@ async function main() {
       locale: { type: "string" },
       jurisdiction: { type: "string" },
       modules: { type: "string" },
+      domain: { type: "string" },
       "print-link": { type: "boolean" },
       help: { type: "boolean" },
     },
   });
-  if (flags.help || (command !== "create-school" && command !== "invite")) {
+  if (
+    flags.help ||
+    (command !== "create-school" && command !== "invite" && command !== "demo")
+  ) {
     console.info(USAGE);
     process.exitCode = flags.help ? 0 : 2;
     return;
   }
 
   const env = adminEnv();
+  if (command === "demo") {
+    await demo(flags, env);
+    return;
+  }
   const mail = flags["print-link"] ? printer : emailGateway(env);
   if (!mail)
     throw new UsageError(
@@ -247,6 +312,9 @@ try {
   if (error instanceof UsageError) {
     console.error(`${error.message}\n\n${USAGE}`);
     process.exitCode = 2;
+  } else if (error instanceof DemoRefusedError) {
+    console.error(`Refused: ${error.message}`);
+    process.exitCode = 1;
   } else if (error instanceof SlugTakenError) {
     console.error(
       error.pending

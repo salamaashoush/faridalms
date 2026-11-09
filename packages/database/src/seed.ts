@@ -197,6 +197,83 @@ const MOTHERS: Name[] = [
   ["Ghada", "غادة"],
 ];
 
+interface Names {
+  girls: readonly Name[];
+  boys: readonly Name[];
+  families: readonly Name[];
+  mothers: readonly Name[];
+}
+
+const DEV_NAMES: Names = {
+  girls: GIRLS,
+  boys: BOYS,
+  families: FAMILIES,
+  mothers: MOTHERS,
+};
+
+// A demonstration school has hundreds of children; drawn from the short
+// lists alone, every class would hold the same few names twice.
+const DEMO_NAMES: Names = {
+  girls: [
+    ...GIRLS,
+    ["Habiba", "حبيبة"],
+    ["Lina", "لينا"],
+    ["Reem", "ريم"],
+    ["Nada", "ندى"],
+    ["Jomana", "جمانة"],
+    ["Sama", "سما"],
+    ["Layan", "ليان"],
+    ["Hagar", "هاجر"],
+    ["Yara", "يارا"],
+    ["Basmala", "بسملة"],
+    ["Rahma", "رحمة"],
+    ["Shahd", "شهد"],
+  ],
+  boys: [
+    ...BOYS,
+    ["Mohamed", "محمد"],
+    ["Ahmed", "أحمد"],
+    ["Mahmoud", "محمود"],
+    ["Ibrahim", "إبراهيم"],
+    ["Mazen", "مازن"],
+    ["Marwan", "مروان"],
+    ["Yassin", "ياسين"],
+    ["Malek", "مالك"],
+    ["Eyad", "إياد"],
+    ["Hazem", "حازم"],
+    ["Taha", "طه"],
+    ["Amr", "عمرو"],
+  ],
+  families: [
+    ...FAMILIES,
+    ["Abdelaziz", "عبدالعزيز"],
+    ["Gamal", "جمال"],
+    ["Shawky", "شوقي"],
+    ["Badawi", "بدوي"],
+    ["Ezzat", "عزت"],
+    ["Sharaf", "شرف"],
+    ["Lotfy", "لطفي"],
+    ["Ragab", "رجب"],
+    ["Soliman", "سليمان"],
+    ["Fouad", "فؤاد"],
+    ["Hegazy", "حجازي"],
+    ["Radwan", "رضوان"],
+  ],
+  mothers: [
+    ...MOTHERS,
+    ["Eman", "إيمان"],
+    ["Shaimaa", "شيماء"],
+    ["Marwa", "مروة"],
+    ["Nermeen", "نرمين"],
+    ["Doaa", "دعاء"],
+    ["Hala", "هالة"],
+    ["Reham", "ريهام"],
+    ["Inas", "إيناس"],
+    ["Abeer", "عبير"],
+    ["Nesma", "نسمة"],
+  ],
+};
+
 const DEV_PASSWORD = "farida-development-password";
 
 export interface SeedOptions {
@@ -314,7 +391,22 @@ const YEAR: YearPlan = {
   ],
 };
 
-async function seedYear(tx: Tx, tenantId: string, schoolId: string) {
+/** The dev schools' rooms, or rooms enough for a homeroom each. */
+function roomCodes(homerooms: number) {
+  if (homerooms <= 6) return ["101", "102", "103", "104", "201", "202"];
+  return Array.from(
+    { length: homerooms },
+    (_, index) =>
+      `${Math.floor(index / 10) + 1}${String((index % 10) + 1).padStart(2, "0")}`,
+  );
+}
+
+async function seedYear(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  homerooms: number,
+) {
   const events = await descriptorIds(tx, tenantId, "calendar_event");
   const [school] = await tx
     .select({ weekStart: orgs.weekStart, weekendDays: orgs.weekendDays })
@@ -414,27 +506,25 @@ async function seedYear(tx: Tx, tenantId: string, schoolId: string) {
     })),
   );
   await tx.insert(locations).values(
-    ["101", "102", "103", "104", "201", "202", "Lab 1", "Library"].map(
-      (code) => ({
-        tenantId,
-        orgId: schoolId,
-        kind: code.startsWith("Lab")
-          ? ("lab" as const)
-          : code === "Library"
-            ? ("library" as const)
-            : ("room" as const),
-        code: code.replace(" ", "-").toLowerCase(),
-        nameEn:
-          code.startsWith("Lab") || code === "Library" ? code : `Room ${code}`,
-        nameAr:
-          code === "Library"
-            ? "المكتبة"
-            : code.startsWith("Lab")
-              ? "المعمل 1"
-              : `الغرفة ${code}`,
-        capacity: code === "Library" ? 60 : 30,
-      }),
-    ),
+    [...roomCodes(homerooms), "Lab 1", "Library"].map((code) => ({
+      tenantId,
+      orgId: schoolId,
+      kind: code.startsWith("Lab")
+        ? ("lab" as const)
+        : code === "Library"
+          ? ("library" as const)
+          : ("room" as const),
+      code: code.replace(" ", "-").toLowerCase(),
+      nameEn:
+        code.startsWith("Lab") || code === "Library" ? code : `Room ${code}`,
+      nameAr:
+        code === "Library"
+          ? "المكتبة"
+          : code.startsWith("Lab")
+            ? "المعمل 1"
+            : `الغرفة ${code}`,
+      capacity: code === "Library" ? 60 : 30,
+    })),
   );
   return { yearId, calendarId };
 }
@@ -481,7 +571,7 @@ async function giveAccount(
   tenantId: string,
   userId: string,
   loginName: string,
-  passwordHash: string,
+  secret: { passwordHash: string; reachable: boolean },
 ) {
   const accountId = Bun.randomUUIDv7();
   await tx.insert(accounts).values({
@@ -496,7 +586,7 @@ async function giveAccount(
     accountId,
     kind: "password",
     loginName,
-    secretHash: passwordHash,
+    secretHash: secret.passwordHash,
     secretSetAt: new Date(),
     linkMethod: "admin",
   });
@@ -504,6 +594,7 @@ async function giveAccount(
     .update(users)
     .set({ username: loginName })
     .where(and(eq(users.tenantId, tenantId), eq(users.id, userId)));
+  if (!secret.reachable) return accountId;
   await tx.insert(contactPoints).values({
     tenantId,
     userId,
@@ -554,14 +645,39 @@ async function role(
 
 interface SchoolPlan {
   slug: string;
-  nameEn: string;
-  nameAr: string;
   grades: string[];
   studentsPerGrade: number;
+  /** Homerooms per grade, A, B and on; one unless given. */
+  sections?: number;
   basic?: boolean;
+  /** An admissions office with next year's intakes and applications. */
+  admissions?: boolean;
+}
+
+interface NamedSchoolPlan extends SchoolPlan {
+  nameEn: string;
+  nameAr: string;
 }
 
 const TAUGHT_SUBJECTS = ["arabic", "english", "mathematics", "science"];
+
+const SECTIONS: Name[] = [
+  ["A", "أ"],
+  ["B", "ب"],
+  ["C", "ج"],
+  ["D", "د"],
+];
+
+// The timetable rotates a homeroom's subjects one step on from the homeroom
+// before it, so a block of as many homerooms as there are subjects never
+// needs one subject at the same time twice. Each block has its own subject
+// teachers, and no teacher is ever in two rooms at once.
+const BLOCK = TAUGHT_SUBJECTS.length;
+
+/** Six teachers for a small school, or a subject teacher per block. */
+function teacherCount(homerooms: number) {
+  return Math.max(6, BLOCK * Math.ceil(homerooms / BLOCK));
+}
 
 /** "grade_7" is "7" and "kg2" is "KG2" in class codes and English titles. */
 function gradeShort(grade: string) {
@@ -577,9 +693,10 @@ function gradeShortAr(grade: string) {
 }
 
 /**
- * One homeroom per grade with its class teacher, and four subject classes
- * taught to it by subject specialists, so a teacher reaches only the grades
- * they teach. Students are enrolled in their grade's homeroom for the year.
+ * Homerooms for each grade with their class teachers, and four subject
+ * classes taught to each by subject specialists, so a teacher reaches only
+ * the grades they teach. Students are enrolled in their homeroom for the
+ * year; `pupils` holds each grade's students by section.
  */
 async function seedClasses(
   tx: Tx,
@@ -588,7 +705,7 @@ async function seedClasses(
   yearId: string,
   grades: readonly string[],
   teachers: readonly Person[],
-  pupils: ReadonlyMap<string, readonly string[]>,
+  pupils: ReadonlyMap<string, readonly (readonly string[])[]>,
 ) {
   const [gradeIds, subjectIds, positions] = await Promise.all([
     descriptorIds(tx, tenantId, "grade_level"),
@@ -606,84 +723,95 @@ async function seedClasses(
     if (!teacher) throw new Error("no seeded teacher");
     return teacher;
   };
-  for (const [gradeIndex, grade] of grades.entries()) {
+  let homeroomIndex = 0;
+  for (const grade of grades) {
     const short = gradeShort(grade);
-    const homeroomId = Bun.randomUUIDv7();
-    await tx.insert(classes).values({
-      tenantId,
-      id: homeroomId,
-      orgId: schoolId,
-      schoolYearId: yearId,
-      classType: "homeroom",
-      code: `${short}-A`,
-      titleEn: `${short}A`,
-      titleAr: `${gradeShortAr(grade)} أ`,
-      gradeLevelDescriptorId: need(gradeIds, grade),
-    });
-    const homeroom = {
-      tenantId,
-      classId: homeroomId,
-      classType: "homeroom" as const,
-      schoolYearId: yearId,
-      orgId: schoolId,
-      validDuring: span,
-      source: "manual" as const,
-    };
-    await tx.insert(enrollments).values([
-      {
-        ...homeroom,
-        userId: teacherOf(gradeIndex).id,
-        role: "teacher",
-        isPrimary: true,
-        classroomPositionDescriptorId: need(positions, "teacher_of_record"),
-      },
-      ...(pupils.get(grade) ?? []).map((userId) => ({
-        ...homeroom,
-        userId,
-        role: "student" as const,
-      })),
-    ]);
-    for (const [subjectIndex, subject] of TAUGHT_SUBJECTS.entries()) {
-      const names = subjectNames.get(subject);
-      const courseId = Bun.randomUUIDv7();
-      await tx.insert(courses).values({
-        tenantId,
-        id: courseId,
-        orgId: schoolId,
-        code: `${subject.toUpperCase().slice(0, 4)}-${short}`,
-        titleEn: `${names?.en ?? subject} ${short}`,
-        titleAr: `${names?.ar ?? subject} ${gradeShortAr(grade)}`,
-        subjectDescriptorId: need(subjectIds, subject),
-        gradeLevelDescriptorId: need(gradeIds, grade),
-      });
-      const classId = Bun.randomUUIDv7();
+    const courseIds = new Map<string, string>();
+    for (const [section, students] of (pupils.get(grade) ?? [[]]).entries()) {
+      const [letter, letterAr] = SECTIONS[section] ?? ["A", "أ"];
+      const block = Math.floor(homeroomIndex / BLOCK);
+      const homeroomId = Bun.randomUUIDv7();
       await tx.insert(classes).values({
         tenantId,
-        id: classId,
+        id: homeroomId,
         orgId: schoolId,
         schoolYearId: yearId,
-        classType: "scheduled",
-        code: `${short}-A-${subject.toUpperCase().slice(0, 4)}`,
-        titleEn: `${short}A ${names?.en ?? subject}`,
-        titleAr: `${gradeShortAr(grade)} أ ${names?.ar ?? subject}`,
-        courseId,
-        homeroomClassId: homeroomId,
-        subjectDescriptorId: need(subjectIds, subject),
+        classType: "homeroom",
+        code: `${short}-${letter}`,
+        titleEn: `${short}${letter}`,
+        titleAr: `${gradeShortAr(grade)} ${letterAr}`,
         gradeLevelDescriptorId: need(gradeIds, grade),
       });
-      await tx.insert(enrollments).values({
+      const homeroom = {
         tenantId,
-        classId,
-        classType: "scheduled",
+        classId: homeroomId,
+        classType: "homeroom" as const,
         schoolYearId: yearId,
         orgId: schoolId,
-        userId: teacherOf(subjectIndex + 1).id,
-        role: "teacher",
-        isPrimary: true,
-        classroomPositionDescriptorId: need(positions, "teacher_of_record"),
         validDuring: span,
-        source: "manual",
-      });
+        source: "manual" as const,
+      };
+      await tx.insert(enrollments).values([
+        {
+          ...homeroom,
+          userId: teacherOf(homeroomIndex).id,
+          role: "teacher",
+          isPrimary: true,
+          classroomPositionDescriptorId: need(positions, "teacher_of_record"),
+        },
+        ...students.map((userId) => ({
+          ...homeroom,
+          userId,
+          role: "student" as const,
+        })),
+      ]);
+      for (const [subjectIndex, subject] of TAUGHT_SUBJECTS.entries()) {
+        const names = subjectNames.get(subject);
+        let courseId = courseIds.get(subject);
+        if (!courseId) {
+          courseId = Bun.randomUUIDv7();
+          await tx.insert(courses).values({
+            tenantId,
+            id: courseId,
+            orgId: schoolId,
+            code: `${subject.toUpperCase().slice(0, 4)}-${short}`,
+            titleEn: `${names?.en ?? subject} ${short}`,
+            titleAr: `${names?.ar ?? subject} ${gradeShortAr(grade)}`,
+            subjectDescriptorId: need(subjectIds, subject),
+            gradeLevelDescriptorId: need(gradeIds, grade),
+          });
+          courseIds.set(subject, courseId);
+        }
+        const classId = Bun.randomUUIDv7();
+        await tx.insert(classes).values({
+          tenantId,
+          id: classId,
+          orgId: schoolId,
+          schoolYearId: yearId,
+          classType: "scheduled",
+          code: `${short}-${letter}-${subject.toUpperCase().slice(0, 4)}`,
+          titleEn: `${short}${letter} ${names?.en ?? subject}`,
+          titleAr: `${gradeShortAr(grade)} ${letterAr} ${names?.ar ?? subject}`,
+          courseId,
+          homeroomClassId: homeroomId,
+          subjectDescriptorId: need(subjectIds, subject),
+          gradeLevelDescriptorId: need(gradeIds, grade),
+        });
+        await tx.insert(enrollments).values({
+          tenantId,
+          classId,
+          classType: "scheduled",
+          schoolYearId: yearId,
+          orgId: schoolId,
+          userId: teacherOf(subjectIndex + 1 + block * BLOCK).id,
+          role: "teacher",
+          isPrimary: true,
+          classroomPositionDescriptorId: need(positions, "teacher_of_record"),
+          validDuring: span,
+          source: "manual",
+        });
+      }
+      homeroomIndex += 1;
     }
   }
 }
@@ -912,7 +1040,7 @@ async function seedCoursework(
           schoolYearId: yearId,
           gradingPeriodId: term.id,
           studentUserId,
-          score: 70 + position * 4,
+          score: 70 + ((position * 4) % 30),
           recordedByUserId: offering.teacher_id,
           releasedAt: new Date("2026-09-26T10:00:00Z"),
         })),
@@ -922,11 +1050,16 @@ async function seedCoursework(
 
 async function seedSchool(
   tx: Tx,
-  tenant: ProvisionedTenant,
+  tenantId: string,
   schoolId: string,
   plan: SchoolPlan,
   context: {
     passwordHash: string;
+    /** Whether a seeded login is also an address the school writes to. */
+    reachable: boolean;
+    names: Names;
+    /** The last day whose registers are taken, YYYY-MM-DD. */
+    attendanceUntil: string;
     next: () => number;
     kek: KeyEncryptionKey;
     cell: string;
@@ -943,8 +1076,9 @@ async function seedSchool(
     };
   },
 ) {
-  const { tenantId } = tenant;
-  const { next } = context;
+  const { next, names } = context;
+  const sections = plan.sections ?? 1;
+  const homerooms = plan.grades.length * sections;
   const pick = <T>(list: readonly T[]): T => {
     const value = list[Math.floor(next() * list.length)];
     if (value === undefined) throw new Error("empty list");
@@ -956,14 +1090,19 @@ async function seedSchool(
     update core.orgs set email = ${`office@${context.domain}`},
       phone = ${"+20 2 2735 0100"}
     where tenant_id = ${tenantId}::uuid and id = ${schoolId}::uuid`);
-  const { yearId, calendarId } = await seedYear(tx, tenantId, schoolId);
+  const { yearId, calendarId } = await seedYear(
+    tx,
+    tenantId,
+    schoolId,
+    homerooms,
+  );
   const positions = await descriptorIds(tx, tenantId, "staff_position");
   const grades = await descriptorIds(tx, tenantId, "grade_level");
   const relations = await descriptorIds(tx, tenantId, "relation");
   const entries = await descriptorIds(tx, tenantId, "school_entry_type");
   const idSystems = await descriptorIds(tx, tenantId, "external_id_system");
 
-  const principal = person(pick(MOTHERS), pick(FAMILIES), "female");
+  const principal = person(pick(names.mothers), pick(names.families), "female");
   await insertPerson(tx, tenantId, principal, { primaryOrgId: schoolId });
   await role(
     tx,
@@ -978,20 +1117,14 @@ async function seedSchool(
     },
   );
   const principalLogin = `principal.${plan.slug}@${context.domain}`;
-  await giveAccount(
-    tx,
-    tenantId,
-    principal.id,
-    principalLogin,
-    context.passwordHash,
-  );
+  await giveAccount(tx, tenantId, principal.id, principalLogin, context);
   context.logins.push({
     role: "principal",
     loginName: principalLogin,
     schoolId,
   });
 
-  const office = person(pick(BOYS), pick(FAMILIES), "male");
+  const office = person(pick(names.boys), pick(names.families), "male");
   await insertPerson(tx, tenantId, office, { primaryOrgId: schoolId });
   await role(
     tx,
@@ -1006,15 +1139,15 @@ async function seedSchool(
     },
   );
   const officeLogin = `office.${plan.slug}@${context.domain}`;
-  await giveAccount(tx, tenantId, office.id, officeLogin, context.passwordHash);
+  await giveAccount(tx, tenantId, office.id, officeLogin, context);
   context.logins.push({ role: "staff", loginName: officeLogin, schoolId });
 
   const teachers: Person[] = [];
-  for (let index = 0; index < 6; index += 1) {
+  for (let index = 0; index < teacherCount(homerooms); index += 1) {
     const sex = index % 2 === 0 ? "female" : "male";
     const teacher = person(
-      pick(sex === "female" ? MOTHERS : BOYS),
-      pick(FAMILIES),
+      pick(sex === "female" ? names.mothers : names.boys),
+      pick(names.families),
       sex,
     );
     await insertPerson(tx, tenantId, teacher, { primaryOrgId: schoolId });
@@ -1031,7 +1164,7 @@ async function seedSchool(
       },
     );
     const login = `teacher${index + 1}.${plan.slug}@${context.domain}`;
-    await giveAccount(tx, tenantId, teacher.id, login, context.passwordHash);
+    await giveAccount(tx, tenantId, teacher.id, login, context);
     context.logins.push({ role: "teacher", loginName: login, schoolId });
     teachers.push(teacher);
   }
@@ -1050,17 +1183,17 @@ async function seedSchool(
     );
   else context.shared.teacher = teachers[0];
 
-  const pupils = new Map<string, string[]>();
+  const pupils = new Map<string, string[][]>();
   for (const grade of plan.grades) {
     for (let index = 0; index < plan.studentsPerGrade; index += 1) {
       const shared =
         index === 0 && grade === plan.grades[0]
           ? context.shared.siblingsOf
           : undefined;
-      const family = shared?.family ?? pick(FAMILIES);
+      const family = shared?.family ?? pick(names.families);
       const sex = next() < 0.5 ? "female" : "male";
       const student = person(
-        pick(sex === "female" ? GIRLS : BOYS),
+        pick(sex === "female" ? names.girls : names.boys),
         family,
         sex,
       );
@@ -1070,7 +1203,11 @@ async function seedSchool(
         birthDate: `${birthYear}-0${1 + Math.floor(next() * 9)}-1${Math.floor(next() * 9)}`,
         birthDateSource: "school_record",
       });
-      pupils.set(grade, [...(pupils.get(grade) ?? []), student.id]);
+      const bySection =
+        pupils.get(grade) ??
+        Array.from({ length: sections }, (): string[] => []);
+      bySection[index % sections]?.push(student.id);
+      pupils.set(grade, bySection);
       await tx.insert(studentSchoolYears).values({
         tenantId,
         studentUserId: student.id,
@@ -1104,8 +1241,9 @@ async function seedSchool(
       });
 
       const mother =
-        shared?.mother ?? person(pick(MOTHERS), pick(FAMILIES), "female");
-      const father = shared?.father ?? person(pick(BOYS), family, "male");
+        shared?.mother ??
+        person(pick(names.mothers), pick(names.families), "female");
+      const father = shared?.father ?? person(pick(names.boys), family, "male");
       if (!shared) {
         await insertPerson(tx, tenantId, mother);
         await insertPerson(tx, tenantId, father);
@@ -1122,17 +1260,11 @@ async function seedSchool(
             label: "mobile",
             value: number,
             normalized: number,
-            smsCapable: true,
+            smsCapable: context.reachable,
             source: "manual",
           });
         const motherLogin = `parent${reference}@${context.domain}`;
-        await giveAccount(
-          tx,
-          tenantId,
-          mother.id,
-          motherLogin,
-          context.passwordHash,
-        );
+        await giveAccount(tx, tenantId, mother.id, motherLogin, context);
         context.logins.push({
           role: "parent",
           loginName: motherLogin,
@@ -1184,13 +1316,7 @@ async function seedSchool(
       // Two classmates can sign in, so what one student shows another can be tried.
       if (grade === "grade_8" && index < 2) {
         const studentLogin = `student${reference}@${context.domain}`;
-        await giveAccount(
-          tx,
-          tenantId,
-          student.id,
-          studentLogin,
-          context.passwordHash,
-        );
+        await giveAccount(tx, tenantId, student.id, studentLogin, context);
         context.logins.push({
           role: "student",
           loginName: studentLogin,
@@ -1277,7 +1403,7 @@ async function seedSchool(
   );
   await seedTimetable(tx, tenantId, schoolId, yearId);
   await seedCoursework(tx, tenantId, schoolId, yearId);
-  await seedAttendance(tx, tenantId, schoolId, yearId);
+  await seedAttendance(tx, tenantId, schoolId, yearId, context.attendanceUntil);
   await seedMessages(tx, tenantId, schoolId, yearId);
   await seedAnnouncements(tx, tenantId, schoolId);
   await seedSchoolNews(tx, tenantId, schoolId);
@@ -1285,16 +1411,17 @@ async function seedSchool(
     tx,
     tenantId,
     schoolId,
-    pupils.get(plan.grades[1] ?? "") ?? [],
+    (pupils.get(plan.grades[1] ?? "") ?? []).flat(),
   );
   await seedEvents(tx, tenantId, schoolId, yearId);
   await seedNotifications(tx, tenantId, schoolId);
   await seedLearning(tx, tenantId, schoolId, yearId);
   await seedSite(tx, tenantId, schoolId);
   await seedEnquiries(tx, tenantId, schoolId, office.id);
-  if (plan.slug === "northwind")
+  if (plan.admissions)
     await seedAdmissions(tx, tenantId, schoolId, {
       passwordHash: context.passwordHash,
+      reachable: context.reachable,
       login: `applicant.${plan.slug}@${context.domain}`,
       logins: context.logins,
       officeId: office.id,
@@ -2449,7 +2576,7 @@ async function seedMessages(
 }
 
 /**
- * The daily register of every homeroom for the year's first two weeks, with
+ * The daily register of every homeroom from the year's start, with
  * the odd absence and late arrival, some explained and some not, so the
  * office has something to follow up and families something to read.
  */
@@ -2458,6 +2585,7 @@ async function seedAttendance(
   tenantId: string,
   schoolId: string,
   yearId: string,
+  until: string,
 ) {
   const roll = random(0x0a77e4d);
   const [categories, reasons] = await Promise.all([
@@ -2468,7 +2596,7 @@ async function seedAttendance(
     select to_char(d.day_on, 'YYYY-MM-DD') as day_on from core.calendar_dates d
     join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
     where d.tenant_id = ${tenantId}::uuid and d.school_year_id = ${yearId}::uuid
-      and e.code_value = 'instructional_day' and d.day_on between ${YEAR.start}::date and '2026-09-24'::date
+      and e.code_value = 'instructional_day' and d.day_on between ${YEAR.start}::date and ${until}::date
     order by d.day_on`);
   const [period] = await tx
     .select({ id: classPeriods.id })
@@ -2696,7 +2824,7 @@ async function seedIdentity(
 
 export const SEED_TENANTS: {
   spec: TenantSpec;
-  schools: SchoolPlan[];
+  schools: NamedSchoolPlan[];
   domain: string;
   seed: number;
 }[] = [
@@ -2731,6 +2859,7 @@ export const SEED_TENANTS: {
         nameAr: "كلية نورثويند الدولية",
         grades: ["grade_7", "grade_8", "grade_9"],
         studentsPerGrade: 6,
+        admissions: true,
       },
       {
         slug: "northwind-east",
@@ -2825,6 +2954,9 @@ export async function seedCell(
     await owner.asOwner(tenant.tenantId, "seed", async (tx) => {
       const context: Parameters<typeof seedSchool>[4] = {
         passwordHash,
+        reachable: true,
+        names: DEV_NAMES,
+        attendanceUntil: "2026-09-24",
         next,
         kek: options.kek,
         cell: options.cell,
@@ -2847,7 +2979,10 @@ export async function seedCell(
           "2020-01-01",
         );
         const login = `salama@${plan.domain}`;
-        await giveAccount(tx, tenant.tenantId, admin.id, login, passwordHash);
+        await giveAccount(tx, tenant.tenantId, admin.id, login, {
+          passwordHash,
+          reachable: true,
+        });
         logins.push({
           role: "district_administrator",
           loginName: login,
@@ -2857,7 +2992,7 @@ export async function seedCell(
       for (const [index, school] of plan.schools.entries()) {
         const schoolId = tenant.schoolIds[index];
         if (!schoolId) throw new Error("school id missing");
-        await seedSchool(tx, tenant, schoolId, school, context);
+        await seedSchool(tx, tenant.tenantId, schoolId, school, context);
       }
     });
     result.push({
@@ -2874,6 +3009,107 @@ export async function seedCell(
     });
   }
   return result;
+}
+
+export interface DemoOptions {
+  kek: KeyEncryptionKey;
+  cell: string;
+  tenantId: string;
+  schoolId: string;
+  slug: string;
+  /** Where the logins' addresses are; a domain that takes no mail. */
+  domain: string;
+  /** The one password every demonstration login shares. */
+  password: string;
+}
+
+export class DemoRefusedError extends Error {}
+
+const DEMO_PLAN: SchoolPlan = {
+  slug: "",
+  grades: [
+    "kg2",
+    "grade_1",
+    "grade_2",
+    "grade_3",
+    "grade_4",
+    "grade_5",
+    "grade_6",
+    "grade_7",
+    "grade_8",
+    "grade_9",
+  ],
+  studentsPerGrade: 40,
+  sections: 2,
+  admissions: true,
+};
+
+/**
+ * Fills a school that was provisioned empty with a year in progress: staff,
+ * two classes of twenty in each grade from KG2 to grade 9 with their
+ * families, timetable, coursework, registers up to yesterday, messages,
+ * news, admissions and enquiries, for showing the product to a school. A
+ * website the school already has is left as it is.
+ *
+ * No seeded address can be written to: the logins carry no email contact
+ * and the families' phones take no SMS, so nothing a demonstration does
+ * leaves the platform. Every login shares `password`.
+ */
+export async function seedDemoSchool(
+  owner: ReturnType<typeof openOwner>,
+  options: DemoOptions,
+): Promise<SeededTenant["logins"]> {
+  const passwordHash = await Bun.password.hash(options.password, {
+    algorithm: "argon2id",
+  });
+  const logins: SeededTenant["logins"] = [];
+  await owner.asOwner(options.tenantId, "demo", async (tx) => {
+    const [school] = await tx
+      .select({ timeZone: orgs.timeZone })
+      .from(orgs)
+      .where(
+        and(eq(orgs.tenantId, options.tenantId), eq(orgs.id, options.schoolId)),
+      );
+    if (!school) throw new DemoRefusedError("The school is not in this cell.");
+    const [year] = await tx
+      .select({ id: academicSessions.id })
+      .from(academicSessions)
+      .where(
+        and(
+          eq(academicSessions.tenantId, options.tenantId),
+          eq(academicSessions.orgId, options.schoolId),
+        ),
+      )
+      .limit(1);
+    if (year)
+      throw new DemoRefusedError(
+        "The school already has a year, so it is not the empty school a demonstration fills.",
+      );
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: school.timeZone ?? "UTC",
+    }).format(new Date());
+    const yesterday = addDays(today, -1);
+    await seedSchool(
+      tx,
+      options.tenantId,
+      options.schoolId,
+      { ...DEMO_PLAN, slug: options.slug },
+      {
+        passwordHash,
+        reachable: false,
+        names: DEMO_NAMES,
+        attendanceUntil:
+          yesterday < YEAR.end ? yesterday : addDays(YEAR.end, -1),
+        next: random(0xde70),
+        kek: options.kek,
+        cell: options.cell,
+        domain: options.domain,
+        logins,
+        shared: { reference: 1000 },
+      },
+    );
+  });
+  return logins;
 }
 
 const seedChecklist = (labels: [string, string, string][]) =>
@@ -2951,6 +3187,7 @@ async function seedAdmissions(
   schoolId: string,
   context: {
     passwordHash: string;
+    reachable: boolean;
     login: string;
     logins: SeededTenant["logins"];
     officeId: string;
@@ -3060,13 +3297,7 @@ async function seedAdmissions(
 
   const parent = person(["Salama", "سلامة"], ["Ashoush", "عشوش"], "male");
   await insertPerson(tx, tenantId, parent, { primaryOrgId: schoolId });
-  await giveAccount(
-    tx,
-    tenantId,
-    parent.id,
-    context.login,
-    context.passwordHash,
-  );
+  await giveAccount(tx, tenantId, parent.id, context.login, context);
   await openApplicantRole(tx, {
     ...org,
     userId: parent.id,
@@ -3195,7 +3426,7 @@ async function seedAdmissions(
     // can be followed to the family's answer.
     if (other.state === "decided") {
       const login = context.login.replace("applicant.", "applicant2.");
-      await giveAccount(tx, tenantId, adult.id, login, context.passwordHash);
+      await giveAccount(tx, tenantId, adult.id, login, context);
       await openApplicantRole(tx, {
         ...org,
         userId: adult.id,
@@ -3378,6 +3609,10 @@ async function seedEnquiries(
 }
 
 async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
+  const [existing] = await tx.execute<{ id: string }>(sql`
+    select id from core.site_settings
+    where tenant_id = ${tenantId}::uuid and org_id = ${schoolId}::uuid limit 1`);
+  if (existing) return;
   const [principal] = await tx.execute<{ user_id: string }>(sql`
     select r.user_id from core.user_roles r
     where r.tenant_id = ${tenantId}::uuid and r.org_id = ${schoolId}::uuid
