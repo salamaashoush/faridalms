@@ -201,9 +201,9 @@ the themes as live cards and the overrides with a contrast readout.
 Headings, labels and leads of the selected section are typed straight on the
 canvas, asterisks and all. Every picture carries a focal point the school
 drags into place, and crops and zooms keep it in view. A picture or video
-field uploads or chooses from the school's media library
-([media-library.md](media-library.md)); a chosen picture starts from the
-library's description and credit, which the section may say otherwise, and
+field uploads or chooses from the school's media
+([media.md](media.md)); a chosen picture starts from the
+item's description and credit, which the section may say otherwise, and
 its focal point is the section's own.
 
 ## Templates
@@ -229,9 +229,9 @@ A finished section is kept to use again through the school's two reuse
 systems, in both languages (`packages/domain/src/saved-sections.ts`), from
 the save button on a section's settings:
 
-- **As a section template**: a library piece of kind `section`
+- **As a section template**: a template of kind `section`
   (`templates.saveSection`), held by whoever manages the website, reviewed
-  as any library piece is and listed in the library. The gallery's Saved
+  as any template is and listed in Templates. The gallery's Saved
   group offers it, and choosing it puts a copy on the page with new ids,
   changed freely there. A template kept while the site's first language was
   the other one turns round to match.

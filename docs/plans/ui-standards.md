@@ -19,11 +19,11 @@ focus drew `border-ring` plus a 3px ring around the dashed edge.
 
 | Page                    | Where                                                                                                                     | Control                                                        | Job                               | Look before                                    |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------- | ---------------------------------------------- |
-| Library                 | `routes/_app/library.tsx:230`, `:242`                                                                                     | single facets Kind, Subject, no default                        | filter                            | dashed when unset, no Clear                    |
-| Library                 | `library.tsx:253`; `:287`                                                                                                 | toolbar search; RecordTabs Shared/To review                    | search; queues                    | 32px; tab strip                                |
-| Media                   | `components/media/MediaLibrary.tsx:540-574`                                                                               | search, facets Type, Added in, Uploaded by                     | search, filters                   | 32px, dashed when unset                        |
-| Media                   | `MediaLibrary.tsx:625`                                                                                                    | `aria-pressed` rounded chips (tags)                            | fourth filter                     | 28px chips in their own row                    |
-| Media                   | `MediaLibrary.tsx:598`, `:794`                                                                                            | Segmented grid/list; Segmented source                          | view                              | 40px beside 32px controls                      |
+| Templates               | `routes/_app/templates.tsx:230`, `:242`                                                                                   | single facets Kind, Subject, no default                        | filter                            | dashed when unset, no Clear                    |
+| Templates               | `templates.tsx:253`; `:287`                                                                                               | toolbar search; RecordTabs Shared/To review                    | search; queues                    | 32px; tab strip                                |
+| Media                   | `components/media/MediaBrowser.tsx:540-574`                                                                               | search, facets Type, Added in, Uploaded by                     | search, filters                   | 32px, dashed when unset                        |
+| Media                   | `MediaBrowser.tsx:625`                                                                                                    | `aria-pressed` rounded chips (tags)                            | fourth filter                     | 28px chips in their own row                    |
+| Media                   | `MediaBrowser.tsx:598`, `:794`                                                                                            | Segmented grid/list; Segmented source                          | view                              | 40px beside 32px controls                      |
 | Admission reports       | `routes/_app/admissions/reports.tsx:134`                                                                                  | single facet School year, default `yearId ?? ""`               | scope                             | dashed when the year matched no option         |
 | Applications            | `admissions/applications/index.tsx:222-241`                                                                               | search, year facet, Grade with "Any grade"                     | search, scope, filter             | Grade always solid                             |
 | Enquiries               | `admissions/enquiries/index.tsx:214-261`                                                                                  | search, Source/Purpose/Assignee with "Any…"                    | filters                           | always solid                                   |
@@ -127,7 +127,7 @@ on `RecordColumns` with an aside (`quotes.$quoteId.tsx:168`).
 
 ## Left
 
-- The media library's tag chips are a fourth filter outside the toolbar's
+- The Media page's tag chips are a fourth filter outside the toolbar's
   three facets; they need a "more filters" design.
 - The calendar's kind toggles stay as a legend of pressed chips (now
   without the dashed edge); the week grids' `WeekStep`, the calendar's own

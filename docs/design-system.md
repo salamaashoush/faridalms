@@ -260,7 +260,7 @@ Carbon data table, shadcn tasks).
   destructive action last: beside the others when nothing waits under
   More, else at the end of More after its separator, always confirmed.
   Escape clears the selection unless a field, menu or dialog takes it. A
-  grid that selects (the media library) uses the same bar. Order actions by
+  grid that selects (Media) uses the same bar. Order actions by
   use: the one most often wanted first.
 - A value that cannot exist for a record, such as the grade of a student with
   no class, is a muted dash read as "Not applicable" (`<Value notApplicable>`).
@@ -804,15 +804,15 @@ never the browser's own.
   `Segmented` switch at the toolbar's end, kept in the address. A tile
   fetches a small size of its picture, never the original, shows the
   picture's placeholder while it loads and keeps its subject in view.
-- **Uploading** reads alike wherever files are given: the media library,
+- **Uploading** reads alike wherever files are given: the Media page,
   the editor, a class's or module's files and a picture field. Each file on
   its way is a row of `UploadQueue` with its name, kind and size, a
   progress bar and its percentage, and a Stop button; one that failed says
   why in red, offers Try again only where a second try can help, and is
   taken off the list by hand (Uppy, Polaris DropZone). `FileDropZone` takes
   files dragged onto its area, outlining it with what a drop will do, and
-  files pasted into it; a page whose purpose is uploading, such as the
-  library, also takes files pasted anywhere outside a field. A paste into
+  files pasted into it; a page whose purpose is uploading, such as
+  Media, also takes files pasted anywhere outside a field. A paste into
   a field is always the field's.
 - **A grid selects like a table**: given batch actions, each tile carries
   a checkbox at its top start (desktop only, as with tables), and while

@@ -248,7 +248,7 @@ off keeps the work and shows a placeholder.
    studio, whose students build on it and hand in an `.sb3` with their stage,
    and whose teacher opens, runs and marks the project; the files host
    serves the studio on its own domain, as in
-   [../operations.md](../operations.md). The media library is mirrored and
+   [../operations.md](../operations.md). Scratch's media library is mirrored and
    the studio may reach only the files host; below 1024px wide it asks for a
    computer or a tablet held sideways; the file sweep keeps each student's
    last three saves of a question. Done next: a coding question can have a

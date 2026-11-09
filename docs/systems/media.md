@@ -1,43 +1,45 @@
-# Media library
+# Media
 
 A school's pictures, video and files, uploaded once and chosen again in any
 document or website page. It is a file area of the school, registered with
-`registerArea` in `apps/api/src/systems/media-library.ts`, not a store of its
-own: its items are rows of `core.files` hosted by `media_library` and the
-school's id, sharing the trash, the sweep and the storage counts of every
-other file.
+`registerArea` in `apps/api/src/systems/media.ts`, not a store of its
+own: its items are rows of `core.files` hosted by the school's id and
+`MEDIA_AREA`, sharing the trash, the sweep and the storage counts of every
+other file. The stored host type keeps its first value, `media_library`,
+which the rows, a check and a partial index name; renaming it would
+rewrite every row of the school's media for no change in behaviour.
 
 ## Who uses it
 
-- Whoever writes for others (`LIBRARY_USERS` in
-  `packages/domain/src/media-library.ts`: assignments, lessons, events,
+- Whoever writes for others (`MEDIA_USERS` in
+  `packages/domain/src/media.ts`: assignments, lessons, events,
   notices, news and the website) reads all of it, chooses from it, uploads
   into it and crops a picture into a new item.
 - Those who put pictures in front of others, news and the website
-  (`LIBRARY_KEEPERS`), also keep it: folders, an item's name, description
+  (`MEDIA_KEEPERS`), also keep it: folders, an item's name, description
   and credit, who a picture shows, moving items and the trash.
-- The page is Media library in the School section of the staff navigation
-  (`/media`), for whoever manages the website. Teachers reach it only
-  through the editor's chooser.
+- The page is Media (`/media`), the second page of the Library area in the
+  School section of the staff navigation, beside Templates, for whoever
+  uses it (`MEDIA_USERS`). Editors also reach it through their chooser.
 
 ## Showing an item in a document
 
-A document shows a library item where it is. `placeMedia`
+A document shows a media item where it is. `placeMedia`
 (`apps/api/src/files/authorize.ts`) copies a file from another record into
 the document's own keeping, so a document never opens up files it only
-shows; an area registered `linked` is the exception. Its file stays in the
-library, the document's `document_files` row records the use, and
+shows; an area registered `linked` is the exception. Its file stays in
+media, the document's `document_files` row records the use, and
 `canReadFile` opens an area's file to whoever may read a document showing
-it. So a family reading a brief reads the library picture in it and nothing
-else of the library, a change to the item shows in every document at once,
-and the library can say where each item is used.
+it. So a family reading a brief reads the media picture in it and nothing
+else of the school's media, a change to the item shows in every document at
+once, and the Media page can say where each item is used.
 
 - An item in the trash cannot be put in a new document, and stays in any
   document that already showed it, which shows it as removed until it is
   restored.
-- The sweep that retires media a document dropped leaves library items
+- The sweep that retires media a document dropped leaves media items
   alone; only the trash, after 30 days, retires them.
-- A website page publishes a library picture as it publishes any other:
+- A website page publishes a media picture as it publishes any other:
   `publishMedia` copies it to the public bucket and checks that everyone it
   shows may appear on the website.
 
@@ -54,12 +56,12 @@ changing the item. Who a picture shows is the file's own
 ## What an item says
 
 An item has its file's name and, apart from it, a title people call it by
-(shown in place of the name wherever the library lists it), a description
+(shown in place of the name wherever Media lists it), a description
 for those who cannot see a picture, a caption a picture block starts its
 caption from, and a credit. Title and caption live in
 `core.media_item_texts`, one row per item; description and credit stay on
 the file. Choosing a picture starts the block's alt text from the
-description and its caption from the caption (`LibraryChoice`), and each
+description and its caption from the caption (`MediaChoice`), and each
 use may say them otherwise.
 
 ## Folders, tags, search and uses
@@ -77,7 +79,7 @@ use may say them otherwise.
   tag (an item must carry every tag chosen); any of them searches every
   folder. All of it is kept in the page's address.
 - In the grid and the list, items are selected together to download as
-  one zip (`/v1/media/library.zip`), and, for the library's keepers, to tag,
+  one zip (`/v1/media/items.zip`), and, for its keepers, to tag,
   move or delete into the trash.
 - Where an item is used is read from the documents that hold it, lessons,
   assignments, unit plans, notices, news, events, website pages and shared
@@ -89,7 +91,7 @@ use may say them otherwise.
 A picture is cropped in the browser to the original ratio, freeform, 1:1,
 4:3, 3:2 or 16:9 (`cropRect` in the domain), turned a quarter at a time,
 mirrored either way and narrowed to a width (`PictureEdits`), drawn on a
-canvas and uploaded like any picture; `mediaLibrary.crop` keeps the upload
+canvas and uploaded like any picture; `media.crop` keeps the upload
 as a new item beside its original, in its folder, with its description,
 credit and the people it shows, named for its shape or "edited", and
 records the edits. The original never changes, so every document showing it
@@ -97,9 +99,9 @@ goes on showing it whole.
 
 ## Focal point
 
-A keeper marks where a picture's subject sits (`mediaLibrary.focus`, kept
+A keeper marks where a picture's subject sits (`media.focus`, kept
 as `metadata.focus` in percent). A crop's frame starts on it, turned and
-mirrored with the picture (`turnedFocus`); library tiles keep it in view;
+mirrored with the picture (`turnedFocus`); media tiles keep it in view;
 and the website draws the picture around it wherever a page's own use of
 the picture sets no focus of its own, in the builder from the file's facts
 and on the published site from what the page published with it.
@@ -117,7 +119,7 @@ them once no file holds the bytes.
   editor, a gallery and the website builder draw a picture with a `srcset`
   of `/files/<id>?w=<width>` and a `sizes` from its block; the API sends the
   smallest size at least that wide in the best format the browser's
-  `Accept` names, and the original when none is made. Library tiles ask for 320. The placeholder and the picture's shape come with the file's facts
+  `Accept` names, and the original when none is made. Media tiles ask for 320. The placeholder and the picture's shape come with the file's facts
   (`files.facts`), so it holds its place blurred until it loads.
 - **Metadata**: the API removes location, camera and editing records from
   every picture (JPEG, PNG, WebP, GIF) before it keeps the upload anywhere,
@@ -126,7 +128,7 @@ them once no file holds the bytes.
 - **Sound**: its length (on the file too) and a waveform of 100 bars,
   drawn as the player's timeline.
 - **Documents**: a PDF's first page, drawn on the server, shows on its card
-  and its library tile; an office file becomes a PDF, read in the viewer,
+  and its media tile; an office file becomes a PDF, read in the viewer,
   where the service has LibreOffice, and is downloaded only otherwise.
 - **Sealed files** (health reports, evidence, legal papers) get none, so
   nothing made of them sits in the store unsealed; their delivery is as
@@ -147,14 +149,14 @@ sweep, a few a school each pass.
 
 ## Choosing
 
-`EditorMedia.library` (`packages/editor/src/context.tsx`) is the editor's
-way in, supplied by `MediaLibraryProvider` for those who may use it.
+`EditorMedia.school` (`packages/editor/src/context.tsx`) is the editor's
+way in, supplied by `SchoolMediaProvider` for those who may use it.
 
 - Inserting a picture, video or file block opens the chooser, with the
-  device's own files beside the library's.
-- A gallery adds pictures from the library beside its upload.
-- A selected picture's bar keeps it in the library too, with the words the
-  document gives it (`mediaLibrary.keep`), as a library record of its own
+  device's own files beside the school's.
+- A gallery adds pictures from media beside its upload.
+- A selected picture's bar keeps it in media too, with the words the
+  document gives it (`media.keep`), as a media record of its own
   sharing the bytes.
 - The website studio's picture and media fields and a news post's cover
   choose from it beside their upload.
@@ -188,11 +190,11 @@ module files use.
 ## Uploads in documents
 
 "In documents" lists what staff put straight into the documents they wrote
-(news, notices, lessons, assignments, events, website pages) and the
-library does not hold yet: one row per stored object, newest first, the
+(news, notices, lessons, assignments, events, website pages) and media
+does not hold yet: one row per stored object, newest first, the
 200 most recent looked through, and only those the viewer may open. A
 student's work, a conversation's files and a recording still to be cut
-never appear. Keeping one is `mediaLibrary.keep`, singly or several at
+never appear. Keeping one is `media.keep`, singly or several at
 once.
 
 ## Bringing files in
@@ -212,12 +214,12 @@ once.
   same quarantine, type check by content and scan as an upload
   (`takeUpload`), and land in the open folder.
 - **Free pictures**: the open symbol and emoji collections the editor
-  offers a question (ARASAAC, OpenMoji) are searched from the library page
+  offers a question (ARASAAC, OpenMoji) are searched from the Media page
   too; a picked one is copied into the school as an upload.
 - **Wikimedia Commons**: a school that turns it on in Settings (the
   `commons_pictures` switch, off by default) lets its staff search Commons
   from the same sheet. Only someone signed in as staff who writes for
-  others reaches the search (`library.pictures` with `collection:
+  others reaches the search (`pictures.search` with `collection:
   "commons"`); students and families never see it. The API asks Commons
   (`generator=search` over files, namespace 6, with `imageinfo` and its
   `extmetadata`) one request at a time with a gap between them, under a
@@ -225,7 +227,7 @@ once.
   long as a `429` or `503` says, and keeps recent answers for ten minutes
   (`apps/api/src/pictures/commons.ts`). A picture under a non-commercial,
   no-derivatives or fair-use licence is left out, as it is when pasted.
-  A picked one comes into the library with its description and its
+  A picked one comes into media with its description and its
   credit (author, licence and page), which every use then starts from.
   It is offered only where a picked picture keeps its credit, so a
   question's picture, which keeps none, does not offer it.
@@ -239,17 +241,17 @@ the new row points at the same key and the copy just stored is removed
 share; a file sealed under the school's files key, or one behind a
 special-category purpose, never shares bytes either way. An object goes
 only when no active row points at it, which erasure now respects too.
-Adding an item whose bytes the library already holds says so.
+Adding an item whose bytes media already holds says so.
 
 Storage is counted once per stored object. A video's streams (its
 renditions, playlists, poster and thumbnails) count too, once per folder
 of them, under the video's kind and its uploader: the media service
 reports what a folder weighs when it finishes (`files.stream_bytes`, which
 copies and versions carry with the file), and the files sweep weighs, a
-few a pass, the folders of streams made before it did. Keepers see on the library page
+few a pass, the folders of streams made before it did. Keepers see on the Media page
 the pool used against the plan's limit, by kind of file and by the ten
 staff who uploaded most, with students, families and arriving mail counted
-together (`mediaLibrary.storage`).
+together (`media.storage`).
 
 ## What is recorded
 

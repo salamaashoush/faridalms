@@ -21,7 +21,7 @@ From `foundations.md`. W1 to W5 are merged.
     document, so neither system holds one as it stands: either each learns
     a section kind (a template whose body is a section in both languages,
     and a shared section a page names and draws when it is shown), or
-    sections get a small library of their own. The owner's call before it
+    sections get a small store of their own. The owner's call before it
     is built;
   - a shared person-name type in place of about 20 differently named
     field pairs;

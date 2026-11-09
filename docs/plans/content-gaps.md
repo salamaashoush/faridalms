@@ -49,7 +49,7 @@ Settled, nothing to build:
 
 - A shared section's earlier versions are kept, with no restore in the
   builder yet.
-- Commons pictures are offered from the media library's search only: a
+- Commons pictures are offered from the Media page's search only: a
   question's picture keeps no credit.
 - The language model helps in lessons and assignment briefs only, and
   hides students' full names, not a given name alone.

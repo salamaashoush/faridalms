@@ -368,7 +368,7 @@ no provider is configured), so the office can answer why someone got
 nothing. In-app delivery is the notification row itself, and read state is
 per person. The kinds today are announcements and urgent notices, news,
 messages and replies, absences, events, reminders, consents, mentions,
-library notices, enquiries, applications, answers to the medical-summary
+template reviews, enquiries, applications, answers to the medical-summary
 changes a family asked for, and the teaching events: work
 set, work returned or sent back, and a period's grades released, each told
 to the students and to their guardians who take notices. Whatever was

@@ -431,22 +431,22 @@ Sources: [../research/course-design.md](../research/course-design.md),
    (`coursework.reuse`).
 2. **School library** with copy and edit, and a school's approval before a
    piece is shared there. Done: the school's templates are its library
-   (`/library`): lessons, assignments and unit plans with a description and
+   (Templates, `/templates`): lessons, assignments and unit plans with a description and
    subject. A piece a teacher shares waits for a reviewer
-   (`library:review`, held by the roles that run a school; a reviewer's own
+   (`templates:review`, held by the roles that run a school; a reviewer's own
    share needs no review), who shares it or sends it back with a note. Any
    author previews a shared piece and uses it, which opens a new lesson,
    assignment or module plan started from it, theirs to edit. A teacher
    is told when their piece is shared or sent back, by a notice kind they
-   choose how to receive, and anyone who writes a kind the library keeps
-   can open it. A whole module goes to the library as one piece, its
+   choose how to receive, and anyone who writes a kind Templates keeps
+   can open it. A whole module becomes one template, its
    lessons with their rules and its unit plan kept as a copy set for no
    class, previewed by its lessons; a teacher starts it in a class of
    theirs as a draft of their own.
 3. **Templates for every kind of document** (newsletter and news as well),
    and the built-in lessons "Read, check, reflect", "Watch and answer" and
    "Listen, choose, record". Done: news posts and announcements join
-   lessons, assignments and unit plans in the library, each offered on an
+   lessons, assignments and unit plans in Templates, each offered on an
    empty document through one "Start from" menu, which also holds the
    built-in shapes: the lesson patterns (the three named here added), the
    unit planners and the newsletters, which news offered apart before.
@@ -455,7 +455,7 @@ Sources: [../research/course-design.md](../research/course-design.md),
    families ask and its kind set to match; a consent form for a purpose the
    school asks about often (photographs, contact sharing, medicine, voice
    recordings, school records) starts from ready wording under its five
-   headings, in either language. Both are kept in and used from the library
+   headings, in either language. Both are kept in and used from Templates
    by those who write them, a consent form as the form of a chosen purpose.
 4. **Preview a lesson** at phone and desktop width, in either language, and
    as a given group of students would meet it. Done: the teacher's preview

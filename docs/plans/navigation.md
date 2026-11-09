@@ -3,7 +3,8 @@
 How the staff portal's sidebar stays calm for a person whose role reaches
 much of the school, and why. The owner raised three complaints: the
 sidebar of an administrator who also teaches is cluttered, the Library,
-the Media library and Letters overlap in name and content, and Admission
+the Media library and Letters overlap in name and content (Library and
+Media library were the old names of Templates and Media), and Admission
 reports reads unlike the pages around it.
 
 ## What was there
@@ -92,7 +93,9 @@ Two areas:
 - **Admissions**: Enquiries, Applications, Intakes, Reports, Letters.
   Five links become one; the link lands on the first page the person may
   open (`/admissions` redirects there).
-- **Library**: Templates and Media (below).
+- **Library**: Templates and Media (below). The area has no address of
+  its own: its link is Templates, the first of its pages anyone who sees
+  the area may open.
 
 Area tabs on the page were considered and refused: Enquiries,
 Applications, Intakes and Templates already have their own status tabs,
@@ -117,7 +120,7 @@ page open now always stays in view even while its More is folded.
 
 ### 3. Labels that do not overlap
 
-See "Library, Media library and Letters" below.
+See "Library: Templates, Media and Letters" below.
 
 ### 4. No favourites or pins, for now
 
@@ -148,11 +151,11 @@ list after Students, so someone who runs admissions without teaching
 gets it on the bar. More opens the same sidebar, with the same folds and
 area pages.
 
-## Library, Media library and Letters
+## Library: Templates, Media and Letters
 
 What each holds:
 
-- `/library` held **templates**: lessons, unit plans, assignments, news,
+- `/templates` holds **templates**: lessons, unit plans, assignments, news,
   announcements, events, consent forms, whole modules, reply templates
   (kind "Reply"), letters of admission and website sections. Each is a
   starting copy; using one makes a new document.
@@ -166,10 +169,14 @@ What each holds:
 Decisions:
 
 - One **Library** area holds both stores of reusable things, with two
-  pages named by what they hold: **Templates** (`/library`) and **Media**
-  (`/media`). The word "library" now names only the area, so the existing
-  wording ("Share to the school library", "Choose from library", "Keep in
-  library") stays true for both. Addresses do not change.
+  pages named by what they hold: **Templates** (`/templates`) and **Media**
+  (`/media`). "Library" names only the area, in the sidebar and nowhere
+  else: the code, the API (`templates.*`, `media.*`, and `pictures.*` for
+  the open picture search) and the wording say templates or media.
+  Templates moved from `/library` to `/templates` with no redirect, and
+  `/library` no longer exists. Wording that said library now names what it
+  means: "Share as a template", "Remove from templates", "Choose from
+  media", "Keep in media", "Add to media".
 - **Letters** stays where it is used, as a page of Admissions, since only
   those who configure admissions edit it. Its letters also appear in
   Templates under the kind "Letter of admission".
@@ -180,11 +187,14 @@ Decisions:
   template" and offers no Use.
 - The Library link is shown to whoever may open Templates, as its page
   already allowed: every capability that writes some kind of template.
-  It used to be shown for `assignments:author` or `library:review`, so
+  It used to be shown for `assignments:author` or the reviewer capability
+  (now `templates:review`), so
   office staff who keep letters, replies and consent forms had no link,
   and a reviewer who wrote nothing had a link whose page refused them.
-  Media is offered to those its page admits (`LIBRARY_USERS`); before, its
+  Media is offered to those its page admits (`MEDIA_USERS`); before, its
   link needed `site:manage`, so teachers reached it only from an editor.
+  Everyone Media admits also writes some kind of template, so Templates is
+  always the first page of the area they may open.
 - Website section templates keep their two entrances: the builder's
   Saved list where they are used, and Templates where they are kept.
   Consent form templates likewise open from Data protection and from

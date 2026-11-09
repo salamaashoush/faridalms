@@ -312,7 +312,7 @@ studio differs in four ways:
 - Keep the full-screen layout and the manual undo.
 - Share the save indicator and `DocumentHistory`, extended to two languages (M).
 - Render site media through the shared player (S).
-- Use one picture shape, which the media library also uses (done: `Picture` in `domain/commons.ts`).
+- Use one picture shape, which Media also uses (done: `Picture` in `domain/commons.ts`).
 
 ### 13. Templates will split three ways when "saved sections" arrive
 
@@ -325,9 +325,9 @@ The website roadmap's "saved sections, copied or kept in step"
 (`docs/systems/website.md` Next #1) is what `document_templates` plus
 `shared_blocks` already do, and `site_page` is already a shared-block host
 (`stores/shared.ts:168`). Build saved sections as a template kind on that
-system, not a third library. The media library is likewise a files area
+system, not a third store. Media is likewise a files area
 (`files/authorize.ts` `registerArea`), not a new store; see
-[../systems/media-library.md](../systems/media-library.md).
+[../systems/media.md](../systems/media.md).
 Saved sections are a design decision only, now.
 
 ### 14. Questions and answers: two models exist, and application forms would make a third

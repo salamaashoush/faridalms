@@ -107,7 +107,7 @@ From [../research/early-years.md](../research/early-years.md).
 - A young lesson's "Start from a template" menu offers ready-made
   activities, one of each kind (picture choice, counting, memory pairs,
   sorting, tracing, word builder, drawing), worded in the teacher's language
-  with Arabic vowelled; their pictures are copied in from the library.
+  with Arabic vowelled; their pictures are copied in from the open picture sets.
 - The same menu turns a picture book in an EPUB file (a StoryWeaver, Book
   Dash or African Storybook download) into a read-along lesson: each picture
   starts a screen with the words after it, pictures are copied into the

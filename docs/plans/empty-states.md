@@ -100,9 +100,9 @@ Lines are at `ba86e23f`.
 | `apps/web/src/components/coding/ProgramReplay.tsx:112`                    | value      | muted paragraph                    | `Value absent`                      |
 | `apps/web/src/components/exams/ExamSessions.tsx:95`                       | value      | muted span in a cell               | `Value absent`                      |
 | `apps/web/src/components/files/AreaFiles.tsx:103`                         | value      | muted span in a cell               | `Value absent`                      |
-| `apps/web/src/components/media/MediaLibrary.tsx:141`                      | value      | muted span in a cell               | `Value absent`                      |
-| `apps/web/src/components/media/MediaLibrary.tsx:195`                      | value      | muted span in a cell               | `Value absent`                      |
-| `apps/web/src/components/media/MediaLibrary.tsx:216`                      | value      | muted span in a cell               | `Value absent`                      |
+| `apps/web/src/components/media/MediaBrowser.tsx:141`                      | value      | muted span in a cell               | `Value absent`                      |
+| `apps/web/src/components/media/MediaBrowser.tsx:195`                      | value      | muted span in a cell               | `Value absent`                      |
+| `apps/web/src/components/media/MediaBrowser.tsx:216`                      | value      | muted span in a cell               | `Value absent`                      |
 | `apps/web/src/components/people/StudentEditor.tsx:638`                    | value      | muted span                         | `Value absent`                      |
 | `apps/web/src/routes/_app/_staff/assignments.tsx:116`                     | value      | muted span in a cell               | `Value absent`                      |
 | `apps/web/src/routes/_app/admissions/applications/index.tsx:117`          | value      | muted span in a cell               | `Value absent`                      |
