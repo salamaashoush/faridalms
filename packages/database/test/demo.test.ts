@@ -1,13 +1,19 @@
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 
 import { openOwner } from "../src/context";
 import { DemoRefusedError, seedDemoSchool } from "../src/seed";
+import { saveDocument } from "../src/stores/documents";
+import { openEnquiryConversation } from "../src/stores/enquiries";
+import { postMessage } from "../src/stores/messages";
+import { insertPerson } from "../src/stores/students";
+import { siteEnquiries } from "../src/tables/index";
 import { createTenant } from "../src/tenants";
 import { CELL, harness, kek, urlFor } from "./harness";
 
 describe("filling a demonstration school", () => {
-  test("a school created empty gets a full school whose people the platform cannot write to", async () => {
+  test("a school created empty gets a full school whose people the platform cannot write to, and keeps what it had", async () => {
     const owner = openOwner(urlFor("provisioner"));
     const tenantId = Bun.randomUUIDv7();
     const schoolId = Bun.randomUUIDv7();
@@ -21,7 +27,7 @@ describe("filling a demonstration school", () => {
       password: "a demonstration password",
     };
     try {
-      await owner.asOwner(tenantId, "test", async (tx) => {
+      const enquiry = await owner.asOwner(tenantId, "test", async (tx) => {
         await createTenant(
           tx,
           {
@@ -44,7 +50,62 @@ describe("filling a demonstration school", () => {
         await tx.execute(sql`
           insert into core.site_settings (tenant_id, org_id, tagline_en)
           values (${tenantId}::uuid, ${schoolId}::uuid, 'Our own words')`);
+        const [asked] = await tx
+          .insert(siteEnquiries)
+          .values({
+            tenantId,
+            orgId: schoolId,
+            locale: "en",
+            purpose: "visit",
+            name: "Salama Ashoush",
+            phone: "+20 122 555 0100",
+            message: "Could we visit before we apply?",
+          })
+          .returning({ id: siteEnquiries.id });
+        if (!asked) throw new Error("no enquiry");
+        const threadId = await openEnquiryConversation(tx, {
+          tenantId,
+          enquiryId: asked.id,
+        });
+        if (!threadId) throw new Error("no conversation");
+        // A reply written in the composer: its document is frozen and says
+        // more than the message's plain words.
+        const { id: officeId } = await insertPerson(tx, {
+          tenantId,
+          schoolId,
+          names: {
+            en: { given: "Salama", middle: null, family: "Ashoush" },
+            ar: { given: null, middle: null, family: null },
+          },
+        });
+        const reply = await postMessage(tx, {
+          tenantId,
+          threadId,
+          authorId: officeId,
+          body: "Tuesday at ten suits us.",
+        });
+        await saveDocument(tx, {
+          tenantId,
+          orgId: schoolId,
+          host: { type: "message", id: reply.id },
+          content: plainContent(
+            "Tuesday at ten suits us, at the front gate.",
+          ) as unknown as Record<string, unknown>,
+          plainText: "Tuesday at ten suits us, at the front gate.",
+          mediaIds: [],
+          userId: officeId,
+          frozen: true,
+        });
+        return threadId;
       });
+      const { su } = harness();
+      const before = await su`
+        select x.id, d.id as document from core.messages x
+        left join core.documents d on d.tenant_id = x.tenant_id
+          and d.host_type = 'message' and d.host_id = x.id
+        where x.tenant_id = ${tenantId}::uuid and x.thread_id = ${enquiry}::uuid
+        order by x.id`;
+      expect(before.length).toBeGreaterThan(0);
 
       const logins = await seedDemoSchool(owner, options);
       expect(logins.filter((login) => login.role === "teacher")).toHaveLength(
@@ -56,7 +117,6 @@ describe("filling a demonstration school", () => {
         ),
       ).toBe(true);
 
-      const { su } = harness();
       const [counts] = await su`
         select
           (select count(*)::int from core.classes
@@ -80,6 +140,14 @@ describe("filling a demonstration school", () => {
         tagline: "Our own words",
       });
       expect(counts.registers).toBeGreaterThan(0);
+      expect(
+        await su`
+        select x.id, d.id as document from core.messages x
+        left join core.documents d on d.tenant_id = x.tenant_id
+          and d.host_type = 'message' and d.host_id = x.id
+        where x.tenant_id = ${tenantId}::uuid and x.thread_id = ${enquiry}::uuid
+        order by x.id`,
+      ).toEqual(before);
 
       const clashes = await su`
         select m.teacher_user_id, m.location_id, m.weekday, m.class_period_id,

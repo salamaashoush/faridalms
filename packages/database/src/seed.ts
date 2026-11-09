@@ -26,7 +26,7 @@ import {
   localizedSections,
   pagePlainText,
 } from "@faridalms/domain/website";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import type { CellTransaction, openOwner } from "./context";
 import type { KeyEncryptionKey } from "./crypto";
@@ -79,6 +79,7 @@ import {
   writePublishedPage,
   writePublishedPost,
 } from "./stores/site";
+import { uuidArray } from "./stores/sql";
 import { reviewTranslation } from "./stores/translations";
 import {
   academicSessions,
@@ -2548,15 +2549,17 @@ async function seedMessages(
     await tx.insert(threadMembers).values(members.slice(index, index + 200));
   for (let index = 0; index < posts.length; index += 200)
     await tx.insert(messages).values(posts.slice(index, index + 200));
-  // What each message says is its document, as the composer saves it.
+  // What each message says is its document, as the composer saves it. A
+  // school filled for a demonstration may already have conversations of its
+  // own, whose documents are frozen and stay as they are.
+  const seeded = uuidArray(threads.map((thread) => thread.id ?? ""));
   const written = await tx.execute<{
     id: string;
     body: string;
     author_user_id: string | null;
   }>(sql`
     select x.id, x.body, x.author_user_id from core.messages x
-    join core.message_threads t on t.tenant_id = x.tenant_id and t.id = x.thread_id
-    where x.tenant_id = ${tenantId}::uuid and t.org_id = ${schoolId}::uuid`);
+    where x.tenant_id = ${tenantId}::uuid and x.thread_id = any(${seeded})`);
   for (const row of written)
     await saveDocument(tx, {
       tenantId,
@@ -2572,7 +2575,8 @@ async function seedMessages(
   // read them as written.
   await tx.execute(sql`
     update core.thread_members set last_read_at = statement_timestamp()
-    where tenant_id = ${tenantId}::uuid and last_read_at is not null`);
+    where tenant_id = ${tenantId}::uuid and thread_id = any(${seeded})
+      and last_read_at is not null`);
 }
 
 /**
@@ -3577,6 +3581,7 @@ async function seedEnquiries(
       and(
         eq(siteEnquiries.tenantId, tenantId),
         eq(siteEnquiries.orgId, schoolId),
+        isNull(siteEnquiries.threadId),
       ),
     );
   for (const enquiry of all) {
