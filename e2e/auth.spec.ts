@@ -101,6 +101,41 @@ test("signing out clears the session", async ({ page }) => {
   await expect(page).toHaveURL(/\/sign-in/);
 });
 
+test.describe("over HTTPS", () => {
+  // Behind the production edge every request arrives as HTTPS, and the
+  // session cookie takes the __Host- prefix, which a browser changes only
+  // by a Secure Set-Cookie.
+  test.use({ extraHTTPHeaders: { "x-forwarded-proto": "https" } });
+
+  test("signing out removes the session cookie, not only the session", async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    // The test serves plain HTTP and asks for HTTPS's cookies; only Chromium
+    // keeps a Secure cookie for a localhost host, so only it can stand in.
+    test.skip(
+      browserName !== "chromium",
+      "only Chromium keeps Secure cookies over plain HTTP on localhost",
+    );
+    await signIn(page, "parent");
+    const session = (await context.cookies()).find((cookie) =>
+      cookie.name.startsWith("__Host-s-"),
+    );
+    expect(session).toBeDefined();
+    await page.getByRole("button", { name: "Account", exact: true }).click();
+    await page.getByRole("menuitem", { name: /sign out/i }).click();
+
+    await expect(page).toHaveURL(/\/sign-in/);
+    await expect(page.getByLabel("Email or sign-in name")).toBeVisible();
+    expect(
+      (await context.cookies()).some((cookie) =>
+        cookie.name.startsWith("__Host-s-"),
+      ),
+    ).toBe(false);
+  });
+});
+
 test("a forgotten password is asked for from sign-in, and the answer never says whether the name exists", async ({
   page,
 }) => {

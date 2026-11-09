@@ -89,8 +89,18 @@ async function dropBareSessions() {
         if (!isUnauthorized(error)) console.error(error);
       }
     }
-    deleteCookie(name, { path: "/", secure: name.startsWith("__Host-") });
+    dropCookie(name);
   }
+}
+
+/**
+ * Removes a cookie. Over HTTPS the session cookies carry the `__Host-`
+ * prefix, and a browser ignores any change to such a cookie, removal
+ * included, unless it is marked Secure: signing out left the session in
+ * place.
+ */
+function dropCookie(name: string) {
+  deleteCookie(name, { path: "/", secure: name.startsWith("__Host-") });
 }
 
 function cookieOptions(expires: Date) {
@@ -124,7 +134,7 @@ async function dropGuardian(school: string) {
   } catch (error) {
     if (!isUnauthorized(error)) throw error;
   }
-  deleteCookie(guardianCookie(school), { path: "/" });
+  dropCookie(guardianCookie(school));
 }
 
 function isUnauthorized(error: unknown) {
@@ -340,7 +350,7 @@ export const logout = createServerFn({ method: "POST" }).handler(
       } catch (error) {
         if (!isUnauthorized(error)) throw error;
       }
-      deleteCookie(sessionCookie(school), { path: "/" });
+      dropCookie(sessionCookie(school));
       await dropGuardian(school);
     }
     return signedOut(school);
@@ -388,7 +398,7 @@ export const endChildMode = createServerFn({ method: "POST" }).handler(
     } catch (error) {
       if (!isUnauthorized(error)) throw error;
     }
-    deleteCookie(guardianCookie(school), { path: "/" });
+    dropCookie(guardianCookie(school));
     try {
       const user = await backend(school, guardian.token).identity.currentUser();
       setCookie(
@@ -404,7 +414,7 @@ export const endChildMode = createServerFn({ method: "POST" }).handler(
       };
     } catch (error) {
       if (!isUnauthorized(error)) throw error;
-      deleteCookie(sessionCookie(school), { path: "/" });
+      dropCookie(sessionCookie(school));
       return signedOut(school);
     }
   },
