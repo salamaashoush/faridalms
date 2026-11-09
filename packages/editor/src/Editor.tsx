@@ -3,6 +3,7 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import type { Digits } from "@faridalms/domain/people";
 import type { Provider } from "@lexical/yjs";
 import type { EditorState } from "lexical";
+import type { ReactNode } from "react";
 import type { Doc } from "yjs";
 
 import {
@@ -53,6 +54,7 @@ import type {
   EditorStandards,
   EditorStudio,
 } from "./context";
+import type { EditorVariant } from "./frame";
 import type { EditorStrings } from "./strings";
 
 import { EditorEnvironmentProvider, useEditorEnvironment } from "./context";
@@ -163,7 +165,12 @@ export interface EditorProps {
   onChange: (value: ContentDocument) => void;
   onValidityChange?: (valid: boolean) => void;
   strings: EditorStrings;
-  variant?: "document" | "field";
+  variant?: EditorVariant;
+  /**
+   * What ends a message's tools, such as its send button. Memoise it: the
+   * surface draws again, plugins and all, whenever it changes.
+   */
+  actions?: ReactNode;
   toolbar?: boolean;
   disabled?: boolean;
   media?: EditorMedia;
@@ -405,6 +412,7 @@ const Surface = memo(function Surface({
   onChange,
   onValidityChange,
   variant = "field",
+  actions,
   toolbar = true,
   disabled = false,
   placeholder,
@@ -661,22 +669,22 @@ const Surface = memo(function Surface({
     );
   }, [editor, stats, written, onChange, onValidityChange]);
 
-  const document = variant === "document";
+  const message = variant === "message";
+  const tools =
+    toolbar && !disabled ? <ToolbarPlugin disabled={disabled} /> : null;
   const errorId = `${id}-error`;
   const described = [describedBy, invalid ? errorId : undefined]
     .filter(Boolean)
     .join(" ");
 
   return (
-    <div className={editorFrame.surface(document, invalid, focused)}>
-      {toolbar && !disabled ? (
-        <div className={editorFrame.toolbar(document, focused)}>
-          <ToolbarPlugin disabled={disabled} />
-        </div>
+    <div className={editorFrame.surface(variant, invalid, focused)}>
+      {tools && !message ? (
+        <div className={editorFrame.toolbar(variant, focused)}>{tools}</div>
       ) : null}
       <div
         ref={setAnchor}
-        className={cx(editorFrame.content(document), young && "fe-young")}
+        className={cx(editorFrame.content(variant), young && "fe-young")}
         data-digits={digits}
       >
         <ContentEditable
@@ -686,7 +694,7 @@ const Surface = memo(function Surface({
           aria-invalid={invalid}
           aria-describedby={described || undefined}
           lang={language}
-          className={editorFrame.editable(document)}
+          className={editorFrame.editable(variant)}
         />
         <BlockHandlePlugin anchor={anchor} />
         <CodeBlockPlugin anchor={anchor} />
@@ -711,7 +719,14 @@ const Surface = memo(function Surface({
       <PastePlugin />
       <QuestionGuardPlugin />
       <DiagramPlugin />
-      {!document ? (
+      {message ? (
+        tools || actions ? (
+          <div className={editorFrame.toolbar(variant)}>
+            <div className="min-w-0 flex-1 overflow-hidden">{tools}</div>
+            {actions}
+          </div>
+        ) : null
+      ) : variant === "field" ? (
         <FieldFooter stats={stats} />
       ) : disabled ? null : (
         <DocumentFooter
@@ -741,7 +756,7 @@ function FieldFooter({ stats }: FieldFooterProps) {
   const { strings } = useEditorEnvironment();
   const { characters } = useStats(stats);
   return (
-    <div className={editorFrame.footer(false)}>
+    <div className={editorFrame.footer("field")}>
       <span>{strings.placeholder}</span>
       <span>{strings.characters(characters)}</span>
     </div>

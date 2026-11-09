@@ -5,14 +5,21 @@
 const join = (...names: (string | false | undefined)[]) =>
   names.filter(Boolean).join(" ");
 
+/**
+ * A document fills the page, a field is a form's box with its count, and a
+ * message is a conversation's composer: the words first, the tools beneath
+ * them with the send button at their end, as people know from chat.
+ */
+export type EditorVariant = "document" | "field" | "message";
+
 export const editorFrame = {
-  surface: (document: boolean, invalid = false, focused = false) =>
+  surface: (variant: EditorVariant, invalid = false, focused = false) =>
     join(
       "fe-surface group/editor",
       focused ? "fixed" : "relative",
       // A document fills the screen, so its status bar's own place is never
       // above the fold and it sticks to the bottom however short the text.
-      document
+      variant === "document"
         ? "fe-document flex min-h-dvh flex-col"
         : "overflow-visible rounded-xl border bg-background shadow-xs transition-shadow focus-within:border-ring/50 focus-within:ring-3 focus-within:ring-ring/15",
       invalid && "border-destructive",
@@ -20,28 +27,38 @@ export const editorFrame = {
       focused &&
         "inset-0 z-50 overflow-y-auto bg-background px-4 pt-4 sm:px-8 [&>*]:mx-auto [&>*]:max-w-3xl",
     ),
-  toolbar: (document: boolean, focused = false) =>
-    document
+  toolbar: (variant: EditorVariant, focused = false) =>
+    variant === "document"
       ? join(
           "sticky z-20 -mx-1 mb-3 rounded-lg border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80",
           focused ? "top-0" : "top-12",
         )
-      : "overflow-hidden rounded-t-xl border-b",
-  content: (document: boolean) =>
+      : variant === "message"
+        ? "flex items-center gap-2 rounded-b-xl border-t pe-1.5"
+        : "overflow-hidden rounded-t-xl border-b",
+  content: (variant: EditorVariant) =>
     join(
       "fe relative",
-      document
+      variant === "document"
         ? "flex-1 min-h-[40vh] ps-9 sm:-ms-14 sm:ps-14"
-        : "min-h-36 ps-10 pe-4 py-3",
+        : variant === "message"
+          ? // Long words scroll inside the box, so the conversation above
+            // keeps most of a short screen.
+            "max-h-[min(16rem,33svh)] overflow-y-auto ps-10 pe-4 py-2"
+          : "min-h-36 ps-10 pe-4 py-3",
     ),
-  editable: (document: boolean) =>
+  editable: (variant: EditorVariant) =>
     join(
       "fe-editable outline-none",
-      document ? "min-h-[40vh] pb-24" : "min-h-30",
+      variant === "document"
+        ? "min-h-[40vh] pb-24"
+        : variant === "message"
+          ? "min-h-12"
+          : "min-h-30",
     ),
-  footer: (document: boolean) =>
+  footer: (variant: EditorVariant) =>
     join(
       "flex items-center justify-between gap-3 px-4 py-1.5 text-xs text-muted-foreground",
-      !document && "border-t bg-muted/20 rounded-b-xl",
+      variant !== "document" && "border-t bg-muted/20 rounded-b-xl",
     ),
 };

@@ -94,6 +94,7 @@ import { CompareView, GalleryView } from "./pictures-view";
 import { editorTheme } from "./theme";
 
 export { editorFrame } from "./frame";
+export type { EditorVariant } from "./frame";
 
 export interface ViewStrings
   extends

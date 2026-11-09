@@ -35,7 +35,7 @@ import {
   SendHorizontal,
   Users,
 } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
@@ -429,9 +429,31 @@ function Composer({ thread, fields }: ComposerProps) {
       : mode === "logged"
         ? m.msgWriteLogged()
         : m.msgWrite();
+  const blocked =
+    !hydrated || !hasWords(content) || uploading || send.isPending;
+  const sendLabel = mode === "message" ? m.msgSend() : m.msgSave();
+  const actions = useMemo(
+    () => (
+      <div className="flex shrink-0 items-center gap-3">
+        {draft.status ? (
+          <span
+            aria-live="polite"
+            className="text-[13px] leading-[18px] text-muted-foreground max-sm:sr-only"
+          >
+            {draft.status}
+          </span>
+        ) : null}
+        <Button type="submit" className="max-md:h-10" disabled={blocked}>
+          <SendHorizontal className="rtl:rotate-180" aria-hidden />
+          {sendLabel}
+        </Button>
+      </div>
+    ),
+    [draft.status, blocked, sendLabel],
+  );
   return (
     <form
-      className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2 border-t bg-card p-3"
+      className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2 border-t bg-card px-3 py-2"
       onSubmit={(event) => {
         event.preventDefault();
         submit();
@@ -518,6 +540,8 @@ function Composer({ thread, fields }: ComposerProps) {
       ) : null}
       <ContentEditor
         id={`${id}-body`}
+        variant="message"
+        actions={actions}
         label={label}
         placeholder={mode === "message" ? m.msgWritePlaceholder() : label}
         value={content}
@@ -567,26 +591,6 @@ function Composer({ thread, fields }: ComposerProps) {
           {draft.error}
         </p>
       ) : null}
-      <div className="flex items-center justify-end gap-3">
-        {draft.status ? (
-          <span
-            aria-live="polite"
-            className="text-[13px] leading-[18px] text-muted-foreground"
-          >
-            {draft.status}
-          </span>
-        ) : null}
-        <Button
-          type="submit"
-          className="max-md:h-10"
-          disabled={
-            !hydrated || !hasWords(content) || uploading || send.isPending
-          }
-        >
-          <SendHorizontal className="rtl:rotate-180" aria-hidden />
-          {mode === "message" ? m.msgSend() : m.msgSave()}
-        </Button>
-      </div>
     </form>
   );
 }

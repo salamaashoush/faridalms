@@ -598,7 +598,7 @@ export function MessagesPage({ search, onSearch }: MessagesPageProps) {
           }
         />
       </div>
-      <div className="grid min-h-[32rem] overflow-hidden rounded-lg border bg-card lg:h-[calc(100svh-13rem)] lg:grid-cols-[22rem_minmax(0,1fr)]">
+      <div className="grid min-h-[24rem] overflow-hidden rounded-lg border bg-card lg:h-[calc(100svh-11rem)] lg:grid-cols-[22rem_minmax(0,1fr)]">
         <div
           className={cn(
             "min-h-0 min-w-0 overflow-x-hidden overflow-y-auto lg:border-e",

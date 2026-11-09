@@ -1,6 +1,8 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { ContentLocale } from "@faridalms/domain/translations";
 import type { EditorCollaboration, EditorMedia } from "@faridalms/editor";
+import type { EditorVariant } from "@faridalms/editor/view";
+import type { ReactNode } from "react";
 
 import { contentPlainText } from "@faridalms/domain/content";
 import { editorFrame } from "@faridalms/editor/view";
@@ -39,7 +41,9 @@ export interface ContentEditorProps {
   onChange: (value: ContentDocument) => void;
   onValidityChange?: (valid: boolean) => void;
   disabled?: boolean;
-  variant?: "document" | "field";
+  variant?: EditorVariant;
+  /** What ends a message's tools; memoise it, as the editor redraws when it changes. */
+  actions?: ReactNode;
   toolbar?: boolean;
   media?: EditorMedia;
   placeholder?: string;
@@ -81,6 +85,7 @@ export function ContentEditor({
   onValidityChange,
   disabled = false,
   variant = "field",
+  actions,
   toolbar = true,
   media,
   placeholder,
@@ -119,26 +124,31 @@ export function ContentEditor({
   const comments = useEditorComments(id);
   const helping = useEditorAssistant(assistant);
   const { arabicMath } = useCurrentUser().school;
-  const document = variant === "document";
+  const message = variant === "message";
+  const toolbarBox =
+    toolbar && !disabled ? <div className="h-10 flex-1 bg-muted/25" /> : null;
   // Lexical needs a DOM, so the server draws the document in the editor's own
   // frame and the editor takes that frame over in the browser.
   const placeholderBox = (
-    <div aria-busy="true" className={editorFrame.surface(document)}>
-      {toolbar && !disabled ? (
-        <div className={editorFrame.toolbar(document)}>
-          <div className="h-10 bg-muted/25" />
-        </div>
+    <div aria-busy="true" className={editorFrame.surface(variant)}>
+      {toolbarBox && !message ? (
+        <div className={editorFrame.toolbar(variant)}>{toolbarBox}</div>
       ) : null}
       <ContentView
         document={value}
-        className={editorFrame.content(document).replace(/^fe /, "")}
+        className={editorFrame.content(variant).replace(/^fe /, "")}
       />
-      {document ? null : (
-        <div className={editorFrame.footer(document)}>
+      {message ? (
+        <div className={editorFrame.toolbar(variant)}>
+          {toolbarBox ?? <div className="flex-1" />}
+          {actions}
+        </div>
+      ) : variant === "field" ? (
+        <div className={editorFrame.footer(variant)}>
           <span>{strings.placeholder}</span>
           <span>{strings.characters(contentPlainText(value).length)}</span>
         </div>
-      )}
+      ) : null}
     </div>
   );
   // A live editor starts empty and fills from its room, so the stored text
@@ -162,6 +172,7 @@ export function ContentEditor({
           onValidityChange={onValidityChange}
           disabled={disabled}
           variant={variant}
+          actions={actions}
           toolbar={toolbar}
           media={media}
           studio={coding.studio}
