@@ -6,7 +6,8 @@ import type {
   PriorityRule,
   SaveIntake,
 } from "@faridalms/domain/admissions";
-import type { GridColumn, GridIssue } from "@faridalms/ui/system/data-grid";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
+import type { ReactNode } from "react";
 
 import {
   CHECKLIST_KINDS,
@@ -18,29 +19,31 @@ import {
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { Input } from "@faridalms/ui/input";
-import {
-  CheckCell,
-  DataGrid,
-  GridAddButton,
-  GridRemoveButton,
-  NumberCell,
-  SelectCell,
-  TextCell,
-  useFocusAfterRender,
-} from "@faridalms/ui/system/data-grid";
+import { DataTable, RowButton } from "@faridalms/ui/system/data-table";
 import {
   FormField,
+  NumberField,
   SelectField,
   TextField,
 } from "@faridalms/ui/system/form-field";
 import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { Value } from "@faridalms/ui/system/value";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  CircleAlert,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { intakeOptionsQuery } from "~/queries/admissions";
 
+import { CheckboxRow } from "~/components/people/fields";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { saveIntake } from "~/server/admissions";
@@ -187,136 +190,361 @@ function saveInput(draft: IntakeDraft): SaveIntake {
 const wholeIn = (value: string, min: number, max: number) =>
   /^\d+$/.test(value.trim()) && Number(value) >= min && Number(value) <= max;
 
-const itemCell = (
-  item: ChecklistItem,
-  field: "en" | "ar" | "kind" | "required",
-) => `item-${item.key}-${field}`;
+const stepName = (item: ChecklistItem) =>
+  inLocale(item.labelEn.trim() || null, item.labelAr.trim() || null);
 
-/** A step with no name in either language, tied to its English cell. */
-function checklistIssues(checklist: readonly ChecklistItem[]): GridIssue[] {
-  return checklist.flatMap((item, index) =>
-    item.labelEn.trim() || item.labelAr.trim()
-      ? []
-      : [
-          {
-            target: itemCell(item, "en"),
-            label: m.itkItemStep({ number: formatNumber(index + 1) }),
-            message: m.itkErrChecklist(),
-          },
-        ],
-  );
-}
+type StepOpener = (item: ChecklistItem) => ReactNode;
 
-interface ChecklistGridOptions {
-  checklist: ChecklistItem[];
-  change: (key: string, patch: Partial<ChecklistItem>) => void;
-  remove: (key: string) => void;
-}
+type StepRow = ChecklistItem & { id: string };
 
 // Built per render: headers read the request's locale.
-function checklistGrid({ checklist, change, remove }: ChecklistGridOptions) {
-  const number = (item: ChecklistItem) =>
-    formatNumber(checklist.indexOf(item) + 1);
-  const rowHeader = {
-    header: m.itkItemLabelEn(),
-    cell: (item: ChecklistItem) => (
-      <TextCell
-        id={itemCell(item, "en")}
-        label={m.itkItemLabelEnOf({ number: number(item) })}
-        dir="ltr"
-        maxLength={120}
-        value={item.labelEn}
-        onChange={(labelEn) => change(item.key, { labelEn })}
-      />
-    ),
-  };
-  const columns: GridColumn<ChecklistItem>[] = [
-    {
-      id: "ar",
-      header: m.itkItemLabelAr(),
-      cell: (item) => (
-        <TextCell
-          id={itemCell(item, "ar")}
-          label={m.itkItemLabelArOf({ number: number(item) })}
-          lang="ar"
-          maxLength={120}
-          value={item.labelAr}
-          onChange={(labelAr) => change(item.key, { labelAr })}
-        />
-      ),
-    },
+function stepColumns(opener: StepOpener): Column<StepRow>[] {
+  return [
+    { id: "step", header: m.itkItemStepColumn(), primary: true, cell: opener },
     {
       id: "kind",
       header: m.itkItemKind(),
-      cell: (item) => (
-        <SelectCell
-          id={itemCell(item, "kind")}
-          label={m.itkItemKindOf({ number: number(item) })}
-          value={item.kind}
-          options={CHECKLIST_KINDS.map((kind) => ({
-            value: kind,
-            label: CHECKLIST_KIND_LABEL[kind](),
-          }))}
-          onChange={(kind) => change(item.key, { kind })}
-        />
-      ),
+      cell: (item) => CHECKLIST_KIND_LABEL[item.kind](),
     },
     {
       id: "required",
       header: m.itkItemRequired(),
-      cell: (item) => (
-        <CheckCell
-          id={itemCell(item, "required")}
-          label={m.itkItemRequiredOf({ number: number(item) })}
-          checked={item.required}
-          onChange={(required) => change(item.key, { required })}
-        />
-      ),
+      cell: (item) =>
+        item.required ? m.itkItemRequiredYes() : m.itkItemRequiredNo(),
     },
   ];
-  const rowEnd = (item: ChecklistItem) => (
-    <GridRemoveButton
-      label={m.itkItemRemove({
-        item: item.labelEn || item.labelAr || number(item),
-      })}
-      onRemove={() => remove(item.key)}
-    />
-  );
-  return { rowHeader, columns, rowEnd };
 }
 
-interface FeeGridOptions {
-  fees: Record<FeeKind, string>;
-  currency: Currency;
-  change: (kind: FeeKind, amount: string) => void;
+function stepCard(opener: StepOpener) {
+  return {
+    title: opener,
+    fact: (item: ChecklistItem) =>
+      `${CHECKLIST_KIND_LABEL[item.kind]()} · ${
+        item.required ? m.itkItemRequiredYes() : m.itkItemRequiredNo()
+      }`,
+  };
 }
+
+interface StepSheetProps {
+  checklist: ChecklistItem[];
+  /** The step being changed; none to add one. */
+  item: ChecklistItem | null;
+  open: boolean;
+  onDone: (checklist: ChecklistItem[]) => void;
+  onClose: () => void;
+}
+
+/** One step families meet, kept with the intake when it is saved. */
+function StepSheet({ checklist, item, open, onDone, onClose }: StepSheetProps) {
+  const [draft, setDraft] = useState<ChecklistItem>(
+    () =>
+      item ?? {
+        key: crypto.randomUUID(),
+        kind: "document",
+        labelEn: "",
+        labelAr: "",
+        required: true,
+      },
+  );
+  const [tried, setTried] = useState(false);
+  const unnamed = !draft.labelEn.trim() && !draft.labelAr.trim();
+  const set = (change: Partial<ChecklistItem>) =>
+    setDraft((current) => ({ ...current, ...change }));
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title={item ? m.itkItemEdit({ item: stepName(item) }) : m.itkItemAdd()}
+      submitLabel={item ? m.itkItemSave() : m.itkItemAdd()}
+      onSubmit={() => {
+        setTried(true);
+        if (unnamed) return;
+        onDone(
+          item
+            ? checklist.map((one) => (one.key === draft.key ? draft : one))
+            : [...checklist, draft],
+        );
+        onClose();
+      }}
+    >
+      <TextField
+        id="intake-step-en"
+        label={m.itkItemLabelEn()}
+        width="name"
+        dir="ltr"
+        maxLength={120}
+        autoComplete="off"
+        value={draft.labelEn}
+        onChange={(event) => set({ labelEn: event.target.value })}
+        errors={tried && unnamed ? [m.itkErrChecklistOne()] : undefined}
+      />
+      <TextField
+        id="intake-step-ar"
+        label={m.itkItemLabelAr()}
+        width="name"
+        lang="ar"
+        dir="rtl"
+        maxLength={120}
+        autoComplete="off"
+        value={draft.labelAr}
+        onChange={(event) => set({ labelAr: event.target.value })}
+      />
+      <SelectField
+        id="intake-step-kind"
+        label={m.itkItemKind()}
+        value={draft.kind}
+        options={CHECKLIST_KINDS.map((kind) => ({
+          value: kind,
+          label: CHECKLIST_KIND_LABEL[kind](),
+        }))}
+        onChange={(kind) => set({ kind })}
+        width="name"
+      />
+      <CheckboxRow
+        label={m.itkItemRequired()}
+        hint={m.itkItemRequiredHint()}
+        checked={draft.required}
+        onChange={(required) => set({ required })}
+      />
+    </SheetForm>
+  );
+}
+
+interface ChecklistTableProps {
+  checklist: ChecklistItem[];
+  onChange: (checklist: ChecklistItem[]) => void;
+  error: string | null;
+}
+
+/** The steps families meet, a row each, opened and changed on its own. */
+function ChecklistTable({ checklist, onChange, error }: ChecklistTableProps) {
+  const [sheet, setSheet] = useState<{
+    item: ChecklistItem | null;
+    key: number;
+    open: boolean;
+  } | null>(null);
+  const open = (item: ChecklistItem | null) =>
+    setSheet((current) => ({ item, key: (current?.key ?? 0) + 1, open: true }));
+  const opener: StepOpener = (item) => (
+    <RowButton onClick={() => open(item)}>{stepName(item)}</RowButton>
+  );
+  const add = (variant: "default" | "outline") =>
+    checklist.length < 20 ? (
+      <Button
+        type="button"
+        variant={variant}
+        className="max-md:h-10"
+        onClick={() => open(null)}
+      >
+        <Plus aria-hidden />
+        {m.itkItemAdd()}
+      </Button>
+    ) : undefined;
+  const rowActions = (item: ChecklistItem): RowAction[] => [
+    { label: m.recordEdit(), icon: Pencil, onSelect: () => open(item) },
+    {
+      label: m.itkItemRemoveAction(),
+      icon: Trash2,
+      destructive: true,
+      confirm: {
+        title: m.itkItemRemoveTitle({ item: stepName(item) }),
+        body: m.itkItemRemoveBody(),
+        label: m.itkItemRemoveAction(),
+      },
+      onSelect: () => onChange(checklist.filter((one) => one.key !== item.key)),
+    },
+  ];
+  return (
+    <>
+      <DataTable
+        caption={m.itkChecklistTable()}
+        rows={checklist.map((item) => Object.assign({ id: item.key }, item))}
+        columns={stepColumns(opener)}
+        rowLabel={stepName}
+        rowActions={rowActions}
+        actions={add("outline")}
+        card={stepCard(opener)}
+        empty={{ title: m.itkChecklistNone(), action: add("outline") }}
+      />
+      {error ? (
+        <p
+          role="alert"
+          className="flex items-start gap-1.5 text-[13px] leading-[18px] text-destructive"
+        >
+          <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+          {error}
+        </p>
+      ) : null}
+      {sheet ? (
+        <StepSheet
+          key={sheet.key}
+          checklist={checklist}
+          item={sheet.item}
+          open={sheet.open}
+          onDone={onChange}
+          onClose={() =>
+            setSheet((current) => current && { ...current, open: false })
+          }
+        />
+      ) : null}
+    </>
+  );
+}
+
+interface FeeRow {
+  id: FeeKind;
+  amount: string;
+}
+
+type FeeOpener = (row: FeeRow) => ReactNode;
+
+const feeAmount = (amount: string) =>
+  amount.trim() === "" ? null : Number(amount);
 
 // Built per render: headers read the request's locale.
-function feeGrid({ fees, currency, change }: FeeGridOptions) {
-  const rowHeader = {
-    header: m.itkFee(),
-    cell: (kind: FeeKind) => FEE_KIND_LABEL[kind](),
-  };
-  const columns: GridColumn<FeeKind>[] = [
+function feeColumns(currency: Currency, opener: FeeOpener): Column<FeeRow>[] {
+  return [
+    { id: "fee", header: m.itkFee(), primary: true, cell: opener },
     {
       id: "amount",
       header: m.itkFeeAmount({ currency }),
-      numeric: true,
-      cell: (kind) => (
-        <NumberCell
-          id={`fee-${kind}`}
-          label={FEE_KIND_LABEL[kind]()}
-          decimals={2}
-          placeholder="—"
-          value={fees[kind].trim() === "" ? null : Number(fees[kind])}
-          onChange={(amount) =>
-            change(kind, amount === null ? "" : String(amount))
-          }
-        />
-      ),
+      align: "end",
+      cell: (row) => {
+        const amount = feeAmount(row.amount);
+        return amount === null ? (
+          <Value absent={m.itkFeeNone()} />
+        ) : (
+          formatNumber(amount)
+        );
+      },
     },
   ];
-  return { rowHeader, columns };
+}
+
+function feeCard(currency: Currency, opener: FeeOpener) {
+  return {
+    title: opener,
+    fact: (row: FeeRow) => {
+      const amount = feeAmount(row.amount);
+      return amount === null
+        ? m.itkFeeNone()
+        : m.itkFeeCard({ currency, amount: formatNumber(amount) });
+    },
+  };
+}
+
+interface FeeSheetProps {
+  kind: FeeKind;
+  amount: string;
+  currency: Currency;
+  open: boolean;
+  onDone: (amount: string) => void;
+  onClose: () => void;
+}
+
+/** What one fee costs, kept with the intake; empty when there is none. */
+function FeeSheet({
+  kind,
+  amount,
+  currency,
+  open,
+  onDone,
+  onClose,
+}: FeeSheetProps) {
+  const [value, setValue] = useState(feeAmount(amount));
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title={FEE_KIND_LABEL[kind]()}
+      submitLabel={m.itkFeeSave()}
+      onSubmit={() => {
+        onDone(value === null ? "" : String(value));
+        onClose();
+      }}
+    >
+      <NumberField
+        id="intake-fee"
+        label={m.itkFeeAmount({ currency })}
+        hint={m.itkFeeHint()}
+        optional
+        decimals={2}
+        width="reference"
+        value={value}
+        onChange={setValue}
+      />
+    </SheetForm>
+  );
+}
+
+interface FeesTableProps {
+  fees: Record<FeeKind, string>;
+  currency: Currency;
+  onChange: (fees: Record<FeeKind, string>) => void;
+}
+
+/** The intake's fees, one row for each kind the school may charge. */
+function FeesTable({ fees, currency, onChange }: FeesTableProps) {
+  const [sheet, setSheet] = useState<{
+    kind: FeeKind;
+    key: number;
+    open: boolean;
+  } | null>(null);
+  const open = (kind: FeeKind) =>
+    setSheet((current) => ({ kind, key: (current?.key ?? 0) + 1, open: true }));
+  const opener: FeeOpener = (row) => (
+    <RowButton onClick={() => open(row.id)}>
+      {FEE_KIND_LABEL[row.id]()}
+    </RowButton>
+  );
+  const rowActions = (row: FeeRow): RowAction[] => [
+    { label: m.recordEdit(), icon: Pencil, onSelect: () => open(row.id) },
+    ...(feeAmount(row.amount) === null
+      ? []
+      : [
+          {
+            label: m.itkFeeClear(),
+            icon: Trash2,
+            destructive: true as const,
+            confirm: {
+              title: m.itkFeeClearTitle({ fee: FEE_KIND_LABEL[row.id]() }),
+              body: m.itkFeeClearBody(),
+              label: m.itkFeeClear(),
+            },
+            onSelect: () => onChange({ ...fees, [row.id]: "" }),
+          },
+        ]),
+  ];
+  return (
+    <>
+      <DataTable
+        caption={m.itkFeesTable({ currency })}
+        rows={FEE_KINDS.map((kind) => ({ id: kind, amount: fees[kind] }))}
+        columns={feeColumns(currency, opener)}
+        rowLabel={(row) => FEE_KIND_LABEL[row.id]()}
+        rowActions={rowActions}
+        card={feeCard(currency, opener)}
+        empty={{ title: m.itkFeeNone() }}
+      />
+      {sheet ? (
+        <FeeSheet
+          key={sheet.key}
+          kind={sheet.kind}
+          amount={fees[sheet.kind]}
+          currency={currency}
+          open={sheet.open}
+          onDone={(amount) => onChange({ ...fees, [sheet.kind]: amount })}
+          onClose={() =>
+            setSheet((current) => current && { ...current, open: false })
+          }
+        />
+      ) : null}
+    </>
+  );
 }
 
 export interface IntakeEditorProps {
@@ -336,7 +564,6 @@ export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
   const [draft, setDraft] = useState(initial);
   const leaving = useRef(false);
   const [tried, setTried] = useState(false);
-  const focusLater = useFocusAfterRender();
   const set = <K extends keyof IntakeDraft>(key: K, value: IntakeDraft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
   const creating = draft.id === "";
@@ -404,24 +631,6 @@ export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
       ageCutoffOn: year?.cutoffOn ?? current.ageCutoffOn,
     }));
   };
-
-  const addStep = (
-    <GridAddButton
-      label={m.itkItemAdd()}
-      disabled={draft.checklist.length >= 20}
-      onAdd={() => {
-        const added: ChecklistItem = {
-          key: crypto.randomUUID(),
-          kind: "document",
-          labelEn: "",
-          labelAr: "",
-          required: true,
-        };
-        set("checklist", [...draft.checklist, added]);
-        focusLater(itemCell(added, "en"));
-      }}
-    />
-  );
 
   const movePriority = (rule: PriorityRule, by: -1 | 1) => {
     const list = [...draft.priorities];
@@ -588,33 +797,11 @@ export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
         title={m.itkSectionChecklist()}
         description={m.itkSectionChecklistHint()}
       >
-        {draft.checklist.length ? (
-          <DataGrid<ChecklistItem>
-            caption={m.itkChecklistTable()}
-            editing
-            {...checklistGrid({
-              checklist: draft.checklist,
-              change: (key, patch) =>
-                set(
-                  "checklist",
-                  draft.checklist.map((item) =>
-                    item.key === key ? { ...item, ...patch } : item,
-                  ),
-                ),
-              remove: (key) =>
-                set(
-                  "checklist",
-                  draft.checklist.filter((item) => item.key !== key),
-                ),
-            })}
-            groups={[{ id: "steps", title: "", rows: draft.checklist }]}
-            rowKey={(item) => item.key}
-            issues={tried ? checklistIssues(draft.checklist) : []}
-            footer={addStep}
-          />
-        ) : (
-          <div>{addStep}</div>
-        )}
+        <ChecklistTable
+          checklist={draft.checklist}
+          onChange={(checklist) => set("checklist", checklist)}
+          error={tried ? errors.checklist : null}
+        />
       </FormSection>
 
       <FormSection
@@ -632,17 +819,10 @@ export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
           onChange={(currency) => set("currency", currency)}
           width="code"
         />
-        <DataGrid<FeeKind>
-          caption={m.itkFeesTable({ currency: draft.currency })}
-          editing
-          {...feeGrid({
-            fees: draft.fees,
-            currency: draft.currency,
-            change: (kind, amount) =>
-              set("fees", { ...draft.fees, [kind]: amount }),
-          })}
-          groups={[{ id: "fees", title: "", rows: [...FEE_KINDS] }]}
-          rowKey={(kind) => kind}
+        <FeesTable
+          fees={draft.fees}
+          currency={draft.currency}
+          onChange={(fees) => set("fees", fees)}
         />
       </FormSection>
 

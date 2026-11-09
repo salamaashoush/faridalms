@@ -370,6 +370,28 @@ Grade scales.
   Choosing the subject inside the sheet, not from a menu that added a
   blank row, means a row never exists without its subject.
 
+### An intake's checklist and fees
+
+`apps/web/src/components/admissions/IntakeEditor.tsx`, an intake's editor.
+
+- **Sources.** OpenApply's checklist is a list with "+ Add Checklist
+  Item", an edit icon and a delete icon on each item and drag to reorder
+  (help.openapply.com, article 4405307997581); its fees are created one at
+  a time, each with its own lines (article 40797128736409).
+- **Decision.** The checklist is the standard table in the intake's form,
+  the step, its kind and whether it is required as columns. A step opens
+  in a sheet with its names, kind and Required; Add opens it empty, up to
+  twenty, and Remove asks first. The fees are a table of the fee kinds the
+  school may charge, each with its amount or "No fee"; a fee opens in a
+  sheet with its amount, and its menu removes the amount after asking.
+  The currency stays a field above the fees, since it is one for all of
+  them. The rows are kept with the intake and saved with it.
+- **Why it fits.** An intake is one record with its own Save and leave
+  guard, and a new one has nothing yet to save a step to, so rows are
+  kept with it as the console keeps a new invoice's lines. Fees are a
+  fixed set, so they have no Add: a school sets or clears the amount of a
+  fee it charges. Priorities stay an ordered list, as before.
+
 ## Ranking, worst first
 
 | #   | Editor                                   | Where                                                       | State                                                                  |
@@ -379,7 +401,7 @@ Grade scales.
 | 3   | Grade bands                              | `apps/web/src/components/grading/ScalesTab.tsx`             | Rows: a grade per row, dated and with a reason                         |
 | 4   | Grading categories (weights)             | `apps/web/src/components/grading/ProgrammesTab.tsx`         | Rows in the programme's sheet, total checked on Save                   |
 | 5   | Rubric (criteria by levels)              | `apps/web/src/components/coursework/RubricSheet.tsx`        | Redesigned: a matrix, one criterion opened at a time                   |
-| 6   | Intake checklist, fees and priorities    | `apps/web/src/components/admissions/IntakeEditor.tsx`       | Rebuilt: checklist and fees; priorities left                           |
+| 6   | Intake checklist, fees and priorities    | `apps/web/src/components/admissions/IntakeEditor.tsx`       | Rows: a step or fee per row; priorities left                           |
 | 7   | Periods                                  | `apps/web/src/components/years/YearPeriods.tsx`             | Rebuilt: times in columns, days on each row's line                     |
 | 8   | Invoice and credit note lines (console)  | `apps/ops/src/components/InvoiceLinesForm.tsx`              | Rebuilt: a table, each line in its own sheet                           |
 | 9   | Quote and provisioning add-ons (console) | `apps/ops/src/components/QuoteAddOns.tsx`, `provisioning.*` | Quote add-ons a table; provisioning add-ons left                       |
