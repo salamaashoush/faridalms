@@ -75,6 +75,15 @@ describe("reading norms", () => {
         }),
       ),
     ).toMatchObject({ code: "BAD_REQUEST" });
+    expect(
+      await rejection(
+        principal.reading.saveNorms({
+          language: "ar",
+          rows: [{ ...row, p75: 40 }],
+          expectedVersion: 0,
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
     const saved = await principal.reading.saveNorms({
       language: "ar",
       rows,

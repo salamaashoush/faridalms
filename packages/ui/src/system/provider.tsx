@@ -59,6 +59,11 @@ export interface SystemStrings {
   filtersHint: string;
   goBack: string;
   goHome: string;
+  gridBaseline: (source: string, value: string) => string;
+  gridChanged: (source: string, count: string) => string;
+  gridKeys: string;
+  gridNoFigure: string;
+  gridReset: string;
   holdCompare: string;
   holdCopy: string;
   holdHeld: (name: string, since: string) => string;

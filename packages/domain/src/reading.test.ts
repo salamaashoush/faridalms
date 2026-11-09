@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_NORMS,
+  fallingPercentiles,
   normStanding,
   passageLanguage,
   practiseWords,
@@ -33,6 +34,24 @@ describe("reading norms", () => {
   it("refuse a grade given twice for one time of year", () => {
     const row = DEFAULT_NORMS.en[3];
     expect(v.safeParse(readingNormsSchema, [row, row]).success).toBe(false);
+  });
+
+  it("refuse a percentile written lower than one before it, skipping blanks", () => {
+    const row = {
+      grade: "grade_2",
+      season: "fall" as const,
+      p10: 20,
+      p25: null,
+      p50: 50,
+      p75: 40,
+      p90: 45,
+    };
+    expect(fallingPercentiles(row)).toEqual(["p75", "p90"]);
+    expect(v.safeParse(readingNormsSchema, [row]).success).toBe(false);
+    expect(fallingPercentiles({ ...row, p75: 60, p90: 60 })).toEqual([]);
+    expect(
+      DEFAULT_NORMS.en.flatMap((item) => fallingPercentiles(item)),
+    ).toEqual([]);
   });
 
   it("read the time of year from the month", () => {

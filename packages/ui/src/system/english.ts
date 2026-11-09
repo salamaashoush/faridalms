@@ -47,6 +47,11 @@ export const ENGLISH_STRINGS: SystemStrings = {
   filtersHint: "Changes apply straight away.",
   goBack: "Go back",
   goHome: "Go home",
+  gridBaseline: (source, value) => `${source}: ${value}`,
+  gridChanged: (source, count) => `${count} changed from ${source}`,
+  gridKeys: "Arrow keys and Enter move between cells; Escape undoes a cell.",
+  gridNoFigure: "No figure",
+  gridReset: "Put it back",
   holdCompare: "Compare versions",
   holdCopy: "Copy my change",
   holdHeld: (name, since) =>

@@ -35,6 +35,21 @@ export type NormRow = v.InferOutput<typeof normRowSchema>;
 
 export const MAX_NORM_ROWS = 60;
 
+/**
+ * The percentiles of a row written lower than one before them: a 50th
+ * percentile under the 25th cannot be. Blank percentiles are skipped.
+ */
+export function fallingPercentiles(row: NormRow): NormPercentile[] {
+  let highest: number | null = null;
+  return NORM_PERCENTILES.filter((percentile) => {
+    const value = row[percentile];
+    if (value === null) return false;
+    if (highest !== null && value < highest) return true;
+    highest = value;
+    return false;
+  });
+}
+
 export const readingNormsSchema = v.pipe(
   v.array(normRowSchema),
   v.maxLength(MAX_NORM_ROWS),
@@ -43,6 +58,10 @@ export const readingNormsSchema = v.pipe(
       new Set(rows.map((row) => `${row.grade}:${row.season}`)).size ===
       rows.length,
     "reading.norm_repeated",
+  ),
+  v.check(
+    (rows) => rows.every((row) => fallingPercentiles(row).length === 0),
+    "reading.norm_order",
   ),
 );
 

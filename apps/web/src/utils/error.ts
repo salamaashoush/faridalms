@@ -718,6 +718,8 @@ export function getMessageFromError(error: unknown): string {
         return m.discussionErrLikeOwn();
       case "reading.norm_repeated":
         return m.readingErrNormRepeated();
+      case "reading.norm_order":
+        return m.readingErrNormOrder();
       case "coursework.peer_due_early":
         return m.courseworkErrPeerDueEarly();
       case "coursework.peer_no_passage":

@@ -5,6 +5,7 @@ import { expect, test } from "@playwright/test";
 import { API_ORIGIN, signedInApi } from "./fixtures/api";
 import {
   ACCOUNTS,
+  chooseFromMenu,
   PASSWORD,
   signIn,
   signInWith,
@@ -146,16 +147,38 @@ test("a school writes its own Arabic reading norms in its settings", async ({
   await signIn(page, "admin");
   await page.goto("/settings?section=reading");
   await untilHydrated(page);
+  const english = page.getByRole("region", {
+    name: /Reading norms in English/,
+  });
+  await english.getByRole("button", { name: "Edit English norms" }).click();
+  await english
+    .getByRole("textbox", { name: "Grade 3, winter, 75th percentile" })
+    .fill("90");
+  await english.getByRole("button", { name: "Save" }).click();
+  await expect(
+    english.getByRole("alert").getByRole("link", {
+      name: /Grade 3, winter, 75th percentile is lower than the 50th percentile/,
+    }),
+  ).toBeVisible();
+  await english.getByRole("button", { name: "Cancel" }).click();
+  await expect(
+    english.getByRole("button", { name: "Edit English norms" }),
+  ).toBeFocused();
+
   const arabic = page.getByRole("region", { name: /Reading norms in Arabic/ });
   await expect(arabic.getByText(/no published norms/)).toBeVisible();
-  await arabic.locator("#norm-ar-grade").click();
-  await page.getByRole("option", { name: "Grade 2", exact: true }).click();
-  await arabic.getByRole("button", { name: "Add grade" }).click();
+  await chooseFromMenu(
+    arabic.getByRole("button", { name: "Add grade" }),
+    page.getByRole("menuitem", { name: "Grade 2", exact: true }),
+  );
   await arabic
-    .getByRole("spinbutton", { name: /Grade 2, autumn, 50th percentile/ })
+    .getByRole("textbox", { name: /Grade 2, autumn, 50th percentile/ })
     .fill("45");
   await arabic.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Reading norms saved")).toBeVisible();
+  await expect(
+    arabic.getByRole("cell", { name: "45", exact: true }),
+  ).toBeVisible();
   await arabic.getByRole("button", { name: "Go back to the defaults" }).click();
   await page
     .getByRole("dialog")

@@ -26,6 +26,7 @@ package gains it first, with a test and a line in this table.
 | Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                                                                                                                           |
 | Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                                                                                                                     |
 | Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                                                                                                               |
+| Data editors   | `data-grid` (`DataGrid`, `GridFigure`, `NumberCell`, `GridAddButton`, `useFocusAfterRender`): figures and rows read at a glance and edited in place                                                                   |
 | Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `CheckboxGroupField`, `FieldError`), `combobox-field`, `time-zone-field`                                                                        |
 | Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                                                                                                                 |
 | Empty states   | `empty-state` (`EmptyState`, `FilteredEmptyState`, `EmptyStateScope`), `record-page` (`RecordEmpty`), `value` (`Value absent`)                                                                                        |
@@ -437,6 +438,61 @@ School settings, website settings, notification preferences.
 - A long card splits its fields into titled groups divided by a rule (name
   and number, language and time, contact details), still under one Save.
 - Each card saves on its own with Save at the card's footer, start side.
+
+### Data editors
+
+Figures and rows a school sets once and reads often: reading norms, grade
+bands, weights, prices, periods (Carbon's data table edit modes, Polaris
+IndexTable, Shopify's variants editor, Airtable and Google Sheets, Canvas
+grading schemes, GOV.UK "Add another"). Each is one `DataGrid`; the full
+reasoning and the list of editors still to move is
+`docs/plans/data-editors.md`.
+
+- **Read first, Edit to change.** Reference data shows as a table of
+  plain figures; one Edit button (named for what it edits, "Edit English
+  norms") turns the same table into fields, with Save and Cancel in the
+  card's footer. Cancel throws the draft away and gives focus back to
+  Edit. A sheet that edits a list (a scale's bands) is already the edit
+  mode and shows the grid editing. Work entered as the job itself (marks,
+  the register) stays editable all the time and is not a `DataGrid` of
+  this kind.
+- **Rows under headings.** Rows that belong together (a grade's three
+  times of year) sit under one heading row (`GridGroup`) instead of
+  repeating the heading on every row; while editing, the heading carries
+  the group's `•••` (Remove, go back to the source).
+- **Figures are text, not spinners.** `NumberCell` is a text field with a
+  numeric keyboard: no spinner, digits at the end of the cell in tabular
+  figures and the reader's digits, Arabic-Indic digits accepted. A cell is
+  a calm tint until hovered or focused. Reaching a cell selects its figure
+  so typing replaces it; Escape puts back what it held.
+- **Where figures came from.** When figures start from a published source
+  (`baselineName`, "Hasbrouck and Tindal"), each one the school changed
+  carries a dot in the accent and says what the source had to a screen
+  reader; a line under the grid counts them ("3 changed from Hasbrouck and
+  Tindal"). The focused cell's line names the cell and the source's figure
+  with Put it back. A whole group goes back from its `•••`, the whole
+  table from the card's footer.
+- **Adding and removing.** A grid of a fixed shape adds from a menu of
+  what is missing ("Add grade") and removes a group from its `•••`; never
+  a trash icon on every row. A list of like rows (bands, lines, periods)
+  adds with an "Add" button under it and removes with a quiet × at each
+  row's end, named for the row (GOV.UK "Add another").
+- **Keyboard.** Every cell stays in the tab order, so the grid reads as a
+  form. The arrows move between cells as in a spreadsheet, up and down
+  always and along the row once the figure is selected or typed over;
+  Enter moves down and Shift+Enter up; F2 puts the caret in the text. Left
+  and right are mirrored in Arabic.
+- **Validation** runs on Save, then live. Each problem names its cell in
+  a list under the grid ("Grade 3, winter, 75th percentile is lower than
+  the 50th percentile, 97"), each a link to the cell, which is marked
+  invalid; Save moves focus to the first. A rule about the figures (each
+  percentile at least the one before) lives in the domain, so the server
+  refuses what the grid refuses.
+- **Phones and Arabic.** At 390px a grid of five figure columns fits
+  without scrolling: cells are 44px wide and 40px tall and the first
+  column's heading is read, not shown. A wider grid scrolls in its own
+  named region with its first column held in place. Columns follow the
+  reading direction; figures never reverse.
 
 ## Forms
 

@@ -4,26 +4,33 @@ import type {
   ReadingLanguage,
   ReadingSeason,
 } from "@faridalms/domain/reading";
+import type { GridColumn, GridIssue } from "@faridalms/ui/system/data-grid";
 
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
 import {
-  MAX_NORM_ROWS,
+  DEFAULT_NORMS,
+  fallingPercentiles,
   NORM_PERCENTILES,
   READING_LANGUAGES,
   READING_SEASONS,
 } from "@faridalms/domain/reading";
 import { Button } from "@faridalms/ui/button";
-import { Input } from "@faridalms/ui/input";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import {
+  DataGrid,
+  GridAddButton,
+  GridFigure,
+  NumberCell,
+  useFocusAfterRender,
+} from "@faridalms/ui/system/data-grid";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
-import { SelectField } from "@faridalms/ui/system/form-field";
 import { SettingsSection } from "@faridalms/ui/system/settings-section";
 import {
   useMutation,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Pencil, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -35,6 +42,9 @@ import { resetReadingNorms, saveReadingNorms } from "~/server/reading";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+/** The most words a minute a norm may hold, as the domain allows. */
+const MOST_WORDS = 400;
+
 /** The grade levels norms are written for, by their fixed meaning. */
 const GRADES = (
   CATALOGUE.find((space) => space.namespace === "grade_level")?.values ?? []
@@ -45,27 +55,184 @@ const gradeName = (meaning: string) => {
   return found ? inLocale(found.en, found.ar) : meaning;
 };
 
+const gradeRank = (meaning: string) =>
+  GRADES.findIndex((value) => value.meaning === meaning);
+
 const SEASON_LABEL: Record<ReadingSeason, () => string> = {
   fall: m.readingSeasonFall,
   winter: m.readingSeasonWinter,
   spring: m.readingSeasonSpring,
 };
 
-const PERCENTILE_LABEL: Record<NormPercentile, () => string> = {
-  p10: () => m.readingPercentile({ value: formatNumber(10) }),
-  p25: () => m.readingPercentile({ value: formatNumber(25) }),
-  p50: () => m.readingPercentile({ value: formatNumber(50) }),
-  p75: () => m.readingPercentile({ value: formatNumber(75) }),
-  p90: () => m.readingPercentile({ value: formatNumber(90) }),
+const SEASON_TITLE: Record<ReadingSeason, () => string> = {
+  fall: m.readingSeasonFallTitle,
+  winter: m.readingSeasonWinterTitle,
+  spring: m.readingSeasonSpringTitle,
 };
 
-const order = (rows: readonly NormRow[]) =>
-  rows.toSorted(
-    (a, b) =>
-      GRADES.findIndex((value) => value.meaning === a.grade) -
-        GRADES.findIndex((value) => value.meaning === b.grade) ||
-      READING_SEASONS.indexOf(a.season) - READING_SEASONS.indexOf(b.season),
+const PERCENTILE_VALUE: Record<NormPercentile, number> = {
+  p10: 10,
+  p25: 25,
+  p50: 50,
+  p75: 75,
+  p90: 90,
+};
+
+const percentileLabel = (percentile: NormPercentile) =>
+  m.readingPercentile({ value: formatNumber(PERCENTILE_VALUE[percentile]) });
+
+const empty = (grade: string, season: ReadingSeason): NormRow => ({
+  grade,
+  season,
+  p10: null,
+  p25: null,
+  p50: null,
+  p75: null,
+  p90: null,
+});
+
+const blank = (row: NormRow) =>
+  NORM_PERCENTILES.every((percentile) => row[percentile] === null);
+
+const find = (rows: readonly NormRow[], grade: string, season: ReadingSeason) =>
+  rows.find((row) => row.grade === grade && row.season === season);
+
+const gradesOf = (rows: readonly NormRow[]) =>
+  [...new Set(rows.map((row) => row.grade))].toSorted(
+    (a, b) => gradeRank(a) - gradeRank(b),
   );
+
+/**
+ * Every grade the rows name at all three times of year, so a time of year
+ * with no norm reads as a row of dashes rather than going missing.
+ */
+const filled = (rows: readonly NormRow[]) =>
+  gradesOf(rows).flatMap((grade) =>
+    READING_SEASONS.map(
+      (season) => find(rows, grade, season) ?? empty(grade, season),
+    ),
+  );
+
+/**
+ * What is kept: the rows with a figure, in order. A time of year with no
+ * figure is no norm whether it is saved blank or not at all, since
+ * readings are only ever set against a row's 50th percentile.
+ */
+const kept = (rows: readonly NormRow[]) =>
+  filled(rows).filter((row) => !blank(row));
+
+const cellId = (
+  language: ReadingLanguage,
+  row: Pick<NormRow, "grade" | "season">,
+  percentile: NormPercentile,
+) => `norm-${language}-${row.grade}-${row.season}-${percentile}`;
+
+const cellName = (row: NormRow, percentile: NormPercentile) =>
+  m.readingNormCell({
+    row: m.readingNormRowName({
+      grade: gradeName(row.grade),
+      season: SEASON_LABEL[row.season](),
+    }),
+    percentile: percentileLabel(percentile),
+  });
+
+/** What is wrong with the figures as written, each tied to its cell. */
+function issuesOf(
+  language: ReadingLanguage,
+  rows: readonly NormRow[],
+): GridIssue[] {
+  const issues: GridIssue[] = [];
+  for (const grade of gradesOf(rows)) {
+    const own = rows.filter((row) => row.grade === grade);
+    if (own.every(blank))
+      issues.push({
+        target: cellId(language, { grade, season: "fall" }, "p10"),
+        message: m.readingNormGradeEmpty({ grade: gradeName(grade) }),
+      });
+    for (const row of own) {
+      for (const percentile of NORM_PERCENTILES) {
+        const value = row[percentile];
+        if (value !== null && value > MOST_WORDS)
+          issues.push({
+            target: cellId(language, row, percentile),
+            message: m.readingNormTooHigh({
+              cell: cellName(row, percentile),
+              max: formatNumber(MOST_WORDS),
+            }),
+          });
+      }
+      for (const percentile of fallingPercentiles(row)) {
+        const before = NORM_PERCENTILES.slice(
+          0,
+          NORM_PERCENTILES.indexOf(percentile),
+        ).reduce<NormPercentile | null>(
+          (highest, other) =>
+            row[other] !== null &&
+            (highest === null || (row[other] ?? 0) >= (row[highest] ?? 0))
+              ? other
+              : highest,
+          null,
+        );
+        if (!before) continue;
+        issues.push({
+          target: cellId(language, row, percentile),
+          message: m.readingNormLower({
+            cell: cellName(row, percentile),
+            percentile: percentileLabel(before),
+            value: formatNumber(row[before] ?? 0),
+          }),
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+interface PercentileColumnsOptions {
+  language: ReadingLanguage;
+  editing: boolean;
+  baseline: (
+    row: NormRow,
+    percentile: NormPercentile,
+  ) => number | null | undefined;
+  onChange: (
+    row: NormRow,
+    percentile: NormPercentile,
+    value: number | null,
+  ) => void;
+}
+
+// Built per render: headers read the request's locale.
+function percentileColumns({
+  language,
+  editing,
+  baseline,
+  onChange,
+}: PercentileColumnsOptions): GridColumn<NormRow>[] {
+  return NORM_PERCENTILES.map((percentile) => ({
+    id: percentile,
+    header: m.readingPercentileShort({
+      value: formatNumber(PERCENTILE_VALUE[percentile]),
+    }),
+    numeric: true,
+    cell: (row) =>
+      editing ? (
+        <NumberCell
+          id={cellId(language, row, percentile)}
+          label={cellName(row, percentile)}
+          value={row[percentile]}
+          baseline={baseline(row, percentile)}
+          placeholder="—"
+          onChange={(value) => onChange(row, percentile, value)}
+        />
+      ) : (
+        <GridFigure
+          value={row[percentile]}
+          baseline={baseline(row, percentile)}
+        />
+      ),
+  }));
+}
 
 interface LanguageNormsProps {
   language: ReadingLanguage;
@@ -74,21 +241,30 @@ interface LanguageNormsProps {
   version: number;
 }
 
-/** One language's norms, written grade by grade and time of year by time of year. */
+/**
+ * One language's norms: read as a table grade by grade, and changed in
+ * the same table after Edit, each figure that differs from Hasbrouck and
+ * Tindal's marked.
+ */
 function LanguageNorms({ language, rows, own, version }: LanguageNormsProps) {
   const queryClient = useQueryClient();
-  const [draft, setDraft] = useState(() => order(rows));
-  const [adding, setAdding] = useState<{ grade: string; season: string }>({
-    grade: "",
-    season: "fall",
-  });
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(() => filled(rows));
+  const [checked, setChecked] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const focusLater = useFocusAfterRender();
+  const editId = `norm-${language}-edit`;
+  const languageName = LOCALE_NAME[language]();
+  const defaults = DEFAULT_NORMS[language];
+  const sourced = defaults.length > 0;
+  const shown = editing ? draft : filled(rows);
+  const issues = checked ? issuesOf(language, draft) : [];
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: readingNormsQuery.queryKey });
   const save = useMutation({
     mutationFn: () =>
       saveReadingNorms({
-        data: { language, rows: draft, expectedVersion: version },
+        data: { language, rows: kept(draft), expectedVersion: version },
       }),
     onSuccess: async () => {
       toast.success(m.readingNormsSaved());
@@ -104,199 +280,216 @@ function LanguageNorms({ language, rows, own, version }: LanguageNormsProps) {
     },
     onError: (error) => toast.error(getMessageFromError(error)),
   });
-  const change = (index: number, percentile: NormPercentile, text: string) => {
-    const value = text.trim() === "" ? null : Math.round(Number(text));
-    if (value !== null && !(value >= 0 && value <= 400)) return;
+  const baseline = (row: NormRow, percentile: NormPercentile) => {
+    if (!sourced) return undefined;
+    const source = find(defaults, row.grade, row.season);
+    if (!source && !defaults.some((item) => item.grade === row.grade))
+      return undefined;
+    return source?.[percentile] ?? null;
+  };
+  const changed = shown.reduce(
+    (count, row) =>
+      count +
+      NORM_PERCENTILES.filter((percentile) => {
+        const from = baseline(row, percentile);
+        return from !== undefined && from !== row[percentile];
+      }).length,
+    0,
+  );
+  const startEditing = () => {
+    setDraft(filled(rows));
+    setChecked(false);
+    setEditing(true);
+    const first = filled(rows)[0];
+    if (first) focusLater(cellId(language, first, "p10"));
+  };
+  const stopEditing = () => {
+    setEditing(false);
+    setChecked(false);
+    save.reset();
+    focusLater(editId);
+  };
+  const addGrade = (grade?: string) => {
+    if (!grade) return;
+    const base = editing ? draft : filled(rows);
     setDraft(
-      draft.map((row, at) =>
-        at === index ? { ...row, [percentile]: value } : row,
+      filled([
+        ...base,
+        ...READING_SEASONS.map((season) => empty(grade, season)),
+      ]),
+    );
+    setEditing(true);
+    focusLater(cellId(language, { grade, season: "fall" }, "p10"));
+  };
+  const change = (
+    target: NormRow,
+    percentile: NormPercentile,
+    value: number | null,
+  ) =>
+    setDraft((current) =>
+      current.map((row) =>
+        row.grade === target.grade && row.season === target.season
+          ? { ...row, [percentile]: value }
+          : row,
       ),
     );
-  };
-  const taken = new Set(draft.map((row) => `${row.grade}:${row.season}`));
-  const canAdd =
-    adding.grade !== "" &&
-    !taken.has(`${adding.grade}:${adding.season}`) &&
-    draft.length < MAX_NORM_ROWS;
+  const groups = gradesOf(shown).map((grade) => {
+    const inSource = defaults.some((row) => row.grade === grade);
+    const gradeRows = shown.filter((row) => row.grade === grade);
+    const differs = gradeRows.some((row) =>
+      NORM_PERCENTILES.some(
+        (percentile) => baseline(row, percentile) !== row[percentile],
+      ),
+    );
+    return {
+      id: grade,
+      title: gradeName(grade),
+      note: sourced && !inSource ? m.readingNormsAdded() : undefined,
+      actions: [
+        ...(sourced && inSource && differs
+          ? [
+              {
+                label: m.readingNormsBackToSource(),
+                icon: RotateCcw,
+                onSelect: () =>
+                  setDraft((current) =>
+                    current.map((row) =>
+                      row.grade === grade
+                        ? (find(defaults, grade, row.season) ??
+                          empty(grade, row.season))
+                        : row,
+                    ),
+                  ),
+              },
+            ]
+          : []),
+        {
+          label: m.readingRemoveGrade({ grade: gradeName(grade) }),
+          onSelect: () =>
+            setDraft((current) => current.filter((row) => row.grade !== grade)),
+        },
+      ],
+      rows: gradeRows,
+    };
+  });
+  const present = new Set(gradesOf(shown));
+  const addChoices = GRADES.flatMap((value) =>
+    value.meaning && !present.has(value.meaning)
+      ? [{ value: value.meaning, label: inLocale(value.en, value.ar) }]
+      : [],
+  );
+  const addButton = (
+    <GridAddButton
+      label={m.readingAddRow()}
+      choices={addChoices}
+      onAdd={addGrade}
+    />
+  );
+  const columns = percentileColumns({
+    language,
+    editing,
+    baseline,
+    onChange: change,
+  });
+  const description = own
+    ? m.readingNormsOwn()
+    : language === "en"
+      ? m.readingNormsDefaultEn()
+      : m.readingNormsDefaultAr();
+  const title = m.readingNormsFor({ language: languageName });
+  const body = groups.length ? (
+    <DataGrid<NormRow>
+      caption={m.readingNormsTable({ language: languageName })}
+      editing={editing}
+      rowHeader={{
+        header: m.readingSeason(),
+        cell: (row) => SEASON_TITLE[row.season](),
+      }}
+      columnGroup={m.readingPercentiles()}
+      columns={columns}
+      groups={groups}
+      rowKey={(row) => `${row.grade}:${row.season}`}
+      baselineName={sourced ? m.readingNormsSource() : undefined}
+      legend={{
+        changed,
+        empty:
+          !editing && shown.some((row) => blank(row))
+            ? m.readingNormsNoNorm()
+            : undefined,
+      }}
+      issues={issues}
+      footer={addButton}
+    />
+  ) : (
+    <EmptyState
+      placement="section"
+      title={m.readingNormsEmpty()}
+      action={addButton}
+    />
+  );
   return (
     <SettingsSection
-      title={m.readingNormsFor({ language: LOCALE_NAME[language]() })}
-      description={
-        own
-          ? m.readingNormsOwn()
-          : language === "en"
-            ? m.readingNormsDefaultEn()
-            : m.readingNormsDefaultAr()
+      title={title}
+      description={description}
+      onSubmit={
+        editing
+          ? async () => {
+              setChecked(true);
+              if (issuesOf(language, draft).length) return;
+              await save.mutateAsync().catch(() => null);
+            }
+          : undefined
       }
-      onSubmit={() => save.mutateAsync().catch(() => null)}
       pending={save.isPending}
       error={save.error ? getMessageFromError(save.error) : null}
-      isDirty={() => JSON.stringify(draft) !== JSON.stringify(order(rows))}
-      footer={
-        own ? (
-          <Button
-            type="button"
-            variant="ghost"
-            className="max-md:h-10"
-            onClick={() => setResetting(true)}
-          >
-            <RotateCcw aria-hidden />
-            {m.readingNormsResetAction()}
-          </Button>
-        ) : undefined
+      isDirty={
+        editing
+          ? () => JSON.stringify(kept(draft)) !== JSON.stringify(kept(rows))
+          : undefined
       }
-    >
-      <div className="grid gap-3">
-        {draft.length ? (
-          <section
-            className="overflow-x-auto"
-            aria-label={m.readingNormsTable()}
-          >
-            <table className="w-full min-w-[40rem] text-sm">
-              <caption className="sr-only">
-                {m.readingNormsFor({ language: LOCALE_NAME[language]() })}
-              </caption>
-              <thead>
-                <tr className="text-start text-[13px] text-muted-foreground">
-                  <th scope="col" className="py-2 pe-3 text-start font-medium">
-                    {m.readingGrade()}
-                  </th>
-                  <th scope="col" className="py-2 pe-3 text-start font-medium">
-                    {m.readingSeason()}
-                  </th>
-                  {NORM_PERCENTILES.map((percentile) => (
-                    <th
-                      key={percentile}
-                      scope="col"
-                      className="py-2 pe-3 text-end font-medium"
-                    >
-                      {PERCENTILE_LABEL[percentile]()}
-                    </th>
-                  ))}
-                  <th scope="col" className="sr-only">
-                    {m.readingRemoveRow()}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {draft.map((row, index) => {
-                  const name = `${gradeName(row.grade)}, ${SEASON_LABEL[row.season]()}`;
-                  return (
-                    <tr key={`${row.grade}:${row.season}`} className="border-t">
-                      <th
-                        scope="row"
-                        className="py-1.5 pe-3 text-start font-medium"
-                      >
-                        {gradeName(row.grade)}
-                      </th>
-                      <td className="py-1.5 pe-3">
-                        {SEASON_LABEL[row.season]()}
-                      </td>
-                      {NORM_PERCENTILES.map((percentile) => (
-                        <td key={percentile} className="py-1.5 pe-3">
-                          <Input
-                            type="number"
-                            inputMode="numeric"
-                            min={0}
-                            max={400}
-                            aria-label={m.readingNormCell({
-                              row: name,
-                              percentile: PERCENTILE_LABEL[percentile](),
-                            })}
-                            className="h-8 w-20 text-end tabular-nums max-md:h-10"
-                            value={row[percentile] ?? ""}
-                            onChange={(event) =>
-                              change(index, percentile, event.target.value)
-                            }
-                          />
-                        </td>
-                      ))}
-                      <td className="py-1.5">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          className="max-md:size-10"
-                          aria-label={m.readingRemoveRowNamed({ row: name })}
-                          onClick={() =>
-                            setDraft(draft.filter((_, at) => at !== index))
-                          }
-                        >
-                          <Trash2 aria-hidden />
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </section>
-        ) : (
-          <EmptyState placement="section" title={m.readingNormsEmpty()} />
-        )}
-        <div className="flex flex-wrap items-end gap-2">
-          <SelectField
-            id={`norm-${language}-grade`}
-            label={m.readingGrade()}
-            value={adding.grade || "none"}
-            options={[
-              { value: "none", label: m.readingChooseGrade() },
-              ...GRADES.flatMap((value) =>
-                value.meaning
-                  ? [
-                      {
-                        value: value.meaning,
-                        label: inLocale(value.en, value.ar),
-                      },
-                    ]
-                  : [],
-              ),
-            ]}
-            onChange={(grade) =>
-              setAdding({ ...adding, grade: grade === "none" ? "" : grade })
-            }
-          />
-          <SelectField
-            id={`norm-${language}-season`}
-            label={m.readingSeason()}
-            value={adding.season}
-            options={READING_SEASONS.map((season) => ({
-              value: season,
-              label: SEASON_LABEL[season](),
-            }))}
-            onChange={(season) => setAdding({ ...adding, season })}
-          />
+      footer={
+        editing ? (
           <Button
             type="button"
             variant="outline"
             className="max-md:h-10"
-            disabled={!canAdd}
-            onClick={() => {
-              setDraft(
-                order([
-                  ...draft,
-                  {
-                    grade: adding.grade,
-                    season: adding.season as ReadingSeason,
-                    p10: null,
-                    p25: null,
-                    p50: null,
-                    p75: null,
-                    p90: null,
-                  },
-                ]),
-              );
-              setAdding({ ...adding, grade: "" });
-            }}
+            onClick={stopEditing}
           >
-            <Plus aria-hidden />
-            {m.readingAddRow()}
+            {m.commonCancel()}
           </Button>
-        </div>
-      </div>
+        ) : groups.length || own ? (
+          <>
+            {groups.length ? (
+              <Button
+                id={editId}
+                type="button"
+                variant="outline"
+                className="max-md:h-10"
+                onClick={startEditing}
+              >
+                <Pencil aria-hidden />
+                {m.readingNormsEdit({ language: languageName })}
+              </Button>
+            ) : null}
+            {own ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="max-md:h-10"
+                onClick={() => setResetting(true)}
+              >
+                <RotateCcw aria-hidden />
+                {m.readingNormsResetAction()}
+              </Button>
+            ) : null}
+          </>
+        ) : undefined
+      }
+    >
+      {body}
       <ConfirmDialog
         open={resetting}
-        title={m.readingNormsResetTitle({ language: LOCALE_NAME[language]() })}
+        title={m.readingNormsResetTitle({ language: languageName })}
         body={
           language === "en"
             ? m.readingNormsResetBodyEn()
