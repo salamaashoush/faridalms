@@ -8,6 +8,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@faridalms/ui/sheet";
+import { FilteredEmptyState } from "@faridalms/ui/system/empty-state";
 import { RecordSection } from "@faridalms/ui/system/record-page";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -97,9 +98,13 @@ export function ModuleGlossary({
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-5">
             {shown.length === 0 ? (
-              <p className="py-4 text-sm text-muted-foreground">
-                {m.lrnGlossaryNone()}
-              </p>
+              <div className="py-4">
+                <FilteredEmptyState
+                  placement="section"
+                  title={m.lrnGlossaryNone()}
+                  onClear={() => setSearch("")}
+                />
+              </div>
             ) : (
               <dl className="divide-y">
                 {shown.map((entry) => (

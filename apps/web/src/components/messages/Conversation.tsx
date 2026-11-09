@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@faridalms/ui/select";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { Segmented } from "@faridalms/ui/system/panel";
 import {
   useInfiniteQuery,
@@ -723,8 +724,8 @@ export function Conversation({
         aria-label={m.msgMessages()}
       >
         {entries.length === 0 ? (
-          <li className="py-6 text-center text-sm leading-5 text-muted-foreground">
-            {m.msgNothingYet()}
+          <li>
+            <EmptyState placement="section" title={m.msgNothingYet()} />
           </li>
         ) : null}
         {further ? (

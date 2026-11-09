@@ -1,6 +1,7 @@
 import { Popover } from "@base-ui/react/popover";
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Library, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -136,9 +137,12 @@ export function CommentBankPicker({
                 ))}
               </ul>
             ) : typed ? null : (
-              <p className="px-2 py-3 text-sm text-muted-foreground">
-                {m.courseworkBankEmpty()}
-              </p>
+              <div className="px-2 py-3">
+                <EmptyState
+                  placement="section"
+                  title={m.courseworkBankEmpty()}
+                />
+              </div>
             )}
             {!typed && matching.length > shown.length ? (
               <p className="px-2 text-xs text-muted-foreground">

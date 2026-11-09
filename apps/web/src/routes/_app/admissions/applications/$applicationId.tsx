@@ -21,6 +21,7 @@ import {
 } from "@faridalms/ui/system/record-page";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { StatusText } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -541,9 +542,7 @@ function NeedsSection({ row }: NeedsSectionProps) {
                   {needs[kind]}
                 </span>
               ) : (
-                <span className="text-muted-foreground">
-                  {m.aplNoneGiven()}
-                </span>
+                <Value absent={m.aplNoneGiven()} />
               )}
             </Fact>
           ))}

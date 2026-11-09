@@ -11,6 +11,7 @@ import { RecordEmpty, RecordList } from "@faridalms/ui/system/record-page";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
 import { FileDropZone, UploadQueue } from "@faridalms/ui/system/upload-queue";
+import { Value } from "@faridalms/ui/system/value";
 import {
   useMutation,
   useQuery,
@@ -99,8 +100,7 @@ interface UsedInProps {
 }
 
 function UsedIn({ file, area }: UsedInProps) {
-  if (file.usedIn.length === 0)
-    return <span className="text-muted-foreground">{m.filesNotUsed()}</span>;
+  if (file.usedIn.length === 0) return <Value absent={m.filesNotUsed()} />;
   return (
     <span className="grid gap-0.5 py-0.5">
       {file.usedIn.map((use) =>

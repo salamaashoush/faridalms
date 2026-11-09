@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { useFileFacts } from "@faridalms/editor/file-facts";
 import { FileCard } from "@faridalms/editor/files";
 import { Button } from "@faridalms/ui/button";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { X } from "lucide-react";
 
 import { fileStrings } from "~/components/content/strings";
@@ -63,7 +64,7 @@ export function FileList({
 }: FileListProps) {
   if (files.length === 0)
     return emptyLabel ? (
-      <p className="text-sm text-muted-foreground">{emptyLabel}</p>
+      <EmptyState placement="section" title={emptyLabel} />
     ) : null;
   const strings = fileStrings();
   return (

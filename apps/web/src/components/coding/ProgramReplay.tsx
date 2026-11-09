@@ -1,5 +1,7 @@
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { Value } from "@faridalms/ui/system/value";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChevronLeft,
@@ -109,7 +111,9 @@ function RunResult({ run, language }: RunResultProps) {
             {run.output}
           </pre>
         ) : (
-          <p className="text-muted-foreground">{m.codeTestNothing()}</p>
+          <p>
+            <Value absent={m.codeTestNothing()} />
+          </p>
         )}
       </div>
       {run.error ? (
@@ -166,11 +170,7 @@ export function ProgramReplay(input: {
   if (!query.data) return <div aria-busy="true" className="min-h-60" />;
   const step = steps[at];
   if (!step)
-    return (
-      <p className="text-sm leading-6 text-muted-foreground">
-        {m.lrnReplayNone()}
-      </p>
-    );
+    return <EmptyState placement="section" title={m.lrnReplayNone()} />;
   const { runs, checks, language, starter } = query.data;
   const errors = runs.filter((run) => run.outcome === "error").length;
   const checked = checks.filter((mark) => mark.kind === "checked").length;

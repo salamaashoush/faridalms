@@ -13,6 +13,7 @@ import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { FileUser } from "lucide-react";
@@ -114,7 +115,7 @@ function columns(): Column<Row>[] {
         row.priorities.length ? (
           formatList(row.priorities.map((rule) => PRIORITY_LABEL[rule]()))
         ) : (
-          <span className="text-muted-foreground">{m.aplNoPriority()}</span>
+          <Value absent={m.aplNoPriority()} />
         ),
     },
     {

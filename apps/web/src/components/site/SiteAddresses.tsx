@@ -3,6 +3,7 @@ import type { Tone } from "@faridalms/ui/system/status";
 
 import { Button } from "@faridalms/ui/button";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import {
   SettingsPage,
@@ -276,13 +277,13 @@ export function SiteAddresses() {
         description={m.siteAddressesOwnBody()}
       >
         {!listing.available ? (
-          <p className="text-sm text-muted-foreground">
-            {m.siteAddressesUnavailable()}
-          </p>
+          <EmptyState
+            placement="section"
+            kind="restricted"
+            title={m.siteAddressesUnavailable()}
+          />
         ) : listing.hosts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {m.siteAddressesEmpty()}
-          </p>
+          <EmptyState placement="section" title={m.siteAddressesEmpty()} />
         ) : (
           <ul className="grid gap-4">
             {listing.hosts.map((host) => (

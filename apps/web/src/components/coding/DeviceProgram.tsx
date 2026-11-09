@@ -1,6 +1,7 @@
 import type { ProjectFile } from "@faridalms/domain/project";
 
 import { programOf } from "@faridalms/makecode/project";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 
 import * as m from "~/i18n/messages";
 
@@ -17,11 +18,7 @@ export function DeviceProgram({ files }: DeviceProgramProps) {
   const program = programOf(files);
   const code = program?.code.trim() ?? "";
   if (!program || code === "")
-    return (
-      <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm leading-5 text-muted-foreground">
-        {m.deviceProgramEmpty()}
-      </p>
-    );
+    return <EmptyState placement="section" title={m.deviceProgramEmpty()} />;
   return (
     <figure className="grid gap-1.5">
       <figcaption

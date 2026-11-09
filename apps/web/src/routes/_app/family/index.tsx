@@ -300,7 +300,11 @@ function ChildCard({ child, single }: ChildCardProps) {
           </div>
         ) : null}
         {!presence && child.attention.length === 0 && child.due.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{m.homeChildClear()}</p>
+          <EmptyState
+            placement="section"
+            kind="done"
+            title={m.homeChildClear()}
+          />
         ) : null}
         {child.nextYear ? (
           <NextYear child={child} nextYear={child.nextYear} />

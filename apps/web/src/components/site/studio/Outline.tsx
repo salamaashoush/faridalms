@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { withoutEmphasis } from "@faridalms/domain/site-sections";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import {
   Award,
   Blocks,
@@ -13,7 +14,6 @@ import {
   EyeOff,
   FileText,
   GalleryHorizontal,
-  GalleryHorizontalEnd,
   GitCommitVertical,
   GripVertical,
   Images,
@@ -236,10 +236,7 @@ export function Outline({
         {m.siteAddSection()}
       </Button>
       {sections.length === 0 ? (
-        <p className="text-center text-[13px] leading-[18px] text-muted-foreground">
-          <GalleryHorizontalEnd aria-hidden className="mx-auto mb-2 size-6" />
-          {m.siteNoSectionsYet()}
-        </p>
+        <EmptyState placement="section" title={m.siteNoSectionsYet()} />
       ) : null}
     </div>
   );

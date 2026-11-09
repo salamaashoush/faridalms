@@ -11,6 +11,7 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@faridalms/ui/system/dialog";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { SelectField } from "@faridalms/ui/system/form-field";
 import {
   phoneLink,
@@ -31,6 +32,7 @@ import {
   ArrowRight,
   CircleCheck,
   LoaderCircle,
+  MessagesSquare,
   Pause,
   Play,
   Presentation,
@@ -486,9 +488,7 @@ function OpenAnswers({
         <TextWithMath text={question.prompt} />
       </h3>
       {question.answers.length === 0 ? (
-        <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {m.lrnPacedNoAnswers()}
-        </p>
+        <EmptyState placement="section" title={m.lrnPacedNoAnswers()} />
       ) : (
         <ul className="grid gap-2">
           {question.answers.map((answer, index) => {
@@ -755,9 +755,7 @@ export function PacedBoard({ pacedId }: PacedBoardProps) {
       ))}
       {data.questions.length === 0 ? (
         data.answers.length > 0 ? null : (
-          <p className="text-2xl leading-9 text-muted-foreground">
-            {m.lrnPacedBoardEmpty()}
-          </p>
+          <EmptyState icon={MessagesSquare} title={m.lrnPacedBoardEmpty()} />
         )
       ) : (
         data.questions.map((question) => (

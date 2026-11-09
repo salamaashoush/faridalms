@@ -1,6 +1,7 @@
 import type { ExamBoard, ExamChangeDetails } from "@faridalms/domain/exams";
 
 import { Pagination } from "@faridalms/ui/system/data-table";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -128,9 +129,7 @@ export function ExamHistory({ open, onOpenChange }: ExamHistoryProps) {
             ) : null}
           </>
         ) : (
-          <p className="text-sm leading-5 text-muted-foreground">
-            {m.examHistoryEmpty()}
-          </p>
+          <EmptyState placement="section" title={m.examHistoryEmpty()} />
         )
       ) : (
         <div aria-busy="true" className="min-h-20" />

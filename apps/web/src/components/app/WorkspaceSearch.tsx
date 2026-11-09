@@ -7,6 +7,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@faridalms/ui/system/dialog";
+import { FilteredEmptyState } from "@faridalms/ui/system/empty-state";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useHydrated, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Search } from "lucide-react";
@@ -349,13 +350,12 @@ export function WorkspaceSearch({ variant = "bar" }: WorkspaceSearchProps) {
             </p>
           ) : null}
           {nothing ? (
-            <div className="grid gap-1 px-3 py-8 text-center">
-              <p dir="auto" className="text-sm font-medium">
-                {m.searchNothing({ q: typed })}
-              </p>
-              <p className="text-[13px] leading-[18px] text-muted-foreground">
-                {m.searchNothingTips()}
-              </p>
+            <div className="px-3 py-4">
+              <FilteredEmptyState
+                placement="section"
+                title={m.searchNothing({ q: typed })}
+                description={m.searchNothingTips()}
+              />
             </div>
           ) : null}
         </div>

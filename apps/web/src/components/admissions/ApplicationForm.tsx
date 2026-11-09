@@ -25,6 +25,7 @@ import {
 } from "@faridalms/domain/questions";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import {
   CheckboxGroupField,
   FormField,
@@ -39,7 +40,14 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Plus, Send, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarX,
+  Plus,
+  Send,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -375,11 +383,7 @@ export function StartApplication({
       }),
   });
   if (mine.intakes.length === 0)
-    return (
-      <p className="rounded-lg border px-4 py-6 text-center text-sm text-muted-foreground">
-        {m.applyNoIntakes()}
-      </p>
-    );
+    return <EmptyState icon={CalendarX} title={m.applyNoIntakes()} />;
   const intake = mine.intakes.find((row) => row.id === chosenIntake);
   return (
     <form
@@ -832,9 +836,7 @@ export function ApplicationSteps({
               />
             ))
           ) : (
-            <p className="text-sm text-muted-foreground">
-              {m.applyNoQuestions()}
-            </p>
+            <EmptyState placement="section" title={m.applyNoQuestions()} />
           )
         ) : null}
         {step === "documents" ? <DocumentsStep data={data} /> : null}
@@ -1231,9 +1233,7 @@ export function DocumentsStep({ data }: DocumentsStepProps) {
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["applying"] });
   if (data.items.length === 0)
-    return (
-      <p className="text-sm text-muted-foreground">{m.applyNoDocuments()}</p>
-    );
+    return <EmptyState placement="section" title={m.applyNoDocuments()} />;
   return (
     <div className="grid gap-6">
       {documents.map((item) => (

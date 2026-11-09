@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@faridalms/ui/dropdown-menu";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Bell } from "lucide-react";
@@ -87,9 +88,15 @@ export function NotificationBell({ className }: NotificationBellProps) {
             ) : null}
           </DropdownMenuLabel>
           {rows.length === 0 ? (
-            <p className="px-2 py-3 text-sm text-muted-foreground">
-              {recent.isFetching ? m.commonLoading() : m.notifEmpty()}
-            </p>
+            <div className="px-2 py-3">
+              {recent.isFetching ? (
+                <p className="text-sm text-muted-foreground">
+                  {m.commonLoading()}
+                </p>
+              ) : (
+                <EmptyState placement="section" title={m.notifEmpty()} />
+              )}
+            </div>
           ) : (
             rows.map((row) => {
               const text = noticeText(row);

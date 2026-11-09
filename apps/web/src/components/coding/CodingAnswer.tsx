@@ -2,6 +2,7 @@ import type { CheckView, StudentBlock } from "@faridalms/domain/learning";
 import type { ReactNode } from "react";
 
 import { Button } from "@faridalms/ui/button";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Puzzle } from "lucide-react";
 import { useContext, useState } from "react";
@@ -114,7 +115,11 @@ export function CodingAnswer({
               : m.codingOpen()}
         </Button>
       ) : (
-        <p className="text-sm text-muted-foreground">{m.studioUnavailable()}</p>
+        <EmptyState
+          placement="section"
+          kind="restricted"
+          title={m.studioUnavailable()}
+        />
       )}
       <ProjectChecks asked={block.checks} has={stored?.has} />
       <ProjectNotes notes={stored?.notes} />

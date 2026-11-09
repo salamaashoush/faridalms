@@ -2,6 +2,7 @@ import type { ProjectFile } from "@faridalms/domain/project";
 
 import { Button } from "@faridalms/ui/button";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppWindow, Images } from "lucide-react";
 import { useState } from "react";
@@ -134,9 +135,7 @@ export function ProjectGallery({
             )}
           </div>
           {data.projects.length === 0 ? (
-            <p className="rounded-lg border border-dashed px-4 py-3 text-[13px] leading-[18px] text-muted-foreground">
-              {m.galleryEmpty()}
-            </p>
+            <EmptyState placement="section" title={m.galleryEmpty()} />
           ) : (
             <ul className="grid gap-2 sm:grid-cols-2">
               {data.projects.map((item) => {

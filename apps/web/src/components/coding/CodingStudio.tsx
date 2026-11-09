@@ -1,5 +1,6 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { Button } from "@faridalms/ui/button";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@faridalms/ui/tooltip";
 import {
   LoaderCircle,
@@ -201,9 +202,9 @@ export function CodingStudio({
           </header>
           <div className="relative min-h-0 flex-1">
             {!source ? (
-              <p className="p-6 text-sm text-muted-foreground">
-                {m.studioUnavailable()}
-              </p>
+              <div className="p-6">
+                <EmptyState kind="restricted" title={m.studioUnavailable()} />
+              </div>
             ) : fits ? (
               <StudioFrame
                 frame={frame}

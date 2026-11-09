@@ -11,6 +11,7 @@ import {
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { RecordHeader } from "@faridalms/ui/system/record-page";
 import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
@@ -26,6 +27,7 @@ import {
   MonitorSmartphone,
   NotebookPen,
   Save,
+  Users,
 } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
@@ -786,9 +788,7 @@ export function Register({
         </p>
       )}
       {data.students.length === 0 ? (
-        <p className="rounded-lg border bg-card p-5 text-sm leading-5 text-muted-foreground">
-          {m.attNoStudents()}
-        </p>
+        <EmptyState icon={Users} title={m.attNoStudents()} />
       ) : (
         <RegisterForm
           key={`${data.date}|${data.period.id}|${shown}`}

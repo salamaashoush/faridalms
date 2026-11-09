@@ -769,9 +769,9 @@ function ArrangeSheet({
               </label>
             ))}
             {candidates.length === 0 ? (
-              <p className="px-2 text-sm text-muted-foreground">
-                {m.coverNobodyFree()}
-              </p>
+              <div className="px-2">
+                <EmptyState placement="section" title={m.coverNobodyFree()} />
+              </div>
             ) : null}
             {lesson.oneDay ? null : (
               <label

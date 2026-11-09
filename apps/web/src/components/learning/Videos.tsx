@@ -200,9 +200,7 @@ function RecordingCard({ recording, students }: RecordingCardProps) {
           })}
         />
       ) : (
-        <p className="text-sm leading-5 text-muted-foreground">
-          {m.lrnNotWatchedYet()}
-        </p>
+        <EmptyState placement="section" title={m.lrnNotWatchedYet()} />
       )}
       {duration ? (
         <ul className="grid gap-2">

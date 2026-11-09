@@ -680,9 +680,9 @@ export function Agenda({
                   ))}
                 </ul>
               ) : everyDay ? (
-                <p className="pt-2.5 text-sm leading-5 text-muted-foreground">
-                  {m.calNothingOnDay()}
-                </p>
+                <div className="pt-2.5">
+                  <EmptyState placement="section" title={m.calNothingOnDay()} />
+                </div>
               ) : null}
               {everyDay && canAdd ? (
                 <div className="pt-1">
@@ -854,9 +854,9 @@ export function MonthCompact({
             ))}
           </ul>
         ) : (
-          <p className="py-2 text-sm leading-5 text-muted-foreground">
-            {m.calNothingOnDay()}
-          </p>
+          <div className="py-2">
+            <EmptyState placement="section" title={m.calNothingOnDay()} />
+          </div>
         )}
       </section>
     </div>

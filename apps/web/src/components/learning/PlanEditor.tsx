@@ -3,6 +3,7 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import { planTargets } from "@faridalms/domain/standards";
 import { cn } from "@faridalms/ui/cn";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
 import {
   useQuery,
@@ -109,9 +110,7 @@ export function PlanCoverage({
     <>
       <DetailsSection title={m.planNamed()}>
         {named.length === 0 ? (
-          <p className="text-[13px] leading-[18px] text-muted-foreground">
-            {m.planNoStandards()}
-          </p>
+          <EmptyState placement="section" title={m.planNoStandards()} />
         ) : (
           <ul className={list}>
             {named.map((target) => {

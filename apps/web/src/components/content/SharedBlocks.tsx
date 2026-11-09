@@ -26,6 +26,10 @@ import {
 } from "@faridalms/ui/sheet";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
 import {
+  EmptyState,
+  FilteredEmptyState,
+} from "@faridalms/ui/system/empty-state";
+import {
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -232,11 +236,14 @@ export function SharedUses({ id, kind = "block" }: SharedUsesProps) {
   if (uses.isPending) return <div aria-busy="true" className="h-5" />;
   if (rows.length === 0)
     return (
-      <p className="text-[13px] leading-[18px] text-muted-foreground">
-        {kind === "section"
-          ? m.sharedSectionUsedNowhere()
-          : m.sharedUsedNowhere()}
-      </p>
+      <EmptyState
+        placement="section"
+        title={
+          kind === "section"
+            ? m.sharedSectionUsedNowhere()
+            : m.sharedUsedNowhere()
+        }
+      />
     );
   return (
     <div className="grid gap-1.5">
@@ -432,9 +439,17 @@ function ChooseSheet({ onChoose }: ChooseSheetProps) {
           {listed.isPending ? (
             <div aria-busy="true" className="min-h-24" />
           ) : rows.length === 0 ? (
-            <p className="py-4 text-sm text-muted-foreground">
-              {words ? m.sharedNoneFound() : m.sharedNone()}
-            </p>
+            <div className="py-4">
+              {words ? (
+                <FilteredEmptyState
+                  placement="section"
+                  title={m.sharedNoneFound()}
+                  onClear={() => setSearch("")}
+                />
+              ) : (
+                <EmptyState placement="section" title={m.sharedNone()} />
+              )}
+            </div>
           ) : (
             <ul className="divide-y">
               {rows.map((row) => (

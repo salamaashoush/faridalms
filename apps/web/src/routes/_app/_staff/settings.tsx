@@ -3,6 +3,7 @@ import type { HeaderAction } from "@faridalms/ui/system/page-header";
 import { Skeleton } from "@faridalms/ui/skeleton";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { RowLink } from "@faridalms/ui/system/data-table";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { Fact, Facts, RecordTabs } from "@faridalms/ui/system/record-page";
 import {
@@ -244,9 +245,7 @@ function SchoolTab() {
             </Fact>
           </Facts>
         ) : (
-          <p className="text-sm leading-5 text-muted-foreground">
-            {m.settingsNoWorkingYear()}
-          </p>
+          <EmptyState placement="section" title={m.settingsNoWorkingYear()} />
         )}
       </SettingsSection>
       <FeaturesCard />

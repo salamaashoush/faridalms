@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from "@faridalms/ui/dialog";
 import { Input } from "@faridalms/ui/input";
+import { FilteredEmptyState } from "@faridalms/ui/system/empty-state";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -195,9 +196,11 @@ export function SectionGallery({
               onPick={onPick}
             />
           ) : types.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {m.siteNoSectionsFound()}
-            </p>
+            <FilteredEmptyState
+              placement="section"
+              title={m.siteNoSectionsFound()}
+              onClear={() => setQuery("")}
+            />
           ) : (
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {types.map((type) => (

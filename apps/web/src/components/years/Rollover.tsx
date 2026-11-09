@@ -17,6 +17,7 @@ import { Checkbox } from "@faridalms/ui/checkbox";
 import { cn } from "@faridalms/ui/cn";
 import { ActionMenu } from "@faridalms/ui/system/action-menu";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
@@ -596,9 +597,7 @@ function RolloverDraft({
           })}
         >
           {groups.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {m.rolloverNoStudents()}
-            </p>
+            <EmptyState placement="section" title={m.rolloverNoStudents()} />
           ) : (
             groups.map((group) => (
               <section key={group.id ?? "none"} className="grid gap-1">

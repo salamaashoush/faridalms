@@ -21,6 +21,10 @@ import {
 import { Input } from "@faridalms/ui/input";
 import { Label } from "@faridalms/ui/label";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
+import {
+  EmptyState,
+  FilteredEmptyState,
+} from "@faridalms/ui/system/empty-state";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle, Share2 } from "lucide-react";
@@ -531,10 +535,10 @@ export function SavedSections({
   );
   const kept = shared.data?.rows ?? [];
   if (pieces.length === 0 && kept.length === 0)
-    return (
-      <p className="text-sm text-muted-foreground">
-        {needle ? m.siteNoSectionsFound() : m.siteNoSavedSections()}
-      </p>
+    return needle ? (
+      <FilteredEmptyState placement="section" title={m.siteNoSectionsFound()} />
+    ) : (
+      <EmptyState placement="section" title={m.siteNoSavedSections()} />
     );
   return (
     <div className="grid min-w-0 gap-6">

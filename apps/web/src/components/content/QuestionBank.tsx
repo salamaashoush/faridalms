@@ -24,6 +24,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@faridalms/ui/sheet";
+import {
+  EmptyState,
+  FilteredEmptyState,
+} from "@faridalms/ui/system/empty-state";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle, Plus, Search, Trash2, X } from "lucide-react";
 import { useDeferredValue, useId, useMemo, useState } from "react";
@@ -454,9 +458,20 @@ function ChooseSheet({ onChoose }: ChooseSheetProps) {
           {listed.isPending ? (
             <div aria-busy="true" className="min-h-24" />
           ) : rows.length === 0 ? (
-            <p className="py-4 text-sm text-muted-foreground">
-              {words || tag ? m.bankNoneFound() : m.bankEmpty()}
-            </p>
+            <div className="py-4">
+              {words || tag ? (
+                <FilteredEmptyState
+                  placement="section"
+                  title={m.bankNoneFound()}
+                  onClear={() => {
+                    setSearch("");
+                    setTag("");
+                  }}
+                />
+              ) : (
+                <EmptyState placement="section" title={m.bankEmpty()} />
+              )}
+            </div>
           ) : (
             <ul className="divide-y">
               {rows.map((row) => (

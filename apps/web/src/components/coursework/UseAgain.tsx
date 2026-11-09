@@ -1,5 +1,6 @@
 import { Input } from "@faridalms/ui/input";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
+import { FilteredEmptyState } from "@faridalms/ui/system/empty-state";
 import { SelectField } from "@faridalms/ui/system/form-field";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -115,9 +116,10 @@ export function UseAgainSheet({
           {found.isPending ? (
             <div aria-busy="true" className="min-h-24" />
           ) : rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {m.courseworkUseAgainNone()}
-            </p>
+            <FilteredEmptyState
+              placement="section"
+              title={m.courseworkUseAgainNone()}
+            />
           ) : (
             <RadioGroup
               aria-label={m.courseworkUseAgainPick()}

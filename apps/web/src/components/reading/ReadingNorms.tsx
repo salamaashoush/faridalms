@@ -15,6 +15,7 @@ import {
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { SelectField } from "@faridalms/ui/system/form-field";
 import { SettingsSection } from "@faridalms/ui/system/settings-section";
 import {
@@ -231,9 +232,7 @@ function LanguageNorms({ language, rows, own, version }: LanguageNormsProps) {
             </table>
           </section>
         ) : (
-          <p className="text-sm leading-5 text-muted-foreground">
-            {m.readingNormsEmpty()}
-          </p>
+          <EmptyState placement="section" title={m.readingNormsEmpty()} />
         )}
         <div className="flex flex-wrap items-end gap-2">
           <SelectField

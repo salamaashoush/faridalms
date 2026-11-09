@@ -42,6 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@faridalms/ui/select";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { Segmented } from "@faridalms/ui/system/panel";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
@@ -1254,9 +1255,9 @@ function ColumnsControl({ id, value, context, onChange }: ColumnsControlProps) {
             {m.siteColumnBlocks({ number: formatNumber(index + 1) })}
           </legend>
           {column.blocks.length === 0 ? (
-            <p className="px-1 text-[13px] text-muted-foreground">
-              {m.siteNoBlocks()}
-            </p>
+            <div className="px-1">
+              <EmptyState placement="section" title={m.siteNoBlocks()} />
+            </div>
           ) : null}
           <ul className="grid gap-2">
             {column.blocks.map((block, at) => {

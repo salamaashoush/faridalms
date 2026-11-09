@@ -10,6 +10,7 @@ import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { FormField } from "@faridalms/ui/system/form-field";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { StatusText } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -161,9 +162,7 @@ function CallRow({ call, onLog }: CallRowProps) {
       </div>
       <div className="grid gap-2">
         {call.guardians.length === 0 ? (
-          <span className="text-sm text-muted-foreground">
-            {m.fupNoContacts()}
-          </span>
+          <EmptyState placement="section" title={m.fupNoContacts()} />
         ) : (
           <ul className="grid gap-1">
             {call.guardians.map((guardian) => (
@@ -189,8 +188,8 @@ function CallRow({ call, onLog }: CallRowProps) {
                     {guardian.phone}
                   </a>
                 ) : (
-                  <span className="text-[13px] text-muted-foreground">
-                    {m.fupNoPhone()}
+                  <span className="text-[13px]">
+                    <Value absent={m.fupNoPhone()} />
                   </span>
                 )}
               </li>
@@ -310,10 +309,7 @@ export function FollowUp({ date, onDate }: FollowUpProps) {
           </p>
         </div>
         {data.calls.length === 0 ? (
-          <p className="flex items-center gap-2 rounded-lg border bg-card px-4 py-3 text-sm">
-            <CircleCheck className="size-4 text-success" aria-hidden />
-            {m.fupNoCalls()}
-          </p>
+          <EmptyState placement="section" kind="done" title={m.fupNoCalls()} />
         ) : (
           <ul className="divide-y rounded-lg border bg-card px-4">
             {data.calls.map((call) => (

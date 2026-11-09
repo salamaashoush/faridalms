@@ -42,6 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@faridalms/ui/select";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
@@ -421,9 +422,7 @@ function CheckStatus({ view, editing, keyText, keyCode }: CheckStatusProps) {
     return view && (view.tries > 0 || view.revealed) ? (
       <Outcome view={view} keyText={keyText} keyCode={keyCode} />
     ) : (
-      <p className="text-sm leading-5 text-muted-foreground">
-        {m.quizNotAnswered()}
-      </p>
+      <EmptyState placement="section" title={m.quizNotAnswered()} />
     );
   if (!view || editing || !(view.tries > 0 || view.revealed)) return null;
   if (mode === "quiz")
@@ -2782,9 +2781,7 @@ function ParsonsCheck({ block, view, driver }: ParsonsCheckProps) {
             {m.lrnYourProgram()}
           </p>
           {program.length === 0 ? (
-            <p className="rounded-lg border border-dashed px-4 py-3 text-sm leading-5 text-muted-foreground">
-              {m.lrnProgramEmpty()}
-            </p>
+            <EmptyState placement="section" title={m.lrnProgramEmpty()} />
           ) : (
             <ol aria-labelledby={programId} dir="ltr" className="grid gap-1.5">
               {program.map((line, index) => {
@@ -2916,9 +2913,7 @@ function ParsonsCheck({ block, view, driver }: ParsonsCheckProps) {
             {m.lrnLinesToUse()}
           </p>
           {pool.length === 0 ? (
-            <p className="text-sm leading-5 text-muted-foreground">
-              {m.lrnPoolEmpty()}
-            </p>
+            <EmptyState placement="section" title={m.lrnPoolEmpty()} />
           ) : (
             <ul aria-labelledby={poolId} dir="ltr" className="grid gap-1.5">
               {pool.map((line, index) => (
@@ -3664,9 +3659,11 @@ function CheckBody({ block, view, driver }: CheckBodyProps) {
   // which says so rather than offering a program it would not run.
   if (!coding && RUNS_CODE.has(block.type))
     return (
-      <p className="rounded-md border border-dashed px-3 py-2.5 text-sm leading-5 text-muted-foreground">
-        {m.codingNotHere()}
-      </p>
+      <EmptyState
+        placement="section"
+        kind="restricted"
+        title={m.codingNotHere()}
+      />
     );
   // A question whose feedback waits is answered as in a quiz, then read as
   // a returned one; once shown before it was answered, it answers at once.

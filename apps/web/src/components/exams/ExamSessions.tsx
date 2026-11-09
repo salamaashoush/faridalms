@@ -11,6 +11,7 @@ import {
 } from "@faridalms/ui/system/form-field";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -92,7 +93,7 @@ function Rules({ session }: RulesProps) {
       ))}
     </span>
   ) : (
-    <span className="text-muted-foreground">{m.examRuleNone()}</span>
+    <Value absent={m.examRuleNone()} />
   );
 }
 

@@ -15,6 +15,7 @@ import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { Inbox, Plus } from "lucide-react";
@@ -134,7 +135,7 @@ function columns(): Column<Row>[] {
         row.assignee ? (
           <bdi>{inLocale(row.assignee.nameEn, row.assignee.nameAr)}</bdi>
         ) : (
-          <span className="text-muted-foreground">{m.admNobody()}</span>
+          <Value absent={m.admNobody()} />
         ),
     },
     {

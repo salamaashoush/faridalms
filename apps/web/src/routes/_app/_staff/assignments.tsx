@@ -113,7 +113,7 @@ function Due({ row }: DueProps) {
   return row.dueAt ? (
     <Value>{formatInstant(row.dueAt)}</Value>
   ) : (
-    <span className="text-muted-foreground">{m.courseworkNoDueDate()}</span>
+    <Value absent={m.courseworkNoDueDate()} />
   );
 }
 

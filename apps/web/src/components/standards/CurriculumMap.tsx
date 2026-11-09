@@ -1,3 +1,4 @@
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { Link } from "@tanstack/react-router";
 
 import type { curriculumMapQuery } from "~/queries/standards";
@@ -191,9 +192,10 @@ export function ByUnit({ map }: ByUnitProps) {
                 ))}
               </ul>
             ) : (
-              <p className="text-[13px] leading-5 text-muted-foreground">
-                {m.curriculumMapUnitNone()}
-              </p>
+              <EmptyState
+                placement="section"
+                title={m.curriculumMapUnitNone()}
+              />
             )}
           </li>
         );

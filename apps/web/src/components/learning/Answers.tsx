@@ -643,9 +643,7 @@ function QuestionAnswers({
         </fieldset>
       ) : null}
       {ordered.length === 0 ? (
-        <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm leading-5 text-muted-foreground">
-          {m.lrnNoAnswersYet()}
-        </p>
+        <EmptyState placement="section" title={m.lrnNoAnswersYet()} />
       ) : (
         ordered.map((answer) => (
           <AnswerCard

@@ -5,6 +5,7 @@ import { Button } from "@faridalms/ui/button";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
+import { Value } from "@faridalms/ui/system/value";
 import {
   useMutation,
   useQueryClient,
@@ -635,9 +636,7 @@ export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
             {guardianNames.length ? (
               <span dir="auto">{formatList(guardianNames)}</span>
             ) : (
-              <span className="text-muted-foreground">
-                {m.studentNoGuardiansShort()}
-              </span>
+              <Value absent={m.studentNoGuardiansShort()} />
             )}
           </ShownValue>
         )}

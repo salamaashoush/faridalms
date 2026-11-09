@@ -18,7 +18,10 @@ import {
 } from "@faridalms/ui/select";
 import { Skeleton } from "@faridalms/ui/skeleton";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
-import { EmptyState } from "@faridalms/ui/system/empty-state";
+import {
+  EmptyState,
+  FilteredEmptyState,
+} from "@faridalms/ui/system/empty-state";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import {
@@ -351,9 +354,9 @@ function DraftList({ onSearch }: DraftListProps) {
   });
   if (rows.length === 0)
     return (
-      <p className="p-4 text-sm leading-5 text-muted-foreground">
-        {m.msgDraftsEmpty()}
-      </p>
+      <div className="p-4">
+        <EmptyState placement="section" title={m.msgDraftsEmpty()} />
+      </div>
     );
   return (
     <>
@@ -504,11 +507,17 @@ function ThreadList({ search, onSearch }: ThreadListProps) {
           <DraftList onSearch={onSearch} />
         </Suspense>
       ) : rows.length === 0 ? (
-        <p className="p-4 text-sm leading-5 text-muted-foreground">
-          {search.q || search.show === "unread"
-            ? m.msgNoMatches()
-            : m.msgNoThreads()}
-        </p>
+        <div className="p-4">
+          {search.q || search.show === "unread" ? (
+            <FilteredEmptyState
+              placement="section"
+              title={m.msgNoMatches()}
+              onClear={() => onSearch({ q: "", show: "all" })}
+            />
+          ) : (
+            <EmptyState placement="section" title={m.msgNoThreads()} />
+          )}
+        </div>
       ) : (
         <>
           <ul className="divide-y" aria-label={m.msgConversations()}>

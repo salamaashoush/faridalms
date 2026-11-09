@@ -6,6 +6,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@faridalms/ui/sheet";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
@@ -94,9 +95,9 @@ export function DocumentHistory({
           {versions.isPending ? (
             <div aria-busy="true" className="min-h-24" />
           ) : rows.length === 0 ? (
-            <p className="py-2 text-sm text-muted-foreground">
-              {m.docHistoryEmpty()}
-            </p>
+            <div className="py-2">
+              <EmptyState placement="section" title={m.docHistoryEmpty()} />
+            </div>
           ) : (
             <ul className="divide-y">
               {rows.map((row) => {

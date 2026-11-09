@@ -5,6 +5,7 @@ import {
   DEFAULT_DAILY_LIMIT,
   PROVIDER_NAMES,
 } from "@faridalms/domain/assistant";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import {
   SettingsPage,
@@ -99,9 +100,7 @@ export function AssistantSettings() {
         isDirty={() => dirty}
       >
         {offered ? null : (
-          <p className="text-sm leading-5 text-muted-foreground">
-            {m.assistantNoProvider()}
-          </p>
+          <EmptyState kind="restricted" title={m.assistantNoProvider()} />
         )}
         <CheckboxRow
           label={m.assistantEnabled()}

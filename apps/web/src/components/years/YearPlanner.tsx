@@ -12,6 +12,7 @@ import { addDays, shiftMonth } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import {
   useMutation,
@@ -963,9 +964,7 @@ export function YearPlanner({
             {m.plannerMarkedList()}
           </h3>
           {runs.length === 0 ? (
-            <p className="text-[13px] text-muted-foreground">
-              {m.plannerNothingMarked()}
-            </p>
+            <EmptyState placement="section" title={m.plannerNothingMarked()} />
           ) : (
             <ul className="grid gap-2">
               {runs.map((run) => (

@@ -17,6 +17,7 @@ import { MediaGrid } from "@faridalms/ui/system/media-grid";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { Segmented } from "@faridalms/ui/system/panel";
 import { FileDropZone, UploadQueue } from "@faridalms/ui/system/upload-queue";
+import { Value } from "@faridalms/ui/system/value";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -137,8 +138,7 @@ interface UsedProps {
 }
 
 function Used({ item, onShow }: UsedProps) {
-  if (item.uses === 0)
-    return <span className="text-muted-foreground">{m.filesNotUsed()}</span>;
+  if (item.uses === 0) return <Value absent={m.filesNotUsed()} />;
   return (
     <button
       type="button"
@@ -192,9 +192,7 @@ function libraryColumns(
         item.description ? (
           <bdi className="line-clamp-2">{item.description}</bdi>
         ) : (
-          <span className="text-muted-foreground">
-            {m.mediaNoDescription()}
-          </span>
+          <Value absent={m.mediaNoDescription()} />
         ),
     },
     {
@@ -213,7 +211,7 @@ function libraryColumns(
             ))}
           </span>
         ) : (
-          <span className="text-muted-foreground">{m.mediaNoTags()}</span>
+          <Value absent={m.mediaNoTags()} />
         ),
     },
     {

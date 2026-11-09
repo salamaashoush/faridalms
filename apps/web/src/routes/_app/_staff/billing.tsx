@@ -3,11 +3,12 @@ import type { Tone } from "@faridalms/ui/system/status";
 
 import { InvoiceDocument } from "@faridalms/documents/InvoiceDocument";
 import { Button, buttonVariants } from "@faridalms/ui/button";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { CreditCard } from "lucide-react";
+import { CreditCard, ReceiptText } from "lucide-react";
 import { useState } from "react";
 
 import { PaperSheet } from "~/components/system/PaperSheet";
@@ -167,7 +168,13 @@ function Billing({ billing }: BillingProps) {
           })}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">{m.billingNone()}</p>
+        <div className="max-w-3xl">
+          <EmptyState
+            icon={ReceiptText}
+            title={m.billingNone()}
+            description={m.billingNoneBody()}
+          />
+        </div>
       )}
 
       {bank ? (
@@ -199,7 +206,7 @@ function Billing({ billing }: BillingProps) {
             ))}
           </ul>
         ) : (
-          <p className="text-muted-foreground">{m.billingContactsNone()}</p>
+          <EmptyState placement="section" title={m.billingContactsNone()} />
         )}
       </section>
 
