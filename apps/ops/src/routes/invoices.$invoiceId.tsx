@@ -1159,6 +1159,7 @@ function DraftSheet({ data, open, onOpenChange }: InvoiceSheetProps) {
         currency={data.invoice.currency}
         drafts={drafts}
         onChange={setDrafts}
+        checked={answer !== null}
         vat={{
           percent: Number(data.invoice.vatPercent),
           name: data.vatName?.en ?? null,
@@ -1284,6 +1285,7 @@ function CreditSheet({ data, open, onOpenChange }: InvoiceSheetProps) {
         currency={data.invoice.currency}
         drafts={drafts}
         onChange={setDrafts}
+        checked={submitted}
         vat={{
           percent: Number(data.invoice.vatPercent),
           name: data.vatName?.en ?? null,

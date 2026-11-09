@@ -126,6 +126,8 @@ function NewInvoice() {
             currency={customer?.currency ?? null}
             drafts={drafts}
             onChange={setDrafts}
+            checked={submitted}
+            surface="page"
             vat={
               customer
                 ? { percent: customer.vatPercent, name: customer.vatName }

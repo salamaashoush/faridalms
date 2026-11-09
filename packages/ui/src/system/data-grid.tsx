@@ -989,6 +989,8 @@ export interface SelectCellProps<T extends string> {
   value: T;
   options: readonly GridOption<T>[];
   onChange: (value: T) => void;
+  /** `fill` takes the column's width; `code` is as narrow as a currency. */
+  size?: "fill" | "code";
 }
 
 /**
@@ -1003,6 +1005,7 @@ export function SelectCell<T extends string>({
   value,
   options,
   onChange,
+  size = "fill",
 }: SelectCellProps<T>) {
   const { report } = useContext(GridContext);
   return (
@@ -1020,7 +1023,10 @@ export function SelectCell<T extends string>({
         aria-label={label}
         onFocus={() => report({ id, label })}
         onBlur={() => report(null)}
-        className="h-8 w-full min-w-28 border-transparent bg-muted/60 shadow-none hover:border-input max-md:h-10 dark:bg-muted/60"
+        className={cn(
+          "h-8 border-transparent bg-muted/60 shadow-none hover:border-input max-md:h-10 dark:bg-muted/60",
+          size === "fill" ? "w-full min-w-28" : "w-20",
+        )}
       >
         <SelectValue className="block min-w-0 truncate" />
       </SelectTrigger>
@@ -1097,6 +1103,49 @@ export function TimeCell({ id, label, value, onChange, min }: TimeCellProps) {
           CELL_SURFACE,
           "w-[5.25rem] px-1.5 tabular-nums [&::-webkit-calendar-picker-indicator]:hidden",
         )}
+        onFocus={() => report({ id, label })}
+        onBlur={() => report(null)}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {issue ? (
+        <span id={describedBy} className="sr-only">
+          {issue}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+export interface DateCellProps {
+  id: string;
+  /** The cell's full name, such as "Period from, line 2". */
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  /** The earliest day it may take, such as the start for an end. */
+  min?: string;
+}
+
+/**
+ * A day in a grid cell, in the browser's own date field with its picker,
+ * which keeps the arrow keys for its day, month and year.
+ */
+export function DateCell({ id, label, value, onChange, min }: DateCellProps) {
+  const { issues, report } = useContext(GridContext);
+  const describedBy = useId();
+  const issue = issues.get(id);
+  return (
+    <span className="flex">
+      <input
+        id={id}
+        type="date"
+        data-grid-cell=""
+        aria-label={label}
+        aria-invalid={issue ? true : undefined}
+        aria-describedby={issue ? describedBy : undefined}
+        min={min}
+        value={value}
+        className={cn(CELL_SURFACE, "w-[9rem] px-2 tabular-nums")}
         onFocus={() => report({ id, label })}
         onBlur={() => report(null)}
         onChange={(event) => onChange(event.target.value)}

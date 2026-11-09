@@ -1,11 +1,22 @@
 import type { InvoiceLine } from "@faridalms/domain/invoices";
 import type { Currency } from "@faridalms/domain/subscriptions";
+import type {
+  GridColumn,
+  GridIssue,
+  GridSurface,
+} from "@faridalms/ui/system/data-grid";
 
 import { netMinor, vatMinor } from "@faridalms/domain/money";
-import { Button } from "@faridalms/ui/button";
-import { TextField } from "@faridalms/ui/system/form-field";
+import {
+  DataGrid,
+  DateCell,
+  GridAddButton,
+  GridRemoveButton,
+  NumberCell,
+  TextCell,
+  useFocusAfterRender,
+} from "@faridalms/ui/system/data-grid";
 import { SummaryList } from "@faridalms/ui/system/summary-list";
-import { Plus, X } from "lucide-react";
 
 import { formatMoney, minorOf } from "../format";
 
@@ -120,6 +131,172 @@ export interface InvoiceLinesFieldsProps {
   onChange: (drafts: LineDraft[]) => void;
   /** Totals the lines under them, with this VAT, when given. */
   vat?: LinesVat;
+  /** Save was tried: each line's problems show on their cells. */
+  checked?: boolean;
+  /** Where the lines stand: in a sheet, or on a page of their own. */
+  surface?: GridSurface;
+}
+
+const lineCell = (index: number, field: string) => `line-${index}-${field}`;
+
+const figureOf = (text: string) => {
+  const value = Number(text);
+  return text.trim() === "" || !Number.isFinite(value) ? null : value;
+};
+
+/** What stops each line being read, tied to the cell it is about. */
+function lineIssues(drafts: readonly LineDraft[]): GridIssue[] {
+  return drafts.flatMap((draft, index) => {
+    const line = `Line ${index + 1}`;
+    const issues: GridIssue[] = [];
+    if (!draft.descriptionEn.trim())
+      issues.push({
+        target: lineCell(index, "en"),
+        label: line,
+        message: "Describe it in English.",
+      });
+    if (!draft.descriptionAr.trim())
+      issues.push({
+        target: lineCell(index, "ar"),
+        label: line,
+        message: "Describe it in Arabic.",
+      });
+    const quantity = Number(draft.quantity);
+    if (!Number.isInteger(quantity) || quantity < 1)
+      issues.push({
+        target: lineCell(index, "quantity"),
+        label: line,
+        message: "Give a quantity of 1 or more.",
+      });
+    if (minorOf(draft.price) === null)
+      issues.push({
+        target: lineCell(index, "price"),
+        label: line,
+        message: "Give its unit price.",
+      });
+    const discount = Number(draft.discount || "0");
+    if (!Number.isFinite(discount) || discount < 0 || discount > 100)
+      issues.push({
+        target: lineCell(index, "discount"),
+        label: line,
+        message: "Give a discount between 0 and 100.",
+      });
+    return issues;
+  });
+}
+
+interface LineGridOptions {
+  drafts: LineDraft[];
+  currency: Currency | null;
+  set: (index: number, change: Partial<LineDraft>) => void;
+  remove: (index: number) => void;
+}
+
+function lineGrid({ drafts, currency, set, remove }: LineGridOptions) {
+  const at = (draft: LineDraft) => drafts.indexOf(draft);
+  const name = (draft: LineDraft) => `line ${at(draft) + 1}`;
+  const rowHeader = {
+    header: "Description",
+    cell: (draft: LineDraft) => (
+      <TextCell
+        id={lineCell(at(draft), "en")}
+        label={`Description in English, ${name(draft)}`}
+        dir="ltr"
+        value={draft.descriptionEn}
+        onChange={(descriptionEn) => set(at(draft), { descriptionEn })}
+      />
+    ),
+  };
+  const figure = (
+    field: "quantity" | "price" | "discount",
+    label: string,
+    decimals: number,
+  ) => ({
+    id: field,
+    header: label,
+    numeric: true,
+    cell: (draft: LineDraft) => (
+      <NumberCell
+        id={lineCell(at(draft), field)}
+        label={`${label}, ${name(draft)}`}
+        decimals={decimals}
+        value={figureOf(draft[field])}
+        onChange={(value) =>
+          set(at(draft), { [field]: value === null ? "" : String(value) })
+        }
+      />
+    ),
+  });
+  const columns: GridColumn<LineDraft>[] = [
+    figure("quantity", "Quantity", 0),
+    figure("price", currency ? `Unit price (${currency})` : "Unit price", 2),
+    figure("discount", "Discount (%)", 2),
+    {
+      id: "net",
+      header: "Net",
+      numeric: true,
+      cell: (draft) => {
+        const net = netOf(draft);
+        return net === null ? (
+          <span className="text-muted-foreground">
+            <span aria-hidden>—</span>
+            <span className="sr-only">Not priced yet</span>
+          </span>
+        ) : (
+          amountIn(net, currency)
+        );
+      },
+    },
+  ];
+  const rowEnd = (draft: LineDraft) => (
+    <GridRemoveButton
+      label={`Remove ${name(draft)}`}
+      disabled={drafts.length <= 1}
+      onRemove={() => remove(at(draft))}
+    />
+  );
+  const rowDetail = (draft: LineDraft) => (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <span className="min-w-48 flex-1">
+        <TextCell
+          id={lineCell(at(draft), "ar")}
+          label={`Description in Arabic, ${name(draft)}`}
+          lang="ar"
+          placeholder="Description in Arabic"
+          value={draft.descriptionAr}
+          onChange={(descriptionAr) => set(at(draft), { descriptionAr })}
+        />
+      </span>
+      <span className="w-28">
+        <TextCell
+          id={lineCell(at(draft), "code")}
+          label={`Item code, ${name(draft)}`}
+          dir="ltr"
+          placeholder="Item code"
+          value={draft.itemCode}
+          onChange={(itemCode) => set(at(draft), { itemCode })}
+        />
+      </span>
+      <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+        <span aria-hidden>Period</span>
+        <DateCell
+          id={lineCell(at(draft), "from")}
+          label={`Period from, ${name(draft)}`}
+          value={draft.periodStart}
+          onChange={(periodStart) => set(at(draft), { periodStart })}
+        />
+        <span aria-hidden>to</span>
+        <DateCell
+          id={lineCell(at(draft), "to")}
+          label={`Period to, ${name(draft)}`}
+          min={draft.periodStart || undefined}
+          value={draft.periodEnd}
+          onChange={(periodEnd) => set(at(draft), { periodEnd })}
+        />
+      </span>
+    </div>
+  );
+  return { rowHeader, columns, rowEnd, rowDetail };
 }
 
 interface LinesTotalProps {
@@ -166,7 +343,10 @@ export function InvoiceLinesFields({
   drafts,
   onChange,
   vat,
+  checked = false,
+  surface = "sheet",
 }: InvoiceLinesFieldsProps) {
+  const focusLater = useFocusAfterRender();
   const set = (index: number, change: Partial<LineDraft>) =>
     onChange(
       drafts.map((draft, at) =>
@@ -174,119 +354,30 @@ export function InvoiceLinesFields({
       ),
     );
   return (
-    <div className="@container grid gap-4">
-      {drafts.map((line, index) => {
-        const net = netOf(line);
-        return (
-          <div
-            key={`line-${index}`}
-            className="grid gap-5 rounded-lg border bg-card p-5"
-          >
-            <div className="flex min-h-8 items-center gap-2">
-              <span className="text-sm leading-5 font-semibold">
-                Line {index + 1}
-              </span>
-              <span className="ms-auto text-sm leading-5 text-muted-foreground tabular-nums">
-                {net === null ? "Not priced yet" : amountIn(net, currency)}
-              </span>
-              {drafts.length > 1 ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Remove line ${index + 1}`}
-                  onClick={() =>
-                    onChange(drafts.filter((_, at) => at !== index))
-                  }
-                >
-                  <X aria-hidden />
-                </Button>
-              ) : null}
-            </div>
-            <div className="grid items-start gap-5 @lg:grid-cols-2">
-              <TextField
-                label="Description in English"
-                value={line.descriptionEn}
-                onChange={(event) =>
-                  set(index, { descriptionEn: event.target.value })
-                }
-              />
-              <TextField
-                label="Description in Arabic"
-                dir="rtl"
-                lang="ar"
-                value={line.descriptionAr}
-                onChange={(event) =>
-                  set(index, { descriptionAr: event.target.value })
-                }
-              />
-            </div>
-            <div className="grid items-start gap-5 @lg:grid-cols-4">
-              <TextField
-                label="Quantity"
-                inputMode="numeric"
-                value={line.quantity}
-                onChange={(event) =>
-                  set(index, { quantity: event.target.value })
-                }
-              />
-              <TextField
-                label={currency ? `Unit price (${currency})` : "Unit price"}
-                inputMode="decimal"
-                value={line.price}
-                onChange={(event) => set(index, { price: event.target.value })}
-              />
-              <TextField
-                label="Discount (%)"
-                inputMode="decimal"
-                value={line.discount}
-                onChange={(event) =>
-                  set(index, { discount: event.target.value })
-                }
-              />
-              <TextField
-                label="Item code"
-                optional
-                dir="ltr"
-                value={line.itemCode}
-                onChange={(event) =>
-                  set(index, { itemCode: event.target.value })
-                }
-              />
-            </div>
-            <div className="grid items-start gap-5 @lg:grid-cols-2">
-              <TextField
-                label="Period from"
-                optional
-                type="date"
-                value={line.periodStart}
-                onChange={(event) =>
-                  set(index, { periodStart: event.target.value })
-                }
-              />
-              <TextField
-                label="Period to"
-                optional
-                type="date"
-                value={line.periodEnd}
-                onChange={(event) =>
-                  set(index, { periodEnd: event.target.value })
-                }
-              />
-            </div>
-          </div>
-        );
-      })}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="justify-self-start"
-        onClick={() => onChange([...drafts, blankLine()])}
-      >
-        <Plus aria-hidden />
-        Add a line
-      </Button>
+    <div className="grid min-w-0 gap-4">
+      <DataGrid<LineDraft>
+        caption="Lines"
+        editing
+        surface={surface}
+        {...lineGrid({
+          drafts,
+          currency,
+          set,
+          remove: (index) => onChange(drafts.filter((_, at) => at !== index)),
+        })}
+        groups={[{ id: "lines", title: "", rows: drafts }]}
+        rowKey={(draft) => `line-${drafts.indexOf(draft)}`}
+        issues={checked ? lineIssues(drafts) : []}
+        footer={
+          <GridAddButton
+            label="Add a line"
+            onAdd={() => {
+              onChange([...drafts, blankLine()]);
+              focusLater(lineCell(drafts.length, "en"));
+            }}
+          />
+        }
+      />
       {vat ? (
         <LinesTotal currency={currency} drafts={drafts} vat={vat} />
       ) : null}
