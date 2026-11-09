@@ -73,3 +73,48 @@ test("a school adds a grade scale and changes its grades one at a time", async (
     }),
   ).toBeVisible();
 });
+
+test("a programme's categories are added one at a time and weigh 100 together", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await page.goto("/exams?tab=programmes");
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Add programme" }).first().click();
+  const programme = page.getByRole("dialog", { name: "Add programme" });
+  await programme
+    .getByRole("textbox", { name: "Name in English" })
+    .fill("School diploma");
+  const addCategory = async (name: string, weight: string) => {
+    await programme.getByRole("button", { name: "Add a category" }).click();
+    const category = page.getByRole("dialog", { name: "Add a category" });
+    await category.getByRole("textbox", { name: "Name in English" }).fill(name);
+    await category.getByRole("textbox", { name: "Weight %" }).fill(weight);
+    await category.getByRole("button", { name: "Done" }).click();
+    await expect(category).toBeHidden();
+  };
+  await addCategory("Homework", "40");
+  await expect(
+    programme.getByRole("table").getByText("40 of 100"),
+  ).toBeVisible();
+  await programme.getByRole("button", { name: "Save" }).click();
+  await expect(
+    programme.getByText("The weights add up to 40%; they need to make 100%."),
+  ).toBeVisible();
+  await addCategory("Exams", "50");
+  await programme.getByRole("button", { name: "Exams", exact: true }).click();
+  const exams = page.getByRole("dialog", { name: "Change Exams" });
+  await exams.getByRole("textbox", { name: "Weight %" }).fill("60");
+  await expect(
+    exams.getByText("With this, the weights add up to 100 of 100."),
+  ).toBeVisible();
+  await exams.getByRole("button", { name: "Done" }).click();
+  await expect(
+    programme.getByRole("table").getByText("100 of 100"),
+  ).toBeVisible();
+  await programme.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Changes saved")).toBeVisible();
+  await expect(page.getByRole("row", { name: /School diploma/ })).toContainText(
+    "Homework",
+  );
+});

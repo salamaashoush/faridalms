@@ -1,23 +1,26 @@
 import type { ExamBoard } from "@faridalms/domain/exams";
-import type { GridColumn, GridIssue } from "@faridalms/ui/system/data-grid";
 import type { Column, RowAction } from "@faridalms/ui/system/data-table";
+import type { ReactNode } from "react";
 
 import { EXAM_BOARDS } from "@faridalms/domain/exams";
 import { Button } from "@faridalms/ui/button";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { DataTable, RowButton } from "@faridalms/ui/system/data-table";
 import {
-  DataGrid,
-  GridAddButton,
-  GridRemoveButton,
-  NumberCell,
-  TextCell,
-  useFocusAfterRender,
-} from "@faridalms/ui/system/data-grid";
-import { DataTable } from "@faridalms/ui/system/data-table";
-import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+  NumberField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, GraduationCap, Pencil, Plus } from "lucide-react";
+import {
+  Archive,
+  CircleAlert,
+  GraduationCap,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -26,6 +29,7 @@ import { CheckboxRow } from "~/components/people/fields";
 import { labelOf } from "~/components/people/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { classOptionsQuery } from "~/queries/classes";
 import { examOverviewQuery } from "~/queries/exams";
 import { retireProgramme, saveProgramme } from "~/server/grading";
@@ -168,177 +172,267 @@ interface CategoryDraft {
   weight: number | null;
 }
 
-const categoryCell = (row: CategoryDraft, field: "en" | "ar" | "weight") =>
-  `category-${row.key}-${field}`;
-
 const weightTotal = (rows: readonly CategoryDraft[]) =>
   rows.reduce((sum, row) => sum + (row.weight ?? 0), 0);
 
+const categoryName = (row: CategoryDraft) =>
+  inLocale(row.titleEn.trim() || null, row.titleAr.trim() || null);
+
 /**
- * What stops the categories being saved, each tied to its cell. With none
- * at all, work counts by its points and nothing is asked.
+ * What stops the categories being saved with the programme: weights that
+ * do not make 100. With none at all, work counts by its points.
  */
-function categoryIssues(rows: readonly CategoryDraft[]): GridIssue[] {
-  const issues: GridIssue[] = [];
-  rows.forEach((row, index) => {
-    if (!row.titleEn.trim() && !row.titleAr.trim())
-      issues.push({
-        target: categoryCell(row, "en"),
-        message: m.gradingCategoryNameNeeded({ row: index + 1 }),
-      });
-    if (row.weight === null || row.weight <= 0 || row.weight > 100)
-      issues.push({
-        target: categoryCell(row, "weight"),
-        message: m.gradingCategoryWeightNeeded({ row: index + 1 }),
-      });
-  });
-  const last = rows.at(-1);
+function weightsProblem(rows: readonly CategoryDraft[]): string | null {
   const total = weightTotal(rows);
-  if (last && !issues.length && Math.abs(total - 100) >= 0.01)
-    issues.push({
-      target: categoryCell(last, "weight"),
-      message: m.gradingWeightsTotal({ total: formatNumber(total) }),
-    });
-  return issues;
+  return rows.length && Math.abs(total - 100) >= 0.01
+    ? m.gradingWeightsTotal({ total: formatNumber(total) })
+    : null;
 }
 
-interface CategoryGridOptions {
-  rows: CategoryDraft[];
-  set: (key: string, change: Partial<CategoryDraft>) => void;
-  remove: (key: string) => void;
-}
+type CategoryOpener = (row: CategoryDraft, text: string) => ReactNode;
 
 // Built per render: headers read the request's locale.
-function categoryGrid({ rows, set, remove }: CategoryGridOptions) {
-  const row = (draft: CategoryDraft) => rows.indexOf(draft) + 1;
-  const rowHeader = {
-    header: m.examTitleEn(),
-    cell: (draft: CategoryDraft) => (
-      <TextCell
-        id={categoryCell(draft, "en")}
-        label={m.gradingCategoryEnRow({ row: row(draft) })}
-        maxLength={60}
-        value={draft.titleEn}
-        onChange={(titleEn) => set(draft.key, { titleEn })}
-      />
-    ),
-  };
-  const figures: GridColumn<CategoryDraft>[] = [
+function categoryColumns(
+  opener: CategoryOpener,
+): Column<CategoryDraft & { id: string }>[] {
+  const ar = getLocale() === "ar";
+  return [
     {
-      id: "ar",
-      header: m.examTitleAr(),
-      cell: (draft) => (
-        <TextCell
-          id={categoryCell(draft, "ar")}
-          label={m.gradingCategoryArRow({ row: row(draft) })}
-          lang="ar"
-          maxLength={60}
-          placeholder={draft.titleEn}
-          value={draft.titleAr}
-          onChange={(titleAr) => set(draft.key, { titleAr })}
-        />
+      id: "name",
+      header: m.gradingCategory(),
+      primary: true,
+      cell: (row) => opener(row, categoryName(row)),
+    },
+    {
+      id: "other",
+      header: ar ? m.examTitleEn() : m.examTitleAr(),
+      cell: (row) => (
+        <span lang={ar ? "en" : "ar"} dir="auto">
+          {ar ? row.titleEn : row.titleAr}
+        </span>
       ),
     },
     {
       id: "weight",
       header: m.gradingWeight(),
-      numeric: true,
-      cell: (draft) => (
-        <NumberCell
-          id={categoryCell(draft, "weight")}
-          label={m.gradingWeightRow({ row: row(draft) })}
-          decimals={2}
-          value={draft.weight}
-          onChange={(weight) => set(draft.key, { weight })}
-        />
-      ),
+      align: "end",
+      cell: (row) => formatNumber(row.weight ?? 0),
     },
   ];
-  const rowEnd = (draft: CategoryDraft) => (
-    <GridRemoveButton
-      label={m.gradingRemoveCategory({ row: row(draft) })}
-      onRemove={() => remove(draft.key)}
-    />
+}
+
+function categoryCard(opener: CategoryOpener) {
+  return {
+    title: (row: CategoryDraft) => opener(row, categoryName(row)),
+    fact: (row: CategoryDraft) =>
+      m.gradingCategoryWeighs({ weight: formatNumber(row.weight ?? 0) }),
+  };
+}
+
+interface CategorySheetProps {
+  categories: CategoryDraft[];
+  /** The category being changed; none to add one. */
+  category: CategoryDraft | null;
+  open: boolean;
+  onDone: (categories: CategoryDraft[]) => void;
+  onClose: () => void;
+}
+
+/**
+ * One kind of work and its weight, kept with the programme when it is
+ * saved; the sheet says what the weights then add up to.
+ */
+function CategorySheet({
+  categories,
+  category,
+  open,
+  onDone,
+  onClose,
+}: CategorySheetProps) {
+  const [draft, setDraft] = useState<CategoryDraft>(
+    () =>
+      category ?? {
+        key: crypto.randomUUID(),
+        titleEn: "",
+        titleAr: "",
+        weight: null,
+      },
   );
-  return { rowHeader, columns: figures, rowEnd };
+  const [tried, setTried] = useState(false);
+  const others = categories.filter((row) => row.key !== draft.key);
+  const unnamed = !draft.titleEn.trim() && !draft.titleAr.trim();
+  const weightless =
+    draft.weight === null || draft.weight <= 0 || draft.weight > 100;
+  const total = weightTotal([...others, draft]);
+  const set = (change: Partial<CategoryDraft>) =>
+    setDraft((current) => ({ ...current, ...change }));
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title={
+        category
+          ? m.gradingCategoryEdit({ category: categoryName(category) })
+          : m.gradingAddCategory()
+      }
+      submitLabel={m.rowDone()}
+      onSubmit={() => {
+        setTried(true);
+        if (unnamed || weightless) return;
+        onDone(
+          category
+            ? categories.map((row) => (row.key === draft.key ? draft : row))
+            : [...categories, draft],
+        );
+        onClose();
+      }}
+    >
+      <TextField
+        id="category-title-en"
+        label={m.examTitleEn()}
+        width="name"
+        lang="en"
+        maxLength={60}
+        autoComplete="off"
+        value={draft.titleEn}
+        onChange={(event) => set({ titleEn: event.target.value })}
+        errors={tried && unnamed ? [m.gradingCategoryNameOne()] : undefined}
+      />
+      <TextField
+        id="category-title-ar"
+        label={m.examTitleAr()}
+        width="name"
+        lang="ar"
+        dir="rtl"
+        maxLength={60}
+        autoComplete="off"
+        value={draft.titleAr}
+        onChange={(event) => set({ titleAr: event.target.value })}
+      />
+      <NumberField
+        id="category-weight"
+        label={m.gradingWeight()}
+        hint={m.gradingWeightsWithThis({
+          total: formatNumber(Number(total.toFixed(2))),
+        })}
+        decimals={2}
+        value={draft.weight}
+        onChange={(weight) => set({ weight })}
+        errors={
+          tried && weightless ? [m.gradingCategoryWeightOne()] : undefined
+        }
+      />
+    </SheetForm>
+  );
 }
 
 interface CategoriesEditorProps {
   value: CategoryDraft[];
   onChange: (value: CategoryDraft[]) => void;
-  issues: GridIssue[];
+  problem: string | null;
 }
 
 /**
- * How the programme's work weighs in a term grade. Weights add up to 100;
+ * How the programme's work weighs in a term grade: a row a kind of work,
+ * each opened on its own, and the total under them. Weights add up to 100;
  * with none, every piece of work counts by its points.
  */
-function CategoriesEditor({ value, onChange, issues }: CategoriesEditorProps) {
-  const focusLater = useFocusAfterRender();
-  const set = (key: string, change: Partial<CategoryDraft>) =>
-    onChange(
-      value.map((row) => (row.key === key ? { ...row, ...change } : row)),
-    );
-  const total = weightTotal(value);
-  const add = (
-    <GridAddButton
-      label={m.gradingAddCategory()}
-      disabled={value.length >= 12}
-      onAdd={() => {
-        const added: CategoryDraft = {
-          key: crypto.randomUUID(),
-          titleEn: "",
-          titleAr: "",
-          weight: null,
-        };
-        onChange([...value, added]);
-        focusLater(categoryCell(added, "en"));
-      }}
-    />
+function CategoriesEditor({ value, onChange, problem }: CategoriesEditorProps) {
+  const [editing, setEditing] = useState<{
+    category: CategoryDraft | null;
+    key: number;
+    open: boolean;
+  } | null>(null);
+  const open = (category: CategoryDraft | null) =>
+    setEditing((current) => ({
+      category,
+      key: (current?.key ?? 0) + 1,
+      open: true,
+    }));
+  const opener: CategoryOpener = (row, text) => (
+    <RowButton onClick={() => open(row)}>{text}</RowButton>
   );
+  const total = weightTotal(value);
+  const add = (variant: "default" | "outline") =>
+    value.length < 12 ? (
+      <Button
+        type="button"
+        variant={variant}
+        className="max-md:h-10"
+        onClick={() => open(null)}
+      >
+        <Plus aria-hidden />
+        {m.gradingAddCategory()}
+      </Button>
+    ) : undefined;
   return (
-    <fieldset className="grid min-w-0 gap-3">
-      <legend className="mb-1 text-sm leading-5 font-medium">
+    <section aria-labelledby="programme-categories" className="grid gap-2">
+      <h3 id="programme-categories" className="text-sm leading-5 font-medium">
         {m.gradingCategories()}
-      </legend>
-      <p className="-mt-1 text-[13px] leading-[18px] text-muted-foreground">
+      </h3>
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
         {m.gradingCategoriesHint()}
       </p>
-      {value.length ? (
-        <DataGrid<CategoryDraft>
-          caption={m.gradingCategoriesTable()}
-          editing
-          surface="sheet"
-          {...categoryGrid({
-            rows: value,
-            set,
-            remove: (key) => onChange(value.filter((row) => row.key !== key)),
-          })}
-          groups={[{ id: "categories", title: "", rows: value }]}
-          rowKey={(row) => row.key}
-          totals={{
+      <DataTable
+        caption={m.gradingCategoriesTable()}
+        rows={value.map((row) => Object.assign({ id: row.key }, row))}
+        columns={categoryColumns(opener)}
+        rowLabel={categoryName}
+        rowActions={(row) => [
+          { label: m.recordEdit(), icon: Pencil, onSelect: () => open(row) },
+          {
+            label: m.gradingCategoryRemove(),
+            icon: Trash2,
+            onSelect: () =>
+              onChange(value.filter((other) => other.key !== row.key)),
+          },
+        ]}
+        actions={add("outline")}
+        totals={[
+          {
+            id: "total",
             label: m.gradingWeightsTotalLabel(),
             cells: {
               weight: (
-                <span
-                  className={
-                    Math.abs(total - 100) < 0.01
-                      ? undefined
-                      : "text-muted-foreground"
-                  }
-                >
-                  {m.gradingWeightsOutOf({ total: formatNumber(total) })}
+                <span className={problem ? "text-destructive" : undefined}>
+                  {m.gradingWeightsOutOf({
+                    total: formatNumber(Number(total.toFixed(2))),
+                  })}
                 </span>
               ),
             },
-          }}
-          issues={issues}
-          footer={add}
+          },
+        ]}
+        card={categoryCard(opener)}
+        empty={{
+          title: m.gradingCategoriesNone(),
+          action: add("outline"),
+        }}
+      />
+      {problem ? (
+        <p
+          role="alert"
+          className="flex items-start gap-1.5 text-[13px] leading-[18px] text-destructive"
+        >
+          <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+          {problem}
+        </p>
+      ) : null}
+      {editing ? (
+        <CategorySheet
+          key={editing.key}
+          categories={value}
+          category={editing.category}
+          open={editing.open}
+          onDone={onChange}
+          onClose={() =>
+            setEditing((current) => current && { ...current, open: false })
+          }
         />
-      ) : (
-        <div>{add}</div>
-      )}
-    </fieldset>
+      ) : null}
+    </section>
   );
 }
 
@@ -376,7 +470,7 @@ export function ProgrammeSheet({
     })),
   );
   const [tried, setTried] = useState(false);
-  const categoryProblems = categoryIssues(categories);
+  const weightsIssue = weightsProblem(categories);
   const mutation = useMutation({
     mutationFn: () => {
       const official = (EXAM_BOARDS as readonly string[]).includes(board)
@@ -414,8 +508,7 @@ export function ProgrammeSheet({
       error={mutation.error ? getMessageFromError(mutation.error) : null}
       onSubmit={async () => {
         setTried(true);
-        if ((!titleEn.trim() && !titleAr.trim()) || categoryProblems.length)
-          return;
+        if ((!titleEn.trim() && !titleAr.trim()) || weightsIssue) return;
         try {
           await mutation.mutateAsync();
         } catch {
@@ -506,7 +599,7 @@ export function ProgrammeSheet({
       <CategoriesEditor
         value={categories}
         onChange={setCategories}
-        issues={tried ? categoryProblems : []}
+        problem={tried ? weightsIssue : null}
       />
     </SheetForm>
   );

@@ -304,6 +304,28 @@ Grade scales.
   Turning GPA points off for the whole scale at once is gone; each grade
   leaves its GPA empty instead.
 
+### Grading weights
+
+`apps/web/src/components/grading/ProgrammesTab.tsx`, a programme's sheet.
+
+- **Sources.** Canvas creates assignment groups one at a time, then sets
+  every group's weight in one dialog with a live total, and lets the total
+  sit above or below 100 (community.instructure.com, kb 660669). Google
+  Classroom lists grade categories as rows added with "Add grade category"
+  and will not save the class's settings until they make 100
+  (support.google.com/edu/classroom/answer/9184995).
+- **Decision.** The programme's categories are the standard table inside
+  its sheet, the weight a column and a Total row under it ("90 of 100").
+  Each category opens in its own sheet with its names and weight, whose
+  hint says what the weights add up to with this change; Done puts it in
+  the programme. The programme's Save refuses weights that do not make
+  100, saying so under the table, as Classroom does.
+- **Why it fits.** Weights are one share of 100: changing one always means
+  changing another, so a save after each row would be refused every time
+  but the last. Rows are still added, named and weighed one at a time, and
+  the total is checked once, when the programme is saved, which is where
+  the domain checks it too.
+
 ## Ranking, worst first
 
 | #   | Editor                                   | Where                                                       | State                                                                  |
@@ -311,7 +333,7 @@ Grade scales.
 | 1   | Reading norms                            | `apps/web/src/components/reading/ReadingNorms.tsx`          | Rows: a grade's time of year per row, in a sheet                       |
 | 2   | Gradebook term grades                    | `apps/web/src/components/gradebook/`                        | Redesigned: table frame, saved as typed; see `docs/plans/gradebook.md` |
 | 3   | Grade bands                              | `apps/web/src/components/grading/ScalesTab.tsx`             | Rows: a grade per row, dated and with a reason                         |
-| 4   | Grading categories (weights)             | `apps/web/src/components/grading/ProgrammesTab.tsx`         | Rebuilt: per-cell checks, Total row                                    |
+| 4   | Grading categories (weights)             | `apps/web/src/components/grading/ProgrammesTab.tsx`         | Rows in the programme's sheet, total checked on Save                   |
 | 5   | Rubric (criteria by levels)              | `apps/web/src/components/coursework/RubricSheet.tsx`        | Redesigned: a matrix, one criterion opened at a time                   |
 | 6   | Intake checklist, fees and priorities    | `apps/web/src/components/admissions/IntakeEditor.tsx`       | Rebuilt: checklist and fees; priorities left                           |
 | 7   | Periods                                  | `apps/web/src/components/years/YearPeriods.tsx`             | Rebuilt: times in columns, days on each row's line                     |
