@@ -2,8 +2,17 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Check, ChevronsUpDown, Ellipsis, Monitor, Moon, Sun } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronsUpDown,
+  Ellipsis,
+  Monitor,
+  Moon,
+  Sun,
+} from "lucide-react";
 import { useTheme } from "next-themes";
+import { useId, useState } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "../avatar";
 import {
@@ -38,6 +47,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarTrigger,
   useSidebar,
@@ -59,12 +71,24 @@ export interface ShellNavItem {
   exact?: boolean;
   /** Something counted beside the label, such as unread messages. */
   badge?: ReactNode;
+  /**
+   * The pages of an area this link opens, listed beneath it while the area
+   * is open (Shopify admin), so the sidebar carries one link per area.
+   */
+  pages?: ShellNavItem[];
 }
 
 /** A titled group of destinations; the first group usually has no title. */
 export interface ShellNavSection {
+  /** Names the section where its More is remembered; required with `more`. */
+  id?: string;
   title?: string;
   items: ShellNavItem[];
+  /**
+   * Destinations used now and then, folded under the section's More. The
+   * one open now stays in view while folded.
+   */
+  more?: ShellNavItem[];
 }
 
 export type ShellIsActive = (item: ShellNavItem) => boolean;
@@ -246,46 +270,177 @@ export interface ShellNavProps {
   label: string;
   sections: ShellNavSection[];
   isActive: ShellIsActive;
+  /** The ids of the sections whose More starts open. */
+  moreOpen?: readonly string[];
+  /** Told the sections whose More is open after each toggle, to remember. */
+  onMoreOpenChange?: (open: string[]) => void;
 }
 
-function ShellNav({ label, sections, isActive }: ShellNavProps) {
-  const { setOpenMobile } = useSidebar();
+interface ShellNavLinkProps {
+  item: ShellNavItem;
+  isActive: ShellIsActive;
+  onNavigate: () => void;
+}
+
+function ShellNavLink({ item, isActive, onNavigate }: ShellNavLinkProps) {
+  const active = isActive(item);
+  // An open area marks the page open in it, not itself as well.
+  const pages = active ? (item.pages ?? []) : [];
+  const area = pages.length > 0;
   return (
-    <nav aria-label={label}>
-      {sections.map((section, index) => (
-        <SidebarGroup key={section.title ?? index} className="py-1">
-          {section.title ? (
-            <SidebarGroupLabel className="h-7 text-xs font-medium text-muted-foreground">
-              {section.title}
-            </SidebarGroupLabel>
-          ) : null}
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-px">
-              {section.items.map((item) => (
-                <SidebarMenuItem key={item.to}>
-                  <SidebarMenuButton
-                    isActive={isActive(item)}
-                    render={
-                      <Link
-                        to={item.to}
-                        activeOptions={{ exact: item.exact === true }}
-                        onClick={() => setOpenMobile(false)}
-                      />
-                    }
-                    className="h-8 gap-2.5 px-2 text-sm text-sidebar-foreground data-active:font-medium data-active:text-sidebar-accent-foreground"
-                  >
-                    <item.icon className="size-4" aria-hidden />
-                    <span className="truncate">{item.label}</span>
-                    {item.badge ? (
-                      <span className="ms-auto">{item.badge}</span>
-                    ) : null}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        isActive={active && !area}
+        render={
+          <Link
+            to={item.to}
+            activeOptions={{ exact: area || item.exact === true }}
+            onClick={onNavigate}
+          />
+        }
+        className={cn(
+          "h-8 gap-2.5 px-2 text-sm text-sidebar-foreground data-active:font-medium data-active:text-sidebar-accent-foreground",
+          area && "font-medium",
+        )}
+      >
+        <item.icon className="size-4" aria-hidden />
+        <span className="truncate">{item.label}</span>
+        {item.badge ? <span className="ms-auto">{item.badge}</span> : null}
+      </SidebarMenuButton>
+      {area ? (
+        <SidebarMenuSub className="mt-px">
+          {pages.map((page) => (
+            <SidebarMenuSubItem key={page.to}>
+              <SidebarMenuSubButton
+                isActive={isActive(page)}
+                render={
+                  <Link
+                    to={page.to}
+                    activeOptions={{ exact: page.exact === true }}
+                    onClick={onNavigate}
+                  />
+                }
+                className="h-8 data-active:font-medium"
+              >
+                <span className="truncate">{page.label}</span>
+              </SidebarMenuSubButton>
+            </SidebarMenuSubItem>
+          ))}
+        </SidebarMenuSub>
+      ) : null}
+    </SidebarMenuItem>
+  );
+}
+
+interface ShellNavGroupProps {
+  section: ShellNavSection;
+  isActive: ShellIsActive;
+  open: boolean;
+  onToggle: () => void;
+}
+
+function ShellNavGroup({
+  section,
+  isActive,
+  open,
+  onToggle,
+}: ShellNavGroupProps) {
+  const strings = useSystemStrings();
+  const { setOpenMobile } = useSidebar();
+  const listId = useId();
+  const more = section.more ?? [];
+  const shown = open ? more : more.filter((item) => isActive(item));
+  const close = () => setOpenMobile(false);
+  return (
+    <SidebarGroup className="py-1">
+      {section.title ? (
+        <SidebarGroupLabel className="h-7 text-xs font-medium text-muted-foreground">
+          {section.title}
+        </SidebarGroupLabel>
+      ) : null}
+      <SidebarGroupContent>
+        <SidebarMenu className="gap-px">
+          {section.items.map((item) => (
+            <ShellNavLink
+              key={item.to}
+              item={item}
+              isActive={isActive}
+              onNavigate={close}
+            />
+          ))}
+        </SidebarMenu>
+        {more.length > 0 ? (
+          <>
+            <SidebarMenu id={listId} className="gap-px">
+              {shown.map((item) => (
+                <ShellNavLink
+                  key={item.to}
+                  item={item}
+                  isActive={isActive}
+                  onNavigate={close}
+                />
               ))}
             </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      ))}
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  aria-expanded={open}
+                  aria-controls={listId}
+                  aria-label={
+                    section.title ? strings.moreIn(section.title) : undefined
+                  }
+                  onClick={onToggle}
+                  className="h-8 gap-2.5 px-2 text-sm text-muted-foreground"
+                >
+                  <ChevronDown
+                    className={cn(
+                      "size-4 transition-transform motion-reduce:transition-none",
+                      open && "rotate-180",
+                    )}
+                    aria-hidden
+                  />
+                  <span className="truncate">{strings.more}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </>
+        ) : null}
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
+const NONE_OPEN: readonly string[] = [];
+
+function ShellNav({
+  label,
+  sections,
+  isActive,
+  moreOpen = NONE_OPEN,
+  onMoreOpenChange,
+}: ShellNavProps) {
+  const [open, setOpen] = useState<readonly string[]>(moreOpen);
+  const toggle = (id: string) => {
+    const next = open.includes(id)
+      ? open.filter((value) => value !== id)
+      : [...open, id];
+    setOpen(next);
+    onMoreOpenChange?.(next);
+  };
+  return (
+    <nav aria-label={label}>
+      {sections.map((section, index) => {
+        const key = section.id ?? section.title ?? String(index);
+        return (
+          <ShellNavGroup
+            key={key}
+            section={section}
+            isActive={isActive}
+            open={open.includes(key)}
+            onToggle={() => toggle(key)}
+          />
+        );
+      })}
     </nav>
   );
 }
@@ -301,6 +456,10 @@ export interface ShellSidebarProps {
   account: ReactNode;
   /** Describes the phone's navigation sheet for screen readers. */
   description: string;
+  /** The ids of the sections whose More starts open. */
+  moreOpen?: readonly string[];
+  /** Told the sections whose More is open after each toggle, to remember. */
+  onMoreOpenChange?: (open: string[]) => void;
 }
 
 function SidebarBody({
@@ -310,6 +469,8 @@ function SidebarBody({
   navigationLabel,
   isActive,
   account,
+  moreOpen,
+  onMoreOpenChange,
 }: ShellSidebarProps) {
   return (
     <>
@@ -322,6 +483,8 @@ function SidebarBody({
           label={navigationLabel}
           sections={navigation}
           isActive={isActive}
+          moreOpen={moreOpen}
+          onMoreOpenChange={onMoreOpenChange}
         />
       </SidebarContent>
       <SidebarFooter className="p-2">

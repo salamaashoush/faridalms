@@ -1,4 +1,5 @@
 import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { School, House } from "lucide-react";
 import { describe, expect, it } from "vitest";
 
@@ -52,6 +53,93 @@ describe("AppShell", () => {
     expect(
       await screen.findByRole("button", { name: "Account" }),
     ).toHaveTextContent("Salama Ashoush");
+  });
+});
+
+function SchoolSections() {
+  const isActive = useActiveByPath();
+  return (
+    <AppShell
+      brand={<ShellBrand to="/" icon={House} title="Farida" subtitle="School" />}
+      navigation={[
+        {
+          id: "school",
+          title: "School",
+          items: [{ to: "/settings", label: "Settings", icon: School }],
+          more: [
+            { to: "/billing", label: "Billing", icon: School },
+            { to: "/privacy", label: "Data protection", icon: School },
+          ],
+        },
+      ]}
+      navigationLabel="Primary"
+      description="The school's sections"
+      isActive={isActive}
+      account={
+        <ShellAccount label="Account" name="Salama Ashoush" detail="Owner">
+          {null}
+        </ShellAccount>
+      }
+      breadcrumb={<span>Billing</span>}
+    >
+      <h1>Billing</h1>
+    </AppShell>
+  );
+}
+
+describe("a section's More", () => {
+  it("folds what is used now and then, keeping the open page in view", async () => {
+    renderPageWithSystem(SchoolSections, { path: "/billing" });
+    const nav = await screen.findByRole("navigation", { name: "Primary" });
+    const more = within(nav).getByRole("button", { name: "More in School" });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    expect(more).toHaveTextContent("More");
+    expect(within(nav).getByRole("link", { name: "Billing" })).toHaveAttribute(
+      "data-active",
+    );
+    expect(
+      within(nav).queryByRole("link", { name: "Data protection" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens in place and tells the app what to remember", async () => {
+    const remembered: string[][] = [];
+    function Remembering() {
+      const isActive = useActiveByPath();
+      return (
+        <AppShell
+          brand={<ShellBrand to="/" icon={House} title="Farida" subtitle="School" />}
+          navigation={[
+            {
+              id: "school",
+              title: "School",
+              items: [{ to: "/settings", label: "Settings", icon: School }],
+              more: [{ to: "/privacy", label: "Data protection", icon: School }],
+            },
+          ]}
+          navigationLabel="Primary"
+          description="The school's sections"
+          isActive={isActive}
+          account={null}
+          breadcrumb={<span>Settings</span>}
+          onMoreOpenChange={(open) => remembered.push(open)}
+        >
+          <h1>Settings</h1>
+        </AppShell>
+      );
+    }
+    renderPageWithSystem(Remembering, { path: "/settings" });
+    const nav = await screen.findByRole("navigation", { name: "Primary" });
+    await userEvent.click(
+      within(nav).getByRole("button", { name: "More in School" }),
+    );
+    expect(
+      within(nav).getByRole("link", { name: "Data protection" }),
+    ).toBeVisible();
+    expect(
+      within(nav).getByRole("button", { name: "More in School" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(remembered).toEqual([["school"]]);
   });
 });
 

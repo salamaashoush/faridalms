@@ -73,6 +73,8 @@ export interface SystemStrings {
   leaveWhileSavingHint: string;
   more: string;
   moreActions: string;
+  /** Names a section's More, so two sections' never share a name. */
+  moreIn: (section: string) => string;
   noMatches: string;
   noResultsBody: string;
   noResultsTitle: string;

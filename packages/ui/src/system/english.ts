@@ -66,6 +66,7 @@ export const ENGLISH_STRINGS: SystemStrings = {
     "Your changes are being saved. Please wait for the result before leaving.",
   more: "More",
   moreActions: "More actions",
+  moreIn: (section) => `More in ${section}`,
   noMatches: "No matching records",
   noResultsBody:
     "Try a different search, or clear the filters to see everything.",

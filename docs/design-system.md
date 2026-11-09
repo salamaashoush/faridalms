@@ -17,7 +17,7 @@ package gains it first, with a test and a line in this table.
 
 | Rule           | Module                                                                                                                                                                                                                |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, breadcrumb steps), `page-actions`                                                                                                              |
+| Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, section More, area pages, breadcrumb steps), `page-actions`                                                                                    |
 | Index page     | `page-header`, `index-toolbar`, `data-table`, `selection-bar` (`SelectionBar`), `cell-note` (`CellWithNote`), `empty-state`                                                                                           |
 | Page width     | `page` (`Page`)                                                                                                                                                                                                       |
 | Record page    | `record-page` (`RecordHeader`, `RecordStack`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `stage-path` (`StagePath`), `attention-list` (`AttentionList`), `value`                 |
@@ -123,6 +123,24 @@ One 48px top bar per page (Polaris, Notion, Linear):
 
 - start: sidebar toggle, then the breadcrumb;
 - end: the page's own actions when it has any, otherwise nothing.
+
+The sidebar lists the app's sections (`ShellNavSection`), each a short
+titled group of links (Polaris, Linear). Two rules keep it calm for
+someone whose role reaches much of the app (`docs/plans/navigation.md`):
+
+- **An area is one link.** Pages that serve one job (Admissions:
+  enquiries, applications, intakes, reports, letters) are one link whose
+  pages (`ShellNavItem.pages`) list beneath it, indented, while one of
+  them is open (Shopify admin). The open page is marked, not the area as
+  well. An area's own page tabs stay on the page; the area never adds a
+  second row of tabs.
+- **What is opened now and then folds under the section's More**
+  (`ShellNavSection.more`): a row at the section's end, named "More in
+  Teaching" for screen readers, that opens in place and is remembered
+  (`moreOpen`, `onMoreOpenChange`). A folded link that is open now stays
+  in view. The app decides what folds for whom; the portal folds a
+  section only when a person sees more than five links in it and at
+  least two would fold, so a lighter role sees its sections whole.
 
 Global tools live in the sidebar header on desktop: search (Ctrl/Cmd+K),
 notifications, and the school-year switch. The sidebar footer holds the
