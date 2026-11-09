@@ -150,34 +150,64 @@ test("a school writes its own Arabic reading norms in its settings", async ({
   const english = page.getByRole("region", {
     name: /Reading norms in English/,
   });
-  await english.getByRole("button", { name: "Edit English norms" }).click();
-  await english
-    .getByRole("textbox", { name: "Grade 3, winter, 75th percentile" })
-    .fill("90");
-  await english.getByRole("button", { name: "Save" }).click();
+  // Each grade's time of year is a row of its own, opened in a sheet.
+  const winter = english.getByRole("row", { name: /Grade 3 Winter/ });
+  await winter.getByRole("button", { name: "Grade 3", exact: true }).click();
+  const sheet = page.getByRole("dialog", { name: "Grade 3, winter" });
+  const seventyFifth = sheet.getByRole("textbox", {
+    name: "75th percentile",
+  });
+  await expect(seventyFifth).toHaveAccessibleDescription(
+    "Hasbrouck and Tindal: 137",
+  );
+  await seventyFifth.fill("90");
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await expect(seventyFifth).toHaveAccessibleDescription(
+    /Lower than the 50th percentile, 97/,
+  );
+  await expect(seventyFifth).toBeFocused();
+  await sheet.getByRole("button", { name: "Cancel" }).click();
+  await expect(sheet).toBeHidden();
   await expect(
-    english.getByRole("alert").getByRole("link", {
-      name: /Grade 3, winter, 75th percentile is lower than the 50th percentile/,
-    }),
-  ).toBeVisible();
-  await english.getByRole("button", { name: "Cancel" }).click();
-  await expect(
-    english.getByRole("button", { name: "Edit English norms" }),
+    winter.getByRole("button", { name: "Grade 3", exact: true }),
   ).toBeFocused();
+
+  await winter.getByRole("button", { name: "Grade 3", exact: true }).click();
+  await sheet.getByRole("textbox", { name: "75th percentile" }).fill("140");
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Reading norms saved")).toBeVisible();
+  await expect(winter.getByText("Changed by the school")).toBeVisible();
+  await expect(winter.getByRole("cell", { name: "140" })).toBeVisible();
+  await chooseFromMenu(
+    winter.getByRole("button", { name: "Actions for Grade 3, winter" }),
+    page.getByRole("menuitem", {
+      name: "Go back to Hasbrouck and Tindal's figures",
+    }),
+  );
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Go back to Hasbrouck and Tindal's figures" })
+    .click();
+  await expect(page.getByText("Figures put back")).toBeVisible();
+  await expect(
+    english
+      .getByRole("row", { name: /Grade 3 Winter/ })
+      .getByRole("cell", { name: "137" }),
+  ).toBeVisible();
 
   const arabic = page.getByRole("region", { name: /Reading norms in Arabic/ });
   await expect(arabic.getByText(/no published norms/)).toBeVisible();
-  await chooseFromMenu(
-    arabic.getByRole("button", { name: "Add grade" }),
-    page.getByRole("menuitem", { name: "Grade 2", exact: true }),
-  );
-  await arabic
-    .getByRole("textbox", { name: /Grade 2, autumn, 50th percentile/ })
-    .fill("45");
-  await arabic.getByRole("button", { name: "Save" }).click();
+  await arabic.getByRole("button", { name: "Add a norm" }).click();
+  const adding = page.getByRole("dialog", { name: "Add a norm" });
+  await adding.getByRole("combobox", { name: /^Grade/ }).click();
+  await page.getByRole("option", { name: "Grade 2", exact: true }).click();
+  await adding.getByRole("textbox", { name: "50th percentile" }).fill("45");
+  await adding.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Reading norms saved")).toBeVisible();
   await expect(
-    arabic.getByRole("cell", { name: "45", exact: true }),
+    arabic
+      .getByRole("row", { name: /Grade 2 Autumn/ })
+      .getByRole("cell", { name: "45", exact: true }),
   ).toBeVisible();
   await arabic.getByRole("button", { name: "Go back to the defaults" }).click();
   await page

@@ -190,11 +190,91 @@ saves the step at once, so leaving the step loses nothing; there is no
 status column, because a host is only created, pending, when the school
 is.
 
+## Portal settings editors
+
+The reference data a school sets once and reads often: reading norms,
+grade bands, weights, messages by score, periods, bell schedules, an
+intake's checklist and fees, a class's subjects and the website's social
+links. They follow pattern 9, as the console's line editors do.
+
+### The model: a table of rows, one row edited at a time
+
+An earlier pass put each of these in a `DataGrid`: the whole table read,
+then one Edit that turned every cell into an input, with Save and Cancel
+for the lot. That is still one big form. A school changes one figure,
+one period or one link at a time, and a wall of inputs hides the figures
+it is reading and makes a mistake in one row hold up the rest.
+
+Every editor below is now the portal's standard `DataTable`:
+
+- **Rows read as text** in the same table as every other list, with a
+  card per row on a phone.
+- **Each row has its own actions** in its `•••`: Edit, a reset to the
+  published figure where there is one, Remove. The row's name is a
+  `RowButton`, so the whole row opens it, as a record's row opens its
+  page.
+- **Edit opens that one row in a `SheetForm`**, Add opens the same form
+  empty, and the form validates the row against the rest (percentiles
+  rising, a band's lower bound not taken). Remove asks first where it
+  loses something saved.
+- **One row saves at a time.** Where the list is settings of its own
+  (norms, bands, periods, schedules, links), the sheet's Save writes that
+  row and the rest go as they were. Where the list belongs to a record
+  being written in a form with its own Save (a class, an intake, a
+  lesson's messages by score), the sheet's Done puts the row in that
+  form, and the form's Save keeps it with the rest of the record, as
+  Shopify's product form does with a variant.
+
+#### Sources, across editors
+
+- **Primer DataTable**: actions on a row go in its last column, several
+  in a menu with at most one pulled out; Primer sends a team that mainly
+  edits cells to a data grid instead, which is what these are not
+  (primer.style/product/components/data-table/guidelines).
+- **Carbon forms pattern**: a side panel for repeated edits where the
+  person needs to see what they are changing, such as a data table row;
+  a dialog only for short, rare ones (carbondesignsystem.com/patterns/
+  forms-pattern). Primer prefers a page to a side sheet for an edit
+  form; ours are short and are made again and again against the table
+  beside them, which is Carbon's case, and `SheetForm` is already the
+  portal's way to edit one section.
+- **GOV.UK summary list and check answers, MoJ "add to a list"**: each
+  item has its own Change; a Remove asks for confirmation
+  (design-patterns.service.justice.gov.uk/patterns/add-to-a-list).
+- **Polaris Modal**: no complex forms in a modal; edits are titled for
+  what they change ("Edit email address").
+- **Stripe tax rates**: each rate is its own object, created, changed and
+  archived on its own (docs.stripe.com/tax/tax-rates).
+
+### Reading norms
+
+`apps/web/src/components/reading/ReadingNorms.tsx`, Settings, Reading.
+
+- **Sources.** Hasbrouck and Tindal's 2017 table runs grade by
+  percentile with autumn, winter and spring as columns, grade 1's autumn
+  blank. DIBELS 8 prints a page a grade with beginning, middle and end of
+  year as columns (dibels.amplify.com/docs/DIBELS8thEditionGoals_4.pdf).
+  FastBridge districts set their own cut points per grade and season.
+- **Decision.** One table per language, a row for each grade at each time
+  of year, the five percentiles as columns and a Source column saying
+  "Hasbrouck and Tindal", "Changed by the school" or "Added by the
+  school". A row opens in a sheet with a field per percentile, each
+  carrying the published figure under it. The row's menu puts back the
+  published figures for that row; the section's Go back to the defaults
+  still resets the whole language.
+- **Why it fits.** A student's reading is set against one grade at one
+  time of year, so that is the row a teacher looks up and the unit a
+  school changes when it moves a benchmark. The rule that each percentile
+  is at least the one before is within a row, so the sheet checks it on
+  the field that breaks it. Percentiles stay columns rather than rows, as
+  the published table has them, because five short figures fit across a
+  row at 720px and a phone's card reads them as one line.
+
 ## Ranking, worst first
 
 | #   | Editor                                   | Where                                                       | State                                                                  |
 | --- | ---------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------- |
-| 1   | Reading norms                            | `apps/web/src/components/reading/ReadingNorms.tsx`          | Rebuilt: read view, Edit, groups, source marks                         |
+| 1   | Reading norms                            | `apps/web/src/components/reading/ReadingNorms.tsx`          | Rows: a grade's time of year per row, in a sheet                       |
 | 2   | Gradebook term grades                    | `apps/web/src/components/gradebook/`                        | Redesigned: table frame, saved as typed; see `docs/plans/gradebook.md` |
 | 3   | Grade bands                              | `apps/web/src/components/grading/ScalesTab.tsx`             | Rebuilt: per-cell checks, scores covered                               |
 | 4   | Grading categories (weights)             | `apps/web/src/components/grading/ProgrammesTab.tsx`         | Rebuilt: per-cell checks, Total row                                    |

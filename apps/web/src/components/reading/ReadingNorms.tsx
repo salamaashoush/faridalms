@@ -4,7 +4,8 @@ import type {
   ReadingLanguage,
   ReadingSeason,
 } from "@faridalms/domain/reading";
-import type { GridColumn, GridIssue } from "@faridalms/ui/system/data-grid";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
+import type { ReactNode } from "react";
 
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
 import {
@@ -16,21 +17,17 @@ import {
 } from "@faridalms/domain/reading";
 import { Button } from "@faridalms/ui/button";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
-import {
-  DataGrid,
-  GridAddButton,
-  GridFigure,
-  NumberCell,
-  useFocusAfterRender,
-} from "@faridalms/ui/system/data-grid";
-import { EmptyState } from "@faridalms/ui/system/empty-state";
-import { SettingsSection } from "@faridalms/ui/system/settings-section";
+import { DataTable, RowButton } from "@faridalms/ui/system/data-table";
+import { NumberField, SelectField } from "@faridalms/ui/system/form-field";
+import { RecordSection } from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import {
   useMutation,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { Pencil, RotateCcw } from "lucide-react";
+import { BookOpenText, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -81,21 +78,37 @@ const PERCENTILE_VALUE: Record<NormPercentile, number> = {
 const percentileLabel = (percentile: NormPercentile) =>
   m.readingPercentile({ value: formatNumber(PERCENTILE_VALUE[percentile]) });
 
-const empty = (grade: string, season: ReadingSeason): NormRow => ({
-  grade,
-  season,
+const percentileShort = (percentile: NormPercentile) =>
+  m.readingPercentileShort({
+    value: formatNumber(PERCENTILE_VALUE[percentile]),
+  });
+
+type Figures = Pick<NormRow, NormPercentile>;
+
+const NO_FIGURES: Figures = {
   p10: null,
   p25: null,
   p50: null,
   p75: null,
   p90: null,
+};
+
+const empty = (grade: string, season: ReadingSeason): NormRow => ({
+  grade,
+  season,
+  ...NO_FIGURES,
 });
 
-const blank = (row: NormRow) =>
+const blank = (row: Figures) =>
   NORM_PERCENTILES.every((percentile) => row[percentile] === null);
 
 const find = (rows: readonly NormRow[], grade: string, season: ReadingSeason) =>
   rows.find((row) => row.grade === grade && row.season === season);
+
+const same = (
+  a: Pick<NormRow, "grade" | "season">,
+  b: Pick<NormRow, "grade" | "season">,
+) => a.grade === b.grade && a.season === b.season;
 
 const gradesOf = (rows: readonly NormRow[]) =>
   [...new Set(rows.map((row) => row.grade))].toSorted(
@@ -121,117 +134,327 @@ const filled = (rows: readonly NormRow[]) =>
 const kept = (rows: readonly NormRow[]) =>
   filled(rows).filter((row) => !blank(row));
 
-const cellId = (
-  language: ReadingLanguage,
-  row: Pick<NormRow, "grade" | "season">,
-  percentile: NormPercentile,
-) => `norm-${language}-${row.grade}-${row.season}-${percentile}`;
+/** The rows with one put in place of the row for its grade and time of year. */
+const withRow = (rows: readonly NormRow[], next: NormRow) =>
+  kept([...rows.filter((row) => !same(row, next)), next]);
 
-const cellName = (row: NormRow, percentile: NormPercentile) =>
-  m.readingNormCell({
-    row: m.readingNormRowName({
-      grade: gradeName(row.grade),
-      season: SEASON_LABEL[row.season](),
-    }),
-    percentile: percentileLabel(percentile),
+const rowName = (row: Pick<NormRow, "grade" | "season">) =>
+  m.readingNormRowName({
+    grade: gradeName(row.grade),
+    season: SEASON_LABEL[row.season](),
   });
 
-/** What is wrong with the figures as written, each tied to its cell. */
-function issuesOf(
-  language: ReadingLanguage,
-  rows: readonly NormRow[],
-): GridIssue[] {
-  const issues: GridIssue[] = [];
-  for (const grade of gradesOf(rows)) {
-    const own = rows.filter((row) => row.grade === grade);
-    if (own.every(blank))
-      issues.push({
-        target: cellId(language, { grade, season: "fall" }, "p10"),
-        message: m.readingNormGradeEmpty({ grade: gradeName(grade) }),
-      });
-    for (const row of own) {
-      for (const percentile of NORM_PERCENTILES) {
-        const value = row[percentile];
-        if (value !== null && value > MOST_WORDS)
-          issues.push({
-            target: cellId(language, row, percentile),
-            message: m.readingNormTooHigh({
-              cell: cellName(row, percentile),
-              max: formatNumber(MOST_WORDS),
-            }),
-          });
-      }
-      for (const percentile of fallingPercentiles(row)) {
-        const before = NORM_PERCENTILES.slice(
-          0,
-          NORM_PERCENTILES.indexOf(percentile),
-        ).reduce<NormPercentile | null>(
-          (highest, other) =>
-            row[other] !== null &&
-            (highest === null || (row[other] ?? 0) >= (row[highest] ?? 0))
-              ? other
-              : highest,
-          null,
-        );
-        if (!before) continue;
-        issues.push({
-          target: cellId(language, row, percentile),
-          message: m.readingNormLower({
-            cell: cellName(row, percentile),
-            percentile: percentileLabel(before),
-            value: formatNumber(row[before] ?? 0),
-          }),
-        });
-      }
-    }
+const rowKey = (row: Pick<NormRow, "grade" | "season">) =>
+  `${row.grade}:${row.season}`;
+
+/** What is wrong with one row's figures, each said on its own field. */
+function figureErrors(
+  figures: Figures,
+): Partial<Record<NormPercentile, string>> {
+  const errors: Partial<Record<NormPercentile, string>> = {};
+  if (blank(figures)) {
+    errors.p10 = m.readingNormNeedsFigure();
+    return errors;
   }
-  return issues;
+  for (const percentile of NORM_PERCENTILES) {
+    const value = figures[percentile];
+    if (value !== null && value > MOST_WORDS)
+      errors[percentile] = m.readingNormFieldTooHigh({
+        max: formatNumber(MOST_WORDS),
+      });
+  }
+  const row = { grade: "", season: "fall" as const, ...figures };
+  for (const percentile of fallingPercentiles(row)) {
+    if (errors[percentile]) continue;
+    const before = NORM_PERCENTILES.slice(
+      0,
+      NORM_PERCENTILES.indexOf(percentile),
+    ).reduce<NormPercentile | null>(
+      (highest, other) =>
+        figures[other] !== null &&
+        (highest === null || (figures[other] ?? 0) >= (figures[highest] ?? 0))
+          ? other
+          : highest,
+      null,
+    );
+    if (!before) continue;
+    errors[percentile] = m.readingNormFieldLower({
+      percentile: percentileLabel(before),
+      value: formatNumber(figures[before] ?? 0),
+    });
+  }
+  return errors;
 }
 
-interface PercentileColumnsOptions {
-  language: ReadingLanguage;
-  editing: boolean;
-  baseline: (
-    row: NormRow,
-    percentile: NormPercentile,
-  ) => number | null | undefined;
-  onChange: (
-    row: NormRow,
-    percentile: NormPercentile,
-    value: number | null,
-  ) => void;
+interface Source {
+  /** Who published the figures the school starts from. */
+  name: string;
+  rows: readonly NormRow[];
 }
+
+/**
+ * The published figures for a grade at a time of year, null where the
+ * source has none, or undefined when the source does not cover the grade.
+ */
+function sourceRow(source: Source | null, row: NormRow) {
+  if (!source || !source.rows.some((item) => item.grade === row.grade))
+    return undefined;
+  return (
+    find(source.rows, row.grade, row.season) ?? empty(row.grade, row.season)
+  );
+}
+
+const differs = (a: Figures, b: Figures) =>
+  NORM_PERCENTILES.some((percentile) => a[percentile] !== b[percentile]);
+
+interface SourceStatusProps {
+  source: Source;
+  row: NormRow;
+}
+
+function SourceStatus({ source, row }: SourceStatusProps) {
+  const from = sourceRow(source, row);
+  if (from === undefined)
+    return <StatusText tone="info">{m.readingNormsAdded()}</StatusText>;
+  if (differs(from, row))
+    return <StatusText tone="info">{m.readingNormChanged()}</StatusText>;
+  return <span className="text-muted-foreground">{source.name}</span>;
+}
+
+interface FigureProps {
+  value: number | null;
+}
+
+function Figure({ value }: FigureProps) {
+  if (value === null)
+    return (
+      <span className="text-muted-foreground">
+        <span aria-hidden>—</span>
+        <span className="sr-only">{m.readingNormsNoNorm()}</span>
+      </span>
+    );
+  return <span className="tabular-nums">{formatNumber(value)}</span>;
+}
+
+/** The figures of a row on one line, as a phone's card reads them. */
+function figuresLine(row: NormRow) {
+  if (blank(row)) return m.readingNormsNoNorm();
+  return NORM_PERCENTILES.flatMap((percentile) => {
+    const value = row[percentile];
+    return value === null
+      ? []
+      : [
+          m.readingNormCardFigure({
+            percentile: percentileShort(percentile),
+            value: formatNumber(value),
+          }),
+        ];
+  }).join(" · ");
+}
+
+interface NormSheetProps {
+  language: ReadingLanguage;
+  rows: NormRow[];
+  version: number;
+  source: Source | null;
+  /** The row being changed; none to add one. */
+  row: NormRow | null;
+  open: boolean;
+  onClose: () => void;
+}
+
+/**
+ * One grade's figures at one time of year, each percentile its own field,
+ * with the published figure it started from under it.
+ */
+function NormSheet({
+  language,
+  rows,
+  version,
+  source,
+  row,
+  open,
+  onClose,
+}: NormSheetProps) {
+  const queryClient = useQueryClient();
+  const openSeasons = (grade: string) =>
+    READING_SEASONS.filter((season) => {
+      const found = find(rows, grade, season);
+      return !found || blank(found);
+    });
+  const gradeChoices = GRADES.flatMap((value) =>
+    value.meaning && openSeasons(value.meaning).length
+      ? [{ value: value.meaning, label: inLocale(value.en, value.ar) }]
+      : [],
+  );
+  const [grade, setGrade] = useState(
+    () => row?.grade ?? gradeChoices[0]?.value ?? "",
+  );
+  const [season, setSeason] = useState<ReadingSeason>(
+    () => row?.season ?? openSeasons(grade)[0] ?? "fall",
+  );
+  const [figures, setFigures] = useState<Figures>(() =>
+    row
+      ? {
+          p10: row.p10,
+          p25: row.p25,
+          p50: row.p50,
+          p75: row.p75,
+          p90: row.p90,
+        }
+      : NO_FIGURES,
+  );
+  const [tried, setTried] = useState(false);
+  const errors = tried ? figureErrors(figures) : {};
+  const target: NormRow = { grade, season, ...figures };
+  const from = sourceRow(source, target);
+  const save = useMutation({
+    mutationFn: () =>
+      saveReadingNorms({
+        data: {
+          language,
+          rows: withRow(rows, target),
+          expectedVersion: version,
+        },
+      }),
+    meta: { inlineError: true },
+  });
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title={row ? rowName(row) : m.readingNormAddTitle()}
+      pending={save.isPending}
+      error={save.error ? getMessageFromError(save.error) : null}
+      onSubmit={async () => {
+        setTried(true);
+        if (!grade || Object.keys(figureErrors(figures)).length) return;
+        try {
+          await save.mutateAsync();
+        } catch {
+          return;
+        }
+        await queryClient.invalidateQueries({
+          queryKey: readingNormsQuery.queryKey,
+        });
+        toast.success(m.readingNormsSaved());
+        onClose();
+      }}
+    >
+      {row ? null : (
+        <>
+          <SelectField
+            id={`norm-${language}-grade`}
+            label={m.readingGrade()}
+            value={grade}
+            options={gradeChoices}
+            onChange={(next) => {
+              setGrade(next);
+              const seasons = openSeasons(next);
+              if (!seasons.includes(season) && seasons[0])
+                setSeason(seasons[0]);
+            }}
+            width="name"
+          />
+          <SelectField
+            id={`norm-${language}-season`}
+            label={m.readingSeason()}
+            value={season}
+            options={openSeasons(grade).map((value) => ({
+              value,
+              label: SEASON_TITLE[value](),
+            }))}
+            onChange={setSeason}
+            width="date"
+          />
+        </>
+      )}
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
+        {m.readingNormFiguresHint()}
+      </p>
+      {NORM_PERCENTILES.map((percentile) => {
+        const published = from?.[percentile];
+        return (
+          <NumberField
+            key={percentile}
+            id={`norm-${language}-${percentile}`}
+            label={percentileLabel(percentile)}
+            value={figures[percentile]}
+            onChange={(value) =>
+              setFigures((current) => ({ ...current, [percentile]: value }))
+            }
+            hint={
+              source && from !== undefined
+                ? published === null || published === undefined
+                  ? m.readingNormFromSourceNone({ source: source.name })
+                  : m.readingNormFromSource({
+                      source: source.name,
+                      value: formatNumber(published),
+                    })
+                : undefined
+            }
+            errors={errors[percentile] ? [errors[percentile]] : undefined}
+          />
+        );
+      })}
+    </SheetForm>
+  );
+}
+
+type Opener = (row: NormRow, text: string) => ReactNode;
 
 // Built per render: headers read the request's locale.
-function percentileColumns({
-  language,
-  editing,
-  baseline,
-  onChange,
-}: PercentileColumnsOptions): GridColumn<NormRow>[] {
-  return NORM_PERCENTILES.map((percentile) => ({
-    id: percentile,
-    header: m.readingPercentileShort({
-      value: formatNumber(PERCENTILE_VALUE[percentile]),
-    }),
-    numeric: true,
-    cell: (row) =>
-      editing ? (
-        <NumberCell
-          id={cellId(language, row, percentile)}
-          label={cellName(row, percentile)}
-          value={row[percentile]}
-          baseline={baseline(row, percentile)}
-          placeholder="—"
-          onChange={(value) => onChange(row, percentile, value)}
-        />
-      ) : (
-        <GridFigure
-          value={row[percentile]}
-          baseline={baseline(row, percentile)}
-        />
-      ),
-  }));
+function normColumns(
+  source: Source | null,
+  opener: Opener,
+): Column<NormRow & { id: string }>[] {
+  return [
+    {
+      id: "grade",
+      header: m.readingGrade(),
+      primary: true,
+      cell: (row) => opener(row, gradeName(row.grade)),
+    },
+    {
+      id: "season",
+      header: m.readingSeason(),
+      cell: (row) => SEASON_TITLE[row.season](),
+    },
+    ...NORM_PERCENTILES.map((percentile) => ({
+      id: percentile,
+      header: percentileShort(percentile),
+      align: "end" as const,
+      cell: (row: NormRow) => <Figure value={row[percentile]} />,
+    })),
+    ...(source
+      ? [
+          {
+            id: "source",
+            header: m.readingNormSourceColumn(),
+            cell: (row: NormRow) => <SourceStatus source={source} row={row} />,
+          },
+        ]
+      : []),
+  ];
+}
+
+function normCard(source: Source | null, opener: Opener) {
+  return {
+    title: (row: NormRow) => opener(row, rowName(row)),
+    fact: figuresLine,
+    // A phone has no room to say every row is still the source's, so its
+    // card speaks only of a row the school changed or added.
+    status: source
+      ? (row: NormRow) => {
+          const from = sourceRow(source, row);
+          return from === undefined || differs(from, row) ? (
+            <SourceStatus source={source} row={row} />
+          ) : null;
+        }
+      : undefined,
+  };
 }
 
 interface LanguageNormsProps {
@@ -242,35 +465,31 @@ interface LanguageNormsProps {
 }
 
 /**
- * One language's norms: read as a table grade by grade, and changed in
- * the same table after Edit, each figure that differs from Hasbrouck and
- * Tindal's marked.
+ * One language's norms as a table, a row for each grade at each time of
+ * year. A row opens on its own to be changed, and says whether its figures
+ * are still Hasbrouck and Tindal's.
  */
 function LanguageNorms({ language, rows, own, version }: LanguageNormsProps) {
   const queryClient = useQueryClient();
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(() => filled(rows));
-  const [checked, setChecked] = useState(false);
+  const [sheet, setSheet] = useState<{
+    row: NormRow | null;
+    key: number;
+    open: boolean;
+  } | null>(null);
   const [resetting, setResetting] = useState(false);
-  const focusLater = useFocusAfterRender();
-  const editId = `norm-${language}-edit`;
   const languageName = LOCALE_NAME[language]();
-  const defaults = DEFAULT_NORMS[language];
-  const sourced = defaults.length > 0;
-  const shown = editing ? draft : filled(rows);
-  const issues = checked ? issuesOf(language, draft) : [];
+  const source: Source | null = DEFAULT_NORMS[language].length
+    ? { name: m.readingNormsSource(), rows: DEFAULT_NORMS[language] }
+    : null;
+  const shown = filled(rows);
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: readingNormsQuery.queryKey });
-  const save = useMutation({
-    mutationFn: () =>
-      saveReadingNorms({
-        data: { language, rows: kept(draft), expectedVersion: version },
-      }),
-    onSuccess: async () => {
-      toast.success(m.readingNormsSaved());
-      await refresh();
-    },
-  });
+  const write = async (next: NormRow[]) => {
+    await saveReadingNorms({
+      data: { language, rows: next, expectedVersion: version },
+    });
+    await refresh();
+  };
   const reset = useMutation({
     mutationFn: () => resetReadingNorms({ data: { language } }),
     onSuccess: async () => {
@@ -278,215 +497,137 @@ function LanguageNorms({ language, rows, own, version }: LanguageNormsProps) {
       toast.success(m.readingNormsReset());
       await refresh();
     },
-    onError: (error) => toast.error(getMessageFromError(error)),
+    meta: { inlineError: true },
   });
-  const baseline = (row: NormRow, percentile: NormPercentile) => {
-    if (!sourced) return undefined;
-    const source = find(defaults, row.grade, row.season);
-    if (!source && !defaults.some((item) => item.grade === row.grade))
-      return undefined;
-    return source?.[percentile] ?? null;
-  };
-  const changed = shown.reduce(
-    (count, row) =>
-      count +
-      NORM_PERCENTILES.filter((percentile) => {
-        const from = baseline(row, percentile);
-        return from !== undefined && from !== row[percentile];
-      }).length,
-    0,
+  const openSheet = (row: NormRow | null) =>
+    setSheet((current) => ({ row, key: (current?.key ?? 0) + 1, open: true }));
+  const canAdd = GRADES.some(
+    (value) =>
+      value.meaning &&
+      READING_SEASONS.some((season) => {
+        const found = find(rows, value.meaning ?? "", season);
+        return !found || blank(found);
+      }),
   );
-  const startEditing = () => {
-    setDraft(filled(rows));
-    setChecked(false);
-    setEditing(true);
-    const first = filled(rows)[0];
-    if (first) focusLater(cellId(language, first, "p10"));
-  };
-  const stopEditing = () => {
-    setEditing(false);
-    setChecked(false);
-    save.reset();
-    focusLater(editId);
-  };
-  const addGrade = (grade?: string) => {
-    if (!grade) return;
-    const base = editing ? draft : filled(rows);
-    setDraft(
-      filled([
-        ...base,
-        ...READING_SEASONS.map((season) => empty(grade, season)),
-      ]),
-    );
-    setEditing(true);
-    focusLater(cellId(language, { grade, season: "fall" }, "p10"));
-  };
-  const change = (
-    target: NormRow,
-    percentile: NormPercentile,
-    value: number | null,
-  ) =>
-    setDraft((current) =>
-      current.map((row) =>
-        row.grade === target.grade && row.season === target.season
-          ? { ...row, [percentile]: value }
-          : row,
-      ),
-    );
-  const groups = gradesOf(shown).map((grade) => {
-    const inSource = defaults.some((row) => row.grade === grade);
-    const gradeRows = shown.filter((row) => row.grade === grade);
-    const differs = gradeRows.some((row) =>
-      NORM_PERCENTILES.some(
-        (percentile) => baseline(row, percentile) !== row[percentile],
-      ),
-    );
-    return {
-      id: grade,
-      title: gradeName(grade),
-      note: sourced && !inSource ? m.readingNormsAdded() : undefined,
-      actions: [
-        ...(sourced && inSource && differs
-          ? [
-              {
+  const addButton = (variant: "default" | "outline") =>
+    canAdd ? (
+      <Button
+        type="button"
+        variant={variant}
+        className="max-md:h-10"
+        onClick={() => openSheet(null)}
+      >
+        <Plus aria-hidden />
+        {m.readingNormAdd()}
+      </Button>
+    ) : undefined;
+  const rowActions = (row: NormRow): RowAction[] => {
+    const from = sourceRow(source, row);
+    return [
+      {
+        label: m.recordEdit(),
+        icon: Pencil,
+        onSelect: () => openSheet(row),
+      },
+      ...(source && from && differs(from, row)
+        ? [
+            {
+              label: m.readingNormsBackToSource(),
+              icon: RotateCcw,
+              confirm: {
+                title: m.readingNormBackTitle({
+                  source: source.name,
+                  row: rowName(row),
+                }),
+                body: m.readingNormBackBody(),
                 label: m.readingNormsBackToSource(),
-                icon: RotateCcw,
-                onSelect: () =>
-                  setDraft((current) =>
-                    current.map((row) =>
-                      row.grade === grade
-                        ? (find(defaults, grade, row.season) ??
-                          empty(grade, row.season))
-                        : row,
-                    ),
-                  ),
               },
-            ]
-          : []),
-        {
-          label: m.readingRemoveGrade({ grade: gradeName(grade) }),
-          onSelect: () =>
-            setDraft((current) => current.filter((row) => row.grade !== grade)),
-        },
-      ],
-      rows: gradeRows,
-    };
-  });
-  const present = new Set(gradesOf(shown));
-  const addChoices = GRADES.flatMap((value) =>
-    value.meaning && !present.has(value.meaning)
-      ? [{ value: value.meaning, label: inLocale(value.en, value.ar) }]
-      : [],
-  );
-  const addButton = (
-    <GridAddButton
-      label={m.readingAddRow()}
-      choices={addChoices}
-      onAdd={addGrade}
-    />
-  );
-  const columns = percentileColumns({
-    language,
-    editing,
-    baseline,
-    onChange: change,
-  });
-  const description = own
-    ? m.readingNormsOwn()
-    : language === "en"
-      ? m.readingNormsDefaultEn()
-      : m.readingNormsDefaultAr();
-  const title = m.readingNormsFor({ language: languageName });
-  const body = groups.length ? (
-    <DataGrid<NormRow>
-      caption={m.readingNormsTable({ language: languageName })}
-      editing={editing}
-      rowHeader={{
-        header: m.readingSeason(),
-        cell: (row) => SEASON_TITLE[row.season](),
-      }}
-      columnGroup={m.readingPercentiles()}
-      columns={columns}
-      groups={groups}
-      rowKey={(row) => `${row.grade}:${row.season}`}
-      baselineName={sourced ? m.readingNormsSource() : undefined}
-      legend={{
-        changed,
-        empty:
-          !editing && shown.some((row) => blank(row))
-            ? m.readingNormsNoNorm()
-            : undefined,
-      }}
-      issues={issues}
-      footer={addButton}
-    />
-  ) : (
-    <EmptyState
-      placement="section"
-      title={m.readingNormsEmpty()}
-      action={addButton}
-    />
+              onSelect: async () => {
+                await write(withRow(rows, from));
+                toast.success(m.readingNormBackDone());
+              },
+            },
+          ]
+        : []),
+      ...(blank(row)
+        ? []
+        : [
+            {
+              label: m.readingNormRemove(),
+              icon: Trash2,
+              destructive: true as const,
+              confirm: {
+                title: m.readingNormRemoveTitle({ row: rowName(row) }),
+                body: m.readingNormRemoveBody(),
+                label: m.readingNormRemove(),
+              },
+              onSelect: async () => {
+                await write(withRow(rows, empty(row.grade, row.season)));
+                toast.success(m.readingNormRemoved());
+              },
+            },
+          ]),
+    ];
+  };
+  const opener: Opener = (row, text) => (
+    <RowButton onClick={() => openSheet(row)}>{text}</RowButton>
   );
   return (
-    <SettingsSection
-      title={title}
-      description={description}
-      onSubmit={
-        editing
-          ? async () => {
-              setChecked(true);
-              if (issuesOf(language, draft).length) return;
-              await save.mutateAsync().catch(() => null);
-            }
-          : undefined
+    <RecordSection
+      variant="page"
+      title={m.readingNormsFor({ language: languageName })}
+      description={
+        own
+          ? m.readingNormsOwn()
+          : language === "en"
+            ? m.readingNormsDefaultEn()
+            : m.readingNormsDefaultAr()
       }
-      pending={save.isPending}
-      error={save.error ? getMessageFromError(save.error) : null}
-      isDirty={
-        editing
-          ? () => JSON.stringify(kept(draft)) !== JSON.stringify(kept(rows))
-          : undefined
-      }
-      footer={
-        editing ? (
+      action={
+        own ? (
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             className="max-md:h-10"
-            onClick={stopEditing}
+            onClick={() => {
+              reset.reset();
+              setResetting(true);
+            }}
           >
-            {m.commonCancel()}
+            <RotateCcw aria-hidden />
+            {m.readingNormsResetAction()}
           </Button>
-        ) : groups.length || own ? (
-          <>
-            {groups.length ? (
-              <Button
-                id={editId}
-                type="button"
-                variant="outline"
-                className="max-md:h-10"
-                onClick={startEditing}
-              >
-                <Pencil aria-hidden />
-                {m.readingNormsEdit({ language: languageName })}
-              </Button>
-            ) : null}
-            {own ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className="max-md:h-10"
-                onClick={() => setResetting(true)}
-              >
-                <RotateCcw aria-hidden />
-                {m.readingNormsResetAction()}
-              </Button>
-            ) : null}
-          </>
         ) : undefined
       }
     >
-      {body}
+      <DataTable
+        caption={m.readingNormsTable({ language: languageName })}
+        rows={shown.map((row) => Object.assign({ id: rowKey(row) }, row))}
+        columns={normColumns(source, opener)}
+        rowLabel={rowName}
+        rowActions={rowActions}
+        actions={addButton("outline")}
+        card={normCard(source, opener)}
+        empty={{
+          icon: BookOpenText,
+          title: m.readingNormsEmpty(),
+          action: addButton("default"),
+        }}
+      />
+      {sheet ? (
+        <NormSheet
+          key={sheet.key}
+          language={language}
+          rows={rows}
+          version={version}
+          source={source}
+          row={sheet.row}
+          open={sheet.open}
+          onClose={() =>
+            setSheet((current) => current && { ...current, open: false })
+          }
+        />
+      ) : null}
       <ConfirmDialog
         open={resetting}
         title={m.readingNormsResetTitle({ language: languageName })}
@@ -497,10 +638,11 @@ function LanguageNorms({ language, rows, own, version }: LanguageNormsProps) {
         }
         confirmLabel={m.readingNormsResetAction()}
         pending={reset.isPending}
+        error={reset.error ? getMessageFromError(reset.error) : undefined}
         onConfirm={() => reset.mutate()}
         onCancel={() => setResetting(false)}
       />
-    </SettingsSection>
+    </RecordSection>
   );
 }
 
@@ -512,7 +654,7 @@ function LanguageNorms({ language, rows, own, version }: LanguageNormsProps) {
 export function ReadingNorms() {
   const norms = useSuspenseQuery(readingNormsQuery).data;
   return (
-    <>
+    <div className="grid gap-10">
       {READING_LANGUAGES.map((language) => (
         <LanguageNorms
           key={`${language}-${norms[language].version}-${norms[language].own}`}
@@ -520,6 +662,6 @@ export function ReadingNorms() {
           {...norms[language]}
         />
       ))}
-    </>
+    </div>
   );
 }
