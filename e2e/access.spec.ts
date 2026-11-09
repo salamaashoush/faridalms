@@ -1,3 +1,5 @@
+import type { Page } from "@playwright/test";
+
 import { expect, test } from "@playwright/test";
 
 import type { RoleKey } from "./fixtures/sign-in";
@@ -12,6 +14,48 @@ import {
 } from "./fixtures/sign-in";
 
 /**
+ * What the navigation offers on this page, with every section's More
+ * opened, since a folded link is offered all the same. The sidebar
+ * remembers an opened More, so later pages keep it open.
+ */
+async function offered(page: Page): Promise<string[]> {
+  const folded = page.getByRole("button", {
+    name: /^More in /,
+    expanded: false,
+  });
+  while ((await folded.count()) > 0) await folded.first().click();
+  return page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("link")
+    .evaluateAll((links) =>
+      links
+        .map((link) => link.getAttribute("href"))
+        .filter(
+          (href): href is string => href !== null && href.startsWith("/"),
+        ),
+    );
+}
+
+/**
+ * Opens every link the navigation offers, and every link it offers on the
+ * pages those open, such as the pages an area lists beneath its link once
+ * it is open.
+ */
+async function walk(page: Page, open: (href: string) => Promise<void>) {
+  const queue = [...new Set(await offered(page))];
+  expect(queue.length).toBeGreaterThan(0);
+  const seen = new Set(queue);
+  for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
+    await open(next);
+    for (const href of await offered(page))
+      if (!seen.has(href)) {
+        seen.add(href);
+        queue.push(href);
+      }
+  }
+}
+
+/**
  * Navigation is the contract: a role only ever sees links to sections it can
  * actually open. The old portal put four dead links in every page's menu.
  */
@@ -21,27 +65,14 @@ test.describe("navigation offers nothing that 404s", () => {
       await signIn(page, role);
       await untilHydrated(page);
 
-      const hrefs = await page
-        .getByRole("navigation")
-        .getByRole("link")
-        .evaluateAll((links) =>
-          links
-            .map((link) => link.getAttribute("href"))
-            .filter(
-              (href): href is string => href !== null && href.startsWith("/"),
-            ),
-        );
-
-      expect(hrefs.length).toBeGreaterThan(0);
-
-      for (const href of new Set(hrefs)) {
+      await walk(page, async (href) => {
         const response = await page.goto(href);
         expect(response?.status(), `${href} should not error`).toBeLessThan(
           400,
         );
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
         await untilHydrated(page);
-      }
+      });
     });
   }
 });
@@ -63,18 +94,7 @@ test.describe("a school with Basic alone offers nothing it does not have", () =>
       const account = BASIC[role];
       await signInWith(page, account.email, PASSWORD, account.home, "fernhill");
       await untilHydrated(page);
-      const hrefs = await page
-        .getByRole("navigation")
-        .getByRole("link")
-        .evaluateAll((links) =>
-          links
-            .map((link) => link.getAttribute("href"))
-            .filter(
-              (href): href is string => href !== null && href.startsWith("/"),
-            ),
-        );
-      expect(hrefs.length).toBeGreaterThan(0);
-      for (const href of new Set(hrefs)) {
+      await walk(page, async (href) => {
         const response = await page.goto(
           new URL(href, portal("fernhill")).href,
         );
@@ -87,7 +107,7 @@ test.describe("a school with Basic alone offers nothing it does not have", () =>
           `${href} should be the school's`,
         ).toHaveCount(0);
         await untilHydrated(page);
-      }
+      });
     });
   }
 
@@ -96,8 +116,9 @@ test.describe("a school with Basic alone offers nothing it does not have", () =>
   }) => {
     await signInWith(page, BASIC.admin.email, PASSWORD, "/today", "fernhill");
     await untilHydrated(page);
+    await offered(page);
     const navigation = page.getByRole("navigation").first();
-    for (const name of ["Enquiries", "Website", "Exams and grading"])
+    for (const name of ["Admissions", "Website", "Exams and grading"])
       await expect(
         navigation.getByRole("link", { name, exact: true }),
       ).toHaveCount(0);

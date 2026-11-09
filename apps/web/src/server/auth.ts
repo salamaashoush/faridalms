@@ -414,10 +414,25 @@ export const getCurrentUser = createServerFn({ method: "GET" }).handler(() =>
   backend().identity.currentUser(),
 );
 
+/** The sections whose More the person left open, kept like the sidebar's own state. */
+export const SIDEBAR_MORE_COOKIE = "sidebar_more";
+
+const sectionIds = (value: string | undefined) =>
+  (value ?? "").split(".").filter((id) => /^[a-z]+$/.test(id));
+
 export const getWorkspacePreferences = createIsomorphicFn()
-  .server(() => ({ sidebarOpen: getCookie("sidebar_state") !== "false" }))
-  .client(() => ({
-    sidebarOpen: !document.cookie
-      .split(";")
-      .some((cookie) => cookie.trim() === "sidebar_state=false"),
-  }));
+  .server(() => ({
+    sidebarOpen: getCookie("sidebar_state") !== "false",
+    moreOpen: sectionIds(getCookie(SIDEBAR_MORE_COOKIE)),
+  }))
+  .client(() => {
+    const cookies = document.cookie.split(";").map((cookie) => cookie.trim());
+    return {
+      sidebarOpen: !cookies.includes("sidebar_state=false"),
+      moreOpen: sectionIds(
+        cookies
+          .find((cookie) => cookie.startsWith(`${SIDEBAR_MORE_COOKIE}=`))
+          ?.slice(SIDEBAR_MORE_COOKIE.length + 1),
+      ),
+    };
+  });

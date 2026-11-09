@@ -39,7 +39,7 @@ test("an enquiry from the website is answered, followed up and closed from the i
   await visitorContext.close();
 
   await signIn(page, "admin");
-  await page.getByRole("link", { name: "Enquiries" }).first().click();
+  await page.getByRole("link", { name: "Admissions" }).first().click();
   await expect(page.getByRole("heading", { name: "Enquiries" })).toBeVisible();
   await untilHydrated(page);
   await page.getByRole("searchbox", { name: "Search enquiries" }).fill(name);
@@ -140,7 +140,9 @@ test("a school adds its own question to the form, and families answer it", async
   await signIn(page, "admin");
   await page.goto("/website");
   await untilHydrated(page);
+  // The website's own Admissions page, not the sidebar's Admissions area.
   await page
+    .getByRole("main")
     .getByRole("link", { name: "Admissions", exact: true })
     .first()
     .click();

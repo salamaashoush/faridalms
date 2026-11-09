@@ -73,7 +73,10 @@ function AppLayout() {
     <FileFactsProvider resolve={currentFacts}>
       <PictureSourcesProvider value={pictureSources}>
         <MediaLibraryProvider>
-          <Shell sidebarOpen={preferences.sidebarOpen}>
+          <Shell
+            sidebarOpen={preferences.sidebarOpen}
+            moreOpen={preferences.moreOpen}
+          >
             <Outlet />
           </Shell>
         </MediaLibraryProvider>

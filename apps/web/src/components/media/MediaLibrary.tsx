@@ -707,7 +707,7 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
       className="grid gap-4"
     >
       <PageHeader
-        title={m.mediaTitle()}
+        title={m.navMedia()}
         description={m.mediaHint()}
         action={{
           label: m.filesUpload(),

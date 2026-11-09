@@ -1,6 +1,7 @@
 import type { Profile } from "@faridalms/domain/capabilities";
 import type {
   ShellIsActive,
+  ShellNavItem,
   ShellNavSection,
 } from "@faridalms/ui/system/app-shell";
 import type { ReactNode } from "react";
@@ -36,7 +37,13 @@ import type { NavItem } from "~/components/app/navigation";
 
 import { ContractNotice } from "~/components/app/ContractNotice";
 import { GrownUpGate } from "~/components/app/GrownUpGate";
-import { holds, MOBILE_TABS, NAVIGATION } from "~/components/app/navigation";
+import {
+  arrange,
+  holds,
+  MOBILE_TABS,
+  NAVIGATION,
+  pagesOf,
+} from "~/components/app/navigation";
 import { NotificationBell } from "~/components/app/NotificationBell";
 import { UnreadMessagesCount } from "~/components/app/UnreadMessagesCount";
 import { WorkspaceBreadcrumb } from "~/components/app/WorkspaceBreadcrumb";
@@ -46,7 +53,7 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
 import { getLocale, locales, setLocale } from "~/i18n/runtime";
-import { logout } from "~/server/auth";
+import { logout, SIDEBAR_MORE_COOKIE } from "~/server/auth";
 import { pageOn } from "~/utils/modules";
 
 const LOCALE_NAME: Record<string, string> = { en: "English", ar: "العربية" };
@@ -59,33 +66,52 @@ const PROFILE_LABEL: Record<Profile, () => string> = {
   young_student: m.roleStudent,
 };
 
-/** The workspace's navigation as this person may see it, in their language. */
+/**
+ * The workspace's navigation as this person may see it, in their language:
+ * each section's links, with those opened now and then folded under its
+ * More when the section runs long for them, and each area's pages the
+ * person may open beneath its link.
+ */
 function useVisibleNavigation(): ShellNavSection[] {
   const user = useCurrentUser();
-  return NAVIGATION[user.workspace]
-    .map((section) => ({
-      title: section.title?.(),
-      items: section.items
-        .filter(
-          (item) =>
-            holds(item, user.capabilities) &&
-            pageOn(user.modules, item.to) &&
-            (user.profile !== "young_student" || item.young),
-        )
-        .map((item: NavItem) => ({
-          to: item.to,
-          label: item.label(),
+  const shown = (item: NavItem): ShellNavItem => ({
+    to: item.to,
+    label: item.label(),
+    icon: item.icon,
+    exact: item.exact,
+    badge: item.count ? <UnreadMessagesCount /> : undefined,
+    pages: item.pages
+      ? pagesOf(item, user).map((page) => ({
+          to: page.to,
+          label: page.label(),
           icon: item.icon,
-          exact: item.exact,
-          badge: item.count ? <UnreadMessagesCount /> : undefined,
-        })),
-    }))
-    .filter((section) => section.items.length > 0);
+        }))
+      : undefined,
+  });
+  return NAVIGATION[user.workspace]
+    .map((section) => {
+      const visible = section.items.filter(
+        (item) =>
+          holds(item, user.capabilities) &&
+          pageOn(user.modules, item.to) &&
+          (!item.pages || pagesOf(item, user).length > 0) &&
+          (user.profile !== "young_student" || item.young),
+      );
+      const { items, more } = arrange(visible);
+      return {
+        id: section.id,
+        title: section.title?.(),
+        items: items.map(shown),
+        more: more.map(shown),
+      };
+    })
+    .filter((section) => section.items.length + section.more.length > 0);
 }
 
 /**
  * A page can name the navigation item it belongs to (`staticData.section`),
- * so a record opened from two places lights the one it lives under.
+ * so a record opened from two places lights the one it lives under. A link
+ * to an area lights on any of its pages too.
  */
 function useIsActive(): ShellIsActive {
   const pathname = useRouterState({
@@ -95,12 +121,24 @@ function useIsActive(): ShellIsActive {
     select: (state) => state.matches.at(-1)?.staticData.section ?? null,
   });
   return (item) => {
+    const own = [item.to, ...(item.pages ?? []).map((page) => page.to)];
     return section
-      ? [section].flat().includes(item.to)
+      ? [section].flat().some((path) => own.includes(path))
       : item.exact
         ? pathname === item.to
-        : pathname === item.to || pathname.startsWith(`${item.to}/`);
+        : own.some(
+            (path) => pathname === path || pathname.startsWith(`${path}/`),
+          );
   };
+}
+
+const NONE_OPEN: readonly string[] = [];
+
+/** Kept for a year: which sections' More someone leaves open is a habit. */
+const MORE_MAX_AGE = 60 * 60 * 24 * 365;
+
+function rememberMoreOpen(open: string[]) {
+  document.cookie = `${SIDEBAR_MORE_COOKIE}=${open.join(".")}; path=/; max-age=${String(MORE_MAX_AGE)}; samesite=lax`;
 }
 
 function AccountMenu() {
@@ -181,10 +219,16 @@ function AccountMenu() {
 export interface ShellProps {
   children: ReactNode;
   sidebarOpen?: boolean;
+  /** The sections whose More was left open, from the person's last visit. */
+  moreOpen?: readonly string[];
 }
 
 /** The portal's frame: the workspace's navigation, account and tools. */
-export function Shell({ children, sidebarOpen = true }: ShellProps) {
+export function Shell({
+  children,
+  sidebarOpen = true,
+  moreOpen: remembered = NONE_OPEN,
+}: ShellProps) {
   const user = useCurrentUser();
   const childMode = useRouteContext({
     from: "__root__",
@@ -192,6 +236,7 @@ export function Shell({ children, sidebarOpen = true }: ShellProps) {
   });
   const navigation = useVisibleNavigation();
   const isActive = useIsActive();
+  const [moreOpen, setMoreOpen] = useState(remembered);
   const young = user.profile === "young_student";
   const immersive = useRouterState({
     select: (state) => state.matches.at(-1)?.staticData.immersive ?? false,
@@ -204,7 +249,10 @@ export function Shell({ children, sidebarOpen = true }: ShellProps) {
         </main>
       </PageActionsProvider>
     );
-  const items = navigation.flatMap((section) => section.items);
+  const items = navigation.flatMap((section) => [
+    ...section.items,
+    ...(section.more ?? []),
+  ]);
   const { first, last } = MOBILE_TABS[user.workspace];
   const seen = (to: string) => items.find((item) => item.to === to);
   const tabs = [
@@ -236,6 +284,11 @@ export function Shell({ children, sidebarOpen = true }: ShellProps) {
         )
       }
       navigation={navigation}
+      moreOpen={moreOpen}
+      onMoreOpenChange={(open) => {
+        setMoreOpen(open);
+        rememberMoreOpen(open);
+      }}
       navigationLabel={m.navPrimary()}
       description={m.appTagline()}
       isActive={isActive}

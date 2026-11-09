@@ -79,6 +79,7 @@ import { Route as AppStaffTimetableRouteImport } from './routes/_app/_staff/time
 import { Route as AppStaffTodayRouteImport } from './routes/_app/_staff/today'
 import { Route as AppStaffWebsiteRouteImport } from './routes/_app/_staff/website'
 import { Route as AppStaffYearMapRouteImport } from './routes/_app/_staff/year-map'
+import { Route as AppAdmissionsIndexRouteImport } from './routes/_app/admissions/index'
 import { Route as AppAdmissionsFormEditorRouteImport } from './routes/_app/admissions/form-editor'
 import { Route as AppAdmissionsIntakeEditorRouteImport } from './routes/_app/admissions/intake-editor'
 import { Route as AppAdmissionsLetterEditorRouteImport } from './routes/_app/admissions/letter-editor'
@@ -504,6 +505,11 @@ const AppStaffYearMapRoute = AppStaffYearMapRouteImport.update({
   id: '/year-map',
   path: '/year-map',
   getParentRoute: () => AppStaffRoute,
+} as any)
+const AppAdmissionsIndexRoute = AppAdmissionsIndexRouteImport.update({
+  id: '/admissions/',
+  path: '/admissions/',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppAdmissionsFormEditorRoute = AppAdmissionsFormEditorRouteImport.update({
   id: '/admissions/form-editor',
@@ -1004,6 +1010,7 @@ export interface FileRoutesByFullPath {
   '/site/$school/$': typeof SiteSchoolSplatRoute
   '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
   '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
+  '/admissions/': typeof AppAdmissionsIndexRoute
   '/announcements/': typeof AppAnnouncementsIndexRoute
   '/calendar/': typeof AppCalendarIndexRoute
   '/family/': typeof AppFamilyIndexRoute
@@ -1143,6 +1150,7 @@ export interface FileRoutesByTo {
   '/site/$school/$': typeof SiteSchoolSplatRoute
   '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
   '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
+  '/admissions': typeof AppAdmissionsIndexRoute
   '/announcements': typeof AppAnnouncementsIndexRoute
   '/calendar': typeof AppCalendarIndexRoute
   '/family': typeof AppFamilyIndexRoute
@@ -1289,6 +1297,7 @@ export interface FileRoutesById {
   '/site/$school/$': typeof SiteSchoolSplatRoute
   '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
   '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
+  '/_app/admissions/': typeof AppAdmissionsIndexRoute
   '/_app/announcements/': typeof AppAnnouncementsIndexRoute
   '/_app/calendar/': typeof AppCalendarIndexRoute
   '/_app/family/': typeof AppFamilyIndexRoute
@@ -1433,6 +1442,7 @@ export interface FileRouteTypes {
     | '/site/$school/$'
     | '/site/$school/robots.txt'
     | '/site/$school/sitemap.xml'
+    | '/admissions/'
     | '/announcements/'
     | '/calendar/'
     | '/family/'
@@ -1572,6 +1582,7 @@ export interface FileRouteTypes {
     | '/site/$school/$'
     | '/site/$school/robots.txt'
     | '/site/$school/sitemap.xml'
+    | '/admissions'
     | '/announcements'
     | '/calendar'
     | '/family'
@@ -1717,6 +1728,7 @@ export interface FileRouteTypes {
     | '/site/$school/$'
     | '/site/$school/robots.txt'
     | '/site/$school/sitemap.xml'
+    | '/_app/admissions/'
     | '/_app/announcements/'
     | '/_app/calendar/'
     | '/_app/family/'
@@ -2267,6 +2279,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/year-map'
       preLoaderRoute: typeof AppStaffYearMapRouteImport
       parentRoute: typeof AppStaffRoute
+    }
+    '/_app/admissions/': {
+      id: '/_app/admissions/'
+      path: '/admissions'
+      fullPath: '/admissions/'
+      preLoaderRoute: typeof AppAdmissionsIndexRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/admissions/form-editor': {
       id: '/_app/admissions/form-editor'
@@ -2944,6 +2963,7 @@ interface AppRouteChildren {
   AppStandardsMapRoute: typeof AppStandardsMapRoute
   AppStudentsStudentIdRoute: typeof AppStudentsStudentIdRoute
   AppYearsYearIdRoute: typeof AppYearsYearIdRoute
+  AppAdmissionsIndexRoute: typeof AppAdmissionsIndexRoute
   AppAnnouncementsIndexRoute: typeof AppAnnouncementsIndexRoute
   AppCalendarIndexRoute: typeof AppCalendarIndexRoute
   AppNewsIndexRoute: typeof AppNewsIndexRoute
@@ -2994,6 +3014,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppStandardsMapRoute: AppStandardsMapRoute,
   AppStudentsStudentIdRoute: AppStudentsStudentIdRoute,
   AppYearsYearIdRoute: AppYearsYearIdRoute,
+  AppAdmissionsIndexRoute: AppAdmissionsIndexRoute,
   AppAnnouncementsIndexRoute: AppAnnouncementsIndexRoute,
   AppCalendarIndexRoute: AppCalendarIndexRoute,
   AppNewsIndexRoute: AppNewsIndexRoute,

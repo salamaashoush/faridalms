@@ -10,6 +10,7 @@ import {
   LIBRARY_SOURCES,
   MediaLibrary,
 } from "~/components/media/MediaLibrary";
+import * as m from "~/i18n/messages";
 import { libraryQuery } from "~/queries/media-library";
 import { currentUserQuery } from "~/queries/user";
 import { requirePage } from "~/utils/page-access";
@@ -56,6 +57,7 @@ const searchSchema = v.object({
 const DEFAULT_SEARCH = v.parse(searchSchema, {});
 
 export const Route = createFileRoute("/_app/_staff/media")({
+  staticData: { breadcrumb: m.navMedia },
   validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => search,

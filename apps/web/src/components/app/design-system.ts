@@ -74,6 +74,7 @@ export function portalDesignSystem(): DesignSystemValue {
       leaveWhileSavingHint: m.editorSavingHint(),
       more: m.shellMore(),
       moreActions: m.docMoreActions(),
+      moreIn: (section) => m.shellMoreIn({ section }),
       noMatches: m.managementNoMatches(),
       noResultsBody: m.indexNoResultsBody(),
       noResultsTitle: m.indexNoResultsTitle(),

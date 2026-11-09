@@ -35,7 +35,7 @@ async function drop(page: Page, files: ReturnType<typeof picture>[]) {
     },
     files.map((file) => ({ ...file, bytes: [...file.buffer] })),
   );
-  const zone = page.getByRole("heading", { name: "Media library", level: 1 });
+  const zone = page.getByRole("heading", { name: "Media", level: 1 });
   await zone.dispatchEvent("dragenter", { dataTransfer: transfer });
   await expect(page.getByText("Drop to add to the library")).toBeVisible();
   await zone.dispatchEvent("drop", { dataTransfer: transfer });

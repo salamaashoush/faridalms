@@ -18,7 +18,7 @@ import * as m from "~/i18n/messages";
 import { searchQuery } from "~/queries/search";
 import { pageOn } from "~/utils/modules";
 
-import { holds, NAVIGATION } from "./navigation";
+import { holds, NAVIGATION, pagesOf } from "./navigation";
 import { HIT_ROW, HitLink, SearchResults } from "./SearchResults";
 
 const RECENT_LIMIT = 6;
@@ -132,14 +132,38 @@ export function WorkspaceSearch({ variant = "bar" }: WorkspaceSearchProps) {
       index === -1 ? (step === 1 ? 0 : hits.length - 1) : index + step;
     hits[(next + hits.length) % hits.length]?.focus();
   };
-  const pages = NAVIGATION[user.workspace]
+  const held = NAVIGATION[user.workspace]
     .flatMap((section) => section.items)
     .filter(
-      (item) =>
-        holds(item, user.capabilities) &&
-        pageOn(user.modules, item.to) &&
-        (typed === "" ||
-          item.label().toLocaleLowerCase().includes(typed.toLocaleLowerCase())),
+      (item) => holds(item, user.capabilities) && pageOn(user.modules, item.to),
+    );
+  // Typing reaches every page of an area by its own name as well, since
+  // the sidebar lists them only inside the area.
+  const pages = (
+    typed === ""
+      ? held.map((item) => ({
+          to: item.to,
+          label: item.label(),
+          icon: item.icon,
+        }))
+      : held.flatMap((item) => {
+          const area = pagesOf(item, user);
+          return area.length === 0
+            ? [{ to: item.to, label: item.label(), icon: item.icon }]
+            : area.map((page) => ({
+                to: page.to,
+                label: m.searchAreaPage({
+                  area: item.label(),
+                  page: page.label(),
+                }),
+                icon: item.icon,
+              }));
+        })
+  )
+    .filter(
+      ({ label }) =>
+        typed === "" ||
+        label.toLocaleLowerCase().includes(typed.toLocaleLowerCase()),
     )
     .slice(0, typed ? 4 : 6);
   const searching = debounced !== "" && results.isPending;
@@ -326,7 +350,7 @@ export function WorkspaceSearch({ variant = "bar" }: WorkspaceSearchProps) {
                         className="mt-0.5 size-4 shrink-0 text-muted-foreground"
                         aria-hidden
                       />
-                      {label()}
+                      {label}
                     </Link>
                   </li>
                 ))}

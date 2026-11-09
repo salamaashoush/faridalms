@@ -36,6 +36,7 @@ test("the office reads an application and starts its review", async ({
   const child = childNamed(run);
   const { reference } = await sentApplication(FAMILIES.first, child);
   await signIn(page, "admin");
+  await page.getByRole("link", { name: "Admissions" }).first().click();
   await page.getByRole("link", { name: "Intakes" }).first().click();
   await expect(
     page.getByRole("heading", { level: 1, name: "Intakes" }),
