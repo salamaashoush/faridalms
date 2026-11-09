@@ -37,11 +37,11 @@ async function drop(page: Page, files: ReturnType<typeof picture>[]) {
   );
   const zone = page.getByRole("heading", { name: "Media", level: 1 });
   await zone.dispatchEvent("dragenter", { dataTransfer: transfer });
-  await expect(page.getByText("Drop to add to the library")).toBeVisible();
+  await expect(page.getByText("Drop to add to media")).toBeVisible();
   await zone.dispatchEvent("drop", { dataTransfer: transfer });
 }
 
-test("the office drops pictures into the library, tags them and finds them by tag", async ({
+test("the office drops pictures into media, tags them and finds them by tag", async ({
   page,
   browserName,
 }) => {
@@ -51,7 +51,7 @@ test("the office drops pictures into the library, tags them and finds them by ta
   await page.goto("/media");
   await untilHydrated(page);
   await drop(page, [picture(`museum-${run}.png`), picture(`bus-${run}.png`)]);
-  const grid = page.getByRole("list", { name: "Media library" });
+  const grid = page.getByRole("list", { name: "The school's media" });
   await expect(grid.getByText(`museum-${run}.png`)).toBeVisible();
   await expect(grid.getByText(`bus-${run}.png`)).toBeVisible();
 
@@ -109,6 +109,6 @@ test("an upload cut off by a reload is picked up and finished", async ({
   await page.reload();
   await untilHydrated(page);
   await expect(
-    page.getByRole("list", { name: "Media library" }).getByText(name),
+    page.getByRole("list", { name: "The school's media" }).getByText(name),
   ).toBeVisible();
 });

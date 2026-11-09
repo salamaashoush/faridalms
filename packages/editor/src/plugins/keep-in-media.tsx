@@ -8,27 +8,23 @@ import { useState } from "react";
 import { useEditorEnvironment } from "../context";
 import { $isImageNode } from "../nodes/media";
 
-export interface KeepInLibraryProps {
+export interface KeepInMediaProps {
   nodeKey: NodeKey;
   fileId: string;
   className: string;
 }
 
 /**
- * Keeps a picture shown in the document in the school's media library too,
+ * Keeps a picture shown in the document in the school's media too,
  * with the words the document gives it, so it can be chosen again elsewhere.
  */
-export function KeepInLibrary({
-  nodeKey,
-  fileId,
-  className,
-}: KeepInLibraryProps) {
+export function KeepInMedia({ nodeKey, fileId, className }: KeepInMediaProps) {
   const [editor] = useLexicalComposerContext();
   const { media, strings } = useEditorEnvironment();
   const [state, setState] = useState<"idle" | "busy" | "kept" | "failed">(
     "idle",
   );
-  const keep = media?.library?.keep;
+  const keep = media?.school?.keep;
   if (!keep) return null;
   return (
     <button
@@ -63,10 +59,10 @@ export function KeepInLibrary({
       )}
       <span aria-live="polite">
         {state === "kept"
-          ? strings.libraryKept
+          ? strings.mediaKept
           : state === "failed"
-            ? strings.libraryKeepFailed
-            : strings.libraryKeep}
+            ? strings.mediaKeepFailed
+            : strings.mediaKeep}
       </span>
     </button>
   );

@@ -33,14 +33,14 @@ describe("a media grid", () => {
     const onOpen = vi.fn<(item: Item) => void>();
     const { container } = renderWithSystem(
       <MediaGrid
-        caption="Media library"
+        caption="The school's media"
         items={items}
         tile={tile}
         onOpen={onOpen}
         empty={empty}
       />,
     );
-    const grid = screen.getByRole("list", { name: "Media library" });
+    const grid = screen.getByRole("list", { name: "The school's media" });
     expect(within(grid).getAllByRole("listitem")).toHaveLength(2);
     expect(container.querySelector("img")?.getAttribute("src")).toBe(
       "/files/a",
@@ -52,7 +52,7 @@ describe("a media grid", () => {
   it("holds a picture's placeholder and keeps its subject in view", () => {
     const { container } = renderWithSystem(
       <MediaGrid
-        caption="Media library"
+        caption="The school's media"
         items={items}
         tile={{
           ...tile,
@@ -103,7 +103,7 @@ describe("a media grid", () => {
     const onSelect = vi.fn<() => void>();
     renderWithSystem(
       <MediaGrid
-        caption="Media library"
+        caption="The school's media"
         items={items}
         tile={tile}
         itemActions={(item) => [{ label: `Rename ${item.name}`, onSelect }]}
@@ -122,7 +122,7 @@ describe("a media grid", () => {
   it("says what fills it when empty, and how to clear a search that found nothing", async () => {
     const onReset = vi.fn<() => void>();
     renderWithSystem(
-      <MediaGrid caption="Media library" items={[]} tile={tile} empty={empty} />,
+      <MediaGrid caption="The school's media" items={[]} tile={tile} empty={empty} />,
     );
     expect(
       screen.getByRole("heading", { name: "Upload the school's first picture" }),
@@ -130,7 +130,7 @@ describe("a media grid", () => {
     function Searched() {
       return (
         <MediaGrid
-          caption="Media library"
+          caption="The school's media"
           items={[]}
           tile={tile}
           toolbar={{
@@ -157,7 +157,7 @@ describe("a media grid", () => {
     const onDelete = vi.fn<(rows: Item[]) => void>();
     renderWithSystem(
       <MediaGrid
-        caption="Media library"
+        caption="The school's media"
         items={items}
         tile={tile}
         onOpen={onOpen}

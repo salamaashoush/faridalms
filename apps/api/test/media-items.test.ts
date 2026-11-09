@@ -78,28 +78,28 @@ function withPicture(fileId: string, alt: string): ContentDocument {
 const pictureIn = (content: ContentDocument | null | undefined) =>
   content?.root.children?.find((node) => node.type === "image")?.fileId;
 
-describe("the media library", () => {
+describe("the school's media", () => {
   test("keeps uploads in folders, finds them by description, and is the school's staff's alone", async () => {
     const office = await sessionFor("northwind", login("principal"));
-    const sports = await office.api.mediaLibrary.createFolder({
+    const sports = await office.api.media.createFolder({
       name: "Sports day",
     });
-    const relay = await office.api.mediaLibrary.createFolder({
+    const relay = await office.api.media.createFolder({
       name: "Relay",
       parentId: sports.id,
     });
     const id = await uploadPicture(office, "finish-line.png");
     expect(
-      await office.api.mediaLibrary.add({ ids: [id], folderId: relay.id }),
+      await office.api.media.add({ ids: [id], folderId: relay.id }),
     ).toEqual({ ids: [id], twins: [] });
-    await office.api.mediaLibrary.describe({
+    await office.api.media.describe({
       id,
       name: "Finish line.png",
       description: "Grade 4 crossing the finish line",
       credit: { author: "Salama Ashoush", licence: "" },
     });
 
-    const inRelay = await office.api.mediaLibrary.list({ folderId: relay.id });
+    const inRelay = await office.api.media.list({ folderId: relay.id });
     expect(inRelay.path.map((folder) => folder.name)).toEqual([
       "Sports day",
       "Relay",
@@ -112,39 +112,39 @@ describe("the media library", () => {
       uses: 0,
     });
     expect(inRelay.keeper).toBe(true);
-    const top = await office.api.mediaLibrary.list({});
+    const top = await office.api.media.list({});
     expect(top.children.map((folder) => folder.id)).toContain(sports.id);
     expect(top.items.rows.some((row) => row.id === id)).toBe(false);
     // A search looks in every folder, by the words describing an item too.
-    const found = await office.api.mediaLibrary.list({ q: "crossing" });
+    const found = await office.api.media.list({ q: "crossing" });
     expect(found.items.rows.map((row) => row.id)).toContain(id);
     expect(found.children).toEqual([]);
 
     expect(
-      await rejection(office.api.mediaLibrary.removeFolder({ id: relay.id })),
+      await rejection(office.api.media.removeFolder({ id: relay.id })),
     ).toMatchObject({ message: "media.folder_not_empty" });
-    await office.api.mediaLibrary.move({ ids: [id], folderId: null });
-    await office.api.mediaLibrary.removeFolder({ id: relay.id });
+    await office.api.media.move({ ids: [id], folderId: null });
+    await office.api.media.removeFolder({ id: relay.id });
     expect(
-      (await office.api.mediaLibrary.list({})).items.rows.map((row) => row.id),
+      (await office.api.media.list({})).items.rows.map((row) => row.id),
     ).toContain(id);
 
     // A teacher chooses from it and adds to it, but does not keep it.
     const teacher = await sessionFor("northwind", login("teacher"));
-    expect(
-      (await teacher.api.mediaLibrary.list({ q: "crossing" })).keeper,
-    ).toBe(false);
+    expect((await teacher.api.media.list({ q: "crossing" })).keeper).toBe(
+      false,
+    );
     expect(await opens(teacher, id)).toBe(true);
     expect(
-      await rejection(teacher.api.mediaLibrary.trash({ id, trashed: true })),
+      await rejection(teacher.api.media.trash({ id, trashed: true })),
     ).toMatchObject({ code: "FORBIDDEN" });
     expect(
-      await rejection(teacher.api.mediaLibrary.createFolder({ name: "Mine" })),
+      await rejection(teacher.api.media.createFolder({ name: "Mine" })),
     ).toMatchObject({ code: "FORBIDDEN" });
 
     // A family reads nothing of it that no document shows them.
     const parent = await sessionFor("northwind", login("parent"));
-    expect(await rejection(parent.api.mediaLibrary.list({}))).toMatchObject({
+    expect(await rejection(parent.api.media.list({}))).toMatchObject({
       code: "FORBIDDEN",
     });
     expect(await opens(parent, id)).toBe(false);
@@ -157,7 +157,7 @@ describe("the media library", () => {
     const me = await student.api.identity.currentUser();
     const chosen = await uploadPicture(office, "volcano.png");
     const unchosen = await uploadPicture(office, "glacier.png");
-    await office.api.mediaLibrary.add({ ids: [chosen, unchosen] });
+    await office.api.media.add({ ids: [chosen, unchosen] });
 
     const { classes } = await teacher.api.coursework.options();
     let classId = "";
@@ -179,7 +179,7 @@ describe("the media library", () => {
       points: 10,
       rubric: null,
     });
-    // The brief keeps the library's own file, not a copy of it.
+    // The brief keeps the media item's own file, not a copy of it.
     const opened = await teacher.api.coursework.editor({ id: saved.id });
     expect(pictureIn(opened.brief)).toBe(chosen);
 
@@ -190,11 +190,11 @@ describe("the media library", () => {
     });
     expect(await opens(student, chosen)).toBe(true);
     expect(await opens(student, unchosen)).toBe(false);
-    expect(await rejection(student.api.mediaLibrary.list({}))).toMatchObject({
+    expect(await rejection(student.api.media.list({}))).toMatchObject({
       code: "FORBIDDEN",
     });
 
-    const { uses } = await office.api.mediaLibrary.uses({ id: chosen });
+    const { uses } = await office.api.media.uses({ id: chosen });
     expect(uses).toEqual([
       {
         hostType: "assignment",
@@ -203,12 +203,12 @@ describe("the media library", () => {
         titleAr: "Volcanoes",
       },
     ]);
-    const listed = await office.api.mediaLibrary.list({ q: "volcano" });
+    const listed = await office.api.media.list({ q: "volcano" });
     expect(listed.items.rows.find((row) => row.id === chosen)?.uses).toBe(1);
 
-    // Deleted from the library, it is removed from the brief too, and the
+    // Deleted from media, it is removed from the brief too, and the
     // brief still saves; restored, it shows again.
-    await office.api.mediaLibrary.trash({ id: chosen, trashed: true });
+    await office.api.media.trash({ id: chosen, trashed: true });
     expect(await opens(student, chosen)).toBe(false);
     const again = await teacher.api.coursework.save({
       id: saved.id,
@@ -224,13 +224,13 @@ describe("the media library", () => {
       rubric: null,
     });
     expect(again.id).toBe(saved.id);
-    const trashed = await office.api.mediaLibrary.list({ trashed: true });
+    const trashed = await office.api.media.list({ trashed: true });
     expect(trashed.items.rows.map((row) => row.id)).toContain(chosen);
-    await office.api.mediaLibrary.trash({ id: chosen, trashed: false });
+    await office.api.media.trash({ id: chosen, trashed: false });
     expect(await opens(student, chosen)).toBe(true);
 
     // A trashed item nobody showed yet cannot be put in a document.
-    await office.api.mediaLibrary.trash({ id: unchosen, trashed: true });
+    await office.api.media.trash({ id: unchosen, trashed: true });
     expect(
       await rejection(
         teacher.api.coursework.save({
@@ -250,21 +250,21 @@ describe("the media library", () => {
   test("a crop is kept as a new item beside its original, saying what it says", async () => {
     const office = await sessionFor("northwind", login("principal"));
     const original = await uploadPicture(office, "hall.png");
-    await office.api.mediaLibrary.add({ ids: [original] });
-    await office.api.mediaLibrary.describe({
+    await office.api.media.add({ ids: [original] });
+    await office.api.media.describe({
       id: original,
       name: "hall.png",
       description: "The assembly hall",
       credit: null,
     });
     const cut = await uploadPicture(office, "hall-cut.png", png(4));
-    const { id } = await office.api.mediaLibrary.crop({
+    const { id } = await office.api.media.crop({
       sourceId: original,
       fileId: cut,
       ratio: "16:9",
     });
     expect(id).toBe(cut);
-    const { items } = await office.api.mediaLibrary.items({
+    const { items } = await office.api.media.items({
       ids: [original, cut],
     });
     expect(items.find((item) => item.id === cut)).toMatchObject({
@@ -275,12 +275,12 @@ describe("the media library", () => {
       name: "hall.png",
       sizeBytes: png().size,
     });
-    // A crop is of a library picture, from the cropper's own new upload.
+    // A crop is of a media picture, from the cropper's own new upload.
     const teacher = await sessionFor("northwind", login("teacher"));
     const stranger = await uploadPicture(teacher, "elsewhere.png");
     expect(
       await rejection(
-        office.api.mediaLibrary.crop({
+        office.api.media.crop({
           sourceId: original,
           fileId: stranger,
           ratio: "1:1",
@@ -289,22 +289,22 @@ describe("the media library", () => {
     ).toMatchObject({ code: "NOT_FOUND" });
   });
 
-  test("a picture shown in a document is kept in the library with its words", async () => {
+  test("a picture shown in a document is kept in media with its words", async () => {
     const office = await sessionFor("northwind", login("principal"));
     const id = await uploadPicture(office, "trip.png");
-    const kept = await office.api.mediaLibrary.keep({
+    const kept = await office.api.media.keep({
       fileId: id,
       description: "The museum trip",
     });
     expect(kept.id).not.toBe(id);
-    const { items } = await office.api.mediaLibrary.items({ ids: [kept.id] });
+    const { items } = await office.api.media.items({ ids: [kept.id] });
     expect(items[0]).toMatchObject({ description: "The museum trip" });
-    expect(await office.api.mediaLibrary.keep({ fileId: kept.id })).toEqual({
+    expect(await office.api.media.keep({ fileId: kept.id })).toEqual({
       id: kept.id,
     });
     const parent = await sessionFor("northwind", login("parent"));
     expect(
-      await rejection(parent.api.mediaLibrary.keep({ fileId: id })),
+      await rejection(parent.api.media.keep({ fileId: id })),
     ).toMatchObject({ code: "FORBIDDEN" });
   });
 
@@ -312,8 +312,8 @@ describe("the media library", () => {
     const office = await sessionFor("northwind", login("principal"));
     const relay = await uploadPicture(office, "IMG_0001.png", uniquePng());
     const choir = await uploadPicture(office, "IMG_0002.png", uniquePng());
-    await office.api.mediaLibrary.add({ ids: [relay, choir] });
-    await office.api.mediaLibrary.describe({
+    await office.api.media.add({ ids: [relay, choir] });
+    await office.api.media.describe({
       id: relay,
       name: "IMG_0001.png",
       title: "Relay final",
@@ -321,7 +321,7 @@ describe("the media library", () => {
       caption: "Year 7 won the relay.",
       credit: null,
     });
-    const tagged = await office.api.mediaLibrary.tag({
+    const tagged = await office.api.media.tag({
       ids: [relay, choir],
       add: ["Sports day", "sports DAY", "2026"],
     });
@@ -333,25 +333,25 @@ describe("the media library", () => {
     if (!sports) throw new Error("the tag was made");
     const year = tagged.tags.find((tag) => tag.name === "2026");
     if (!year) throw new Error("the tag was made");
-    await office.api.mediaLibrary.tag({ ids: [choir], remove: [year.id] });
+    await office.api.media.tag({ ids: [choir], remove: [year.id] });
 
-    const { items } = await office.api.mediaLibrary.items({ ids: [relay] });
+    const { items } = await office.api.media.items({ ids: [relay] });
     expect(items[0]).toMatchObject({
       name: "IMG_0001.png",
       title: "Relay final",
       caption: "Year 7 won the relay.",
     });
     // A search reads titles and captions; tags narrow to items carrying all.
-    const byCaption = await office.api.mediaLibrary.list({
+    const byCaption = await office.api.media.list({
       q: "won the relay",
     });
     expect(byCaption.items.rows.map((row) => row.id)).toEqual([relay]);
-    const both = await office.api.mediaLibrary.list({
+    const both = await office.api.media.list({
       tags: [sports.id, year.id],
     });
     expect(both.items.rows.map((row) => row.id)).toEqual([relay]);
     const me = await office.api.identity.currentUser();
-    const mine = await office.api.mediaLibrary.list({
+    const mine = await office.api.media.list({
       uploaders: [me.id],
       tags: [sports.id],
     });
@@ -363,36 +363,34 @@ describe("the media library", () => {
     expect(month).toMatch(/^\d{4}-\d{2}$/);
     expect(
       (
-        await office.api.mediaLibrary.list({
+        await office.api.media.list({
           months: [month],
           tags: [sports.id],
         })
       ).items.total,
     ).toBe(2);
     expect(
-      (await office.api.mediaLibrary.list({ months: ["2001-01"] })).items.total,
+      (await office.api.media.list({ months: ["2001-01"] })).items.total,
     ).toBe(0);
 
-    // A teacher uses the library but does not keep it.
+    // A teacher uses media but does not keep it.
     const teacher = await sessionFor("northwind", login("teacher"));
     expect(
-      await rejection(
-        teacher.api.mediaLibrary.tag({ ids: [relay], add: ["Mine"] }),
-      ),
+      await rejection(teacher.api.media.tag({ ids: [relay], add: ["Mine"] })),
     ).toMatchObject({ code: "FORBIDDEN" });
 
-    await office.api.mediaLibrary.renameTag({ id: year.id, name: "Year 2026" });
-    await office.api.mediaLibrary.trashMany({
+    await office.api.media.renameTag({ id: year.id, name: "Year 2026" });
+    await office.api.media.trashMany({
       ids: [relay, choir],
       trashed: true,
     });
-    const trashed = await office.api.mediaLibrary.list({ trashed: true });
+    const trashed = await office.api.media.list({ trashed: true });
     expect(trashed.items.rows.map((row) => row.id)).toEqual(
       expect.arrayContaining([relay, choir]),
     );
-    await office.api.mediaLibrary.removeTag({ id: sports.id });
-    await office.api.mediaLibrary.trashMany({ ids: [relay], trashed: false });
-    const back = await office.api.mediaLibrary.items({ ids: [relay] });
+    await office.api.media.removeTag({ id: sports.id });
+    await office.api.media.trashMany({ ids: [relay], trashed: false });
+    const back = await office.api.media.items({ ids: [relay] });
     expect(back.items[0]?.tags.map((tag) => tag.name)).toEqual(["Year 2026"]);
 
     // Each change is recorded against the item.
@@ -421,30 +419,30 @@ describe("the media library", () => {
   test("replacing an item's file keeps every place showing it, and keeps the old file as a version", async () => {
     const office = await sessionFor("northwind", login("principal"));
     const item = await uploadPicture(office, "map.png", uniquePng());
-    await office.api.mediaLibrary.add({ ids: [item] });
-    await office.api.mediaLibrary.describe({
+    await office.api.media.add({ ids: [item] });
+    await office.api.media.describe({
       id: item,
       name: "map.png",
       description: "The school grounds",
       credit: null,
     });
     const newer = await uploadPicture(office, "map-2026.png", uniquePng());
-    await office.api.mediaLibrary.replace({ id: item, sourceId: newer });
-    const { items } = await office.api.mediaLibrary.items({ ids: [item] });
+    await office.api.media.replace({ id: item, sourceId: newer });
+    const { items } = await office.api.media.items({ ids: [item] });
     expect(items[0]).toMatchObject({
       id: item,
       name: "map-2026.png",
       description: "The school grounds",
     });
-    const { versions } = await office.api.mediaLibrary.versions({ id: item });
+    const { versions } = await office.api.media.versions({ id: item });
     expect(versions.map((version) => version.name)).toEqual(["map.png"]);
-    await office.api.mediaLibrary.replace({
+    await office.api.media.replace({
       id: item,
       sourceId: versions[0]?.id ?? "",
     });
-    expect(
-      (await office.api.mediaLibrary.items({ ids: [item] })).items[0]?.name,
-    ).toBe("map.png");
+    expect((await office.api.media.items({ ids: [item] })).items[0]?.name).toBe(
+      "map.png",
+    );
 
     // Only the same kind of file stands in.
     const notes = await office.api.files.initiate({
@@ -459,20 +457,20 @@ describe("the media library", () => {
     });
     expect(
       await rejection(
-        office.api.mediaLibrary.replace({ id: item, sourceId: notes.id }),
+        office.api.media.replace({ id: item, sourceId: notes.id }),
       ),
     ).toMatchObject({ message: "file.replace_kind" });
     const teacher = await sessionFor("northwind", login("teacher"));
     expect(
-      await rejection(teacher.api.mediaLibrary.versions({ id: item })),
+      await rejection(teacher.api.media.versions({ id: item })),
     ).toMatchObject({ code: "FORBIDDEN" });
   });
 
-  test("the same bytes uploaded again share one stored object, and the library names the twin", async () => {
+  test("the same bytes uploaded again share one stored object, and media names the twin", async () => {
     const office = await sessionFor("northwind", login("principal"));
     const bytes = uniquePng();
     const first = await uploadPicture(office, "logo.png", bytes);
-    const added = await office.api.mediaLibrary.add({ ids: [first] });
+    const added = await office.api.media.add({ ids: [first] });
     expect(added.twins).toEqual([]);
     const { cell, tenants } = seeded();
     const tenantId = tenants[0]?.tenantId ?? "";
@@ -490,12 +488,12 @@ describe("the media library", () => {
     const stored = await keys([first, second]);
     expect(new Set(stored.map((row) => row.storage_key)).size).toBe(1);
     expect(await opens(office, second)).toBe(true);
-    const again = await office.api.mediaLibrary.add({ ids: [second] });
+    const again = await office.api.media.add({ ids: [second] });
     expect(again.twins).toEqual([
       { id: second, twinId: first, twinName: "logo.png" },
     ]);
     // Deleting one for good leaves the other's bytes in place.
-    await office.api.mediaLibrary.trash({ id: first, trashed: true });
+    await office.api.media.trash({ id: first, trashed: true });
     expect(await opens(office, second)).toBe(true);
   });
 
@@ -521,19 +519,19 @@ describe("the media library", () => {
       body: withPicture(inNews, "The assembly"),
       translation: null,
     });
-    const listed = await office.api.mediaLibrary.inDocuments({});
+    const listed = await office.api.media.inDocuments({});
     const offered = listed.items.rows.find((row) => row.id === inNews);
     expect(offered).toMatchObject({ name: "assembly.png" });
 
-    const kept = await office.api.mediaLibrary.keep({ fileId: inNews });
+    const kept = await office.api.media.keep({ fileId: inNews });
     expect(kept.id).not.toBe(inNews);
-    const after = await office.api.mediaLibrary.inDocuments({});
+    const after = await office.api.media.inDocuments({});
     expect(after.items.rows.some((row) => row.id === inNews)).toBe(false);
 
     const parent = await sessionFor("northwind", login("parent"));
-    expect(
-      await rejection(parent.api.mediaLibrary.inDocuments({})),
-    ).toMatchObject({ code: "FORBIDDEN" });
+    expect(await rejection(parent.api.media.inDocuments({}))).toMatchObject({
+      code: "FORBIDDEN",
+    });
   });
 
   test("a picture found on Wikimedia Commons comes in with its words and credit", async () => {
@@ -546,26 +544,26 @@ describe("the media library", () => {
     };
     expect(
       await rejection(
-        office.api.mediaLibrary.add({
+        office.api.media.add({
           ids: [id, id],
           found: { description: "A camel", credit },
         }),
       ),
     ).toMatchObject({ code: "BAD_REQUEST" });
-    await office.api.mediaLibrary.add({
+    await office.api.media.add({
       ids: [id],
       found: { description: "A camel resting in the desert", credit },
     });
-    const found = await office.api.mediaLibrary.list({ q: "camel" });
+    const found = await office.api.media.list({ q: "camel" });
     expect(found.items.rows.find((row) => row.id === id)).toMatchObject({
       description: "A camel resting in the desert",
       credit,
     });
   });
 
-  test("storage is shown by kind and by person to those who keep the library", async () => {
+  test("storage is shown by kind and by person to those who keep media", async () => {
     const office = await sessionFor("northwind", login("principal"));
-    const storage = await office.api.mediaLibrary.storage();
+    const storage = await office.api.media.storage();
     expect(storage.limitBytes).toBeGreaterThan(0);
     const byKind = storage.kinds.reduce((sum, kind) => sum + kind.usedBytes, 0);
     const byPerson =
@@ -574,7 +572,7 @@ describe("the media library", () => {
     expect(byKind).toBe(storage.usedBytes);
     expect(byPerson).toBeLessThanOrEqual(storage.usedBytes);
     const teacher = await sessionFor("northwind", login("teacher"));
-    expect(await rejection(teacher.api.mediaLibrary.storage())).toMatchObject({
+    expect(await rejection(teacher.api.media.storage())).toMatchObject({
       code: "FORBIDDEN",
     });
   });
@@ -625,11 +623,11 @@ describe("the media library", () => {
     const office = await sessionFor("northwind", login("principal"));
     const a = await uploadPicture(office, "one.png", uniquePng());
     const b = await uploadPicture(office, "two.png", uniquePng());
-    await office.api.mediaLibrary.add({ ids: [a, b] });
+    await office.api.media.add({ ids: [a, b] });
     const zipped = await raw(
       "northwind",
       office.token,
-      `/v1/media/library.zip?ids=${a},${b}`,
+      `/v1/media/items.zip?ids=${a},${b}`,
     );
     expect(zipped.status).toBe(200);
     expect(
@@ -639,7 +637,7 @@ describe("the media library", () => {
     ).toEqual(["one.png", "two.png"]);
     const parent = await sessionFor("northwind", login("parent"));
     expect(
-      (await raw("northwind", parent.token, `/v1/media/library.zip?ids=${a}`))
+      (await raw("northwind", parent.token, `/v1/media/items.zip?ids=${a}`))
         .status,
     ).toBe(404);
 
@@ -650,11 +648,11 @@ describe("the media library", () => {
       "http://localhost:4701/x.png",
     ])
       expect(
-        await rejection(office.api.mediaLibrary.importLink({ url })),
+        await rejection(office.api.media.importLink({ url })),
       ).toMatchObject({ message: "media.link_address" });
     expect(
       await rejection(
-        parent.api.mediaLibrary.importLink({
+        parent.api.media.importLink({
           url: "https://example.com/a.png",
         }),
       ),

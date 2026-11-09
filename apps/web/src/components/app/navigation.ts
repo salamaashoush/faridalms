@@ -3,7 +3,7 @@ import type { ModuleId } from "@faridalms/domain/modules";
 import type { Workspace } from "@faridalms/domain/workspace";
 import type { LucideIcon } from "lucide-react";
 
-import { LIBRARY_USERS } from "@faridalms/domain/media-library";
+import { MEDIA_USERS } from "@faridalms/domain/media";
 import { TEMPLATE_AUTHORS } from "@faridalms/domain/templates";
 import {
   Award,
@@ -245,7 +245,7 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
               label: m.navTemplates,
               capability: TEMPLATE_WRITERS,
             },
-            { to: "/media", label: m.navMedia, capability: LIBRARY_USERS },
+            { to: "/media", label: m.navMedia, capability: MEDIA_USERS },
           ],
         },
         {

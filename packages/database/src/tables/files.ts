@@ -120,8 +120,8 @@ export const tenantKeys = core.table.withRLS(
 );
 
 /**
- * The folders of a school's media library. A folder holds pictures, video
- * and files of the library and other folders; it goes only once empty.
+ * The folders of a school's media. A folder holds pictures, video
+ * and files of media and other folders; it goes only once empty.
  */
 export const mediaFolders = core.table.withRLS(
   "media_folders",
@@ -202,11 +202,11 @@ export const files = core.table.withRLS(
      * once per stream folder. Null until measured.
      */
     streamBytes: bigint("stream_bytes", { mode: "number" }),
-    /** The folder of the media library a library file sits in; none at its top. */
+    /** The folder of the school's media a media file sits in; none at its top. */
     folderId: uuid("folder_id"),
-    /** What a library picture shows, for those who cannot see it; a use may say it otherwise. */
+    /** What a media picture shows, for those who cannot see it; a use may say it otherwise. */
     description: text("description"),
-    /** Who made a library picture, and under which licence. */
+    /** Who made a media picture, and under which licence. */
     credit: jsonb("credit").$type<PictureCredit>(),
     ...entityColumns(),
   },

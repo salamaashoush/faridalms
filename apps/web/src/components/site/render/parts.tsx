@@ -551,7 +551,7 @@ export interface SiteImageProps {
   alt: string;
   className?: string;
   style?: CSSProperties;
-  /** Where the picture's subject sits on this use; the library's own otherwise. */
+  /** Where the picture's subject sits on this use; the media item's own otherwise. */
   focus?: PictureFocus | undefined;
   /** How wide it is drawn, for the browser to fetch no larger a size. */
   sizes?: string;

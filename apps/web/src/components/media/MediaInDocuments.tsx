@@ -8,19 +8,19 @@ import { Eye, FileStack, LibraryBig } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { libraryInDocuments } from "~/server/media-library";
+import type { mediaInDocuments } from "~/server/media";
 
 import { fileStrings } from "~/components/content/strings";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { libraryInDocumentsQuery } from "~/queries/media-library";
-import { keepInLibrary } from "~/server/media-library";
+import { mediaInDocumentsQuery } from "~/queries/media";
+import { keepInMedia } from "~/server/media";
 import { formatDate, formatNumber } from "~/utils/datetime";
 
-import { hostKindLabel } from "./library-items";
+import { hostKindLabel } from "./media-items";
 
-type DocumentsPage = Awaited<ReturnType<typeof libraryInDocuments>>;
+type DocumentsPage = Awaited<ReturnType<typeof mediaInDocuments>>;
 type DocumentUpload = DocumentsPage["items"]["rows"][number];
 
 const isPicture = (row: DocumentUpload) =>
@@ -111,7 +111,7 @@ const card: DataTableCard<DocumentUpload> = {
   ),
 };
 
-export interface LibraryDocumentsProps {
+export interface MediaInDocumentsProps {
   q: string;
   page: number;
   folderId: string | null;
@@ -120,26 +120,26 @@ export interface LibraryDocumentsProps {
 }
 
 /**
- * What staff uploaded straight into documents and the library does not hold
- * yet, newest first, each kept in the library in one step, alone or several
+ * What staff uploaded straight into documents and media does not hold
+ * yet, newest first, each kept in media in one step, alone or several
  * at once. Students' work and conversations never appear here.
  */
-export function LibraryDocuments({
+export function MediaInDocuments({
   q,
   page,
   folderId,
   onSearch,
   onPage,
-}: LibraryDocumentsProps) {
+}: MediaInDocumentsProps) {
   const data = useSuspenseQuery(
-    libraryInDocumentsQuery({ q: q.trim(), page }),
+    mediaInDocumentsQuery({ q: q.trim(), page }),
   ).data;
   const queryClient = useQueryClient();
-  const keep = useServerFn(keepInLibrary);
+  const keep = useServerFn(keepInMedia);
   const [viewing, setViewing] = useState<DocumentUpload | null>(null);
   const keepAll = async (rows: DocumentUpload[]) => {
     for (const row of rows) await keep({ data: { fileId: row.id, folderId } });
-    await queryClient.invalidateQueries({ queryKey: ["media-library"] });
+    await queryClient.invalidateQueries({ queryKey: ["media"] });
     toast.success(
       m.mediaKeptMany({ count: rows.length, value: formatNumber(rows.length) }),
     );

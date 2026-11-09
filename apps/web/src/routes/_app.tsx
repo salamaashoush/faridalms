@@ -11,7 +11,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect } from "react";
 
-import { MediaLibraryProvider } from "~/components/media/LibraryPicker";
+import { SchoolMediaProvider } from "~/components/media/MediaPicker";
 import { Shell } from "~/components/system/Shell";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { currentUserQuery } from "~/queries/user";
@@ -72,14 +72,14 @@ function AppLayout() {
   return (
     <FileFactsProvider resolve={currentFacts}>
       <PictureSourcesProvider value={pictureSources}>
-        <MediaLibraryProvider>
+        <SchoolMediaProvider>
           <Shell
             sidebarOpen={preferences.sidebarOpen}
             moreOpen={preferences.moreOpen}
           >
             <Outlet />
           </Shell>
-        </MediaLibraryProvider>
+        </SchoolMediaProvider>
       </PictureSourcesProvider>
     </FileFactsProvider>
   );

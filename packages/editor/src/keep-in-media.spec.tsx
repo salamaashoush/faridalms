@@ -10,23 +10,23 @@ import userEvent from "@testing-library/user-event";
 import { $getRoot } from "lexical";
 import { describe, expect, it, vi } from "vitest";
 
-import type { EditorLibrary, EditorMedia } from "./context";
+import type { SchoolMedia, EditorMedia } from "./context";
 import type { EditorStrings } from "./strings";
 
 import { EditorEnvironmentProvider } from "./context";
 import { buildContentEditor } from "./headless";
 import { $createImageNode } from "./nodes/media";
-import { KeepInLibrary } from "./plugins/library";
+import { KeepInMedia } from "./plugins/keep-in-media";
 
 const fileId = "0190a1b2-0000-7000-8000-0000000000c1";
 
 const strings = {
-  libraryKeep: "Keep in library",
-  libraryKept: "Kept in the media library",
-  libraryKeepFailed: "Could not keep it",
+  mediaKeep: "Keep in media",
+  mediaKept: "Kept in media",
+  mediaKeepFailed: "Could not keep it",
 } as EditorStrings;
 
-function mount(library: EditorLibrary | undefined) {
+function mount(school: SchoolMedia | undefined) {
   const editor = buildContentEditor();
   let key: NodeKey = "";
   editor.update(
@@ -44,7 +44,7 @@ function mount(library: EditorLibrary | undefined) {
     url: (id: string) => `/files/${id}`,
     upload: () => Promise.reject(new Error("unused")),
     accept: { image: [], file: [], media: [], captions: [] },
-    ...(library ? { library } : {}),
+    ...(school ? { school } : {}),
   } satisfies EditorMedia;
   const composer: LexicalComposerContextWithEditor = [
     editor,
@@ -54,24 +54,24 @@ function mount(library: EditorLibrary | undefined) {
   return render(
     <LexicalComposerContext.Provider value={composer}>
       <EditorEnvironmentProvider value={environment}>
-        <KeepInLibrary nodeKey={key} fileId={fileId} className="" />
+        <KeepInMedia nodeKey={key} fileId={fileId} className="" />
       </EditorEnvironmentProvider>
     </LexicalComposerContext.Provider>,
   );
 }
 
-describe("keeping a picture in the library", () => {
+describe("keeping a picture in the school's media", () => {
   it("sends the picture with the words the document gives it, and says it is kept", async () => {
     const user = userEvent.setup();
     const keep = vi.fn(() => Promise.resolve());
     mount({ choose: () => Promise.resolve(null), keep });
-    await user.click(screen.getByRole("button", { name: "Keep in library" }));
+    await user.click(screen.getByRole("button", { name: "Keep in media" }));
     expect(keep).toHaveBeenCalledWith(fileId, {
       alt: "A volcano erupting",
       credit: { author: "Salama Ashoush", licence: "CC BY 4.0" },
     });
     const kept = await screen.findByRole("button", {
-      name: "Kept in the media library",
+      name: "Kept in media",
     });
     expect(kept.hasAttribute("disabled")).toBe(true);
   });
@@ -82,14 +82,14 @@ describe("keeping a picture in the library", () => {
       choose: () => Promise.resolve(null),
       keep: () => Promise.reject(new Error("media.not_kept")),
     });
-    await user.click(screen.getByRole("button", { name: "Keep in library" }));
+    await user.click(screen.getByRole("button", { name: "Keep in media" }));
     const failed = await screen.findByRole("button", {
       name: "Could not keep it",
     });
     expect(failed.hasAttribute("disabled")).toBe(false);
   });
 
-  it("is not offered where the library cannot keep", () => {
+  it("is not offered where the school's media cannot keep", () => {
     mount({ choose: () => Promise.resolve(null) });
     expect(screen.queryByRole("button")).toBeNull();
   });

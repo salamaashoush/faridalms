@@ -228,7 +228,7 @@ export function pictureSrcSet(
   return widths.map((width) => `${url}${join}w=${width} ${width}w`).join(", ");
 }
 
-/** Where a picture's subject sits, from a library item's metadata, if it says. */
+/** Where a picture's subject sits, from a media item's metadata, if it says. */
 export function focusOf(
   metadata: unknown,
 ): { x: number; y: number } | undefined {

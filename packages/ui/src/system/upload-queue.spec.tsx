@@ -100,10 +100,10 @@ describe("a file drop zone", () => {
     const onFiles = vi.fn<(files: File[]) => void>();
     renderWithSystem(
       <FileDropZone onFiles={onFiles} label="Drop to add to Sports day">
-        <p>Library</p>
+        <p>Media</p>
       </FileDropZone>,
     );
-    const zone = screen.getByText("Library").parentElement as HTMLElement;
+    const zone = screen.getByText("Media").parentElement as HTMLElement;
     fireEvent.dragEnter(zone, { dataTransfer: carrying([file]) });
     expect(screen.getByText("Drop to add to Sports day")).toBeTruthy();
     fireEvent.drop(zone, { dataTransfer: carrying([file]) });

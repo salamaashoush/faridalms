@@ -5,7 +5,7 @@ import {
   MAX_DESCRIPTION,
   MAX_FOLDER_NAME,
   MAX_TITLE,
-} from "@faridalms/domain/media-library";
+} from "@faridalms/domain/media";
 import { FileIcon } from "@faridalms/editor/files";
 import { Button } from "@faridalms/ui/button";
 import {
@@ -25,25 +25,25 @@ import { toast } from "sonner";
 
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { libraryQuery, libraryUsesQuery } from "~/queries/media-library";
+import { mediaQuery, mediaUsesQuery } from "~/queries/media";
 import {
-  createLibraryFolder,
-  describeLibraryItem,
-  moveLibraryItems,
-  renameLibraryFolder,
-  trashLibraryItem,
-} from "~/server/media-library";
+  createMediaFolder,
+  describeMediaItem,
+  moveMediaItems,
+  renameMediaFolder,
+  trashMediaItem,
+} from "~/server/media";
 import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import type { LibraryFolderRow, LibraryRow } from "./library-items";
+import type { MediaFolderRow, MediaRow } from "./media-items";
 
-import { hostKindLabel } from "./library-items";
+import { hostKindLabel } from "./media-items";
 
 const TRASH_DAYS = 30;
 
 export interface DescribeSheetProps {
-  item: LibraryRow;
+  item: MediaRow;
   onClose: () => void;
   onSaved: () => Promise<unknown>;
 }
@@ -54,7 +54,7 @@ export interface DescribeSheetProps {
  * otherwise, and who made it.
  */
 export function DescribeSheet({ item, onClose, onSaved }: DescribeSheetProps) {
-  const describe = useServerFn(describeLibraryItem);
+  const describe = useServerFn(describeMediaItem);
   const [name, setName] = useState(item.name);
   const [title, setTitle] = useState(item.title);
   const [description, setDescription] = useState(item.description);
@@ -175,7 +175,7 @@ export function DescribeSheet({ item, onClose, onSaved }: DescribeSheetProps) {
 }
 
 /** A folder and the folders above it, as a move offers it. */
-function folderLabel(folders: LibraryFolderRow[], folder: LibraryFolderRow) {
+function folderLabel(folders: MediaFolderRow[], folder: MediaFolderRow) {
   const names = [folder.name];
   let parent = folders.find((row) => row.id === folder.parentId);
   while (parent && names.length < folders.length) {
@@ -187,20 +187,20 @@ function folderLabel(folders: LibraryFolderRow[], folder: LibraryFolderRow) {
 }
 
 export interface MoveSheetProps {
-  items: LibraryRow[];
-  folders: LibraryFolderRow[];
+  items: MediaRow[];
+  folders: MediaFolderRow[];
   onClose: () => void;
   onMoved: () => Promise<unknown>;
 }
 
-/** Files items in another folder, or at the top of the library. */
+/** Files items in another folder, or at the top of media. */
 export function MoveSheet({
   items,
   folders,
   onClose,
   onMoved,
 }: MoveSheetProps) {
-  const move = useServerFn(moveLibraryItems);
+  const move = useServerFn(moveMediaItems);
   const [target, setTarget] = useState(items[0]?.folderId ?? "");
   const mutation = useMutation({
     mutationFn: () =>
@@ -255,7 +255,7 @@ export function MoveSheet({
 
 export interface FolderSheetProps {
   /** The folder renamed, or none to make a new one in `parentId`. */
-  folder: LibraryFolderRow | null;
+  folder: MediaFolderRow | null;
   parentId: string | null;
   onClose: () => void;
   onSaved: () => Promise<unknown>;
@@ -268,8 +268,8 @@ export function FolderSheet({
   onClose,
   onSaved,
 }: FolderSheetProps) {
-  const create = useServerFn(createLibraryFolder);
-  const rename = useServerFn(renameLibraryFolder);
+  const create = useServerFn(createMediaFolder);
+  const rename = useServerFn(renameMediaFolder);
   const [name, setName] = useState(folder?.name ?? "");
   const mutation = useMutation({
     mutationFn: async () => {
@@ -316,14 +316,14 @@ export function FolderSheet({
 }
 
 export interface UsesSheetProps {
-  item: LibraryRow | null;
+  item: MediaRow | null;
   onOpenChange: (open: boolean) => void;
 }
 
 /** The documents showing an item, so a change is made knowing what it reaches. */
 export function UsesSheet({ item, onOpenChange }: UsesSheetProps) {
   const uses = useQuery({
-    ...libraryUsesQuery(item?.id ?? ""),
+    ...mediaUsesQuery(item?.id ?? ""),
     enabled: item !== null,
   });
   const rows = uses.data?.uses ?? [];
@@ -365,17 +365,17 @@ export interface TrashSheetProps {
   onRestored: () => Promise<unknown>;
 }
 
-/** What waits in the library's trash, each restorable until 30 days have passed. */
+/** What waits in the media trash, each restorable until 30 days have passed. */
 export function TrashSheet({
   open,
   onOpenChange,
   onRestored,
 }: TrashSheetProps) {
   const trashed = useQuery({
-    ...libraryQuery({ trashed: true }),
+    ...mediaQuery({ trashed: true }),
     enabled: open,
   });
-  const restore = useServerFn(trashLibraryItem);
+  const restore = useServerFn(trashMediaItem);
   const [busy, setBusy] = useState<string | null>(null);
   const rows = trashed.data?.items.rows ?? [];
   return (

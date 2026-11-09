@@ -1,12 +1,12 @@
 import type {
-  EditorLibrary,
-  LibraryChoice,
-  LibraryChooseOptions,
-  LibraryKind,
+  SchoolMedia,
+  MediaChoice,
+  MediaChooseOptions,
+  MediaChoiceKind,
 } from "@faridalms/editor";
 import type { ReactNode } from "react";
 
-import { usesLibrary } from "@faridalms/domain/media-library";
+import { usesMedia } from "@faridalms/domain/media";
 import { Button } from "@faridalms/ui/button";
 import { MediaGrid } from "@faridalms/ui/system/media-grid";
 import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
@@ -17,58 +17,58 @@ import { createContext, useContext, useMemo, useRef, useState } from "react";
 
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { libraryQuery } from "~/queries/media-library";
-import { keepInLibrary } from "~/server/media-library";
+import { mediaQuery } from "~/queries/media";
+import { keepInMedia } from "~/server/media";
 import { formatNumber } from "~/utils/datetime";
 
-import type { LibraryRow } from "./library-items";
+import type { MediaRow } from "./media-items";
 
-import { choiceOf, KINDS_OF, libraryTile } from "./library-items";
-import { LibraryFolders } from "./LibraryFolders";
+import { choiceOf, KINDS_OF, mediaTile } from "./media-items";
+import { MediaFolders } from "./MediaFolders";
 
-const Context = createContext<EditorLibrary | null>(null);
+const Context = createContext<SchoolMedia | null>(null);
 
-/** The school's media library as an editor or a picture field chooses from it; none for those who may not. */
-export function useMediaLibrary(): EditorLibrary | undefined {
+/** The school's media as an editor or a picture field chooses from it; none for those who may not. */
+export function useSchoolMedia(): SchoolMedia | undefined {
   return useContext(Context) ?? undefined;
 }
 
-const TITLE: Record<LibraryKind, () => string> = {
+const TITLE: Record<MediaChoiceKind, () => string> = {
   image: m.mediaChoosePicture,
   media: m.mediaChooseMedia,
   video: m.mediaChooseVideo,
   file: m.mediaChooseFile,
 };
 
-const EMPTY: Record<LibraryKind, () => string> = {
+const EMPTY: Record<MediaChoiceKind, () => string> = {
   image: m.mediaEmptyChoose,
   media: m.mediaEmptyChooseMedia,
   video: m.mediaEmptyChooseVideo,
   file: m.mediaEmptyChooseFile,
 };
 
-export interface LibraryChooserProps {
-  kind: LibraryKind;
-  options: LibraryChooseOptions;
-  onDone: (chosen: LibraryChoice[] | null) => void;
+export interface MediaChooserProps {
+  kind: MediaChoiceKind;
+  options: MediaChooseOptions;
+  onDone: (chosen: MediaChoice[] | null) => void;
 }
 
 /**
- * The library opened to choose from: its folders, a search across all of
+ * The school's media opened to choose from: its folders, a search across all of
  * them, and the items of the kind asked for, chosen one or several at a
  * time; the device's own files are offered beside it where the asker can
  * take them.
  */
-export function LibraryChooser({ kind, options, onDone }: LibraryChooserProps) {
+export function MediaChooser({ kind, options, onDone }: MediaChooserProps) {
   const [open, setOpen] = useState(true);
   const [folderId, setFolderId] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
-  const [chosen, setChosen] = useState<Map<string, LibraryRow>>(new Map());
+  const [chosen, setChosen] = useState<Map<string, MediaRow>>(new Map());
   const listed = useQuery(
-    libraryQuery({ folderId, q: q.trim(), kinds: KINDS_OF[kind], page }),
+    mediaQuery({ folderId, q: q.trim(), kinds: KINDS_OF[kind], page }),
   );
-  const close = (result: LibraryChoice[] | null) => {
+  const close = (result: MediaChoice[] | null) => {
     setOpen(false);
     onDone(result);
   };
@@ -119,7 +119,7 @@ export function LibraryChooser({ kind, options, onDone }: LibraryChooserProps) {
         <MediaGrid
           caption={m.mediaTitle()}
           items={rows}
-          tile={libraryTile}
+          tile={mediaTile}
           toolbar={{
             search: {
               value: q,
@@ -137,7 +137,7 @@ export function LibraryChooser({ kind, options, onDone }: LibraryChooserProps) {
           }}
           leading={
             q.trim() ? null : (
-              <LibraryFolders
+              <MediaFolders
                 path={listed.data?.path ?? []}
                 folders={listed.data?.children ?? []}
                 onOpen={(next) => {
@@ -152,7 +152,7 @@ export function LibraryChooser({ kind, options, onDone }: LibraryChooserProps) {
             multiple: options.multiple ?? false,
             onChange: (ids) =>
               setChosen((before) => {
-                const next = new Map<string, LibraryRow>();
+                const next = new Map<string, MediaRow>();
                 for (const id of ids) {
                   const row =
                     before.get(id) ?? rows.find((item) => item.id === id);
@@ -185,27 +185,27 @@ export function LibraryChooser({ kind, options, onDone }: LibraryChooserProps) {
 
 interface Choosing {
   key: number;
-  kind: LibraryKind;
-  options: LibraryChooseOptions;
-  resolve: (chosen: LibraryChoice[] | null) => void;
+  kind: MediaChoiceKind;
+  options: MediaChooseOptions;
+  resolve: (chosen: MediaChoice[] | null) => void;
 }
 
-export interface MediaLibraryProviderProps {
+export interface SchoolMediaProviderProps {
   children: ReactNode;
 }
 
 /**
- * Offers the school's media library to every editor and picture field
+ * Offers the school's media to every editor and picture field
  * below it, for those who write; the chooser opens over whatever asked.
  */
-export function MediaLibraryProvider({ children }: MediaLibraryProviderProps) {
+export function SchoolMediaProvider({ children }: SchoolMediaProviderProps) {
   const { capabilities } = useCurrentUser();
-  const allowed = usesLibrary(capabilities);
+  const allowed = usesMedia(capabilities);
   const queryClient = useQueryClient();
-  const keep = useServerFn(keepInLibrary);
+  const keep = useServerFn(keepInMedia);
   const [choosing, setChoosing] = useState<Choosing | null>(null);
   const open = useRef<Choosing | null>(null);
-  const library = useMemo<EditorLibrary | null>(
+  const school = useMemo<SchoolMedia | null>(
     () =>
       allowed
         ? {
@@ -231,7 +231,7 @@ export function MediaLibraryProvider({ children }: MediaLibraryProviderProps) {
                 },
               });
               await queryClient.invalidateQueries({
-                queryKey: ["media-library"],
+                queryKey: ["media"],
               });
             },
           }
@@ -239,10 +239,10 @@ export function MediaLibraryProvider({ children }: MediaLibraryProviderProps) {
     [allowed, keep, queryClient],
   );
   return (
-    <Context.Provider value={library}>
+    <Context.Provider value={school}>
       {children}
       {choosing ? (
-        <LibraryChooser
+        <MediaChooser
           key={choosing.key}
           kind={choosing.kind}
           options={choosing.options}

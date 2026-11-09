@@ -9,7 +9,7 @@ import type { IndexToolbarProps } from "@faridalms/ui/system/index-toolbar";
 
 import { pictureCreditSchema } from "@faridalms/domain/commons";
 import { FILE_KINDS } from "@faridalms/domain/file";
-import { monthLabel } from "@faridalms/domain/media-library";
+import { monthLabel } from "@faridalms/domain/media";
 import { FileIcon, FileViewer } from "@faridalms/editor/files";
 import { Button } from "@faridalms/ui/button";
 import { DataTable } from "@faridalms/ui/system/data-table";
@@ -55,19 +55,19 @@ import { uploadDocumentFile, useDocumentMedia } from "~/hooks/useDocumentMedia";
 import { useUploadQueue } from "~/hooks/useUploadQueue";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { libraryQuery } from "~/queries/media-library";
+import { mediaQuery } from "~/queries/media";
 import { initiateUpload } from "~/server/files";
 import {
-  addToLibrary,
-  libraryVersions,
-  removeLibraryFolder,
-  replaceLibraryItem,
-  trashLibraryItem,
-  trashLibraryItems,
-} from "~/server/media-library";
+  addToMedia,
+  mediaVersions,
+  removeMediaFolder,
+  replaceMediaItem,
+  trashMediaItem,
+  trashMediaItems,
+} from "~/server/media";
 import { formatDate, formatNumber } from "~/utils/datetime";
 
-import type { LibraryFolderRow, LibraryRow } from "./library-items";
+import type { MediaFolderRow, MediaRow } from "./media-items";
 
 import { CropSheet } from "./CropSheet";
 import { FocusSheet } from "./FocusSheet";
@@ -76,25 +76,25 @@ import {
   isPicture,
   itemTitle,
   KIND_LABEL,
-  libraryTile,
+  mediaTile,
   thumbnailOf,
-} from "./library-items";
-import { LibraryDocuments } from "./LibraryDocuments";
-import { LibraryFolders } from "./LibraryFolders";
+} from "./media-items";
+import { MediaFolders } from "./MediaFolders";
+import { MediaInDocuments } from "./MediaInDocuments";
 import {
   DescribeSheet,
   FolderSheet,
   MoveSheet,
   TrashSheet,
   UsesSheet,
-} from "./LibrarySheets";
+} from "./MediaSheets";
 import {
   ImportLinkSheet,
   PictureSearchSheet,
   StorageSheet,
   TagItemsSheet,
   TagsSheet,
-} from "./LibraryTools";
+} from "./MediaTools";
 
 const foundSchema = v.object({
   description: v.string(),
@@ -111,16 +111,16 @@ function foundOf(kept: string) {
   }
 }
 
-export const LIBRARY_LAYOUTS = ["grid", "list"] as const;
-export type LibraryLayout = (typeof LIBRARY_LAYOUTS)[number];
+export const MEDIA_LAYOUTS = ["grid", "list"] as const;
+export type MediaLayout = (typeof MEDIA_LAYOUTS)[number];
 
-/** Where the page looks: the library itself, or the uploads in documents it could keep. */
-export const LIBRARY_SOURCES = ["library", "documents"] as const;
-export type LibrarySource = (typeof LIBRARY_SOURCES)[number];
+/** Where the page looks: what the school keeps, or the uploads in documents it could keep. */
+export const MEDIA_SOURCES = ["kept", "documents"] as const;
+export type MediaSourceKind = (typeof MEDIA_SOURCES)[number];
 
-/** What the library page shows, kept in its address. */
-export interface LibraryView {
-  source: LibrarySource;
+/** What the Media page shows, kept in its address. */
+export interface MediaPageView {
+  source: MediaSourceKind;
   folder: string;
   q: string;
   kinds: FileKind[];
@@ -130,11 +130,11 @@ export interface LibraryView {
   sort: AreaSort;
   order: "asc" | "desc";
   page: number;
-  layout: LibraryLayout;
+  layout: MediaLayout;
 }
 
 interface UsedProps {
-  item: LibraryRow;
+  item: MediaRow;
   onShow: () => void;
 }
 
@@ -152,20 +152,20 @@ function Used({ item, onShow }: UsedProps) {
 }
 
 /** Several items as one zip, which the browser saves. */
-const download = (items: LibraryRow[]) =>
+const download = (items: MediaRow[]) =>
   window.location.assign(
     `/exports/media?ids=${items.map((item) => item.id).join(",")}`,
   );
 
-const uploaderName = (item: LibraryRow) =>
+const uploaderName = (item: MediaRow) =>
   item.uploadedBy
     ? inLocale(item.uploadedBy.fullNameEn, item.uploadedBy.fullNameAr)
     : "";
 
-function libraryColumns(
-  open: (item: LibraryRow) => void,
-  showUses: (item: LibraryRow) => void,
-): Column<LibraryRow, AreaSort>[] {
+function mediaColumns(
+  open: (item: MediaRow) => void,
+  showUses: (item: MediaRow) => void,
+): Column<MediaRow, AreaSort>[] {
   return [
     {
       id: "name",
@@ -244,9 +244,9 @@ function libraryColumns(
   ];
 }
 
-function libraryCard(
-  showUses: (item: LibraryRow) => void,
-): DataTableCard<LibraryRow> {
+function mediaCard(
+  showUses: (item: MediaRow) => void,
+): DataTableCard<MediaRow> {
   return {
     leading: (item) =>
       thumbnailOf(item) ? (
@@ -256,7 +256,7 @@ function libraryCard(
           loading="lazy"
           className="size-10 rounded-md object-cover"
           style={{
-            objectPosition: libraryTile.position?.(item),
+            objectPosition: mediaTile.position?.(item),
           }}
         />
       ) : (
@@ -275,13 +275,13 @@ function libraryCard(
   };
 }
 
-export interface MediaLibraryProps {
-  view: LibraryView;
-  onView: (change: Partial<LibraryView>) => void;
+export interface MediaBrowserProps {
+  view: MediaPageView;
+  onView: (change: Partial<MediaPageView>) => void;
 }
 
 /**
- * The school's media library: folders, a search across all of them by
+ * The school's media: folders, a search across all of them by
  * name, title, description or caption, filters by kind, month, uploader
  * and tag, pictures as a grid or everything as a list, and for each item
  * where it is used. Files dropped or pasted on the page upload into the
@@ -289,10 +289,10 @@ export interface MediaLibraryProps {
  * moves an item to a trash kept for 30 days, and an item in use says so
  * first.
  */
-export function MediaLibrary({ view, onView }: MediaLibraryProps) {
+export function MediaBrowser({ view, onView }: MediaBrowserProps) {
   const folderId = view.folder || null;
   const data = useSuspenseQuery(
-    libraryQuery({
+    mediaQuery({
       folderId,
       q: view.q.trim(),
       kinds: view.kinds,
@@ -308,26 +308,26 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
   const queryClient = useQueryClient();
   const media = useDocumentMedia();
   const initiate = useServerFn(initiateUpload);
-  const add = useServerFn(addToLibrary);
-  const trash = useServerFn(trashLibraryItem);
-  const trashMany = useServerFn(trashLibraryItems);
-  const replace = useServerFn(replaceLibraryItem);
-  const fetchVersions = useServerFn(libraryVersions);
-  const removeFolder = useServerFn(removeLibraryFolder);
+  const add = useServerFn(addToMedia);
+  const trash = useServerFn(trashMediaItem);
+  const trashMany = useServerFn(trashMediaItems);
+  const replace = useServerFn(replaceMediaItem);
+  const fetchVersions = useServerFn(mediaVersions);
+  const removeFolder = useServerFn(removeMediaFolder);
   const people = usePicturePeople("website");
   const input = useRef<HTMLInputElement>(null);
   const replacement = useRef<HTMLInputElement>(null);
-  const [replacing, setReplacing] = useState<LibraryRow | null>(null);
-  const [viewing, setViewing] = useState<LibraryRow | null>(null);
-  const [describing, setDescribing] = useState<LibraryRow | null>(null);
-  const [moving, setMoving] = useState<LibraryRow[] | null>(null);
-  const [tagging, setTagging] = useState<LibraryRow[] | null>(null);
-  const [cropping, setCropping] = useState<LibraryRow | null>(null);
-  const [focusing, setFocusing] = useState<LibraryRow | null>(null);
-  const [usesOf, setUsesOf] = useState<LibraryRow | null>(null);
-  const [versionsOf, setVersionsOf] = useState<LibraryRow | null>(null);
+  const [replacing, setReplacing] = useState<MediaRow | null>(null);
+  const [viewing, setViewing] = useState<MediaRow | null>(null);
+  const [describing, setDescribing] = useState<MediaRow | null>(null);
+  const [moving, setMoving] = useState<MediaRow[] | null>(null);
+  const [tagging, setTagging] = useState<MediaRow[] | null>(null);
+  const [cropping, setCropping] = useState<MediaRow | null>(null);
+  const [focusing, setFocusing] = useState<MediaRow | null>(null);
+  const [usesOf, setUsesOf] = useState<MediaRow | null>(null);
+  const [versionsOf, setVersionsOf] = useState<MediaRow | null>(null);
   const [folderSheet, setFolderSheet] = useState<{
-    folder: LibraryFolderRow | null;
+    folder: MediaFolderRow | null;
   } | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -335,11 +335,10 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
   const [searching, setSearching] = useState(false);
   const [storageOpen, setStorageOpen] = useState(false);
 
-  const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: ["media-library"] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["media"] });
 
   const queue = useUploadQueue({
-    scope: "library",
+    scope: "media",
     upload: (file, options, keeping) =>
       uploadDocumentFile(
         initiate,
@@ -369,7 +368,7 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
   });
   const upload = (files: File[]) => queue.add(files, { folderId });
 
-  const itemActions = (item: LibraryRow): ActionItem[] => [
+  const itemActions = (item: MediaRow): ActionItem[] => [
     { label: m.fileOpen(), icon: Eye, onSelect: () => setViewing(item) },
     {
       label: m.editorDownloadFile(),
@@ -463,25 +462,25 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
       : []),
   ];
 
-  const batchActions: BatchAction<LibraryRow>[] = [
+  const batchActions: BatchAction<MediaRow>[] = [
     { label: m.mediaDownloadZip(), icon: Download, onSelect: download },
     ...(keeper
       ? [
           {
             label: m.mediaTagAction(),
             icon: Tags,
-            onSelect: (rows: LibraryRow[]) => setTagging(rows),
+            onSelect: (rows: MediaRow[]) => setTagging(rows),
           },
           {
             label: m.mediaMove(),
             icon: FolderInput,
-            onSelect: (rows: LibraryRow[]) => setMoving(rows),
+            onSelect: (rows: MediaRow[]) => setMoving(rows),
           },
           {
             label: m.filesDelete(),
             icon: Trash2,
             destructive: true as const,
-            confirm: (rows: LibraryRow[]) => {
+            confirm: (rows: MediaRow[]) => {
               const used = rows.filter((row) => row.uses > 0).length;
               return {
                 title: m.mediaDeleteMany({
@@ -498,7 +497,7 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
                 label: m.filesDelete(),
               };
             },
-            onSelect: async (rows: LibraryRow[]) => {
+            onSelect: async (rows: MediaRow[]) => {
               await trashMany({
                 data: { ids: rows.map((row) => row.id), trashed: true },
               });
@@ -510,7 +509,7 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
       : []),
   ];
 
-  const folderActions = (folder: LibraryFolderRow): ActionItem[] =>
+  const folderActions = (folder: MediaFolderRow): ActionItem[] =>
     keeper
       ? [
           {
@@ -659,7 +658,7 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
     ) : null;
 
   const folders = filtering ? null : (
-    <LibraryFolders
+    <MediaFolders
       path={data.path}
       folders={data.children}
       onOpen={(next) => onView({ folder: next ?? "", page: 1 })}
@@ -692,8 +691,8 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
     description: m.mediaEmptyBody(),
   };
 
-  const columns = libraryColumns(setViewing, setUsesOf);
-  const inLibrary = view.source === "library";
+  const columns = mediaColumns(setViewing, setUsesOf);
+  const showsKept = view.source === "kept";
 
   return (
     <Page width="list">
@@ -704,8 +703,8 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
             ? m.mediaDropInto({ name: data.path.at(-1)?.name ?? "" })
             : m.mediaDropHere()
         }
-        pastePage={inLibrary}
-        disabled={!inLibrary}
+        pastePage={showsKept}
+        disabled={!showsKept}
         className="grid gap-4"
       >
         <PageHeader
@@ -796,14 +795,14 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
           value={view.source}
           className="justify-self-start"
           options={[
-            { value: "library", label: m.mediaSourceLibrary() },
+            { value: "kept", label: m.mediaSourceKept() },
             { value: "documents", label: m.mediaInDocuments() },
           ]}
           onChange={(source) => onView({ source, page: 1 })}
         />
-        {!inLibrary ? (
+        {!showsKept ? (
           <Suspense fallback={<div aria-busy="true" className="min-h-24" />}>
-            <LibraryDocuments
+            <MediaInDocuments
               q={view.q}
               page={view.page}
               folderId={folderId}
@@ -815,7 +814,7 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
           <MediaGrid
             caption={m.mediaTitle()}
             items={data.items.rows}
-            tile={libraryTile}
+            tile={mediaTile}
             toolbar={toolbar}
             actions={layoutSwitch}
             leading={leading}
@@ -842,7 +841,7 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
                 onChange: (sort, order) => onView({ sort, order, page: 1 }),
               }}
               batchActions={batchActions}
-              card={libraryCard(setUsesOf)}
+              card={mediaCard(setUsesOf)}
               pagination={pagination}
               empty={empty}
             />

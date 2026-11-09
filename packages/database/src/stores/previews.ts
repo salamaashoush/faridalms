@@ -369,7 +369,7 @@ export async function bytesRewritten(
       and status = 'active'`);
 }
 
-/** Where the subject of each of these pictures sits, where its library item says. */
+/** Where the subject of each of these pictures sits, where its media item says. */
 export async function focusOfFiles(
   tx: Tx,
   tenantId: string,

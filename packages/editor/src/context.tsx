@@ -42,11 +42,11 @@ export interface UploadOptions {
 }
 
 /**
- * An item of the school's media library as a document shows it: the
- * file, and the description and credit the library keeps, which a use
+ * An item of the school's media as a document shows it: the
+ * file, and the description and credit the media item keeps, which a use
  * starts from and may say otherwise.
  */
-export interface LibraryChoice extends UploadedFile {
+export interface MediaChoice extends UploadedFile {
   alt: string;
   credit?: PictureCredit;
   /** What a picture block starts its caption from. */
@@ -54,24 +54,24 @@ export interface LibraryChoice extends UploadedFile {
 }
 
 /** What a choice may be: pictures, sound and video, video alone, or any file. */
-export type LibraryKind = "image" | "media" | "video" | "file";
+export type MediaChoiceKind = "image" | "media" | "video" | "file";
 
-export interface LibraryChooseOptions {
+export interface MediaChooseOptions {
   multiple?: boolean;
-  /** Offers the device's own files beside the library's, as a block's upload. */
+  /** Offers the device's own files beside the school's, as a block's upload. */
   upload?: () => void;
 }
 
 /**
- * The school's media library. `choose` opens it on items of a kind and
+ * The school's media. `choose` opens it on items of a kind and
  * resolves to those chosen, or null when nothing was; `keep` keeps a
- * picture shown in the document in the library too, with its words.
+ * picture shown in the document in the school's media too, with its words.
  */
-export interface EditorLibrary {
+export interface SchoolMedia {
   choose: (
-    kind: LibraryKind,
-    options?: LibraryChooseOptions,
-  ) => Promise<LibraryChoice[] | null>;
+    kind: MediaChoiceKind,
+    options?: MediaChooseOptions,
+  ) => Promise<MediaChoice[] | null>;
   keep?: (
     fileId: string,
     words: { alt: string; credit?: PictureCredit },
@@ -136,8 +136,8 @@ export interface EditorMedia {
    * selected picture.
    */
   people?: (fileId: string) => void;
-  /** The school's media library, where the writer may choose from it. */
-  library?: EditorLibrary;
+  /** The school's media, where the writer may choose from it. */
+  school?: SchoolMedia;
   /**
    * Whether a recording's ends can be cut off before it is kept, which
    * takes the school's media service to do.

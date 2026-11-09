@@ -1,8 +1,8 @@
 import type { PictureCredit, PictureFocus } from "@faridalms/domain/commons";
 import type { AreaSort, FileKind } from "@faridalms/domain/file";
-import type { CropRatio, PictureEdits } from "@faridalms/domain/media-library";
+import type { CropRatio, PictureEdits } from "@faridalms/domain/media";
 
-import { LIBRARY_AREA } from "@faridalms/domain/media-library";
+import { MEDIA_AREA } from "@faridalms/domain/media";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -12,13 +12,13 @@ import { holds, isoOf, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
-/** The library's own area: the school keeps it, by the school's id. */
-export const libraryArea = (orgId: string) => ({
-  type: LIBRARY_AREA,
+/** Media's own area: the school keeps it, by the school's id. */
+export const mediaArea = (orgId: string) => ({
+  type: MEDIA_AREA,
   id: orgId,
 });
 
-export interface LibraryFolder {
+export interface MediaFolder {
   id: string;
   name: string;
   parentId: string | null;
@@ -26,12 +26,12 @@ export interface LibraryFolder {
   items: number;
 }
 
-/** Every folder of a school's library, by name. */
-export async function libraryFolders(
+/** Every folder of a school's media, by name. */
+export async function schoolMediaFolders(
   tx: Tx,
   tenantId: string,
   orgId: string,
-): Promise<LibraryFolder[]> {
+): Promise<MediaFolder[]> {
   const rows = await tx.execute<{
     id: string;
     name: string;
@@ -40,7 +40,7 @@ export async function libraryFolders(
   }>(sql`
     select m.id, m.name, m.parent_id,
       (select count(*)::int from core.files f
-        where f.tenant_id = m.tenant_id and f.host_type = ${LIBRARY_AREA}
+        where f.tenant_id = m.tenant_id and f.host_type = ${MEDIA_AREA}
           and f.host_id = m.org_id and f.folder_id = m.id
           and f.status = 'active' and f.state = 'ready' and f.trashed_at is null) as items
     from core.media_folders m
@@ -113,18 +113,18 @@ export async function retireMediaFolder(
   return "removed";
 }
 
-export interface LibraryTag {
+export interface MediaTag {
   id: string;
   name: string;
 }
 
-export interface LibraryPerson {
+export interface MediaPerson {
   id: string;
   fullNameEn: string | null;
   fullNameAr: string | null;
 }
 
-export interface LibraryItem {
+export interface MediaItem {
   id: string;
   name: string;
   /** What people call it, apart from its file's name; empty for none. */
@@ -140,8 +140,8 @@ export interface LibraryItem {
   /** What a picture block showing it starts its caption from; empty for none. */
   caption: string;
   credit: PictureCredit | null;
-  uploadedBy: LibraryPerson | null;
-  tags: LibraryTag[];
+  uploadedBy: MediaPerson | null;
+  tags: MediaTag[];
   /** The records whose documents show it. */
   uses: number;
   /** Where a picture's subject sits, which crops and the website keep in view. */
@@ -171,7 +171,7 @@ type ItemRecord = {
   uploaded_by_user_id: string | null;
   uploader_en: string | null;
   uploader_ar: string | null;
-  tags: LibraryTag[];
+  tags: MediaTag[];
   uses: number;
   focus: PictureFocus | null;
   placeholder: string | null;
@@ -209,7 +209,7 @@ const itemColumns = sql`f.id, f.name, x.title, f.media_type, f.size_bytes, f.wid
   jsonb_path_exists(p.sizes, '$[*] ? (@.name starts with "page1-")') as page,
   p.document_bytes is not null as pdf`;
 
-const itemOf = (row: ItemRecord): LibraryItem => ({
+const itemOf = (row: ItemRecord): MediaItem => ({
   id: row.id,
   name: row.name,
   title: row.title ?? "",
@@ -238,15 +238,15 @@ const itemOf = (row: ItemRecord): LibraryItem => ({
   pdf: row.pdf,
 });
 
-const inLibrary = (tenantId: string, orgId: string) =>
-  sql`f.tenant_id = ${tenantId}::uuid and f.host_type = ${LIBRARY_AREA}
+const inMedia = (tenantId: string, orgId: string) =>
+  sql`f.tenant_id = ${tenantId}::uuid and f.host_type = ${MEDIA_AREA}
     and f.host_id = ${orgId}::uuid and f.status = 'active' and f.state = 'ready'`;
 
 /** The month an item was added in the school's time zone, as `2026-11`. */
 const monthOf = (zone: string) =>
   sql`to_char(f.created_at at time zone ${zone}, 'YYYY-MM')`;
 
-export interface LibraryView {
+export interface MediaFilter {
   folderId: string | null;
   trashed: boolean;
   q: string;
@@ -258,12 +258,12 @@ export interface LibraryView {
 }
 
 /**
- * What a page of the library shows: one folder's items, or, while
+ * What a page of media shows: one folder's items, or, while
  * searching or filtering by month, uploader or tag, the matches in every
  * folder; the trash lists everything in it. Tags narrow to items carrying
  * every one chosen.
  */
-function shownWhere(view: LibraryView) {
+function shownWhere(view: MediaFilter) {
   const everywhere =
     view.trashed ||
     view.q.trim() !== "" ||
@@ -288,18 +288,18 @@ function shownWhere(view: LibraryView) {
         and it.tag_id = any(${uuidArray(view.tags)})) = ${view.tags.length})`;
 }
 
-export async function libraryItems(
+export async function mediaItems(
   tx: Tx,
   tenantId: string,
   orgId: string,
-  view: LibraryView & {
+  view: MediaFilter & {
     kinds: readonly FileKind[];
     sort: AreaSort;
     order: "asc" | "desc";
     limit: number;
     offset: number;
   },
-): Promise<{ rows: LibraryItem[]; total: number }> {
+): Promise<{ rows: MediaItem[]; total: number }> {
   const dir = view.order === "asc" ? sql`asc` : sql`desc`;
   const order =
     view.sort === "name"
@@ -310,7 +310,7 @@ export async function libraryItems(
   const rows = await tx.execute<ItemRecord & { total: number }>(sql`
     select ${itemColumns}, (count(*) over ())::int as total
     from ${itemFrom}
-    where ${inLibrary(tenantId, orgId)} and ${shownWhere(view)}
+    where ${inMedia(tenantId, orgId)} and ${shownWhere(view)}
       ${
         view.kinds.length
           ? sql`and ${kindOfFile} in (${sql.join(
@@ -324,42 +324,42 @@ export async function libraryItems(
   return { total: rows[0]?.total ?? 0, rows: rows.map(itemOf) };
 }
 
-/** How many of what a page of the library shows are of each kind. */
-export async function libraryKindCounts(
+/** How many of what a page of media shows are of each kind. */
+export async function mediaKindCounts(
   tx: Tx,
   tenantId: string,
   orgId: string,
-  view: LibraryView,
+  view: MediaFilter,
 ): Promise<Partial<Record<FileKind, number>>> {
   const rows = await tx.execute<{ kind: FileKind; count: number }>(sql`
     select ${kindOfFile} as kind, count(*)::int as count
     from ${itemFrom}
-    where ${inLibrary(tenantId, orgId)} and ${shownWhere(view)}
+    where ${inMedia(tenantId, orgId)} and ${shownWhere(view)}
     group by 1`);
   return Object.fromEntries(rows.map((row) => [row.kind, row.count]));
 }
 
-export interface LibraryFacets {
+export interface MediaFacets {
   /** The months items were added in, newest first. */
   months: { month: string; count: number }[];
-  /** Who uploaded the library's items, by name. */
-  uploaders: (LibraryPerson & { count: number })[];
+  /** Who uploaded the media items, by name. */
+  uploaders: (MediaPerson & { count: number })[];
   /** The school's tags, by name, with the items each holds. */
-  tags: (LibraryTag & { count: number })[];
+  tags: (MediaTag & { count: number })[];
 }
 
-/** What the library's items may be narrowed by, counted over all of them outside the trash. */
-export async function libraryFacets(
+/** What the media items may be narrowed by, counted over all of them outside the trash. */
+export async function mediaFacets(
   tx: Tx,
   tenantId: string,
   orgId: string,
   zone: string,
-): Promise<LibraryFacets> {
+): Promise<MediaFacets> {
   const [months, uploaders, tags] = await Promise.all([
     tx.execute<{ month: string; count: number }>(sql`
       select ${monthOf(zone)} as month, count(*)::int as count
       from core.files f
-      where ${inLibrary(tenantId, orgId)} and f.trashed_at is null
+      where ${inMedia(tenantId, orgId)} and f.trashed_at is null
       group by 1 order by 1 desc limit 120`),
     tx.execute<{
       id: string;
@@ -370,7 +370,7 @@ export async function libraryFacets(
       select u.id, u.full_name_en, u.full_name_ar, count(*)::int as count
       from core.files f
       join core.users u on u.tenant_id = f.tenant_id and u.id = f.uploaded_by_user_id
-      where ${inLibrary(tenantId, orgId)} and f.trashed_at is null
+      where ${inMedia(tenantId, orgId)} and f.trashed_at is null
       group by u.id, u.full_name_en, u.full_name_ar
       order by u.full_name_en nulls last, u.full_name_ar, u.id limit 200`),
     tx.execute<{ id: string; name: string; count: number }>(sql`
@@ -378,7 +378,7 @@ export async function libraryFacets(
         select count(*)::int from core.media_item_tags it
         join core.files f on f.tenant_id = it.tenant_id and f.id = it.file_id
         where it.tenant_id = g.tenant_id and it.tag_id = g.id and it.status = 'active'
-          and ${inLibrary(tenantId, orgId)} and f.trashed_at is null) as count
+          and ${inMedia(tenantId, orgId)} and f.trashed_at is null) as count
       from core.media_tags g
       where g.tenant_id = ${tenantId}::uuid and g.org_id = ${orgId}::uuid
         and g.status = 'active'
@@ -396,21 +396,21 @@ export async function libraryFacets(
   };
 }
 
-/** Library items by id, in the trash or not; others are left out. */
-export async function libraryItemsByIds(
+/** Media items by id, in the trash or not; others are left out. */
+export async function mediaItemsByIds(
   tx: Tx,
   tenantId: string,
   orgId: string,
   ids: readonly string[],
-): Promise<LibraryItem[]> {
+): Promise<MediaItem[]> {
   if (ids.length === 0) return [];
   const rows = await tx.execute<ItemRecord>(sql`
     select ${itemColumns} from ${itemFrom}
-    where ${inLibrary(tenantId, orgId)} and f.id = any(${uuidArray(ids)})`);
+    where ${inMedia(tenantId, orgId)} and f.id = any(${uuidArray(ids)})`);
   return rows.map(itemOf);
 }
 
-export interface LibraryUse {
+export interface MediaUse {
   hostType: string;
   hostId: string;
   titleEn: string | null;
@@ -426,7 +426,7 @@ export async function fileUses(
   tx: Tx,
   tenantId: string,
   fileId: string,
-): Promise<LibraryUse[]> {
+): Promise<MediaUse[]> {
   const rows = await tx.execute<{
     host_type: string;
     host_id: string;
@@ -469,7 +469,7 @@ export async function fileUses(
   }));
 }
 
-export async function describeLibraryItem(
+export async function describeMediaItem(
   tx: Tx,
   input: {
     tenantId: string;
@@ -484,13 +484,13 @@ export async function describeLibraryItem(
     update core.files f
     set name = ${input.name}, description = nullif(${input.description}, ''),
       credit = ${input.credit}::jsonb
-    where ${inLibrary(input.tenantId, input.orgId)} and f.id = ${input.id}::uuid
+    where ${inMedia(input.tenantId, input.orgId)} and f.id = ${input.id}::uuid
     returning f.id`);
   return rows.length > 0;
 }
 
 /** Sets what a newly added item says of itself and whose it is, as the page it was found on gave them. */
-export async function creditLibraryItem(
+export async function creditMediaItem(
   tx: Tx,
   input: {
     tenantId: string;
@@ -503,16 +503,16 @@ export async function creditLibraryItem(
   const rows = await tx.execute(sql`
     update core.files f
     set description = nullif(${input.description}, ''), credit = ${input.credit}::jsonb
-    where ${inLibrary(input.tenantId, input.orgId)} and f.id = ${input.id}::uuid
+    where ${inMedia(input.tenantId, input.orgId)} and f.id = ${input.id}::uuid
     returning f.id`);
   return rows.length > 0;
 }
 
 /**
- * Files library items in a folder, or at the top for none; a folder of
+ * Files media items in a folder, or at the top for none; a folder of
  * another school is refused. Answers the ids moved.
  */
-export async function moveLibraryItems(
+export async function moveMediaItems(
   tx: Tx,
   input: {
     tenantId: string;
@@ -524,7 +524,7 @@ export async function moveLibraryItems(
   if (input.ids.length === 0) return [];
   const rows = await tx.execute<{ id: string }>(sql`
     update core.files f set folder_id = ${input.folderId}::uuid
-    where ${inLibrary(input.tenantId, input.orgId)} and f.id = any(${uuidArray(input.ids)})
+    where ${inMedia(input.tenantId, input.orgId)} and f.id = any(${uuidArray(input.ids)})
       and (${input.folderId}::uuid is null or exists (
         select 1 from core.media_folders m
         where m.tenant_id = f.tenant_id and m.org_id = ${input.orgId}::uuid
@@ -533,8 +533,8 @@ export async function moveLibraryItems(
   return rows.map((row) => row.id);
 }
 
-/** Sets what a new library item says of itself, as it was shown or kept. */
-export async function setLibraryWords(
+/** Sets what a new media item says of itself, as it was shown or kept. */
+export async function setMediaWords(
   tx: Tx,
   input: {
     tenantId: string;
@@ -548,7 +548,7 @@ export async function setLibraryWords(
     update core.files f
     set description = nullif(${input.description}, ''),
       credit = ${input.credit}::jsonb
-    where ${inLibrary(input.tenantId, input.orgId)} and f.id = ${input.id}::uuid`);
+    where ${inMedia(input.tenantId, input.orgId)} and f.id = ${input.id}::uuid`);
 }
 
 /** Says a picture shows whom another shows, as a crop or a kept copy does. */
@@ -569,11 +569,11 @@ export async function copySubjects(
 }
 
 /**
- * Makes a cropped picture a library item beside its original: in its
+ * Makes a cropped picture a media item beside its original: in its
  * folder, with its description and credit, and naming what it was cut
  * from and to what shape.
  */
-export async function deriveLibraryItem(
+export async function deriveMediaItem(
   tx: Tx,
   input: {
     tenantId: string;
@@ -593,7 +593,7 @@ export async function deriveLibraryItem(
       metadata = f.metadata || jsonb_strip_nulls(jsonb_build_object('croppedFrom', s.id::text,
         'ratio', ${input.ratio}::text, 'edits', ${input.edits ?? null}::jsonb))
     from core.files s
-    where ${inLibrary(input.tenantId, input.orgId)} and f.id = ${input.fileId}::uuid
+    where ${inMedia(input.tenantId, input.orgId)} and f.id = ${input.fileId}::uuid
       and s.tenant_id = f.tenant_id and s.id = ${input.sourceId}::uuid
       and s.host_type = f.host_type and s.host_id = f.host_id and s.status = 'active'
     returning f.id`);
@@ -601,7 +601,7 @@ export async function deriveLibraryItem(
 }
 
 /** Sets an item's title and caption; empty words clear them. */
-export async function setLibraryTexts(
+export async function setMediaTexts(
   tx: Tx,
   input: {
     tenantId: string;
@@ -617,7 +617,7 @@ export async function setLibraryTexts(
     insert into core.media_item_texts (tenant_id, file_id, title, caption)
     select f.tenant_id, f.id, ${title}, ${caption}
     from core.files f
-    where ${inLibrary(input.tenantId, input.orgId)} and f.id = ${input.id}::uuid
+    where ${inMedia(input.tenantId, input.orgId)} and f.id = ${input.id}::uuid
     on conflict (tenant_id, file_id) where status = 'active'
     do update set title = excluded.title, caption = excluded.caption`);
 }
@@ -626,7 +626,7 @@ export async function setLibraryTexts(
  * Gives a new item the title, caption and tags of the one it came from,
  * as a crop keeps its original's.
  */
-export async function copyLibraryTexts(
+export async function copyMediaTexts(
   tx: Tx,
   input: { tenantId: string; from: string; to: string; taggedBy: string },
 ): Promise<void> {
@@ -646,8 +646,8 @@ export async function copyLibraryTexts(
     on conflict (tenant_id, file_id, tag_id) where status = 'active' do nothing`);
 }
 
-/** Library items into the trash or back out of it; answers the ids changed. */
-export async function trashLibraryItems(
+/** Media items into the trash or back out of it; answers the ids changed. */
+export async function trashMediaItems(
   tx: Tx,
   input: {
     tenantId: string;
@@ -659,7 +659,7 @@ export async function trashLibraryItems(
   const rows = await tx.execute<{ id: string }>(sql`
     update core.files f
     set trashed_at = case when ${input.trashed} then statement_timestamp() end
-    where ${inLibrary(input.tenantId, input.orgId)} and f.id = any(${uuidArray(input.ids)})
+    where ${inMedia(input.tenantId, input.orgId)} and f.id = any(${uuidArray(input.ids)})
       and (f.trashed_at is null) = ${input.trashed}
     returning f.id`);
   return rows.map((row) => row.id);
@@ -669,7 +669,7 @@ export async function trashLibraryItems(
  * Files items under tags by name, making those the school lacks, whatever
  * case they are typed in; answers the tags used.
  */
-export async function tagLibraryItems(
+export async function tagMediaItems(
   tx: Tx,
   input: {
     tenantId: string;
@@ -678,7 +678,7 @@ export async function tagLibraryItems(
     names: readonly string[];
     taggedBy: string;
   },
-): Promise<LibraryTag[]> {
+): Promise<MediaTag[]> {
   // The first spelling of a name typed twice is the one kept.
   const byKey = new Map<string, string>();
   for (const name of input.names.map((each) => each.trim()))
@@ -691,7 +691,7 @@ export async function tagLibraryItems(
     select ${input.tenantId}::uuid, ${input.orgId}::uuid, n
     from unnest(${textArray(names)}) as n
     on conflict (tenant_id, org_id, (lower(name))) where status = 'active' do nothing`);
-  const tags = await tx.execute<LibraryTag>(sql`
+  const tags = await tx.execute<MediaTag>(sql`
     select g.id, g.name from core.media_tags g
     where g.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.orgId}::uuid
       and g.status = 'active'
@@ -700,14 +700,14 @@ export async function tagLibraryItems(
     insert into core.media_item_tags (tenant_id, file_id, tag_id, tagged_by_user_id)
     select f.tenant_id, f.id, g.id, ${input.taggedBy}::uuid
     from core.files f, core.media_tags g
-    where ${inLibrary(input.tenantId, input.orgId)} and f.id = any(${uuidArray(input.ids)})
+    where ${inMedia(input.tenantId, input.orgId)} and f.id = any(${uuidArray(input.ids)})
       and g.tenant_id = f.tenant_id and g.id = any(${uuidArray(tags.map((tag) => tag.id))})
     on conflict (tenant_id, file_id, tag_id) where status = 'active' do nothing`);
   return tags;
 }
 
-/** Takes library items out from under tags. */
-export async function untagLibraryItems(
+/** Takes media items out from under tags. */
+export async function untagMediaItems(
   tx: Tx,
   input: {
     tenantId: string;
@@ -723,7 +723,7 @@ export async function untagLibraryItems(
     where it.tenant_id = ${input.tenantId}::uuid and it.status = 'active'
       and it.file_id = any(${uuidArray(input.ids)}) and it.tag_id = any(${uuidArray(input.tagIds)})
       and f.tenant_id = it.tenant_id and f.id = it.file_id
-      and ${inLibrary(input.tenantId, input.orgId)}`);
+      and ${inMedia(input.tenantId, input.orgId)}`);
 }
 
 export async function renameMediaTag(
@@ -757,10 +757,10 @@ export async function retireMediaTag(
 }
 
 /**
- * Other library items with the same bytes as each of these, by digest, so
+ * Other media items with the same bytes as each of these, by digest, so
  * whoever added one hears it was there already.
  */
-export async function libraryTwins(
+export async function mediaTwins(
   tx: Tx,
   tenantId: string,
   orgId: string,
@@ -776,13 +776,13 @@ export async function libraryTwins(
       and o.trashed_at is null and o.id <> all(${uuidArray(ids)})
     left join core.media_item_texts x on x.tenant_id = o.tenant_id and x.file_id = o.id
       and x.status = 'active'
-    where ${inLibrary(tenantId, orgId)} and f.id = any(${uuidArray(ids)})
+    where ${inMedia(tenantId, orgId)} and f.id = any(${uuidArray(ids)})
     order by f.id, o.created_at`);
 }
 
-/** Host types whose files are a student's or a conversation's, never the library's to offer. */
+/** Host types whose files are a student's or a conversation's, never media's to offer. */
 const PRIVATE_HOSTS = [
-  LIBRARY_AREA,
+  MEDIA_AREA,
   "file_version",
   "submission",
   "submission_attempt",
@@ -799,12 +799,12 @@ export interface DocumentUpload {
   createdAt: string;
   hostType: string;
   hostId: string;
-  uploadedBy: LibraryPerson | null;
+  uploadedBy: MediaPerson | null;
 }
 
 /**
  * What staff uploaded straight into the documents they wrote, newest
- * first, that the library does not hold yet: one row per stored object,
+ * first, that media does not hold yet: one row per stored object,
  * so a picture copied into several records is offered once. Students'
  * work and conversations are never among them; the caller still checks
  * that the viewer may open each.
@@ -847,7 +847,7 @@ export async function documentUploads(
             and r.role = any(app.staff_roles()))
         and not exists (
           select 1 from core.files k
-          where k.tenant_id = f.tenant_id and k.host_type = ${LIBRARY_AREA}
+          where k.tenant_id = f.tenant_id and k.host_type = ${MEDIA_AREA}
             and k.host_id = f.org_id and k.status = 'active'
             and (k.storage_key = f.storage_key or k.metadata->>'copiedFrom' = f.id::text))
       order by f.storage_key, f.created_at desc) found
@@ -887,7 +887,7 @@ const share = (row: {
 export interface SchoolStorageBreakdown {
   kinds: (StorageShare & { kind: FileKind })[];
   /** Staff by what they uploaded, the most first. */
-  staff: (StorageShare & LibraryPerson)[];
+  staff: (StorageShare & MediaPerson)[];
   /** What students, families and the school's inbound mail brought in. */
   others: StorageShare;
 }
@@ -961,10 +961,10 @@ export async function schoolStorageBreakdown(
 }
 
 /**
- * Sets where a library picture's subject sits, or clears it; crops start
+ * Sets where a media picture's subject sits, or clears it; crops start
  * from it and the website keeps it in view wherever it shows the picture.
  */
-export async function setLibraryFocus(
+export async function setMediaFocus(
   tx: Tx,
   input: {
     tenantId: string;
@@ -978,7 +978,7 @@ export async function setLibraryFocus(
     set metadata = case when ${input.focus === null}
       then f.metadata - 'focus'
       else f.metadata || jsonb_build_object('focus', ${input.focus}::jsonb) end
-    where ${inLibrary(input.tenantId, input.orgId)} and f.id = ${input.id}::uuid
+    where ${inMedia(input.tenantId, input.orgId)} and f.id = ${input.id}::uuid
       and f.media_type like 'image/%'
     returning f.id`);
   return rows.length > 0;

@@ -56,7 +56,7 @@ export function registerArea(
     /**
      * Documents anywhere show its files where they are rather than copying
      * them, so a change to one shows everywhere and the area can say where
-     * each is used, as the school's media library does.
+     * each is used, as the school's media does.
      */
     linked?: boolean;
   },
@@ -154,7 +154,7 @@ const held = (file: StoredFile, by: { type: string; id: string }) =>
  * to, or of that record's area: the author's new uploads join it, files
  * already there are shown where they are, and a file from elsewhere that
  * the author may open is copied in, the stored content pointing at the
- * copy. One from a linked area, such as the media library, is shown where
+ * copy. One from a linked area, such as the school's media, is shown where
  * it is. One the author could not open is refused rather than shared.
  */
 export async function placeMedia<T>(

@@ -229,7 +229,7 @@ describe("video streams", () => {
     const teacher = await sessionFor("northwind", login("teacher"));
     const used = async () => (await office.api.school.storage()).usedBytes;
     const library = async () => {
-      const storage = await office.api.mediaLibrary.storage();
+      const storage = await office.api.media.storage();
       return {
         total: storage.usedBytes,
         byKind: storage.kinds.reduce((sum, kind) => sum + kind.usedBytes, 0),

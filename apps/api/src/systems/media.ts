@@ -7,37 +7,37 @@ import {
   trashAreaFile,
 } from "@faridalms/database/stores/files";
 import {
-  copyLibraryTexts,
+  copyMediaTexts,
   copySubjects,
-  creditLibraryItem,
-  deriveLibraryItem,
-  describeLibraryItem,
+  creditMediaItem,
+  deriveMediaItem,
+  describeMediaItem,
   documentUploads,
   fileUses,
   insertMediaFolder,
-  libraryArea,
-  libraryFacets,
-  libraryFolders,
-  libraryItems,
-  libraryItemsByIds,
-  libraryKindCounts,
-  libraryTwins,
-  moveLibraryItems,
+  mediaArea,
+  mediaFacets,
+  schoolMediaFolders,
+  mediaItems,
+  mediaItemsByIds,
+  mediaKindCounts,
+  mediaTwins,
+  moveMediaItems,
   renameMediaFolder,
   renameMediaTag,
   retireMediaFolder,
   retireMediaTag,
   schoolStorageBreakdown,
-  setLibraryFocus,
-  setLibraryTexts,
-  setLibraryWords,
-  tagLibraryItems,
-  trashLibraryItems,
-  untagLibraryItems,
-} from "@faridalms/database/stores/media-library";
+  setMediaFocus,
+  setMediaTexts,
+  setMediaWords,
+  tagMediaItems,
+  trashMediaItems,
+  untagMediaItems,
+} from "@faridalms/database/stores/media";
 import { safeFilename } from "@faridalms/domain/file";
 import {
-  addToLibrarySchema,
+  addToMediaSchema,
   createFolderSchema,
   cropItemSchema,
   describeItemSchema,
@@ -48,11 +48,11 @@ import {
   inDocumentsQuerySchema,
   isEdited,
   itemRefSchema,
-  keepInLibrarySchema,
-  LIBRARY_AREA,
-  LIBRARY_KEEPERS,
-  LIBRARY_USERS,
-  libraryQuerySchema,
+  keepInMediaSchema,
+  MEDIA_AREA,
+  MEDIA_KEEPERS,
+  MEDIA_USERS,
+  mediaQuerySchema,
   moveItemsSchema,
   renameFolderSchema,
   renameTagSchema,
@@ -61,7 +61,7 @@ import {
   tagRefSchema,
   trashItemSchema,
   trashItemsSchema,
-} from "@faridalms/domain/media-library";
+} from "@faridalms/domain/media";
 import { paged, pageWindow } from "@faridalms/domain/paging";
 import { limitsOf } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
@@ -85,34 +85,34 @@ import { replaceBytes, roomFor, versionsOf } from "../files/keeping";
 import { hasVideo, uploadLimit } from "../files/limit";
 import { takeUpload } from "../files/routes";
 
-const usesLibrary = (context: UnitContext) =>
-  LIBRARY_USERS.some((capability) => can(context, capability));
-const keepsLibrary = (context: UnitContext) =>
-  LIBRARY_KEEPERS.some((capability) => can(context, capability));
+const usesMedia = (context: UnitContext) =>
+  MEDIA_USERS.some((capability) => can(context, capability));
+const keepsMedia = (context: UnitContext) =>
+  MEDIA_KEEPERS.some((capability) => can(context, capability));
 
 /**
- * The school's media library is a file area of the school: whoever writes
+ * The school's media is a file area of the school: whoever writes
  * reads all of it, and a document anywhere shows its files where they are,
- * so its readers read those it shows and nothing else of the library.
+ * so its readers read those it shows and nothing else of the school's media.
  */
-registerArea(LIBRARY_AREA, {
+registerArea(MEDIA_AREA, {
   reader: (context, schoolId) =>
-    Promise.resolve(schoolId === context.schoolId && usesLibrary(context)),
+    Promise.resolve(schoolId === context.schoolId && usesMedia(context)),
   writer: (context, schoolId) =>
-    Promise.resolve(schoolId === context.schoolId && keepsLibrary(context)),
+    Promise.resolve(schoolId === context.schoolId && keepsMedia(context)),
   holders: {},
   linked: true,
 });
 
 function requireUser(context: UnitContext) {
-  if (!usesLibrary(context)) throw new ORPCError("FORBIDDEN");
+  if (!usesMedia(context)) throw new ORPCError("FORBIDDEN");
 }
 
 function requireKeeper(context: UnitContext) {
-  if (!keepsLibrary(context)) throw new ORPCError("FORBIDDEN");
+  if (!keepsMedia(context)) throw new ORPCError("FORBIDDEN");
 }
 
-/** Records one change to each of several library items. */
+/** Records one change to each of several media items. */
 async function auditItems(
   context: UnitContext,
   entry: {
@@ -127,7 +127,7 @@ async function auditItems(
       action,
       objectType: "file",
       objectId: id,
-      details: { hostType: LIBRARY_AREA, ...details },
+      details: { hostType: MEDIA_AREA, ...details },
     });
 }
 
@@ -147,14 +147,14 @@ function pathTo<T extends { id: string; parentId: string | null }>(
 }
 
 /**
- * A page of the library: a folder's own folders and items, or what a
+ * A page of media: a folder's own folders and items, or what a
  * search or the trash finds in every folder, with every folder to move to.
  */
 export const list = readProcedure
-  .input(libraryQuerySchema)
+  .input(mediaQuerySchema)
   .handler(async ({ input, context }) => {
     requireUser(context);
-    const folders = await libraryFolders(
+    const folders = await schoolMediaFolders(
       context.tx,
       context.tenantId,
       context.schoolId,
@@ -165,12 +165,12 @@ export const list = readProcedure
     const zone = await schoolZone(context.tx, context.schoolId);
     const view = { ...input, folderId: input.folderId ?? null, zone };
     const [{ rows, total }, kinds, facets] = await Promise.all([
-      libraryItems(context.tx, context.tenantId, context.schoolId, {
+      mediaItems(context.tx, context.tenantId, context.schoolId, {
         ...view,
         ...pageWindow(input.page),
       }),
-      libraryKindCounts(context.tx, context.tenantId, context.schoolId, view),
-      libraryFacets(context.tx, context.tenantId, context.schoolId, zone),
+      mediaKindCounts(context.tx, context.tenantId, context.schoolId, view),
+      mediaFacets(context.tx, context.tenantId, context.schoolId, zone),
     ]);
     const searching =
       input.trashed ||
@@ -187,11 +187,11 @@ export const list = readProcedure
       items: paged(rows, total, input.page),
       kinds,
       facets,
-      keeper: keepsLibrary(context),
+      keeper: keepsMedia(context),
     };
   });
 
-/** Library items by id, as a document chooses them. */
+/** Media items by id, as a document chooses them. */
 export const items = readProcedure
   .input(
     v.object({
@@ -204,7 +204,7 @@ export const items = readProcedure
   )
   .handler(async ({ input, context }) => {
     requireUser(context);
-    const found = await libraryItemsByIds(
+    const found = await mediaItemsByIds(
       context.tx,
       context.tenantId,
       context.schoolId,
@@ -218,7 +218,7 @@ export const uses = readProcedure
   .input(itemRefSchema)
   .handler(async ({ input, context }) => {
     requireUser(context);
-    const [item] = await libraryItemsByIds(
+    const [item] = await mediaItemsByIds(
       context.tx,
       context.tenantId,
       context.schoolId,
@@ -292,12 +292,12 @@ export const removeFolder = writeProcedure
     return { ok: true };
   });
 
-/** Puts the viewer's own new uploads in the library, in a folder or at its top. */
+/** Puts the viewer's own new uploads in media, in a folder or at its top. */
 export const add = writeProcedure
-  .input(addToLibrarySchema)
+  .input(addToMediaSchema)
   .handler(async ({ input, context }) => {
     requireUser(context);
-    const area = libraryArea(context.schoolId);
+    const area = mediaArea(context.schoolId);
     const added = await adoptFiles(context.tx, {
       tenantId: context.tenantId,
       userId: context.actor.userId,
@@ -305,7 +305,7 @@ export const add = writeProcedure
       ids: input.ids,
     });
     if (input.folderId) {
-      const filed = await moveLibraryItems(context.tx, {
+      const filed = await moveMediaItems(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
         ids: added,
@@ -315,7 +315,7 @@ export const add = writeProcedure
     }
     const [found] = added;
     if (input.found && found)
-      await creditLibraryItem(context.tx, {
+      await creditMediaItem(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
         id: found,
@@ -330,7 +330,7 @@ export const add = writeProcedure
     });
     return {
       ids: added,
-      twins: await libraryTwins(
+      twins: await mediaTwins(
         context.tx,
         context.tenantId,
         context.schoolId,
@@ -340,15 +340,15 @@ export const add = writeProcedure
   });
 
 /**
- * Keeps a file shown somewhere in the library too, with the words it was
- * shown with and whom it shows. The library keeps its own copy of the
+ * Keeps a file shown somewhere in media too, with the words it was
+ * shown with and whom it shows. Media keeps its own copy of the
  * record, sharing the bytes, so the document keeps its own.
  */
 export const keep = writeProcedure
-  .input(keepInLibrarySchema)
+  .input(keepInMediaSchema)
   .handler(async ({ input, context }) => {
     requireUser(context);
-    const area = libraryArea(context.schoolId);
+    const area = mediaArea(context.schoolId);
     const file = await fileById(context.tx, context.tenantId, input.fileId);
     if (!file || file.state !== "ready" || !(await canReadFile(context, file)))
       throw new ORPCError("NOT_FOUND");
@@ -362,7 +362,7 @@ export const keep = writeProcedure
       sourceId: file.id,
     });
     if (!id) throw new ORPCError("BAD_REQUEST", { message: "media.not_kept" });
-    await setLibraryWords(context.tx, {
+    await setMediaWords(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       id,
@@ -370,7 +370,7 @@ export const keep = writeProcedure
       credit: input.credit,
     });
     if (input.folderId)
-      await moveLibraryItems(context.tx, {
+      await moveMediaItems(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
         ids: [id],
@@ -400,7 +400,7 @@ export const describe = writeProcedure
   .input(describeItemSchema)
   .handler(async ({ input, context }) => {
     requireKeeper(context);
-    const [before] = await libraryItemsByIds(
+    const [before] = await mediaItemsByIds(
       context.tx,
       context.tenantId,
       context.schoolId,
@@ -409,7 +409,7 @@ export const describe = writeProcedure
     const name = safeFilename(input.name);
     if (
       !before ||
-      !(await describeLibraryItem(context.tx, {
+      !(await describeMediaItem(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
         id: input.id,
@@ -419,7 +419,7 @@ export const describe = writeProcedure
       }))
     )
       throw new ORPCError("NOT_FOUND");
-    await setLibraryTexts(context.tx, {
+    await setMediaTexts(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       id: input.id,
@@ -462,7 +462,7 @@ export const move = writeProcedure
   .input(moveItemsSchema)
   .handler(async ({ input, context }) => {
     requireKeeper(context);
-    const moved = await moveLibraryItems(context.tx, {
+    const moved = await moveMediaItems(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       ids: input.ids,
@@ -488,7 +488,7 @@ export const trash = writeProcedure
   .input(trashItemSchema)
   .handler(async ({ input, context }) => {
     requireKeeper(context);
-    const area = libraryArea(context.schoolId);
+    const area = mediaArea(context.schoolId);
     if (
       !(await trashAreaFile(context.tx, {
         tenantId: context.tenantId,
@@ -516,8 +516,8 @@ export const crop = writeProcedure
   .input(cropItemSchema)
   .handler(async ({ input, context }) => {
     requireUser(context);
-    const area = libraryArea(context.schoolId);
-    const [source] = await libraryItemsByIds(
+    const area = mediaArea(context.schoolId);
+    const [source] = await mediaItemsByIds(
       context.tx,
       context.tenantId,
       context.schoolId,
@@ -538,7 +538,7 @@ export const crop = writeProcedure
       ids: [upload.id],
     });
     if (!adopted) throw new ORPCError("NOT_FOUND");
-    await deriveLibraryItem(context.tx, {
+    await deriveMediaItem(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       sourceId: source.id,
@@ -553,7 +553,7 @@ export const crop = writeProcedure
       to: adopted,
       taggedBy: context.actor.userId,
     });
-    await copyLibraryTexts(context.tx, {
+    await copyMediaTexts(context.tx, {
       tenantId: context.tenantId,
       from: source.id,
       to: adopted,
@@ -575,7 +575,7 @@ export const trashMany = writeProcedure
   .input(trashItemsSchema)
   .handler(async ({ input, context }) => {
     requireKeeper(context);
-    const changed = await trashLibraryItems(context.tx, {
+    const changed = await trashMediaItems(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       ids: input.ids,
@@ -597,7 +597,7 @@ export const tag = writeProcedure
   .input(tagItemsSchema)
   .handler(async ({ input, context }) => {
     requireKeeper(context);
-    const found = await libraryItemsByIds(
+    const found = await mediaItemsByIds(
       context.tx,
       context.tenantId,
       context.schoolId,
@@ -605,14 +605,14 @@ export const tag = writeProcedure
     );
     if (found.length === 0) throw new ORPCError("NOT_FOUND");
     const ids = found.map((item) => item.id);
-    const added = await tagLibraryItems(context.tx, {
+    const added = await tagMediaItems(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       ids,
       names: input.add,
       taggedBy: context.actor.userId,
     });
-    await untagLibraryItems(context.tx, {
+    await untagMediaItems(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       ids,
@@ -673,10 +673,10 @@ export const removeTag = writeProcedure
     return { ok: true };
   });
 
-/** An item of the library, outside its trash, for a change to its file. */
-async function libraryFile(context: UnitContext, id: string) {
+/** An item of media, outside its trash, for a change to its file. */
+async function mediaFile(context: UnitContext, id: string) {
   const file = await fileById(context.tx, context.tenantId, id);
-  const area = libraryArea(context.schoolId);
+  const area = mediaArea(context.schoolId);
   if (
     !file ||
     file.state !== "ready" ||
@@ -693,7 +693,7 @@ export const versions = readProcedure
   .input(itemRefSchema)
   .handler(async ({ input, context }) => {
     requireKeeper(context);
-    await libraryFile(context, input.id);
+    await mediaFile(context, input.id);
     return { versions: await versionsOf(context, input.id) };
   });
 
@@ -706,18 +706,18 @@ export const replace = writeProcedure
   .input(replaceItemSchema)
   .handler(async ({ input, context }) => {
     requireKeeper(context);
-    const target = await libraryFile(context, input.id);
+    const target = await mediaFile(context, input.id);
     await replaceBytes(context, target, input.sourceId, {
-      hostType: LIBRARY_AREA,
+      hostType: MEDIA_AREA,
     });
     return { ok: true };
   });
 
-/** The most uploads in documents the library looks through at once. */
+/** The most uploads in documents media looks through at once. */
 const DOCUMENT_UPLOADS = 200;
 
 /**
- * What staff put straight into the documents they wrote, which the library
+ * What staff put straight into the documents they wrote, which media
  * does not hold yet, for keeping there in one step; only those the viewer
  * may open are listed, and never a student's work or a conversation's.
  */
@@ -750,7 +750,7 @@ export const inDocuments = readProcedure
     };
   });
 
-/** Where the school's storage goes, by kind of file and by person, for those who keep the library. */
+/** Where the school's storage goes, by kind of file and by person, for those who keep media. */
 export const storage = readProcedure.handler(async ({ context }) => {
   requireKeeper(context);
   const [used, breakdown] = await Promise.all([
@@ -773,7 +773,7 @@ const LINK_SECONDS = 20;
 const VIDEO_LINK_SECONDS = 180;
 
 /**
- * Brings a file on the web into the library: the server fetches it, never
+ * Brings a file on the web into media: the server fetches it, never
  * from a private, loopback, link-local or metadata address and never past
  * its time or the limit an upload of its type has here, so a video comes
  * in up to the school's video limit where the school has video; and it is
@@ -788,7 +788,7 @@ export const importLink = schoolProcedure
       const scoped = { ...school, ...unit };
       requireUser(scoped);
       if (input.folderId) {
-        const folders = await libraryFolders(
+        const folders = await schoolMediaFolders(
           unit.tx,
           unit.tenantId,
           unit.schoolId,
@@ -819,7 +819,7 @@ export const importLink = schoolProcedure
     }
   });
 
-/** A file fetched from a link, taken as an upload and put in the library. */
+/** A file fetched from a link, taken as an upload and put in media. */
 async function keepLinked(
   school: SchoolContext,
   input: { url: string; folderId: string | null },
@@ -858,12 +858,12 @@ async function keepLinked(
     const [added] = await adoptFiles(unit.tx, {
       tenantId: unit.tenantId,
       userId: unit.actor.userId,
-      host: libraryArea(unit.schoolId),
+      host: mediaArea(unit.schoolId),
       ids: [file.id],
     });
     if (!added) throw new ORPCError("CONFLICT");
     if (input.folderId)
-      await moveLibraryItems(unit.tx, {
+      await moveMediaItems(unit.tx, {
         tenantId: unit.tenantId,
         orgId: unit.schoolId,
         ids: [added],
@@ -879,7 +879,7 @@ async function keepLinked(
     return {
       id: added,
       name: file.name,
-      twins: await libraryTwins(unit.tx, unit.tenantId, unit.schoolId, [added]),
+      twins: await mediaTwins(unit.tx, unit.tenantId, unit.schoolId, [added]),
     };
   });
 }
@@ -893,7 +893,7 @@ export const focus = writeProcedure
   .handler(async ({ input, context }) => {
     requireKeeper(context);
     if (
-      !(await setLibraryFocus(context.tx, {
+      !(await setMediaFocus(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
         id: input.id,

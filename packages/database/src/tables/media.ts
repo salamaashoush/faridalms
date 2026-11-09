@@ -18,7 +18,7 @@ import { users } from "./people";
 import { orgs, tenants } from "./tenancy";
 
 /**
- * The words a school files its media library under. A tag belongs to one
+ * The words a school files its media under. A tag belongs to one
  * school; its name is unique there whatever its case.
  */
 export const mediaTags = core.table.withRLS(
@@ -45,7 +45,7 @@ export const mediaTags = core.table.withRLS(
   ],
 );
 
-/** A library item filed under a tag, and who filed it there. */
+/** A media item filed under a tag, and who filed it there. */
 export const mediaItemTags = core.table.withRLS(
   "media_item_tags",
   {
@@ -80,7 +80,7 @@ export const mediaItemTags = core.table.withRLS(
 );
 
 /**
- * What a library item is called and says under itself where it is shown,
+ * What a media item is called and says under itself where it is shown,
  * apart from its file's name: a title for people rather than for disks,
  * and a caption a picture block starts from.
  */

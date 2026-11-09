@@ -1,4 +1,4 @@
-import type { LibraryChoice } from "@faridalms/editor";
+import type { MediaChoice } from "@faridalms/editor";
 
 import {
   createMemoryHistory,
@@ -10,22 +10,22 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { listLibrary } from "~/server/media-library";
+import { listMedia } from "~/server/media";
 import { render } from "~/testUtils";
 
-import type { LibraryPage, LibraryRow } from "./library-items";
+import type { MediaListing, MediaRow } from "./media-items";
 
-import { LibraryChooser } from "./LibraryPicker";
+import { MediaChooser } from "./MediaPicker";
 
-vi.mock("~/server/media-library", () => ({
-  listLibrary: vi.fn(),
-  libraryUses: vi.fn(),
-  keepInLibrary: vi.fn(),
+vi.mock("~/server/media", () => ({
+  listMedia: vi.fn(),
+  mediaUses: vi.fn(),
+  keepInMedia: vi.fn(),
 }));
 
 const FOLDER = "0190a1b2-0000-7000-8000-0000000000d1";
 
-const row = (id: string, name: string, description: string): LibraryRow => ({
+const row = (id: string, name: string, description: string): MediaRow => ({
   id,
   name,
   mediaType: "image/jpeg",
@@ -48,7 +48,7 @@ const row = (id: string, name: string, description: string): LibraryRow => ({
   pdf: false,
 });
 
-const page = (rows: LibraryRow[]): LibraryPage => ({
+const page = (rows: MediaRow[]): MediaListing => ({
   path: [],
   folders: [{ id: FOLDER, name: "Sports day", parentId: null, items: 4 }],
   children: [{ id: FOLDER, name: "Sports day", parentId: null, items: 4 }],
@@ -59,13 +59,13 @@ const page = (rows: LibraryRow[]): LibraryPage => ({
 });
 
 function open(
-  onDone: (chosen: LibraryChoice[] | null) => void,
+  onDone: (chosen: MediaChoice[] | null) => void,
   upload?: () => void,
 ) {
   const router = createRouter({
     routeTree: createRootRoute({
       component: () => (
-        <LibraryChooser
+        <MediaChooser
           kind="image"
           options={{ multiple: true, ...(upload ? { upload } : {}) }}
           onDone={onDone}
@@ -77,24 +77,24 @@ function open(
   render(<RouterProvider router={router} />);
 }
 
-describe("choosing from the media library", () => {
+describe("choosing from the school's media", () => {
   beforeEach(() => {
-    vi.mocked(listLibrary).mockReset();
+    vi.mocked(listMedia).mockReset();
   });
 
-  it("asks only for pictures, and gives back those chosen with the library's words", async () => {
-    vi.mocked(listLibrary).mockResolvedValue(
+  it("asks only for pictures, and gives back those chosen with the media item's words", async () => {
+    vi.mocked(listMedia).mockResolvedValue(
       page([
         row("0190a1b2-0000-7000-8000-0000000000a1", "relay.jpg", "The relay"),
         row("0190a1b2-0000-7000-8000-0000000000a2", "hall.jpg", ""),
       ]),
     );
-    const onDone = vi.fn<(chosen: LibraryChoice[] | null) => void>();
+    const onDone = vi.fn<(chosen: MediaChoice[] | null) => void>();
     open(onDone);
     expect(
       await screen.findByRole("button", { name: /relay\.jpg/ }),
     ).toBeInTheDocument();
-    expect(vi.mocked(listLibrary).mock.calls[0]?.[0]).toMatchObject({
+    expect(vi.mocked(listMedia).mock.calls[0]?.[0]).toMatchObject({
       data: { kinds: ["pictures"], folderId: null },
     });
     await userEvent.click(screen.getByRole("button", { name: /relay\.jpg/ }));
@@ -118,16 +118,16 @@ describe("choosing from the media library", () => {
     ]);
   });
 
-  it("opens a folder, and offers the device's own files beside the library", async () => {
-    vi.mocked(listLibrary).mockResolvedValue(page([]));
-    const onDone = vi.fn<(chosen: LibraryChoice[] | null) => void>();
+  it("opens a folder, and offers the device's own files beside the school's media", async () => {
+    vi.mocked(listMedia).mockResolvedValue(page([]));
+    const onDone = vi.fn<(chosen: MediaChoice[] | null) => void>();
     const upload = vi.fn<() => void>();
     open(onDone, upload);
     await userEvent.click(
       await screen.findByRole("button", { name: /Sports day/ }),
     );
     await waitFor(() =>
-      expect(vi.mocked(listLibrary).mock.lastCall?.[0]).toMatchObject({
+      expect(vi.mocked(listMedia).mock.lastCall?.[0]).toMatchObject({
         data: { folderId: FOLDER },
       }),
     );

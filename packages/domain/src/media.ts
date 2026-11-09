@@ -7,17 +7,17 @@ import { AREA_SORTS, FILE_KINDS } from "./file";
 import { pageField } from "./paging";
 
 /**
- * The school's media library is a file area of the school itself: its
+ * The school's media is a file area of the school itself: its
  * files are kept by the school, not by the document that first showed
  * them, and documents show them where they are.
  */
-export const LIBRARY_AREA = "media_library";
+export const MEDIA_AREA = "media_library";
 
 /**
  * Those who put pictures, video and files in what they write: they choose
- * from the library and add to it.
+ * from media and add to it.
  */
-export const LIBRARY_USERS = [
+export const MEDIA_USERS = [
   "assignments:author",
   "learning:author",
   "site:manage",
@@ -31,15 +31,15 @@ export const LIBRARY_USERS = [
  * Those who put pictures in front of others, news and the website, keep
  * it: its folders, what each item says, and its trash.
  */
-export const LIBRARY_KEEPERS = [
+export const MEDIA_KEEPERS = [
   "news:manage",
   "site:manage",
 ] as const satisfies readonly Capability[];
 
-export const usesLibrary = (capabilities: readonly Capability[]) =>
-  LIBRARY_USERS.some((capability) => capabilities.includes(capability));
-export const keepsLibrary = (capabilities: readonly Capability[]) =>
-  LIBRARY_KEEPERS.some((capability) => capabilities.includes(capability));
+export const usesMedia = (capabilities: readonly Capability[]) =>
+  MEDIA_USERS.some((capability) => capabilities.includes(capability));
+export const keepsMedia = (capabilities: readonly Capability[]) =>
+  MEDIA_KEEPERS.some((capability) => capabilities.includes(capability));
 
 export const MAX_FOLDER_NAME = 80;
 export const MAX_DESCRIPTION = 300;
@@ -49,7 +49,7 @@ export const MAX_TAG = 40;
 /** The most tags one change adds or takes off. */
 export const MAX_ITEM_TAGS = 20;
 /** The most items one request adds, moves or offers to choose. */
-export const MAX_LIBRARY_BATCH = 50;
+export const MAX_MEDIA_BATCH = 50;
 
 const id = v.pipe(v.string(), v.uuid());
 const folderId = v.nullable(id);
@@ -62,23 +62,20 @@ export const folderNameSchema = v.pipe(
 );
 
 /** A month items were added in, as `2026-11`. */
-export const LIBRARY_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+export const MEDIA_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
- * A page of the library: one folder's items, or, while searching or
+ * A page of media: one folder's items, or, while searching or
  * filtering by month, uploader or tag, the matches in every folder, by
  * name, title, description or caption.
  */
-export const libraryQuerySchema = v.object({
+export const mediaQuerySchema = v.object({
   folderId: v.optional(folderId, null),
   trashed: v.optional(v.boolean(), false),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
   kinds: v.optional(v.array(v.picklist(FILE_KINDS)), []),
   months: v.optional(
-    v.pipe(
-      v.array(v.pipe(v.string(), v.regex(LIBRARY_MONTH))),
-      v.maxLength(24),
-    ),
+    v.pipe(v.array(v.pipe(v.string(), v.regex(MEDIA_MONTH))), v.maxLength(24)),
     [],
   ),
   uploaders: v.optional(v.pipe(v.array(id), v.maxLength(50)), []),
@@ -87,7 +84,7 @@ export const libraryQuerySchema = v.object({
   order: v.optional(v.picklist(["asc", "desc"]), "desc"),
   page: pageField,
 });
-export type LibraryQuery = v.InferInput<typeof libraryQuerySchema>;
+export type MediaQuery = v.InferInput<typeof mediaQuerySchema>;
 
 export const createFolderSchema = v.object({
   name: folderNameSchema,
@@ -103,9 +100,9 @@ export const folderRefSchema = v.object({ id });
 
 const description = v.pipe(v.string(), v.trim(), v.maxLength(MAX_DESCRIPTION));
 
-export const addToLibrarySchema = v.pipe(
+export const addToMediaSchema = v.pipe(
   v.object({
-    ids: v.pipe(v.array(id), v.minLength(1), v.maxLength(MAX_LIBRARY_BATCH)),
+    ids: v.pipe(v.array(id), v.minLength(1), v.maxLength(MAX_MEDIA_BATCH)),
     folderId: v.optional(folderId, null),
     /**
      * What a picture found in an open collection says of itself, and the
@@ -119,8 +116,8 @@ export const addToLibrarySchema = v.pipe(
   v.check((input) => !input.found || input.ids.length === 1),
 );
 
-/** A picture shown somewhere, kept in the library with the words it was shown with. */
-export const keepInLibrarySchema = v.object({
+/** A picture shown somewhere, kept in media with the words it was shown with. */
+export const keepInMediaSchema = v.object({
   fileId: id,
   folderId: v.optional(folderId, null),
   description: v.optional(description, ""),
@@ -139,11 +136,7 @@ export const describeItemSchema = v.object({
   credit: v.nullable(pictureCreditSchema),
 });
 
-const batch = v.pipe(
-  v.array(id),
-  v.minLength(1),
-  v.maxLength(MAX_LIBRARY_BATCH),
-);
+const batch = v.pipe(v.array(id), v.minLength(1), v.maxLength(MAX_MEDIA_BATCH));
 
 export const moveItemsSchema = v.object({ ids: batch, folderId });
 
@@ -181,7 +174,7 @@ export const tagRefSchema = v.object({ id });
 /** Puts a new upload's bytes under an item, or brings back one of its versions. */
 export const replaceItemSchema = v.object({ id, sourceId: id });
 
-/** A page of the staff's uploads in documents not yet kept in the library. */
+/** A page of the staff's uploads in documents not yet kept in media. */
 export const inDocumentsQuerySchema = v.object({
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
   page: pageField,
@@ -190,7 +183,7 @@ export type InDocumentsQuery = v.InferInput<typeof inDocumentsQuerySchema>;
 
 export const MAX_LINK = 2048;
 
-/** A file on the web, fetched by the server into the library. */
+/** A file on the web, fetched by the server into media. */
 export const importLinkSchema = v.object({
   url: v.pipe(
     v.string(),
@@ -369,7 +362,7 @@ export function croppedName(name: string, ratio: CropRatio): string {
   return `${stem.slice(0, 255 - suffix.length)}${suffix}`;
 }
 
-/** Where a library picture's subject sits, or none to forget it. */
+/** Where a media picture's subject sits, or none to forget it. */
 export const focusItemSchema = v.object({
   id,
   focus: v.nullable(pictureFocusSchema),

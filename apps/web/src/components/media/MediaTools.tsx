@@ -1,6 +1,6 @@
 import type { OpenPicture } from "@faridalms/editor/context";
 
-import { MAX_LINK, MAX_TAG } from "@faridalms/domain/media-library";
+import { MAX_LINK, MAX_TAG } from "@faridalms/domain/media";
 import { EditorEnvironmentProvider } from "@faridalms/editor/context";
 import { PictureSearch, pictureFile } from "@faridalms/editor/picture-search";
 import { Button } from "@faridalms/ui/button";
@@ -22,21 +22,21 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { libraryStorageQuery } from "~/queries/media-library";
+import { mediaStorageQuery } from "~/queries/media";
 import {
-  importLibraryLink,
-  removeLibraryTag,
-  renameLibraryTag,
-  tagLibraryItems,
-} from "~/server/media-library";
+  importMediaLink,
+  removeMediaTag,
+  renameMediaTag,
+  tagMediaItems,
+} from "~/server/media";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import type { LibraryPage, LibraryRow } from "./library-items";
+import type { MediaListing, MediaRow } from "./media-items";
 
-import { KIND_LABEL } from "./library-items";
+import { KIND_LABEL } from "./media-items";
 
-type LibraryTagRow = LibraryPage["facets"]["tags"][number];
+type MediaTagRow = MediaListing["facets"]["tags"][number];
 
 /** Names typed apart by commas, as a tag field takes them. */
 const namesIn = (typed: string) =>
@@ -46,7 +46,7 @@ const namesIn = (typed: string) =>
     .filter(Boolean);
 
 export interface TagItemsSheetProps {
-  items: LibraryRow[];
+  items: MediaRow[];
   onClose: () => void;
   onTagged: () => Promise<unknown>;
 }
@@ -60,7 +60,7 @@ export function TagItemsSheet({
   onClose,
   onTagged,
 }: TagItemsSheetProps) {
-  const tag = useServerFn(tagLibraryItems);
+  const tag = useServerFn(tagMediaItems);
   const [typed, setTyped] = useState("");
   const carried = [
     ...new Map(
@@ -141,7 +141,7 @@ export function TagItemsSheet({
 
 export interface TagsSheetProps {
   open: boolean;
-  tags: LibraryTagRow[];
+  tags: MediaTagRow[];
   onOpenChange: (open: boolean) => void;
   onChanged: () => Promise<unknown>;
 }
@@ -153,9 +153,9 @@ export function TagsSheet({
   onOpenChange,
   onChanged,
 }: TagsSheetProps) {
-  const rename = useServerFn(renameLibraryTag);
-  const remove = useServerFn(removeLibraryTag);
-  const [editing, setEditing] = useState<LibraryTagRow | null>(null);
+  const rename = useServerFn(renameMediaTag);
+  const remove = useServerFn(removeMediaTag);
+  const [editing, setEditing] = useState<MediaTagRow | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const run = async (id: string, work: () => Promise<unknown>) => {
@@ -265,7 +265,7 @@ export interface ImportLinkSheetProps {
 }
 
 /**
- * Brings a picture or file into the library from a link, which the server
+ * Brings a picture or file into media from a link, which the server
  * fetches and checks as it checks any upload.
  */
 export function ImportLinkSheet({
@@ -273,7 +273,7 @@ export function ImportLinkSheet({
   onClose,
   onImported,
 }: ImportLinkSheetProps) {
-  const importLink = useServerFn(importLibraryLink);
+  const importLink = useServerFn(importMediaLink);
   const [url, setUrl] = useState("");
   const mutation = useMutation({
     mutationFn: () => importLink({ data: { url: url.trim(), folderId } }),
@@ -321,7 +321,7 @@ export function ImportLinkSheet({
 export interface PictureSearchSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Takes a picked picture into the library, as an upload. */
+  /** Takes a picked picture into media, as an upload. */
   onPick: (file: File, picture: OpenPicture) => void;
   /** Offers the device's own pictures instead. */
   onUpload: () => void;
@@ -329,7 +329,7 @@ export interface PictureSearchSheetProps {
 
 /**
  * The free picture collections the editor offers a question, searched from
- * the library, and Wikimedia Commons where the school allows it: a picked
+ * media, and Wikimedia Commons where the school allows it: a picked
  * picture is copied into the school like any upload, a Commons one with
  * its description and the credit its licence asks for.
  */
@@ -380,7 +380,7 @@ export interface StorageSheetProps {
  * counted together.
  */
 export function StorageSheet({ open, onOpenChange }: StorageSheetProps) {
-  const storage = useQuery({ ...libraryStorageQuery, enabled: open }).data;
+  const storage = useQuery({ ...mediaStorageQuery, enabled: open }).data;
   const limit = storage?.limitBytes ?? 0;
   const row = (id: string, label: string, usedBytes: number) => ({
     id,

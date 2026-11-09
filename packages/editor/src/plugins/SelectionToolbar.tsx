@@ -243,7 +243,7 @@ import {
 import { AssistantTool } from "./assistant";
 import { CommentTool } from "./comments";
 import { FootnotePanel } from "./footnote-panel";
-import { KeepInLibrary } from "./library";
+import { KeepInMedia } from "./keep-in-media";
 import { NarrationPanel, OPEN_NARRATION_COMMAND } from "./narration";
 import { PictureSearch, pictureFile } from "./picture-search";
 import { RegionPad } from "./regions";
@@ -1729,7 +1729,7 @@ export function SelectionToolbarPlugin() {
                   {strings.picturePeople}
                 </button>
               ) : null}
-              <KeepInLibrary
+              <KeepInMedia
                 key={pictureId}
                 nodeKey={layout.key}
                 fileId={pictureId}

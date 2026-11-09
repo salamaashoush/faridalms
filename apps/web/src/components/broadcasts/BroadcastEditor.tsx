@@ -1058,7 +1058,7 @@ function NewsSettings({
           fileId={draft.coverFileId || null}
           label={m.newsPicture()}
           onChange={(fileId) => onChange({ coverFileId: fileId ?? "" })}
-          fromLibrary
+          fromMedia
           onPeople={onPeople}
         />
         {draft.coverFileId ? (

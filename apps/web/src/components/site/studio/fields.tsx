@@ -61,7 +61,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
-import { ChooseFromLibrary } from "~/components/media/ChooseFromLibrary";
+import { ChooseFromMedia } from "~/components/media/ChooseFromMedia";
 import { CheckboxRow } from "~/components/people/fields";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
@@ -379,8 +379,8 @@ function ImageControl({
                 )
               }
             />
-            <ChooseFromLibrary
-              library={context.media.library}
+            <ChooseFromMedia
+              media={context.media.school}
               kind="image"
               onChoose={(chosen) =>
                 onChange({
@@ -510,8 +510,8 @@ function MediaControl({
                 )
               }
             />
-            <ChooseFromLibrary
-              library={context.media.library}
+            <ChooseFromMedia
+              media={context.media.school}
               kind={video ? "video" : "image"}
               onChoose={(chosen) =>
                 onChange({

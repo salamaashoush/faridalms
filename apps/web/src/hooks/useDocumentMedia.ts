@@ -20,7 +20,7 @@ import { toast } from "sonner";
 
 import type { KeptUpload } from "~/utils/upload-store";
 
-import { useMediaLibrary } from "~/components/media/LibraryPicker";
+import { useSchoolMedia } from "~/components/media/MediaPicker";
 import { fileSizeLabel } from "~/components/system/FileList";
 import * as m from "~/i18n/messages";
 import { currentUserQuery } from "~/queries/user";
@@ -244,7 +244,7 @@ export function useDocumentMedia(
   const askDraft = useServerFn(draftCaptions);
   const draftOf = useServerFn(getCaptionDraft);
   const abilities = useServerFn(getFileAbilities);
-  const library = useMediaLibrary();
+  const school = useSchoolMedia();
   // Read without suspending, so an editor outside the signed-in app still mounts.
   const commons = useQuery(currentUserQuery).data?.commonsPictures ?? false;
   const type = destination?.type;
@@ -272,7 +272,7 @@ export function useDocumentMedia(
       url: (fileId: string) => `/files/${fileId}`,
       ...(purpose === "document_media"
         ? {
-            ...(library ? { library } : {}),
+            ...(school ? { school } : {}),
             canTrim: async () => (await abilities()).trim,
             captions: {
               draft: async (fileId: string, language: SpeechLanguage) => {
@@ -329,7 +329,7 @@ export function useDocumentMedia(
       askDraft,
       draftOf,
       abilities,
-      library,
+      school,
       commons,
       type,
       id,

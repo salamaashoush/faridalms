@@ -234,11 +234,11 @@ function GalleryBlock({
                 ? strings.galleryUploading(uploading)
                 : strings.galleryAdd}
             </button>
-            {media.library ? (
+            {media.school ? (
               <button
                 type="button"
                 onClick={() => {
-                  void media.library
+                  void media.school
                     ?.choose("image", { multiple: true })
                     .then((chosen) => {
                       if (!chosen?.length) return;
@@ -257,7 +257,7 @@ function GalleryBlock({
                 className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground [&_svg]:size-4"
               >
                 <Images aria-hidden />
-                {strings.libraryChoose}
+                {strings.mediaChoose}
               </button>
             ) : null}
             {failed ? (

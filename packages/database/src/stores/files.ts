@@ -437,7 +437,7 @@ export async function retireUnlinkedFiles(
  * Pictures and files a document dropped and no document has held for the
  * whole trash window are retired. A document's saved versions keep their links while they are
  * shown, so only media nothing reads any more goes. A class's or module's
- * file area, and the school's media library, are kept until someone deletes
+ * file area, and the school's media, are kept until someone deletes
  * from them. Keys come back only when
  * no active row still points at the same object.
  */

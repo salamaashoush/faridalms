@@ -66,7 +66,7 @@ const NONE: ReadonlySet<string> = new Set();
 /**
  * Pictures, video and files as a grid of tiles: a picture shows itself, any
  * other file its icon, each with its name and a fact below. The same grid
- * opens items on a library page and chooses them in a picker; on a phone it
+ * opens items on a media page and chooses them in a picker; on a phone it
  * keeps two tiles a row.
  */
 export function MediaGrid<T extends { id: string }>({

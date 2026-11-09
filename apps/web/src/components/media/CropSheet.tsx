@@ -4,7 +4,7 @@ import type {
   PictureEdits,
   PictureTurn,
   PixelSize,
-} from "@faridalms/domain/media-library";
+} from "@faridalms/domain/media";
 
 import {
   CROP_RATIOS,
@@ -15,7 +15,7 @@ import {
   resizedTo,
   turnedFocus,
   turnedSize,
-} from "@faridalms/domain/media-library";
+} from "@faridalms/domain/media";
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { CropFrame } from "@faridalms/ui/system/crop-frame";
@@ -36,11 +36,11 @@ import { toast } from "sonner";
 import { uploadDocumentFile } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { initiateUpload } from "~/server/files";
-import { cropLibraryItem } from "~/server/media-library";
+import { cropMediaItem } from "~/server/media";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import type { LibraryRow } from "./library-items";
+import type { MediaRow } from "./media-items";
 
 const RATIO_LABEL: Record<CropRatio, () => string> = {
   original: m.mediaCropOriginal,
@@ -126,20 +126,20 @@ interface Shown {
 }
 
 export interface CropSheetProps {
-  item: LibraryRow;
+  item: MediaRow;
   onClose: () => void;
   onCropped: () => Promise<unknown>;
 }
 
 /**
- * Crops a library picture to a shape, turns, mirrors or narrows it, kept as
+ * Crops a media picture to a shape, turns, mirrors or narrows it, kept as
  * a new item beside the original, which every document showing it goes on
  * showing whole. The frame starts on the picture's subject. The picture is
  * edited in the browser and uploaded like any other.
  */
 export function CropSheet({ item, onClose, onCropped }: CropSheetProps) {
   const initiate = useServerFn(initiateUpload);
-  const crop = useServerFn(cropLibraryItem);
+  const crop = useServerFn(cropMediaItem);
   const [original, setOriginal] = useState<HTMLImageElement | null>(null);
   const [turnedView, setTurnedView] = useState<
     (Shown & { edit: string }) | null

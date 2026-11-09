@@ -1,18 +1,18 @@
 import type { FileKind } from "@faridalms/domain/file";
-import type { LibraryChoice, LibraryKind } from "@faridalms/editor";
+import type { MediaChoice, MediaChoiceKind } from "@faridalms/editor";
 import type { MediaGridTile } from "@faridalms/ui/system/media-grid";
 
 import { placeholderUrl } from "@faridalms/domain/previews";
 import { FileIcon, fileMeta } from "@faridalms/editor/files";
 
-import type { listLibrary } from "~/server/media-library";
+import type { listMedia } from "~/server/media";
 
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 
-export type LibraryPage = Awaited<ReturnType<typeof listLibrary>>;
-export type LibraryRow = LibraryPage["items"]["rows"][number];
-export type LibraryFolderRow = LibraryPage["folders"][number];
+export type MediaListing = Awaited<ReturnType<typeof listMedia>>;
+export type MediaRow = MediaListing["items"]["rows"][number];
+export type MediaFolderRow = MediaListing["folders"][number];
 
 /** What each kind of file is called in a filter or a breakdown. */
 export const KIND_LABEL: Record<FileKind, () => string> = {
@@ -24,27 +24,27 @@ export const KIND_LABEL: Record<FileKind, () => string> = {
 };
 
 /** What an item is called: its title, or its file's name where it has none. */
-export const itemTitle = (row: LibraryRow) => row.title || row.name;
+export const itemTitle = (row: MediaRow) => row.title || row.name;
 
 /** The kinds of file each kind of choice may be. */
-export const KINDS_OF: Record<LibraryKind, FileKind[]> = {
+export const KINDS_OF: Record<MediaChoiceKind, FileKind[]> = {
   image: ["pictures"],
   media: ["audio", "video"],
   video: ["video"],
   file: [],
 };
 
-export const isPicture = (row: LibraryRow) =>
+export const isPicture = (row: MediaRow) =>
   row.mediaType.toLowerCase().startsWith("image/");
 
-export const factsOf = (row: LibraryRow) =>
+export const factsOf = (row: MediaRow) =>
   fileMeta(
     { name: row.name, mime: row.mediaType, bytes: row.sizeBytes },
     getLocale(),
   );
 
-/** A library item as a document shows it: the library's words are where a use starts. */
-export const choiceOf = (row: LibraryRow): LibraryChoice => ({
+/** A media item as a document shows it: the media item's words are where a use starts. */
+export const choiceOf = (row: MediaRow): MediaChoice => ({
   fileId: row.id,
   name: row.name,
   mime: row.mediaType,
@@ -58,12 +58,12 @@ export const choiceOf = (row: LibraryRow): LibraryChoice => ({
  * What a tile shows of an item: a small size of a picture, or a document's
  * first page as the server drew it; none for anything else.
  */
-export function thumbnailOf(row: LibraryRow): string | null {
+export function thumbnailOf(row: MediaRow): string | null {
   if (isPicture(row)) return `/files/${row.id}?w=320`;
   return row.page ? `/files/${row.id}?page=1&w=320` : null;
 }
 
-export const libraryTile: MediaGridTile<LibraryRow> = {
+export const mediaTile: MediaGridTile<MediaRow> = {
   src: thumbnailOf,
   placeholder: (row) => placeholderUrl(row.placeholder),
   position: (row) =>
@@ -77,7 +77,7 @@ export const libraryTile: MediaGridTile<LibraryRow> = {
   fact: (row) => row.description || factsOf(row),
 };
 
-/** How a record showing a library item is named beside its title. */
+/** How a record showing a media item is named beside its title. */
 export function hostKindLabel(hostType: string): string {
   switch (hostType) {
     case "lesson":

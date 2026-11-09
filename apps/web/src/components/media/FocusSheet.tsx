@@ -9,24 +9,24 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import * as m from "~/i18n/messages";
-import { focusLibraryItem } from "~/server/media-library";
+import { focusMediaItem } from "~/server/media";
 import { getMessageFromError } from "~/utils/error";
 
-import type { LibraryRow } from "./library-items";
+import type { MediaRow } from "./media-items";
 
 export interface FocusSheetProps {
-  item: LibraryRow;
+  item: MediaRow;
   onClose: () => void;
   onSaved: () => Promise<unknown>;
 }
 
 /**
- * Marks where a library picture's subject sits. Crops of it start there,
+ * Marks where a media picture's subject sits. Crops of it start there,
  * and the website keeps it in view in whatever shape it shows the picture,
  * unless a page says otherwise for its own use.
  */
 export function FocusSheet({ item, onClose, onSaved }: FocusSheetProps) {
-  const save = useServerFn(focusLibraryItem);
+  const save = useServerFn(focusMediaItem);
   const [focus, setFocus] = useState<FocusPoint>(
     item.focus ?? { x: 50, y: 50 },
   );

@@ -37,7 +37,7 @@ import {
   columnsOf,
   toolById,
 } from "@faridalms/database/stores/lti";
-import { libraryItemsByIds } from "@faridalms/database/stores/media-library";
+import { mediaItemsByIds } from "@faridalms/database/stores/media";
 import { bankQuestionOf } from "@faridalms/domain/bank";
 import {
   canvasAssessment,
@@ -70,10 +70,7 @@ import {
   questionBlock,
   quizOfBrief,
 } from "@faridalms/domain/lesson-content";
-import {
-  MAX_LIBRARY_BATCH,
-  usesLibrary,
-} from "@faridalms/domain/media-library";
+import { MAX_MEDIA_BATCH, usesMedia } from "@faridalms/domain/media";
 import {
   qtiItem,
   qtiManifest,
@@ -114,7 +111,7 @@ const MODULE_CARTRIDGE = /^\/v1\/modules\/([0-9a-f-]{36})\/cartridge\.imscc$/;
 const CLASS_CARTRIDGE = /^\/v1\/classes\/([0-9a-f-]{36})\/course\.imscc$/;
 const MODULE_CANVAS_QUIZZES =
   /^\/v1\/modules\/([0-9a-f-]{36})\/canvas-quizzes\.zip$/;
-const LIBRARY_ITEMS = /^\/v1\/media\/library\.zip$/;
+const MEDIA_ITEMS = /^\/v1\/media\/items\.zip$/;
 const ID = /^[0-9a-f-]{36}$/;
 
 /** As much of a picture as is read for its size. */
@@ -1375,15 +1372,15 @@ async function moduleStatements(
 }
 
 /**
- * Items of the school's media library as one zip, for those who use it,
+ * Items of the school's media as one zip, for those who use it,
  * each under its name; items in the trash are left out.
  */
-async function libraryItemsZip(
+async function mediaItemsZip(
   unit: UnitContext,
   ids: readonly string[],
 ): Promise<{ title: string; entries: Entry[] } | null> {
-  if (!usesLibrary([...unit.actor.capabilities])) return null;
-  const items = await libraryItemsByIds(
+  if (!usesMedia([...unit.actor.capabilities])) return null;
+  const items = await mediaItemsByIds(
     unit.tx,
     unit.tenantId,
     unit.schoolId,
@@ -1432,13 +1429,13 @@ export async function handleWorkExport(
     return exported(context, (unit) => moduleCartridge(unit, cartridge));
   const course = CLASS_CARTRIDGE.exec(url.pathname)?.[1];
   if (course) return exported(context, (unit) => classCartridge(unit, course));
-  if (LIBRARY_ITEMS.test(url.pathname)) {
+  if (MEDIA_ITEMS.test(url.pathname)) {
     const ids = [
       ...new Set((url.searchParams.get("ids") ?? "").split(",")),
     ].filter((id) => ID.test(id));
-    if (ids.length === 0 || ids.length > MAX_LIBRARY_BATCH)
+    if (ids.length === 0 || ids.length > MAX_MEDIA_BATCH)
       return problem(400, "BAD_REQUEST", context.requestId);
-    return exported(context, (unit) => libraryItemsZip(unit, ids));
+    return exported(context, (unit) => mediaItemsZip(unit, ids));
   }
   const canvas = MODULE_CANVAS_QUIZZES.exec(url.pathname)?.[1];
   if (canvas)

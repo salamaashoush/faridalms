@@ -11,13 +11,13 @@ import {
   isEdited,
   largestFrame,
   importLinkSchema,
-  libraryQuerySchema,
+  mediaQuerySchema,
   NO_EDITS,
   ratioValue,
   resizedTo,
   turnedFocus,
   turnedSize,
-} from "./media-library";
+} from "./media";
 
 const landscape = { width: 4000, height: 3000 };
 
@@ -81,9 +81,9 @@ describe("cropping a picture", () => {
   });
 });
 
-describe("library requests", () => {
-  test("a page of the library starts at the top folder, newest first", () => {
-    expect(v.parse(libraryQuerySchema, {})).toEqual({
+describe("media requests", () => {
+  test("a page of media starts at the top folder, newest first", () => {
+    expect(v.parse(mediaQuerySchema, {})).toEqual({
       folderId: null,
       trashed: false,
       q: "",
@@ -98,11 +98,11 @@ describe("library requests", () => {
   });
 
   test("a month filter names a real month", () => {
-    expect(
-      v.safeParse(libraryQuerySchema, { months: ["2026-11"] }).success,
-    ).toBe(true);
+    expect(v.safeParse(mediaQuerySchema, { months: ["2026-11"] }).success).toBe(
+      true,
+    );
     for (const month of ["2026-13", "2026-1", "November"])
-      expect(v.safeParse(libraryQuerySchema, { months: [month] }).success).toBe(
+      expect(v.safeParse(mediaQuerySchema, { months: [month] }).success).toBe(
         false,
       );
   });

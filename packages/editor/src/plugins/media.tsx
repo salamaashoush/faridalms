@@ -20,7 +20,7 @@ import {
 } from "lexical";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
-import type { LibraryChoice, UnfinishedUpload, UploadedFile } from "../context";
+import type { MediaChoice, UnfinishedUpload, UploadedFile } from "../context";
 import type { EditorStrings } from "../strings";
 import type { TakeTrim } from "../video-recorder";
 
@@ -48,7 +48,7 @@ export const RECORD_VIDEO_COMMAND = createCommand<undefined>(
   "FARIDA_RECORD_VIDEO",
 );
 
-/** What a picture from an open collection or the school's library brings with it. */
+/** What a picture from an open collection or the school's media brings with it. */
 interface Described {
   alt: string;
   credit?: PictureCredit | undefined;
@@ -352,10 +352,10 @@ export function MediaPlugin({
     return () => window.removeEventListener("beforeunload", leave);
   }, [busy]);
 
-  // Chosen from the library, files land where the block was asked for, in
+  // Chosen from the school's media, files land where the block was asked for, in
   // the order chosen, as uploads do.
   const placeChosen = useEffectEvent(
-    (target: MediaKind, chosen: LibraryChoice[]) => {
+    (target: MediaKind, chosen: MediaChoice[]) => {
       const showing = editorInSlot(slot.current) ?? editor;
       showing.update(() => {
         for (const item of chosen)
@@ -378,12 +378,12 @@ export function MediaPlugin({
       (next) => {
         anchor.current = $anchorFor("image")?.getKey() ?? null;
         setKind(next);
-        const library = media.library;
-        if (!library) {
+        const school = media.school;
+        if (!school) {
           queueMicrotask(() => input.current?.click());
           return true;
         }
-        library
+        school
           .choose(next, {
             multiple: true,
             upload: () => input.current?.click(),

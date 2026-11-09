@@ -238,7 +238,7 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
   "core.lti_scores": { rule: "erased" },
   "core.media_item_tags": {
     rule: "kept",
-    why: "Names the member of staff who filed a library item under a tag; the library belongs to the school.",
+    why: "Names the member of staff who filed a media item under a tag; the school's media belongs to the school.",
     reviewed: false,
   },
   "core.xapi_statements": { rule: "erased" },

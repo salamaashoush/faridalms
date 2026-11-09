@@ -1,5 +1,5 @@
 import { schoolSwitch } from "@faridalms/database/stores/identity";
-import { LIBRARY_USERS } from "@faridalms/domain/media-library";
+import { MEDIA_USERS } from "@faridalms/domain/media";
 import { COMMONS_SWITCH } from "@faridalms/domain/pictures";
 
 import type { UnitContext } from "./context";
@@ -15,7 +15,7 @@ import { isStaff } from "./reach";
 export async function searchesCommons(context: UnitContext) {
   return (
     isStaff(context) &&
-    LIBRARY_USERS.some((capability) => can(context, capability)) &&
+    MEDIA_USERS.some((capability) => can(context, capability)) &&
     (await schoolSwitch(
       context.tx,
       context.tenantId,

@@ -33,7 +33,7 @@ interface Queued {
 export interface UploadQueueConfig {
   /**
    * Where the queue's uploads are kept for a reload to pick up, as
-   * `library`; none keeps nothing.
+   * `media`; none keeps nothing.
    */
   scope: string | null;
   /** Sends one file, keeping it under `keeping` while it is on its way. */

@@ -1,17 +1,17 @@
 import { AREA_SORTS, FILE_KINDS } from "@faridalms/domain/file";
-import { LIBRARY_MONTH, LIBRARY_USERS } from "@faridalms/domain/media-library";
+import { MEDIA_MONTH, MEDIA_USERS } from "@faridalms/domain/media";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import * as v from "valibot";
 
-import type { LibraryView } from "~/components/media/MediaLibrary";
+import type { MediaPageView } from "~/components/media/MediaBrowser";
 
 import {
-  LIBRARY_LAYOUTS,
-  LIBRARY_SOURCES,
-  MediaLibrary,
-} from "~/components/media/MediaLibrary";
+  MEDIA_LAYOUTS,
+  MEDIA_SOURCES,
+  MediaBrowser,
+} from "~/components/media/MediaBrowser";
 import * as m from "~/i18n/messages";
-import { libraryQuery } from "~/queries/media-library";
+import { mediaQuery } from "~/queries/media";
 import { currentUserQuery } from "~/queries/user";
 import { requirePage } from "~/utils/page-access";
 
@@ -24,10 +24,7 @@ const ids = v.fallback(
 );
 
 const searchSchema = v.object({
-  source: v.fallback(
-    v.optional(v.picklist(LIBRARY_SOURCES), "library"),
-    "library",
-  ),
+  source: v.fallback(v.optional(v.picklist(MEDIA_SOURCES), "kept"), "kept"),
   folder: v.fallback(
     v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
     "",
@@ -37,7 +34,7 @@ const searchSchema = v.object({
   months: v.fallback(
     v.optional(
       v.pipe(
-        v.array(v.pipe(v.string(), v.regex(LIBRARY_MONTH))),
+        v.array(v.pipe(v.string(), v.regex(MEDIA_MONTH))),
         v.maxLength(24),
       ),
       [],
@@ -52,7 +49,7 @@ const searchSchema = v.object({
     v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
     1,
   ),
-  layout: v.fallback(v.optional(v.picklist(LIBRARY_LAYOUTS), "grid"), "grid"),
+  layout: v.fallback(v.optional(v.picklist(MEDIA_LAYOUTS), "grid"), "grid"),
 });
 const DEFAULT_SEARCH = v.parse(searchSchema, {});
 
@@ -63,9 +60,9 @@ export const Route = createFileRoute("/_app/_staff/media")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    requirePage(user, ...LIBRARY_USERS);
+    requirePage(user, ...MEDIA_USERS);
     await context.queryClient.ensureQueryData(
-      libraryQuery({
+      mediaQuery({
         folderId: deps.folder || null,
         q: deps.q.trim(),
         kinds: deps.kinds,
@@ -78,16 +75,16 @@ export const Route = createFileRoute("/_app/_staff/media")({
       }),
     );
   },
-  component: MediaLibraryPage,
+  component: MediaPage,
 });
 
-function MediaLibraryPage() {
+function MediaPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <MediaLibrary
+    <MediaBrowser
       view={search}
-      onView={(change: Partial<LibraryView>) => {
+      onView={(change: Partial<MediaPageView>) => {
         void navigate({
           resetScroll: false,
           search: (previous) => ({ ...previous, ...change }),

@@ -6,27 +6,27 @@ import { ChevronRight, Folder } from "lucide-react";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
-import type { LibraryFolderRow } from "./library-items";
+import type { MediaFolderRow } from "./media-items";
 
-export interface LibraryFoldersProps {
+export interface MediaFoldersProps {
   /** The folders from the top down to the open one; none at the top. */
-  path: LibraryFolderRow[];
+  path: MediaFolderRow[];
   /** The open folder's own folders. */
-  folders: LibraryFolderRow[];
+  folders: MediaFolderRow[];
   onOpen: (folderId: string | null) => void;
-  folderActions?: (folder: LibraryFolderRow) => ActionItem[];
+  folderActions?: (folder: MediaFolderRow) => ActionItem[];
 }
 
 /**
- * Where in the library one is, and the folders of the open folder: each
+ * Where in media one is, and the folders of the open folder: each
  * step back up and each folder opens on a press.
  */
-export function LibraryFolders({
+export function MediaFolders({
   path,
   folders,
   onOpen,
   folderActions,
-}: LibraryFoldersProps) {
+}: MediaFoldersProps) {
   return (
     <div className="grid gap-3">
       {path.length > 0 ? (

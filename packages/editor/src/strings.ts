@@ -319,10 +319,10 @@ export interface EditorStrings
   pictureCollection: string;
   pictureSymbols: string;
   pictureCommons: string;
-  libraryChoose: string;
-  libraryKeep: string;
-  libraryKept: string;
-  libraryKeepFailed: string;
+  mediaChoose: string;
+  mediaKeep: string;
+  mediaKept: string;
+  mediaKeepFailed: string;
   questionWhyHint: string;
   questionWhyPrompt: string;
   ltiTool: string;

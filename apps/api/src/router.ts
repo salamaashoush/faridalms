@@ -41,7 +41,7 @@ import * as identity from "./systems/identity";
 import * as intakesSystem from "./systems/intakes";
 import * as learningSystem from "./systems/learning";
 import * as ltiSystem from "./systems/lti";
-import * as mediaLibrarySystem from "./systems/media-library";
+import * as mediaSystem from "./systems/media";
 import * as messagesSystem from "./systems/messages";
 import * as newsSystem from "./systems/news";
 import * as notificationsSystem from "./systems/notifications";
@@ -157,7 +157,7 @@ export const router = {
   notifications: owned("notifications", notificationsSystem),
   learning: owned("learning", learningSystem),
   pictures: owned("pictures", picturesSystem),
-  mediaLibrary: owned("mediaLibrary", mediaLibrarySystem),
+  media: owned("media", mediaSystem),
   lti: owned("lti", ltiSystem),
   xapi: owned("xapi", xapiSystem),
   site: owned("site", siteSystem),

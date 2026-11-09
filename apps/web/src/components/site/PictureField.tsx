@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ImagePlus, UsersRound, X } from "lucide-react";
 import { useRef } from "react";
 
-import { ChooseFromLibrary } from "~/components/media/ChooseFromLibrary";
+import { ChooseFromMedia } from "~/components/media/ChooseFromMedia";
 import { uploadDocumentFile, useDocumentMedia } from "~/hooks/useDocumentMedia";
 import { useUploadQueue } from "~/hooks/useUploadQueue";
 import * as m from "~/i18n/messages";
@@ -17,8 +17,8 @@ export interface PictureFieldProps {
   onChange: (fileId: string | null) => void;
   /** Names who the picture shows, where that decides where it may go. */
   onPeople?: (fileId: string) => void;
-  /** Offers the school's media library beside the upload, where the record shows the file where it is. */
-  fromLibrary?: boolean;
+  /** Offers the school's media beside the upload, where the record shows the file where it is. */
+  fromMedia?: boolean;
 }
 
 /**
@@ -31,7 +31,7 @@ export function PictureField({
   label,
   onChange,
   onPeople,
-  fromLibrary = false,
+  fromMedia = false,
 }: PictureFieldProps) {
   const media = useDocumentMedia();
   const initiate = useServerFn(initiateUpload);
@@ -103,8 +103,8 @@ export function PictureField({
             ? m.siteReplacePicture({ label })
             : m.siteChoosePicture({ label })}
         </Button>
-        <ChooseFromLibrary
-          library={fromLibrary ? media.library : undefined}
+        <ChooseFromMedia
+          media={fromMedia ? media.school : undefined}
           kind="image"
           size="default"
           onChoose={(chosen) => onChange(chosen.fileId)}
