@@ -10,7 +10,7 @@ import type { TermFacts } from "../nodes/term";
 import { useEditorEnvironment } from "../context";
 import { $isTermNode } from "../nodes/term";
 import { ToolButton } from "../ui";
-import { PictureLibrary, pictureFile } from "./picture-library";
+import { PictureSearch, pictureFile } from "./picture-search";
 
 const fieldClass =
   "min-w-0 rounded-md border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/30";
@@ -94,7 +94,7 @@ export function TermPanel({
 
   if (choosing && media?.pictures)
     return (
-      <PictureLibrary
+      <PictureSearch
         onClose={() => setChoosing(false)}
         onUpload={upload}
         onPick={async (found) => {

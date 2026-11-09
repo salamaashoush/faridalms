@@ -1,8 +1,8 @@
-import type { LibraryPicture } from "@faridalms/editor/context";
+import type { OpenPicture } from "@faridalms/editor/context";
 
 import { MAX_LINK, MAX_TAG } from "@faridalms/domain/media-library";
 import { EditorEnvironmentProvider } from "@faridalms/editor/context";
-import { PictureLibrary, pictureFile } from "@faridalms/editor/picture-library";
+import { PictureSearch, pictureFile } from "@faridalms/editor/picture-search";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { TextField } from "@faridalms/ui/system/form-field";
@@ -322,7 +322,7 @@ export interface PictureSearchSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Takes a picked picture into the library, as an upload. */
-  onPick: (file: File, picture: LibraryPicture) => void;
+  onPick: (file: File, picture: OpenPicture) => void;
   /** Offers the device's own pictures instead. */
   onUpload: () => void;
 }
@@ -351,7 +351,7 @@ export function PictureSearchSheet({
         <EditorEnvironmentProvider
           value={{ strings: editorStrings(), media, locale: getLocale() }}
         >
-          <PictureLibrary
+          <PictureSearch
             credited
             onPick={async (picture) => {
               onPick(await pictureFile(picture), picture);

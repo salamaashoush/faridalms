@@ -98,7 +98,7 @@ From [../research/early-years.md](../research/early-years.md).
   pictures: ARASAAC's pictograms, with vowelled Arabic words, and OpenMoji's
   emoji. A picked picture is copied into the school as the teacher's own
   upload, with its words as the description, and the credit both sources ask
-  for sits under the results. `bun scripts/picture-library.ts` rebuilds the
+  for sits under the results. `bun scripts/picture-index.ts` rebuilds the
   index; ARASAAC's violent and sexual pictograms are left out. For a
   question answered by drawing, the search offers line drawings to colour
   first, with the coloured pictures a tap away: ARASAAC's black and white

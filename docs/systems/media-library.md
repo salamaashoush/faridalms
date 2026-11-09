@@ -223,7 +223,7 @@ once.
   `extmetadata`) one request at a time with a gap between them, under a
   User-Agent naming the platform and the deployment's site, holds off as
   long as a `429` or `503` says, and keeps recent answers for ten minutes
-  (`apps/api/src/library/commons.ts`). A picture under a non-commercial,
+  (`apps/api/src/pictures/commons.ts`). A picture under a non-commercial,
   no-derivatives or fair-use licence is left out, as it is when pasted.
   A picked one comes into the library with its description and its
   credit (author, licence and page), which every use then starts from.

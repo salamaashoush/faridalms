@@ -10204,7 +10204,7 @@
   "editorPictureSymbols": "Symbols and emoji",
   "editorPictureCommons": "Wikimedia Commons",
   "pictureCommonsCredits": "Photographs and drawings from Wikimedia Commons under free licences, each kept with its author and licence.",
-  "libraryCommonsBusy": "Wikimedia Commons is busy. Try again in a minute.",
+  "picturesCommonsBusy": "Wikimedia Commons is busy. Try again in a minute.",
   "settingsCommons": "Pictures from Wikimedia Commons",
   "settingsCommonsHint": "Staff can search Wikimedia Commons for freely licensed photographs and drawings and keep them in the media library with their author and licence. Students and families never see it.",
   "settingsCommonsLabel": "Let staff search Wikimedia Commons",

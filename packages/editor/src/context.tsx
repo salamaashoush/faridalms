@@ -79,7 +79,7 @@ export interface EditorLibrary {
 }
 
 /** An open picture a teacher may copy into the school. */
-export interface LibraryPicture {
+export interface OpenPicture {
   source: string;
   id: string;
   label: string;
@@ -122,7 +122,7 @@ export interface EditorMedia {
       query: string,
       style?: "colour" | "lines",
       collection?: "symbols" | "commons",
-    ) => Promise<LibraryPicture[]>;
+    ) => Promise<OpenPicture[]>;
     credits: string;
     /**
      * Photographs and drawings from Wikimedia Commons, offered where the

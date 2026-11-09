@@ -2,10 +2,10 @@ import { describe, expect, test } from "bun:test";
 
 import { client, login, rejection, sessionFor, signedIn } from "./harness";
 
-describe("picture library", () => {
+describe("picture search", () => {
   test("a teacher finds pictures by what they show, in English or Arabic", async () => {
     const teacher = await signedIn("northwind", login("teacher"));
-    const english = await teacher.library.pictures({ q: "banana" });
+    const english = await teacher.pictures.search({ q: "banana" });
     expect(english.pictures.length).toBeGreaterThan(0);
     expect(english.pictures[0]).toMatchObject({
       source: "arasaac",
@@ -15,18 +15,18 @@ describe("picture library", () => {
       /^https:\/\/static\.arasaac\.org\//,
     );
     const { token } = await sessionFor("northwind", login("teacher"));
-    const arabic = await client("northwind", token, "ar").library.pictures({
+    const arabic = await client("northwind", token, "ar").pictures.search({
       q: "الموز",
     });
     expect(arabic.pictures[0]?.label).toMatch(/^مو/);
     expect(
-      await rejection(client("northwind").library.pictures({ q: "cat" })),
+      await rejection(client("northwind").pictures.search({ q: "cat" })),
     ).toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   test("a teacher finds line drawings to colour in", async () => {
     const teacher = await signedIn("northwind", login("teacher"));
-    const found = await teacher.library.pictures({ q: "cat", style: "lines" });
+    const found = await teacher.pictures.search({ q: "cat", style: "lines" });
     const pictogram = found.pictures.find((row) => row.source === "arasaac");
     const emoji = found.pictures.find((row) => row.source === "openmoji");
     expect(pictogram?.full).toBe(
@@ -35,7 +35,7 @@ describe("picture library", () => {
     expect(emoji?.full).toMatch(
       /\/openmoji@[\d.]+\/black\/svg\/[\dA-F-]+\.svg$/,
     );
-    const coloured = await teacher.library.pictures({ q: "cat" });
+    const coloured = await teacher.pictures.search({ q: "cat" });
     expect(coloured.pictures.map((row) => row.id)).toEqual(
       found.pictures.map((row) => row.id),
     );
@@ -44,10 +44,10 @@ describe("picture library", () => {
     ).toMatch(/\/color\/svg\//);
   });
 
-  test("a student cannot search the library", async () => {
+  test("a student cannot search the open pictures", async () => {
     const student = await signedIn("northwind", login("student"));
     expect(
-      await rejection(student.library.pictures({ q: "cat" })),
+      await rejection(student.pictures.search({ q: "cat" })),
     ).toMatchObject({ code: "FORBIDDEN" });
   });
   test("staff search Wikimedia Commons only once their school turns it on, and students never", async () => {
@@ -56,7 +56,7 @@ describe("picture library", () => {
     const student = await signedIn("northwind", login("student"));
     const commons = { q: "camel", collection: "commons" } as const;
     expect(await principal.school.pictureSources()).toEqual({ commons: false });
-    expect(await rejection(teacher.library.pictures(commons))).toMatchObject({
+    expect(await rejection(teacher.pictures.search(commons))).toMatchObject({
       code: "FORBIDDEN",
     });
     expect((await teacher.identity.currentUser()).commonsPictures).toBe(false);
@@ -67,7 +67,7 @@ describe("picture library", () => {
     await principal.school.setCommonsPictures({ enabled: true });
     try {
       expect((await teacher.identity.currentUser()).commonsPictures).toBe(true);
-      const found = await teacher.library.pictures(commons);
+      const found = await teacher.pictures.search(commons);
       expect(found.pictures).toEqual([
         {
           source: "commons",
@@ -83,13 +83,13 @@ describe("picture library", () => {
       expect((await student.identity.currentUser()).commonsPictures).toBe(
         false,
       );
-      expect(await rejection(student.library.pictures(commons))).toMatchObject({
+      expect(await rejection(student.pictures.search(commons))).toMatchObject({
         code: "FORBIDDEN",
       });
     } finally {
       await principal.school.setCommonsPictures({ enabled: false });
     }
-    expect(await rejection(teacher.library.pictures(commons))).toMatchObject({
+    expect(await rejection(teacher.pictures.search(commons))).toMatchObject({
       code: "FORBIDDEN",
     });
   });

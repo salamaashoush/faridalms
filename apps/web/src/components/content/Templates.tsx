@@ -6,8 +6,8 @@ import type {
 import type { EditorMedia } from "@faridalms/editor";
 
 import { contentOfLesson } from "@faridalms/domain/lesson-content";
-import { libraryPictureUrls } from "@faridalms/domain/library";
-import { pictureFile } from "@faridalms/editor/picture-library";
+import { openPictureUrls } from "@faridalms/domain/pictures";
+import { pictureFile } from "@faridalms/editor/picture-search";
 import { Button } from "@faridalms/ui/button";
 import {
   Dialog,
@@ -134,7 +134,7 @@ export function TemplatePicker({
             source: picture.source,
             id: picture.id,
             label: alt,
-            ...libraryPictureUrls(picture.source, picture.id),
+            ...openPictureUrls(picture.source, picture.id),
           });
           const stored = await starters.upload(file, "image");
           return { fileId: stored.fileId, alt };

@@ -22,7 +22,7 @@
     "./picture-credit": "./src/picture-credit.tsx",
     "./format": "./src/format.ts",
     "./files": "./src/files.tsx",
-    "./picture-library": "./src/plugins/picture-library.tsx",
+    "./picture-search": "./src/plugins/picture-search.tsx",
     "./context": "./src/context.tsx",
     "./file-facts": "./src/file-facts.tsx",
     "./nodes": "./src/nodes/index.ts",

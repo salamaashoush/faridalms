@@ -1,18 +1,18 @@
 /**
- * Builds the picture library's search index from its two open sources:
+ * Builds the open pictures' search index from its two sources:
  * ARASAAC's pictograms, whose Arabic keywords carry their vowel marks, and
  * OpenMoji's emoji. Only words and ids are kept; the pictures stay with
  * their makers until a teacher picks one, when it is copied into the school.
  *
- *   bun scripts/picture-library.ts
+ *   bun scripts/picture-index.ts
  *
  * Pictograms ARASAAC flags as violent or sexual are left out, as are skin
  * tone repeats and flags, which add bulk and nothing a lesson needs.
  */
-import { OPENMOJI_VERSION } from "@faridalms/domain/library";
+import { OPENMOJI_VERSION } from "@faridalms/domain/pictures";
 import { writeFile } from "node:fs/promises";
 
-const OUT = new URL("../apps/api/src/library/pictures.json", import.meta.url);
+const OUT = new URL("../apps/api/src/pictures/pictures.json", import.meta.url);
 
 interface Pictogram {
   _id: number;
@@ -87,5 +87,5 @@ const openmoji = emoji
 
 await writeFile(OUT, `${JSON.stringify({ arasaac, openmoji })}\n`);
 console.log(
-  `Picture library: ${arasaac.length} pictograms, ${openmoji.length} emoji.`,
+  `Picture index: ${arasaac.length} pictograms, ${openmoji.length} emoji.`,
 );

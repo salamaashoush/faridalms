@@ -1,5 +1,5 @@
 import type { LessonBlock, Picture } from "@faridalms/domain/learning";
-import type { PictureSource } from "@faridalms/domain/library";
+import type { PictureSource } from "@faridalms/domain/pictures";
 
 import * as m from "~/i18n/messages";
 
@@ -7,14 +7,14 @@ import * as m from "~/i18n/messages";
  * Ready-made activities for young children, one of each kind a lesson
  * offers, to start from rather than an empty page. Their words come in both
  * languages, Arabic with its vowel marks so a voice can read it; their
- * pictures come from the open library and are copied into the school when a
+ * pictures come from the open picture sets and are copied into the school when a
  * starter is used.
  */
 
 type Text = { en: string; ar: string };
 type Locale = "en" | "ar";
 
-interface LibraryRef {
+interface OpenPictureRef {
   source: PictureSource;
   id: string;
   alt: Text;
@@ -23,14 +23,14 @@ interface LibraryRef {
 export interface Starter {
   key: string;
   title: () => string;
-  pictures: LibraryRef[];
+  pictures: OpenPictureRef[];
   blocks: (
     say: (text: Text) => string,
     picture: (index: number) => Picture,
   ) => LessonBlock[];
 }
 
-const ref = (id: string, en: string, ar: string): LibraryRef => ({
+const ref = (id: string, en: string, ar: string): OpenPictureRef => ({
   source: "arasaac",
   id,
   alt: { en, ar },
@@ -225,5 +225,5 @@ export const STARTERS: Starter[] = [
 export const sayIn = (locale: Locale) => (text: Text) =>
   locale === "ar" ? text.ar : text.en;
 
-export const altIn = (locale: Locale, picture: LibraryRef) =>
+export const altIn = (locale: Locale, picture: OpenPictureRef) =>
   sayIn(locale)(picture.alt);

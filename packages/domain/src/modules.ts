@@ -163,10 +163,10 @@ export const CORE_SYSTEMS = [
   "documents",
   "comments",
   // Templates hold the admission letters and message templates, the
-  // library the pictures every editor places, and the media library what
+  // open pictures every editor places, and the media library what
   // the school keeps for all of them, so none belongs to one module.
   "templates",
-  "library",
+  "pictures",
   "mediaLibrary",
   "shared",
   // The language model helps write whatever document a teacher may change,

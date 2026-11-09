@@ -30,7 +30,7 @@ import {
   getFileAbilities,
   initiateUpload,
 } from "~/server/files";
-import { searchPictures } from "~/server/library";
+import { searchPictures } from "~/server/pictures";
 import { formatNumber } from "~/utils/datetime";
 import { sendFile, uploadState } from "~/utils/upload";
 import {

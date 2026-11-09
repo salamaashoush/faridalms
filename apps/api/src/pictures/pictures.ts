@@ -1,12 +1,12 @@
 import type { PictureCredit } from "@faridalms/domain/commons";
-import type { PictureSource, PictureStyle } from "@faridalms/domain/library";
+import type { PictureSource, PictureStyle } from "@faridalms/domain/pictures";
 
 import { foldAnswer } from "@faridalms/domain/answers";
-import { libraryPictureUrls } from "@faridalms/domain/library";
+import { openPictureUrls } from "@faridalms/domain/pictures";
 
 import index from "./pictures.json" with { type: "json" };
 
-export interface LibraryPicture {
+export interface OpenPicture {
   source: PictureSource | "commons";
   id: string;
   /** What it shows, in the reader's language when the source has it. */
@@ -95,7 +95,7 @@ export function searchPictures(
   locale: "ar" | "en",
   style: PictureStyle = "colour",
   limit = 48,
-): LibraryPicture[] {
+): OpenPicture[] {
   const folded = fold(query).trim().replace(/\s+/g, " ");
   if (!folded) return [];
   const terms = folded.split(" ");
@@ -109,7 +109,7 @@ export function searchPictures(
     .toSorted((a, b) => b.score - a.score || a.order - b.order)
     .slice(0, limit)
     .map(({ entry }) => {
-      const { thumb, full } = libraryPictureUrls(entry.source, entry.id, style);
+      const { thumb, full } = openPictureUrls(entry.source, entry.id, style);
       return {
         source: entry.source,
         id: entry.id,

@@ -1,6 +1,6 @@
-import { commonsSwitchSchema } from "@faridalms/domain/library";
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import { saveSchoolSchema, setFeatureSchema } from "@faridalms/domain/people";
+import { commonsSwitchSchema } from "@faridalms/domain/pictures";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 

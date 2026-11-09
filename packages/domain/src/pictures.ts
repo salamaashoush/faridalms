@@ -1,7 +1,7 @@
 import * as v from "valibot";
 
 /**
- * A library picture in colour, or as its maker's black line drawing for a
+ * An open picture in colour, or as its maker's black line drawing for a
  * child to colour in: ARASAAC's pictograms without their colour, OpenMoji's
  * black set.
  */
@@ -29,11 +29,11 @@ export const commonsSwitchSchema = v.object({ enabled: v.boolean() });
 
 export type PictureSource = "arasaac" | "openmoji";
 
-/** The OpenMoji release the library's emoji are read from. */
+/** The OpenMoji release the open emoji are read from. */
 export const OPENMOJI_VERSION = "15.1.0";
 
-/** Where a library picture is fetched from: a small copy to choose, and the one kept. */
-export function libraryPictureUrls(
+/** Where an open picture is fetched from: a small copy to choose, and the one kept. */
+export function openPictureUrls(
   source: PictureSource,
   id: string,
   style: PictureStyle = "colour",

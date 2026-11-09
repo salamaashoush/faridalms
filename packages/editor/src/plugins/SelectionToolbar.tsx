@@ -245,7 +245,7 @@ import { CommentTool } from "./comments";
 import { FootnotePanel } from "./footnote-panel";
 import { KeepInLibrary } from "./library";
 import { NarrationPanel, OPEN_NARRATION_COMMAND } from "./narration";
-import { PictureLibrary, pictureFile } from "./picture-library";
+import { PictureSearch, pictureFile } from "./picture-search";
 import { RegionPad } from "./regions";
 import { StandardsPad } from "./standards";
 import { TermPanel } from "./term-panel";
@@ -2880,7 +2880,7 @@ export function SelectionToolbarPlugin() {
         keepInView
       >
         <div ref={toolbar}>
-          <PictureLibrary
+          <PictureSearch
             colouring={
               question?.part?.key === question?.key &&
               question?.settings.kind === "written" &&

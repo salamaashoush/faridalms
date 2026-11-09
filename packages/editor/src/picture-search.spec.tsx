@@ -2,11 +2,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { EditorMedia, LibraryPicture } from "./context";
+import type { EditorMedia, OpenPicture } from "./context";
 import type { EditorStrings } from "./strings";
 
 import { EditorEnvironmentProvider } from "./context";
-import { PictureLibrary } from "./plugins/picture-library";
+import { PictureSearch } from "./plugins/picture-search";
 
 const strings = {
   pictureSearch: "Search pictures",
@@ -22,7 +22,7 @@ const strings = {
   uploadFailed: "Upload failed",
 } as EditorStrings;
 
-const cat = (style: string): LibraryPicture => ({
+const cat = (style: string): OpenPicture => ({
   source: "openmoji",
   id: "1F431",
   label: `cat ${style}`,
@@ -30,7 +30,7 @@ const cat = (style: string): LibraryPicture => ({
   full: `https://example.com/${style}/1F431.svg`,
 });
 
-const camel: LibraryPicture = {
+const camel: OpenPicture = {
   source: "commons",
   id: "File:Camel.jpg",
   label: "A camel resting",
@@ -57,7 +57,7 @@ function mount(colouring: boolean, credited = false) {
   } satisfies EditorMedia;
   render(
     <EditorEnvironmentProvider value={{ strings, locale: "en", media }}>
-      <PictureLibrary
+      <PictureSearch
         colouring={colouring}
         credited={credited}
         onPick={() => Promise.resolve()}
@@ -69,7 +69,7 @@ function mount(colouring: boolean, credited = false) {
   return search;
 }
 
-describe("the picture library", () => {
+describe("the picture search", () => {
   it("offers a colouring page line drawings first, and coloured ones a tap away", async () => {
     const search = mount(true);
     const user = userEvent.setup();

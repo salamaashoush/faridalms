@@ -778,8 +778,8 @@ export function getMessageFromError(error: unknown): string {
         return m.privacyErrErasureBlocked();
       case "privacy.erasure_pending":
         return m.privacyErrErasurePending();
-      case "library.commons_busy":
-        return m.libraryCommonsBusy();
+      case "pictures.commons_busy":
+        return m.picturesCommonsBusy();
       case "file.quota_school":
         return m.fileQuotaSchool();
       case "file.quota_class":

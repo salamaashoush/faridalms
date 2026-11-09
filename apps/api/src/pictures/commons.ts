@@ -18,7 +18,7 @@ const CACHE_ENTRIES = 200;
 
 export class CommonsBusy extends Error {
   constructor() {
-    super("library.commons_busy");
+    super("pictures.commons_busy");
   }
 }
 

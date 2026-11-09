@@ -15,9 +15,12 @@ import {
   setOrgFeature,
   updateSchool,
 } from "@faridalms/database/stores/school";
-import { COMMONS_SWITCH, commonsSwitchSchema } from "@faridalms/domain/library";
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import { saveSchoolSchema, setFeatureSchema } from "@faridalms/domain/people";
+import {
+  COMMONS_SWITCH,
+  commonsSwitchSchema,
+} from "@faridalms/domain/pictures";
 import { availableModules, limitsOf } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";

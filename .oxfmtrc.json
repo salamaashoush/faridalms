@@ -32,6 +32,6 @@
     "playwright-report/**",
     "packages/database/migrations/**",
     "bun.lock",
-    "apps/api/src/library/pictures.json"
+    "apps/api/src/pictures/pictures.json"
   ]
 }

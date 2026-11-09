@@ -1,7 +1,7 @@
 import { ImageUp, LoaderCircle, Search, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
-import type { LibraryPicture } from "../context";
+import type { OpenPicture } from "../context";
 
 import { useEditorEnvironment } from "../context";
 
@@ -21,7 +21,7 @@ const KEPT_AS_IS: Record<string, string> = {
  * check takes goes as it is; emoji arrive as SVG, which it refuses, so they
  * are drawn onto a canvas first; their sources allow it.
  */
-export async function pictureFile(picture: LibraryPicture): Promise<File> {
+export async function pictureFile(picture: OpenPicture): Promise<File> {
   const response = await fetch(picture.full);
   if (!response.ok) throw new Error("file.failed");
   const blob = await response.blob();
@@ -54,8 +54,8 @@ export async function pictureFile(picture: LibraryPicture): Promise<File> {
 type PictureStyle = "colour" | "lines";
 type Collection = "symbols" | "commons";
 
-export interface PictureLibraryProps {
-  onPick: (picture: LibraryPicture) => Promise<void>;
+export interface PictureSearchProps {
+  onPick: (picture: OpenPicture) => Promise<void>;
   onUpload: () => void;
   onClose: () => void;
   /** For a colouring page: line drawings first, with the coloured ones a tap away. */
@@ -72,13 +72,13 @@ export interface PictureLibraryProps {
  * school's editors offer, or uploads their own. A picked picture is copied
  * into the school, so a lesson never depends on the source staying up.
  */
-export function PictureLibrary({
+export function PictureSearch({
   onPick,
   onUpload,
   onClose,
   colouring = false,
   credited = false,
-}: PictureLibraryProps) {
+}: PictureSearchProps) {
   const { strings, media } = useEditorEnvironment();
   const field = useId();
   const [query, setQuery] = useState("");
@@ -90,22 +90,22 @@ export function PictureLibrary({
     query: string;
     style: PictureStyle;
     collection: Collection;
-    pictures: LibraryPicture[];
+    pictures: OpenPicture[];
   } | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-  const library = media?.pictures;
-  const commons = credited && !colouring ? library?.commons : undefined;
+  const openPictures = media?.pictures;
+  const commons = credited && !colouring ? openPictures?.commons : undefined;
   const input = useRef<HTMLInputElement>(null);
   // A panel opened to search starts with the caret in its box.
   useEffect(() => input.current?.focus(), []);
 
   useEffect(() => {
     const wanted = query.trim();
-    if (!library || !wanted) return undefined;
+    if (!openPictures || !wanted) return undefined;
     let current = true;
     const timer = setTimeout(() => {
-      void library.search(wanted, style, collection).then(
+      void openPictures.search(wanted, style, collection).then(
         (pictures) => {
           if (current) setFound({ query: wanted, style, collection, pictures });
         },
@@ -119,7 +119,7 @@ export function PictureLibrary({
       current = false;
       clearTimeout(timer);
     };
-  }, [library, query, style, collection]);
+  }, [openPictures, query, style, collection]);
 
   const current = (value: typeof found) =>
     value?.style === style && value.collection === collection;
@@ -250,11 +250,11 @@ export function PictureLibrary({
           {strings.pictureUpload}
         </button>
       </div>
-      {library ? (
+      {openPictures ? (
         <p className="text-[11px] leading-4 text-muted-foreground">
           {collection === "commons" && commons
             ? commons.credits
-            : library.credits}
+            : openPictures.credits}
         </p>
       ) : null}
     </div>

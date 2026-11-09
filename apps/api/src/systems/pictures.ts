@@ -1,13 +1,13 @@
 import { commonsThumb } from "@faridalms/domain/commons";
-import { pictureSearchSchema } from "@faridalms/domain/library";
+import { pictureSearchSchema } from "@faridalms/domain/pictures";
 import { ORPCError } from "@orpc/server";
 
-import type { LibraryPicture } from "../library/pictures";
+import type { OpenPicture } from "../pictures/pictures";
 
-import { searchesCommons } from "../core/library";
+import { searchesCommons } from "../core/pictures";
 import { localeOf, readProcedure, requireCapability } from "../core/procedure";
-import { CommonsBusy } from "../library/commons";
-import { searchPictures } from "../library/pictures";
+import { CommonsBusy } from "../pictures/commons";
+import { searchPictures } from "../pictures/pictures";
 
 /**
  * Open pictures to put in a lesson or brief, found by what they show: the
@@ -15,7 +15,7 @@ import { searchPictures } from "../library/pictures";
  * the school allows it, photographs and drawings from Wikimedia Commons,
  * each with the author and licence it must be kept with.
  */
-export const pictures = readProcedure
+export const search = readProcedure
   .input(pictureSearchSchema)
   .handler(async ({ input, context }) => {
     if (input.collection === "symbols") {
@@ -29,7 +29,7 @@ export const pictures = readProcedure
     try {
       const found = await context.commons(input.q, localeOf(context));
       return {
-        pictures: found.map((picture): LibraryPicture => ({
+        pictures: found.map((picture): OpenPicture => ({
           source: "commons",
           id: picture.title,
           label: picture.alt,

@@ -40,7 +40,6 @@ import * as identifiersSystem from "./systems/identifiers";
 import * as identity from "./systems/identity";
 import * as intakesSystem from "./systems/intakes";
 import * as learningSystem from "./systems/learning";
-import * as librarySystem from "./systems/library";
 import * as ltiSystem from "./systems/lti";
 import * as mediaLibrarySystem from "./systems/media-library";
 import * as messagesSystem from "./systems/messages";
@@ -48,6 +47,7 @@ import * as newsSystem from "./systems/news";
 import * as notificationsSystem from "./systems/notifications";
 import * as peerSystem from "./systems/peer";
 import * as peopleSystem from "./systems/people";
+import * as picturesSystem from "./systems/pictures";
 import * as privacySystem from "./systems/privacy";
 import * as productSystem from "./systems/product";
 import * as readingSystem from "./systems/reading";
@@ -156,7 +156,7 @@ export const router = {
   calendar: owned("calendar", calendarSystem),
   notifications: owned("notifications", notificationsSystem),
   learning: owned("learning", learningSystem),
-  library: owned("library", librarySystem),
+  pictures: owned("pictures", picturesSystem),
   mediaLibrary: owned("mediaLibrary", mediaLibrarySystem),
   lti: owned("lti", ltiSystem),
   xapi: owned("xapi", xapiSystem),

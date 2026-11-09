@@ -57,7 +57,6 @@ import * as v from "valibot";
 
 import type { SchoolContext, UnitContext } from "../core/context";
 
-import { searchesCommons } from "../core/library";
 import { modulesOf } from "../core/modules";
 import { sendPasswordReset } from "../core/password-reset";
 import {
@@ -65,6 +64,7 @@ import {
   provePassword,
   refuseSignIn,
 } from "../core/password-sign-in";
+import { searchesCommons } from "../core/pictures";
 import { portalFace as readFace } from "../core/portal-face";
 import {
   audit,
