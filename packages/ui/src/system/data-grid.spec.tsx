@@ -8,6 +8,7 @@ import type { GridColumn, GridIssue } from "./data-grid";
 import {
   CheckCell,
   DataGrid,
+  GridChangedDot,
   GridAddButton,
   GridFigure,
   GridRemoveButton,
@@ -518,5 +519,84 @@ describe("numbers as typed and shown", () => {
   it("writes a figure in the reader's digits without grouping", () => {
     expect(writeNumber(1250.5, arabic)).toBe("١٢٥٠٫٥");
     expect(writeNumber(42, (value) => String(value))).toBe("42");
+  });
+});
+
+interface Pupil {
+  name: string;
+  grade: number | null;
+}
+
+function termColumns(
+  onGrade: (row: Pupil, grade: number | null) => void,
+): GridColumn<Pupil>[] {
+  return [
+    {
+      id: "grade",
+      header: "Term grade",
+      numeric: true,
+      cell: (row) => (
+        <NumberCell
+          id={`grade-${row.name}`}
+          label={`Term grade for ${row.name}`}
+          value={row.grade}
+          onChange={(grade) => onGrade(row, grade)}
+        />
+      ),
+    },
+  ];
+}
+
+function TermBook() {
+  const [rows, setRows] = useState<Pupil[]>([
+    { name: "Salama Ashoush", grade: 86 },
+    { name: "Omar Rashad", grade: null },
+  ]);
+  return (
+    <DataGrid<Pupil>
+      caption="Term grades"
+      editing
+      frame="table"
+      fit="content"
+      rowHeader={{ header: "Student", cell: (row) => row.name }}
+      columns={termColumns((row, grade) =>
+        setRows((current) =>
+          current.map((item) => (item === row ? { ...item, grade } : item)),
+        ),
+      )}
+      groups={[{ id: "all", title: "", rows }]}
+      rowKey={(row) => row.name}
+      legend={{
+        marks: [{ mark: <GridChangedDot />, label: "Differs from the work" }],
+        empty: "Nothing yet",
+      }}
+    />
+  );
+}
+
+describe("DataGrid framed as a table", () => {
+  it("keeps the keys in the region's description and names a cell only while one has focus", async () => {
+    renderWithSystem(<TermBook />);
+    const region = screen.getByRole("region", { name: "Term grades" });
+    expect(region).toHaveAccessibleDescription(ENGLISH.strings.gridKeys);
+    expect(document.querySelector("[data-slot=grid-status]")).toBeNull();
+    await userEvent.click(cell("Term grade for Salama Ashoush"));
+    expect(document.querySelector("[data-slot=grid-status]")).toHaveTextContent(
+      "Term grade for Salama Ashoush",
+    );
+    await userEvent.keyboard("{Enter}");
+    expect(cell("Term grade for Omar Rashad")).toHaveFocus();
+  });
+
+  it("explains each mark its cells draw, and reads only its own columns", () => {
+    renderWithSystem(<TermBook />);
+    expect(screen.getByText("Differs from the work")).toBeVisible();
+    expect(screen.getByText("Nothing yet")).toBeVisible();
+    const table = screen.getByRole("table", { name: "Term grades" });
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual(["Student", "Term grade"]);
   });
 });

@@ -63,7 +63,20 @@ export interface GridLegend {
   changed?: number;
   /** Some cells hold no figure; the dash is explained. */
   empty?: string;
+  /**
+   * What each mark drawn in the cells means, such as an icon for work handed
+   * in late, so no mark is left for the reader to guess.
+   */
+  marks?: GridLegendMark[];
 }
+
+/** A mark a grid's cells draw, and what it means. */
+export interface GridLegendMark {
+  mark: ReactNode;
+  label: string;
+}
+
+const NO_MARKS: GridLegendMark[] = [];
 
 /** The row that adds a grid up: its name, and a cell under each column that has one. */
 export interface GridTotals {
@@ -119,6 +132,13 @@ export interface DataGridProps<Row> {
    * region, for a grid with a column per piece of work.
    */
   fit?: "container" | "content";
+  /**
+   * `table` frames the grid as the portal's tables are framed, for work
+   * entered as the job across many columns, such as a gradebook: a bordered
+   * card, a tinted header row held at the top while the rows scroll within
+   * the window, 48px rows, and the first column held at the start.
+   */
+  frame?: GridFrame;
   /** Below the table while editing: the way to add a row. */
   footer?: ReactNode;
 }
@@ -146,6 +166,23 @@ const GridContext = createContext<GridContextValue>({
 const NO_ISSUES: GridIssue[] = [];
 
 export type GridSurface = "card" | "sheet" | "page";
+
+export type GridFrame = "none" | "table";
+
+/**
+ * The table frame's header tint, `DataTable`'s `bg-muted/40` over a card
+ * made opaque, so rows scrolling under the held header never show through.
+ */
+const TABLE_HEAD = "bg-[color-mix(in_oklab,var(--muted)_40%,var(--card))]";
+
+/**
+ * A body cell of the table frame. Each cell carries the row's tint, since
+ * the held first column paints over the row's own background; the row is
+ * tinted while hovered or while one of its cells has focus, so the eye
+ * keeps its line across a wide grid.
+ */
+const FRAMED_CELL =
+  "border-b py-1 transition-colors group-hover/row:bg-accent group-has-[[data-grid-cell]:focus]/row:bg-accent";
 
 const SURFACE: Record<GridSurface, string> = {
   card: "bg-card",
@@ -310,9 +347,15 @@ export function DataGrid<Row>({
   totals,
   surface = "card",
   fit = "container",
+  frame = "none",
   footer,
 }: DataGridProps<Row>) {
-  const held = cn("sticky start-0", SURFACE[surface]);
+  const framed = frame === "table";
+  const held = cn(
+    "sticky start-0",
+    framed ? "border-e" : SURFACE[surface],
+  );
+  const keysId = useId();
   const { direction, formatNumber } = useDesignSystem();
   const strings = useSystemStrings();
   const [focused, setFocused] = useState<FocusedCell | null>(null);
@@ -331,6 +374,32 @@ export function DataGrid<Row>({
       ? strings.gridChanged(baselineName, formatNumber(legend.changed))
       : null;
   const focusedIssue = focused ? issueMap.get(focused.id) : undefined;
+  const marks = legend?.marks ?? NO_MARKS;
+  const legendLine =
+    changedNote || legend?.empty || marks.length ? (
+      <p className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] leading-[18px] text-muted-foreground">
+        {changedNote ? (
+          <span className="inline-flex items-center gap-1.5">
+            <GridChangedDot />
+            {changedNote}
+          </span>
+        ) : null}
+        {marks.map((item) => (
+          <span key={item.label} className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="inline-flex">
+              {item.mark}
+            </span>
+            {item.label}
+          </span>
+        ))}
+        {legend?.empty ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden>—</span>
+            {legend.empty}
+          </span>
+        ) : null}
+      </p>
+    ) : null;
   return (
     <GridContext.Provider value={context}>
       <div className="grid min-w-0 gap-3">
@@ -341,23 +410,44 @@ export function DataGrid<Row>({
         ) : null}
         <section
           aria-label={caption}
+          aria-describedby={framed && editing ? keysId : undefined}
           tabIndex={editing ? undefined : 0}
-          className="min-w-0 overflow-x-auto rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className={cn(
+            "min-w-0 overflow-x-auto outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+            framed
+              ? "rounded-lg border bg-card md:max-h-[calc(100dvh-12rem)] md:overflow-y-auto"
+              : "rounded-md",
+          )}
         >
+          {framed && editing ? (
+            <p id={keysId} className="sr-only">
+              {strings.gridKeys}
+            </p>
+          ) : null}
           <table
             className={cn(
-              "w-full border-collapse text-sm leading-5",
+              "w-full text-sm leading-5",
+              // Collapsed borders scroll away from a held header row.
+              framed ? "border-separate border-spacing-0" : "border-collapse",
               fit === "content" && "min-w-max",
             )}
           >
             <caption className="sr-only">{caption}</caption>
             <thead>
-              <tr className="border-b text-[13px] leading-[18px] text-muted-foreground">
+              <tr
+                className={cn(
+                  "text-[13px] leading-[18px] text-muted-foreground",
+                  !framed && "border-b",
+                )}
+              >
                 <th
                   scope="col"
                   className={cn(
                     held,
-                    "py-2 pe-3 text-start font-medium whitespace-nowrap max-md:pe-2",
+                    "text-start font-medium whitespace-nowrap",
+                    framed
+                      ? cn("top-0 z-[3] h-10 border-b ps-4 pe-3", TABLE_HEAD)
+                      : "py-2 pe-3 max-md:pe-2",
                   )}
                 >
                   <span className="max-md:sr-only">{rowHeader.header}</span>
@@ -367,7 +457,10 @@ export function DataGrid<Row>({
                     key={column.id}
                     scope="col"
                     className={cn(
-                      "px-1 py-2 font-medium whitespace-nowrap",
+                      "font-medium whitespace-nowrap",
+                      framed
+                        ? cn("sticky top-0 z-[2] h-10 border-b px-3", TABLE_HEAD)
+                        : "px-1 py-2",
                       column.numeric ? "text-end" : "text-start",
                       column.fill && "w-full",
                     )}
@@ -376,9 +469,24 @@ export function DataGrid<Row>({
                   </th>
                 ))}
                 {editing && rowEnd ? (
-                  <th scope="col" className="w-10">
+                  <th
+                    scope="col"
+                    className={cn(
+                      "w-10",
+                      framed && cn("sticky top-0 z-[2] border-b", TABLE_HEAD),
+                    )}
+                  >
                     <span className="sr-only">{strings.actions}</span>
                   </th>
+                ) : null}
+                {framed ? (
+                  <td
+                    aria-hidden
+                    className={cn(
+                      "sticky top-0 z-[2] w-full border-b p-0",
+                      TABLE_HEAD,
+                    )}
+                  />
                 ) : null}
               </tr>
             </thead>
@@ -419,16 +527,24 @@ export function DataGrid<Row>({
                     <tr
                       data-grid-row=""
                       className={cn(
-                        !titled && !rowDetail && "border-b last:border-b-0",
+                        framed
+                          ? "group/row h-12 [&:last-child>*]:border-b-0"
+                          : !titled && !rowDetail && "border-b last:border-b-0",
                       )}
                     >
                       <th
                         scope="row"
                         className={cn(
                           held,
-                          "pe-3 text-start font-normal whitespace-nowrap max-md:pe-2",
-                          editing ? "py-1" : "py-2",
-                          titled && "ps-3 max-md:ps-1",
+                          "text-start font-normal whitespace-nowrap",
+                          framed
+                            ? FRAMED_CELL
+                            : cn(
+                                "pe-3 max-md:pe-2",
+                                editing ? "py-1" : "py-2",
+                                titled && "ps-3 max-md:ps-1",
+                              ),
+                          framed && "z-[1] bg-card ps-4 pe-3",
                         )}
                       >
                         {rowHeader.cell(row)}
@@ -437,8 +553,12 @@ export function DataGrid<Row>({
                         <td
                           key={column.id}
                           className={cn(
-                            "px-1 max-md:px-0.5",
-                            editing ? "py-1" : "py-2",
+                            framed
+                              ? cn(FRAMED_CELL, "px-3")
+                              : cn(
+                                  "px-1 max-md:px-0.5",
+                                  editing ? "py-1" : "py-2",
+                                ),
                             column.numeric &&
                               "text-end whitespace-nowrap tabular-nums",
                           )}
@@ -447,7 +567,17 @@ export function DataGrid<Row>({
                         </td>
                       ))}
                       {editing && rowEnd ? (
-                        <td className="py-1 ps-1 text-end">{rowEnd(row)}</td>
+                        <td
+                          className={cn(
+                            "py-1 ps-1 text-end",
+                            framed && cn(FRAMED_CELL, "pe-2"),
+                          )}
+                        >
+                          {rowEnd(row)}
+                        </td>
+                      ) : null}
+                      {framed ? (
+                        <td aria-hidden className={cn(FRAMED_CELL, "w-full p-0")} />
                       ) : null}
                     </tr>
                     {rowDetail ? (
@@ -469,6 +599,7 @@ export function DataGrid<Row>({
                     className={cn(
                       held,
                       "py-2 pe-3 text-start whitespace-nowrap",
+                      framed && "z-[1] border-t bg-card ps-4",
                     )}
                   >
                     {totals.label}
@@ -481,18 +612,23 @@ export function DataGrid<Row>({
                         column.numeric
                           ? "pe-3 text-end whitespace-nowrap tabular-nums"
                           : "px-1",
+                        framed && "border-t",
                       )}
                     >
                       {totals.cells[column.id] ?? null}
                     </td>
                   ))}
-                  {editing && rowEnd ? <td>{null}</td> : null}
+                  {editing && rowEnd ? (
+                    <td className={cn(framed && "border-t")}>{null}</td>
+                  ) : null}
+                  {framed ? <td aria-hidden className="border-t p-0" /> : null}
                 </tr>
               </tfoot>
             ) : null}
           </table>
         </section>
-        {editing ? (
+        {framed ? legendLine : null}
+        {editing && (!framed || focused) ? (
           <p
             className="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[18px] text-muted-foreground"
             data-slot="grid-status"
@@ -532,22 +668,7 @@ export function DataGrid<Row>({
             )}
           </p>
         ) : null}
-        {changedNote || legend?.empty ? (
-          <p className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] leading-[18px] text-muted-foreground">
-            {changedNote ? (
-              <span className="inline-flex items-center gap-1.5">
-                <ChangedDot />
-                {changedNote}
-              </span>
-            ) : null}
-            {legend?.empty ? (
-              <span className="inline-flex items-center gap-1.5">
-                <span aria-hidden>—</span>
-                {legend.empty}
-              </span>
-            ) : null}
-          </p>
-        ) : null}
+        {framed ? null : legendLine}
         {issues.length ? (
           <div
             role="alert"
@@ -583,7 +704,8 @@ export function DataGrid<Row>({
   );
 }
 
-function ChangedDot() {
+/** The mark on a figure that differs from where the figures came from. */
+export function GridChangedDot() {
   return (
     <span
       aria-hidden
@@ -606,7 +728,7 @@ export function GridFigure({ value, baseline }: GridFigureProps) {
   const changed = baseline !== undefined && baseline !== value;
   return (
     <span className="inline-flex items-center justify-end gap-1.5">
-      {changed ? <ChangedDot /> : null}
+      {changed ? <GridChangedDot /> : null}
       {value === null ? (
         <span className="text-muted-foreground">
           <span aria-hidden>—</span>
@@ -722,7 +844,7 @@ export function NumberCell({
     <span className="relative inline-flex">
       {changed ? (
         <span className="pointer-events-none absolute start-1 top-1/2 -translate-y-1/2">
-          <ChangedDot />
+          <GridChangedDot />
         </span>
       ) : null}
       <input
