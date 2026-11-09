@@ -270,13 +270,47 @@ Every editor below is now the portal's standard `DataTable`:
   the published table has them, because five short figures fit across a
   row at 720px and a phone's card reads them as one line.
 
+### Grade bands
+
+`apps/web/src/components/grading/ScalesTab.tsx`, Exams and grading,
+Grade scales.
+
+- **Sources.** Canvas's grading scheme editor is one row per band: a name,
+  an editable lower bound, and an upper bound worked out from the band
+  above and shown read-only ("< 90%"), the last row fixed at 0
+  (canvas-lms, GradingSchemeDataRowInput.tsx). PowerSchool SMS keeps one
+  table of lower cut-offs, each running "to the next highest grade"
+  (support.powerschool.com, Setting up a letter grade). Schoology runs
+  each symbol from its minimum to just below the next. All three save
+  the whole set at once.
+- **Decision.** A scale's row opens its grades in a panel: the standard
+  table with the grade, its Arabic name, the percentage it starts at,
+  the scores it covers ("70 to under 80") and GPA points where any grade
+  has them. Each grade opens on its own in a sheet with its names, the
+  percentage it starts at (its hint says what it now covers), GPA, and,
+  because a saved scale's grades are versioned, the date the change is
+  used from and why, kept in the history. Remove takes the same date and
+  reason. A new scale's grades are changed the same way before it is
+  added, with Done putting the grade into the scale.
+- **Why it departs from the products, and why that is safe.** They edit
+  the set together because a band's range depends on its neighbour. Here
+  a band holds only its lower bound and the range is derived, so one
+  grade can change without touching another; every rule of the set
+  (names once, lower bounds once, one grade from 0, at least two grades)
+  is checked in the grade's own sheet against the others, so no save
+  leaves the scale broken. What a school does in practice is move one
+  boundary ("A now from 85"), and each such move is its own dated entry
+  with its reason, which is the audit a board or an inspector asks for.
+  Turning GPA points off for the whole scale at once is gone; each grade
+  leaves its GPA empty instead.
+
 ## Ranking, worst first
 
 | #   | Editor                                   | Where                                                       | State                                                                  |
 | --- | ---------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------- |
 | 1   | Reading norms                            | `apps/web/src/components/reading/ReadingNorms.tsx`          | Rows: a grade's time of year per row, in a sheet                       |
 | 2   | Gradebook term grades                    | `apps/web/src/components/gradebook/`                        | Redesigned: table frame, saved as typed; see `docs/plans/gradebook.md` |
-| 3   | Grade bands                              | `apps/web/src/components/grading/ScalesTab.tsx`             | Rebuilt: per-cell checks, scores covered                               |
+| 3   | Grade bands                              | `apps/web/src/components/grading/ScalesTab.tsx`             | Rows: a grade per row, dated and with a reason                         |
 | 4   | Grading categories (weights)             | `apps/web/src/components/grading/ProgrammesTab.tsx`         | Rebuilt: per-cell checks, Total row                                    |
 | 5   | Rubric (criteria by levels)              | `apps/web/src/components/coursework/RubricSheet.tsx`        | Redesigned: a matrix, one criterion opened at a time                   |
 | 6   | Intake checklist, fees and priorities    | `apps/web/src/components/admissions/IntakeEditor.tsx`       | Rebuilt: checklist and fees; priorities left                           |

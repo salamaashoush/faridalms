@@ -14,7 +14,7 @@ import type {
   ExamSession,
 } from "~/components/exams/ExamSessions";
 import type { ProgrammeRow } from "~/components/grading/ProgrammesTab";
-import type { ScaleRow } from "~/components/grading/ScalesTab";
+import type { GradingOverview, ScaleRow } from "~/components/grading/ScalesTab";
 
 import {
   CourseworkList,
@@ -109,6 +109,10 @@ function useSheet() {
     close: () => setOpen(false),
   };
 }
+
+/** The scale as it stands now: a grade saved from its sheet reloads it. */
+const liveScale = (grading: GradingOverview, opened: ScaleRow) =>
+  grading.scales.find((row) => row.id === opened.id) ?? opened;
 
 function ExamsPage() {
   const { tab } = Route.useSearch();
@@ -255,7 +259,7 @@ function ExamsPage() {
         <BandsSheet
           key={shown.generation}
           open={sheet.isOpen}
-          scale={shown.open.scale}
+          scale={liveScale(grading, shown.open.scale)}
           today={grading.today}
           onClose={sheet.close}
         />
