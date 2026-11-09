@@ -302,11 +302,15 @@ const writeProcedure = anyWrite.use(async ({ context, next }) => {
   return next();
 });
 
-async function currentYear(context: UnitContext) {
-  const year = workingYear(
+async function yearOf(context: UnitContext) {
+  return workingYear(
     await schoolYears(context.tx, context.tenantId, context.schoolId),
     context.today,
   );
+}
+
+async function currentYear(context: UnitContext) {
+  const year = await yearOf(context);
   if (!year) throw new ORPCError("CONFLICT", { message: "learning.no_year" });
   return year;
 }
@@ -318,7 +322,8 @@ async function currentYear(context: UnitContext) {
  * subject classes, which own no grid.
  */
 async function authoringClasses(context: UnitContext) {
-  const year = await currentYear(context);
+  const year = await yearOf(context);
+  if (!year) return { year: null, classes: [] };
   const taught = await classesTaughtBy(context.tx, context, {
     userId: context.actor.userId,
     yearId: year.id,
@@ -348,6 +353,17 @@ async function authoringClasses(context: UnitContext) {
         .map((row) => ({ ...row, mine: false })),
     ],
   };
+}
+
+/**
+ * The year and classes a change to a module belongs to. A school that has
+ * not set up a year has no classes to set modules for yet, so the change is
+ * refused rather than made for no year.
+ */
+async function authoringYear(context: UnitContext) {
+  const { year, classes } = await authoringClasses(context);
+  if (!year) throw new ORPCError("CONFLICT", { message: "learning.no_year" });
+  return { year, classes };
 }
 
 /**
@@ -850,13 +866,14 @@ export const modules = readProcedure
   .input(v.object({ classId: v.optional(v.union([v.literal(""), id]), "") }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "learning:author");
-    const { classes } = await authoringClasses(context);
+    const { year, classes } = await authoringClasses(context);
     const classIds = input.classId
       ? classes
           .filter((item) => item.id === input.classId)
           .map((item) => item.id)
       : classes.map((item) => item.id);
     return {
+      yearSet: year !== null,
       classes,
       rows: await modulesForClasses(context.tx, {
         tenantId: context.tenantId,
@@ -879,6 +896,7 @@ export const yearMap = readProcedure
     const classId = input.classId || classes[0]?.id || "";
     if (classId && !classes.some((row) => row.id === classId))
       throw new ORPCError("NOT_FOUND");
+    if (!year) return { classes, classId, year: null, terms: [], units: [] };
     const [terms, units] = await Promise.all([
       termsOf(context.tx, context.tenantId, year.id),
       classId
@@ -910,7 +928,7 @@ export const setUnitDates = writeProcedure
   .input(unitDatesSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "learning:author");
-    const { year, classes } = await authoringClasses(context);
+    const { year, classes } = await authoringYear(context);
     if (!classes.some((row) => row.id === input.classId))
       throw new ORPCError("NOT_FOUND");
     if (
@@ -1065,7 +1083,7 @@ export const saveModule = writeProcedure
   .input(saveModuleSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "learning:author");
-    const { year, classes } = await authoringClasses(context);
+    const { year, classes } = await authoringYear(context);
     const allowed = new Set(classes.map((item) => item.id));
     if (input.classIds.some((classId) => !allowed.has(classId)))
       throw new ORPCError("FORBIDDEN", { message: "learning.class" });
@@ -1230,7 +1248,7 @@ export const duplicateModule = writeProcedure
   .input(duplicateModuleSchema)
   .handler(async ({ input, context }) => {
     const row = await editableModule(context, input.id);
-    const { year, classes } = await authoringClasses(context);
+    const { year, classes } = await authoringYear(context);
     const allowed = new Set(classes.map((item) => item.id));
     if (input.classIds.some((classId) => !allowed.has(classId)))
       throw new ORPCError("FORBIDDEN", { message: "learning.class" });
@@ -1328,7 +1346,7 @@ export const moduleFromLibrary = writeProcedure
         ? await moduleById(context.tx, context.tenantId, piece.moduleId)
         : null;
     if (!kept) throw new ORPCError("NOT_FOUND");
-    const { year, classes } = await authoringClasses(context);
+    const { year, classes } = await authoringYear(context);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("FORBIDDEN", { message: "learning.class" });
     const created = await copyModule(context, kept, {

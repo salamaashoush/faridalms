@@ -359,6 +359,7 @@ describe("a class's year map", () => {
     const placed = before.units.find((row) => row.id === saved.id);
     expect(placed).toMatchObject({ startsOn: null, endsOn: null });
 
+    if (!before.year) throw new Error("the seeded school has no year");
     const first = before.year.startsOn;
     const day = (offset: number) =>
       new Date(Date.parse(`${first}T00:00:00Z`) + offset * 86_400_000)

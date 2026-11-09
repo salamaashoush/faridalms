@@ -6,6 +6,8 @@ import {
 } from "@faridalms/database/directory/admin";
 import { openDirectory } from "@faridalms/database/directory/client";
 import { CAPABILITIES } from "@faridalms/domain/capabilities";
+import { MODULE_IDS } from "@faridalms/domain/modules";
+import { BASIC_ENTITLEMENTS, settableOf } from "@faridalms/domain/plans";
 import {
   newSchoolSchema,
   PROVISION_AUDIENCE,
@@ -287,6 +289,54 @@ describe("creating a school from the operator console", () => {
       expectedVersion: 0,
       marks: [{ studentId: student.id, meaning: "present" }],
     });
+  });
+
+  test("a new school with no year yet answers the pages that read one with nothing, and refuses what needs one", async () => {
+    const email = "salama@aspen.example.com";
+    const { body } = await begin({
+      ...standalone("aspen", email),
+      entitlements: {
+        ...settableOf(BASIC_ENTITLEMENTS),
+        modules: [...MODULE_IDS],
+      },
+    });
+    expect((await call("/v1/tenants", body)).status).toBe(200);
+    const { api } = await choosePassword(
+      "aspen",
+      linkTo(email, "aspen").secret,
+    );
+    await api.school.setFeature({ feature: "elearning", enabled: true });
+
+    expect(await api.learning.options()).toEqual({ classes: [], modules: [] });
+    expect(await api.learning.modules({ classId: "" })).toEqual({
+      yearSet: false,
+      classes: [],
+      rows: [],
+    });
+    expect(await api.learning.yearMap({ classId: "" })).toEqual({
+      classes: [],
+      classId: "",
+      year: null,
+      terms: [],
+      units: [],
+    });
+    expect(await api.attendance.board({ date: "" })).toMatchObject({
+      year: null,
+      rows: [],
+    });
+    expect(
+      await rejection(
+        api.learning.saveModule({
+          id: "",
+          expectedVersion: 0,
+          title: "Salama's first module",
+          summary: "",
+          classIds: [crypto.randomUUID()],
+          prerequisiteId: "",
+          sequential: false,
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "learning.no_year" });
   });
 
   test("each school of a group has its own administrator, and the group's runs them all", async () => {
