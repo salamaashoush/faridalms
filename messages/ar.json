@@ -2668,6 +2668,7 @@
   "classesSubjects": "المواد",
   "classesSubjectsHint": "تصبح كل مادة فصلًا قائمًا بذاته بالطلاب أنفسهم ومعلمها الخاص.",
   "classesSubjectTeacher": "معلم المادة",
+  "classesSubjectTeacherOf": "معلم المادة {number}",
   "classesSubjectTwice": "يمكن إضافة كل مادة مرة واحدة.",
   "classesTaughtCaption": "الفصول التي تدرّسها هذا العام مع دورك وعدد الطلاب.",
   "classesTeachers": "المعلمون",

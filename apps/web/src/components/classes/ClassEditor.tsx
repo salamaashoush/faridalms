@@ -1,5 +1,13 @@
+import type { GridColumn, GridOption } from "@faridalms/ui/system/data-grid";
+
 import { saveClassSchema } from "@faridalms/domain/classes";
-import { Button } from "@faridalms/ui/button";
+import {
+  DataGrid,
+  GridAddButton,
+  GridRemoveButton,
+  SelectCell,
+  useFocusAfterRender,
+} from "@faridalms/ui/system/data-grid";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
 import {
@@ -7,7 +15,6 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { Plus, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -81,6 +88,62 @@ function initialDraft(record: ClassData | null): Draft {
   };
 }
 
+interface SubjectGridOptions {
+  rows: SubjectDraft[];
+  subjects: GridOption<string>[];
+  teachers: GridOption<string>[];
+  change: (key: number, next: Partial<SubjectDraft>) => void;
+  remove: (key: number) => void;
+}
+
+// Built per render: headers read the request's locale.
+function subjectGrid({
+  rows,
+  subjects,
+  teachers,
+  change,
+  remove,
+}: SubjectGridOptions) {
+  const number = (row: SubjectDraft) => rows.indexOf(row) + 1;
+  const rowHeader = {
+    header: m.classesSubject(),
+    cell: (row: SubjectDraft) => (
+      <SelectCell
+        id={`class-subject-${row.key}`}
+        label={m.classesSubjectNumber({ number: number(row) })}
+        value={row.subjectId}
+        options={subjects}
+        onChange={(subjectId) => change(row.key, { subjectId })}
+      />
+    ),
+  };
+  const columns: GridColumn<SubjectDraft>[] = [
+    {
+      id: "teacher",
+      header: m.classesSubjectTeacher(),
+      fill: true,
+      cell: (row) => (
+        <SelectCell
+          id={`class-subject-teacher-${row.key}`}
+          label={m.classesSubjectTeacherOf({ number: number(row) })}
+          value={row.teacherId || "none"}
+          options={teachers}
+          onChange={(value) =>
+            change(row.key, { teacherId: value === "none" ? "" : value })
+          }
+        />
+      ),
+    },
+  ];
+  const rowEnd = (row: SubjectDraft) => (
+    <GridRemoveButton
+      label={m.classesRemoveSubject({ number: number(row) })}
+      onRemove={() => remove(row.key)}
+    />
+  );
+  return { rowHeader, columns, rowEnd };
+}
+
 export interface ExistingClassEditorProps {
   id: string;
   onClose: () => void;
@@ -109,6 +172,7 @@ export function ClassEditor({
   const year = options.years.find((row) => row.id === yearId);
   const leaving = useRef(false);
   const nextKey = useRef((record?.subjects.length ?? 0) + 1);
+  const focusLater = useFocusAfterRender();
   const [initial] = useState(() => initialDraft(record));
   const [draft, setDraft] = useState(initial);
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
@@ -125,6 +189,26 @@ export function ClassEditor({
     .toSorted((a, b) => Number(b.teaches) - Number(a.teaches))
     .map((row) => ({ value: row.id, label: displayName(row) }));
   const noTeacher = { value: "none", label: m.classesNoTeacherYet() };
+  const subjectOptions = options.subjects.map((subject) => ({
+    value: subject.id,
+    label: labelOf(subject) ?? subject.code,
+  }));
+  const addSubject = (
+    <GridAddButton
+      label={m.classesAddSubject()}
+      choices={subjectOptions.filter(
+        (option) =>
+          !draft.subjects.some((row) => row.subjectId === option.value),
+      )}
+      onAdd={(subjectId) => {
+        if (!subjectId) return;
+        const key = nextKey.current;
+        nextKey.current += 1;
+        set("subjects", [...draft.subjects, { key, subjectId, teacherId: "" }]);
+        focusLater(`class-subject-teacher-${key}`);
+      }}
+    />
+  );
   const payload = {
     ...(record ? { id: record.id, expectedVersion: record.version } : {}),
     yearId,
@@ -261,88 +345,45 @@ export function ClassEditor({
         title={m.classesSubjects()}
         description={m.classesSubjectsHint()}
       >
-        {draft.subjects.map((row, index) => (
-          <fieldset
-            key={row.key}
-            className="grid gap-3 rounded-lg border p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
-          >
-            <legend className="sr-only">
-              {m.classesSubjectNumber({ number: index + 1 })}
-            </legend>
-            <SelectField
-              id={`class-subject-${row.key}`}
-              label={m.classesSubject()}
-              value={row.subjectId}
-              options={options.subjects.map((subject) => ({
-                value: subject.id,
-                label: labelOf(subject) ?? subject.code,
-              }))}
-              onChange={(value) =>
+        {draft.subjects.length ? (
+          <DataGrid<SubjectDraft>
+            caption={m.classesSubjects()}
+            editing
+            surface="page"
+            {...subjectGrid({
+              rows: draft.subjects,
+              subjects: subjectOptions,
+              teachers: [...teachers, noTeacher],
+              change: (key, next) =>
                 set(
                   "subjects",
                   draft.subjects.map((item) =>
-                    item.key === row.key ? { ...item, subjectId: value } : item,
+                    item.key === key ? { ...item, ...next } : item,
                   ),
-                )
-              }
-              width="full"
-            />
-            <SelectField
-              id={`class-subject-teacher-${row.key}`}
-              label={m.classesSubjectTeacher()}
-              optional
-              value={row.teacherId || "none"}
-              options={[...teachers, noTeacher]}
-              onChange={(value) =>
+                ),
+              remove: (key) =>
                 set(
                   "subjects",
-                  draft.subjects.map((item) =>
-                    item.key === row.key
-                      ? { ...item, teacherId: value === "none" ? "" : value }
-                      : item,
-                  ),
-                )
-              }
-              width="full"
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="max-md:size-10"
-              aria-label={m.classesRemoveSubject({ number: index + 1 })}
-              onClick={() =>
-                set(
-                  "subjects",
-                  draft.subjects.filter((item) => item.key !== row.key),
-                )
-              }
-            >
-              <X aria-hidden />
-            </Button>
-          </fieldset>
-        ))}
-        {errors.subjects ? (
-          <p className="text-[13px] leading-[18px] text-destructive">
-            {errors.subjects}
-          </p>
-        ) : null}
-        <Button
-          type="button"
-          variant="outline"
-          className="justify-self-start max-md:h-10"
-          onClick={() => {
-            const key = nextKey.current;
-            nextKey.current += 1;
-            set("subjects", [
-              ...draft.subjects,
-              { key, subjectId: "", teacherId: "" },
-            ]);
-          }}
-        >
-          <Plus aria-hidden />
-          {m.classesAddSubject()}
-        </Button>
+                  draft.subjects.filter((item) => item.key !== key),
+                ),
+            })}
+            groups={[{ id: "subjects", title: "", rows: draft.subjects }]}
+            rowKey={(row) => String(row.key)}
+            issues={
+              errors.subjects && draft.subjects[0]
+                ? [
+                    {
+                      target: `class-subject-${draft.subjects[0].key}`,
+                      message: errors.subjects,
+                    },
+                  ]
+                : []
+            }
+            footer={addSubject}
+          />
+        ) : (
+          <div>{addSubject}</div>
+        )}
       </FormSection>
     </RecordForm>
   );

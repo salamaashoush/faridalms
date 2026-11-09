@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 
 import { expect, test } from "@playwright/test";
 
-import { signIn, untilHydrated } from "./fixtures/sign-in";
+import { chooseFromMenu, signIn, untilHydrated } from "./fixtures/sign-in";
 
 // Each browser project runs against the same seeded school, so each moves
 // its own student and none finds a roster another has already changed.
@@ -52,9 +52,10 @@ test("an administrator adds a class and a student from another class joins it", 
   await page.getByRole("textbox", { name: /^Class code/ }).fill(`T-${unique}`);
   await page.getByRole("combobox", { name: /^Grade/ }).click();
   await page.getByRole("option", { name: "Grade 8", exact: true }).click();
-  await page.getByRole("button", { name: "Add subject", exact: true }).click();
-  await page.getByRole("combobox", { name: "Subject", exact: true }).click();
-  await page.getByRole("option", { name: "Arabic", exact: true }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "Add subject", exact: true }),
+    page.getByRole("menuitem", { name: "Arabic", exact: true }),
+  );
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page).toHaveURL(/\/classes/);
 
