@@ -17,6 +17,7 @@ import {
 } from "@faridalms/domain/subscriptions";
 import { Button } from "@faridalms/ui/button";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import {
   CheckboxGroupField,
   FormField,
@@ -526,7 +527,7 @@ function PlanStep({ data }: StepProps) {
 
       <FormSection title="Add-ons">
         {addOns.length === 0 ? (
-          <p className="text-sm leading-5 text-muted-foreground">None.</p>
+          <EmptyState placement="section" title="None." />
         ) : null}
         {addOns.map((addOn, index) => {
           const row = data.selling.addOns.find(

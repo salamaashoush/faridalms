@@ -11,6 +11,7 @@ import type { ReactNode } from "react";
 
 import { BILLING_SCHEDULES, CURRENCIES } from "@faridalms/domain/subscriptions";
 import { Button } from "@faridalms/ui/button";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import {
   FormField,
   SelectField,
@@ -330,9 +331,7 @@ export function QuoteForm({
             }}
           />
         ) : (
-          <p className="text-sm leading-5 text-muted-foreground">
-            No add-ons are sold.
-          </p>
+          <EmptyState placement="section" title="No add-ons are sold." />
         )}
       </FormSection>
 

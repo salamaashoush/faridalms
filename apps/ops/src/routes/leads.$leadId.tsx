@@ -500,9 +500,7 @@ function AboutTab({ data, onEdit, onPlan }: AboutTabProps) {
           {
             id: "owner",
             label: "Owner",
-            value: owner?.name ?? (
-              <span className="text-muted-foreground">Nobody yet</span>
-            ),
+            value: owner?.name ?? <Value absent="Nobody yet" />,
           },
         ]}
       />

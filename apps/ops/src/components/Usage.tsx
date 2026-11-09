@@ -1,5 +1,6 @@
 import { WARN_SHARE } from "@faridalms/domain/plans";
 import { cn } from "@faridalms/ui/cn";
+import { Value } from "@faridalms/ui/system/value";
 
 import { formatBytes } from "../format";
 
@@ -11,8 +12,7 @@ export interface UsageProps {
 
 /** A school's storage against its pool; the bar only draws the line beside it. */
 export function Usage({ usedBytes, limitBytes }: UsageProps) {
-  if (usedBytes === null)
-    return <span className="text-muted-foreground">Not measured yet</span>;
+  if (usedBytes === null) return <Value absent="Not measured yet" />;
   const share = usedBytes / limitBytes;
   const nearly = share >= WARN_SHARE;
   return (

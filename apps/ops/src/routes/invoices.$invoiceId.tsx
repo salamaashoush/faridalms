@@ -1037,9 +1037,7 @@ const REMINDER_COLUMNS: Column<Reminder>[] = [
       reminder.emailedTo.length ? (
         <span dir="ltr">{reminder.emailedTo.join(", ")}</span>
       ) : (
-        <span className="text-muted-foreground">
-          Nobody: no billing contact
-        </span>
+        <Value absent="Nobody: no billing contact" />
       ),
   },
 ];

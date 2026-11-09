@@ -7,6 +7,7 @@ import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import {
   createFileRoute,
   stripSearchParams,
@@ -98,7 +99,7 @@ function columnsFor(today: string): Column<SubscriptionRow>[] {
       align: "end",
       cell: (row) =>
         row.enrolled === null ? (
-          <span className="text-muted-foreground">Not reported</span>
+          <Value absent="Not reported" />
         ) : row.contractedStudents ? (
           <span
             className={
@@ -122,7 +123,7 @@ function columnsFor(today: string): Column<SubscriptionRow>[] {
         row.valueMinor ? (
           formatMoney(row.valueMinor, row.currency)
         ) : (
-          <span className="text-muted-foreground">Nothing</span>
+          <Value absent="Nothing" />
         ),
     },
     {
@@ -131,7 +132,7 @@ function columnsFor(today: string): Column<SubscriptionRow>[] {
       align: "end",
       cell: (row) => {
         const ends = endOf(row);
-        if (!ends) return <span className="text-muted-foreground">No end</span>;
+        if (!ends) return <Value absent="No end" />;
         const left = daysBetween(today, ends) - 1;
         return (
           <span className="grid justify-items-end">

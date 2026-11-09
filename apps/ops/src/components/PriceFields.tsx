@@ -6,6 +6,7 @@ import type {
 
 import { CURRENCIES, PRICE_UNITS } from "@faridalms/domain/subscriptions";
 import { Button } from "@faridalms/ui/button";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { Plus } from "lucide-react";
 
@@ -85,9 +86,10 @@ export function PriceFields({ drafts, onChange }: PriceFieldsProps) {
     <fieldset className="grid min-w-0 gap-3">
       <legend className="sr-only">Prices</legend>
       {drafts.length === 0 ? (
-        <p className="text-[13px] leading-[18px] text-muted-foreground">
-          No list price: each contract sets its own.
-        </p>
+        <EmptyState
+          placement="section"
+          title="No list price: each contract sets its own."
+        />
       ) : null}
       {drafts.map((draft, index) => (
         <fieldset

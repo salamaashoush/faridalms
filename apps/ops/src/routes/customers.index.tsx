@@ -5,6 +5,7 @@ import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import {
   createFileRoute,
   stripSearchParams,
@@ -91,7 +92,7 @@ function columnsFor(data: Data): Column<CustomerRow>[] {
             </span>
           </span>
         ) : (
-          <span className="text-muted-foreground">None</span>
+          <Value absent="None" />
         ),
     },
     {
@@ -108,7 +109,7 @@ function columnsFor(data: Data): Column<CustomerRow>[] {
             align: "end" as const,
             cell: (customer: CustomerRow) =>
               customer.owed.owedMinor === 0 ? (
-                <span className="text-muted-foreground">Nothing</span>
+                <Value absent="Nothing" />
               ) : (
                 <span className="grid justify-items-end">
                   {formatMoney(customer.owed.owedMinor, customer.currency)}
@@ -133,7 +134,7 @@ function columnsFor(data: Data): Column<CustomerRow>[] {
         customer.accountOwnerId ? (
           (data.names[customer.accountOwnerId] ?? "A former operator")
         ) : (
-          <span className="text-muted-foreground">Nobody yet</span>
+          <Value absent="Nobody yet" />
         ),
     },
   ];

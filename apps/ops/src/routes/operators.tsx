@@ -167,7 +167,7 @@ function columnsFor(me: string): Column<Person>[] {
             {roleList(person.roles)}
           </span>
         ) : (
-          <span className="text-muted-foreground">None</span>
+          <Value absent="None" />
         ),
     },
     {

@@ -21,6 +21,7 @@ import { Segmented } from "@faridalms/ui/system/panel";
 import { useDesignSystem } from "@faridalms/ui/system/provider";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { dotTone, StatusBadge, StatusText } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import {
   createFileRoute,
   Link,
@@ -352,7 +353,7 @@ function listColumns(names: Data["names"], today: string): Column<Lead>[] {
         lead.quote ? (
           formatMoney(lead.quote.totalMinor, lead.quote.currency)
         ) : (
-          <span className="text-muted-foreground">Nothing</span>
+          <Value absent="Nothing" />
         ),
     },
   ];

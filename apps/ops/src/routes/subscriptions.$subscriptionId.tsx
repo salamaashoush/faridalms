@@ -646,7 +646,7 @@ function TermsTab({ data, mayChange, onEdit }: TermsTabProps) {
           value: subscription.notice ? (
             NOTICE_NAMES[subscription.notice]
           ) : (
-            <span className="text-muted-foreground">None</span>
+            <Value absent="None" />
           ),
         },
       ]}
@@ -985,7 +985,7 @@ function schoolColumns(): Column<SchoolRow>[] {
             ))}
           </span>
         ) : (
-          <span className="text-muted-foreground">Nothing changes</span>
+          <Value absent="Nothing changes" />
         );
       },
     },

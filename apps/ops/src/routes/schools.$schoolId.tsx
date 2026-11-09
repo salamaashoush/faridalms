@@ -38,6 +38,7 @@ import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
 import { SummaryList } from "@faridalms/ui/system/summary-list";
 import { UsageList } from "@faridalms/ui/system/usage-list";
+import { Value } from "@faridalms/ui/system/value";
 import {
   createFileRoute,
   Link,
@@ -635,9 +636,7 @@ function AboutTab({ data, standing }: AboutTabProps) {
                 {data.customer.name}
               </Link>
             ) : (
-              <span className="text-muted-foreground">
-                None: it came before the console sold anything
-              </span>
+              <Value absent="None: it came before the console sold anything" />
             ),
           },
           ...(group
@@ -659,9 +658,7 @@ function AboutTab({ data, standing }: AboutTabProps) {
               ) : sold.subscriptionId ? (
                 (data.plan ?? "No plan: its schools keep what they had")
               ) : (
-                <span className="text-muted-foreground">
-                  No subscription yet; the daily round opens one
-                </span>
+                <Value absent="No subscription yet; the daily round opens one" />
               ),
             action: sold?.subscriptionId ? (
               <ButtonLink
