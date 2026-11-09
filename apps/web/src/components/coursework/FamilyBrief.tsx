@@ -5,6 +5,7 @@ import {
   SheetTitle,
 } from "@faridalms/ui/sheet";
 import { RecordEmpty } from "@faridalms/ui/system/record-page";
+import { RubricMatrix } from "@faridalms/ui/system/rubric";
 import { useQuery } from "@tanstack/react-query";
 
 import { classTitle } from "~/components/classes/format";
@@ -12,7 +13,7 @@ import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { childBriefQuery } from "~/queries/coursework";
-import { formatInstant, formatNumber } from "~/utils/datetime";
+import { formatInstant } from "~/utils/datetime";
 
 import { resultText } from "../grading/format";
 import { useBriefLanguage } from "./BriefLanguage";
@@ -98,37 +99,18 @@ function Result({ data, result }: ResultProps) {
         <p className="text-sm leading-5 font-medium tabular-nums">{scored}</p>
       ) : null}
       {result.rubricScores && criteria.length ? (
-        <ul className="grid gap-1 text-sm leading-5">
-          {criteria.map((criterion) => {
-            const level = criterion.levels.find(
-              (row) => row.id === result.rubricScores?.[criterion.id],
-            );
-            const comment = result.rubricComments?.[criterion.id];
-            return (
-              <li key={criterion.id} className="grid gap-0.5">
-                <div className="flex flex-wrap justify-between gap-x-4">
-                  <span dir="auto">{criterion.title}</span>
-                  <span className="text-muted-foreground" dir="auto">
-                    {level
-                      ? m.courseworkRubricLevel({
-                          level: level.title,
-                          points: formatNumber(level.points),
-                        })
-                      : m.commonNotRecorded()}
-                  </span>
-                </div>
-                {comment ? (
-                  <p
-                    dir="auto"
-                    className="whitespace-pre-wrap text-muted-foreground"
-                  >
-                    {comment}
-                  </p>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
+        <RubricMatrix
+          label={m.courseworkRubric()}
+          criteria={criteria}
+          awarded={result.rubricScores}
+          renderCriterionNote={(criterion) =>
+            result.rubricComments?.[criterion.id] ? (
+              <p dir="auto" className="text-sm leading-5 whitespace-pre-wrap">
+                {result.rubricComments[criterion.id]}
+              </p>
+            ) : null
+          }
+        />
       ) : null}
       {result.feedback ? (
         <div className="grid gap-0.5">

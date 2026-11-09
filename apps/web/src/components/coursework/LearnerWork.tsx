@@ -13,6 +13,7 @@ import {
   RecordList,
   RecordSection,
 } from "@faridalms/ui/system/record-page";
+import { RubricMatrix } from "@faridalms/ui/system/rubric";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
 import {
@@ -49,7 +50,7 @@ import * as m from "~/i18n/messages";
 import { myWorkQuery } from "~/queries/coursework";
 import { myStandingQuery } from "~/queries/exams";
 import { handInWork, saveMyDraft, undoHandIn } from "~/server/coursework";
-import { formatInstant, formatNumber } from "~/utils/datetime";
+import { formatInstant } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
@@ -81,53 +82,23 @@ function RubricResult({ data, scores, comments, remarks }: RubricResultProps) {
   const linked = (id: string) =>
     remarks.filter((remark) => remark.criterionId === id).length;
   return (
-    <ul className="grid gap-1 text-sm leading-5">
-      {rubric.criteria.map((criterion) => {
-        const level = criterion.levels.find(
-          (row) => row.id === scores[criterion.id],
-        );
-        return (
-          <li key={criterion.id} className="grid gap-0.5">
-            <div className="flex flex-wrap justify-between gap-x-4">
-              <span dir="auto">{criterion.title}</span>
-              <span className="text-muted-foreground" dir="auto">
-                {[
-                  level
-                    ? m.courseworkRubricLevel({
-                        level: level.title,
-                        points: formatNumber(level.points),
-                      })
-                    : m.commonNotRecorded(),
-                  linked(criterion.id)
-                    ? m.courseworkCommentCount({
-                        count: linked(criterion.id),
-                      })
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-            </div>
-            {level?.description ? (
-              <p
-                dir="auto"
-                className="text-[13px] leading-[18px] text-muted-foreground"
-              >
-                {level.description}
-              </p>
-            ) : null}
-            {comments?.[criterion.id] ? (
-              <p
-                dir="auto"
-                className="whitespace-pre-wrap text-muted-foreground"
-              >
-                {comments[criterion.id]}
-              </p>
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
+    <RubricMatrix
+      label={m.courseworkRubric()}
+      criteria={rubric.criteria}
+      awarded={scores}
+      renderCriterionMeta={(criterion) =>
+        linked(criterion.id)
+          ? m.courseworkCommentCount({ count: linked(criterion.id) })
+          : null
+      }
+      renderCriterionNote={(criterion) =>
+        comments?.[criterion.id] ? (
+          <p dir="auto" className="text-sm leading-5 whitespace-pre-wrap">
+            {comments[criterion.id]}
+          </p>
+        ) : null
+      }
+    />
   );
 }
 

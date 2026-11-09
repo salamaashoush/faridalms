@@ -31,6 +31,7 @@ import {
 import { Page } from "@faridalms/ui/system/page";
 import { PageActions } from "@faridalms/ui/system/page-actions";
 import { RecordEmpty } from "@faridalms/ui/system/record-page";
+import { RubricLevelPicker } from "@faridalms/ui/system/rubric";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -508,34 +509,19 @@ function GradeSheet({
           ) : null}
           {rubric
             ? rubric.criteria.map((criterion) => (
-                <div key={criterion.id} className="grid gap-2">
-                  <SelectField
-                    id={`level-${criterion.id}`}
-                    label={criterion.title}
-                    hint={
-                      criterion.levels.find(
-                        (level) => level.id === levels[criterion.id],
-                      )?.description || undefined
-                    }
-                    value={levels[criterion.id] ?? "none"}
-                    options={[
-                      { value: "none", label: m.commonNotRecorded() },
-                      ...criterion.levels.map((level) => ({
-                        value: level.id,
-                        label: m.courseworkRubricLevel({
-                          level: level.title,
-                          points: formatNumber(level.points),
-                        }),
-                      })),
-                    ]}
-                    onChange={(value) => {
-                      const nextLevels = { ...levels };
-                      if (value === "none") delete nextLevels[criterion.id];
-                      else nextLevels[criterion.id] = value;
-                      setLevels(nextLevels);
-                      setScore(String(levelTotal(rubric, nextLevels)));
-                    }}
-                  />
+                <RubricLevelPicker
+                  key={criterion.id}
+                  id={`level-${criterion.id}`}
+                  criterion={criterion}
+                  value={levels[criterion.id] ?? null}
+                  onChange={(value) => {
+                    const nextLevels = { ...levels };
+                    if (value === null) delete nextLevels[criterion.id];
+                    else nextLevels[criterion.id] = value;
+                    setLevels(nextLevels);
+                    setScore(String(levelTotal(rubric, nextLevels)));
+                  }}
+                >
                   {noting.has(criterion.id) ? (
                     <FormField
                       id={`level-note-${criterion.id}`}
@@ -582,7 +568,7 @@ function GradeSheet({
                       {m.courseworkRubricAddComment()}
                     </Button>
                   )}
-                </div>
+                </RubricLevelPicker>
               ))
             : null}
           {data.toolScores.length > 0 ? (

@@ -236,23 +236,33 @@ test("a teacher writes a rubric, grades by its levels, and the student reads wha
     .click();
   await expect(page).toHaveURL(/\/grading/);
   await untilHydrated(page);
-  const level = page.getByRole("combobox", { name: /Use of evidence/ });
+  const levels = page.getByRole("radiogroup", { name: "Use of evidence" });
   await openWith(
     page.getByRole("button", { name: "Grade", exact: true }),
-    level,
+    levels,
   );
-  await level.click();
-  await page.getByRole("option", { name: "Meets (3)" }).click();
+  const meets = levels.getByRole("radio", { name: "Meets 3 points" });
   // The grader reads what the level means as they choose it.
-  await expect(page.getByText(meaning)).toBeVisible();
+  await expect(meets).toHaveAccessibleDescription(meaning);
+  await meets.click();
+  await expect(meets).toBeChecked();
+  await expect(page.getByText("3 of 4 points")).toBeVisible();
   await expect(page.locator("#grade-score")).toHaveValue("3");
   await page.getByRole("button", { name: "Return and next" }).click();
   await expect(page).toHaveURL(/tab=work/);
 
   await student.reload();
   await untilHydrated(student);
-  await expect(student.getByText("Meets (3)")).toBeVisible();
-  await expect(student.getByText(meaning)).toBeVisible();
+  // The student reads the whole rubric with the level reached marked.
+  const awarded = student
+    .getByRole("list", { name: "Levels of Use of evidence" })
+    .getByRole("listitem")
+    .filter({ hasText: "Awarded" });
+  await expect(awarded).toHaveCount(1);
+  await expect(awarded).toContainText("Meets");
+  await expect(awarded).toContainText("3 points");
+  await expect(awarded).toContainText(meaning);
+  await expect(student.getByText("3 of 4 points")).toBeVisible();
   await studentContext.close();
 });
 

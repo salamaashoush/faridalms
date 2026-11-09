@@ -6,13 +6,14 @@ import { MediaPlayer } from "@faridalms/editor/media-view";
 import { Button } from "@faridalms/ui/button";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
-import { FormField, SelectField } from "@faridalms/ui/system/form-field";
+import { FormField } from "@faridalms/ui/system/form-field";
 import { Segmented } from "@faridalms/ui/system/panel";
 import {
   RecordEmpty,
   RecordList,
   RecordSection,
 } from "@faridalms/ui/system/record-page";
+import { RubricLevelPicker } from "@faridalms/ui/system/rubric";
 import { StatusBadge } from "@faridalms/ui/system/status";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -452,25 +453,15 @@ function ReviewForm({ assignmentId, rubric, review, onSent }: ReviewFormProps) {
       }}
     >
       {rubric?.criteria.map((criterion) => (
-        <SelectField
+        <RubricLevelPicker
           key={criterion.id}
           id={`peer-${review.id}-${criterion.id}`}
-          label={criterion.title}
-          hint={
-            criterion.levels.find((level) => level.id === levels[criterion.id])
-              ?.description || undefined
-          }
-          value={levels[criterion.id] ?? "none"}
-          options={[
-            { value: "none", label: m.peerChooseLevel() },
-            ...criterion.levels.map((level) => ({
-              value: level.id,
-              label: level.title,
-            })),
-          ]}
+          criterion={criterion}
+          showPoints={false}
+          value={levels[criterion.id] ?? null}
           onChange={(value) => {
             const next = { ...levels };
-            if (value === "none") delete next[criterion.id];
+            if (value === null) delete next[criterion.id];
             else next[criterion.id] = value;
             setLevels(next);
           }}

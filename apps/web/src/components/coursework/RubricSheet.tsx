@@ -1,27 +1,31 @@
 import type { Rubric } from "@faridalms/domain/coursework";
-import type { GridColumn, GridIssue } from "@faridalms/ui/system/data-grid";
+import type {
+  RubricCriterion,
+  RubricLevelDraft,
+  RubricLevelErrors,
+} from "@faridalms/ui/system/rubric";
 
 import {
   MAX_LEVEL_DESCRIPTION,
   MAX_RUBRIC_CRITERIA,
   MAX_RUBRIC_LEVELS,
   rubricSchema,
-  rubricTotal,
 } from "@faridalms/domain/coursework";
 import { Button } from "@faridalms/ui/button";
+import { ActionMenu } from "@faridalms/ui/system/action-menu";
 import {
-  DataGrid,
   GridAddButton,
-  GridRemoveButton,
-  NoteCell,
-  NumberCell,
-  TextCell,
   useFocusAfterRender,
 } from "@faridalms/ui/system/data-grid";
 import { TextField } from "@faridalms/ui/system/form-field";
+import {
+  RubricLevelEditor,
+  rubricLevelFieldId,
+  RubricMatrix,
+} from "@faridalms/ui/system/rubric";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
@@ -34,18 +38,11 @@ import { removeRubric, saveRubric } from "~/server/coursework";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-interface LevelDraft {
-  id: string;
-  title: string;
-  points: number | null;
-  description: string;
-}
-
 interface CriterionDraft {
   id: string;
   title: string;
   standards: string[];
-  levels: LevelDraft[];
+  levels: RubricLevelDraft[];
 }
 
 /** A four-step scale from beyond the expectation down to its start. */
@@ -56,6 +53,13 @@ const STARTING_LEVELS: readonly [() => string, number][] = [
   [m.rubricLevelBeginning, 1],
 ];
 
+const newLevel = (): RubricLevelDraft => ({
+  id: crypto.randomUUID(),
+  title: "",
+  points: 0,
+  description: "",
+});
+
 const newCriterion = (): CriterionDraft => ({
   id: crypto.randomUUID(),
   title: "",
@@ -65,6 +69,18 @@ const newCriterion = (): CriterionDraft => ({
     title: title(),
     points,
     description: "",
+  })),
+});
+
+const copyOf = (criterion: CriterionDraft): CriterionDraft => ({
+  id: crypto.randomUUID(),
+  title: criterion.title
+    ? m.rubricCopyOf({ title: criterion.title }).slice(0, 120)
+    : "",
+  standards: [...criterion.standards],
+  levels: criterion.levels.map((level) => ({
+    ...level,
+    id: crypto.randomUUID(),
   })),
 });
 
@@ -104,202 +120,42 @@ function rubricOf(criteria: readonly CriterionDraft[]): Rubric | null {
   return parsed.success ? parsed.output : null;
 }
 
-const levelCell = (level: LevelDraft, field: "title" | "points" | "about") =>
-  `level-${level.id}-${field}`;
-
-const levelName = (level: LevelDraft, index: number) =>
-  level.title || formatNumber(index + 1);
-
-/** What stops a criterion's levels being used, each tied to its cell. */
-function levelIssues(criterion: CriterionDraft): GridIssue[] {
-  return criterion.levels.flatMap((level, index) => [
-    ...(level.title.trim()
-      ? []
-      : [
-          {
-            target: levelCell(level, "title"),
-            label: m.rubricLevelTitle({ number: formatNumber(index + 1) }),
-            message: m.rubricLevelNeeded(),
-          },
-        ]),
-    ...(pointsOf(level.points) === null
-      ? [
-          {
-            target: levelCell(level, "points"),
-            label: m.rubricLevelPoints({ level: levelName(level, index) }),
-            message: m.rubricPointsNeeded(),
-          },
-        ]
-      : []),
-  ]);
+/** What stops a criterion being used: its name, then each level's. */
+function problemsOf(criterion: CriterionDraft) {
+  const levels: Record<string, RubricLevelErrors> = {};
+  for (const level of criterion.levels) {
+    const errors: RubricLevelErrors = {
+      ...(level.title.trim() ? {} : { title: m.rubricLevelNeeded() }),
+      ...(pointsOf(level.points) === null
+        ? { points: m.rubricPointsNeeded() }
+        : {}),
+    };
+    if (errors.title || errors.points) levels[level.id] = errors;
+  }
+  const name = criterion.title.trim() ? null : m.rubricCriterionNeeded();
+  return { name, levels, any: Boolean(name) || Object.keys(levels).length > 0 };
 }
 
-interface LevelGridOptions {
-  levels: LevelDraft[];
-  change: (id: string, patch: Partial<LevelDraft>) => void;
-  remove: (id: string) => void;
+const nameField = (criterion: CriterionDraft) => `criterion-${criterion.id}`;
+const editButton = (criterion: CriterionDraft) =>
+  `criterion-${criterion.id}-edit`;
+
+/** The first field to fix in a criterion, by the order it is read. */
+function firstProblem(criterion: CriterionDraft): string {
+  const problems = problemsOf(criterion);
+  if (problems.name) return nameField(criterion);
+  for (const level of criterion.levels) {
+    const errors = problems.levels[level.id];
+    if (errors?.title) return rubricLevelFieldId("level", level.id, "title");
+    if (errors?.points) return rubricLevelFieldId("level", level.id, "points");
+  }
+  return nameField(criterion);
 }
 
-// Built per render: headers read the request's locale.
-function levelGrid({ levels, change, remove }: LevelGridOptions) {
-  const at = (level: LevelDraft) => levels.indexOf(level);
-  const rowHeader = {
-    header: m.rubricLevels(),
-    cell: (level: LevelDraft) => (
-      <TextCell
-        id={levelCell(level, "title")}
-        label={m.rubricLevelTitle({ number: formatNumber(at(level) + 1) })}
-        placeholder={m.rubricLevelTitlePlaceholder()}
-        maxLength={80}
-        value={level.title}
-        onChange={(title) => change(level.id, { title })}
-      />
-    ),
-  };
-  const columns: GridColumn<LevelDraft>[] = [
-    {
-      id: "points",
-      header: m.rubricPointsHeader(),
-      numeric: true,
-      cell: (level) => (
-        <NumberCell
-          id={levelCell(level, "points")}
-          label={m.rubricLevelPoints({ level: levelName(level, at(level)) })}
-          decimals={2}
-          value={level.points}
-          onChange={(points) => change(level.id, { points })}
-        />
-      ),
-    },
-  ];
-  const rowEnd = (level: LevelDraft) => (
-    <GridRemoveButton
-      label={m.rubricRemoveLevel({ level: levelName(level, at(level)) })}
-      disabled={levels.length <= 1}
-      onRemove={() => remove(level.id)}
-    />
-  );
-  const rowDetail = (level: LevelDraft) => (
-    <NoteCell
-      id={levelCell(level, "about")}
-      label={m.rubricLevelDescription({ level: levelName(level, at(level)) })}
-      placeholder={m.rubricLevelDescriptionPlaceholder()}
-      maxLength={MAX_LEVEL_DESCRIPTION}
-      value={level.description}
-      onChange={(description) => change(level.id, { description })}
-    />
-  );
-  return { rowHeader, columns, rowEnd, rowDetail };
-}
-
-interface CriterionEditorProps {
-  criterion: CriterionDraft;
-  index: number;
-  shown: boolean;
-  removable: boolean;
-  onChange: (patch: Partial<CriterionDraft>) => void;
-  onRemove: () => void;
-}
-
-/**
- * One criterion: what it judges, its levels as rows with their points and
- * what work at each looks like, and the standards it counts toward.
- */
-function CriterionEditor({
-  criterion,
-  index,
-  shown,
-  removable,
-  onChange,
-  onRemove,
-}: CriterionEditorProps) {
-  const focusLater = useFocusAfterRender();
-  const number = formatNumber(index + 1);
-  const name = criterion.title || m.rubricCriterion({ number });
-  const top = Math.max(
-    0,
-    ...criterion.levels.map((level) => pointsOf(level.points) ?? 0),
-  );
-  const changeLevel = (id: string, patch: Partial<LevelDraft>) =>
-    onChange({
-      levels: criterion.levels.map((level) =>
-        level.id === id ? { ...level, ...patch } : level,
-      ),
-    });
-  return (
-    <section
-      aria-label={name}
-      className="grid min-w-0 gap-3 border-t pt-5 first-of-type:border-t-0 first-of-type:pt-0"
-    >
-      <div className="flex items-end gap-2">
-        <TextField
-          id={`criterion-${criterion.id}`}
-          className="min-w-0 flex-1"
-          label={m.rubricCriterion({ number })}
-          placeholder={m.rubricCriterionPlaceholder()}
-          maxLength={120}
-          dir="auto"
-          value={criterion.title}
-          onChange={(event) => onChange({ title: event.target.value })}
-          errors={
-            shown && !criterion.title.trim() ? [m.rubricCriterionNeeded()] : []
-          }
-        />
-        {removable ? (
-          <span className="mb-0.5">
-            <GridRemoveButton
-              label={m.rubricRemoveCriterion({
-                name: criterion.title || number,
-              })}
-              onRemove={onRemove}
-            />
-          </span>
-        ) : null}
-      </div>
-      <DataGrid<LevelDraft>
-        caption={m.rubricLevelsOf({ criterion: name })}
-        editing
-        surface="sheet"
-        {...levelGrid({
-          levels: criterion.levels,
-          change: changeLevel,
-          remove: (id) =>
-            onChange({
-              levels: criterion.levels.filter((level) => level.id !== id),
-            }),
-        })}
-        groups={[{ id: "levels", title: "", rows: criterion.levels }]}
-        rowKey={(level) => level.id}
-        totals={{
-          label: m.rubricTopPoints(),
-          cells: { points: formatNumber(top) },
-        }}
-        issues={shown ? levelIssues(criterion) : []}
-        footer={
-          <GridAddButton
-            label={m.rubricAddLevel()}
-            disabled={criterion.levels.length >= MAX_RUBRIC_LEVELS}
-            onAdd={() => {
-              const added: LevelDraft = {
-                id: crypto.randomUUID(),
-                title: "",
-                points: 0,
-                description: "",
-              };
-              onChange({ levels: [...criterion.levels, added] });
-              focusLater(levelCell(added, "title"));
-            }}
-          />
-        }
-      />
-      <StandardsField
-        label={m.rubricStandards()}
-        hint={m.rubricStandardsHint()}
-        value={criterion.standards}
-        onChange={(standards) => onChange({ standards })}
-      />
-    </section>
-  );
+interface Writing {
+  id: string;
+  /** The criterion as it was when opened; null when it was just added. */
+  before: CriterionDraft | null;
 }
 
 export interface RubricSheetProps {
@@ -315,10 +171,11 @@ export interface RubricSheetProps {
 }
 
 /**
- * Writes the rubric a piece of work is graded by: criteria, each with the
- * levels a grader chooses between, their points and what work at each
- * looks like, and the standards a level counts toward. It may be kept among
- * the teacher's own rubrics to use again.
+ * Writes the rubric a piece of work is graded by, read as the matrix of
+ * criteria by levels that the grader and the student see, with one
+ * criterion at a time opened in place to change its name, its levels'
+ * names, points and descriptions, and the standards it counts toward. It
+ * may be kept among the teacher's own rubrics to use again.
  */
 export function RubricSheet({
   open,
@@ -329,10 +186,16 @@ export function RubricSheet({
   onForget,
 }: RubricSheetProps) {
   const queryClient = useQueryClient();
+  const focusLater = useFocusAfterRender();
   const [criteria, setCriteria] = useState(() => draftOf(rubric));
+  const [writing, setWriting] = useState<Writing | null>(() =>
+    rubric ? null : { id: criteria[0]?.id ?? "", before: null },
+  );
+  const [shown, setShown] = useState(false);
+  const [said, setSaid] = useState("");
   const [keep, setKeep] = useState(false);
   const [title, setTitle] = useState(kept?.title ?? "");
-  const [shown, setShown] = useState(false);
+  const [titleShown, setTitleShown] = useState(false);
   const save = useMutation({
     mutationFn: (written: Rubric) =>
       saveRubric({
@@ -358,34 +221,99 @@ export function RubricSheet({
     },
     onError: (error) => toast.error(getMessageFromError(error)),
   });
-  const written = rubricOf(criteria);
-  const total = written
-    ? rubricTotal(written)
-    : criteria.reduce(
-        (sum, criterion) =>
-          sum +
-          Math.max(
-            0,
-            ...criterion.levels.map((level) => pointsOf(level.points) ?? 0),
-          ),
-        0,
-      );
-  const change = (index: number, patch: Partial<CriterionDraft>) =>
-    setCriteria(
-      criteria.map((row, at) => (at === index ? { ...row, ...patch } : row)),
+  const current = criteria.find((row) => row.id === writing?.id) ?? null;
+  const numberOf = (criterion: CriterionDraft) =>
+    formatNumber(criteria.indexOf(criterion) + 1);
+  const nameOf = (criterion: CriterionDraft) =>
+    criterion.title.trim() ||
+    m.rubricCriterion({ number: numberOf(criterion) });
+  const change = (id: string, patch: Partial<CriterionDraft>) =>
+    setCriteria((rows) =>
+      rows.map((row) => (row.id === id ? { ...row, ...patch } : row)),
     );
-  const titleMissing = shown && keep && !title.trim();
+  /** Closes the open criterion, or shows what it lacks and keeps it open. */
+  const finish = (): boolean => {
+    if (!current) return true;
+    if (problemsOf(current).any) {
+      setShown(true);
+      focusLater(firstProblem(current));
+      return false;
+    }
+    setShown(false);
+    setWriting(null);
+    return true;
+  };
+  const edit = (criterion: CriterionDraft) => {
+    if (!finish()) return;
+    setWriting({ id: criterion.id, before: criterion });
+    focusLater(nameField(criterion));
+  };
+  const cancel = () => {
+    if (!writing) return;
+    const before = writing.before;
+    setShown(false);
+    setWriting(null);
+    if (before) {
+      setCriteria((rows) =>
+        rows.map((row) => (row.id === before.id ? before : row)),
+      );
+      focusLater(editButton(before));
+    } else {
+      setCriteria((rows) => rows.filter((row) => row.id !== writing.id));
+    }
+  };
+  const move = (criterion: CriterionDraft, by: -1 | 1) => {
+    const index = criteria.indexOf(criterion);
+    const target = index + by;
+    if (target < 0 || target >= criteria.length) return;
+    const next = criteria.filter((row) => row.id !== criterion.id);
+    next.splice(target, 0, criterion);
+    setCriteria(next);
+    setSaid(
+      m.rubricCriterionMoved({
+        name: nameOf(criterion),
+        position: formatNumber(target + 1),
+      }),
+    );
+    focusLater(editButton(criterion));
+  };
+  const add = (criterion: CriterionDraft, at = criteria.length) => {
+    if (!finish()) return;
+    const next = [...criteria];
+    next.splice(at, 0, criterion);
+    setCriteria(next);
+    setWriting({ id: criterion.id, before: null });
+    focusLater(nameField(criterion));
+  };
+  const titleMissing = titleShown && keep && !title.trim();
+  const shownCriteria: RubricCriterion[] = criteria.map((criterion) => ({
+    id: criterion.id,
+    title: nameOf(criterion),
+    levels: criterion.levels,
+  }));
   return (
     <SheetForm
       open={open}
       onOpenChange={onOpenChange}
       title={m.rubricSheetTitle()}
       submitLabel={m.rubricUse()}
+      size="wide"
       pending={save.isPending}
       error={save.error ? getMessageFromError(save.error) : null}
       onSubmit={() => {
-        setShown(true);
-        if (!written || (keep && !title.trim())) return;
+        setTitleShown(true);
+        if (!finish()) return;
+        const written = rubricOf(criteria);
+        if (!written) {
+          const broken = criteria.find((row) => problemsOf(row).any);
+          if (broken) {
+            setWriting({ id: broken.id, before: broken });
+            setShown(true);
+            focusLater(firstProblem(broken));
+          }
+          return;
+        }
+        if (keep && !title.trim()) return;
         if (keep) save.mutate(written);
         else {
           onUse(written, "");
@@ -396,33 +324,156 @@ export function RubricSheet({
       <p className="text-sm leading-5 text-muted-foreground">
         {m.rubricSheetHint()}
       </p>
-      {criteria.map((criterion, index) => (
-        <CriterionEditor
-          key={criterion.id}
-          criterion={criterion}
-          index={index}
-          shown={shown}
-          removable={criteria.length > 1}
-          onChange={(patch) => change(index, patch)}
-          onRemove={() => setCriteria(criteria.filter((_, at) => at !== index))}
+      <div className="grid gap-3">
+        <RubricMatrix
+          label={m.rubricSheetTitle()}
+          criteria={shownCriteria}
+          showTotal
+          renderCriterionMeta={(row) => {
+            const count =
+              criteria.find((draft) => draft.id === row.id)?.standards.length ??
+              0;
+            return count ? m.rubricStandardsCount({ count }) : null;
+          }}
+          renderCriterionActions={(row, index) => {
+            const criterion = criteria[index];
+            if (!criterion) return null;
+            const name = nameOf(criterion);
+            return (
+              <>
+                <Button
+                  id={editButton(criterion)}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="max-md:h-10"
+                  aria-label={m.rubricEditCriterion({ name })}
+                  onClick={() => edit(criterion)}
+                >
+                  <Pencil aria-hidden />
+                  {m.recordEdit()}
+                </Button>
+                <ActionMenu
+                  label={m.indexRowActions({ name: row.title })}
+                  className="max-md:size-10"
+                  actions={[
+                    ...(index > 0
+                      ? [
+                          {
+                            label: m.rubricMoveUp(),
+                            icon: ArrowUp,
+                            onSelect: () => move(criterion, -1),
+                          },
+                        ]
+                      : []),
+                    ...(index < criteria.length - 1
+                      ? [
+                          {
+                            label: m.rubricMoveDown(),
+                            icon: ArrowDown,
+                            onSelect: () => move(criterion, 1),
+                          },
+                        ]
+                      : []),
+                    ...(criteria.length < MAX_RUBRIC_CRITERIA
+                      ? [
+                          {
+                            label: m.rubricDuplicate(),
+                            icon: Copy,
+                            onSelect: () => add(copyOf(criterion), index + 1),
+                          },
+                        ]
+                      : []),
+                    ...(criteria.length > 1
+                      ? [
+                          {
+                            label: m.rubricRemove(),
+                            icon: Trash2,
+                            destructive: true as const,
+                            confirm: {
+                              title: m.rubricRemoveCriterionTitle({ name }),
+                              body: m.rubricRemoveCriterionBody(),
+                              label: m.rubricRemove(),
+                            },
+                            onSelect: () =>
+                              setCriteria((rows) =>
+                                rows.filter(
+                                  (other) => other.id !== criterion.id,
+                                ),
+                              ),
+                          },
+                        ]
+                      : []),
+                  ]}
+                />
+              </>
+            );
+          }}
+          editing={
+            current
+              ? {
+                  criterionId: current.id,
+                  onDone: () => {
+                    const closed = current;
+                    if (finish()) focusLater(editButton(closed));
+                  },
+                  ...(writing?.before || criteria.length > 1
+                    ? { onCancel: cancel }
+                    : {}),
+                  content: (
+                    <>
+                      <TextField
+                        id={nameField(current)}
+                        className="max-w-[30rem]"
+                        label={m.rubricCriterion({
+                          number: numberOf(current),
+                        })}
+                        placeholder={m.rubricCriterionPlaceholder()}
+                        maxLength={120}
+                        dir="auto"
+                        value={current.title}
+                        onChange={(event) =>
+                          change(current.id, { title: event.target.value })
+                        }
+                        errors={
+                          shown && !current.title.trim()
+                            ? [m.rubricCriterionNeeded()]
+                            : []
+                        }
+                      />
+                      <RubricLevelEditor
+                        idPrefix="level"
+                        levels={current.levels}
+                        onChange={(levels) => change(current.id, { levels })}
+                        newLevel={newLevel}
+                        max={MAX_RUBRIC_LEVELS}
+                        maxDescription={MAX_LEVEL_DESCRIPTION}
+                        errors={shown ? problemsOf(current).levels : undefined}
+                      />
+                      <StandardsField
+                        label={m.rubricStandards()}
+                        hint={m.rubricStandardsHint()}
+                        value={current.standards}
+                        onChange={(standards) =>
+                          change(current.id, { standards })
+                        }
+                      />
+                    </>
+                  ),
+                }
+              : null
+          }
         />
-      ))}
-      <div className="flex flex-wrap items-center justify-between gap-2">
         {criteria.length < MAX_RUBRIC_CRITERIA ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="max-md:h-10"
-            onClick={() => setCriteria([...criteria, newCriterion()])}
-          >
-            <Plus aria-hidden />
-            {m.rubricAddCriterion()}
-          </Button>
-        ) : (
-          <span />
-        )}
-        <p className="text-sm leading-5 text-muted-foreground tabular-nums">
-          {m.rubricTotalPoints({ points: formatNumber(total) })}
+          <div>
+            <GridAddButton
+              label={m.rubricAddCriterion()}
+              onAdd={() => add(newCriterion())}
+            />
+          </div>
+        ) : null}
+        <p aria-live="polite" className="sr-only">
+          {said}
         </p>
       </div>
       <div className="grid gap-3 border-t pt-4">
