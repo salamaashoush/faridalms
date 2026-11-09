@@ -10,6 +10,7 @@ import {
   GridAddButton,
   GridFigure,
   GridRemoveButton,
+  NoteCell,
   NumberCell,
   readNumber,
   TextCell,
@@ -330,6 +331,70 @@ describe("DataGrid as a list of like rows", () => {
     expect(name).toHaveValue("Coursework");
     await userEvent.keyboard("{ArrowDown}");
     expect(screen.getByRole("textbox", { name: "Name of b" })).toHaveFocus();
+  });
+});
+
+interface Level {
+  id: string;
+  name: string;
+  about: string;
+}
+
+function levelParts(levels: Level[], onLevels: (levels: Level[]) => void) {
+  return {
+    rowHeader: { header: "Level", cell: (level: Level) => level.name },
+    columns: [],
+    rowDetail: (level: Level) => (
+      <NoteCell
+        id={`about-${level.id}`}
+        label={`What work at ${level.name} looks like`}
+        value={level.about}
+        onChange={(about) =>
+          onLevels(
+            levels.map((item) =>
+              item.id === level.id ? { ...item, about } : item,
+            ),
+          )
+        }
+      />
+    ),
+  };
+}
+
+function Levels() {
+  const [levels, setLevels] = useState<Level[]>([
+    { id: "a", name: "Meets", about: "" },
+  ]);
+  return (
+    <DataGrid<Level>
+      caption="Levels"
+      editing
+      {...levelParts(levels, setLevels)}
+      groups={[{ id: "all", title: "", rows: levels }]}
+      rowKey={(level) => level.id}
+      issues={[
+        { target: "about-a", label: "Meets", message: "Say what it means." },
+      ]}
+    />
+  );
+}
+
+describe("DataGrid with a line under each row", () => {
+  it("writes a level's description on its own line and names the cell an issue is about", async () => {
+    renderWithSystem(<Levels />);
+    const about = screen.getByRole("textbox", {
+      name: "What work at Meets looks like",
+    });
+    await userEvent.type(about, "Uses two sources");
+    expect(about).toHaveValue("Uses two sources");
+    await userEvent.keyboard("{Escape}");
+    expect(about).toHaveValue("");
+    expect(
+      within(screen.getByRole("alert")).getByRole("link", {
+        name: "Meets: Say what it means.",
+      }),
+    ).toBeVisible();
+    expect(about).toHaveAttribute("aria-invalid", "true");
   });
 });
 

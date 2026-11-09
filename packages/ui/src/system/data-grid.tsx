@@ -65,6 +65,8 @@ export interface GridTotals {
 export interface GridIssue {
   /** The id of the cell's control. */
   target: string;
+  /** Which cell, when the message alone does not say, such as "Points for Meets". */
+  label?: string;
   message: string;
 }
 
@@ -81,6 +83,11 @@ export interface DataGridProps<Row> {
   rowKey: (row: Row) => string;
   /** The last cell of a row while editing, such as its Remove button. */
   rowEnd?: (row: Row) => ReactNode;
+  /**
+   * A line of its own under each row for what is too long for a column,
+   * such as what work at a rubric level looks like.
+   */
+  rowDetail?: (row: Row) => ReactNode;
   editing?: boolean;
   /**
    * Where the figures come from when nobody has changed them, such as
@@ -283,6 +290,7 @@ export function DataGrid<Row>({
   groups,
   rowKey,
   rowEnd,
+  rowDetail,
   editing = false,
   baselineName,
   legend,
@@ -394,39 +402,49 @@ export function DataGrid<Row>({
                   </tr>
                 ) : null}
                 {group.rows.map((row) => (
-                  <tr
-                    key={rowKey(row)}
-                    data-grid-row=""
-                    className={cn(!titled && "border-b last:border-b-0")}
-                  >
-                    <th
-                      scope="row"
+                  <Fragment key={rowKey(row)}>
+                    <tr
+                      data-grid-row=""
                       className={cn(
-                        held,
-                        "pe-3 text-start font-normal whitespace-nowrap max-md:pe-2",
-                        editing ? "py-1" : "py-2",
-                        titled && "ps-3 max-md:ps-1",
+                        !titled && !rowDetail && "border-b last:border-b-0",
                       )}
                     >
-                      {rowHeader.cell(row)}
-                    </th>
-                    {columns.map((column) => (
-                      <td
-                        key={column.id}
+                      <th
+                        scope="row"
                         className={cn(
-                          "px-1 max-md:px-0.5",
+                          held,
+                          "pe-3 text-start font-normal whitespace-nowrap max-md:pe-2",
                           editing ? "py-1" : "py-2",
-                          column.numeric &&
-                            "text-end whitespace-nowrap tabular-nums",
+                          titled && "ps-3 max-md:ps-1",
                         )}
                       >
-                        {column.cell(row)}
-                      </td>
-                    ))}
-                    {editing && rowEnd ? (
-                      <td className="py-1 ps-1 text-end">{rowEnd(row)}</td>
+                        {rowHeader.cell(row)}
+                      </th>
+                      {columns.map((column) => (
+                        <td
+                          key={column.id}
+                          className={cn(
+                            "px-1 max-md:px-0.5",
+                            editing ? "py-1" : "py-2",
+                            column.numeric &&
+                              "text-end whitespace-nowrap tabular-nums",
+                          )}
+                        >
+                          {column.cell(row)}
+                        </td>
+                      ))}
+                      {editing && rowEnd ? (
+                        <td className="py-1 ps-1 text-end">{rowEnd(row)}</td>
+                      ) : null}
+                    </tr>
+                    {rowDetail ? (
+                      <tr className={cn(!titled && "border-b last:border-b-0")}>
+                        <td colSpan={width} className="pt-0.5 pb-2">
+                          {rowDetail(row)}
+                        </td>
+                      </tr>
                     ) : null}
-                  </tr>
+                  </Fragment>
                 ))}
               </tbody>
             ))}
@@ -537,7 +555,9 @@ export function DataGrid<Row>({
                       focusCell(document.getElementById(issue.target));
                     }}
                   >
-                    {issue.message}
+                    {issue.label
+                      ? strings.errorSummaryItem(issue.label, issue.message)
+                      : issue.message}
                   </a>
                 </li>
               ))}
@@ -868,6 +888,72 @@ export function TextCell({
           event.preventDefault();
           event.stopPropagation();
           delete event.currentTarget.dataset.gridMode;
+          onChange(arrived.current);
+        }}
+      />
+      {issue ? (
+        <span id={describedBy} className="sr-only">
+          {issue}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+export interface NoteCellProps {
+  id: string;
+  /** The cell's full name, such as "What work at Meets looks like". */
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  maxLength?: number;
+}
+
+/**
+ * A few sentences written in a row's own line (`DataGrid rowDetail`),
+ * such as what work at a level looks like. Its text takes its own
+ * direction; Enter starts a new line, so the arrows and Enter stay the
+ * text's, and Escape puts back what it held when it was reached.
+ */
+export function NoteCell({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  maxLength,
+}: NoteCellProps) {
+  const { issues, report } = useContext(GridContext);
+  const arrived = useRef(value);
+  const describedBy = useId();
+  const issue = issues.get(id);
+  return (
+    <span className="flex">
+      <textarea
+        id={id}
+        dir="auto"
+        rows={2}
+        maxLength={maxLength}
+        aria-label={label}
+        aria-invalid={issue ? true : undefined}
+        aria-describedby={issue ? describedBy : undefined}
+        placeholder={placeholder}
+        value={value}
+        className={cn(
+          CELL_SURFACE,
+          "h-auto min-h-14 w-full resize-y px-2 py-1.5 leading-5 max-md:h-auto",
+        )}
+        onFocus={() => {
+          arrived.current = value;
+          report({ id, label });
+        }}
+        onBlur={() => report(null)}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape" || arrived.current === value) return;
+          event.preventDefault();
+          event.stopPropagation();
           onChange(arrived.current);
         }}
       />
