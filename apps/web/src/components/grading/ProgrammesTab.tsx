@@ -308,6 +308,7 @@ function CategoriesEditor({ value, onChange, issues }: CategoriesEditorProps) {
         <DataGrid<CategoryDraft>
           caption={m.gradingCategoriesTable()}
           editing
+          surface="sheet"
           {...categoryGrid({
             rows: value,
             set,

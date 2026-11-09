@@ -93,9 +93,9 @@ export interface DataGridProps<Row> {
   totals?: GridTotals;
   /**
    * What the first column is held against while the rest scrolls: a card
-   * (a settings section, a sheet) or the page itself.
+   * (a settings section), a sheet, or the page itself.
    */
-  surface?: "card" | "page";
+  surface?: GridSurface;
   /**
    * `container` squeezes the columns into the space there is; `content`
    * keeps every column as wide as it needs and scrolls the table in its
@@ -127,6 +127,14 @@ const GridContext = createContext<GridContextValue>({
 });
 
 const NO_ISSUES: GridIssue[] = [];
+
+export type GridSurface = "card" | "sheet" | "page";
+
+const SURFACE: Record<GridSurface, string> = {
+  card: "bg-card",
+  sheet: "bg-popover",
+  page: "bg-background",
+};
 
 /** A cell's field: a calm tint until hovered or focused, ringed when invalid. */
 const CELL_SURFACE = cn(
@@ -284,10 +292,7 @@ export function DataGrid<Row>({
   fit = "container",
   footer,
 }: DataGridProps<Row>) {
-  const held = cn(
-    "sticky start-0",
-    surface === "card" ? "bg-card" : "bg-background",
-  );
+  const held = cn("sticky start-0", SURFACE[surface]);
   const { direction, formatNumber } = useDesignSystem();
   const strings = useSystemStrings();
   const [focused, setFocused] = useState<FocusedCell | null>(null);

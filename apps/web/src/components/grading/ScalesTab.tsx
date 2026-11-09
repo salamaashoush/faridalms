@@ -386,6 +386,7 @@ function BandsEditor({ value, onChange, issues }: BandsEditorProps) {
       <DataGrid<BandDraft>
         caption={m.gradingBandsTable()}
         editing
+        surface="sheet"
         {...bandGrid({
           bands: value,
           withGpa,
