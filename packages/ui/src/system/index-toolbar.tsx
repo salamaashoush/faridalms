@@ -228,7 +228,7 @@ function SearchInput({
     return () => clearTimeout(timer);
   }, [draft, sent, leaving]);
   return (
-    <div className="relative min-w-0 flex-1 md:max-w-60 md:basis-44">
+    <div className="relative min-w-44 flex-1 md:max-w-60 md:basis-44">
       <Search
         className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
         aria-hidden
