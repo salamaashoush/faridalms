@@ -4045,6 +4045,7 @@ export function SelectionToolbarPlugin() {
       reference={reference}
       placement="top"
       boundary={boundary}
+      keepSide
       className={BAR}
       keepFocus
       role="toolbar"

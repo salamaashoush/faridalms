@@ -56,6 +56,7 @@ export function Floating({
   container,
   boundary,
   keepInView = false,
+  keepSide = false,
 }: {
   reference: ReferenceElement | null;
   placement?: Placement;
@@ -73,6 +74,12 @@ export function Floating({
    * belongs to rather than running off the top or bottom of the window.
    */
   keepInView?: boolean;
+  /**
+   * Where neither side has room inside `boundary`, as in a message box two
+   * lines tall, it stays on the side it asked for instead of covering
+   * whatever lies on the other side, such as the box's send button.
+   */
+  keepSide?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const attach = useCallback(
@@ -109,7 +116,13 @@ export function Floating({
         middleware: [
           inline(),
           offset(8),
-          flip({ padding: 8, ...(boundary ? { boundary } : {}) }),
+          flip({
+            padding: 8,
+            ...(boundary ? { boundary } : {}),
+            ...(keepSide
+              ? { fallbackStrategy: "initialPlacement" as const }
+              : {}),
+          }),
           shift({
             padding: 8,
             crossAxis: keepInView,
@@ -135,7 +148,7 @@ export function Floating({
         floating.style.pointerEvents = "";
       });
     });
-  }, [reference, placement, boundary, keepInView]);
+  }, [reference, placement, boundary, keepInView, keepSide]);
   if (!reference) return null;
   return createPortal(
     <div
