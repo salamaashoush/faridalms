@@ -73,6 +73,10 @@ export function PieceSheet({
   const queryClient = useQueryClient();
   const reviews = useCapability("library:review");
   const section = piece.kind === "section";
+  // A reply is used from inside a message, and a letter of admission is
+  // the school's own to edit; neither starts a document of its own here.
+  const reply = piece.kind === "message";
+  const letter = piece.kind === "admission_letter";
   const opened = useQuery({ ...templateQuery(piece.id), enabled: !section });
   const kept = useQuery({
     ...sectionTemplateQuery(piece.id),
@@ -157,6 +161,11 @@ export function PieceSheet({
       void navigate({
         to: "/consent-form-editor",
         search: { purpose: chosen, template: piece.id },
+      });
+    else if (letter)
+      void navigate({
+        to: "/admissions/letter-editor",
+        search: { id: piece.id },
       });
     else
       void navigate({
@@ -280,13 +289,13 @@ export function PieceSheet({
                   onChange={setTarget}
                 />
               ) : null}
-              {section ? (
+              {section || reply ? (
                 <p className="text-sm leading-5 text-muted-foreground">
-                  {m.librarySectionHint()}
+                  {section ? m.librarySectionHint() : m.libraryReplyHint()}
                 </p>
               ) : null}
               <div className="flex flex-wrap gap-2">
-                {section ? null : (
+                {section || reply ? null : (
                   <Button
                     type="button"
                     className="max-md:h-10"
@@ -300,7 +309,7 @@ export function PieceSheet({
                     }
                     onClick={use}
                   >
-                    {m.libraryUse()}
+                    {letter ? m.libraryEditLetter() : m.libraryUse()}
                   </Button>
                 )}
                 <Button

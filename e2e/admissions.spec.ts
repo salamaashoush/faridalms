@@ -194,3 +194,20 @@ test("a school adds its own question to the form, and families answer it", async
   await expect(visitor.getByLabel(arabic)).toBeVisible();
   await visitorContext.close();
 });
+
+test("a letter of admission in Templates opens the letter editor", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await page.goto("/library?kind=admission_letter");
+  await untilHydrated(page);
+  await page
+    .getByRole("button", { name: "Offer of a place", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("dialog").getByRole("button", { name: "Use" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Edit the letter" }).click();
+  await expect(page).toHaveURL(/\/admissions\/letter-editor\?id=/);
+});
