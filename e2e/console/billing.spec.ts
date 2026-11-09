@@ -113,10 +113,13 @@ test("a contract is invoiced, paid by transfer and card, credited, and shown to 
   // The school's administrator sees the invoice, settled, and its paper.
   const { page: school, context } = await schoolAdministrator(browser, slug);
   await school.goto(`${portal(slug)}/billing`);
-  const listed = school.getByRole("listitem", { name: `Invoice ${number}` });
+  const listed = school
+    .getByRole("table", { name: "Invoices" })
+    .getByRole("row")
+    .filter({ hasText: `Invoice ${number}` });
   await expect(listed).toContainText("Paid");
   await expect(school.getByText("Example Bank, IBAN EG00 0000")).toBeVisible();
-  await listed.getByRole("button", { name: "View" }).click();
+  await listed.getByRole("button", { name: `Invoice ${number}` }).click();
   const sheet = school.getByRole("dialog", { name: `Invoice ${number}` });
   await expect(sheet.getByRole("article")).toContainText("39,900.00");
   await context.close();

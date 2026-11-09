@@ -1,10 +1,22 @@
 import type { InvoiceState, SchoolBilling } from "@faridalms/domain/invoices";
+import type {
+  Column,
+  DataTableCard,
+  RowAction,
+} from "@faridalms/ui/system/data-table";
 import type { Tone } from "@faridalms/ui/system/status";
 
 import { InvoiceDocument } from "@faridalms/documents/InvoiceDocument";
-import { Button, buttonVariants } from "@faridalms/ui/button";
+import { Button } from "@faridalms/ui/button";
+import { DataTable } from "@faridalms/ui/system/data-table";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
+import {
+  RecordList,
+  RecordSection,
+  RecordStack,
+} from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -55,7 +67,7 @@ const money = (minor: number, currency: string) =>
 function BillingPage() {
   const { data } = useSuspenseQuery(billingQuery);
   return (
-    <div className="grid gap-6">
+    <Page width="record">
       <PageHeader
         title={m.billingTitle()}
         description={m.billingDescription()}
@@ -67,8 +79,123 @@ function BillingPage() {
           {m.billingUnavailable()}
         </output>
       )}
-    </div>
+    </Page>
   );
+}
+
+interface Shown {
+  invoice: Invoice;
+  credit: Invoice["credits"][number] | null;
+}
+
+interface InvoiceRow extends Invoice {
+  overdue: boolean;
+}
+
+type View = (shown: Shown) => void;
+
+function invoiceColumns(view: View): Column<InvoiceRow>[] {
+  return [
+    {
+      id: "invoice",
+      header: m.billingColInvoice(),
+      primary: true,
+      cell: (row) => (
+        <Button
+          type="button"
+          variant="link"
+          className="h-auto max-w-full justify-start truncate p-0 text-foreground"
+          onClick={() => view({ invoice: row, credit: null })}
+        >
+          {m.billingInvoice({ number: row.number })}
+        </Button>
+      ),
+    },
+    {
+      id: "state",
+      header: m.billingColStatus(),
+      cell: (row) => <InvoiceStatus row={row} />,
+    },
+    {
+      id: "issued",
+      header: m.billingColIssued(),
+      cell: (row) => formatDate(row.issuedOn),
+    },
+    {
+      id: "due",
+      header: m.billingColDue(),
+      cell: (row) => formatDate(row.dueOn),
+    },
+    {
+      id: "total",
+      header: m.billingColTotal(),
+      align: "end",
+      cell: (row) => money(row.totalMinor, row.currency),
+    },
+    {
+      id: "owed",
+      header: m.billingColOwed(),
+      align: "end",
+      cell: (row) => money(row.owedMinor, row.currency),
+    },
+  ];
+}
+
+interface InvoiceStatusProps {
+  row: InvoiceRow;
+}
+
+function InvoiceStatus({ row }: InvoiceStatusProps) {
+  const state = row.state === "draft" ? null : STATE[row.state];
+  return (
+    <span className="flex flex-wrap items-center gap-x-2">
+      {state ? (
+        <StatusText tone={state.tone}>{state.label()}</StatusText>
+      ) : null}
+      {row.overdue ? (
+        <StatusText tone="danger">{m.billingOverdue()}</StatusText>
+      ) : null}
+    </span>
+  );
+}
+
+const INVOICE_CARD: DataTableCard<InvoiceRow> = {
+  title: (row) => m.billingInvoice({ number: row.number }),
+  status: (row) => <InvoiceStatus row={row} />,
+  fact: (row) =>
+    row.owedMinor > 0
+      ? m.billingOwed({
+          amount: money(row.owedMinor, row.currency),
+          total: money(row.totalMinor, row.currency),
+        })
+      : m.billingSettled({ total: money(row.totalMinor, row.currency) }),
+};
+
+function invoiceActions(row: InvoiceRow, view: View): RowAction[] {
+  const link = row.paymentLinkUrl;
+  return [
+    ...(link
+      ? [
+          {
+            label: m.billingPayCard(),
+            icon: CreditCard,
+            inline: true,
+            href: link,
+            onSelect: () => {
+              window.open(link, "_blank", "noreferrer");
+            },
+          },
+        ]
+      : []),
+    {
+      label: m.billingView(),
+      onSelect: () => view({ invoice: row, credit: null }),
+    },
+    ...row.credits.map((credit) => ({
+      label: m.billingCreditNote({ number: credit.number }),
+      onSelect: () => view({ invoice: row, credit }),
+    })),
+  ];
 }
 
 interface BillingProps {
@@ -78,137 +205,70 @@ interface BillingProps {
 function Billing({ billing }: BillingProps) {
   const { today } = useCurrentUser();
   const language = getLocale() === "ar" ? "ar" : "en";
-  const [shown, setShown] = useState<{
-    invoice: Invoice;
-    credit: Invoice["credits"][number] | null;
-  } | null>(null);
+  const [shown, setShown] = useState<Shown | null>(null);
   const bank =
     language === "ar"
       ? billing.business?.bankDetailsAr
       : billing.business?.bankDetailsEn;
+  const rows: InvoiceRow[] = billing.invoices.map((invoice) => ({
+    ...invoice,
+    overdue: invoice.owedMinor > 0 && invoice.dueOn < today,
+  }));
   return (
-    <>
-      {billing.invoices.length ? (
-        <ul className="grid max-w-3xl gap-3">
-          {billing.invoices.map((invoice) => {
-            const state =
-              invoice.state === "draft" ? null : STATE[invoice.state];
-            const overdue = invoice.owedMinor > 0 && invoice.dueOn < today;
-            return (
-              <li
-                key={invoice.id}
-                aria-label={m.billingInvoice({ number: invoice.number })}
-                className="grid gap-2 rounded-lg border bg-card px-4 py-3 text-sm"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-medium">
-                    {m.billingInvoice({ number: invoice.number })}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    {state ? (
-                      <StatusText tone={state.tone}>{state.label()}</StatusText>
-                    ) : null}
-                    {overdue ? (
-                      <StatusText tone="danger">
-                        {m.billingOverdue()}
-                      </StatusText>
-                    ) : null}
-                  </span>
-                </div>
-                <p className="text-muted-foreground">
-                  {m.billingIssuedDue({
-                    issued: formatDate(invoice.issuedOn, "full"),
-                    due: formatDate(invoice.dueOn, "full"),
-                  })}
-                </p>
-                <p className="tabular-nums">
-                  {invoice.owedMinor > 0
-                    ? m.billingOwed({
-                        amount: money(invoice.owedMinor, invoice.currency),
-                        total: money(invoice.totalMinor, invoice.currency),
-                      })
-                    : m.billingSettled({
-                        total: money(invoice.totalMinor, invoice.currency),
-                      })}
-                </p>
-                <span className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShown({ invoice, credit: null })}
-                  >
-                    {m.billingView()}
-                  </Button>
-                  {invoice.paymentLinkUrl ? (
-                    <a
-                      href={invoice.paymentLinkUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={buttonVariants({ size: "sm" })}
-                    >
-                      <CreditCard aria-hidden />
-                      {m.billingPayCard()}
-                    </a>
-                  ) : null}
-                  {invoice.credits.map((credit) => (
-                    <Button
-                      key={credit.id}
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShown({ invoice, credit })}
-                    >
-                      {m.billingCreditNote({ number: credit.number })}
-                    </Button>
-                  ))}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <div className="max-w-3xl">
-          <EmptyState
-            icon={ReceiptText}
-            title={m.billingNone()}
-            description={m.billingNoneBody()}
-          />
-        </div>
-      )}
+    <RecordStack>
+      <RecordSection title={m.billingInvoicesTitle()}>
+        <DataTable
+          caption={m.billingInvoicesTitle()}
+          rows={rows}
+          columns={invoiceColumns(setShown)}
+          rowLabel={(row) => m.billingInvoice({ number: row.number })}
+          rowActions={(row) => invoiceActions(row, setShown)}
+          card={INVOICE_CARD}
+          empty={{
+            icon: ReceiptText,
+            title: m.billingNone(),
+            description: m.billingNoneBody(),
+          }}
+        />
+      </RecordSection>
 
       {bank ? (
-        <section className="grid max-w-3xl gap-1 text-sm">
-          <h2 className="text-base font-semibold">{m.billingBankTitle()}</h2>
-          <p className="whitespace-pre-line" dir="auto">
+        <RecordSection
+          title={m.billingBankTitle()}
+          description={m.billingBankReference()}
+        >
+          <p className="text-sm leading-5 whitespace-pre-line" dir="auto">
             {bank}
           </p>
-          <p className="text-muted-foreground">{m.billingBankReference()}</p>
-        </section>
+        </RecordSection>
       ) : null}
 
-      <section className="grid max-w-3xl gap-1 text-sm">
-        <h2 className="text-base font-semibold">{m.billingContactsTitle()}</h2>
+      <RecordSection title={m.billingContactsTitle()}>
         {billing.contacts.length ? (
-          <ul className="grid gap-0.5">
+          <RecordList>
             {billing.contacts.map((contact) => (
               <li
                 key={`${contact.name}-${contact.email ?? contact.phone ?? ""}`}
+                className="grid gap-0.5 py-3 text-sm leading-5"
               >
-                {contact.name}
+                <span dir="auto" className="font-medium">
+                  {contact.name}
+                </span>
                 {contact.email || contact.phone ? (
-                  <span dir="ltr" className="text-muted-foreground">
-                    {" "}
-                    · {contact.email ?? contact.phone}
+                  <span
+                    dir="ltr"
+                    className="justify-self-start text-muted-foreground"
+                  >
+                    {contact.email ?? contact.phone}
                   </span>
                 ) : null}
               </li>
             ))}
-          </ul>
+          </RecordList>
         ) : (
           <EmptyState placement="section" title={m.billingContactsNone()} />
         )}
-      </section>
+      </RecordSection>
 
       {shown && billing.customer ? (
         <PaperSheet
@@ -265,6 +325,6 @@ function Billing({ billing }: BillingProps) {
           </div>
         </PaperSheet>
       ) : null}
-    </>
+    </RecordStack>
   );
 }
