@@ -5164,6 +5164,8 @@
   "siteShowInMenuHint": "الصفحات المخفية من القائمة تُفتح من الروابط.",
   "siteSlugNeeded": "استخدم أحرفًا لاتينية صغيرة وأرقامًا وشرطات.",
   "siteSocialKind": "الشبكة",
+  "siteSocialKindOf": "شبكة الرابط {number}",
+  "siteSocialAddress": "العنوان",
   "siteState": "الحالة",
   "siteStateArchived": "مؤرشف",
   "siteStateDraft": "مسودة",

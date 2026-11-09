@@ -1,8 +1,16 @@
 import type { BannerTone, SocialKind } from "@faridalms/domain/website";
+import type { GridColumn } from "@faridalms/ui/system/data-grid";
 
 import { BANNER_TONES, SOCIAL_KINDS } from "@faridalms/domain/website";
-import { Button } from "@faridalms/ui/button";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
+import {
+  DataGrid,
+  GridAddButton,
+  GridRemoveButton,
+  SelectCell,
+  TextCell,
+  useFocusAfterRender,
+} from "@faridalms/ui/system/data-grid";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { Fact } from "@faridalms/ui/system/record-page";
 import {
@@ -10,7 +18,6 @@ import {
   SettingsSection,
 } from "@faridalms/ui/system/settings-section";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -20,7 +27,7 @@ import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
 import * as m from "~/i18n/messages";
 import { saveSiteSettings } from "~/server/site";
-import { instantFromLocal, localInput } from "~/utils/datetime";
+import { formatNumber, instantFromLocal, localInput } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 type Settings = Awaited<
@@ -75,6 +82,58 @@ const GROUPS = {
   banner: ["bannerEn", "bannerAr", "bannerTone", "bannerUntil"],
 } as const satisfies Record<string, readonly (keyof Draft)[]>;
 
+type SocialLink = Draft["socialLinks"][number];
+
+interface SocialGridOptions {
+  links: SocialLink[];
+  set: (index: number, change: Partial<SocialLink>) => void;
+  remove: (index: number) => void;
+}
+
+// Built per render: headers read the request's locale.
+function socialGrid({ links, set, remove }: SocialGridOptions) {
+  const at = (link: SocialLink) => links.indexOf(link);
+  const rowHeader = {
+    header: m.siteSocialKind(),
+    cell: (link: SocialLink) => (
+      <SelectCell
+        id={`site-social-${at(link)}-kind`}
+        label={m.siteSocialKindOf({ number: formatNumber(at(link) + 1) })}
+        value={link.kind}
+        options={SOCIAL_KINDS.map((kind) => ({
+          value: kind,
+          label: SOCIAL_LABEL[kind],
+        }))}
+        onChange={(kind) => set(at(link), { kind })}
+      />
+    ),
+  };
+  const columns: GridColumn<SocialLink>[] = [
+    {
+      id: "url",
+      header: m.siteSocialAddress(),
+      fill: true,
+      cell: (link) => (
+        <TextCell
+          id={`site-social-${at(link)}-url`}
+          label={m.siteSocialUrl({ kind: SOCIAL_LABEL[link.kind] })}
+          dir="ltr"
+          placeholder="https://"
+          value={link.url}
+          onChange={(url) => set(at(link), { url })}
+        />
+      ),
+    },
+  ];
+  const rowEnd = (link: SocialLink) => (
+    <GridRemoveButton
+      label={m.siteRemoveSocial({ kind: SOCIAL_LABEL[link.kind] })}
+      onRemove={() => remove(at(link))}
+    />
+  );
+  return { rowHeader, columns, rowEnd };
+}
+
 export interface SiteSettingsProps {
   settings: Settings;
 }
@@ -85,6 +144,7 @@ export function SiteSettings({ settings }: SiteSettingsProps) {
   const initial = draftOf(settings);
   const [draft, setDraft] = useState(initial);
   const [saved, setSaved] = useState<keyof typeof GROUPS | null>(null);
+  const focusLater = useFocusAfterRender();
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     setSaved(null);
     setDraft((current) => ({ ...current, [key]: value }));
@@ -117,6 +177,23 @@ export function SiteSettings({ settings }: SiteSettingsProps) {
     toast.success(m.siteSettingsSaved());
   };
   const error = save.error ? getMessageFromError(save.error) : null;
+  const addLink = (
+    <GridAddButton
+      label={m.siteAddSocial()}
+      disabled={draft.socialLinks.length >= 10}
+      choices={SOCIAL_KINDS.map((kind) => ({
+        value: kind,
+        label: SOCIAL_LABEL[kind],
+      }))}
+      onAdd={(kind) => {
+        const chosen = SOCIAL_KINDS.find((one) => one === kind);
+        if (!chosen) return;
+        const index = draft.socialLinks.length;
+        set("socialLinks", [...draft.socialLinks, { kind: chosen, url: "" }]);
+        focusLater(`site-social-${index}-url`);
+      }}
+    />
+  );
   return (
     <SettingsPage>
       <SettingsSection
@@ -191,85 +268,32 @@ export function SiteSettings({ settings }: SiteSettingsProps) {
         saved={saved === "social"}
         isDirty={dirty("social")}
       >
-        <ul className="grid gap-4">
-          {draft.socialLinks.map((link, index) => (
-            <li
-              key={index}
-              className="grid items-end gap-3 sm:grid-cols-[10rem_minmax(0,1fr)_auto]"
-            >
-              <SelectField
-                id={`site-social-${index}-kind`}
-                label={m.siteSocialKind()}
-                value={link.kind}
-                options={SOCIAL_KINDS.map((kind) => ({
-                  value: kind,
-                  label: SOCIAL_LABEL[kind],
-                }))}
-                onChange={(kind) =>
-                  set(
-                    "socialLinks",
-                    draft.socialLinks.map((item, at) =>
-                      at === index ? { ...item, kind } : item,
-                    ),
-                  )
-                }
-              />
-              <TextField
-                id={`site-social-${index}-url`}
-                label={m.siteSocialUrl({ kind: SOCIAL_LABEL[link.kind] })}
-                type="url"
-                dir="ltr"
-                placeholder="https://"
-                value={link.url}
-                onChange={(event) =>
-                  set(
-                    "socialLinks",
-                    draft.socialLinks.map((item, at) =>
-                      at === index
-                        ? { ...item, url: event.target.value }
-                        : item,
-                    ),
-                  )
-                }
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="max-md:size-10"
-                aria-label={m.siteRemoveSocial({
-                  kind: SOCIAL_LABEL[link.kind],
-                })}
-                onClick={() =>
-                  set(
-                    "socialLinks",
-                    draft.socialLinks.filter((_, at) => at !== index),
-                  )
-                }
-              >
-                <X aria-hidden />
-              </Button>
-            </li>
-          ))}
-        </ul>
-        {draft.socialLinks.length < 10 ? (
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              className="max-md:h-10"
-              onClick={() =>
-                set("socialLinks", [
-                  ...draft.socialLinks,
-                  { kind: "facebook", url: "" },
-                ])
-              }
-            >
-              <Plus aria-hidden />
-              {m.siteAddSocial()}
-            </Button>
-          </div>
-        ) : null}
+        {draft.socialLinks.length ? (
+          <DataGrid<SocialLink>
+            caption={m.siteSettingsSocial()}
+            editing
+            {...socialGrid({
+              links: draft.socialLinks,
+              set: (index, change) =>
+                set(
+                  "socialLinks",
+                  draft.socialLinks.map((item, at) =>
+                    at === index ? { ...item, ...change } : item,
+                  ),
+                ),
+              remove: (index) =>
+                set(
+                  "socialLinks",
+                  draft.socialLinks.filter((_, at) => at !== index),
+                ),
+            })}
+            groups={[{ id: "links", title: "", rows: draft.socialLinks }]}
+            rowKey={(link) => `link-${draft.socialLinks.indexOf(link)}`}
+            footer={addLink}
+          />
+        ) : (
+          <div>{addLink}</div>
+        )}
       </SettingsSection>
       <SettingsSection
         title={m.siteSettingsBanner()}

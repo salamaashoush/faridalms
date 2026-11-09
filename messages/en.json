@@ -4884,6 +4884,8 @@
   "siteShowInMenuHint": "Pages hidden from the menu still open from links.",
   "siteSlugNeeded": "Use lowercase letters, digits and hyphens.",
   "siteSocialKind": "Network",
+  "siteSocialKindOf": "Network of link {number}",
+  "siteSocialAddress": "Address",
   "siteState": "Status",
   "siteStateArchived": "Archived",
   "siteStateDraft": "Draft",
