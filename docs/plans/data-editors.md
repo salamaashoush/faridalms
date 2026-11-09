@@ -55,46 +55,179 @@ and the work list.
    the rule in the domain so the server agrees.
 8. **390px and RTL**: five figure columns fit at 390px; wider grids scroll
    in a named region with the first column held.
+9. **Line items are a table, not a grid**: rows a person adds one at a
+   time, each with several fields (an invoice's lines, a plan's prices, a
+   quote's add-ons, a school's hosts), are the standard `DataTable` with
+   Add and a row menu, each row opened alone in a sheet (Console below).
 
-All of it is `packages/ui/src/system/data-grid.tsx`.
+Patterns 1 to 8 are `packages/ui/src/system/data-grid.tsx`; pattern 9 is
+`data-table.tsx` (`RowButton`) with a `SheetForm` per row.
+
+## Console
+
+The console's four line editors (invoice and credit note lines, a plan's
+or add-on's prices, a quote's add-ons, a new school's own hosts) were
+moved into `DataGrid` with a whole-table edit mode. The owner's verdict:
+these are tables, and a row is added or changed one at a time, not as one
+big form. What the products an operator already knows do, and what each
+editor became.
+
+### Invoice and credit note lines
+
+- **Stripe** edits a draft in a full-page editor: an item is added from
+  "Add one-time item" or a product, with its quantity and price and an
+  "Item options" disclosure for tax, coupon and supply date; anything on
+  a draft may change, an open invoice only its memo and metadata, and a
+  finalised one is revised as a new draft that voids the old
+  ([dashboard](https://docs.stripe.com/invoicing/dashboard),
+  [overview](https://docs.stripe.com/invoicing/overview),
+  [edits](https://docs.stripe.com/invoicing/invoice-edits)).
+- **Xero** writes lines as rows of a grid inside the document on the web,
+  totals and tax worked out as you type, autosaved once a contact is set;
+  its phone app adds one item at a time in a form of its own ("Add an
+  item", then "Add another item" or "Done"). A draft changes freely; an
+  approved invoice is edited and updated; a paid one keeps its amounts
+  ([invoice a customer](https://central.xero.com/0/article/Invoice-a-customer),
+  [edit an invoice](https://central.xero.com/0/article/Edit-an-invoice-US)).
+- **QuickBooks Online** adds a product or service per row with
+  quantity and rate; discounts are a setting
+  ([create invoices](https://quickbooks.intuit.com/learn-support/en-us/help-article/invoicing/create-invoices-quickbooks-online/L7gSzvCld_US_en_US)).
+- **Paddle** adds line items to a draft and edits it from the row menu;
+  once issued "you can't make changes to it"
+  ([invoices](https://developer.paddle.com/build/invoices/create-issue-invoices/)).
+- **Recurly and Chargebee** do not hand-edit invoice lines at all:
+  Recurly adds one charge at a time to the account (description,
+  quantity, amount) and an issued invoice edits only its header
+  ([adjustments](https://docs.recurly.com/recurly-subscriptions/docs/adjustments),
+  [edit invoice](https://docs.recurly.com/docs/edit-invoice)); Chargebee's
+  dashboard creates no multi-line invoice by hand
+  ([KB](https://www.chargebee.com/docs/billing/2.0/kb/billing/can-i-create-an-invoice-with-multiple-line-items)).
+- **Credit notes** start from the invoice in every billing product.
+  Stripe lists each invoice line with a quantity or amount to credit and
+  "Add item" for a custom line, never more than the invoice
+  ([credit notes](https://docs.stripe.com/invoicing/dashboard/credit-notes));
+  Chargebee ticks the lines to credit
+  ([KB](https://www.chargebee.com/docs/billing/2.0/kb/billing/how-can-we-create-credit-note-for-a-particular-line-item-of-an-invoice));
+  Recurly refunds by line item or the whole invoice
+  ([invoice management](https://docs.recurly.com/docs/invoice-management));
+  Xero copies the invoice into a credit to edit before approving
+  ([credit notes](https://central.xero.com/0/article/Add-a-credit-note-to-a-customers-invoice)).
+
+**Decision.** The standard table with a sheet per line, and no departure
+for the paper. An accounting grid in the document suits a bookkeeper
+typing many short lines; ours are few, and each needs two descriptions,
+a period and a tax code, which is what cut the grid's description to a
+few letters. Xero's own phone app makes the same choice. What every
+product keeps, the totals moving as lines change, stays: the subtotal,
+VAT and total sit under the table and the paper below shows the invoice
+as it will be issued, which is Stripe's form-and-preview read top to
+bottom. On a draft each line saves as its sheet does (Stripe and Xero
+save drafts as they go); a new invoice keeps its lines on the page until
+Save the draft, since there is nothing to save them to before it exists.
+An issued invoice is never edited, as in all six products: it is
+credited. A credit note became a page of its own with the same table,
+and "Take back a line" opens the sheet filled from one of the invoice's
+lines, Stripe's starting point, beside Add line for anything else.
+
+### Prices of a plan or an add-on
+
+- **Stripe** shows a product's prices as a list with a `•••` per price
+  (Edit, Archive, Delete if never used); "Add another price" opens a
+  form for one price, and a price's amount never changes once made: a
+  new price replaces it
+  ([manage prices](https://docs.stripe.com/products-prices/manage-prices)).
+- **Chargebee** lists every price point by currency and frequency, and
+  "Set Price" opens one in a page of its own; a changed price reaches new
+  subscriptions only
+  ([plans](https://www.chargebee.com/docs/billing/2.0/product-catalog/plans)).
+- **Recurly** picks the currencies a plan is priced in, and a changed
+  price never touches existing subscriptions
+  ([plans](https://docs.recurly.com/recurly-subscriptions/docs/plans)).
+- **Paddle** lists a product's prices with "New price", which opens a
+  form, and archives rather than deletes
+  ([products and prices](https://developer.paddle.com/build/products/create-products-prices/)).
+
+**Decision.** The standard pattern, exactly: the version sheet lists its
+prices as a table (price, how it is charged, the least a year) with Add
+price, and Edit or Remove in each row's menu; Add and Edit open one
+price in a sheet over the version's. A price saves into the version
+being made, not to the server, because a price never changes once a
+contract can hold it (Stripe's rule, and ours): the whole version is
+saved with its reason, as before.
+
+### A quote's add-ons
+
+- **Chargebee CPQ** adds plans, add-ons and charges with "Add Item" into
+  a table, with a `•••` per line (reset, remove, replace, edit) and a
+  summary of the totals
+  ([quotes](https://www.chargebee.com/docs/cpq/generate-quote/quote-for-new-business)).
+- **Stripe** adds or picks a product under Items, with a PDF preview
+  before the quote is finalised
+  ([quotes](https://docs.stripe.com/quotes/create)).
+
+**Decision.** The standard pattern: a table of the add-ons with their
+quantity, unit price, discount and net, Add add-on opening a sheet that
+chooses the add-on (its list price in the quote's currency filled in)
+and its figures, Edit and Remove in each row's menu. The quote is still
+saved as a whole, because a sent quote's change is a new version of it.
+
+### A new school's own hosts
+
+- **Vercel** lists a project's domains with each one's status, adds one
+  from "Add" with the name alone, and edits one in a modal (redirect,
+  environment), Remove asking first
+  ([add a domain](https://vercel.com/docs/domains/working-with-domains/add-a-domain),
+  [edit](https://vercel.com/docs/domains/working-with-domains/deploying-and-redirecting),
+  [remove](https://vercel.com/docs/domains/working-with-domains/remove-a-domain)).
+- **Linear** claims a domain by a DNS TXT record from its security
+  settings ([SAML](https://linear.app/docs/saml-and-access-control)); how
+  it lists them could not be confirmed from its documentation.
+
+**Decision.** The standard pattern, as the school's own Addresses tab
+already does it: a table of hostname, school and what it serves, Add
+host and Edit opening one host in a sheet, Remove asking first. Each
+saves the step at once, so leaving the step loses nothing; there is no
+status column, because a host is only created, pending, when the school
+is.
 
 ## Ranking, worst first
 
-| #   | Editor                                   | Where                                                     | State                                                |
-| --- | ---------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------- |
-| 1   | Reading norms                            | `apps/web/src/components/reading/ReadingNorms.tsx`        | Rebuilt: read view, Edit, groups, source marks       |
-| 2   | Gradebook term grades                    | `apps/web/src/routes/_app/_staff/gradebook.tsx`           | Rebuilt: calm cells, range check, leave guard        |
-| 3   | Grade bands                              | `apps/web/src/components/grading/ScalesTab.tsx`           | Rebuilt: per-cell checks, scores covered             |
-| 4   | Grading categories (weights)             | `apps/web/src/components/grading/ProgrammesTab.tsx`       | Rebuilt: per-cell checks, Total row                  |
-| 5   | Rubric (criteria by levels)              | `apps/web/src/components/coursework/RubricSheet.tsx`      | Redesigned: a matrix, one criterion opened at a time |
-| 6   | Intake checklist, fees and priorities    | `apps/web/src/components/admissions/IntakeEditor.tsx`     | Rebuilt: checklist and fees; priorities left         |
-| 7   | Periods                                  | `apps/web/src/components/years/YearPeriods.tsx`           | Rebuilt: times in columns, days on each row's line   |
-| 8   | Invoice and credit note lines (console)  | `apps/ops/src/components/InvoiceLinesForm.tsx`            | Rebuilt: lines with net, details on their line       |
-| 9   | Quote and provisioning add-ons (console) | `apps/ops/src/components/QuoteForm.tsx`, `provisioning.*` | Quote add-ons rebuilt; provisioning add-ons left     |
-| 10  | Bell schedule extras                     | `apps/web/src/components/years/BellSchedules.tsx`         | Rebuilt: day's times and own periods as rows         |
-| 11  | Prices (console)                         | `apps/ops/src/components/PriceFields.tsx`                 | Rebuilt                                              |
-| 12  | Feedback bands                           | `apps/web/src/components/learning/FeedbackBands.tsx`      | Rebuilt                                              |
-| 13  | Rollover classes                         | `apps/web/src/components/years/Rollover.tsx`              | Left                                                 |
-| 14  | Previous schools (apply)                 | `apps/web/src/components/admissions/ApplicationForm.tsx`  | Left                                                 |
-| 15  | Hosts in provisioning (console)          | `apps/ops/src/routes/provisioning.$draftId.tsx`           | Rebuilt                                              |
-| 16  | Schools in a school spec (console)       | `apps/ops/src/components/SchoolSpecForm.tsx`              | Left                                                 |
-| 17  | Limits (console)                         | `apps/ops/src/components/LimitFields.tsx`                 | Left                                                 |
-| 18  | Social links                             | `apps/web/src/components/site/SiteSettings.tsx`           | Rebuilt                                              |
-| 19  | Audience list                            | `apps/web/src/components/broadcasts/AudienceList.tsx`     | Left                                                 |
-| 20  | Class subjects                           | `apps/web/src/components/classes/ClassEditor.tsx`         | Rebuilt: added from a menu of subjects               |
-| 21  | Guardians                                | `apps/web/src/components/people/StudentEditor.tsx`        | Left                                                 |
-| 22  | Notification preferences                 | `apps/web/src/routes/_app/notification-preferences.tsx`   | Fine                                                 |
-| 23  | Module toggles (console)                 | `apps/ops/src/components/ModuleFields.tsx`                | Fine                                                 |
-| 24  | Role capabilities                        | `apps/web/src/components/admin/AccessRolesPanel.tsx`      | Fine                                                 |
-| 25  | Attendance register                      | `apps/web/src/components/attendance/Register.tsx`         | Fine, the model for work entered as the job          |
+| #   | Editor                                   | Where                                                       | State                                                |
+| --- | ---------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------- |
+| 1   | Reading norms                            | `apps/web/src/components/reading/ReadingNorms.tsx`          | Rebuilt: read view, Edit, groups, source marks       |
+| 2   | Gradebook term grades                    | `apps/web/src/routes/_app/_staff/gradebook.tsx`             | Rebuilt: calm cells, range check, leave guard        |
+| 3   | Grade bands                              | `apps/web/src/components/grading/ScalesTab.tsx`             | Rebuilt: per-cell checks, scores covered             |
+| 4   | Grading categories (weights)             | `apps/web/src/components/grading/ProgrammesTab.tsx`         | Rebuilt: per-cell checks, Total row                  |
+| 5   | Rubric (criteria by levels)              | `apps/web/src/components/coursework/RubricSheet.tsx`        | Redesigned: a matrix, one criterion opened at a time |
+| 6   | Intake checklist, fees and priorities    | `apps/web/src/components/admissions/IntakeEditor.tsx`       | Rebuilt: checklist and fees; priorities left         |
+| 7   | Periods                                  | `apps/web/src/components/years/YearPeriods.tsx`             | Rebuilt: times in columns, days on each row's line   |
+| 8   | Invoice and credit note lines (console)  | `apps/ops/src/components/InvoiceLinesForm.tsx`              | Rebuilt: a table, each line in its own sheet         |
+| 9   | Quote and provisioning add-ons (console) | `apps/ops/src/components/QuoteAddOns.tsx`, `provisioning.*` | Quote add-ons a table; provisioning add-ons left     |
+| 10  | Bell schedule extras                     | `apps/web/src/components/years/BellSchedules.tsx`           | Rebuilt: day's times and own periods as rows         |
+| 11  | Prices (console)                         | `apps/ops/src/components/PriceFields.tsx`                   | Rebuilt: a table, each price in its own sheet        |
+| 12  | Feedback bands                           | `apps/web/src/components/learning/FeedbackBands.tsx`        | Rebuilt                                              |
+| 13  | Rollover classes                         | `apps/web/src/components/years/Rollover.tsx`                | Left                                                 |
+| 14  | Previous schools (apply)                 | `apps/web/src/components/admissions/ApplicationForm.tsx`    | Left                                                 |
+| 15  | Hosts in provisioning (console)          | `apps/ops/src/components/DraftHosts.tsx`                    | Rebuilt: a table, each host saved from its sheet     |
+| 16  | Schools in a school spec (console)       | `apps/ops/src/components/SchoolSpecForm.tsx`                | Left                                                 |
+| 17  | Limits (console)                         | `apps/ops/src/components/LimitFields.tsx`                   | Left                                                 |
+| 18  | Social links                             | `apps/web/src/components/site/SiteSettings.tsx`             | Rebuilt                                              |
+| 19  | Audience list                            | `apps/web/src/components/broadcasts/AudienceList.tsx`       | Left                                                 |
+| 20  | Class subjects                           | `apps/web/src/components/classes/ClassEditor.tsx`           | Rebuilt: added from a menu of subjects               |
+| 21  | Guardians                                | `apps/web/src/components/people/StudentEditor.tsx`          | Left                                                 |
+| 22  | Notification preferences                 | `apps/web/src/routes/_app/notification-preferences.tsx`     | Fine                                                 |
+| 23  | Module toggles (console)                 | `apps/ops/src/components/ModuleFields.tsx`                  | Fine                                                 |
+| 24  | Role capabilities                        | `apps/web/src/components/admin/AccessRolesPanel.tsx`        | Fine                                                 |
+| 25  | Attendance register                      | `apps/web/src/components/attendance/Register.tsx`           | Fine, the model for work entered as the job          |
 
 ## What the ones left need
 
 - **Intake priorities**: an ordered list with up and down buttons; it
   wants a reorderable list (drag and the keyboard), which DataGrid does
   not do yet.
-- **Provisioning add-ons (console)**: the same rows as a quote's add-ons,
-  with a per-school check box group beside them.
+- **Provisioning add-ons (console)**: still a stack of hand-drawn boxes;
+  it wants `QuoteAddOns`' table and sheet, with the per-school check
+  boxes in the sheet and the schools as a column.
 - **Rollover classes**: a fixed list of homerooms with an include check,
   code, grade, names and teacher; a DataGrid with CheckCell, TextCell
   and SelectCell, the names on each row's own line.
@@ -239,6 +372,15 @@ summaries were used and are marked as such above.
   and comments on passages linked to a criterion.
 
 ## For the owner to decide
+
+- A credit note is now a page under its invoice rather than a sheet, so
+  the lines it takes back can be read as a table. Its lines can start
+  from the invoice's own ("Take back a line"); the server still refuses a
+  credit for more than the invoice stands for.
+- A draft invoice's lines and a new school's hosts save as each sheet
+  does. A new invoice, a credit note, a quote and a catalogue version keep
+  their rows on the page until the whole is saved, since none exists to
+  save a row to, or a change to it is a new version.
 
 - Percentiles that fall along a row are now refused by the server too. A
   school that had saved falling figures must fix them before it can save

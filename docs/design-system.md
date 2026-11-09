@@ -577,9 +577,21 @@ reasoning and the list of editors still to move is
   table from the card's footer.
 - **Adding and removing.** A grid of a fixed shape adds from a menu of
   what is missing ("Add grade") and removes a group from its `•••`; never
-  a trash icon on every row. A list of like rows (bands, lines, periods)
-  adds with an "Add" button under it and removes with a quiet × at each
-  row's end, named for the row (GOV.UK "Add another").
+  a trash icon on every row. A list of like rows (bands, periods) adds
+  with an "Add" button under it and removes with a quiet × at each row's
+  end, named for the row (GOV.UK "Add another").
+- **Line items are a table, not a grid.** Rows a person adds one at a
+  time, each carrying several fields (an invoice's lines, a plan's
+  prices, a quote's add-ons, a school's hosts), are the standard
+  `DataTable`: its Add action, a `RowButton` in each row's primary cell,
+  and Edit and Remove (which asks first) in the row's menu. Add, the row
+  or Edit opens that one row in a `SheetForm` (over a sheet that is
+  itself editing, when the list lives in one) that checks and saves the
+  row alone; what the rows come to is the table's `totals`. A field
+  shown only when a row has it (a period, a discount) is a column only
+  when some row has one. Stripe's, Chargebee's and Paddle's price lists
+  and Vercel's domains work this way; `docs/plans/data-editors.md` has
+  the reasoning.
 - **Sentences get a line of their own.** Text too long for a column (a
   few sentences about a row) is a `NoteCell` on the row's own line under
   it (`rowDetail`), never a one-line field squeezed into a column, and
