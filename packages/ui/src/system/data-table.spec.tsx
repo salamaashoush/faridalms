@@ -176,4 +176,29 @@ describe("DataTable", () => {
       "text-end",
     );
   });
+
+  it("draws an inline action that goes elsewhere as a link to a new tab", async () => {
+    renderPageWithSystem(() => (
+      <DataTable
+        caption="Invoices"
+        rows={SCHOOLS}
+        columns={COLUMNS}
+        rowLabel={(row) => row.name}
+        card={{ title: (row) => row.name }}
+        empty={{ title: "Nothing owed" }}
+        rowActions={(row) => [
+          {
+            label: "Pay by card",
+            inline: true,
+            href: `https://pay.example.com/${row.id}`,
+            onSelect: vi.fn<() => void>(),
+          },
+        ]}
+      />
+    ));
+    const table = await screen.findByRole("table", { name: "Invoices" });
+    const [link] = within(table).getAllByRole("link", { name: "Pay by card" });
+    expect(link).toHaveAttribute("href", "https://pay.example.com/a");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
 });

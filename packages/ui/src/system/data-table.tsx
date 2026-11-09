@@ -1,7 +1,7 @@
 import type { ComponentProps, MouseEvent, ReactNode, Ref } from "react";
 
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
-import { Button } from "../button";
+import { Button, buttonVariants } from "../button";
 import { Checkbox } from "../checkbox";
 import { cn } from "../cn";
 import {
@@ -96,6 +96,12 @@ export interface DataTableTotal {
 /** Where a row's action shows: at most one is pulled out of the menu. */
 export interface RowActionPlacement {
   inline?: boolean;
+  /**
+   * Where the inline action goes, in a new tab, such as a payment page: it
+   * is drawn as a link. In the row's menu, as on a phone, it runs
+   * `onSelect`.
+   */
+  href?: string;
 }
 
 /** A row's action, in its menu unless it is the one shown `inline`. */
@@ -328,7 +334,17 @@ function RowActions({ label, actions }: RowActionsProps) {
   const rest = actions.filter((action) => action !== inline);
   return (
     <div className="flex items-center justify-end gap-1">
-      {inline ? (
+      {inline?.href ? (
+        <a
+          href={inline.href}
+          target="_blank"
+          rel="noreferrer"
+          className={buttonVariants({ variant: "ghost", size: "sm" })}
+        >
+          {inline.icon ? <inline.icon aria-hidden /> : null}
+          {inline.label}
+        </a>
+      ) : inline ? (
         <Button
           type="button"
           variant="ghost"
@@ -568,7 +584,7 @@ export function DataTable<T extends { id: string }, S extends string>({
             : null}
         </p>
       ) : null}
-      {toolbar && (rows.length || filtered) ? (
+      {toolbar && (rows.length || filtered || toolbar.period) ? (
         <IndexToolbar {...toolbar} view={view} actions={actions} />
       ) : actions && rows.length ? (
         <div className="flex min-h-8 flex-wrap items-center justify-end gap-2">

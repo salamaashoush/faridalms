@@ -448,10 +448,13 @@ test("the student index opens records, exports a selection and filters on a phon
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("searchbox").fill("Yasmin");
   await expect(page).toHaveURL(/q=Yasmin/);
+  // The year says what the list shows, so it stays in the row on a phone;
+  // the filters fold into the sheet, whose Reset clears both.
+  await page.getByRole("button", { name: /^School year/ }).click();
+  await page.getByRole("menuitemradio", { checked: false }).first().click();
+  await expect(page).toHaveURL(/year=[a-f0-9-]+/);
   const filters = page.getByRole("dialog", { name: "Filters" });
   await openWith(page.getByRole("button", { name: /^Filters/ }), filters);
-  await filters.getByRole("radio", { checked: false }).first().click();
-  await expect(page).toHaveURL(/year=[a-f0-9-]+/);
   await filters.getByRole("button", { name: "Reset", exact: true }).click();
   await expect(page).not.toHaveURL(/q=Yasmin/);
   await expect(page).not.toHaveURL(/year=[a-f0-9-]+/);

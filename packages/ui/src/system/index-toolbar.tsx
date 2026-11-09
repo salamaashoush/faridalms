@@ -33,6 +33,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { phoneMenuItem } from "./action-menu";
 import { optionGroups } from "./form-field";
+import { ToolbarRow } from "./panel";
 import { useDesignSystem } from "./provider";
 
 const NO_FACETS: Facet[] = [];
@@ -74,6 +75,12 @@ export interface IndexToolbarProps {
   search?: IndexSearch;
   facets?: Facet[];
   onReset?: () => void;
+  /**
+   * The dates the list covers, such as a day stepper or a week's date,
+   * after the filters. It is part of the page's address like a facet, but
+   * not a filter Reset clears.
+   */
+  period?: ReactNode;
 }
 
 export interface IndexToolbarViewProps extends IndexToolbarProps {
@@ -91,6 +98,19 @@ function facetActive(facet: Facet) {
   return !sameSelection(facet.selected, facet.defaultSelected ?? []);
 }
 
+/** A choice that always holds a value, such as the school year. */
+function isScope(facet: Facet) {
+  return Boolean(facet.defaultSelected?.length);
+}
+
+/**
+ * A filter that narrows nothing and has no value to show: an offer to add
+ * one. A scope never is.
+ */
+function facetUnset(facet: Facet) {
+  return !isScope(facet) && facet.selected.length === 0;
+}
+
 export function isFiltered({ search, facets = [] }: IndexToolbarProps) {
   return Boolean(search?.value) || facets.some(facetActive);
 }
@@ -99,50 +119,70 @@ export function IndexToolbar({
   search,
   facets = NO_FACETS,
   onReset,
+  period,
   view,
   actions,
 }: IndexToolbarViewProps) {
   const { strings } = useDesignSystem();
   const filtered = isFiltered({ search, facets });
+  const shown = facets.slice(0, 3);
+  // A choice that always holds a value says what the page is showing, so it
+  // stays in the row on a phone; filters fold into the sheet.
+  const scopes = shown.filter(isScope);
+  const filters = shown.filter((facet) => !isScope(facet));
   return (
-    <search
-      aria-label={strings.searchAndFilter}
-      className="flex min-h-8 flex-wrap items-center gap-2"
-    >
-      {search ? <SearchInput {...search} /> : null}
-      {facets.length ? (
-        <div className="hidden min-w-0 items-center gap-2 md:flex">
-          {facets.slice(0, 3).map((facet) => (
-            <FacetFilter key={facet.id} facet={facet} />
-          ))}
-        </div>
-      ) : null}
-      {facets.length ? (
-        <FilterSheet
-          facets={facets.slice(0, 3)}
-          onReset={filtered ? onReset : undefined}
-        />
-      ) : null}
-      {filtered && onReset ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          aria-label={strings.reset}
-          className="text-muted-foreground max-md:size-10"
-          onClick={onReset}
-        >
-          <span className="hidden md:inline">{strings.reset}</span>
-          <X aria-hidden />
-        </Button>
-      ) : null}
-      {view || actions ? (
-        <div className="ms-auto flex items-center gap-2">
-          {view}
-          {actions}
-        </div>
-      ) : null}
-    </search>
+    <ToolbarRow.Provider value>
+      <search
+        aria-label={strings.searchAndFilter}
+        className="flex min-h-8 flex-wrap items-center gap-2"
+      >
+        {search ? <SearchInput {...search} /> : null}
+        {scopes.length ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {scopes.map((facet) => (
+              <FacetFilter key={facet.id} facet={facet} />
+            ))}
+          </div>
+        ) : null}
+        {filters.length ? (
+          <div className="hidden min-w-0 items-center gap-2 md:flex">
+            {filters.map((facet) => (
+              <FacetFilter key={facet.id} facet={facet} />
+            ))}
+          </div>
+        ) : null}
+        {filters.length ? (
+          <FilterSheet
+            facets={filters}
+            onReset={filtered ? onReset : undefined}
+          />
+        ) : null}
+        {period ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {period}
+          </div>
+        ) : null}
+        {filtered && onReset ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-label={strings.reset}
+            className="text-muted-foreground max-md:size-10"
+            onClick={onReset}
+          >
+            <span className="hidden md:inline">{strings.reset}</span>
+            <X aria-hidden />
+          </Button>
+        ) : null}
+        {view || actions ? (
+          <div className="ms-auto flex items-center gap-2">
+            {view}
+            {actions}
+          </div>
+        ) : null}
+      </search>
+    </ToolbarRow.Provider>
   );
 }
 
@@ -252,9 +292,13 @@ function FacetFilter({ facet }: FacetFilterProps) {
             type="button"
             variant="outline"
             size="sm"
+            data-unset={facetUnset(facet) || undefined}
             className={cn(
-              "max-w-72 min-w-0 font-normal",
-              labels.length === 0 && "border-dashed",
+              "max-w-72 min-w-0 font-normal max-md:h-10",
+              // The dashed edge offers a filter not yet applied. It turns
+              // solid while pointed at, focused or open, so the focus ring
+              // never circles a dashed line.
+              "data-unset:border-dashed data-unset:hover:border-solid data-unset:focus-visible:border-solid data-unset:aria-expanded:border-solid",
             )}
           />
         }
@@ -290,12 +334,12 @@ function FacetFilter({ facet }: FacetFilterProps) {
             options={options}
           />
         ))}
-        {active && !facet.single ? (
+        {active && !isScope(facet) ? (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className={phoneMenuItem}
-              onClick={() => facet.onChange(facet.defaultSelected ?? [])}
+              onClick={() => facet.onChange([])}
             >
               {strings.clearFilter}
             </DropdownMenuItem>
@@ -315,47 +359,47 @@ interface FacetOptionsProps {
 /** One heading's options; a single-choice facet keeps one choice across them. */
 function FacetOptions({ facet, label, options }: FacetOptionsProps) {
   return (
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>{label}</DropdownMenuLabel>
-          {facet.single ? (
-            <DropdownMenuRadioGroup
-              value={facet.selected[0] ?? ""}
-              onValueChange={(next: string) => facet.onChange([next])}
+    <DropdownMenuGroup>
+      <DropdownMenuLabel>{label}</DropdownMenuLabel>
+      {facet.single ? (
+        <DropdownMenuRadioGroup
+          value={facet.selected[0] ?? ""}
+          onValueChange={(next: string) => facet.onChange([next])}
+        >
+          {options.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              className={phoneMenuItem}
+              closeOnClick
             >
-              {options.map((option) => (
-                <DropdownMenuRadioItem
-                  key={option.value}
-                  value={option.value}
-                  className={phoneMenuItem}
-                  closeOnClick
-                >
-                  {option.label}
-                  <OptionMeta option={option} />
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          ) : (
-            options.map((option) => (
-              <DropdownMenuCheckboxItem
-                key={option.value}
-                className={phoneMenuItem}
-                checked={facet.selected.includes(option.value)}
-                onCheckedChange={(checked) =>
-                  facet.onChange(
-                    checked
-                      ? [...facet.selected, option.value]
-                      : facet.selected.filter(
-                          (value) => value !== option.value,
-                        ),
-                  )
-                }
-              >
-                {option.label}
-                <OptionMeta option={option} />
-              </DropdownMenuCheckboxItem>
-            ))
-          )}
-        </DropdownMenuGroup>
+              {option.label}
+              <OptionMeta option={option} />
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      ) : (
+        options.map((option) => (
+          <DropdownMenuCheckboxItem
+            key={option.value}
+            className={phoneMenuItem}
+            checked={facet.selected.includes(option.value)}
+            onCheckedChange={(checked) =>
+              facet.onChange(
+                checked
+                  ? [...facet.selected, option.value]
+                  : facet.selected.filter(
+                      (value) => value !== option.value,
+                    ),
+              )
+            }
+          >
+            {option.label}
+            <OptionMeta option={option} />
+          </DropdownMenuCheckboxItem>
+        ))
+      )}
+    </DropdownMenuGroup>
   );
 }
 

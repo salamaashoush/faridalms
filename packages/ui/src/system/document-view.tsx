@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { ToolbarRow } from "./panel";
+
 export interface DocumentViewProps {
   /** Names the document for screen readers, such as "Invoice INV-2026-00012". */
   label: string;
@@ -25,18 +27,20 @@ export function DocumentView({
   return (
     <section aria-label={label} className="grid min-w-0 gap-3">
       {tools || actions ? (
-        <div className="flex min-h-8 flex-wrap items-center gap-2 print:hidden">
-          {tools ? (
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              {tools}
-            </div>
-          ) : null}
-          {actions ? (
-            <div className="ms-auto flex flex-wrap items-center gap-2">
-              {actions}
-            </div>
-          ) : null}
-        </div>
+        <ToolbarRow.Provider value>
+          <div className="flex min-h-8 flex-wrap items-center gap-2 print:hidden">
+            {tools ? (
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                {tools}
+              </div>
+            ) : null}
+            {actions ? (
+              <div className="ms-auto flex flex-wrap items-center gap-2">
+                {actions}
+              </div>
+            ) : null}
+          </div>
+        </ToolbarRow.Provider>
       ) : null}
       {/* The paper keeps a page's width and scrolls sideways on a phone,
           as a PDF does, rather than squeezing its table of lines apart. */}

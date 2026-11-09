@@ -3,9 +3,15 @@ import type { ReactNode } from "react";
 import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup } from "@base-ui/react/toggle-group";
 import { cn } from "../cn";
-import { useId } from "react";
+import { createContext, useContext, useId } from "react";
 
 import { EmptyStateScope } from "./empty-state";
+
+/**
+ * A row of compact 32px controls, such as a list's toolbar or the row above
+ * a document. A segmented switch in it takes the row's height.
+ */
+export const ToolbarRow = createContext(false);
 
 export interface PanelGroupProps {
   title: string;
@@ -64,6 +70,7 @@ export function Segmented<T extends string>({
   onChange,
   className,
 }: SegmentedProps<T>) {
+  const compact = useContext(ToolbarRow);
   return (
     <ToggleGroup
       aria-label={label}
@@ -72,7 +79,11 @@ export function Segmented<T extends string>({
         const [picked] = next;
         if (picked) onChange(picked);
       }}
-      className={cn("flex flex-wrap gap-1 rounded-lg bg-muted p-1", className)}
+      className={cn(
+        "flex flex-wrap rounded-lg bg-muted",
+        compact ? "gap-0.5 p-0.5" : "gap-1 p-1",
+        className,
+      )}
     >
       {options.map((option) => (
         <Toggle
@@ -80,7 +91,10 @@ export function Segmented<T extends string>({
           value={option.value}
           aria-label={option.icon ? option.label : undefined}
           title={option.icon ? option.label : undefined}
-          className="inline-flex min-h-8 flex-1 items-center justify-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground data-pressed:bg-background data-pressed:text-foreground data-pressed:shadow-sm max-md:min-h-10"
+          className={cn(
+            "inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium whitespace-nowrap text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-pressed:bg-background data-pressed:text-foreground data-pressed:shadow-sm",
+            compact ? "min-h-7 max-md:min-h-9" : "min-h-8 max-md:min-h-10",
+          )}
         >
           {option.icon ?? option.label}
         </Toggle>
