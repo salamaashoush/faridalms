@@ -9064,6 +9064,8 @@
   "schedulesExtraNew": "New period",
   "schedulesExtraRemove": "Remove {name}",
   "schedulesExtraCode": "Code",
+  "schedulesTimesPeriod": "Period",
+  "schedulesExtraCodeOf": "Code, {name}",
   "schedulesExtraCodeHint": "Letters, digits, - and _, unlike any period of the year.",
   "schedulesExtrasOwn": "Its own: {names}",
   "schedulesCodeTaken": "A period of the year already has that code. Choose another.",

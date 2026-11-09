@@ -9482,6 +9482,8 @@
   "schedulesExtraNew": "حصة جديدة",
   "schedulesExtraRemove": "إزالة {name}",
   "schedulesExtraCode": "الرمز",
+  "schedulesTimesPeriod": "الحصة",
+  "schedulesExtraCodeOf": "الرمز، {name}",
   "schedulesExtraCodeHint": "حروف لاتينية وأرقام و- و_، ولا يطابق رمز أي حصة في العام.",
   "schedulesExtrasOwn": "خاصة به: {names}",
   "schedulesCodeTaken": "توجد حصة في العام بهذا الرمز. اختر رمزًا آخر.",

@@ -1,4 +1,5 @@
 import type { PeriodKind } from "@faridalms/domain/timetable";
+import type { GridColumn } from "@faridalms/ui/system/data-grid";
 
 import {
   MAX_EXTRA_PERIODS,
@@ -8,7 +9,16 @@ import {
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
-import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import {
+  DataGrid,
+  GridAddButton,
+  GridRemoveButton,
+  SelectCell,
+  TextCell,
+  TimeCell,
+  useFocusAfterRender,
+} from "@faridalms/ui/system/data-grid";
+import { TextField } from "@faridalms/ui/system/form-field";
 import {
   RecordEmpty,
   RecordList,
@@ -16,8 +26,8 @@ import {
 } from "@faridalms/ui/system/record-page";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { yearPeriodsQuery } from "~/queries/years";
@@ -102,6 +112,160 @@ function rowsOf(data: PeriodsData, schedule: Schedule | null): Row[] {
   ];
 }
 
+interface TimesGridOptions {
+  change: (code: string, next: Partial<Row>) => void;
+}
+
+// Built per render: headers read the request's locale.
+function timesGrid({ change }: TimesGridOptions) {
+  const rowHeader = {
+    header: m.schedulesTimesPeriod(),
+    cell: (row: Row) => (
+      <label className="flex min-h-8 items-center gap-2 font-medium max-md:min-h-10">
+        <Checkbox
+          checked={row.held}
+          aria-label={row.name}
+          onCheckedChange={(held) => change(row.code, { held })}
+        />
+        <span dir="auto" aria-hidden>
+          {row.name}
+        </span>
+      </label>
+    ),
+  };
+  const columns: GridColumn<Row>[] = [
+    {
+      id: "starts",
+      header: m.periodsStarts(),
+      cell: (row) =>
+        row.held ? (
+          <TimeCell
+            id={`schedule-${row.code}-starts`}
+            label={m.periodsStartsOf({ name: row.name })}
+            value={row.startTime}
+            onChange={(startTime) => change(row.code, { startTime })}
+          />
+        ) : (
+          <span className="text-[13px] leading-[18px] text-muted-foreground">
+            {m.schedulesNotHeld()}
+          </span>
+        ),
+    },
+    {
+      id: "ends",
+      header: m.periodsEnds(),
+      cell: (row) =>
+        row.held ? (
+          <TimeCell
+            id={`schedule-${row.code}-ends`}
+            label={m.periodsEndsOf({ name: row.name })}
+            min={row.startTime || undefined}
+            value={row.endTime}
+            onChange={(endTime) => change(row.code, { endTime })}
+          />
+        ) : null,
+    },
+  ];
+  return { rowHeader, columns };
+}
+
+interface ExtrasGridOptions {
+  change: (key: number, next: Partial<Extra>) => void;
+  remove: (key: number) => void;
+}
+
+// Built per render: headers read the request's locale.
+function extrasGrid({ change, remove }: ExtrasGridOptions) {
+  const rowHeader = {
+    header: m.periodsColEnglish(),
+    cell: (extra: Extra) => (
+      <TextCell
+        id={`extra-${extra.key}-name-en`}
+        label={m.periodsNameEnglishOf({ name: extraName(extra) })}
+        dir="ltr"
+        maxLength={60}
+        value={extra.nameEn}
+        onChange={(nameEn) => change(extra.key, { nameEn })}
+      />
+    ),
+  };
+  const columns: GridColumn<Extra>[] = [
+    {
+      id: "ar",
+      header: m.periodsColArabic(),
+      cell: (extra) => (
+        <TextCell
+          id={`extra-${extra.key}-name-ar`}
+          label={m.periodsNameArabicOf({ name: extraName(extra) })}
+          lang="ar"
+          maxLength={60}
+          value={extra.nameAr}
+          onChange={(nameAr) => change(extra.key, { nameAr })}
+        />
+      ),
+    },
+    {
+      id: "starts",
+      header: m.periodsStarts(),
+      cell: (extra) => (
+        <TimeCell
+          id={`extra-${extra.key}-starts`}
+          label={m.periodsStartsOf({ name: extraName(extra) })}
+          value={extra.startTime}
+          onChange={(startTime) => change(extra.key, { startTime })}
+        />
+      ),
+    },
+    {
+      id: "ends",
+      header: m.periodsEnds(),
+      cell: (extra) => (
+        <TimeCell
+          id={`extra-${extra.key}-ends`}
+          label={m.periodsEndsOf({ name: extraName(extra) })}
+          min={extra.startTime || undefined}
+          value={extra.endTime}
+          onChange={(endTime) => change(extra.key, { endTime })}
+        />
+      ),
+    },
+  ];
+  const rowEnd = (extra: Extra) => (
+    <GridRemoveButton
+      label={m.schedulesExtraRemove({ name: extraName(extra) })}
+      onRemove={() => remove(extra.key)}
+    />
+  );
+  const rowDetail = (extra: Extra) => (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <span className="w-32">
+        <TextCell
+          id={`extra-${extra.key}-code`}
+          label={m.schedulesExtraCodeOf({ name: extraName(extra) })}
+          dir="ltr"
+          maxLength={20}
+          placeholder={m.schedulesExtraCode()}
+          value={extra.code}
+          onChange={(code) => change(extra.key, { code })}
+        />
+      </span>
+      <span className="w-32">
+        <SelectCell
+          id={`extra-${extra.key}-kind`}
+          label={m.periodsKindOf({ name: extraName(extra) })}
+          value={extra.kind}
+          options={PERIOD_KINDS.map((kind) => ({
+            value: kind,
+            label: KIND_LABEL[kind](),
+          }))}
+          onChange={(kind) => change(extra.key, { kind })}
+        />
+      </span>
+    </div>
+  );
+  return { rowHeader, columns, rowEnd, rowDetail };
+}
+
 interface ScheduleSheetProps {
   data: PeriodsData;
   schedule: Schedule | null;
@@ -110,7 +274,6 @@ interface ScheduleSheetProps {
 
 function ScheduleSheet({ data, schedule, onClose }: ScheduleSheetProps) {
   const queryClient = useQueryClient();
-  const id = useId();
   const [nameEn, setNameEn] = useState(schedule?.nameEn ?? "");
   const [nameAr, setNameAr] = useState(schedule?.nameAr ?? "");
   const [rows, setRows] = useState(() => rowsOf(data, schedule));
@@ -123,6 +286,7 @@ function ScheduleSheet({ data, schedule, onClose }: ScheduleSheetProps) {
     })),
   );
   const nextKey = useRef(extras.length);
+  const focusLater = useFocusAfterRender();
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const payload = {
     yearId: data.year.id,
@@ -148,6 +312,30 @@ function ScheduleSheet({ data, schedule, onClose }: ScheduleSheetProps) {
       current.map((row) => (row.code === code ? { ...row, ...next } : row)),
     );
   };
+  const addExtra =
+    extras.length < MAX_EXTRA_PERIODS ? (
+      <GridAddButton
+        label={m.schedulesExtraAdd()}
+        onAdd={() => {
+          const key = nextKey.current;
+          nextKey.current += 1;
+          setErrors({});
+          setExtras((current) => [
+            ...current,
+            {
+              key,
+              code: "",
+              nameEn: "",
+              nameAr: "",
+              kind: "registration",
+              startTime: "",
+              endTime: "",
+            },
+          ]);
+          focusLater(`extra-${key}-name-en`);
+        }}
+      />
+    ) : null;
   const changeExtra = (key: number, next: Partial<Extra>) => {
     setErrors({});
     setExtras((current) =>
@@ -220,53 +408,14 @@ function ScheduleSheet({ data, schedule, onClose }: ScheduleSheetProps) {
         <p className="text-[13px] leading-[18px] text-muted-foreground">
           {m.schedulesPeriodsHint()}
         </p>
-        {rows.map((row) => (
-          <div
-            key={row.code}
-            className="grid items-end gap-3 rounded-md border p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
-          >
-            <label
-              htmlFor={`${id}-${row.code}`}
-              className="flex min-h-9 items-center gap-2 text-sm leading-5 font-medium"
-            >
-              <Checkbox
-                id={`${id}-${row.code}`}
-                checked={row.held}
-                onCheckedChange={(held) => change(row.code, { held })}
-              />
-              <span dir="auto">{row.name}</span>
-            </label>
-            {row.held ? (
-              <>
-                <TextField
-                  id={`${id}-${row.code}-starts`}
-                  label={m.periodsStarts()}
-                  type="time"
-                  width="date"
-                  value={row.startTime}
-                  onChange={(event) =>
-                    change(row.code, { startTime: event.target.value })
-                  }
-                />
-                <TextField
-                  id={`${id}-${row.code}-ends`}
-                  label={m.periodsEnds()}
-                  type="time"
-                  width="date"
-                  min={row.startTime || undefined}
-                  value={row.endTime}
-                  onChange={(event) =>
-                    change(row.code, { endTime: event.target.value })
-                  }
-                />
-              </>
-            ) : (
-              <p className="text-[13px] leading-9 text-muted-foreground sm:col-span-2">
-                {m.schedulesNotHeld()}
-              </p>
-            )}
-          </div>
-        ))}
+        <DataGrid<Row>
+          caption={m.schedulesTimesLegend()}
+          editing
+          surface="sheet"
+          {...timesGrid({ change })}
+          groups={[{ id: "times", title: "", rows }]}
+          rowKey={(row) => row.code}
+        />
       </fieldset>
       <fieldset className="grid gap-3">
         <legend className="mb-1 text-sm leading-5 font-medium">
@@ -275,121 +424,30 @@ function ScheduleSheet({ data, schedule, onClose }: ScheduleSheetProps) {
         <p className="text-[13px] leading-[18px] text-muted-foreground">
           {m.schedulesExtrasHint()}
         </p>
-        {extras.map((extra) => (
-          <fieldset
-            key={extra.key}
-            className="relative grid gap-3 rounded-md border p-3 pe-12 sm:grid-cols-2"
-          >
-            <legend className="sr-only">{extraName(extra)}</legend>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute end-2 top-2 max-md:size-10"
-              aria-label={m.schedulesExtraRemove({ name: extraName(extra) })}
-              onClick={() => {
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.schedulesExtraCodeHint()}
+        </p>
+        {extras.length ? (
+          <DataGrid<Extra>
+            caption={m.schedulesExtrasLegend()}
+            editing
+            surface="sheet"
+            {...extrasGrid({
+              change: changeExtra,
+              remove: (key) => {
                 setErrors({});
                 setExtras((current) =>
-                  current.filter((item) => item.key !== extra.key),
+                  current.filter((item) => item.key !== key),
                 );
-              }}
-            >
-              <X aria-hidden />
-            </Button>
-            <TextField
-              id={`${id}-extra-${extra.key}-name-ar`}
-              label={m.periodsNameArabic()}
-              dir="rtl"
-              maxLength={60}
-              autoComplete="off"
-              value={extra.nameAr}
-              onChange={(event) =>
-                changeExtra(extra.key, { nameAr: event.target.value })
-              }
-            />
-            <TextField
-              id={`${id}-extra-${extra.key}-name-en`}
-              label={m.periodsNameEnglish()}
-              dir="ltr"
-              maxLength={60}
-              autoComplete="off"
-              value={extra.nameEn}
-              onChange={(event) =>
-                changeExtra(extra.key, { nameEn: event.target.value })
-              }
-            />
-            <TextField
-              id={`${id}-extra-${extra.key}-code`}
-              label={m.schedulesExtraCode()}
-              hint={m.schedulesExtraCodeHint()}
-              dir="ltr"
-              maxLength={20}
-              autoComplete="off"
-              value={extra.code}
-              onChange={(event) =>
-                changeExtra(extra.key, { code: event.target.value })
-              }
-            />
-            <SelectField
-              id={`${id}-extra-${extra.key}-kind`}
-              label={m.periodsKind()}
-              value={extra.kind}
-              options={PERIOD_KINDS.map((kind) => ({
-                value: kind,
-                label: KIND_LABEL[kind](),
-              }))}
-              onChange={(kind) => changeExtra(extra.key, { kind })}
-            />
-            <TextField
-              id={`${id}-extra-${extra.key}-starts`}
-              label={m.periodsStarts()}
-              type="time"
-              width="date"
-              value={extra.startTime}
-              onChange={(event) =>
-                changeExtra(extra.key, { startTime: event.target.value })
-              }
-            />
-            <TextField
-              id={`${id}-extra-${extra.key}-ends`}
-              label={m.periodsEnds()}
-              type="time"
-              width="date"
-              min={extra.startTime || undefined}
-              value={extra.endTime}
-              onChange={(event) =>
-                changeExtra(extra.key, { endTime: event.target.value })
-              }
-            />
-          </fieldset>
-        ))}
-        {extras.length < MAX_EXTRA_PERIODS ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="justify-self-start max-md:h-10"
-            onClick={() => {
-              const key = nextKey.current;
-              nextKey.current += 1;
-              setErrors({});
-              setExtras((current) => [
-                ...current,
-                {
-                  key,
-                  code: "",
-                  nameEn: "",
-                  nameAr: "",
-                  kind: "registration",
-                  startTime: "",
-                  endTime: "",
-                },
-              ]);
-            }}
-          >
-            <Plus aria-hidden />
-            {m.schedulesExtraAdd()}
-          </Button>
-        ) : null}
+              },
+            })}
+            groups={[{ id: "extras", title: "", rows: extras }]}
+            rowKey={(extra) => String(extra.key)}
+            footer={addExtra}
+          />
+        ) : (
+          <div>{addExtra}</div>
+        )}
       </fieldset>
     </SheetForm>
   );

@@ -223,12 +223,12 @@ test("a bell schedule adds an assembly that a class can have a lesson in for tha
   const sheet = page.getByRole("dialog");
   await sheet.getByLabel("Name in English").first().fill("Assembly day");
   await sheet.getByRole("button", { name: "Add a period of its own" }).click();
-  const own = sheet.getByRole("group", { name: "New period" });
-  await own.getByLabel("Name in English").fill("Assembly");
-  const assembly = sheet.getByRole("group", { name: "Assembly" });
-  await assembly.getByLabel(/^Code/).fill("asm");
-  await assembly.getByLabel("Starts").fill("06:30");
-  await assembly.getByLabel("Ends").fill("07:00");
+  await sheet
+    .getByRole("textbox", { name: "Name in English, New period", exact: true })
+    .fill("Assembly");
+  await sheet.getByLabel("Code, Assembly", { exact: true }).fill("asm");
+  await sheet.getByLabel("Starts, Assembly", { exact: true }).fill("06:30");
+  await sheet.getByLabel("Ends, Assembly", { exact: true }).fill("07:00");
 
   await sheet.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Bell schedule saved")).toBeVisible();
