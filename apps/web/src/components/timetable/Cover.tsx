@@ -5,6 +5,7 @@ import { STAFF_ABSENCE_REASONS } from "@faridalms/domain/timetable";
 import { Button } from "@faridalms/ui/button";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
 import { DataTable } from "@faridalms/ui/system/data-table";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import {
   FormField,
   SelectField,

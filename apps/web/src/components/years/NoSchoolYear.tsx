@@ -26,6 +26,7 @@ export function NoSchoolYear({ shows }: NoSchoolYearProps) {
   return (
     <EmptyState
       icon={CalendarPlus}
+      kind={sets ? "empty" : "restricted"}
       title={sets ? m.noYearSetUpTitle() : m.noYearTitle()}
       description={shows ? `${shows} ${who}` : who}
       action={
