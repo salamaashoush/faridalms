@@ -1911,8 +1911,19 @@ async function seedConsents(
       arabic: null,
     },
   ];
+  // A school filled for a demonstration may have written a form of its own;
+  // that purpose keeps it.
+  const asked = new Set(
+    (
+      await tx.execute<{ purpose_descriptor_id: string }>(sql`
+        select purpose_descriptor_id from core.privacy_notices
+        where tenant_id = ${tenantId}::uuid and org_id = ${schoolId}::uuid
+          and status = 'active'`)
+    ).map((row) => row.purpose_descriptor_id),
+  );
   const noticeOf = new Map<string, string>();
   for (const form of forms) {
+    if (asked.has(need(purposes, form.code))) continue;
     const id = crypto.randomUUID();
     const host = { type: "privacy_notice", id };
     const original = await saveDocument(tx, {

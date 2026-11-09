@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 
 import { openOwner } from "../src/context";
 import { DemoRefusedError, seedDemoSchool } from "../src/seed";
+import { insertForm } from "../src/stores/consents";
 import { saveDocument } from "../src/stores/documents";
 import { openEnquiryConversation } from "../src/stores/enquiries";
 import { postMessage } from "../src/stores/messages";
@@ -47,7 +48,7 @@ describe("filling a demonstration school", () => {
       password: "a demonstration password",
     };
     try {
-      const enquiry = await owner.asOwner(tenantId, "test", async (tx) => {
+      const existing = await owner.asOwner(tenantId, "test", async (tx) => {
         await createTenant(
           tx,
           {
@@ -116,14 +117,43 @@ describe("filling a demonstration school", () => {
           userId: officeId,
           frozen: true,
         });
-        return threadId;
+        // A consent form the school drafted itself, before the fill.
+        const [purpose] = await tx.execute<{ id: string }>(sql`
+          select id from core.descriptors
+          where tenant_id = ${tenantId}::uuid and namespace = 'consent_purpose'
+            and code_value = 'photo_school_website'`);
+        if (!purpose) throw new Error("no consent purpose");
+        const noticeId = crypto.randomUUID();
+        const words = "May we show your child's artwork on our website?";
+        const original = await saveDocument(tx, {
+          tenantId,
+          orgId: schoolId,
+          host: { type: "privacy_notice", id: noticeId },
+          kind: "rich_text",
+          locale: "en",
+          content: plainContent(words) as unknown as Record<string, unknown>,
+          plainText: words,
+          mediaIds: [],
+          userId: officeId,
+        });
+        await insertForm(tx, {
+          tenantId,
+          schoolId,
+          id: noticeId,
+          purposeId: purpose.id,
+          locale: "en",
+          versionLabel: "1",
+          documentId: original.id,
+          supersedesId: null,
+        });
+        return { threadId, noticeId, purposeId: purpose.id };
       });
       const { su } = harness();
       const before = await su`
         select x.id, d.id as document from core.messages x
         left join core.documents d on d.tenant_id = x.tenant_id
           and d.host_type = 'message' and d.host_id = x.id
-        where x.tenant_id = ${tenantId}::uuid and x.thread_id = ${enquiry}::uuid
+        where x.tenant_id = ${tenantId}::uuid and x.thread_id = ${existing.threadId}::uuid
         order by x.id`;
       expect(before.length).toBeGreaterThan(0);
 
@@ -165,9 +195,15 @@ describe("filling a demonstration school", () => {
         select x.id, d.id as document from core.messages x
         left join core.documents d on d.tenant_id = x.tenant_id
           and d.host_type = 'message' and d.host_id = x.id
-        where x.tenant_id = ${tenantId}::uuid and x.thread_id = ${enquiry}::uuid
+        where x.tenant_id = ${tenantId}::uuid and x.thread_id = ${existing.threadId}::uuid
         order by x.id`,
       ).toEqual(before);
+      expect(
+        await su`
+          select id from core.privacy_notices
+          where tenant_id = ${tenantId}::uuid
+            and purpose_descriptor_id = ${existing.purposeId}::uuid`,
+      ).toEqual([{ id: existing.noticeId }]);
 
       const clashes = await su`
         select m.teacher_user_id, m.location_id, m.weekday, m.class_period_id,
