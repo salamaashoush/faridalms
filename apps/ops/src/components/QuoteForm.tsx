@@ -7,10 +7,18 @@ import type {
   BillingSchedule,
   Currency,
 } from "@faridalms/domain/subscriptions";
+import type { GridColumn, GridIssue } from "@faridalms/ui/system/data-grid";
 import type { ReactNode } from "react";
 
+import { netMinor } from "@faridalms/domain/money";
 import { BILLING_SCHEDULES, CURRENCIES } from "@faridalms/domain/subscriptions";
-import { Button } from "@faridalms/ui/button";
+import {
+  DataGrid,
+  GridAddButton,
+  GridRemoveButton,
+  NumberCell,
+  useFocusAfterRender,
+} from "@faridalms/ui/system/data-grid";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import {
   FormField,
@@ -20,10 +28,9 @@ import {
 import { FormFooter } from "@faridalms/ui/system/form-footer";
 import { FormSection } from "@faridalms/ui/system/record-form";
 import { Textarea } from "@faridalms/ui/textarea";
-import { X } from "lucide-react";
 import { useState } from "react";
 
-import { minorOf } from "../format";
+import { formatMoney, minorOf } from "../format";
 import { SCHEDULE_NAMES } from "./TermsFields";
 
 const SCHEDULE_OPTIONS = BILLING_SCHEDULES.map((choice) => ({
@@ -43,6 +50,144 @@ interface LineDraft {
   quantity: string;
   price: string;
   discount: string;
+}
+
+const addOnCell = (index: number, field: string) => `add-on-${index}-${field}`;
+
+const figureOf = (text: string) => {
+  const value = Number(text);
+  return text.trim() === "" || !Number.isFinite(value) ? null : value;
+};
+
+/** What a line comes to after its discount, once its numbers can be read. */
+function lineNet(line: LineDraft): number | null {
+  const quantity = Number(line.quantity);
+  const unitPriceMinor = minorOf(line.price);
+  const discountPercent = Number(line.discount || "0");
+  if (
+    !Number.isInteger(quantity) ||
+    quantity < 1 ||
+    unitPriceMinor === null ||
+    !Number.isFinite(discountPercent) ||
+    discountPercent < 0 ||
+    discountPercent > 100
+  )
+    return null;
+  return netMinor({ quantity, unitPriceMinor, discountPercent });
+}
+
+interface AddOnGridOptions {
+  lines: LineDraft[];
+  addOns: AddOnVersionRow[];
+  currency: Currency;
+  set: (index: number, change: Partial<LineDraft>) => void;
+  remove: (index: number) => void;
+}
+
+function addOnGrid({ lines, addOns, currency, set, remove }: AddOnGridOptions) {
+  const at = (line: LineDraft) => lines.indexOf(line);
+  const name = (line: LineDraft) => {
+    const addOn = addOns.find((row) => row.id === line.addOnVersionId);
+    return addOn ? `${addOn.nameEn} version ${addOn.version}` : "Retired";
+  };
+  const rowHeader = {
+    header: "Add-on",
+    cell: (line: LineDraft) => (
+      <span className="block max-w-56 truncate font-medium whitespace-nowrap">
+        {name(line)}
+      </span>
+    ),
+  };
+  const figure = (
+    field: "quantity" | "price" | "discount",
+    label: string,
+    decimals: number,
+  ): GridColumn<LineDraft> => ({
+    id: field,
+    header: label,
+    numeric: true,
+    cell: (line) => (
+      <NumberCell
+        id={addOnCell(at(line), field)}
+        label={`${label}, ${name(line)}`}
+        decimals={decimals}
+        value={figureOf(line[field])}
+        onChange={(value) =>
+          set(at(line), {
+            [field]:
+              value === null
+                ? ""
+                : field === "price"
+                  ? value.toFixed(2)
+                  : String(value),
+          })
+        }
+      />
+    ),
+  });
+  const columns: GridColumn<LineDraft>[] = [
+    figure("quantity", "Quantity", 0),
+    figure("price", `Unit price (${currency})`, 2),
+    figure("discount", "Discount (%)", 2),
+    {
+      id: "net",
+      header: "Net",
+      numeric: true,
+      cell: (line) => {
+        const net = lineNet(line);
+        return net === null ? (
+          <span className="text-muted-foreground">
+            <span aria-hidden>—</span>
+            <span className="sr-only">Not priced yet</span>
+          </span>
+        ) : (
+          formatMoney(net, currency)
+        );
+      },
+    },
+  ];
+  const rowEnd = (line: LineDraft) => (
+    <GridRemoveButton
+      label={`Remove ${name(line)}`}
+      onRemove={() => remove(at(line))}
+    />
+  );
+  return { rowHeader, columns, rowEnd };
+}
+
+/** What stops each add-on being quoted, tied to its cell. */
+function addOnIssues(
+  lines: readonly LineDraft[],
+  addOns: readonly AddOnVersionRow[],
+): GridIssue[] {
+  return lines.flatMap((line, index) => {
+    const addOn = addOns.find((row) => row.id === line.addOnVersionId);
+    const label = addOn
+      ? `${addOn.nameEn} version ${addOn.version}`
+      : "Retired";
+    const issues: GridIssue[] = [];
+    const quantity = Number(line.quantity);
+    if (!Number.isInteger(quantity) || quantity < 1)
+      issues.push({
+        target: addOnCell(index, "quantity"),
+        label,
+        message: "Give a quantity of 1 or more.",
+      });
+    if (minorOf(line.price) === null)
+      issues.push({
+        target: addOnCell(index, "price"),
+        label,
+        message: "Give its unit price.",
+      });
+    const discount = Number(line.discount || "0");
+    if (!Number.isFinite(discount) || discount < 0 || discount > 100)
+      issues.push({
+        target: addOnCell(index, "discount"),
+        label,
+        message: "Give a discount between 0 and 100.",
+      });
+    return issues;
+  });
 }
 
 export interface QuoteFormProps {
@@ -92,6 +237,8 @@ export function QuoteForm({
   const [notesAr, setNotesAr] = useState(initial.notesAr ?? "");
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [tried, setTried] = useState(false);
+  const focusLater = useFocusAfterRender();
 
   const read = ():
     | { ok: true; spec: QuoteSpec }
@@ -172,13 +319,29 @@ export function QuoteForm({
     value: choice,
     label: choice,
   }));
-  const addOnOptions = [
-    { value: "", label: "Choose…" },
-    ...addOns.map((addOn) => ({
-      value: addOn.id,
-      label: `${addOn.nameEn} version ${addOn.version}`,
-    })),
-  ];
+  const addAddOn = (
+    <GridAddButton
+      label="Add an add-on"
+      choices={addOns.map((addOn) => ({
+        value: addOn.id,
+        label: `${addOn.nameEn} version ${addOn.version}`,
+      }))}
+      onAdd={(chosen) => {
+        const addOn = addOns.find((row) => row.id === chosen);
+        if (!addOn) return;
+        setLines((current) => [
+          ...current,
+          {
+            addOnVersionId: addOn.id,
+            quantity: "1",
+            price: asMajor(listPrice(addOn.prices, currency)),
+            discount: "0",
+          },
+        ]);
+        focusLater(addOnCell(lines.length, "quantity"));
+      }}
+    />
+  );
 
   return (
     <form
@@ -187,6 +350,7 @@ export function QuoteForm({
       className="grid gap-10"
       onSubmit={async (event) => {
         event.preventDefault();
+        setTried(true);
         const out = read();
         if (!out.ok) {
           setAnswer(out.message);
@@ -255,81 +419,30 @@ export function QuoteForm({
       </FormSection>
 
       <FormSection title="Add-ons">
-        {lines.map((line, index) => {
-          const addOn = addOns.find((row) => row.id === line.addOnVersionId);
-          const name = addOn
-            ? `${addOn.nameEn} version ${addOn.version}`
-            : "Retired";
-          return (
-            <div
-              key={`${line.addOnVersionId}-${index}`}
-              className="grid gap-4 rounded-lg border bg-card p-5"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm leading-5 font-semibold">{name}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Remove ${name}`}
-                  onClick={() =>
-                    setLines((current) =>
-                      current.filter((_, at) => at !== index),
-                    )
-                  }
-                >
-                  <X aria-hidden />
-                </Button>
-              </div>
-              <div className="grid items-start gap-6 sm:grid-cols-3">
-                <TextField
-                  label="Quantity"
-                  inputMode="numeric"
-                  value={line.quantity}
-                  onChange={(event) =>
-                    setLine(index, { quantity: event.target.value })
-                  }
-                />
-                <TextField
-                  label="Unit price"
-                  inputMode="decimal"
-                  value={line.price}
-                  onChange={(event) =>
-                    setLine(index, { price: event.target.value })
-                  }
-                />
-                <TextField
-                  label="Discount (%)"
-                  inputMode="decimal"
-                  value={line.discount}
-                  onChange={(event) =>
-                    setLine(index, { discount: event.target.value })
-                  }
-                />
-              </div>
-            </div>
-          );
-        })}
         {addOns.length ? (
-          <SelectField
-            label="Add an add-on"
-            width="name"
-            value=""
-            options={addOnOptions}
-            onChange={(chosen) => {
-              const addOn = addOns.find((row) => row.id === chosen);
-              if (!addOn) return;
-              setLines((current) => [
-                ...current,
-                {
-                  addOnVersionId: addOn.id,
-                  quantity: "1",
-                  price: asMajor(listPrice(addOn.prices, currency)),
-                  discount: "0",
-                },
-              ]);
-            }}
-          />
+          lines.length ? (
+            <DataGrid<LineDraft>
+              caption="Add-ons"
+              editing
+              surface="page"
+              {...addOnGrid({
+                lines,
+                addOns,
+                currency,
+                set: setLine,
+                remove: (index) =>
+                  setLines((current) =>
+                    current.filter((_, at) => at !== index),
+                  ),
+              })}
+              groups={[{ id: "add-ons", title: "", rows: lines }]}
+              rowKey={(line) => `add-on-${lines.indexOf(line)}`}
+              issues={tried ? addOnIssues(lines, addOns) : []}
+              footer={addAddOn}
+            />
+          ) : (
+            <div>{addAddOn}</div>
+          )
         ) : (
           <EmptyState placement="section" title="No add-ons are sold." />
         )}
