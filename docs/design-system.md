@@ -15,31 +15,31 @@ build their screens from it. A screen never re-creates one of these with
 its own markup; when a screen needs something the package lacks, the
 package gains it first, with a test and a line in this table.
 
-| Rule           | Module                                                                                                                                                                                                                                                                                      |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, section More, area pages, breadcrumb steps), `page-actions`                                                                                                                                                          |
-| Index page     | `page-header`, `index-toolbar`, `data-table` (`DataTable`, `RowLink`, `RowButton`), `selection-bar` (`SelectionBar`), `cell-note` (`CellWithNote`), `empty-state`                                                                                                                           |
-| Page width     | `page` (`Page`; `SettingsPage` and `RecordForm` take theirs from it)                                                                                                                                                                                                                        |
-| Record page    | `record-page` (`RecordHeader`, `RecordStack`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `stage-path` (`StagePath`), `attention-list` (`AttentionList`), `value`                                                                                       |
-| Record content | `usage-list` (`UsageList`), `summary-list` (`SummaryList`), `change-log` (`ChangeLog`), `dns-records` (`DnsRecords`), `copy-button`, `document-view` (`DocumentView`, a printable document in a tab, printed alone)                                                                         |
-| Content editor | `editing-hold` (`EditingHold`, who else is editing and taking over), `version-compare` (`VersionCompare`, two versions side by side, keep one)                                                                                                                                              |
-| Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                                                                                                                                                                                                 |
-| Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                                                                                                                                                                                           |
-| Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                                                                                                                                                                                     |
-| Data editors   | `data-grid` (`DataGrid` with its `table` frame, `GridFigure`, `GridChangedDot`, `NumberCell`, `TextCell`, `NoteCell`, `SelectCell`, `CheckCell`, `TimeCell`, `DateCell`, `GridAddButton`, `GridRemoveButton`, `useFocusAfterRender`): figures and rows read at a glance and edited in place |
-| Rubrics        | `rubric` (`RubricMatrix`, `RubricLevelPicker`, `RubricLevelEditor`): criteria by levels, read, marked and written one criterion at a time                                                                                                                                                   |
-| Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `CheckboxGroupField`, `FieldError`), `combobox-field`, `time-zone-field`                                                                                                                                              |
-| Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                                                                                                                                                                                       |
-| Empty states   | `empty-state` (`EmptyState`, `FilteredEmptyState`, `EmptyStateScope`), `record-page` (`RecordEmpty`), `value` (`Value absent`)                                                                                                                                                              |
-| Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                                                                                                                                                                                                 |
-| Comments       | `comment-thread` (`CommentThread`, `CommentComposer`), `side-panel` (`SidePanel`)                                                                                                                                                                                                           |
-| Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                                                                                                                                                                                         |
-| Media          | `media-grid` (`MediaGrid`, pictures and files as tiles that open, are chosen or are selected for a batch), `crop-frame` (`CropFrame`), `upload-queue` (`UploadQueue`, `FileDropZone`), `focus-picker` (`FocusPicker`)                                                                       |
-| Metrics        | `metrics` (`MetricGrid`, `Metric`), `trend-chart` (`TrendChart`, one measure over time against a reference line)                                                                                                                                                                            |
-| Steps          | `step-nav` (`StepNav`), `form-footer` (`FormFooter`)                                                                                                                                                                                                                                        |
-| Setup          | `setup-guide` (`SetupGuide`, an organisation's first setup as ordered steps ticked from its data)                                                                                                                                                                                           |
-| Status pages   | `status-page` (`StatusPage`, `ErrorPage`, `NotFoundPage`)                                                                                                                                                                                                                                   |
-| Sign-in pages  | `auth-layout` (`AuthLayout`, `AuthBand`, `AuthHeading`), `theme-toggle`                                                                                                                                                                                                                     |
+| Rule           | Module                                                                                                                                                                                                                                                                                              |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, section More, area pages, breadcrumb steps), `page-actions`                                                                                                                                                                  |
+| Index page     | `page-header`, `index-toolbar`, `data-table` (`DataTable` with its `layout`, `RowLink`, `RowButton`), `selection-bar` (`SelectionBar`), `cell-note` (`CellWithNote`), `empty-state`                                                                                                                 |
+| Page width     | `page` (`Page`; `SettingsPage` and `RecordForm` take theirs from it)                                                                                                                                                                                                                                |
+| Record page    | `record-page` (`RecordHeader`, `RecordStack`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `stage-path` (`StagePath`), `attention-list` (`AttentionList`), `value`                                                                                               |
+| Record content | `usage-list` (`UsageList`), `summary-list` (`SummaryList`), `change-log` (`ChangeLog`), `dns-records` (`DnsRecords`), `copy-button`, `document-view` (`DocumentView`, a printable document in a tab, printed alone)                                                                                 |
+| Content editor | `editing-hold` (`EditingHold`, who else is editing and taking over), `version-compare` (`VersionCompare`, two versions side by side, keep one)                                                                                                                                                      |
+| Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                                                                                                                                                                                                         |
+| Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                                                                                                                                                                                                   |
+| Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                                                                                                                                                                                             |
+| Data editors   | `data-grid` (`DataGrid` with its `table` frame, `GridFigure`, `GridChangedDot`, `NumberCell`, `TextCell`, `NoteCell`, `SelectCell`, `CheckCell`, `TimeCell`, `DateCell`, `GridAddButton`, `GridRemoveButton`, `useFocusAfterRender`): work entered as the job, such as term grades, edited in place |
+| Rubrics        | `rubric` (`RubricMatrix`, `RubricLevelPicker`, `RubricLevelEditor`): criteria by levels, read, marked and written one criterion at a time                                                                                                                                                           |
+| Forms          | `form-field` (`FormField`, `TextField`, `NumberField`, `SelectField`, `ChoiceField`, `CheckboxGroupField`, `FieldError`), `figures`, `combobox-field`, `time-zone-field`                                                                                                                            |
+| Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                                                                                                                                                                                               |
+| Empty states   | `empty-state` (`EmptyState`, `FilteredEmptyState`, `EmptyStateScope`), `record-page` (`RecordEmpty`), `value` (`Value absent`)                                                                                                                                                                      |
+| Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                                                                                                                                                                                                         |
+| Comments       | `comment-thread` (`CommentThread`, `CommentComposer`), `side-panel` (`SidePanel`)                                                                                                                                                                                                                   |
+| Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                                                                                                                                                                                                 |
+| Media          | `media-grid` (`MediaGrid`, pictures and files as tiles that open, are chosen or are selected for a batch), `crop-frame` (`CropFrame`), `upload-queue` (`UploadQueue`, `FileDropZone`), `focus-picker` (`FocusPicker`)                                                                               |
+| Metrics        | `metrics` (`MetricGrid`, `Metric`), `trend-chart` (`TrendChart`, one measure over time against a reference line)                                                                                                                                                                                    |
+| Steps          | `step-nav` (`StepNav`), `form-footer` (`FormFooter`)                                                                                                                                                                                                                                                |
+| Setup          | `setup-guide` (`SetupGuide`, an organisation's first setup as ordered steps ticked from its data)                                                                                                                                                                                                   |
+| Status pages   | `status-page` (`StatusPage`, `ErrorPage`, `NotFoundPage`)                                                                                                                                                                                                                                           |
+| Sign-in pages  | `auth-layout` (`AuthLayout`, `AuthBand`, `AuthHeading`), `theme-toggle`                                                                                                                                                                                                                             |
 
 The package says nothing in a language of its own. Each app wraps its pages
 in `DesignSystemProvider` with a `DesignSystemValue`: the strings the
@@ -548,41 +548,52 @@ School settings, website settings, notification preferences.
 ### Data editors
 
 Figures and rows a school sets once and reads often: reading norms, grade
-bands, weights, prices, periods (Carbon's data table edit modes, Polaris
-IndexTable, Shopify's variants editor, Airtable and Google Sheets, Canvas
-grading schemes, GOV.UK "Add another"). Each is one `DataGrid`; the full
-reasoning and the list of editors still to move is
-`docs/plans/data-editors.md`.
+bands, weights, messages by score, periods, bell schedules, an intake's
+checklist and fees, a class's subjects, social links, and the console's
+prices and lines (Primer DataTable, Carbon's forms pattern, GOV.UK check
+answers, PowerSchool's bell schedule items, OpenApply's checklist). The
+full reasoning, editor by editor, is `docs/plans/data-editors.md`.
 
-- **Read first, Edit to change.** Reference data shows as a table of
-  plain figures; one Edit button (named for what it edits, "Edit English
-  norms") turns the same table into fields, with Save and Cancel in the
-  card's footer. Cancel throws the draft away and gives focus back to
-  Edit. A sheet that edits a list (a scale's bands) is already the edit
-  mode and shows the grid editing. Work entered as the job itself (marks,
-  the register) stays editable all the time and is not a `DataGrid` of
-  this kind (see "Work entered as the job" below).
-- **Rows under headings.** Rows that belong together (a grade's three
-  times of year) sit under one heading row (`GridGroup`) instead of
-  repeating the heading on every row; while editing, the heading carries
-  the group's `•••` (Remove, go back to the source).
-- **Figures are text, not spinners.** `NumberCell` is a text field with a
-  numeric keyboard: no spinner, digits at the end of the cell in tabular
-  figures and the reader's digits, Arabic-Indic digits accepted. A cell is
-  a calm tint until hovered or focused. Reaching a cell selects its figure
-  so typing replaces it; Escape puts back what it held.
+- **A table of rows, one row edited at a time.** Reference data is the
+  standard `DataTable`, a card per row on a phone, never a grid of inputs
+  behind one Edit. Each row's primary cell is a `RowButton`, so the whole
+  row opens it; its `•••` holds Edit, a reset where the row came from a
+  published source, and Remove. Edit opens that one row in a `SheetForm`
+  titled for it ("Change Grade 3, autumn"), Add opens the same form empty,
+  and the sheet's button names its job ("Add a grade", "Save grade").
+  Remove asks first; a removal that needs a date or a reason (a period
+  from a date, a grade with why) is a destructive sheet instead.
+- **Where the row saves.** A list that is settings of its own saves the
+  row from its sheet, the rest as saved. A list inside a record being
+  written in a form (a class, an intake, a lesson, a scale or programme
+  being added) keeps the row in that form, and the form's Save keeps it
+  with the record. A list inside a sheet opens its row's sheet over it.
+- **Figures are text, not spinners.** `NumberField` in a form and
+  `NumberCell` in a grid are text fields with a numeric keyboard: no
+  spinner, tabular figures in the reader's numerals, Arabic-Indic ones
+  accepted, never more places than allowed.
 - **Where figures came from.** When figures start from a published source
-  (`baselineName`, "Hasbrouck and Tindal"), each one the school changed
-  carries a dot in the accent and says what the source had to a screen
-  reader; a line under the grid counts them ("3 changed from Hasbrouck and
-  Tindal"). The focused cell's line names the cell and the source's figure
-  with Put it back. A whole group goes back from its `•••`, the whole
-  table from the card's footer.
-- **Adding and removing.** A grid of a fixed shape adds from a menu of
-  what is missing ("Add grade") and removes a group from its `•••`; never
-  a trash icon on every row. A list of like rows (bands, periods) adds
-  with an "Add" button under it and removes with a quiet × at each row's
-  end, named for the row (GOV.UK "Add another").
+  ("Hasbrouck and Tindal"), a Source column says whether each row is the
+  source's, changed or added by the school, the row's sheet shows the
+  source's figure under each field, the row's menu puts that row back,
+  and the section's action puts back the whole set.
+- **Narrow columns.** A table in a column too narrow for its columns, such
+  as an editor's 280px settings panel, draws its cards at every width
+  (`DataTable layout="cards"`).
+- **Work entered as the job** (term grades, marks, the register) stays
+  editable all the time and is a `DataGrid` (see "Work entered as the
+  job" below), with the rules that follow.
+- **Adding and removing in a grid.** A grid of a fixed shape adds from a
+  menu of what is missing and removes a group from its `•••`; never a
+  trash icon on every row. A grid of like rows adds with an "Add" button
+  under it and removes with a quiet × at each row's end, named for the
+  row (GOV.UK "Add another").
+- **Rows under headings in a grid.** Rows that belong together sit under
+  one heading row (`GridGroup`) instead of repeating the heading on every
+  row; the heading carries the group's `•••`.
+- **A grid's figure cells.** A cell is a calm tint until hovered or
+  focused. Reaching a cell selects its figure so typing replaces it;
+  Escape puts back what it held.
 - **Line items are a table, not a grid.** Rows a person adds one at a
   time, each carrying several fields (an invoice's lines, a plan's
   prices, a quote's add-ons, a school's hosts), are the standard
