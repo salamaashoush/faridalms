@@ -23,6 +23,10 @@ test("an administrator changes a lesson from a day and the week shows it", async
   await page
     .getByRole("menuitemradio", { name: homeroom, exact: true })
     .click();
+  // The menu hands focus back as it closes; the grid of the chosen class
+  // is the one to edit.
+  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(page).toHaveURL(/classId=/);
   const cell = page.getByRole("button", { name: "Edit Thursday, Period 6" });
   const before = (await cell.textContent()) ?? "";
   await cell.click();
@@ -50,6 +54,10 @@ test("an administrator changes a lesson from a day and the week shows it", async
   await page
     .getByRole("menuitemradio", { name: homeroom, exact: true })
     .click();
+  // The menu hands focus back as it closes; the grid of the chosen class
+  // is the one to edit.
+  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(page).toHaveURL(/classId=/);
   await expect(
     page.getByRole("button", { name: "Edit Thursday, Period 6" }),
   ).toContainText(original);
