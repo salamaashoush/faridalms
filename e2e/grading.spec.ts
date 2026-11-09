@@ -5,6 +5,8 @@ import { chooseFromMenu, signIn, untilHydrated } from "./fixtures/sign-in";
 test("a school adds a grade scale and changes its grades one at a time", async ({
   page,
 }) => {
+  // Each browser runs this against the same school, so its scale is its own.
+  const scaleName = `School IGCSE ${crypto.randomUUID().slice(0, 6)}`;
   await signIn(page, "admin");
   await page.goto("/exams?tab=scales");
   await untilHydrated(page);
@@ -12,7 +14,7 @@ test("a school adds a grade scale and changes its grades one at a time", async (
   const adding = page.getByRole("dialog", { name: "Add scale" });
   await adding
     .getByRole("textbox", { name: "Name in English" })
-    .fill("School IGCSE");
+    .fill(scaleName);
   // A grade of a scale not yet added is changed in its own sheet and kept
   // with the scale when it is saved.
   await adding.getByRole("button", { name: "U", exact: true }).click();
@@ -28,8 +30,8 @@ test("a school adds a grade scale and changes its grades one at a time", async (
   await adding.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Changes saved")).toBeVisible();
 
-  await page.getByRole("button", { name: "School IGCSE", exact: true }).click();
-  const scale = page.getByRole("dialog", { name: "School IGCSE" });
+  await page.getByRole("button", { name: scaleName, exact: true }).click();
+  const scale = page.getByRole("dialog", { name: scaleName });
   await scale.getByRole("button", { name: "A", exact: true }).click();
   const change = page.getByRole("dialog", { name: "Change A" });
   const from = change.getByRole("textbox", { name: "Starts at, %" });
@@ -77,6 +79,8 @@ test("a school adds a grade scale and changes its grades one at a time", async (
 test("a programme's categories are added one at a time and weigh 100 together", async ({
   page,
 }) => {
+  // Each browser runs this against the same school, so its programme is its own.
+  const programmeName = `School diploma ${crypto.randomUUID().slice(0, 6)}`;
   await signIn(page, "admin");
   await page.goto("/exams?tab=programmes");
   await untilHydrated(page);
@@ -84,7 +88,7 @@ test("a programme's categories are added one at a time and weigh 100 together", 
   const programme = page.getByRole("dialog", { name: "Add programme" });
   await programme
     .getByRole("textbox", { name: "Name in English" })
-    .fill("School diploma");
+    .fill(programmeName);
   const addCategory = async (name: string, weight: string) => {
     await programme.getByRole("button", { name: "Add a category" }).click();
     const category = page.getByRole("dialog", { name: "Add a category" });
@@ -114,7 +118,7 @@ test("a programme's categories are added one at a time and weigh 100 together", 
   ).toBeVisible();
   await programme.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Changes saved")).toBeVisible();
-  await expect(page.getByRole("row", { name: /School diploma/ })).toContainText(
-    "Homework",
-  );
+  await expect(
+    page.getByRole("row", { name: new RegExp(programmeName) }),
+  ).toContainText("Homework");
 });
