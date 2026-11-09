@@ -931,6 +931,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errRegisterNotSent();
       case "learning.disabled":
         return m.learningDisabled();
+      case "onboarding.not_finished":
+        return m.onboardingErrNotFinished();
       case "learning.no_year":
         return m.lrnErrNoYear();
       case "learning.unit_dates":

@@ -2,7 +2,10 @@ import type { PeriodRow } from "@faridalms/database/stores/attendance";
 import type { LessonChange } from "@faridalms/database/stores/cover";
 import type { MeetingRow } from "@faridalms/database/stores/timetable";
 import type { AttendanceCounts } from "@faridalms/domain/attendance";
-import type { OnboardingItem } from "@faridalms/domain/onboarding";
+import type {
+  OnboardingItem,
+  SetupProgress,
+} from "@faridalms/domain/onboarding";
 
 import {
   absencesBetween,
@@ -37,6 +40,10 @@ import { threadsOf, unreadThreads } from "@faridalms/database/stores/messages";
 import { deliveryLog } from "@faridalms/database/stores/notifications";
 import { onboardingSeen } from "@faridalms/database/stores/onboarding";
 import { childrenOf } from "@faridalms/database/stores/persons";
+import {
+  preferenceOf,
+  savePreference,
+} from "@faridalms/database/stores/preferences";
 import { openReenrolments } from "@faridalms/database/stores/rollovers";
 import {
   person as readPerson,
@@ -61,7 +68,12 @@ import {
   SEALED_MEANINGS,
 } from "@faridalms/domain/identifiers";
 import { MODULE_IDS } from "@faridalms/domain/modules";
-import { onboardingItems } from "@faridalms/domain/onboarding";
+import {
+  onboardingItems,
+  SETUP_ITEMS,
+  setupFinished,
+  setupProgress,
+} from "@faridalms/domain/onboarding";
 import { addDays } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
 import { ORPCError } from "@orpc/server";
@@ -77,6 +89,7 @@ import {
   localeOf,
   readProcedure,
   requireCapability,
+  writeProcedure,
 } from "../core/procedure";
 import { recordLinks, scopeFor } from "../core/reach";
 import { yearAfter } from "../core/years";
@@ -1150,15 +1163,35 @@ export const admin = readProcedure.handler(async ({ context }) => {
   };
 });
 
+/** Where a person keeps the schools whose finished setup they have hidden. */
+const ONBOARDING_HIDDEN = "home_onboarding";
+const hiddenSchema = v.object({ schools: v.array(v.string()) });
+
+async function hiddenSchools(context: UnitContext) {
+  const kept = v.safeParse(
+    hiddenSchema,
+    await preferenceOf(context.tx, {
+      tenantId: context.tenantId,
+      userId: context.actor.userId,
+      key: ONBOARDING_HIDDEN,
+    }),
+  );
+  return kept.success ? kept.output.schools : [];
+}
+
 /**
  * The school's first steps as its administrators see them, the same list
  * the operators follow: what the school's data shows now, with what the
  * directory holds of its address, its first invoice and the operators'
- * steps. Gone once every step is taken.
+ * steps. The school's own setup comes first, step by step in the order it
+ * is best done; the rest follows as it is reached. Gone once every step is
+ * taken, or once the setup is finished and the person has hidden it.
  */
-async function onboardingFor(
-  context: UnitContext,
-): Promise<{ item: OnboardingItem; done: boolean }[] | null> {
+async function onboardingFor(context: UnitContext): Promise<{
+  steps: SetupProgress[];
+  items: { item: OnboardingItem; done: boolean }[];
+  finished: boolean;
+} | null> {
   const on = await modulesOf(context);
   const applies = onboardingItems({
     modules: MODULE_IDS.filter((module) => on[module]),
@@ -1177,5 +1210,36 @@ async function onboardingFor(
     ...kept.map((row) => row.item),
   ]);
   if (applies.every((item) => done.has(item))) return null;
-  return applies.map((item) => ({ item, done: done.has(item) }));
+  const steps = setupProgress(applies, done);
+  const finished = setupFinished(steps);
+  if (finished && (await hiddenSchools(context)).includes(context.schoolId))
+    return null;
+  return {
+    steps,
+    items: applies
+      .filter((item) => !SETUP_ITEMS.has(item))
+      .map((item) => ({ item, done: done.has(item) })),
+    finished,
+  };
 }
+
+/**
+ * Hides the school's first steps from the person's Today once the school's
+ * own setup is finished; what is left is the operators' and the school's
+ * first weeks, which the console follows.
+ */
+export const hideOnboarding = writeProcedure.handler(async ({ context }) => {
+  if (context.actor.profile !== "staff_admin") throw new ORPCError("FORBIDDEN");
+  const onboarding = await onboardingFor(context);
+  if (onboarding && !onboarding.finished)
+    throw new ORPCError("CONFLICT", { message: "onboarding.not_finished" });
+  const schools = await hiddenSchools(context);
+  if (!schools.includes(context.schoolId))
+    await savePreference(context.tx, {
+      tenantId: context.tenantId,
+      userId: context.actor.userId,
+      key: ONBOARDING_HIDDEN,
+      value: { schools: [...schools, context.schoolId] },
+    });
+  return { hidden: true };
+});

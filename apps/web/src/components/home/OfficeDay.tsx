@@ -1,4 +1,3 @@
-import type { OnboardingItem } from "@faridalms/domain/onboarding";
 import type { LinkProps } from "@tanstack/react-router";
 
 import { Button } from "@faridalms/ui/button";
@@ -22,6 +21,7 @@ import {
   HomeList,
   itemLink,
 } from "~/components/home/parts";
+import { SchoolSetup } from "~/components/home/SchoolSetup";
 import { displayName } from "~/components/people/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -36,30 +36,10 @@ interface Need {
   link: LinkProps;
 }
 
-const ONBOARDING_LABEL: Record<OnboardingItem, () => string> = {
-  admin_signed_in: m.onboardingAdminSignedIn,
-  school_details: m.onboardingSchoolDetails,
-  year_ready: m.onboardingYearReady,
-  classes: m.onboardingClasses,
-  staff_invited: m.onboardingStaffInvited,
-  staff_signed_in: m.onboardingStaffSignedIn,
-  students_imported: m.onboardingStudentsImported,
-  guardians_linked: m.onboardingGuardiansLinked,
-  families_signed_in: m.onboardingFamiliesSignedIn,
-  first_assignment: m.onboardingFirstAssignment,
-  first_register: m.onboardingFirstRegister,
-  website_published: m.onboardingWebsitePublished,
-  custom_domain: m.onboardingCustomDomain,
-  first_invoice_paid: m.onboardingFirstInvoicePaid,
-  kickoff_call: m.onboardingKickoffCall,
-  training: m.onboardingTraining,
-  data_import: m.onboardingDataImport,
-};
-
 /**
- * The office's day: what needs someone to act, how attendance is going, what
- * is coming, how recent news was read, the school's first steps until it has
- * taken them all, and the next year's setup when this one is ending.
+ * The office's day: the school's setup first while it is under way, then
+ * what needs someone to act, how attendance is going, what is coming, how
+ * recent news was read, and the next year's setup when this one is ending.
  */
 export function useOfficeDay(): DayCards {
   const data = useSuspenseQuery(adminHomeQuery).data;
@@ -129,6 +109,9 @@ export function useOfficeDay(): DayCards {
       : []),
   ] as Need[];
   const main = [
+    data.onboarding ? (
+      <SchoolSetup key="onboarding" onboarding={data.onboarding} />
+    ) : null,
     needs.length > 0 ? (
       <HomeCard key="needs" title={m.homeNeedsAction()}>
         <div className="grid gap-4">
@@ -235,34 +218,6 @@ export function useOfficeDay(): DayCards {
     ) : null,
   ].filter(Boolean);
   const aside = [
-    data.onboarding ? (
-      <HomeCard
-        key="onboarding"
-        title={m.homeOnboarding()}
-        description={m.homeOnboardingProgress({
-          done: formatNumber(
-            data.onboarding.filter((step) => step.done).length,
-          ),
-          total: formatNumber(data.onboarding.length),
-        })}
-      >
-        <HomeList>
-          {data.onboarding.map((step) => (
-            <HomeItem
-              key={step.item}
-              title={
-                <span className="text-sm">{ONBOARDING_LABEL[step.item]()}</span>
-              }
-              status={
-                <StatusText tone={step.done ? "success" : "warning"}>
-                  {step.done ? m.homeDone() : m.homeToDo()}
-                </StatusText>
-              }
-            />
-          ))}
-        </HomeList>
-      </HomeCard>
-    ) : null,
     data.checklist ? (
       <HomeCard
         key="checklist"

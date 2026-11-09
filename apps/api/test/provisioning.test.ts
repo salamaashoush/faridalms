@@ -337,6 +337,23 @@ describe("creating a school from the operator console", () => {
         }),
       ),
     ).toMatchObject({ code: "CONFLICT", message: "learning.no_year" });
+
+    // Its setup waits for it on Today, and cannot be hidden half done.
+    const onboarding = (await api.home.admin()).onboarding;
+    expect(onboarding?.steps.map((step) => [step.id, step.done])).toEqual([
+      ["details", false],
+      ["year", false],
+      ["classes", false],
+      ["staff", false],
+      ["students", false],
+      ["timetable", false],
+      ["website", false],
+      ["admissions", false],
+    ]);
+    expect(await rejection(api.home.hideOnboarding())).toMatchObject({
+      code: "CONFLICT",
+      message: "onboarding.not_finished",
+    });
   });
 
   test("each school of a group has its own administrator, and the group's runs them all", async () => {

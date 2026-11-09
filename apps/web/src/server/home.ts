@@ -32,3 +32,7 @@ export const getStudentHome = createServerFn({ method: "GET" }).handler(() =>
 export const getAdminHome = createServerFn({ method: "GET" }).handler(() =>
   backend().home.admin(),
 );
+
+export const hideOnboarding = createServerFn({ method: "POST" }).handler(() =>
+  backend().home.hideOnboarding(),
+);

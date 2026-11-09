@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, signedIn } from "./harness";
+import { login, raw, rejection, sessionFor, signedIn } from "./harness";
 
 describe("home pages", () => {
   test("a teacher's day lists their classes and the lessons the timetable gives them", async () => {
@@ -63,15 +63,61 @@ describe("home pages", () => {
 
   test("the office sees the school's first steps, live from its data, until it has taken them all", async () => {
     const office = await signedIn("northwind", login("principal"));
-    const steps = (await office.home.admin()).onboarding;
-    if (!steps) throw new Error("the seeded school has steps left");
-    const done = (item: string) => steps.find((step) => step.item === item);
+    const onboarding = (await office.home.admin()).onboarding;
+    if (!onboarding) throw new Error("the seeded school has steps left");
+    const step = (id: string) => onboarding.steps.find((row) => row.id === id);
+    const done = (item: string) =>
+      onboarding.items.find((row) => row.item === item);
     // What its data shows counts at once, before any daily measure.
-    expect(done("classes")).toEqual({ item: "classes", done: true });
-    expect(done("students_imported")?.done).toBe(true);
+    expect(step("classes")).toEqual({
+      id: "classes",
+      done: true,
+      optional: false,
+    });
+    expect(step("students")?.done).toBe(true);
     expect(done("staff_signed_in")?.done).toBe(true);
     // An operator's step waits for the operator.
     expect(done("kickoff_call")).toEqual({ item: "kickoff_call", done: false });
+  });
+
+  test("the office hides the school's setup once it is finished", async () => {
+    // A logo and a way to reach the school are the last of its details.
+    const office = await sessionFor("northwind", login("principal"));
+    const png = new Blob([
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]),
+    ]);
+    const file = await office.api.files.initiate({
+      purpose: "document_media",
+      name: "logo.png",
+      mediaType: "image/png",
+      sizeBytes: png.size,
+    });
+    await raw("northwind", office.token, `/v1/files/${file.id}/content`, {
+      method: "PUT",
+      body: png,
+    });
+    const profile = await office.api.school.profile();
+    await office.api.school.saveProfile({
+      expectedVersion: profile.version,
+      nameEn: profile.nameEn ?? "",
+      nameAr: profile.nameAr ?? "",
+      identifier: profile.identifier ?? "",
+      timeZone: profile.timeZone ?? "Africa/Cairo",
+      defaultLocale: profile.defaultLocale,
+      weekStart: profile.weekStart,
+      weekendDays: profile.weekendDays,
+      secondaryCalendar: profile.secondaryCalendar ?? "",
+      phone: profile.phone ?? "0225550100",
+      email: profile.email ?? "",
+      logoFileId: file.id,
+    });
+    const onboarding = (await office.api.home.admin()).onboarding;
+    expect(onboarding?.steps.find((row) => row.id === "details")?.done).toBe(
+      true,
+    );
+    expect(onboarding?.finished).toBe(true);
+    expect(await office.api.home.hideOnboarding()).toEqual({ hidden: true });
+    expect((await office.api.home.admin()).onboarding).toBeNull();
   });
 
   test("a guardian reads what the school holds about their child and asks the office to correct it", async () => {

@@ -53,6 +53,6 @@ test("a new school's first steps show to its operators and its administrators al
     card.getByRole("listitem").filter({ hasText: name });
   await expect(step("Kick-off call with our team")).toContainText("Done");
   await expect(step("An administrator signs in")).toContainText("Done");
-  await expect(step("Classes set up")).toContainText("To do");
+  await expect(step("Grades and classes")).toContainText("To do");
   await context.close();
 });
