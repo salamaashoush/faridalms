@@ -1,15 +1,12 @@
 import { presentVariables } from "@faridalms/domain/environment";
-import { isHostname } from "@faridalms/domain/hosts";
+import { isPlatformDomain } from "@faridalms/domain/hosts";
 import * as v from "valibot";
 
 const domain = v.pipe(
   v.string(),
   v.trim(),
   v.toLowerCase(),
-  v.check(
-    (value) => value === "localhost" || isHostname(value),
-    "must be a domain name",
-  ),
+  v.check(isPlatformDomain, "must be a domain name"),
 );
 
 // A comma-separated list of addresses, compared as the provider's verified

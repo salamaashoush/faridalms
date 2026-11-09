@@ -1,8 +1,8 @@
 import { presentVariables } from "@faridalms/domain/environment";
-import { isHostname } from "@faridalms/domain/hosts";
+import { isPlatformDomain } from "@faridalms/domain/hosts";
 import * as v from "valibot";
 
-const domain = v.pipe(v.string(), v.toLowerCase(), v.check(isHostname));
+const domain = v.pipe(v.string(), v.toLowerCase(), v.check(isPlatformDomain));
 
 const settings = v.object({
   CELL_ID: v.pipe(v.string(), v.regex(/^[a-z]{2}-[0-9]{1,2}$/)),

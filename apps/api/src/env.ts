@@ -1,5 +1,5 @@
 import { presentVariables } from "@faridalms/domain/environment";
-import { isHostname } from "@faridalms/domain/hosts";
+import { isPlatformDomain } from "@faridalms/domain/hosts";
 import * as v from "valibot";
 
 const positiveInteger = v.pipe(
@@ -13,10 +13,7 @@ const domain = v.pipe(
   v.string(),
   v.trim(),
   v.toLowerCase(),
-  v.check(
-    (value) => value === "localhost" || isHostname(value),
-    "must be a domain name",
-  ),
+  v.check(isPlatformDomain, "must be a domain name"),
 );
 
 const bytes = (length: number) =>

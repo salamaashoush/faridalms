@@ -1,7 +1,7 @@
 import type { HostRole, PlatformDomains } from "@faridalms/domain/hosts";
 
 import { createApiClient } from "@faridalms/api-client";
-import { isHostname, placeOf } from "@faridalms/domain/hosts";
+import { isPlatformDomain, placeOf } from "@faridalms/domain/hosts";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import { env } from "~/env";
@@ -19,7 +19,7 @@ export type Place =
 export type Routing = { place: Place } | { redirect: string } | null;
 
 const isDomain = (value: string | undefined): value is string =>
-  value !== undefined && (value === "localhost" || isHostname(value));
+  value !== undefined && isPlatformDomain(value);
 
 /** The platform's domains, or null when they are missing or the same. */
 export function platformDomains(): PlatformDomains | null {

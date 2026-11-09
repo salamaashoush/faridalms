@@ -48,6 +48,14 @@ export function isHostname(name: string): boolean {
   );
 }
 
+/**
+ * A domain the platform may name schools under: a real one, or `localhost`
+ * on a developer's machine and in the browser gate, where every
+ * `*.localhost` name reaches loopback.
+ */
+export const isPlatformDomain = (name: string): boolean =>
+  name === "localhost" || isHostname(name);
+
 /** True for an IPv4 address or a bracketed IPv6 one, as a Host header carries them. */
 export function isAddress(host: string): boolean {
   return IPV4.test(host) || /^\[[0-9a-f:.]+\]$/.test(host);
