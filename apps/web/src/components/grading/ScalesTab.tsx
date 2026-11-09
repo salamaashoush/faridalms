@@ -1,10 +1,17 @@
 import type { GradeBand, GradeDisplay } from "@faridalms/domain/grading";
+import type { GridColumn, GridIssue } from "@faridalms/ui/system/data-grid";
 import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 
-import { bandsSchema } from "@faridalms/domain/grading";
 import { Button } from "@faridalms/ui/button";
-import { Input } from "@faridalms/ui/input";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
+import {
+  DataGrid,
+  GridAddButton,
+  GridRemoveButton,
+  NumberCell,
+  TextCell,
+  useFocusAfterRender,
+} from "@faridalms/ui/system/data-grid";
 import { DataTable } from "@faridalms/ui/system/data-table";
 import {
   FormField,
@@ -14,17 +21,9 @@ import {
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Archive,
-  Pencil,
-  Plus,
-  Scale,
-  SlidersHorizontal,
-  X,
-} from "lucide-react";
+import { Archive, Pencil, Plus, Scale, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import * as v from "valibot";
 
 import type { getGradingOverview } from "~/server/grading";
 
@@ -36,7 +35,7 @@ import {
   saveGradeBands,
   saveGradeScale,
 } from "~/server/grading";
-import { formatDate } from "~/utils/datetime";
+import { formatDate, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { bandsLine } from "./format";
@@ -157,8 +156,8 @@ interface BandDraft {
   key: string;
   labelEn: string;
   labelAr: string;
-  minPercent: string;
-  gpa: string;
+  minPercent: number | null;
+  gpa: number | null;
 }
 
 const draftOf = (band: GradeBand): BandDraft => ({
@@ -167,71 +166,212 @@ const draftOf = (band: GradeBand): BandDraft => ({
   // A grade named alike in both languages, such as A*, leaves the Arabic
   // name empty and takes the English one when saved.
   labelAr: band.labelAr === band.labelEn ? "" : band.labelAr,
-  minPercent: String(band.minPercent),
-  gpa: band.gpa === null ? "" : String(band.gpa),
+  minPercent: band.minPercent,
+  gpa: band.gpa,
 });
 
 function bandsOf(drafts: readonly BandDraft[]): GradeBand[] {
   return drafts.map((draft) => ({
     labelEn: draft.labelEn.trim(),
     labelAr: draft.labelAr.trim() || draft.labelEn.trim(),
-    minPercent: Number(draft.minPercent),
-    gpa: draft.gpa.trim() === "" ? null : Number(draft.gpa),
+    minPercent: draft.minPercent ?? 0,
+    gpa: draft.gpa,
   }));
 }
 
-const BAND_PROBLEM: Record<string, () => string> = {
-  "grading.label_repeated": m.gradingLabelRepeated,
-  "grading.bound_repeated": m.gradingBoundRepeated,
-  "grading.no_floor": m.gradingNoFloor,
-};
+const bandCell = (draft: BandDraft, field: "en" | "ar" | "from" | "gpa") =>
+  `band-${draft.key}-${field}`;
 
-/** Why bands cannot be saved as they are, said in the reader's words. */
-function bandsProblem(drafts: readonly BandDraft[]): string | null {
-  if (
-    drafts.some(
-      (draft) =>
-        !draft.labelEn.trim() ||
-        draft.minPercent.trim() === "" ||
-        Number.isNaN(Number(draft.minPercent)),
+/**
+ * What stops the bands being saved, each tied to its cell: the schema's
+ * own rules, said where the grade is rather than once for the list.
+ */
+function bandIssues(drafts: readonly BandDraft[]): GridIssue[] {
+  const issues: GridIssue[] = [];
+  const labels = new Set<string>();
+  const bounds = new Set<number>();
+  drafts.forEach((draft, index) => {
+    const row = index + 1;
+    const label = draft.labelEn.trim();
+    if (!label)
+      issues.push({
+        target: bandCell(draft, "en"),
+        message: m.gradingBandNameNeeded({ row }),
+      });
+    else if (labels.has(label))
+      issues.push({
+        target: bandCell(draft, "en"),
+        message: m.gradingLabelRepeated(),
+      });
+    labels.add(label);
+    const from = draft.minPercent;
+    if (from === null || from > 100)
+      issues.push({
+        target: bandCell(draft, "from"),
+        message: m.gradingBandFromNeeded({ row }),
+      });
+    else if (bounds.has(from))
+      issues.push({
+        target: bandCell(draft, "from"),
+        message: m.gradingBoundRepeated(),
+      });
+    if (from !== null) bounds.add(from);
+    if (draft.gpa !== null && draft.gpa > 5)
+      issues.push({
+        target: bandCell(draft, "gpa"),
+        message: m.gradingBandGpaRange({ row }),
+      });
+  });
+  const lowest = drafts.toSorted(
+    (a, b) => (a.minPercent ?? 101) - (b.minPercent ?? 101),
+  )[0];
+  if (lowest && !bounds.has(0))
+    issues.push({
+      target: bandCell(lowest, "from"),
+      message: m.gradingNoFloor(),
+    });
+  return issues;
+}
+
+/** The scores a band covers: from its lower bound to the next band's. */
+function bandRange(drafts: readonly BandDraft[], draft: BandDraft) {
+  const from = draft.minPercent;
+  if (from === null || from > 100) return null;
+  const next = drafts
+    .flatMap((other) =>
+      other.minPercent !== null && other.minPercent > from
+        ? [other.minPercent]
+        : [],
     )
-  )
-    return m.gradingBandIncomplete();
-  const checked = v.safeParse(bandsSchema, bandsOf(drafts));
-  if (checked.success) return null;
-  const [issue] = checked.issues;
-  return (BAND_PROBLEM[issue.message] ?? m.gradingBandIncomplete)();
+    .toSorted((a, b) => a - b)[0];
+  return next === undefined || next > 100
+    ? m.gradingBandRangeTop({
+        from: formatNumber(from),
+        to: formatNumber(100),
+      })
+    : m.gradingBandRange({ from: formatNumber(from), to: formatNumber(next) });
+}
+
+interface BandGridOptions {
+  bands: BandDraft[];
+  withGpa: boolean;
+  set: (key: string, change: Partial<BandDraft>) => void;
+  remove: (key: string) => void;
+}
+
+// Built per render: headers read the request's locale.
+function bandGrid({ bands, withGpa, set, remove }: BandGridOptions) {
+  const row = (draft: BandDraft) => bands.indexOf(draft) + 1;
+  const rowHeader = {
+    header: m.gradingBandLabelEn(),
+    cell: (draft: BandDraft) => (
+      <TextCell
+        id={bandCell(draft, "en")}
+        label={m.gradingBandLabelEnRow({ row: row(draft) })}
+        dir="ltr"
+        maxLength={24}
+        value={draft.labelEn}
+        onChange={(labelEn) => set(draft.key, { labelEn })}
+      />
+    ),
+  };
+  const rowEnd = (draft: BandDraft) => (
+    <GridRemoveButton
+      label={m.gradingRemoveBand({ row: row(draft) })}
+      disabled={bands.length <= 2}
+      onRemove={() => remove(draft.key)}
+    />
+  );
+  const columns: GridColumn<BandDraft>[] = [
+    {
+      id: "ar",
+      header: m.gradingBandLabelAr(),
+      cell: (draft) => (
+        <TextCell
+          id={bandCell(draft, "ar")}
+          label={m.gradingBandLabelArRow({ row: row(draft) })}
+          lang="ar"
+          maxLength={24}
+          placeholder={draft.labelEn}
+          value={draft.labelAr}
+          onChange={(labelAr) => set(draft.key, { labelAr })}
+        />
+      ),
+    },
+    {
+      id: "from",
+      header: m.gradingBandFromPercent(),
+      numeric: true,
+      cell: (draft) => (
+        <NumberCell
+          id={bandCell(draft, "from")}
+          label={m.gradingBandFromRow({ row: row(draft) })}
+          decimals={2}
+          value={draft.minPercent}
+          onChange={(minPercent) => set(draft.key, { minPercent })}
+        />
+      ),
+    },
+    {
+      id: "covers",
+      header: m.gradingBandCovers(),
+      cell: (draft) => (
+        <span className="text-[13px] leading-[18px] whitespace-nowrap text-muted-foreground tabular-nums">
+          {bandRange(bands, draft) ?? "—"}
+        </span>
+      ),
+    },
+    ...(withGpa
+      ? [
+          {
+            id: "gpa",
+            header: m.gradingBandGpa(),
+            numeric: true,
+            cell: (draft: BandDraft) => (
+              <NumberCell
+                id={bandCell(draft, "gpa")}
+                label={m.gradingBandGpaRow({ row: row(draft) })}
+                decimals={2}
+                value={draft.gpa}
+                onChange={(gpa) => set(draft.key, { gpa })}
+              />
+            ),
+          },
+        ]
+      : []),
+  ];
+  return { rowHeader, columns, rowEnd };
 }
 
 interface BandsEditorProps {
   value: BandDraft[];
   onChange: (value: BandDraft[]) => void;
-  problem: string | null;
+  issues: GridIssue[];
 }
 
-/** The bands of a scale, highest first, each a grade's names, lower bound and GPA. */
-function BandsEditor({ value, onChange, problem }: BandsEditorProps) {
+/**
+ * The bands of a scale, highest first, each a grade's names, lower bound
+ * and GPA, with the scores each one covers worked out beside it.
+ */
+function BandsEditor({ value, onChange, issues }: BandsEditorProps) {
+  const focusLater = useFocusAfterRender();
   const set = (key: string, change: Partial<BandDraft>) =>
     onChange(
       value.map((draft) =>
         draft.key === key ? { ...draft, ...change } : draft,
       ),
     );
-  const cell = "h-9 min-w-0 px-2 max-md:h-10";
   // GPA points matter to US-style scales only; elsewhere the column stays
   // away and leaves the room to the grades' names.
   const [withGpa, setWithGpa] = useState(() =>
-    value.some((draft) => draft.gpa.trim() !== ""),
+    value.some((draft) => draft.gpa !== null),
   );
-  const columns = withGpa
-    ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_4rem_3.5rem_2rem]"
-    : "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_4rem_2rem]";
   return (
-    <fieldset className="grid gap-2">
+    <fieldset className="grid min-w-0 gap-3">
       <legend className="mb-1 text-sm leading-5 font-medium">
         {m.gradingBands()}
       </legend>
-      <p className="text-[13px] leading-[18px] text-muted-foreground">
+      <p className="-mt-1 text-[13px] leading-[18px] text-muted-foreground">
         {m.gradingBandsHint()}
       </p>
       <CheckboxRow
@@ -239,110 +379,40 @@ function BandsEditor({ value, onChange, problem }: BandsEditorProps) {
         checked={withGpa}
         onChange={(checked) => {
           setWithGpa(checked);
-          if (!checked) onChange(value.map((draft) => ({ ...draft, gpa: "" })));
+          if (!checked)
+            onChange(value.map((draft) => ({ ...draft, gpa: null })));
         }}
       />
-      <div
-        aria-hidden
-        className={`grid ${columns} gap-2 text-xs text-muted-foreground`}
-      >
-        <span>{m.gradingBandLabelEn()}</span>
-        <span>{m.gradingBandLabelAr()}</span>
-        <span>{m.gradingBandFromPercent()}</span>
-        {withGpa ? <span>{m.gradingBandGpa()}</span> : null}
-      </div>
-      {value.map((draft, index) => (
-        <div key={draft.key} className={`grid ${columns} items-center gap-2`}>
-          <Input
-            aria-label={m.gradingBandLabelEnRow({ row: index + 1 })}
-            dir="ltr"
-            maxLength={24}
-            value={draft.labelEn}
-            onChange={(event) =>
-              set(draft.key, { labelEn: event.target.value })
-            }
-            className={cell}
+      <DataGrid<BandDraft>
+        caption={m.gradingBandsTable()}
+        editing
+        {...bandGrid({
+          bands: value,
+          withGpa,
+          set,
+          remove: (key) => onChange(value.filter((item) => item.key !== key)),
+        })}
+        groups={[{ id: "bands", title: "", rows: value }]}
+        rowKey={(draft) => draft.key}
+        issues={issues}
+        footer={
+          <GridAddButton
+            label={m.gradingAddBand()}
+            disabled={value.length >= 20}
+            onAdd={() => {
+              const added: BandDraft = {
+                key: crypto.randomUUID(),
+                labelEn: "",
+                labelAr: "",
+                minPercent: null,
+                gpa: null,
+              };
+              onChange([...value, added]);
+              focusLater(bandCell(added, "en"));
+            }}
           />
-          <Input
-            aria-label={m.gradingBandLabelArRow({ row: index + 1 })}
-            dir="auto"
-            lang="ar"
-            maxLength={24}
-            value={draft.labelAr}
-            placeholder={draft.labelEn}
-            onChange={(event) =>
-              set(draft.key, { labelAr: event.target.value })
-            }
-            className={cell}
-          />
-          <Input
-            aria-label={m.gradingBandFromRow({ row: index + 1 })}
-            type="number"
-            inputMode="decimal"
-            min={0}
-            max={100}
-            step="any"
-            value={draft.minPercent}
-            onChange={(event) =>
-              set(draft.key, { minPercent: event.target.value })
-            }
-            className={cell}
-          />
-          {withGpa ? (
-            <Input
-              aria-label={m.gradingBandGpaRow({ row: index + 1 })}
-              type="number"
-              inputMode="decimal"
-              min={0}
-              max={5}
-              step="any"
-              value={draft.gpa}
-              onChange={(event) => set(draft.key, { gpa: event.target.value })}
-              className={cell}
-            />
-          ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={m.gradingRemoveBand({ row: index + 1 })}
-            disabled={value.length <= 2}
-            onClick={() =>
-              onChange(value.filter((item) => item.key !== draft.key))
-            }
-            className="max-md:size-10"
-          >
-            <X aria-hidden />
-          </Button>
-        </div>
-      ))}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="justify-self-start max-md:h-10"
-        disabled={value.length >= 20}
-        onClick={() =>
-          onChange([
-            ...value,
-            {
-              key: crypto.randomUUID(),
-              labelEn: "",
-              labelAr: "",
-              minPercent: "",
-              gpa: "",
-            },
-          ])
         }
-      >
-        <Plus aria-hidden />
-        {m.gradingAddBand()}
-      </Button>
-      {problem ? (
-        <p role="alert" className="text-[13px] leading-[18px] text-destructive">
-          {problem}
-        </p>
-      ) : null}
+      />
     </fieldset>
   );
 }
@@ -407,7 +477,7 @@ export function ScaleSheet({
     (first?.bands ?? []).map(draftOf),
   );
   const [tried, setTried] = useState(false);
-  const problem = scale ? null : bandsProblem(bands);
+  const problems = scale ? [] : bandIssues(bands);
   const mutation = useMutation({
     mutationFn: () =>
       saveGradeScale({
@@ -441,7 +511,7 @@ export function ScaleSheet({
       error={mutation.error ? getMessageFromError(mutation.error) : null}
       onSubmit={async () => {
         setTried(true);
-        if ((!titleEn.trim() && !titleAr.trim()) || problem) return;
+        if ((!titleEn.trim() && !titleAr.trim()) || problems.length) return;
         try {
           await mutation.mutateAsync();
         } catch {
@@ -490,7 +560,7 @@ export function ScaleSheet({
         <BandsEditor
           value={bands}
           onChange={setBands}
-          problem={tried ? problem : null}
+          issues={tried ? problems : []}
         />
       )}
     </SheetForm>
@@ -516,7 +586,7 @@ export function BandsSheet({ open, scale, today, onClose }: BandsSheetProps) {
   const [from, setFrom] = useState(today);
   const [reason, setReason] = useState("");
   const [tried, setTried] = useState(false);
-  const problem = bandsProblem(bands);
+  const problems = bandIssues(bands);
   const mutation = useMutation({
     mutationFn: () =>
       saveGradeBands({
@@ -540,7 +610,7 @@ export function BandsSheet({ open, scale, today, onClose }: BandsSheetProps) {
       error={mutation.error ? getMessageFromError(mutation.error) : null}
       onSubmit={async () => {
         setTried(true);
-        if (problem || !reason.trim() || !from) return;
+        if (problems.length || !reason.trim() || !from) return;
         try {
           await mutation.mutateAsync();
         } catch {
@@ -569,7 +639,7 @@ export function BandsSheet({ open, scale, today, onClose }: BandsSheetProps) {
       <BandsEditor
         value={bands}
         onChange={setBands}
-        problem={tried ? problem : null}
+        issues={tried ? problems : []}
       />
       <FormField
         id="grading-reason"

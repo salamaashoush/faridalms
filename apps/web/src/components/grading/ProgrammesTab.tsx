@@ -1,15 +1,23 @@
 import type { ExamBoard } from "@faridalms/domain/exams";
+import type { GridColumn, GridIssue } from "@faridalms/ui/system/data-grid";
 import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 
 import { EXAM_BOARDS } from "@faridalms/domain/exams";
 import { Button } from "@faridalms/ui/button";
-import { Input } from "@faridalms/ui/input";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import {
+  DataGrid,
+  GridAddButton,
+  GridRemoveButton,
+  NumberCell,
+  TextCell,
+  useFocusAfterRender,
+} from "@faridalms/ui/system/data-grid";
 import { DataTable } from "@faridalms/ui/system/data-table";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, GraduationCap, Pencil, Plus, X } from "lucide-react";
+import { Archive, GraduationCap, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -157,129 +165,178 @@ interface CategoryDraft {
   id?: string;
   titleEn: string;
   titleAr: string;
-  weight: string;
+  weight: number | null;
+}
+
+const categoryCell = (row: CategoryDraft, field: "en" | "ar" | "weight") =>
+  `category-${row.key}-${field}`;
+
+const weightTotal = (rows: readonly CategoryDraft[]) =>
+  rows.reduce((sum, row) => sum + (row.weight ?? 0), 0);
+
+/**
+ * What stops the categories being saved, each tied to its cell. With none
+ * at all, work counts by its points and nothing is asked.
+ */
+function categoryIssues(rows: readonly CategoryDraft[]): GridIssue[] {
+  const issues: GridIssue[] = [];
+  rows.forEach((row, index) => {
+    if (!row.titleEn.trim() && !row.titleAr.trim())
+      issues.push({
+        target: categoryCell(row, "en"),
+        message: m.gradingCategoryNameNeeded({ row: index + 1 }),
+      });
+    if (row.weight === null || row.weight <= 0 || row.weight > 100)
+      issues.push({
+        target: categoryCell(row, "weight"),
+        message: m.gradingCategoryWeightNeeded({ row: index + 1 }),
+      });
+  });
+  const last = rows.at(-1);
+  const total = weightTotal(rows);
+  if (last && !issues.length && Math.abs(total - 100) >= 0.01)
+    issues.push({
+      target: categoryCell(last, "weight"),
+      message: m.gradingWeightsTotal({ total: formatNumber(total) }),
+    });
+  return issues;
+}
+
+interface CategoryGridOptions {
+  rows: CategoryDraft[];
+  set: (key: string, change: Partial<CategoryDraft>) => void;
+  remove: (key: string) => void;
+}
+
+// Built per render: headers read the request's locale.
+function categoryGrid({ rows, set, remove }: CategoryGridOptions) {
+  const row = (draft: CategoryDraft) => rows.indexOf(draft) + 1;
+  const rowHeader = {
+    header: m.examTitleEn(),
+    cell: (draft: CategoryDraft) => (
+      <TextCell
+        id={categoryCell(draft, "en")}
+        label={m.gradingCategoryEnRow({ row: row(draft) })}
+        maxLength={60}
+        value={draft.titleEn}
+        onChange={(titleEn) => set(draft.key, { titleEn })}
+      />
+    ),
+  };
+  const figures: GridColumn<CategoryDraft>[] = [
+    {
+      id: "ar",
+      header: m.examTitleAr(),
+      cell: (draft) => (
+        <TextCell
+          id={categoryCell(draft, "ar")}
+          label={m.gradingCategoryArRow({ row: row(draft) })}
+          lang="ar"
+          maxLength={60}
+          placeholder={draft.titleEn}
+          value={draft.titleAr}
+          onChange={(titleAr) => set(draft.key, { titleAr })}
+        />
+      ),
+    },
+    {
+      id: "weight",
+      header: m.gradingWeight(),
+      numeric: true,
+      cell: (draft) => (
+        <NumberCell
+          id={categoryCell(draft, "weight")}
+          label={m.gradingWeightRow({ row: row(draft) })}
+          decimals={2}
+          value={draft.weight}
+          onChange={(weight) => set(draft.key, { weight })}
+        />
+      ),
+    },
+  ];
+  const rowEnd = (draft: CategoryDraft) => (
+    <GridRemoveButton
+      label={m.gradingRemoveCategory({ row: row(draft) })}
+      onRemove={() => remove(draft.key)}
+    />
+  );
+  return { rowHeader, columns: figures, rowEnd };
 }
 
 interface CategoriesEditorProps {
   value: CategoryDraft[];
   onChange: (value: CategoryDraft[]) => void;
-  total: number;
-  problem: string | null;
+  issues: GridIssue[];
 }
 
 /**
  * How the programme's work weighs in a term grade. Weights add up to 100;
  * with none, every piece of work counts by its points.
  */
-function CategoriesEditor({
-  value,
-  onChange,
-  total,
-  problem,
-}: CategoriesEditorProps) {
+function CategoriesEditor({ value, onChange, issues }: CategoriesEditorProps) {
+  const focusLater = useFocusAfterRender();
   const set = (key: string, change: Partial<CategoryDraft>) =>
     onChange(
       value.map((row) => (row.key === key ? { ...row, ...change } : row)),
     );
-  const cell = "h-9 min-w-0 px-2 max-md:h-10";
+  const total = weightTotal(value);
+  const add = (
+    <GridAddButton
+      label={m.gradingAddCategory()}
+      disabled={value.length >= 12}
+      onAdd={() => {
+        const added: CategoryDraft = {
+          key: crypto.randomUUID(),
+          titleEn: "",
+          titleAr: "",
+          weight: null,
+        };
+        onChange([...value, added]);
+        focusLater(categoryCell(added, "en"));
+      }}
+    />
+  );
   return (
-    <fieldset className="grid gap-2">
+    <fieldset className="grid min-w-0 gap-3">
       <legend className="mb-1 text-sm leading-5 font-medium">
         {m.gradingCategories()}
       </legend>
-      <p className="text-[13px] leading-[18px] text-muted-foreground">
+      <p className="-mt-1 text-[13px] leading-[18px] text-muted-foreground">
         {m.gradingCategoriesHint()}
       </p>
       {value.length ? (
-        <div
-          aria-hidden
-          className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_4.5rem_2rem] gap-2 text-xs text-muted-foreground"
-        >
-          <span>{m.examTitleEn()}</span>
-          <span>{m.examTitleAr()}</span>
-          <span>{m.gradingWeight()}</span>
-        </div>
-      ) : null}
-      {value.map((row, index) => (
-        <div
-          key={row.key}
-          className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_4.5rem_2rem] items-center gap-2"
-        >
-          <Input
-            aria-label={m.gradingCategoryEnRow({ row: index + 1 })}
-            dir="auto"
-            maxLength={60}
-            value={row.titleEn}
-            onChange={(event) => set(row.key, { titleEn: event.target.value })}
-            className={cell}
-          />
-          <Input
-            aria-label={m.gradingCategoryArRow({ row: index + 1 })}
-            dir="auto"
-            lang="ar"
-            maxLength={60}
-            value={row.titleAr}
-            onChange={(event) => set(row.key, { titleAr: event.target.value })}
-            className={cell}
-          />
-          <Input
-            aria-label={m.gradingWeightRow({ row: index + 1 })}
-            type="number"
-            inputMode="decimal"
-            min={0}
-            max={100}
-            step="any"
-            value={row.weight}
-            onChange={(event) => set(row.key, { weight: event.target.value })}
-            className={cell}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={m.gradingRemoveCategory({ row: index + 1 })}
-            onClick={() =>
-              onChange(value.filter((item) => item.key !== row.key))
-            }
-            className="max-md:size-10"
-          >
-            <X aria-hidden />
-          </Button>
-        </div>
-      ))}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="max-md:h-10"
-          disabled={value.length >= 12}
-          onClick={() =>
-            onChange([
-              ...value,
-              {
-                key: crypto.randomUUID(),
-                titleEn: "",
-                titleAr: "",
-                weight: "",
-              },
-            ])
-          }
-        >
-          <Plus aria-hidden />
-          {m.gradingAddCategory()}
-        </Button>
-        {value.length ? (
-          <span className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
-            {m.gradingWeightsSum({ total: formatNumber(total) })}
-          </span>
-        ) : null}
-      </div>
-      {problem ? (
-        <p role="alert" className="text-[13px] leading-[18px] text-destructive">
-          {problem}
-        </p>
-      ) : null}
+        <DataGrid<CategoryDraft>
+          caption={m.gradingCategoriesTable()}
+          editing
+          {...categoryGrid({
+            rows: value,
+            set,
+            remove: (key) => onChange(value.filter((row) => row.key !== key)),
+          })}
+          groups={[{ id: "categories", title: "", rows: value }]}
+          rowKey={(row) => row.key}
+          totals={{
+            label: m.gradingWeightsTotalLabel(),
+            cells: {
+              weight: (
+                <span
+                  className={
+                    Math.abs(total - 100) < 0.01
+                      ? undefined
+                      : "text-muted-foreground"
+                  }
+                >
+                  {m.gradingWeightsOutOf({ total: formatNumber(total) })}
+                </span>
+              ),
+            },
+          }}
+          issues={issues}
+          footer={add}
+        />
+      ) : (
+        <div>{add}</div>
+      )}
     </fieldset>
   );
 }
@@ -314,25 +371,11 @@ export function ProgrammeSheet({
       id: row.id,
       titleEn: row.titleEn ?? "",
       titleAr: row.titleAr ?? "",
-      weight: String(row.weight),
+      weight: row.weight,
     })),
   );
   const [tried, setTried] = useState(false);
-  const total = categories.reduce(
-    (sum, row) => sum + (Number(row.weight) || 0),
-    0,
-  );
-  const categoryProblem = !categories.length
-    ? null
-    : categories.some(
-          (row) =>
-            (!row.titleEn.trim() && !row.titleAr.trim()) ||
-            !(Number(row.weight) > 0),
-        )
-      ? m.gradingCategoryIncomplete()
-      : Math.abs(total - 100) >= 0.01
-        ? m.gradingWeightsTotal({ total: formatNumber(total) })
-        : null;
+  const categoryProblems = categoryIssues(categories);
   const mutation = useMutation({
     mutationFn: () => {
       const official = (EXAM_BOARDS as readonly string[]).includes(board)
@@ -351,7 +394,7 @@ export function ProgrammeSheet({
             ...(row.id ? { id: row.id } : {}),
             titleEn: row.titleEn.trim() || null,
             titleAr: row.titleAr.trim() || null,
-            weight: Number(row.weight),
+            weight: row.weight ?? 0,
           })),
         },
       });
@@ -370,7 +413,8 @@ export function ProgrammeSheet({
       error={mutation.error ? getMessageFromError(mutation.error) : null}
       onSubmit={async () => {
         setTried(true);
-        if ((!titleEn.trim() && !titleAr.trim()) || categoryProblem) return;
+        if ((!titleEn.trim() && !titleAr.trim()) || categoryProblems.length)
+          return;
         try {
           await mutation.mutateAsync();
         } catch {
@@ -461,8 +505,7 @@ export function ProgrammeSheet({
       <CategoriesEditor
         value={categories}
         onChange={setCategories}
-        total={total}
-        problem={tried ? categoryProblem : null}
+        issues={tried ? categoryProblems : []}
       />
     </SheetForm>
   );

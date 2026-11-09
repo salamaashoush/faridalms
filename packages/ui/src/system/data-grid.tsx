@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../dropdown-menu";
-import { CircleAlert, Plus, RotateCcw } from "lucide-react";
+import { CircleAlert, Plus, RotateCcw, X } from "lucide-react";
 import {
   createContext,
   Fragment,
@@ -55,6 +55,12 @@ export interface GridLegend {
   empty?: string;
 }
 
+/** The row that adds a grid up: its name, and a cell under each column that has one. */
+export interface GridTotals {
+  label: string;
+  cells: Partial<Record<string, ReactNode>>;
+}
+
 /** A problem with one cell, listed under the grid and linked to the cell. */
 export interface GridIssue {
   /** The id of the cell's control. */
@@ -83,6 +89,8 @@ export interface DataGridProps<Row> {
   baselineName?: string;
   legend?: GridLegend;
   issues?: GridIssue[];
+  /** A last row adding the figures up, such as weights to 100%. */
+  totals?: GridTotals;
   /** Below the table while editing: the way to add a row. */
   footer?: ReactNode;
 }
@@ -108,6 +116,13 @@ const GridContext = createContext<GridContextValue>({
 });
 
 const NO_ISSUES: GridIssue[] = [];
+
+/** A cell's field: a calm tint until hovered or focused, ringed when invalid. */
+const CELL_SURFACE = cn(
+  "h-8 min-w-0 rounded-md border border-transparent bg-muted/60 text-sm outline-none transition-[color,box-shadow,border-color] max-md:h-10",
+  "placeholder:text-muted-foreground hover:border-input focus-visible:border-ring focus-visible:bg-background focus-visible:ring-3 focus-visible:ring-ring/50",
+  "aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
+);
 
 const CELL = "[data-grid-cell]:not(:disabled)";
 
@@ -195,7 +210,7 @@ export function moveInGrid(
   direction: "ltr" | "rtl",
 ) {
   const input = event.currentTarget;
-  const cell = input.closest("td");
+  const cell = input.closest<HTMLTableCellElement>("td, th");
   if (!cell) return;
   const forward = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
   const back = direction === "rtl" ? "ArrowRight" : "ArrowLeft";
@@ -254,6 +269,7 @@ export function DataGrid<Row>({
   baselineName,
   legend,
   issues = NO_ISSUES,
+  totals,
   footer,
 }: DataGridProps<Row>) {
   const { direction, formatNumber } = useDesignSystem();
@@ -384,6 +400,32 @@ export function DataGrid<Row>({
                 ))}
               </tbody>
             ))}
+            {totals ? (
+              <tfoot className="border-t font-medium">
+                <tr>
+                  <th
+                    scope="row"
+                    className="sticky start-0 bg-card py-2 pe-3 text-start whitespace-nowrap"
+                  >
+                    {totals.label}
+                  </th>
+                  {columns.map((column) => (
+                    <td
+                      key={column.id}
+                      className={cn(
+                        "py-2",
+                        column.numeric
+                          ? "pe-3 text-end whitespace-nowrap tabular-nums"
+                          : "px-1",
+                      )}
+                    >
+                      {totals.cells[column.id] ?? null}
+                    </td>
+                  ))}
+                  {editing && rowEnd ? <td>{null}</td> : null}
+                </tr>
+              </tfoot>
+            ) : null}
           </table>
         </section>
         {editing ? (
@@ -630,9 +672,8 @@ export function NumberCell({
         placeholder={placeholder}
         value={text ?? written(value)}
         className={cn(
-          "h-8 w-[4.5rem] min-w-0 rounded-md border border-transparent bg-muted/60 ps-3 pe-2 text-end text-sm tabular-nums outline-none transition-[color,box-shadow,border-color] max-md:h-10 max-md:w-11 max-md:ps-2 max-md:pe-1.5",
-          "placeholder:text-muted-foreground hover:border-input focus-visible:border-ring focus-visible:bg-background focus-visible:ring-3 focus-visible:ring-ring/50",
-          "aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
+          CELL_SURFACE,
+          "w-16 ps-3 pe-2 text-end tabular-nums max-md:w-11 max-md:ps-2 max-md:pe-1.5",
         )}
         onFocus={(event) => {
           arrived.current = value;
@@ -704,6 +745,102 @@ export function NumberCell({
   );
 }
 
+export interface TextCellProps {
+  id: string;
+  /** The cell's full name, such as "Name of grade 2". */
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  maxLength?: number;
+  /** Codes and Latin names stay left to right; free text takes its own. */
+  dir?: "auto" | "ltr";
+  lang?: string;
+}
+
+/**
+ * A short name typed in a grid cell, such as a grade's label. It fills its
+ * column, so names take the width the figures leave. Arriving selects the
+ * text; once typed into, the arrows move the caret, and Escape puts back
+ * what the cell held when it was reached.
+ */
+export function TextCell({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  maxLength,
+  dir = "auto",
+  lang,
+}: TextCellProps) {
+  const { direction, issues, report } = useContext(GridContext);
+  const arrived = useRef(value);
+  const fresh = useRef(false);
+  const describedBy = useId();
+  const issue = issues.get(id);
+  return (
+    <span className="flex">
+      <input
+        id={id}
+        type="text"
+        autoComplete="off"
+        data-grid-cell=""
+        dir={dir}
+        lang={lang}
+        maxLength={maxLength}
+        aria-label={label}
+        aria-invalid={issue ? true : undefined}
+        aria-describedby={issue ? describedBy : undefined}
+        placeholder={placeholder}
+        value={value}
+        className={cn(CELL_SURFACE, "w-full min-w-16 px-2 text-start")}
+        onFocus={(event) => {
+          arrived.current = value;
+          fresh.current = true;
+          delete event.currentTarget.dataset.gridMode;
+          event.currentTarget.select();
+          report({ id, label });
+        }}
+        onMouseDown={(event) => {
+          if (document.activeElement === event.currentTarget)
+            event.currentTarget.dataset.gridMode = "edit";
+        }}
+        onMouseUp={(event) => {
+          if (!fresh.current) return;
+          fresh.current = false;
+          event.preventDefault();
+        }}
+        onBlur={(event) => {
+          delete event.currentTarget.dataset.gridMode;
+          report(null);
+        }}
+        onChange={(event) => {
+          fresh.current = false;
+          event.currentTarget.dataset.gridMode = "edit";
+          onChange(event.target.value);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape") {
+            moveInGrid(event, direction);
+            return;
+          }
+          if (arrived.current === value) return;
+          event.preventDefault();
+          event.stopPropagation();
+          delete event.currentTarget.dataset.gridMode;
+          onChange(arrived.current);
+        }}
+      />
+      {issue ? (
+        <span id={describedBy} className="sr-only">
+          {issue}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 /** One choice of a row to add. */
 export interface GridAddChoice {
   value: string;
@@ -715,19 +852,26 @@ export interface GridAddButtonProps {
   /** What can be added; without them the button adds a row at once. */
   choices?: GridAddChoice[];
   onAdd: (value?: string) => void;
+  /** No more rows may be added, such as at a list's limit. */
+  disabled?: boolean;
 }
 
 /**
  * Adds a row under the grid: at once for a list of like rows, or from a
  * menu of what is not there yet, such as the grades still to write.
  */
-export function GridAddButton({ label, choices, onAdd }: GridAddButtonProps) {
+export function GridAddButton({
+  label,
+  choices,
+  onAdd,
+  disabled = false,
+}: GridAddButtonProps) {
   const button = (
     <Button
       type="button"
       variant="outline"
       className="max-md:h-10"
-      disabled={choices !== undefined && choices.length === 0}
+      disabled={disabled || (choices !== undefined && choices.length === 0)}
       onClick={choices ? undefined : () => onAdd()}
     >
       <Plus aria-hidden />
@@ -751,5 +895,38 @@ export function GridAddButton({ label, choices, onAdd }: GridAddButtonProps) {
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+export interface GridRemoveButtonProps {
+  /** Names the row it removes, such as "Remove grade 3". */
+  label: string;
+  onRemove: () => void;
+  /** The list is at its smallest. */
+  disabled?: boolean;
+}
+
+/**
+ * The quiet x at the end of a row in a list of like rows (bands, lines,
+ * periods), shown only while editing; a grid of a fixed shape removes from
+ * its group's menu instead.
+ */
+export function GridRemoveButton({
+  label,
+  onRemove,
+  disabled = false,
+}: GridRemoveButtonProps) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onRemove}
+      className="text-muted-foreground max-md:size-10"
+    >
+      <X aria-hidden />
+    </Button>
   );
 }

@@ -9,8 +9,10 @@ import {
   DataGrid,
   GridAddButton,
   GridFigure,
+  GridRemoveButton,
   NumberCell,
   readNumber,
+  TextCell,
   writeNumber,
 } from "./data-grid";
 import { ENGLISH } from "./english";
@@ -212,6 +214,116 @@ describe("DataGrid", () => {
       }),
     );
     expect(target).toHaveFocus();
+  });
+});
+
+interface Band {
+  key: string;
+  label: string;
+  weight: number | null;
+}
+
+const BANDS: Band[] = [
+  { key: "a", label: "Coursework", weight: 40 },
+  { key: "b", label: "Exams", weight: 60 },
+];
+
+function bandGrid(
+  rows: Band[],
+  onRows: (rows: Band[]) => void,
+  onRemove: (key: string) => void,
+) {
+  const set = (key: string, change: Partial<Band>) =>
+    onRows(rows.map((row) => (row.key === key ? { ...row, ...change } : row)));
+  return {
+    rowHeader: {
+      header: "Name",
+      cell: (row: Band) => (
+        <TextCell
+          id={`name-${row.key}`}
+          label={`Name of ${row.key}`}
+          value={row.label}
+          onChange={(label) => set(row.key, { label })}
+        />
+      ),
+    },
+    columns: [
+      {
+        id: "weight",
+        header: "Weight",
+        numeric: true,
+        cell: (row: Band) => (
+          <NumberCell
+            id={`weight-${row.key}`}
+            label={`Weight of ${row.key}`}
+            decimals={2}
+            value={row.weight}
+            onChange={(weight) => set(row.key, { weight })}
+          />
+        ),
+      },
+    ],
+    rowEnd: (row: Band) => (
+      <GridRemoveButton
+        label={`Remove ${row.key}`}
+        disabled={rows.length <= 1}
+        onRemove={() => onRemove(row.key)}
+      />
+    ),
+  };
+}
+
+function BandList() {
+  const [rows, setRows] = useState(BANDS);
+  return (
+    <DataGrid<Band>
+      caption="Weights"
+      editing
+      {...bandGrid(rows, setRows, (key) =>
+        setRows(rows.filter((row) => row.key !== key)),
+      )}
+      groups={[{ id: "all", title: "", rows }]}
+      rowKey={(row) => row.key}
+      totals={{
+        label: "Total",
+        cells: {
+          weight: String(rows.reduce((sum, row) => sum + (row.weight ?? 0), 0)),
+        },
+      }}
+    />
+  );
+}
+
+describe("DataGrid as a list of like rows", () => {
+  it("names each row from a text cell, adds the figures up, and removes a row by its own button", async () => {
+    renderWithSystem(<BandList />);
+    const table = screen.getByRole("table", { name: "Weights" });
+    expect(within(table).getByRole("rowheader", { name: "Total" })).toBeVisible();
+    expect(within(table).getByText("100")).toBeVisible();
+    await userEvent.click(screen.getByRole("textbox", { name: "Weight of b" }));
+    await userEvent.keyboard("5.255");
+    expect(screen.getByRole("textbox", { name: "Weight of b" })).toHaveValue(
+      "5.25",
+    );
+    expect(within(table).getByText("45.25")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Remove a" }));
+    expect(
+      screen.queryByRole("textbox", { name: "Name of a" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove b" })).toBeDisabled();
+  });
+
+  it("edits a name in place, its arrows moving the caret once typed, and Escape puts it back", async () => {
+    renderWithSystem(<BandList />);
+    const name = screen.getByRole("textbox", { name: "Name of a" });
+    await userEvent.click(name);
+    await userEvent.keyboard("Tasks{ArrowRight}");
+    expect(name).toHaveFocus();
+    expect(name).toHaveValue("Tasks");
+    await userEvent.keyboard("{Escape}");
+    expect(name).toHaveValue("Coursework");
+    await userEvent.keyboard("{ArrowDown}");
+    expect(screen.getByRole("textbox", { name: "Name of b" })).toHaveFocus();
   });
 });
 

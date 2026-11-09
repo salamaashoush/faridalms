@@ -26,7 +26,7 @@ package gains it first, with a test and a line in this table.
 | Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                                                                                                                           |
 | Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                                                                                                                     |
 | Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                                                                                                               |
-| Data editors   | `data-grid` (`DataGrid`, `GridFigure`, `NumberCell`, `GridAddButton`, `useFocusAfterRender`): figures and rows read at a glance and edited in place                                                                   |
+| Data editors   | `data-grid` (`DataGrid`, `GridFigure`, `NumberCell`, `TextCell`, `GridAddButton`, `GridRemoveButton`, `useFocusAfterRender`): figures and rows read at a glance and edited in place                                   |
 | Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `CheckboxGroupField`, `FieldError`), `combobox-field`, `time-zone-field`                                                                        |
 | Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                                                                                                                 |
 | Empty states   | `empty-state` (`EmptyState`, `FilteredEmptyState`, `EmptyStateScope`), `record-page` (`RecordEmpty`), `value` (`Value absent`)                                                                                        |
@@ -477,6 +477,10 @@ reasoning and the list of editors still to move is
   a trash icon on every row. A list of like rows (bands, lines, periods)
   adds with an "Add" button under it and removes with a quiet × at each
   row's end, named for the row (GOV.UK "Add another").
+- **What a list derives is shown beside it.** A figure worked out from the
+  rows sits in the grid, never in a sentence under it: the scores each
+  grade band covers are a column ("70 to under 90"), and weights that must
+  make 100 end in a Total row (`totals`, "90 of 100").
 - **Keyboard.** Every cell stays in the tab order, so the grid reads as a
   form. The arrows move between cells as in a spreadsheet, up and down
   always and along the row once the figure is selected or typed over;
