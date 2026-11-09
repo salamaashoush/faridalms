@@ -69,63 +69,84 @@ test("the office sets a year's periods and their days, and a later change keeps 
   await page.getByRole("tab", { name: "Periods", exact: true }).click();
   await expect(page).toHaveURL(/tab=periods/);
   const day = page.getByRole("region", { name: "School day" });
-  await expect(day.getByText("Period 1", { exact: true })).toBeVisible();
-  await expect(day.getByText("8:00 AM–8:45 AM")).toBeVisible();
+  await expect(
+    day.getByRole("table").getByText("Period 1", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    day.getByRole("table").getByText("8:00 AM–8:45 AM"),
+  ).toBeVisible();
   await expect(
     page
       .getByRole("region", { name: "School days" })
       .getByText("Sunday, Monday, Tuesday, Wednesday, and Thursday"),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "Change periods" }).click();
-  const sheet = page.getByRole("dialog", { name: "Change periods" });
-  await expect(sheet.getByLabel("From", { exact: true })).toHaveValue(
+  // Each period is a row of the day's table, changed in its own sheet from
+  // a date; the whole-day grid this replaced was opened by Change periods.
+  await chooseFromMenu(
+    day.getByRole("button", { name: "Actions for Period 6" }),
+    page.getByRole("menuitem", { name: "Remove" }),
+  );
+  const removing = page.getByRole("dialog", { name: "Remove Period 6" });
+  await expect(removing.getByLabel("From", { exact: true })).toHaveValue(
     dates.startsOn,
   );
-  await sheet.getByRole("button", { name: "Remove Period 6" }).click();
-  await sheet.getByRole("button", { name: "Add period", exact: true }).click();
-  await sheet
-    .getByRole("textbox", { name: "Name in English, Period 8", exact: true })
+  await removing.getByRole("button", { name: "Remove", exact: true }).click();
+  await expect(removing).toHaveCount(0);
+  await expect(page.getByText("Periods saved", { exact: true })).toBeVisible();
+  await expect(
+    day.getByRole("table").getByText("Period 6", { exact: true }),
+  ).toHaveCount(0);
+
+  await day.getByRole("button", { name: "Add period", exact: true }).click();
+  const adding = page.getByRole("dialog", { name: "Add period" });
+  await adding
+    .getByRole("textbox", { name: "Name in English", exact: true })
     .fill("Clubs");
-  await sheet.getByLabel("Starts, Clubs", { exact: true }).fill("13:30");
-  await sheet.getByLabel("Ends, Clubs", { exact: true }).fill("13:00");
-  await sheet
-    .getByRole("group", { name: "Days of Clubs" })
+  await adding.getByLabel("Starts", { exact: true }).fill("13:30");
+  const ends = adding.getByLabel("Ends", { exact: true });
+  await ends.fill("13:00");
+  await adding
+    .getByRole("group", { name: "Days", exact: true })
     .getByRole("checkbox", { name: "Thursday" })
     .click();
-  await sheet.getByRole("button", { name: "Save", exact: true }).click();
-  const ends = sheet.getByLabel("Ends, Clubs", { exact: true });
+  await adding.getByRole("button", { name: "Add period", exact: true }).click();
   await expect(ends).toHaveAttribute("aria-invalid", "true");
   await expect(ends).toHaveAccessibleDescription(
     "A lesson must end after it starts.",
   );
   await ends.fill("14:15");
-  await sheet.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(sheet).toHaveCount(0);
-  await expect(page.getByText("Periods saved", { exact: true })).toBeVisible();
-  await expect(day.getByText("Period 6", { exact: true })).toHaveCount(0);
-  await expect(day.getByText("Clubs", { exact: true })).toBeVisible();
-  await expect(day.getByText("1:30 PM–2:15 PM")).toBeVisible();
-  await expect(
-    day.getByText("Lesson · Sunday, Monday, Tuesday, and Wednesday"),
-  ).toBeVisible();
+  await adding.getByRole("button", { name: "Add period", exact: true }).click();
+  await expect(adding).toHaveCount(0);
+  const clubs = day.getByRole("row", { name: /^Clubs / });
+  await expect(clubs).toContainText("1:30 PM–2:15 PM");
+  await expect(clubs).toContainText("45 min");
+  await expect(clubs).toContainText("Lesson");
+  await expect(clubs).toContainText("Sunday, Monday, Tuesday, and Wednesday");
 
-  await page.getByRole("button", { name: "Change periods" }).click();
-  await sheet.getByLabel("From", { exact: true }).fill(dates.later);
-  await sheet
-    .getByRole("textbox", { name: "Name in English, Clubs", exact: true })
+  await clubs.getByRole("button", { name: "Clubs", exact: true }).click();
+  const changing = page.getByRole("dialog", { name: "Change Clubs" });
+  await changing.getByLabel("From", { exact: true }).fill(dates.later);
+  await changing
+    .getByRole("textbox", { name: "Name in English", exact: true })
     .fill("Sports");
-  await sheet.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(sheet).toHaveCount(0);
+  await changing.getByRole("button", { name: "Save period" }).click();
+  await expect(changing).toHaveCount(0);
   const changes = page.getByRole("region", { name: "Changes this year" });
   await expect(changes.getByRole("link")).toHaveCount(2);
   await changes.getByRole("link").first().click();
   await expect(page).toHaveURL(new RegExp(`on=${dates.startsOn}`));
-  await expect(day.getByText("Clubs", { exact: true })).toBeVisible();
+  await expect(
+    day.getByRole("table").getByText("Clubs", { exact: true }),
+  ).toBeVisible();
   await changes.getByRole("link").last().click();
   await expect(page).toHaveURL(new RegExp(`on=${dates.later}`));
-  await expect(day.getByText("Sports", { exact: true })).toBeVisible();
-  await expect(day.getByText("Clubs", { exact: true })).toHaveCount(0);
+  await expect(
+    day.getByRole("table").getByText("Sports", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    day.getByRole("table").getByText("Clubs", { exact: true }),
+  ).toHaveCount(0);
 });
 
 test("a change to the school day cannot reach back over a register already taken", async ({
@@ -138,11 +159,12 @@ test("a change to the school day cannot reach back over a register already taken
   await signIn(page, "admin");
   await page.goto(`/years/${workingYearId}?tab=periods&on=${startsOn}`);
   await untilHydrated(page);
-  await page.getByRole("button", { name: "Change periods" }).click();
-  const sheet = page.getByRole("dialog", { name: "Change periods" });
+  const day = page.getByRole("region", { name: "School day" });
+  await day.getByRole("button", { name: "Registration", exact: true }).click();
+  const sheet = page.getByRole("dialog", { name: "Change Registration" });
   await sheet.getByLabel("From", { exact: true }).fill(startsOn);
-  await sheet.getByLabel("Ends, Registration", { exact: true }).fill("07:55");
-  await sheet.getByRole("button", { name: "Save", exact: true }).click();
+  await sheet.getByLabel("Ends", { exact: true }).fill("07:55");
+  await sheet.getByRole("button", { name: "Save period" }).click();
   const from = sheet.getByLabel("From", { exact: true });
   await expect(from).toHaveAttribute("aria-invalid", "true");
   await expect(from).toHaveAccessibleDescription(
@@ -150,9 +172,7 @@ test("a change to the school day cannot reach back over a register already taken
   );
   await sheet.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(
-    page
-      .getByRole("region", { name: "School day" })
-      .getByText("7:45 AM–8:00 AM"),
+    day.getByRole("table").getByText("7:45 AM–8:00 AM", { exact: true }),
   ).toBeVisible();
 });
 

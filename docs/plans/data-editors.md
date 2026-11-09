@@ -416,6 +416,32 @@ review, a scored lesson's and a quiz's settings.
   is checked in the sheet. The rows belong to the lesson, quiz or module
   being written and are kept with it, saved by its own Save or autosave.
 
+### A year's periods
+
+`apps/web/src/components/years/YearPeriods.tsx`, a year's Periods tab.
+
+- **Sources.** PowerSchool SIS lists a bell schedule's items as a table of
+  period, start, end and duration; clicking one opens "Edit Bell Schedule
+  Item" with Delete and Submit (dpi.nc.gov, PowerSchool bell schedules
+  quick reference). PowerSchool SMS adds and edits a period in its own
+  form; periods cannot overlap and gaps are allowed
+  (support.powerschool.com, Setting up a bell schedule). No source showed
+  a timeline helping anyone edit a school day.
+- **Decision.** The day's periods are the standard table, earliest first:
+  the period with its kind and days under its name, the time, its length
+  in minutes (PowerSchool's Duration) and whether it takes the day's
+  register. A period opens in a sheet with the date the change starts
+  from, its names, kind, start and end, its days, the day's register and
+  its other times on some days; Add opens it empty, starting when the
+  last period ends. Remove is its own sheet with the date, since a period
+  leaves the day from a date and the days before keep it.
+- **Why a table and not a timeline.** A timeline reads well but is no help
+  in changing a start time, and nothing published suggests one; schools
+  and their systems read a day as rows of times. Every save still sends
+  the whole day from the chosen date with this one period changed, so the
+  domain's checks (one register a day, no break with a register, other
+  times only on the period's days) show on the field they concern.
+
 ## Ranking, worst first
 
 | #   | Editor                                   | Where                                                       | State                                                                  |
@@ -426,7 +452,7 @@ review, a scored lesson's and a quiz's settings.
 | 4   | Grading categories (weights)             | `apps/web/src/components/grading/ProgrammesTab.tsx`         | Rows in the programme's sheet, total checked on Save                   |
 | 5   | Rubric (criteria by levels)              | `apps/web/src/components/coursework/RubricSheet.tsx`        | Redesigned: a matrix, one criterion opened at a time                   |
 | 6   | Intake checklist, fees and priorities    | `apps/web/src/components/admissions/IntakeEditor.tsx`       | Rows: a step or fee per row; priorities left                           |
-| 7   | Periods                                  | `apps/web/src/components/years/YearPeriods.tsx`             | Rebuilt: times in columns, days on each row's line                     |
+| 7   | Periods                                  | `apps/web/src/components/years/YearPeriods.tsx`             | Rows: a period per row, saved from a date                              |
 | 8   | Invoice and credit note lines (console)  | `apps/ops/src/components/InvoiceLinesForm.tsx`              | Rebuilt: a table, each line in its own sheet                           |
 | 9   | Quote and provisioning add-ons (console) | `apps/ops/src/components/QuoteAddOns.tsx`, `provisioning.*` | Quote add-ons a table; provisioning add-ons left                       |
 | 10  | Bell schedule extras                     | `apps/web/src/components/years/BellSchedules.tsx`           | Rebuilt: day's times and own periods as rows                           |

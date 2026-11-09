@@ -1,27 +1,22 @@
 import type { PeriodKind } from "@faridalms/domain/timetable";
-import type { GridColumn, GridIssue } from "@faridalms/ui/system/data-grid";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
+import type { ReactNode } from "react";
 
 import { addDays } from "@faridalms/domain/school";
 import { PERIOD_KINDS, savePeriodsSchema } from "@faridalms/domain/timetable";
 import { Button } from "@faridalms/ui/button";
-import { Checkbox } from "@faridalms/ui/checkbox";
 import { cn } from "@faridalms/ui/cn";
+import { DataTable, RowButton } from "@faridalms/ui/system/data-table";
 import {
-  DataGrid,
-  GridAddButton,
-  GridRemoveButton,
-  SelectCell,
-  TextCell,
-  TimeCell,
-  useFocusAfterRender,
-} from "@faridalms/ui/system/data-grid";
-import { TextField } from "@faridalms/ui/system/form-field";
+  CheckboxGroupField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
 import {
   Fact,
   Facts,
   phoneLink,
   RecordColumns,
-  RecordEmpty,
   RecordList,
   RecordSection,
 } from "@faridalms/ui/system/record-page";
@@ -33,10 +28,11 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
-import { useRef, useState } from "react";
+import { Clock, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
+import { CheckboxRow } from "~/components/people/fields";
 import { BellSchedules } from "~/components/years/BellSchedules";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -76,6 +72,11 @@ function timeRange(period: { startTime: string; endTime: string }) {
   });
 }
 
+const minutesOf = (time: string) => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return (hours ?? 0) * 60 + (minutes ?? 0);
+};
+
 function daysLabel(weekdays: readonly number[], schoolDays: readonly number[]) {
   const runs = schoolDays.filter((day) => weekdays.includes(day));
   if (runs.length === schoolDays.length) return m.periodsEveryDay();
@@ -114,7 +115,6 @@ interface DayTimesDraft {
 }
 
 interface Draft {
-  key: number;
   id?: string;
   nameEn: string;
   nameAr: string;
@@ -126,10 +126,7 @@ interface Draft {
   dayTimes: DayTimesDraft[];
 }
 
-type Field = "from" | "periods" | `${number}.${string}`;
-
-const draftOf = (period: Period, key: number): Draft => ({
-  key,
+const draftOf = (period: Period): Draft => ({
   id: period.id,
   nameEn: period.nameEn ?? "",
   nameAr: period.nameAr ?? "",
@@ -146,6 +143,31 @@ const draftOf = (period: Period, key: number): Draft => ({
   })),
 });
 
+/** The periods as the server takes them, every one of the day. */
+const payloadOf = (data: PeriodsData, from: string, drafts: Draft[]) => ({
+  yearId: data.year.id,
+  from,
+  known: data.periods.map((period) => ({
+    id: period.id,
+    version: period.version,
+  })),
+  periods: drafts.map((draft) => ({
+    ...(draft.id ? { id: draft.id } : {}),
+    nameEn: draft.nameEn,
+    nameAr: draft.nameAr,
+    kind: draft.kind,
+    startTime: draft.startTime,
+    endTime: draft.endTime,
+    official: draft.kind !== "break" && draft.official,
+    weekdays: draft.weekdays,
+    dayTimes: draft.dayTimes.map((entry) => ({
+      weekdays: entry.weekdays.filter((day) => draft.weekdays.includes(day)),
+      startTime: entry.startTime,
+      endTime: entry.endTime,
+    })),
+  })),
+});
+
 /** A period's other times as a line: "Thursday 09:00–09:40". */
 function otherTimesLabel(period: Pick<Period, "dayTimes">) {
   return period.dayTimes.map((entry) =>
@@ -159,290 +181,10 @@ function otherTimesLabel(period: Pick<Period, "dayTimes">) {
   );
 }
 
-interface OtherTimesProps {
-  draft: Draft;
-  legend: string;
-  days: readonly number[];
-  onChange: (dayTimes: DayTimesDraft[]) => void;
-}
+const periodName = (period: Pick<Period, "nameEn" | "nameAr">) =>
+  inLocale(period.nameEn, period.nameAr);
 
-/**
- * The days a period keeps other times on, each set of days with its own
- * start and end on one line; only the days the period runs on can be
- * chosen.
- */
-function OtherTimes({ draft, legend, days, onChange }: OtherTimesProps) {
-  const runs = days.filter((day) => draft.weekdays.includes(day));
-  const change = (key: number, next: Partial<DayTimesDraft>) =>
-    onChange(
-      draft.dayTimes.map((entry) =>
-        entry.key === key ? { ...entry, ...next } : entry,
-      ),
-    );
-  return (
-    <div className="grid justify-items-start gap-2">
-      {draft.dayTimes.map((entry) => (
-        <div
-          key={entry.key}
-          className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md bg-muted/40 px-2 py-1.5"
-        >
-          <span className="text-[13px] leading-[18px] text-muted-foreground">
-            {m.periodsOtherTimes()}
-          </span>
-          <DayChoices
-            id={`period-other-days-${draft.key}-${entry.key}`}
-            legend={legend}
-            days={runs}
-            value={entry.weekdays}
-            onChange={(weekdays) => change(entry.key, { weekdays })}
-          />
-          <TimeCell
-            id={`period-other-starts-${draft.key}-${entry.key}`}
-            label={m.periodsOtherStartsOf({ name: legend })}
-            value={entry.startTime}
-            onChange={(startTime) => change(entry.key, { startTime })}
-          />
-          <TimeCell
-            id={`period-other-ends-${draft.key}-${entry.key}`}
-            label={m.periodsOtherEndsOf({ name: legend })}
-            min={entry.startTime || undefined}
-            value={entry.endTime}
-            onChange={(endTime) => change(entry.key, { endTime })}
-          />
-          <GridRemoveButton
-            label={m.periodsOtherTimesRemove({ name: legend })}
-            onRemove={() =>
-              onChange(draft.dayTimes.filter((one) => one.key !== entry.key))
-            }
-          />
-        </div>
-      ))}
-      {runs.length > 1 ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="-ms-2 max-md:h-10"
-          onClick={() =>
-            onChange([
-              ...draft.dayTimes,
-              {
-                key: Math.max(0, ...draft.dayTimes.map((one) => one.key)) + 1,
-                weekdays: [],
-                startTime: draft.startTime,
-                endTime: draft.endTime,
-              },
-            ])
-          }
-        >
-          <Plus aria-hidden />
-          {m.periodsOtherTimesAdd()}
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
-interface DayChoicesProps {
-  /** The first day's id, so a problem with the days can lead to it. */
-  id: string;
-  legend: string;
-  days: readonly number[];
-  value: readonly number[];
-  onChange: (next: number[]) => void;
-}
-
-function DayChoices({ id, legend, days, value, onChange }: DayChoicesProps) {
-  return (
-    <fieldset className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-      <legend className="sr-only">{m.periodsDaysOf({ name: legend })}</legend>
-      {days.map((day, index) => {
-        const dayId = index === 0 ? id : `${id}-${day}`;
-        return (
-          <label
-            key={day}
-            htmlFor={dayId}
-            className="flex min-h-8 items-center gap-2 text-sm leading-5 max-md:min-h-10"
-          >
-            <Checkbox
-              id={dayId}
-              aria-label={formatWeekday(day)}
-              checked={value.includes(day)}
-              onCheckedChange={(checked) =>
-                onChange(
-                  checked
-                    ? [...value.filter((one) => one !== day), day]
-                    : value.filter((one) => one !== day),
-                )
-              }
-            />
-            <span aria-hidden>{formatWeekday(day, "short")}</span>
-          </label>
-        );
-      })}
-    </fieldset>
-  );
-}
-
-const legendOf = (draft: Draft, index: number) =>
-  inLocale(draft.nameEn || null, draft.nameAr || null) ||
-  m.periodsNumber({ number: formatNumber(index + 1) });
-
-/** The cell each field's problem is shown on and leads to. */
-function periodTarget(draft: Draft, field: string) {
-  switch (field) {
-    case "nameEn":
-      return `period-name-en-${draft.key}`;
-    case "startTime":
-      return `period-starts-${draft.key}`;
-    case "endTime":
-      return `period-ends-${draft.key}`;
-    case "kind":
-      return `period-kind-${draft.key}`;
-    case "dayTimes": {
-      const first = draft.dayTimes[0];
-      return first
-        ? `period-other-starts-${draft.key}-${first.key}`
-        : `period-days-${draft.key}`;
-    }
-    case "weekdays":
-      return `period-days-${draft.key}`;
-    default:
-      return `period-name-ar-${draft.key}`;
-  }
-}
-
-function periodIssues(
-  drafts: readonly Draft[],
-  errors: Partial<Record<Field, string>>,
-): GridIssue[] {
-  return Object.entries(errors).flatMap(([key, message]) => {
-    const [at, field] = key.split(".");
-    const draft = drafts[Number(at)];
-    if (!draft || !field || !message) return [];
-    return [
-      {
-        target: periodTarget(draft, field),
-        label: legendOf(draft, Number(at)),
-        message,
-      },
-    ];
-  });
-}
-
-interface PeriodGridOptions {
-  drafts: Draft[];
-  days: readonly number[];
-  change: (key: number, next: Partial<Draft>) => void;
-  remove: (key: number) => void;
-}
-
-// Built per render: headers read the request's locale.
-function periodGrid({ drafts, days, change, remove }: PeriodGridOptions) {
-  const legend = (draft: Draft) => legendOf(draft, drafts.indexOf(draft));
-  const rowHeader = {
-    header: m.periodsColEnglish(),
-    cell: (draft: Draft) => (
-      <TextCell
-        id={`period-name-en-${draft.key}`}
-        label={m.periodsNameEnglishOf({ name: legend(draft) })}
-        dir="ltr"
-        maxLength={60}
-        value={draft.nameEn}
-        onChange={(nameEn) => change(draft.key, { nameEn })}
-      />
-    ),
-  };
-  const columns: GridColumn<Draft>[] = [
-    {
-      id: "ar",
-      header: m.periodsColArabic(),
-      cell: (draft) => (
-        <TextCell
-          id={`period-name-ar-${draft.key}`}
-          label={m.periodsNameArabicOf({ name: legend(draft) })}
-          lang="ar"
-          maxLength={60}
-          value={draft.nameAr}
-          onChange={(nameAr) => change(draft.key, { nameAr })}
-        />
-      ),
-    },
-    {
-      id: "starts",
-      header: m.periodsStarts(),
-      cell: (draft) => (
-        <TimeCell
-          id={`period-starts-${draft.key}`}
-          label={m.periodsStartsOf({ name: legend(draft) })}
-          value={draft.startTime}
-          onChange={(startTime) => change(draft.key, { startTime })}
-        />
-      ),
-    },
-    {
-      id: "ends",
-      header: m.periodsEnds(),
-      cell: (draft) => (
-        <TimeCell
-          id={`period-ends-${draft.key}`}
-          label={m.periodsEndsOf({ name: legend(draft) })}
-          min={draft.startTime || undefined}
-          value={draft.endTime}
-          onChange={(endTime) => change(draft.key, { endTime })}
-        />
-      ),
-    },
-  ];
-  const rowEnd = (draft: Draft) => (
-    <GridRemoveButton
-      label={m.periodsRemove({ name: legend(draft) })}
-      onRemove={() => remove(draft.key)}
-    />
-  );
-  const rowDetail = (draft: Draft) => (
-    <div className="grid gap-1.5">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-        <span className="w-32">
-          <SelectCell
-            id={`period-kind-${draft.key}`}
-            label={m.periodsKindOf({ name: legend(draft) })}
-            value={draft.kind}
-            options={PERIOD_KINDS.map((kind) => ({
-              value: kind,
-              label: KIND_LABEL[kind](),
-            }))}
-            onChange={(kind) => change(draft.key, { kind })}
-          />
-        </span>
-        <DayChoices
-          id={`period-days-${draft.key}`}
-          legend={legend(draft)}
-          days={days}
-          value={draft.weekdays}
-          onChange={(weekdays) => change(draft.key, { weekdays })}
-        />
-        {draft.kind === "break" ? null : (
-          <label className="flex min-h-8 items-center gap-2 text-sm leading-5 max-md:min-h-10">
-            <Checkbox
-              aria-label={m.periodsOfficialOf({ name: legend(draft) })}
-              checked={draft.official}
-              onCheckedChange={(official) => change(draft.key, { official })}
-            />
-            {m.periodsOfficial()}
-          </label>
-        )}
-      </div>
-      <OtherTimes
-        draft={draft}
-        legend={legend(draft)}
-        days={days}
-        onChange={(dayTimes) => change(draft.key, { dayTimes })}
-      />
-    </div>
-  );
-  return { rowHeader, columns, rowEnd, rowDetail };
-}
+type Field = "from" | "periods" | `${number}.${string}`;
 
 const fieldOf = (key: string, path: readonly unknown[]): Field | undefined => {
   if (key === "from") return "from";
@@ -453,203 +195,578 @@ const fieldOf = (key: string, path: readonly unknown[]): Field | undefined => {
     : "periods";
 };
 
-interface PeriodsSheetProps {
-  data: PeriodsData;
-  open: boolean;
-  onClose: () => void;
+/** The errors of one row, by its field, and whatever else is wrong. */
+function rowErrors(errors: Partial<Record<Field, string>>, index: number) {
+  const own: Partial<Record<string, string>> = {};
+  let other: string | null = null;
+  for (const [key, message] of Object.entries(errors)) {
+    if (!message || key === "from") continue;
+    const [at, field] = key.split(".");
+    if (Number(at) === index && field) own[field] = message;
+    else other ??= message;
+  }
+  return { own, other };
 }
 
-function PeriodsSheet({ data, open, onClose }: PeriodsSheetProps) {
-  const queryClient = useQueryClient();
-  const segment = segmentOf(data);
-  const lastDay = addDays(segment.until, -1);
-  const nextKey = useRef(data.periods.length + 1);
-  const focusLater = useFocusAfterRender();
-  const [from, setFrom] = useState(() =>
-    clamp(data.today, segment.from, lastDay),
-  );
-  const [drafts, setDrafts] = useState<Draft[]>(() =>
-    data.periods.map((period, index) => draftOf(period, index + 1)),
-  );
-  const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
-  const payload = {
-    yearId: data.year.id,
-    from,
-    known: data.periods.map((period) => ({
-      id: period.id,
-      version: period.version,
-    })),
-    periods: drafts.map((draft) => ({
-      ...(draft.id ? { id: draft.id } : {}),
-      nameEn: draft.nameEn,
-      nameAr: draft.nameAr,
-      kind: draft.kind,
-      startTime: draft.startTime,
-      endTime: draft.endTime,
-      official: draft.kind !== "break" && draft.official,
-      weekdays: draft.weekdays,
-      dayTimes: draft.dayTimes.map((entry) => ({
-        weekdays: entry.weekdays.filter((day) => draft.weekdays.includes(day)),
-        startTime: entry.startTime,
-        endTime: entry.endTime,
-      })),
-    })),
-  };
-  const mutation = useMutation({
-    mutationFn: () => saveYearPeriods({ data: payload }),
-    meta: { inlineError: true },
-  });
-  const change = (key: number, next: Partial<Draft>) => {
-    setErrors({});
-    setDrafts((current) =>
-      current.map((draft) =>
-        draft.key === key ? { ...draft, ...next } : draft,
-      ),
-    );
-  };
-  const refusal = refusalOf(mutation.error, {});
-  const code = mutation.error?.message ?? "";
+/** Where the server's refusal of a date shows: on the From field. */
+function useRefusal(error: Error | null) {
+  const refusal = refusalOf(error, {});
+  const code = error?.message ?? "";
   const onFrom =
     code.startsWith(PERIOD_REGISTERS_AFTER) ||
     code.startsWith(PERIOD_COVER_AFTER) ||
     code === "class_period.outside_year";
+  return {
+    from: onFrom && refusal ? refusal.message : null,
+    sheet: refusal && !onFrom ? refusal.message : null,
+  };
+}
+
+interface FromFieldProps {
+  data: PeriodsData;
+  value: string;
+  error: string | null | undefined;
+  onChange: (from: string) => void;
+}
+
+/** The day a change starts on; days before it keep the periods they had. */
+function FromField({ data, value, error, onChange }: FromFieldProps) {
+  const segment = segmentOf(data);
+  return (
+    <TextField
+      id="periods-from"
+      label={m.periodsFrom()}
+      hint={m.periodsFromHint()}
+      type="date"
+      width="date"
+      min={segment.from}
+      max={addDays(segment.until, -1)}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      errors={error ? [error] : undefined}
+    />
+  );
+}
+
+function useFrom(data: PeriodsData) {
+  const segment = segmentOf(data);
+  return useState(() =>
+    clamp(data.today, segment.from, addDays(segment.until, -1)),
+  );
+}
+
+function useSavePeriods() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (payload: ReturnType<typeof payloadOf>) =>
+      saveYearPeriods({ data: payload }),
+    meta: { inlineError: true },
+  });
+  return {
+    mutation,
+    save: async (payload: ReturnType<typeof payloadOf>) => {
+      try {
+        await mutation.mutateAsync(payload);
+      } catch {
+        return false;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["years"] });
+      await queryClient.invalidateQueries({ queryKey: ["timetable"] });
+      toast.success(m.periodsSaved());
+      return true;
+    },
+  };
+}
+
+interface OtherTimesProps {
+  draft: Draft;
+  days: readonly number[];
+  errors?: string;
+  onChange: (dayTimes: DayTimesDraft[]) => void;
+}
+
+/**
+ * The days a period keeps other times on, each set of days with its own
+ * start and end; only the days the period runs on can be chosen.
+ */
+function OtherTimes({ draft, days, errors, onChange }: OtherTimesProps) {
+  const runs = days.filter((day) => draft.weekdays.includes(day));
+  const change = (key: number, next: Partial<DayTimesDraft>) =>
+    onChange(
+      draft.dayTimes.map((entry) =>
+        entry.key === key ? { ...entry, ...next } : entry,
+      ),
+    );
+  return (
+    <fieldset className="grid gap-3">
+      <legend className="mb-1 text-sm leading-5 font-medium">
+        {m.periodsOtherTimes()}
+      </legend>
+      {draft.dayTimes.map((entry, index) => {
+        const number = formatNumber(index + 1);
+        return (
+          <div key={entry.key} className="grid gap-3 rounded-md border p-3">
+            <div className="flex items-start justify-between gap-2">
+              <CheckboxGroupField
+                label={m.periodsOtherDays({ number })}
+                value={entry.weekdays.map(String)}
+                options={runs.map((day) => ({
+                  value: String(day),
+                  label: formatWeekday(day),
+                }))}
+                onChange={(weekdays) =>
+                  change(entry.key, { weekdays: weekdays.map(Number) })
+                }
+                errors={index === 0 && errors ? [errors] : undefined}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="max-md:size-10"
+                aria-label={m.periodsOtherTimesRemoveOne({ number })}
+                onClick={() =>
+                  onChange(
+                    draft.dayTimes.filter((one) => one.key !== entry.key),
+                  )
+                }
+              >
+                <X aria-hidden />
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <TextField
+                id={`period-other-starts-${String(entry.key)}`}
+                label={m.periodsStarts()}
+                type="time"
+                width="date"
+                value={entry.startTime}
+                onChange={(event) =>
+                  change(entry.key, { startTime: event.target.value })
+                }
+              />
+              <TextField
+                id={`period-other-ends-${String(entry.key)}`}
+                label={m.periodsEnds()}
+                type="time"
+                width="date"
+                min={entry.startTime || undefined}
+                value={entry.endTime}
+                onChange={(event) =>
+                  change(entry.key, { endTime: event.target.value })
+                }
+              />
+            </div>
+          </div>
+        );
+      })}
+      {runs.length > 1 ? (
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            className="max-md:h-10"
+            onClick={() =>
+              onChange([
+                ...draft.dayTimes,
+                {
+                  key: Math.max(0, ...draft.dayTimes.map((one) => one.key)) + 1,
+                  weekdays: [],
+                  startTime: draft.startTime,
+                  endTime: draft.endTime,
+                },
+              ])
+            }
+          >
+            <Plus aria-hidden />
+            {m.periodsOtherTimesAdd()}
+          </Button>
+        </div>
+      ) : null}
+    </fieldset>
+  );
+}
+
+interface PeriodSheetProps {
+  data: PeriodsData;
+  /** The period being changed; none to add one. */
+  period: Period | null;
+  open: boolean;
+  onClose: () => void;
+}
+
+/**
+ * One period of the school day from a date: its names, kind, times, days,
+ * whether it takes the day's register and its other times on some days.
+ * Saving writes the day's periods from that date with this one changed.
+ */
+function PeriodSheet({ data, period, open, onClose }: PeriodSheetProps) {
+  const [from, setFrom] = useFrom(data);
+  const last = data.periods.at(-1);
+  const [draft, setDraft] = useState<Draft>(() =>
+    period
+      ? draftOf(period)
+      : {
+          nameEn: "",
+          nameAr: "",
+          kind: "lesson",
+          startTime: last?.endTime ?? "",
+          endTime: "",
+          official: false,
+          weekdays: [...data.days],
+          dayTimes: [],
+        },
+  );
+  const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
+  const { mutation, save } = useSavePeriods();
+  const index = period
+    ? data.periods.findIndex((row) => row.id === period.id)
+    : data.periods.length;
+  const drafts = data.periods.map(draftOf);
+  drafts.splice(index, period ? 1 : 0, draft);
+  const payload = payloadOf(data, from, drafts);
+  const refused = useRefusal(mutation.error);
+  const { own, other } = rowErrors(errors, index);
+  const change = (next: Partial<Draft>) => {
+    setErrors({});
+    setDraft((current) => ({ ...current, ...next }));
+  };
+  const named = period ? periodName(period) : "";
   return (
     <SheetForm
       open={open}
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
-      title={m.periodsEdit()}
+      title={period ? m.periodsEditOne({ name: named }) : m.periodsAdd()}
+      submitLabel={period ? m.periodsSaveOne() : m.periodsAdd()}
       pending={mutation.isPending}
-      error={refusal && !onFrom ? refusal.message : (errors.periods ?? null)}
+      error={refused.sheet ?? errors.periods ?? other}
       onSubmit={async () => {
         const found = schemaErrors(savePeriodsSchema, payload, fieldOf);
         setErrors(found);
         if (Object.keys(found).length > 0) return;
-        try {
-          await mutation.mutateAsync();
-        } catch {
-          return;
-        }
-        await queryClient.invalidateQueries({ queryKey: ["years"] });
-        await queryClient.invalidateQueries({ queryKey: ["timetable"] });
-        toast.success(m.periodsSaved());
-        onClose();
+        if (await save(payload)) onClose();
       }}
     >
-      <TextField
-        id="periods-from"
-        label={m.periodsFrom()}
-        hint={m.periodsFromHint()}
-        type="date"
-        width="date"
-        min={segment.from}
-        max={lastDay}
+      <FromField
+        data={data}
         value={from}
-        onChange={(event) => {
+        error={errors.from ?? refused.from}
+        onChange={(next) => {
           mutation.reset();
           setErrors({});
-          setFrom(event.target.value);
+          setFrom(next);
         }}
-        errors={
-          errors.from
-            ? [errors.from]
-            : onFrom && refusal
-              ? [refusal.message]
-              : undefined
-        }
       />
-      <p className="text-[13px] leading-[18px] text-muted-foreground">
-        {m.periodsOfficialHint()}
-      </p>
-      <DataGrid<Draft>
-        caption={m.periodsTable()}
-        editing
-        surface="sheet"
-        {...periodGrid({
-          drafts,
-          days: data.days,
-          change,
-          remove: (key) => {
-            setErrors({});
-            setDrafts((current) => current.filter((item) => item.key !== key));
-          },
-        })}
-        groups={[{ id: "periods", title: "", rows: drafts }]}
-        rowKey={(draft) => String(draft.key)}
-        issues={periodIssues(drafts, errors)}
-        footer={
-          <GridAddButton
-            label={m.periodsAdd()}
-            onAdd={() => {
-              const key = nextKey.current;
-              nextKey.current += 1;
-              const last = drafts.at(-1);
-              setErrors({});
-              setDrafts([
-                ...drafts,
-                {
-                  key,
-                  nameEn: "",
-                  nameAr: "",
-                  kind: "lesson",
-                  startTime: last?.endTime ?? "",
-                  endTime: "",
-                  official: false,
-                  weekdays: [...data.days],
-                  dayTimes: [],
-                },
-              ]);
-              focusLater(`period-name-en-${key}`);
-            }}
-          />
-        }
+      <TextField
+        id="period-name-en"
+        label={m.periodsNameEnglish()}
+        dir="ltr"
+        width="name"
+        maxLength={60}
+        autoComplete="off"
+        value={draft.nameEn}
+        onChange={(event) => change({ nameEn: event.target.value })}
+        errors={own.nameEn ? [own.nameEn] : undefined}
+      />
+      <TextField
+        id="period-name-ar"
+        label={m.periodsNameArabic()}
+        lang="ar"
+        dir="rtl"
+        width="name"
+        maxLength={60}
+        autoComplete="off"
+        value={draft.nameAr}
+        onChange={(event) => change({ nameAr: event.target.value })}
+        errors={own.nameAr ? [own.nameAr] : undefined}
+      />
+      <SelectField
+        id="period-kind"
+        label={m.periodsKind()}
+        value={draft.kind}
+        options={PERIOD_KINDS.map((kind) => ({
+          value: kind,
+          label: KIND_LABEL[kind](),
+        }))}
+        onChange={(kind) => change({ kind })}
+        errors={own.kind ? [own.kind] : undefined}
+        width="date"
+      />
+      <div className="flex flex-wrap gap-4">
+        <TextField
+          id="period-starts"
+          label={m.periodsStarts()}
+          type="time"
+          width="date"
+          value={draft.startTime}
+          onChange={(event) => change({ startTime: event.target.value })}
+          errors={own.startTime ? [own.startTime] : undefined}
+        />
+        <TextField
+          id="period-ends"
+          label={m.periodsEnds()}
+          type="time"
+          width="date"
+          min={draft.startTime || undefined}
+          value={draft.endTime}
+          onChange={(event) => change({ endTime: event.target.value })}
+          errors={own.endTime ? [own.endTime] : undefined}
+        />
+      </div>
+      <CheckboxGroupField
+        label={m.periodsDays()}
+        value={draft.weekdays.map(String)}
+        options={data.days.map((day) => ({
+          value: String(day),
+          label: formatWeekday(day),
+        }))}
+        onChange={(weekdays) => change({ weekdays: weekdays.map(Number) })}
+        errors={own.weekdays ? [own.weekdays] : undefined}
+      />
+      {draft.kind === "break" ? null : (
+        <CheckboxRow
+          label={m.periodsOfficial()}
+          hint={m.periodsOfficialHint()}
+          checked={draft.official}
+          error={own.official}
+          onChange={(official) => change({ official })}
+        />
+      )}
+      <OtherTimes
+        draft={draft}
+        days={data.days}
+        errors={own.dayTimes}
+        onChange={(dayTimes) => change({ dayTimes })}
       />
     </SheetForm>
   );
 }
 
-interface PeriodListProps {
+interface RemovePeriodSheetProps {
+  data: PeriodsData;
+  period: Period;
+  open: boolean;
+  onClose: () => void;
+}
+
+/** Takes a period out of the school day from a date; days before keep it. */
+function RemovePeriodSheet({
+  data,
+  period,
+  open,
+  onClose,
+}: RemovePeriodSheetProps) {
+  const [from, setFrom] = useFrom(data);
+  const { mutation, save } = useSavePeriods();
+  const refused = useRefusal(mutation.error);
+  const payload = payloadOf(
+    data,
+    from,
+    data.periods.filter((row) => row.id !== period.id).map(draftOf),
+  );
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title={m.periodsRemoveTitle({ name: periodName(period) })}
+      submitLabel={m.periodsRemoveAction()}
+      destructive
+      pending={mutation.isPending}
+      error={refused.sheet}
+      onSubmit={async () => {
+        if (await save(payload)) onClose();
+      }}
+    >
+      <p className="text-sm leading-5 text-muted-foreground">
+        {m.periodsRemoveBody()}
+      </p>
+      <FromField
+        data={data}
+        value={from}
+        error={refused.from}
+        onChange={(next) => {
+          mutation.reset();
+          setFrom(next);
+        }}
+      />
+    </SheetForm>
+  );
+}
+
+type PeriodOpener = (period: Period) => ReactNode;
+
+// Built per render: headers read the request's locale.
+function periodColumns(
+  days: readonly number[],
+  opener: PeriodOpener,
+): Column<Period>[] {
+  return [
+    {
+      id: "name",
+      header: m.periodsPeriod(),
+      primary: true,
+      // What kind of period it is and on which days reads under its name,
+      // so the day's table keeps to the columns a timetable is read by.
+      cell: (period) => (
+        <span className="grid gap-0.5 py-1.5">
+          {opener(period)}
+          <span className="truncate text-[13px] leading-[18px] text-muted-foreground">
+            {KIND_LABEL[period.kind]()}
+            <span aria-hidden> · </span>
+            {daysLabel(period.weekdays, days)}
+          </span>
+          {otherTimesLabel(period).map((line) => (
+            <span
+              key={line}
+              className="truncate text-[13px] leading-[18px] text-muted-foreground tabular-nums"
+            >
+              {line}
+            </span>
+          ))}
+        </span>
+      ),
+    },
+    {
+      id: "time",
+      header: m.periodsTime(),
+      cell: (period) => <bdi>{timeRange(period)}</bdi>,
+    },
+    {
+      id: "length",
+      header: m.periodsLength(),
+      align: "end",
+      cell: (period) =>
+        m.periodsMinutes({
+          count: formatNumber(
+            minutesOf(period.endTime) - minutesOf(period.startTime),
+          ),
+        }),
+    },
+    {
+      id: "register",
+      header: m.periodsRegister(),
+      cell: (period) =>
+        period.official ? (
+          <StatusText tone="info">{m.periodsOfficialBadge()}</StatusText>
+        ) : null,
+    },
+  ];
+}
+
+function periodCard(days: readonly number[], opener: PeriodOpener) {
+  return {
+    title: opener,
+    fact: (period: Period) =>
+      [
+        timeRange(period),
+        KIND_LABEL[period.kind](),
+        daysLabel(period.weekdays, days),
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    status: (period: Period) =>
+      period.official ? (
+        <StatusText tone="info">{m.periodsOfficialBadge()}</StatusText>
+      ) : null,
+  };
+}
+
+interface PeriodsTableProps {
   data: PeriodsData;
 }
 
-function PeriodList({ data }: PeriodListProps) {
-  if (data.periods.length === 0)
-    return <RecordEmpty>{m.periodsNone()}</RecordEmpty>;
+/**
+ * The periods of the school day as they stand on the day read, earliest
+ * first, each opened and saved on its own from a date.
+ */
+function PeriodsTable({ data }: PeriodsTableProps) {
+  const [sheet, setSheet] = useState<{
+    period: Period | null;
+    removing: boolean;
+    key: number;
+    open: boolean;
+  } | null>(null);
+  const open = (period: Period | null, removing = false) =>
+    setSheet((current) => ({
+      period,
+      removing,
+      key: (current?.key ?? 0) + 1,
+      open: true,
+    }));
+  const close = () =>
+    setSheet((current) => current && { ...current, open: false });
+  const opener: PeriodOpener = (period) =>
+    data.canEdit ? (
+      <RowButton onClick={() => open(period)}>
+        <span dir="auto">{periodName(period)}</span>
+      </RowButton>
+    ) : (
+      <span dir="auto" className="font-medium">
+        {periodName(period)}
+      </span>
+    );
+  const add = (variant: "default" | "outline") =>
+    data.canEdit ? (
+      <Button
+        type="button"
+        variant={variant}
+        className="max-md:h-10"
+        onClick={() => open(null)}
+      >
+        <Plus aria-hidden />
+        {m.periodsAdd()}
+      </Button>
+    ) : undefined;
+  const rowActions = data.canEdit
+    ? (period: Period): RowAction[] => [
+        { label: m.recordEdit(), icon: Pencil, onSelect: () => open(period) },
+        {
+          label: m.periodsRemoveAction(),
+          icon: Trash2,
+          onSelect: () => open(period, true),
+        },
+      ]
+    : undefined;
   return (
-    <RecordList>
-      {data.periods.map((period) => (
-        <li
-          key={period.id}
-          className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 py-3"
-        >
-          <div className="grid min-w-0 gap-0.5">
-            <span className="flex flex-wrap items-center gap-x-3 text-sm leading-5 font-medium">
-              <span dir="auto">{inLocale(period.nameEn, period.nameAr)}</span>
-              {period.official ? (
-                <StatusText tone="info">{m.periodsOfficialBadge()}</StatusText>
-              ) : null}
-            </span>
-            <span className="text-[13px] leading-[18px] text-muted-foreground">
-              {KIND_LABEL[period.kind]()}
-              <span aria-hidden> · </span>
-              {daysLabel(period.weekdays, data.days)}
-            </span>
-            {otherTimesLabel(period).map((line) => (
-              <span
-                key={line}
-                className="text-[13px] leading-[18px] text-muted-foreground tabular-nums"
-              >
-                {line}
-              </span>
-            ))}
-          </div>
-          <span className="text-sm leading-5 text-muted-foreground tabular-nums">
-            <bdi dir="ltr">{timeRange(period)}</bdi>
-          </span>
-        </li>
-      ))}
-    </RecordList>
+    <>
+      <DataTable
+        caption={m.periodsTable()}
+        rows={data.periods.toSorted((a, b) =>
+          a.startTime.localeCompare(b.startTime),
+        )}
+        columns={periodColumns(data.days, opener)}
+        rowLabel={periodName}
+        rowActions={rowActions}
+        actions={add("outline")}
+        card={periodCard(data.days, opener)}
+        empty={{
+          icon: Clock,
+          title: m.periodsNone(),
+          action: add("default"),
+        }}
+      />
+      {sheet?.removing && sheet.period ? (
+        <RemovePeriodSheet
+          key={sheet.key}
+          data={data}
+          period={sheet.period}
+          open={sheet.open}
+          onClose={close}
+        />
+      ) : sheet ? (
+        <PeriodSheet
+          key={sheet.key}
+          data={data}
+          period={sheet.period}
+          open={sheet.open}
+          onClose={close}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -664,7 +781,6 @@ export interface YearPeriodsProps {
  */
 export function YearPeriods({ yearId, on }: YearPeriodsProps) {
   const data = useSuspenseQuery(yearPeriodsQuery(yearId, on)).data;
-  const [sheet, setSheet] = useState({ open: false, key: 0 });
   const segment = segmentOf(data);
   const lessons = Math.max(
     0,
@@ -676,94 +792,71 @@ export function YearPeriods({ yearId, on }: YearPeriodsProps) {
     ),
   );
   return (
-    <>
-      <RecordColumns
-        main={
-          <>
-            <RecordSection
-              title={m.periodsTitle()}
-
-              description={
-                <>
-                  {m.periodsHint()}{" "}
-                  <span className="font-medium text-foreground">
-                    {m.accessDuring({
-                      from: formatDate(segment.from),
-                      to: formatDate(addDays(segment.until, -1)),
-                    })}
-                  </span>
-                </>
-              }
-              edit={
-                data.canEdit
-                  ? {
-                      label: m.periodsEdit(),
-                      onClick: () =>
-                        setSheet((current) => ({
-                          open: true,
-                          key: current.key + 1,
-                        })),
-                    }
-                  : undefined
-              }
-            >
-              <PeriodList data={data} />
-            </RecordSection>
-            <BellSchedules data={data} />
-          </>
-        }
-        aside={
-          <>
-            <RecordSection title={m.periodsSchoolDays()}>
-              <Facts>
-                <Fact label={m.periodsDays()}>
-                  {formatList(data.days.map((day) => formatWeekday(day)))}
-                </Fact>
-                <Fact label={m.periodsLessons()}>
-                  <span className="tabular-nums">{formatNumber(lessons)}</span>
-                </Fact>
-              </Facts>
-              <p className="mt-4 text-[13px] leading-[18px] text-muted-foreground">
-                {m.periodsSchoolDaysHint()}
-              </p>
-            </RecordSection>
-            {data.changes.length > 1 ? (
-              <RecordSection title={m.periodsVersions()}>
-                <RecordList>
-                  {data.changes.map((day) => {
-                    const shown = day === segment.from;
-                    return (
-                      <li key={day} className="py-3">
-                        <Link
-                          to="/years/$yearId"
-                          params={{ yearId }}
-                          search={{ tab: "periods", on: day }}
-                          aria-current={shown ? "page" : undefined}
-                          className={cn(
-                            "text-sm leading-5 hover:text-primary hover:underline",
-                            shown && "font-medium text-primary",
-                            phoneLink,
-                          )}
-                        >
-                          {formatDate(day)}
-                        </Link>
-                      </li>
-                    );
+    <RecordColumns
+      main={
+        <>
+          <RecordSection
+            title={m.periodsTitle()}
+            description={
+              <>
+                {m.periodsHint()}{" "}
+                <span className="font-medium text-foreground">
+                  {m.accessDuring({
+                    from: formatDate(segment.from),
+                    to: formatDate(addDays(segment.until, -1)),
                   })}
-                </RecordList>
-              </RecordSection>
-            ) : null}
-          </>
-        }
-      />
-      {sheet.open ? (
-        <PeriodsSheet
-          key={sheet.key}
-          data={data}
-          open
-          onClose={() => setSheet((current) => ({ ...current, open: false }))}
-        />
-      ) : null}
-    </>
+                </span>
+              </>
+            }
+          >
+            <PeriodsTable data={data} />
+          </RecordSection>
+          <BellSchedules data={data} />
+        </>
+      }
+      aside={
+        <>
+          <RecordSection title={m.periodsSchoolDays()}>
+            <Facts>
+              <Fact label={m.periodsDays()}>
+                {formatList(data.days.map((day) => formatWeekday(day)))}
+              </Fact>
+              <Fact label={m.periodsLessons()}>
+                <span className="tabular-nums">{formatNumber(lessons)}</span>
+              </Fact>
+            </Facts>
+            <p className="mt-4 text-[13px] leading-[18px] text-muted-foreground">
+              {m.periodsSchoolDaysHint()}
+            </p>
+          </RecordSection>
+          {data.changes.length > 1 ? (
+            <RecordSection title={m.periodsVersions()}>
+              <RecordList>
+                {data.changes.map((day) => {
+                  const shown = day === segment.from;
+                  return (
+                    <li key={day} className="py-3">
+                      <Link
+                        to="/years/$yearId"
+                        params={{ yearId }}
+                        search={{ tab: "periods", on: day }}
+                        aria-current={shown ? "page" : undefined}
+                        className={cn(
+                          "text-sm leading-5 hover:text-primary hover:underline",
+                          shown && "font-medium text-primary",
+                          phoneLink,
+                        )}
+                      >
+                        {formatDate(day)}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </RecordList>
+            </RecordSection>
+          ) : null}
+        </>
+      }
+    />
   );
 }
