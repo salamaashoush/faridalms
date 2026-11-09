@@ -182,7 +182,7 @@ const TABLE_HEAD = "bg-[color-mix(in_oklab,var(--muted)_40%,var(--card))]";
  * keeps its line across a wide grid.
  */
 const FRAMED_CELL =
-  "border-b py-1 transition-colors group-hover/row:bg-accent group-has-[[data-grid-cell]:focus]/row:bg-accent";
+  "border-b py-1 whitespace-nowrap transition-colors group-hover/row:bg-accent group-has-[[data-grid-cell]:focus]/row:bg-accent";
 
 const SURFACE: Record<GridSurface, string> = {
   card: "bg-card",
@@ -429,7 +429,9 @@ export function DataGrid<Row>({
               "w-full text-sm leading-5",
               // Collapsed borders scroll away from a held header row.
               framed ? "border-separate border-spacing-0" : "border-collapse",
-              fit === "content" && "min-w-max",
+              // The frame's cells never wrap, and max-content would size its
+              // full-width last cell to the browser's largest table.
+              fit === "content" && !framed && "min-w-max",
             )}
           >
             <caption className="sr-only">{caption}</caption>
