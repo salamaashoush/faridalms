@@ -17,7 +17,9 @@ import type { Issue } from "./provider";
 
 import { FieldError as PrimitiveFieldError } from "../field";
 import { CircleAlert } from "lucide-react";
-import { useId } from "react";
+import { useId, useState } from "react";
+
+import { typedFigure, writeNumber } from "./figures";
 
 import { useDesignSystem } from "./provider";
 
@@ -203,6 +205,72 @@ export function TextField({
           {...control}
           dir={direction}
           className={cn(widths[width], "max-md:h-10")}
+        />
+      )}
+    </FormField>
+  );
+}
+
+export interface NumberFieldProps {
+  id?: string;
+  label: string;
+  value: number | null;
+  onChange: (value: number | null) => void;
+  /** Places allowed after the point; none for whole numbers. */
+  decimals?: number;
+  optional?: boolean;
+  hint?: ReactNode;
+  errors?: FieldIssue[];
+  width?: FieldWidth;
+  placeholder?: string;
+}
+
+/**
+ * A figure typed in a form: a text field with the numeric keyboard and no
+ * spinner, shown in the reader's numerals and taking Arabic-Indic ones as
+ * typed. What is typed stays as typed while the field has focus, so a
+ * point half-way through a decimal is not taken away.
+ */
+export function NumberField({
+  id,
+  label,
+  value,
+  onChange,
+  decimals = 0,
+  optional,
+  hint,
+  errors,
+  width = "score",
+  placeholder,
+}: NumberFieldProps) {
+  const { formatNumber } = useDesignSystem();
+  const [text, setText] = useState<string | null>(null);
+  const written = value === null ? "" : writeNumber(value, formatNumber);
+  return (
+    <FormField
+      id={id}
+      label={label}
+      optional={optional}
+      hint={hint}
+      errors={errors}
+    >
+      {(control) => (
+        <Input
+          {...control}
+          type="text"
+          inputMode={decimals > 0 ? "decimal" : "numeric"}
+          autoComplete="off"
+          placeholder={placeholder}
+          value={text ?? written}
+          onFocus={() => setText(written)}
+          onBlur={() => setText(null)}
+          onChange={(event) => {
+            const typed = typedFigure(event.target.value, decimals);
+            if (!typed) return;
+            setText(typed.text);
+            if (typed.value !== value) onChange(typed.value);
+          }}
+          className={cn(widths[width], "tabular-nums max-md:h-10")}
         />
       )}
     </FormField>

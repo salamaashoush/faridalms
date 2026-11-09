@@ -5,11 +5,42 @@ import { describe, expect, it, vi } from "vitest";
 import { ENGLISH } from "./english";
 import {
   CheckboxGroupField,
+  NumberField,
   optionGroups,
   SelectField,
   TextField,
 } from "./form-field";
 import { renderWithSystem } from "./testing";
+
+describe("NumberField", () => {
+  it("takes a figure typed in Arabic-Indic numerals as its value", async () => {
+    const onChange = vi.fn<(value: number | null) => void>();
+    renderWithSystem(
+      <NumberField label="50th percentile" value={null} onChange={onChange} />,
+    );
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "50th percentile" }),
+      "٨٣",
+    );
+    expect(onChange).toHaveBeenLastCalledWith(83);
+  });
+
+  it("refuses letters and more places than it allows", async () => {
+    const onChange = vi.fn<(value: number | null) => void>();
+    renderWithSystem(
+      <NumberField
+        label="Weight %"
+        decimals={1}
+        value={null}
+        onChange={onChange}
+      />,
+    );
+    const field = screen.getByRole("textbox", { name: "Weight %" });
+    await userEvent.type(field, "1x2.55");
+    expect(field).toHaveValue("12.5");
+    expect(onChange).toHaveBeenLastCalledWith(12.5);
+  });
+});
 
 describe("TextField", () => {
   it("marks an optional field beside its label, keeping the label its name", () => {
