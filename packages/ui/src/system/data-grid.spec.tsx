@@ -42,9 +42,9 @@ type Key = "low" | "high";
 const idOf = (row: Row, key: Key) => `${row.grade}-${row.season}-${key}`;
 
 const baseline = (row: Row, key: Key) =>
-  SOURCE.find((item) => item.grade === row.grade && item.season === row.season)?.[
-    key
-  ];
+  SOURCE.find(
+    (item) => item.grade === row.grade && item.season === row.season,
+  )?.[key];
 
 function figureColumns(
   editing: boolean,
@@ -123,7 +123,9 @@ describe("DataGrid", () => {
     expect(
       within(table).getByText("Hasbrouck and Tindal: 90"),
     ).toBeInTheDocument();
-    expect(screen.getByText("1 changed from Hasbrouck and Tindal")).toBeVisible();
+    expect(
+      screen.getByText("1 changed from Hasbrouck and Tindal"),
+    ).toBeVisible();
     expect(screen.getByText("No norm for that time of year")).toBeVisible();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(
@@ -188,7 +190,9 @@ describe("DataGrid", () => {
     const changed = cell("Grade 1, Winter, high");
     expect(changed).toHaveAccessibleDescription("Hasbrouck and Tindal: 90");
     await userEvent.click(changed);
-    expect(screen.getByText("Grade 1, Winter, high", { selector: "span" })).toBeVisible();
+    expect(
+      screen.getByText("Grade 1, Winter, high", { selector: "span" }),
+    ).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Put it back" }));
     expect(changed).toHaveValue("90");
     expect(changed).not.toHaveAccessibleDescription();
@@ -298,7 +302,9 @@ describe("DataGrid as a list of like rows", () => {
   it("names each row from a text cell, adds the figures up, and removes a row by its own button", async () => {
     renderWithSystem(<BandList />);
     const table = screen.getByRole("table", { name: "Weights" });
-    expect(within(table).getByRole("rowheader", { name: "Total" })).toBeVisible();
+    expect(
+      within(table).getByRole("rowheader", { name: "Total" }),
+    ).toBeVisible();
     expect(within(table).getByText("100")).toBeVisible();
     await userEvent.click(screen.getByRole("textbox", { name: "Weight of b" }));
     await userEvent.keyboard("5.255");

@@ -1,13 +1,5 @@
 import type { KeyboardEvent, ReactNode } from "react";
 
-import { Button } from "../button";
-import { cn } from "../cn";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../dropdown-menu";
 import { CircleAlert, Plus, RotateCcw, X } from "lucide-react";
 import {
   createContext,
@@ -23,6 +15,14 @@ import {
 
 import type { ActionItem } from "./action-menu";
 
+import { Button } from "../button";
+import { cn } from "../cn";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../dropdown-menu";
 import { ActionMenu, phoneMenuItem } from "./action-menu";
 import { useDesignSystem, useSystemStrings } from "./provider";
 
@@ -30,7 +30,7 @@ import { useDesignSystem, useSystemStrings } from "./provider";
 export interface GridColumn<Row> {
   id: string;
   /** The heading as shown, short enough to sit over a figure. */
-  header: string;
+  header: ReactNode;
   /** Figures sit at the end of the cell in tabular digits. */
   numeric?: boolean;
   cell: (row: Row) => ReactNode;
@@ -72,7 +72,7 @@ export interface DataGridProps<Row> {
   /** Names the table and its scrolling region. */
   caption: string;
   /** The first column: what each row is. */
-  rowHeader: { header: string; cell: (row: Row) => ReactNode };
+  rowHeader: { header: ReactNode; cell: (row: Row) => ReactNode };
   columns: GridColumn<Row>[];
   /** A heading spanning the figure columns, such as "Percentile". */
   columnGroup?: string;
@@ -91,6 +91,17 @@ export interface DataGridProps<Row> {
   issues?: GridIssue[];
   /** A last row adding the figures up, such as weights to 100%. */
   totals?: GridTotals;
+  /**
+   * What the first column is held against while the rest scrolls: a card
+   * (a settings section, a sheet) or the page itself.
+   */
+  surface?: "card" | "page";
+  /**
+   * `container` squeezes the columns into the space there is; `content`
+   * keeps every column as wide as it needs and scrolls the table in its
+   * region, for a grid with a column per piece of work.
+   */
+  fit?: "container" | "content";
   /** Below the table while editing: the way to add a row. */
   footer?: ReactNode;
 }
@@ -146,9 +157,8 @@ function moveRow(cell: HTMLTableCellElement, step: 1 | -1) {
     at >= 0 && at < rows.length;
     at += step
   ) {
-    const target = rows[at]?.cells[cell.cellIndex]?.querySelector<HTMLElement>(
-      CELL,
-    );
+    const target =
+      rows[at]?.cells[cell.cellIndex]?.querySelector<HTMLElement>(CELL);
     if (target) return focusCell(target);
   }
   return false;
@@ -270,8 +280,14 @@ export function DataGrid<Row>({
   legend,
   issues = NO_ISSUES,
   totals,
+  surface = "card",
+  fit = "container",
   footer,
 }: DataGridProps<Row>) {
+  const held = cn(
+    "sticky start-0",
+    surface === "card" ? "bg-card" : "bg-background",
+  );
   const { direction, formatNumber } = useDesignSystem();
   const strings = useSystemStrings();
   const [focused, setFocused] = useState<FocusedCell | null>(null);
@@ -303,13 +319,21 @@ export function DataGrid<Row>({
           tabIndex={editing ? undefined : 0}
           className="min-w-0 overflow-x-auto rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          <table className="w-full border-collapse text-sm leading-5">
+          <table
+            className={cn(
+              "w-full border-collapse text-sm leading-5",
+              fit === "content" && "min-w-max",
+            )}
+          >
             <caption className="sr-only">{caption}</caption>
             <thead>
               <tr className="border-b text-[13px] leading-[18px] text-muted-foreground">
                 <th
                   scope="col"
-                  className="sticky start-0 bg-card py-2 pe-3 text-start font-medium whitespace-nowrap max-md:pe-2"
+                  className={cn(
+                    held,
+                    "py-2 pe-3 text-start font-medium whitespace-nowrap max-md:pe-2",
+                  )}
                 >
                   <span className="max-md:sr-only">{rowHeader.header}</span>
                 </th>
@@ -373,7 +397,8 @@ export function DataGrid<Row>({
                     <th
                       scope="row"
                       className={cn(
-                        "sticky start-0 bg-card pe-3 text-start max-md:pe-2 font-normal whitespace-nowrap",
+                        held,
+                        "pe-3 text-start font-normal whitespace-nowrap max-md:pe-2",
                         editing ? "py-1" : "py-2",
                         titled && "ps-3 max-md:ps-1",
                       )}
@@ -405,7 +430,10 @@ export function DataGrid<Row>({
                 <tr>
                   <th
                     scope="row"
-                    className="sticky start-0 bg-card py-2 pe-3 text-start whitespace-nowrap"
+                    className={cn(
+                      held,
+                      "py-2 pe-3 text-start whitespace-nowrap",
+                    )}
                   >
                     {totals.label}
                   </th>
@@ -623,8 +651,7 @@ export function NumberCell({
 }: NumberCellProps) {
   const { formatNumber } = useDesignSystem();
   const strings = useSystemStrings();
-  const { baselineName, direction, issues, report } =
-    useContext(GridContext);
+  const { baselineName, direction, issues, report } = useContext(GridContext);
   const [text, setText] = useState<string | null>(null);
   const arrived = useRef<number | null>(null);
   const fresh = useRef(false);
@@ -756,6 +783,8 @@ export interface TextCellProps {
   /** Codes and Latin names stay left to right; free text takes its own. */
   dir?: "auto" | "ltr";
   lang?: string;
+  /** `fill` takes the width the figures leave; `note` is a sentence's room. */
+  size?: "fill" | "note";
 }
 
 /**
@@ -773,6 +802,7 @@ export function TextCell({
   maxLength,
   dir = "auto",
   lang,
+  size = "fill",
 }: TextCellProps) {
   const { direction, issues, report } = useContext(GridContext);
   const arrived = useRef(value);
@@ -794,7 +824,11 @@ export function TextCell({
         aria-describedby={issue ? describedBy : undefined}
         placeholder={placeholder}
         value={value}
-        className={cn(CELL_SURFACE, "w-full min-w-16 px-2 text-start")}
+        className={cn(
+          CELL_SURFACE,
+          "px-2 text-start",
+          size === "fill" ? "w-full min-w-16" : "w-64 max-md:w-56",
+        )}
         onFocus={(event) => {
           arrived.current = value;
           fresh.current = true;

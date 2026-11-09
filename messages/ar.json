@@ -3165,6 +3165,8 @@
   "gradebookHint": "نتائج أعمال الفصل ودرجات الفصل الدراسي التي تراها الأسر بعد نشرها.",
   "gradebookNoClasses": "لا فصول للتقييم",
   "gradebookNoClassesBody": "تظهر هنا الفصول التي تدرّسها.",
+  "gradebookNoComment": "لا تعليق",
+  "gradebookScoreTooHigh": "الدرجة الفصلية لـ{name} أكثر من ١٠٠.",
   "gradebookNoStudents": "لا طلاب في هذا الفصل",
   "gradebookRelease": "نشر الدرجات",
   "gradebookReleased": [

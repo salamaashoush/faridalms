@@ -3009,6 +3009,8 @@
   "gradebookHint": "Results of the class's work and the term grades families see once released.",
   "gradebookNoClasses": "No classes to grade",
   "gradebookNoClassesBody": "Classes you teach appear here.",
+  "gradebookNoComment": "No comment",
+  "gradebookScoreTooHigh": "{name}'s term grade is more than 100.",
   "gradebookNoStudents": "No students in this class",
   "gradebookRelease": "Release grades",
   "gradebookReleased": [

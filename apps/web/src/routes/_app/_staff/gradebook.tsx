@@ -1,12 +1,21 @@
+import type { GridColumn, GridIssue } from "@faridalms/ui/system/data-grid";
 import type { Facet } from "@faridalms/ui/system/index-toolbar";
 
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
-import { Input } from "@faridalms/ui/input";
+import {
+  DataGrid,
+  GridFigure,
+  NumberCell,
+  TextCell,
+  useFocusAfterRender,
+} from "@faridalms/ui/system/data-grid";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { StatusText } from "@faridalms/ui/system/status";
+import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
+import { Value } from "@faridalms/ui/system/value";
 import {
   useMutation,
   useQueryClient,
@@ -107,6 +116,161 @@ function ToolCell({ book, column, studentId }: ToolCellProps) {
   );
 }
 
+interface TermDraft {
+  score: number | null;
+  comment: string;
+}
+
+const termCell = (studentId: string) => `term-grade-${studentId}`;
+
+interface GradebookGridOptions {
+  book: Book;
+  draft: Record<string, TermDraft>;
+  editing: boolean;
+  calculatedText: (studentId: string) => string;
+  setRow: (studentId: string, change: Partial<TermDraft>) => void;
+}
+
+type Student = Book["students"][number];
+
+// Built per render: headers read the request's locale.
+function gradebookGrid({
+  book,
+  draft,
+  editing,
+  calculatedText,
+  setRow,
+}: GradebookGridOptions) {
+  const rowOf = (student: Student) =>
+    draft[student.id] ?? { score: null, comment: "" };
+  const resultOf = (assignmentId: string, studentId: string) =>
+    book.results.find(
+      (row) => row.assignmentId === assignmentId && row.studentId === studentId,
+    );
+  const rowHeader = {
+    header: m.courseworkStudent(),
+    cell: (student: Student) => (
+      <bdi className="font-medium">{displayName(student)}</bdi>
+    ),
+  };
+  const columns: GridColumn<Student>[] = [
+    ...book.assignments.map((work): GridColumn<Student> => ({
+      id: `work-${work.id}`,
+      header: (
+        <span dir="auto" className="line-clamp-2 max-w-40 whitespace-normal">
+          {work.title}
+        </span>
+      ),
+      cell: (student) => {
+        const result = resultOf(work.id, student.id);
+        const score = result?.effectiveScore ?? result?.score ?? null;
+        return (
+          <span className="whitespace-nowrap tabular-nums">
+            {result?.excused ? (
+              <span className="text-muted-foreground">
+                {m.courseworkStateExcused()}
+              </span>
+            ) : score === null ? (
+              <span className="text-muted-foreground">–</span>
+            ) : (
+              <span
+                className={
+                  result?.released ? undefined : "text-muted-foreground italic"
+                }
+              >
+                {resultText(result?.grade, score, work.points, "teacher")}
+              </span>
+            )}
+          </span>
+        );
+      },
+    })),
+    ...book.tools.map((column): GridColumn<Student> => ({
+      id: `tool-${column.id}`,
+      header: (
+        <span className="grid max-w-40 whitespace-normal">
+          <span dir="auto" className="line-clamp-2">
+            {column.label}
+          </span>
+          <span className="text-[12px] leading-4 font-normal">
+            <bdi>{column.toolName}</bdi> · {m.gradebookToolNotCounted()}
+          </span>
+        </span>
+      ),
+      cell: (student) => (
+        <span className="whitespace-nowrap tabular-nums">
+          <ToolCell book={book} column={column} studentId={student.id} />
+        </span>
+      ),
+    })),
+    {
+      id: "calculated",
+      header: m.gradebookCalculated(),
+      cell: (student) => (
+        <span className="whitespace-nowrap tabular-nums">
+          {calculatedText(student.id) || (
+            <span className="text-muted-foreground">–</span>
+          )}
+        </span>
+      ),
+    },
+    {
+      id: "term",
+      header: m.gradebookTermGrade(),
+      numeric: true,
+      cell: (student) =>
+        editing ? (
+          <NumberCell
+            id={termCell(student.id)}
+            label={m.gradebookTermGradeFor({ name: displayName(student) })}
+            decimals={2}
+            value={rowOf(student).score}
+            onChange={(score) => setRow(student.id, { score })}
+          />
+        ) : (
+          <GridFigure value={rowOf(student).score} />
+        ),
+    },
+    {
+      id: "comment",
+      header: m.gradebookComment(),
+      cell: (student) =>
+        editing ? (
+          <TextCell
+            id={`term-comment-${student.id}`}
+            label={m.gradebookCommentFor({ name: displayName(student) })}
+            size="note"
+            maxLength={2000}
+            value={rowOf(student).comment}
+            onChange={(comment) => setRow(student.id, { comment })}
+          />
+        ) : (
+          <span dir="auto" className="block max-w-64 whitespace-normal">
+            <Value absent={m.gradebookNoComment()}>
+              {rowOf(student).comment}
+            </Value>
+          </span>
+        ),
+    },
+  ];
+  return { rowHeader, columns };
+}
+
+/** Term grades run out of 100; the server refuses more. */
+function termIssues(book: Book, draft: Record<string, TermDraft>): GridIssue[] {
+  return book.students.flatMap((student) => {
+    const score = draft[student.id]?.score ?? null;
+    return score !== null && score > 100
+      ? [
+          {
+            target: termCell(student.id),
+            message: m.gradebookScoreTooHigh({ name: displayName(student) }),
+          },
+        ]
+      : [];
+  });
+}
+
 interface SheetProps {
   book: Book;
 }
@@ -118,18 +282,14 @@ function Sheet({ book }: SheetProps) {
       const grade = book.grades.find((row) => row.studentId === student.id);
       return [
         student.id,
-        {
-          score:
-            grade?.score === null || grade?.score === undefined
-              ? ""
-              : String(grade.score),
-          comment: grade?.comment ?? "",
-        },
+        { score: grade?.score ?? null, comment: grade?.comment ?? "" },
       ];
     }),
   );
-  const [draft, setDraft] = useState(initial);
+  const [draft, setDraft] = useState<Record<string, TermDraft>>(initial);
   const [error, setError] = useState<string | null>(null);
+  const [tried, setTried] = useState(false);
+  const focusLater = useFocusAfterRender();
   const periodId = book.periodId;
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["gradebook"] });
@@ -140,10 +300,10 @@ function Sheet({ book }: SheetProps) {
           classId: book.class.id,
           periodId: periodId ?? "",
           grades: book.students.map((student) => {
-            const row = draft[student.id] ?? { score: "", comment: "" };
+            const row = draft[student.id] ?? { score: null, comment: "" };
             return {
               studentId: student.id,
-              score: row.score === "" ? null : Number(row.score),
+              score: row.score,
               comment: row.comment,
             };
           }),
@@ -156,10 +316,6 @@ function Sheet({ book }: SheetProps) {
         data: { classId: book.class.id, periodId: periodId ?? "" },
       }),
   });
-  const cell = (assignmentId: string, studentId: string) =>
-    book.results.find(
-      (row) => row.assignmentId === assignmentId && row.studentId === studentId,
-    );
   const unreleased = book.grades.some(
     (row) => row.score !== null && !row.releasedAt,
   );
@@ -179,168 +335,45 @@ function Sheet({ book }: SheetProps) {
     setDraft((current) =>
       Object.fromEntries(
         book.students.map((student) => {
-          const row = current[student.id] ?? { score: "", comment: "" };
+          const row = current[student.id] ?? { score: null, comment: "" };
           const found = calculatedOf(student.id);
           return [
             student.id,
             found && found.percent !== null
-              ? { ...row, score: String(Math.round(found.percent * 10) / 10) }
+              ? { ...row, score: Math.round(found.percent * 10) / 10 }
               : row,
           ];
         }),
       ),
     );
   const anyCalculated = book.calculated.some((row) => row.percent !== null);
+  const issues = tried ? termIssues(book, draft) : [];
   return (
     <div className="grid gap-4">
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-max text-sm">
-          <caption className="sr-only">{m.gradebookCaption()}</caption>
-          <thead className="border-b bg-muted/40 text-start text-[13px] text-muted-foreground">
-            <tr>
-              <th
-                scope="col"
-                className="sticky start-0 bg-muted/40 px-3 py-2 text-start font-medium"
-              >
-                {m.courseworkStudent()}
-              </th>
-              {book.assignments.map((work) => (
-                <th
-                  key={work.id}
-                  scope="col"
-                  className="max-w-40 px-3 py-2 text-start font-medium"
-                >
-                  <span dir="auto" className="line-clamp-2">
-                    {work.title}
-                  </span>
-                </th>
-              ))}
-              {book.tools.map((column) => (
-                <th
-                  key={column.id}
-                  scope="col"
-                  className="max-w-40 px-3 py-2 text-start font-medium"
-                >
-                  <span dir="auto" className="line-clamp-2">
-                    {column.label}
-                  </span>
-                  <span className="block text-[12px] leading-4 font-normal">
-                    <bdi>{column.toolName}</bdi> · {m.gradebookToolNotCounted()}
-                  </span>
-                </th>
-              ))}
-              <th scope="col" className="px-3 py-2 text-start font-medium">
-                {m.gradebookCalculated()}
-              </th>
-              <th scope="col" className="px-3 py-2 text-start font-medium">
-                {m.gradebookTermGrade()}
-              </th>
-              <th scope="col" className="px-3 py-2 text-start font-medium">
-                {m.gradebookComment()}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {book.students.map((student) => {
-              const row = draft[student.id] ?? { score: "", comment: "" };
-              const name = displayName(student);
-              return (
-                <tr key={student.id}>
-                  <th
-                    scope="row"
-                    className="sticky start-0 bg-background px-3 py-2 text-start font-medium"
-                  >
-                    <bdi>{name}</bdi>
-                  </th>
-                  {book.assignments.map((work) => {
-                    const result = cell(work.id, student.id);
-                    const score =
-                      result?.effectiveScore ?? result?.score ?? null;
-                    return (
-                      <td key={work.id} className="px-3 py-2 tabular-nums">
-                        {result?.excused ? (
-                          <span className="text-muted-foreground">
-                            {m.courseworkStateExcused()}
-                          </span>
-                        ) : score === null ? (
-                          <span className="text-muted-foreground">–</span>
-                        ) : (
-                          <span
-                            className={
-                              result?.released
-                                ? undefined
-                                : "text-muted-foreground italic"
-                            }
-                          >
-                            {resultText(
-                              result?.grade,
-                              score,
-                              work.points,
-                              "teacher",
-                            )}
-                          </span>
-                        )}
-                      </td>
-                    );
-                  })}
-                  {book.tools.map((column) => (
-                    <td
-                      key={column.id}
-                      className="px-3 py-2 whitespace-nowrap tabular-nums"
-                    >
-                      <ToolCell
-                        book={book}
-                        column={column}
-                        studentId={student.id}
-                      />
-                    </td>
-                  ))}
-                  <td className="px-3 py-2 whitespace-nowrap tabular-nums">
-                    {calculatedText(student.id) || (
-                      <span className="text-muted-foreground">–</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    <Input
-                      aria-label={m.gradebookTermGradeFor({ name })}
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      max={100}
-                      step={0.5}
-                      className="w-20 max-md:h-10"
-                      disabled={book.closed}
-                      value={row.score}
-                      onChange={(event) =>
-                        setDraft((current) => ({
-                          ...current,
-                          [student.id]: { ...row, score: event.target.value },
-                        }))
-                      }
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <Input
-                      aria-label={m.gradebookCommentFor({ name })}
-                      className="w-64 max-md:h-10"
-                      dir="auto"
-                      maxLength={2000}
-                      disabled={book.closed}
-                      value={row.comment}
-                      onChange={(event) =>
-                        setDraft((current) => ({
-                          ...current,
-                          [student.id]: { ...row, comment: event.target.value },
-                        }))
-                      }
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <DataGrid<Student>
+        caption={m.gradebookCaption()}
+        editing={!book.closed}
+        surface="page"
+        fit="content"
+        {...gradebookGrid({
+          book,
+          draft,
+          editing: !book.closed,
+          calculatedText,
+          setRow: (studentId, change) =>
+            setDraft((current) => ({
+              ...current,
+              [studentId]: {
+                ...(current[studentId] ?? { score: null, comment: "" }),
+                ...change,
+              },
+            })),
+        })}
+        groups={[{ id: "students", title: "", rows: book.students }]}
+        rowKey={(student) => student.id}
+        issues={issues}
+      />
+      <UnsavedChangesGuard isDirty={() => dirty} pending={save.isPending} />
       {error ? (
         <p role="alert" className="text-[13px] text-destructive">
           {error}
@@ -354,6 +387,12 @@ function Sheet({ book }: SheetProps) {
             disabled={!dirty || save.isPending}
             onClick={async () => {
               setError(null);
+              setTried(true);
+              const problems = termIssues(book, draft);
+              if (problems[0]) {
+                focusLater(problems[0].target);
+                return;
+              }
               try {
                 await save.mutateAsync();
                 await refresh();

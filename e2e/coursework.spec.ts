@@ -272,6 +272,17 @@ test("a teacher's gradebook shows the class's work and term grades", async ({
   await expect(
     sheet.getByRole("columnheader", { name: "Term grade" }),
   ).toBeVisible();
+  const grades = sheet.getByRole("textbox", { name: /^Term grade for / });
+  await grades.first().fill("120");
+  await page.getByRole("button", { name: "Save grades" }).click();
+  await expect(
+    page
+      .getByRole("alert")
+      .getByRole("link", { name: /term grade is more than 100/ }),
+  ).toBeVisible();
+  await expect(grades.first()).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(grades.nth(1)).toBeFocused();
 });
 
 test("a quiz is answered question by question, marked at hand-in, and its results shown", async ({
