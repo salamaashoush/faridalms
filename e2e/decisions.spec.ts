@@ -23,6 +23,7 @@ test("an offer goes from the board to the family's answer and an enrolled studen
   await inReview(office, id);
   await decided(office, id, "offer");
   await signIn(page, "admin");
+  await page.getByRole("link", { name: "Admissions" }).first().click();
   await page.getByRole("link", { name: "Intakes" }).first().click();
   await page.getByRole("link", { name: "KG1" }).first().click();
   await expect(
@@ -101,6 +102,7 @@ test("the office decides from the application page and reads the year's reports"
   const { id, office } = await sentApplication(FAMILIES.first, child);
   await inReview(office, id);
   await signIn(page, "admin");
+  await page.getByRole("link", { name: "Admissions" }).first().click();
   await page.getByRole("link", { name: "Applications" }).first().click();
   await page.getByRole("searchbox").fill(run);
   await page.getByRole("link", { name: child.en }).click();
@@ -121,8 +123,10 @@ test("the office decides from the application page and reads the year's reports"
     page.getByRole("heading", { level: 1, name: "Admission reports" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Applications by stage" }),
-  ).toBeVisible();
+    page.getByRole("tab", { name: "By stage", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByText(/^Of \d+ applications sent/)).toBeVisible();
+  await page.getByRole("tab", { name: "By grade and intake" }).click();
   await expect(
     page.getByRole("table", { name: "By grade and intake" }),
   ).toContainText("KG1");

@@ -4,7 +4,7 @@ import type { Column } from "@faridalms/ui/system/data-table";
 import { DataTable } from "@faridalms/ui/system/data-table";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
 import { PageHeader } from "@faridalms/ui/system/page-header";
-import { RecordSection } from "@faridalms/ui/system/record-page";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { ChartColumn } from "lucide-react";
@@ -22,13 +22,24 @@ import { currentUserQuery } from "~/queries/user";
 import { formatNumber } from "~/utils/datetime";
 import { requirePage } from "~/utils/page-access";
 
+const REPORTS = ["stage", "intake", "origin", "time"] as const;
+type ReportView = (typeof REPORTS)[number];
+
+const REPORT_LABEL: Record<ReportView, () => string> = {
+  stage: m.adrTabStage,
+  intake: m.adrByIntake,
+  origin: m.adrTabOrigin,
+  time: m.adrTimes,
+};
+
 const searchSchema = v.object({
   year: v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
+  report: v.fallback(v.optional(v.picklist(REPORTS), "stage"), "stage"),
 });
 const DEFAULT_SEARCH = v.parse(searchSchema, {});
 
 export const Route = createFileRoute("/_app/admissions/reports")({
-  staticData: { breadcrumb: m.adrTitle },
+  staticData: { breadcrumb: m.navAdmissionReports },
   validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => search,
@@ -103,13 +114,22 @@ type IntakeRow = Report["byIntake"][number] & { id: string };
 type OriginRow = Report["byOrigin"][number] & { id: string };
 type TimeRow = Report["times"][number] & { id: string };
 
+interface MeasureProps {
+  children: string;
+}
+
+/** What a report counts, where its numbers need saying how they are made. */
+function Measure({ children }: MeasureProps) {
+  return <p className="text-sm text-muted-foreground">{children}</p>;
+}
+
 const days = (value: number | null) =>
   value === null ? m.adrNoTime() : m.adrDays({ days: formatNumber(value) });
 
 /**
- * A year's admissions in numbers: how far applications got, by grade and
- * intake and by where the family came from, and how long applications
- * wait in each state.
+ * A year's admissions in numbers, one report a tab: how far applications
+ * got, by grade and intake and by where the family came from, and how long
+ * applications wait in each state. The year chosen holds across the tabs.
  */
 function ReportsPage() {
   const search = Route.useSearch();
@@ -144,20 +164,38 @@ function ReportsPage() {
                 label: inLocale(year.titleEn, year.titleAr),
               })),
               onChange: ([year]) =>
-                void navigate({ search: { year: year ?? "" } }),
+                void navigate({
+                  search: (previous) => ({ ...previous, year: year ?? "" }),
+                }),
             },
           ]}
-          onReset={() => void navigate({ search: {} })}
+          onReset={() =>
+            void navigate({
+              search: (previous) => ({ report: previous.report }),
+            })
+          }
         />
       </div>
-      <div className="grid gap-6">
-        <RecordSection
-          title={m.adrFunnel()}
-          description={m.adrFunnelHint({ count: formatNumber(report.total) })}
-        >
-          <FunnelBars funnel={report.funnel} />
-        </RecordSection>
-        <RecordSection title={m.adrByIntake()}>
+      <RecordTabs
+        label={m.adrTitle()}
+        tabs={REPORTS.map((value) => ({ value, label: REPORT_LABEL[value]() }))}
+        value={search.report}
+        onChange={(next) =>
+          void navigate({
+            resetScroll: false,
+            replace: true,
+            search: (previous) => ({ ...previous, report: next }),
+          })
+        }
+      >
+        {search.report === "stage" ? (
+          <div className="grid gap-4">
+            <Measure>
+              {m.adrFunnelHint({ count: formatNumber(report.total) })}
+            </Measure>
+            <FunnelBars funnel={report.funnel} />
+          </div>
+        ) : search.report === "intake" ? (
           <DataTable
             caption={m.adrByIntake()}
             rows={intakes}
@@ -182,73 +220,74 @@ function ReportsPage() {
             }}
             empty={{ icon: ChartColumn, title: m.adrEmpty() }}
           />
-        </RecordSection>
-        <RecordSection
-          title={m.adrByOrigin()}
-          description={m.adrByOriginHint()}
-        >
-          <DataTable
-            caption={m.adrByOrigin()}
-            rows={origins}
-            columns={stageColumns<OriginRow>({
-              id: "origin",
-              header: m.adrOrigin(),
-              primary: true,
-              cell: (row) => ORIGIN_LABEL[row.origin](),
-            })}
-            rowLabel={(row) => ORIGIN_LABEL[row.origin]()}
-            card={{
-              title: (row) => ORIGIN_LABEL[row.origin](),
-              fact: (row) =>
-                m.adrCardFact({
-                  sent: formatNumber(countAt(row.funnel, "submitted")),
-                  enrolled: formatNumber(countAt(row.funnel, "enrolled")),
-                }),
-            }}
-            empty={{ icon: ChartColumn, title: m.adrEmpty() }}
-          />
-        </RecordSection>
-        <RecordSection title={m.adrTimes()} description={m.adrTimesHint()}>
-          <DataTable
-            caption={m.adrTimes()}
-            rows={times}
-            columns={[
-              {
-                id: "state",
-                header: m.aplColState(),
+        ) : search.report === "origin" ? (
+          <div className="grid gap-4">
+            <Measure>{m.adrByOriginHint()}</Measure>
+            <DataTable
+              caption={m.adrByOrigin()}
+              rows={origins}
+              columns={stageColumns<OriginRow>({
+                id: "origin",
+                header: m.adrOrigin(),
                 primary: true,
-                cell: (row) => APPLICATION_STATE_LABEL[row.state](),
-              },
-              {
-                id: "median",
-                header: m.adrMedian(),
-                cell: (row) => days(row.medianDays),
-              },
-              {
-                id: "average",
-                header: m.adrAverage(),
-                cell: (row) => days(row.averageDays),
-              },
-              {
-                id: "left",
-                header: m.adrLeft(),
-                cell: (row) => formatNumber(row.left),
-              },
-              {
-                id: "current",
-                header: m.adrCurrent(),
-                cell: (row) => formatNumber(row.current),
-              },
-            ]}
-            rowLabel={(row) => APPLICATION_STATE_LABEL[row.state]()}
-            card={{
-              title: (row) => APPLICATION_STATE_LABEL[row.state](),
-              fact: (row) => m.adrMedianFact({ days: days(row.medianDays) }),
-            }}
-            empty={{ icon: ChartColumn, title: m.adrEmpty() }}
-          />
-        </RecordSection>
-      </div>
+                cell: (row) => ORIGIN_LABEL[row.origin](),
+              })}
+              rowLabel={(row) => ORIGIN_LABEL[row.origin]()}
+              card={{
+                title: (row) => ORIGIN_LABEL[row.origin](),
+                fact: (row) =>
+                  m.adrCardFact({
+                    sent: formatNumber(countAt(row.funnel, "submitted")),
+                    enrolled: formatNumber(countAt(row.funnel, "enrolled")),
+                  }),
+              }}
+              empty={{ icon: ChartColumn, title: m.adrEmpty() }}
+            />
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            <Measure>{m.adrTimesHint()}</Measure>
+            <DataTable
+              caption={m.adrTimes()}
+              rows={times}
+              columns={[
+                {
+                  id: "state",
+                  header: m.aplColState(),
+                  primary: true,
+                  cell: (row) => APPLICATION_STATE_LABEL[row.state](),
+                },
+                {
+                  id: "median",
+                  header: m.adrMedian(),
+                  cell: (row) => days(row.medianDays),
+                },
+                {
+                  id: "average",
+                  header: m.adrAverage(),
+                  cell: (row) => days(row.averageDays),
+                },
+                {
+                  id: "left",
+                  header: m.adrLeft(),
+                  cell: (row) => formatNumber(row.left),
+                },
+                {
+                  id: "current",
+                  header: m.adrCurrent(),
+                  cell: (row) => formatNumber(row.current),
+                },
+              ]}
+              rowLabel={(row) => APPLICATION_STATE_LABEL[row.state]()}
+              card={{
+                title: (row) => APPLICATION_STATE_LABEL[row.state](),
+                fact: (row) => m.adrMedianFact({ days: days(row.medianDays) }),
+              }}
+              empty={{ icon: ChartColumn, title: m.adrEmpty() }}
+            />
+          </div>
+        )}
+      </RecordTabs>
     </>
   );
 }
