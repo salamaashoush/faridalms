@@ -1,4 +1,3 @@
-import type { HostRole } from "@faridalms/domain/hosts";
 import type { ModuleId } from "@faridalms/domain/modules";
 import type {
   DraftAddresses,
@@ -6,6 +5,7 @@ import type {
   DraftStep,
 } from "@faridalms/domain/provisioning-draft";
 import type { Currency } from "@faridalms/domain/subscriptions";
+import type { GridColumn } from "@faridalms/ui/system/data-grid";
 import type { StepNavItem } from "@faridalms/ui/system/step-nav";
 
 import { HOST_ROLES } from "@faridalms/domain/hosts";
@@ -17,6 +17,14 @@ import {
 } from "@faridalms/domain/subscriptions";
 import { Button } from "@faridalms/ui/button";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
+import {
+  DataGrid,
+  GridAddButton,
+  GridRemoveButton,
+  SelectCell,
+  TextCell,
+  useFocusAfterRender,
+} from "@faridalms/ui/system/data-grid";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import {
   CheckboxGroupField,
@@ -685,6 +693,77 @@ const ROLE_OPTIONS = HOST_ROLES.map((role) => ({
   label: role === "site" ? "Website" : "Portal",
 }));
 
+type DraftHost = DraftAddresses["hosts"][number];
+
+interface HostGridOptions {
+  hosts: DraftHost[];
+  schools: readonly Parameters<typeof schoolLabel>[0][];
+  set: (index: number, change: Partial<DraftHost>) => void;
+  remove: (index: number) => void;
+}
+
+function hostGrid({ hosts, schools, set, remove }: HostGridOptions) {
+  const at = (host: DraftHost) => hosts.indexOf(host);
+  const name = (host: DraftHost) => host.hostname || `host ${at(host) + 1}`;
+  const rowHeader = {
+    header: "Hostname",
+    cell: (host: DraftHost) => (
+      <TextCell
+        id={`host-${at(host)}-name`}
+        label={`Hostname, host ${at(host) + 1}`}
+        dir="ltr"
+        placeholder="www.example.com"
+        value={host.hostname}
+        onChange={(hostname) => set(at(host), { hostname })}
+      />
+    ),
+  };
+  const columns: GridColumn<DraftHost>[] = [
+    ...(schools.length > 1
+      ? [
+          {
+            id: "school",
+            header: "School",
+            cell: (host: DraftHost) => (
+              <SelectCell
+                id={`host-${at(host)}-school`}
+                label={`School, ${name(host)}`}
+                value={String(host.schoolIndex)}
+                options={schools.map((school, schoolIndex) => ({
+                  value: String(schoolIndex),
+                  label: schoolLabel(school, schoolIndex),
+                }))}
+                onChange={(chosen) =>
+                  set(at(host), { schoolIndex: Number(chosen) })
+                }
+              />
+            ),
+          },
+        ]
+      : []),
+    {
+      id: "role",
+      header: "Serves",
+      cell: (host) => (
+        <SelectCell
+          id={`host-${at(host)}-role`}
+          label={`Serves, ${name(host)}`}
+          value={host.role}
+          options={ROLE_OPTIONS}
+          onChange={(role) => set(at(host), { role })}
+        />
+      ),
+    },
+  ];
+  const rowEnd = (host: DraftHost) => (
+    <GridRemoveButton
+      label={`Remove ${host.hostname || "this host"}`}
+      onRemove={() => remove(at(host))}
+    />
+  );
+  return { rowHeader, columns, rowEnd };
+}
+
 /** Hosts of the schools' own, and the domains their people sign in with. */
 function AddressesStep({ data }: StepProps) {
   const go = useStepSaver(data);
@@ -696,6 +775,19 @@ function AddressesStep({ data }: StepProps) {
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const offersSso = sellsSso(data);
+  const focusLater = useFocusAfterRender();
+  const addHost = (
+    <GridAddButton
+      label="Add a host"
+      onAdd={() => {
+        setHosts((current) => [
+          ...current,
+          { schoolIndex: 0, hostname: "", role: "site" },
+        ]);
+        focusLater(`host-${hosts.length}-name`);
+      }}
+    />
+  );
   const setHost = (
     index: number,
     change: Partial<DraftAddresses["hosts"][number]>,
@@ -735,75 +827,25 @@ function AddressesStep({ data }: StepProps) {
         title="Hosts of their own"
         description="Optional. Each is added pending, with the records to publish on the school's page; the platform's own addresses work from the start."
       >
-        {hosts.map((host, index) => (
-          <div
-            key={`host-${index}`}
-            className="grid items-start gap-4 rounded-lg border bg-card p-5 sm:grid-cols-[1fr_auto]"
-          >
-            <div
-              className={
-                schools.length > 1
-                  ? "grid items-start gap-4 sm:grid-cols-[1fr_10rem_9rem]"
-                  : "grid items-start gap-4 sm:grid-cols-[1fr_9rem]"
-              }
-            >
-              <TextField
-                label="Hostname"
-                dir="ltr"
-                value={host.hostname}
-                placeholder="www.example.com"
-                onChange={(event) =>
-                  setHost(index, { hostname: event.target.value })
-                }
-              />
-              {schools.length > 1 ? (
-                <SelectField
-                  label="School"
-                  value={String(host.schoolIndex)}
-                  options={schools.map((school, schoolIndex) => ({
-                    value: String(schoolIndex),
-                    label: schoolLabel(school, schoolIndex),
-                  }))}
-                  onChange={(chosen) =>
-                    setHost(index, { schoolIndex: Number(chosen) })
-                  }
-                />
-              ) : null}
-              <SelectField
-                label="Serves"
-                value={host.role}
-                options={ROLE_OPTIONS}
-                onChange={(role: HostRole) => setHost(index, { role })}
-              />
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="sm:mt-7"
-              aria-label={`Remove ${host.hostname || "this host"}`}
-              onClick={() =>
-                setHosts((current) => current.filter((_, at) => at !== index))
-              }
-            >
-              <X aria-hidden />
-            </Button>
-          </div>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          className="justify-self-start"
-          onClick={() =>
-            setHosts((current) => [
-              ...current,
-              { schoolIndex: 0, hostname: "", role: "site" },
-            ])
-          }
-        >
-          <Plus aria-hidden />
-          Add a host
-        </Button>
+        {hosts.length ? (
+          <DataGrid<DraftHost>
+            caption="Hosts of their own"
+            editing
+            surface="page"
+            {...hostGrid({
+              hosts,
+              schools,
+              set: setHost,
+              remove: (index) =>
+                setHosts((current) => current.filter((_, at) => at !== index)),
+            })}
+            groups={[{ id: "hosts", title: "", rows: hosts }]}
+            rowKey={(host) => `host-${hosts.indexOf(host)}`}
+            footer={addHost}
+          />
+        ) : (
+          <div>{addHost}</div>
+        )}
       </FormSection>
 
       <FormSection title="Single sign-on domains">
