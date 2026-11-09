@@ -770,6 +770,7 @@ describe("onboarding reports", () => {
           "staff_signed_in",
           "students_imported",
           "guardians_linked",
+          "timetable_ready",
         ]),
       );
       // Operators' steps and the first invoice are not the cell's to see.

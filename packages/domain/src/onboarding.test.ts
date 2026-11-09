@@ -9,6 +9,8 @@ import {
   onboardingItems,
   onboardingStalled,
   OPERATOR_ITEMS,
+  setupFinished,
+  setupProgress,
 } from "./onboarding";
 
 const day = (iso: string) => new Date(`${iso}T09:00:00Z`);
@@ -52,6 +54,53 @@ describe("a school's onboarding", () => {
         (item) => ONBOARDING_SOURCE[item] === "operator",
       ).toSorted(),
     );
+  });
+});
+
+describe("a school's own setup", () => {
+  it("lists its steps in order, leaving out those its modules do not have", () => {
+    const applies = onboardingItems({ modules: ["website"], onTrial: true });
+    expect(setupProgress(applies, new Set()).map((step) => step.id)).toEqual([
+      "details",
+      "year",
+      "classes",
+      "staff",
+      "students",
+      "website",
+    ]);
+  });
+
+  it("counts a step done only once every one of its items is", () => {
+    const applies = onboardingItems({ modules: [], onTrial: true });
+    const students = (done: OnboardingItem[]) =>
+      setupProgress(applies, new Set(done)).find(
+        (step) => step.id === "students",
+      )?.done;
+    expect(students(["students_imported"])).toBe(false);
+    expect(students(["students_imported", "guardians_linked"])).toBe(true);
+  });
+
+  it("is finished without the optional website and admissions", () => {
+    const applies = onboardingItems({
+      modules: ["timetable", "website", "admissions"],
+      onTrial: true,
+    });
+    const required: OnboardingItem[] = [
+      "school_details",
+      "year_ready",
+      "classes",
+      "staff_invited",
+      "students_imported",
+      "guardians_linked",
+    ];
+    expect(setupFinished(setupProgress(applies, new Set(required)))).toBe(
+      false,
+    );
+    expect(
+      setupFinished(
+        setupProgress(applies, new Set([...required, "timetable_ready"])),
+      ),
+    ).toBe(true);
   });
 });
 

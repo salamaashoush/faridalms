@@ -490,7 +490,7 @@ export const schoolOnboarding = pgTable(
     }),
     check(
       "school_onboarding_item_check",
-      sql`item in ('admin_signed_in', 'school_details', 'year_ready', 'classes', 'staff_invited', 'staff_signed_in', 'students_imported', 'guardians_linked', 'families_signed_in', 'first_assignment', 'first_register', 'website_published', 'custom_domain', 'first_invoice_paid', 'kickoff_call', 'training', 'data_import')`,
+      sql`item in ('admin_signed_in', 'school_details', 'year_ready', 'classes', 'staff_invited', 'staff_signed_in', 'students_imported', 'guardians_linked', 'timetable_ready', 'families_signed_in', 'first_assignment', 'first_register', 'website_published', 'admissions_ready', 'custom_domain', 'first_invoice_paid', 'kickoff_call', 'training', 'data_import')`,
     ),
   ],
 );

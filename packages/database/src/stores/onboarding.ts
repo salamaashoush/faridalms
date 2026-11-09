@@ -37,7 +37,8 @@ export async function onboardingSeen(
     select
       ${signedIn(ADMINISTRATOR_ROLES)} as admin_signed_in,
       exists (select 1 from core.orgs o where o.tenant_id = ${tenant} and o.id = ${org}
-        and o.logo_file_id is not null and o.address is not null) as school_details,
+        and o.logo_file_id is not null
+        and num_nonnulls(o.address, o.phone, o.email) > 0) as school_details,
       exists (select 1 from core.academic_sessions y
         join core.academic_sessions t on t.tenant_id = y.tenant_id and t.school_year_id = y.id
           and t.type = 'term' and t.status = 'active'
@@ -55,6 +56,10 @@ export async function onboardingSeen(
         join core.student_school_years s on s.tenant_id = u.tenant_id
           and s.student_user_id = u.student_user_id and s.org_id = ${org} and s.status = 'active'
         where u.tenant_id = ${tenant} and u.status = 'active') as guardians_linked,
+      exists (select 1 from core.class_meetings c
+        join core.academic_sessions y on y.tenant_id = c.tenant_id and y.id = c.school_year_id
+          and y.status = 'active' and y.lifecycle in ('current', 'upcoming')
+        where c.tenant_id = ${tenant} and c.org_id = ${org} and c.status = 'active') as timetable_ready,
       ${signedIn(FAMILY_ROLES)} as families_signed_in,
       exists (select 1 from core.assignments a where a.tenant_id = ${tenant}
         and a.org_id = ${org} and a.status = 'active' and a.state <> 'draft') as first_assignment,
@@ -63,7 +68,9 @@ export async function onboardingSeen(
       exists (select 1 from core.site_settings w
         join core.site_published_pages p on p.tenant_id = w.tenant_id and p.org_id = w.org_id
           and p.status = 'active'
-        where w.tenant_id = ${tenant} and w.org_id = ${org} and w.live) as website_published`);
+        where w.tenant_id = ${tenant} and w.org_id = ${org} and w.live) as website_published,
+      exists (select 1 from core.admission_intakes i where i.tenant_id = ${tenant}
+        and i.org_id = ${org} and i.status = 'active') as admissions_ready`);
   if (!row) return [];
   return (Object.keys(row) as OnboardingItem[]).filter((item) => row[item]);
 }

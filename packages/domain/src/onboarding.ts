@@ -16,10 +16,12 @@ export const ONBOARDING_ITEMS = [
   "staff_signed_in",
   "students_imported",
   "guardians_linked",
+  "timetable_ready",
   "families_signed_in",
   "first_assignment",
   "first_register",
   "website_published",
+  "admissions_ready",
   "custom_domain",
   "first_invoice_paid",
   "kickoff_call",
@@ -41,10 +43,12 @@ export const ONBOARDING_SOURCE: Record<
   staff_signed_in: "measured",
   students_imported: "measured",
   guardians_linked: "measured",
+  timetable_ready: "measured",
   families_signed_in: "measured",
   first_assignment: "measured",
   first_register: "measured",
   website_published: "measured",
+  admissions_ready: "measured",
   custom_domain: "measured",
   first_invoice_paid: "billing",
   kickoff_call: "operator",
@@ -64,9 +68,11 @@ export const isOperatorItem = (item: OnboardingItem): item is OperatorItem =>
 
 /** The module a step needs before it counts; a school without it never takes the step. */
 const NEEDS: Partial<Record<OnboardingItem, ModuleId>> = {
+  timetable_ready: "timetable",
   first_assignment: "coursework",
   first_register: "attendance",
   website_published: "website",
+  admissions_ready: "admissions",
   custom_domain: "custom_domains",
 };
 
@@ -84,6 +90,64 @@ export function onboardingItems(school: {
     return item !== "first_invoice_paid" || !school.onTrial;
   });
 }
+
+/**
+ * The setup a school's own administrators do, in the order each depends on
+ * the last: the year before its classes, classes before the students placed
+ * in them, and the timetable once there are classes and teachers to plan.
+ * The website and admissions can wait, so they never hold the setup open.
+ */
+export const SETUP_STEPS = [
+  { id: "details", items: ["school_details"], optional: false },
+  { id: "year", items: ["year_ready"], optional: false },
+  { id: "classes", items: ["classes"], optional: false },
+  { id: "staff", items: ["staff_invited"], optional: false },
+  {
+    id: "students",
+    items: ["students_imported", "guardians_linked"],
+    optional: false,
+  },
+  { id: "timetable", items: ["timetable_ready"], optional: false },
+  { id: "website", items: ["website_published"], optional: true },
+  { id: "admissions", items: ["admissions_ready"], optional: true },
+] as const satisfies readonly {
+  id: string;
+  items: readonly OnboardingItem[];
+  optional: boolean;
+}[];
+export type SetupStepId = (typeof SETUP_STEPS)[number]["id"];
+
+/** The onboarding items the school's own setup steps cover. */
+export const SETUP_ITEMS: ReadonlySet<OnboardingItem> = new Set(
+  SETUP_STEPS.flatMap((step) => step.items),
+);
+
+export interface SetupProgress {
+  id: SetupStepId;
+  done: boolean;
+  optional: boolean;
+}
+
+/**
+ * Where a school's own setup stands: each step whose items all apply to
+ * it, done once all of them are.
+ */
+export function setupProgress(
+  applies: readonly OnboardingItem[],
+  done: ReadonlySet<OnboardingItem>,
+): SetupProgress[] {
+  return SETUP_STEPS.filter((step) =>
+    step.items.every((item: OnboardingItem) => applies.includes(item)),
+  ).map((step) => ({
+    id: step.id,
+    done: step.items.every((item: OnboardingItem) => done.has(item)),
+    optional: step.optional,
+  }));
+}
+
+/** Whether every step the school cannot do without is done. */
+export const setupFinished = (steps: readonly SetupProgress[]): boolean =>
+  steps.every((step) => step.done || step.optional);
 
 /** How long a school can go without a new step before its onboarding counts as stalled. */
 export const STALL_DAYS = 14;
