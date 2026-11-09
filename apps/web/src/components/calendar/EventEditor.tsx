@@ -211,7 +211,7 @@ function shapeGroup(): BuiltInGroup {
 
 export interface EventEditorProps {
   existing: Existing | null;
-  /** A library piece a new event starts from. */
+  /** A template a new event starts from. */
   template?: StartingPiece;
   day: string;
   /** The author manages the whole calendar rather than their own classes. */

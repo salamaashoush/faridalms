@@ -199,7 +199,7 @@ test("a letter of admission in Templates opens the letter editor", async ({
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/library?kind=admission_letter");
+  await page.goto("/templates?kind=admission_letter");
   await untilHydrated(page);
   await page
     .getByRole("button", { name: "Offer of a place", exact: true })

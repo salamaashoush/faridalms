@@ -7,8 +7,8 @@ import {
   announcementEditorQuery,
   announcementOptionsQuery,
 } from "~/queries/announcements";
-import { templateQuery } from "~/queries/library";
 import { newsEditorQuery, newsOptionsQuery } from "~/queries/news";
+import { templateQuery } from "~/queries/templates";
 
 import type { BroadcastKind } from "./kinds";
 
@@ -67,7 +67,7 @@ export interface BroadcastEditorPageProps {
 
 /**
  * A broadcast editor at its address: a stored one by id, a new one from a
- * library piece, or a blank one. The first autosave gives a new draft its
+ * template, or a blank one. The first autosave gives a new draft its
  * address, so a reload reopens it, while the editor already open stays
  * mounted with what is being typed.
  */

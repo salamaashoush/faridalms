@@ -45,8 +45,8 @@ import { formattingLocale } from "@faridalms/domain/school";
 import type { UnitContext } from "./context";
 import type { NoticeScope } from "./notify";
 
-import { templateHost } from "./library";
 import { notifyIn } from "./notify";
+import { templateHost } from "./templates";
 
 /**
  * Where a move of an application is made from: a person's procedure, or

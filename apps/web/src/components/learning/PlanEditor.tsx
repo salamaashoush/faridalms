@@ -194,7 +194,7 @@ function plannerGroup(): BuiltInGroup {
 
 export interface PlanEditorProps {
   moduleId: string;
-  /** A library piece the plan starts from, while it is still unwritten. */
+  /** A template the plan starts from, while it is still unwritten. */
   template?: StartingPiece;
   onClose: () => void;
 }

@@ -194,7 +194,7 @@ export async function updateModule(
   return row?.version ?? null;
 }
 
-/** Takes a module away, as a library piece's copy goes with the piece. */
+/** Takes a module away, as a template's copy goes with the piece. */
 export async function retireModule(
   tx: Tx,
   input: { tenantId: string; id: string },

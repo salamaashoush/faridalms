@@ -7,7 +7,7 @@ import { EventEditor } from "~/components/calendar/EventEditor";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { calendarEventQuery, calendarOptionsQuery } from "~/queries/calendar";
-import { templateQuery } from "~/queries/library";
+import { templateQuery } from "~/queries/templates";
 import { currentUserQuery } from "~/queries/user";
 import { requirePage } from "~/utils/page-access";
 
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/event-editor")({
   validateSearch: v.object({
     id: v.optional(v.pipe(v.string(), v.uuid())),
     day: v.optional(v.pipe(v.string(), v.isoDate())),
-    /** A library piece a new event starts from. */
+    /** A template a new event starts from. */
     template: v.optional(v.pipe(v.string(), v.uuid())),
   }),
   loaderDeps: ({ search }) => search,

@@ -201,7 +201,7 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "module.cartridge_exported": m.auditModuleCartridgeExported,
   "module.create": m.auditModuleCreate,
   "module.duplicate": m.auditModuleDuplicate,
-  "module.from_library": m.auditModuleFromLibrary,
+  "module.from_library": m.auditModuleFromTemplate,
   "module.plan": m.auditModulePlan,
   "module.publish": m.auditModulePublish,
   "module.questions_exported": m.auditModuleQuestionsExported,

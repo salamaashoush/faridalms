@@ -7,15 +7,15 @@ import type { UnitContext } from "./context";
 
 import { can } from "./procedure";
 
-/** Whether the viewer writes a kind of document, and so keeps and uses its library pieces. */
+/** Whether the viewer writes a kind of document, and so keeps and uses its templates. */
 export const writesKind = (context: UnitContext, kind: TemplateKind) =>
   TEMPLATE_AUTHORS[kind].some((capability) => can(context, capability));
 
-/** Where a library piece's document is kept. */
+/** Where a template's document is kept. */
 export const templateHost = (id: string) => ({ type: "document_template", id });
 
 /**
- * A piece of this school's library the viewer may open: one it shares, the
+ * A template of this school the viewer may open: one it shares, the
  * viewer's own, or one waiting for a reviewer the viewer is.
  */
 export async function usableTemplate(context: UnitContext, id: string) {
@@ -25,7 +25,7 @@ export async function usableTemplate(context: UnitContext, id: string) {
     writesKind(context, row.kind) &&
     (row.state === "shared" ||
       row.ownerUserId === context.actor.userId ||
-      can(context, "library:review"))
+      can(context, "templates:review"))
     ? row
     : null;
 }

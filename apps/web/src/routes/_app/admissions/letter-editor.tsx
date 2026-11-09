@@ -23,7 +23,7 @@ import {
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { lettersQuery } from "~/queries/admissions";
-import { templateQuery } from "~/queries/library";
+import { templateQuery } from "~/queries/templates";
 import { currentUserQuery } from "~/queries/user";
 import {
   listTemplates,

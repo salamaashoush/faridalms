@@ -22,7 +22,6 @@ import { Route as AppEventEditorRouteImport } from './routes/_app/event-editor'
 import { Route as AppExamsRouteImport } from './routes/_app/exams'
 import { Route as AppFamilyRouteImport } from './routes/_app/family'
 import { Route as AppHealthChangesRouteImport } from './routes/_app/health-changes'
-import { Route as AppLibraryRouteImport } from './routes/_app/library'
 import { Route as AppMeRouteImport } from './routes/_app/me'
 import { Route as AppNewsEditorRouteImport } from './routes/_app/news-editor'
 import { Route as AppNotificationPreferencesRouteImport } from './routes/_app/notification-preferences'
@@ -31,6 +30,7 @@ import { Route as AppPrivacyRouteImport } from './routes/_app/privacy'
 import { Route as AppSearchRouteImport } from './routes/_app/search'
 import { Route as AppStaffEditorRouteImport } from './routes/_app/staff-editor'
 import { Route as AppStudentEditorRouteImport } from './routes/_app/student-editor'
+import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AuthRegisterRouteImport } from './routes/_auth/register'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
@@ -216,11 +216,6 @@ const AppHealthChangesRoute = AppHealthChangesRouteImport.update({
   path: '/health-changes',
   getParentRoute: () => AppRoute,
 } as any)
-const AppLibraryRoute = AppLibraryRouteImport.update({
-  id: '/library',
-  path: '/library',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppMeRoute = AppMeRouteImport.update({
   id: '/me',
   path: '/me',
@@ -260,6 +255,11 @@ const AppStaffEditorRoute = AppStaffEditorRouteImport.update({
 const AppStudentEditorRoute = AppStudentEditorRouteImport.update({
   id: '/student-editor',
   path: '/student-editor',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTemplatesRoute = AppTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
   getParentRoute: () => AppRoute,
 } as any)
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
@@ -900,7 +900,6 @@ export interface FileRoutesByFullPath {
   '/exams': typeof AppExamsRoute
   '/family': typeof AppFamilyRouteWithChildren
   '/health-changes': typeof AppHealthChangesRoute
-  '/library': typeof AppLibraryRoute
   '/me': typeof AppMeRouteWithChildren
   '/news-editor': typeof AppNewsEditorRoute
   '/notification-preferences': typeof AppNotificationPreferencesRoute
@@ -909,6 +908,7 @@ export interface FileRoutesByFullPath {
   '/search': typeof AppSearchRoute
   '/staff-editor': typeof AppStaffEditorRoute
   '/student-editor': typeof AppStudentEditorRoute
+  '/templates': typeof AppTemplatesRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/register': typeof AuthRegisterRoute
   '/sign-in': typeof AuthSignInRoute
@@ -1042,7 +1042,6 @@ export interface FileRoutesByTo {
   '/event-editor': typeof AppEventEditorRoute
   '/exams': typeof AppExamsRoute
   '/health-changes': typeof AppHealthChangesRoute
-  '/library': typeof AppLibraryRoute
   '/news-editor': typeof AppNewsEditorRoute
   '/notification-preferences': typeof AppNotificationPreferencesRoute
   '/notifications': typeof AppNotificationsRoute
@@ -1050,6 +1049,7 @@ export interface FileRoutesByTo {
   '/search': typeof AppSearchRoute
   '/staff-editor': typeof AppStaffEditorRoute
   '/student-editor': typeof AppStudentEditorRoute
+  '/templates': typeof AppTemplatesRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/register': typeof AuthRegisterRoute
   '/sign-in': typeof AuthSignInRoute
@@ -1187,7 +1187,6 @@ export interface FileRoutesById {
   '/_app/exams': typeof AppExamsRoute
   '/_app/family': typeof AppFamilyRouteWithChildren
   '/_app/health-changes': typeof AppHealthChangesRoute
-  '/_app/library': typeof AppLibraryRoute
   '/_app/me': typeof AppMeRouteWithChildren
   '/_app/news-editor': typeof AppNewsEditorRoute
   '/_app/notification-preferences': typeof AppNotificationPreferencesRoute
@@ -1196,6 +1195,7 @@ export interface FileRoutesById {
   '/_app/search': typeof AppSearchRoute
   '/_app/staff-editor': typeof AppStaffEditorRoute
   '/_app/student-editor': typeof AppStudentEditorRoute
+  '/_app/templates': typeof AppTemplatesRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/register': typeof AuthRegisterRoute
   '/_auth/sign-in': typeof AuthSignInRoute
@@ -1332,7 +1332,6 @@ export interface FileRouteTypes {
     | '/exams'
     | '/family'
     | '/health-changes'
-    | '/library'
     | '/me'
     | '/news-editor'
     | '/notification-preferences'
@@ -1341,6 +1340,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/staff-editor'
     | '/student-editor'
+    | '/templates'
     | '/forgot-password'
     | '/register'
     | '/sign-in'
@@ -1474,7 +1474,6 @@ export interface FileRouteTypes {
     | '/event-editor'
     | '/exams'
     | '/health-changes'
-    | '/library'
     | '/news-editor'
     | '/notification-preferences'
     | '/notifications'
@@ -1482,6 +1481,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/staff-editor'
     | '/student-editor'
+    | '/templates'
     | '/forgot-password'
     | '/register'
     | '/sign-in'
@@ -1618,7 +1618,6 @@ export interface FileRouteTypes {
     | '/_app/exams'
     | '/_app/family'
     | '/_app/health-changes'
-    | '/_app/library'
     | '/_app/me'
     | '/_app/news-editor'
     | '/_app/notification-preferences'
@@ -1627,6 +1626,7 @@ export interface FileRouteTypes {
     | '/_app/search'
     | '/_app/staff-editor'
     | '/_app/student-editor'
+    | '/_app/templates'
     | '/_auth/forgot-password'
     | '/_auth/register'
     | '/_auth/sign-in'
@@ -1881,13 +1881,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppHealthChangesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/library': {
-      id: '/_app/library'
-      path: '/library'
-      fullPath: '/library'
-      preLoaderRoute: typeof AppLibraryRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/me': {
       id: '/_app/me'
       path: '/me'
@@ -1942,6 +1935,13 @@ declare module '@tanstack/react-router' {
       path: '/student-editor'
       fullPath: '/student-editor'
       preLoaderRoute: typeof AppStudentEditorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/templates': {
+      id: '/_app/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof AppTemplatesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_auth/forgot-password': {
@@ -2932,7 +2932,6 @@ interface AppRouteChildren {
   AppExamsRoute: typeof AppExamsRoute
   AppFamilyRoute: typeof AppFamilyRouteWithChildren
   AppHealthChangesRoute: typeof AppHealthChangesRoute
-  AppLibraryRoute: typeof AppLibraryRoute
   AppMeRoute: typeof AppMeRouteWithChildren
   AppNewsEditorRoute: typeof AppNewsEditorRoute
   AppNotificationPreferencesRoute: typeof AppNotificationPreferencesRoute
@@ -2941,6 +2940,7 @@ interface AppRouteChildren {
   AppSearchRoute: typeof AppSearchRoute
   AppStaffEditorRoute: typeof AppStaffEditorRoute
   AppStudentEditorRoute: typeof AppStudentEditorRoute
+  AppTemplatesRoute: typeof AppTemplatesRoute
   AppAdmissionsFormEditorRoute: typeof AppAdmissionsFormEditorRoute
   AppAdmissionsIntakeEditorRoute: typeof AppAdmissionsIntakeEditorRoute
   AppAdmissionsLetterEditorRoute: typeof AppAdmissionsLetterEditorRoute
@@ -2983,7 +2983,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppExamsRoute: AppExamsRoute,
   AppFamilyRoute: AppFamilyRouteWithChildren,
   AppHealthChangesRoute: AppHealthChangesRoute,
-  AppLibraryRoute: AppLibraryRoute,
   AppMeRoute: AppMeRouteWithChildren,
   AppNewsEditorRoute: AppNewsEditorRoute,
   AppNotificationPreferencesRoute: AppNotificationPreferencesRoute,
@@ -2992,6 +2991,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSearchRoute: AppSearchRoute,
   AppStaffEditorRoute: AppStaffEditorRoute,
   AppStudentEditorRoute: AppStudentEditorRoute,
+  AppTemplatesRoute: AppTemplatesRoute,
   AppAdmissionsFormEditorRoute: AppAdmissionsFormEditorRoute,
   AppAdmissionsIntakeEditorRoute: AppAdmissionsIntakeEditorRoute,
   AppAdmissionsLetterEditorRoute: AppAdmissionsLetterEditorRoute,

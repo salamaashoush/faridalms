@@ -326,7 +326,7 @@ export const documentHolds = core.table.withRLS(
  * new one. One the school was given when it was made has no owner and a
  * `builtin_key`, so it is given once.
  */
-export type LibraryState = "pending" | "shared" | "declined";
+export type TemplateState = "pending" | "shared" | "declined";
 
 export const documentTemplates = core.table.withRLS(
   "document_templates",
@@ -350,7 +350,7 @@ export const documentTemplates = core.table.withRLS(
       .notNull(),
     builtinKey: text("builtin_key"),
     /**
-     * A whole module kept for the library: a copy of it, archived and set
+     * A whole module kept as a template: a copy of it, archived and set
      * for no class, that each teacher using the piece copies in turn.
      */
     moduleId: uuid("module_id"),
@@ -361,10 +361,10 @@ export const documentTemplates = core.table.withRLS(
       .notNull()
       .generatedAlwaysAs(sql`'subject'`),
     /**
-     * Whether the school's library offers it: a piece waits for a reviewer
+     * Whether the school's templates offer it: a piece waits for a reviewer
      * unless a reviewer shared it, and one declined stays its owner's.
      */
-    state: text("state").$type<LibraryState>().notNull().default("shared"),
+    state: text("state").$type<TemplateState>().notNull().default("shared"),
     reviewedByUserId: uuid("reviewed_by_user_id"),
     reviewedAt: instant("reviewed_at"),
     reviewNote: text("review_note"),

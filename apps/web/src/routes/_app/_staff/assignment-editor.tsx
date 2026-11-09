@@ -19,7 +19,7 @@ import {
   courseworkOptionsQuery,
 } from "~/queries/coursework";
 import { collaborationQuery } from "~/queries/documents";
-import { templateQuery } from "~/queries/library";
+import { templateQuery } from "~/queries/templates";
 import { currentUserQuery } from "~/queries/user";
 import { requirePage } from "~/utils/page-access";
 
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_app/_staff/assignment-editor")({
     classId: v.optional(v.pipe(v.string(), v.uuid())),
     /** The module a new discussion starts in. */
     moduleId: v.optional(v.pipe(v.string(), v.uuid())),
-    /** A library piece a new assignment starts from. */
+    /** A template a new assignment starts from. */
     template: v.optional(v.pipe(v.string(), v.uuid())),
   }),
   loaderDeps: ({ search }) => ({ id: search.id, template: search.template }),

@@ -136,7 +136,7 @@ function draftOf(data: Data): Draft {
 
 export interface ConsentFormEditorProps {
   data: Data;
-  /** A library piece the form starts from, while it says nothing yet. */
+  /** A template the form starts from, while it says nothing yet. */
   template?: StartingPiece;
   onClose: () => void;
 }

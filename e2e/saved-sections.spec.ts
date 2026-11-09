@@ -109,7 +109,7 @@ test("a section kept as a template starts a copy on another page", async ({
   await page.getByRole("button", { name: "Save section" }).click();
   const keep = page.getByRole("dialog", { name: "Save section" });
   await keep.getByRole("textbox", { name: "Name" }).fill(name);
-  await keep.getByRole("radio", { name: /A template in the library/ }).click();
+  await keep.getByRole("radio", { name: /^A template/ }).click();
   await keep.getByRole("button", { name: "Keep" }).click();
 
   await page.getByRole("button", { name: "Add section" }).click();
@@ -122,7 +122,7 @@ test("a section kept as a template starts a copy on another page", async ({
       .getByText("Kindness and curiosity"),
   ).toHaveCount(2);
 
-  await page.goto("/library");
+  await page.goto("/templates");
   await untilHydrated(page);
   await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
 });

@@ -52,7 +52,7 @@ export interface NoticeParams {
   report?: "accepted" | "declined";
   periodName?: string;
   periodNameAr?: string;
-  /** A piece offered to the school library: shared, or sent back to its owner. */
+  /** A piece offered as a school template: shared, or sent back to its owner. */
   shared?: boolean;
   /** What a family's enquiry is about, and whether it was handed to the reader. */
   purpose?: "enquiry" | "visit" | "general";

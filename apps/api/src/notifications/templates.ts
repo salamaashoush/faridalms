@@ -261,7 +261,7 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         : `${p.actorName || "Someone at school"} mentioned you in ${p.title ?? "a document"}.`,
     library: (p) =>
       p.shared
-        ? `${p.title ?? "Your piece"} is now in the school library.`
+        ? `${p.title ?? "Your piece"} is now one of the school's templates.`
         : `${p.actorName || "A reviewer"} sent ${p.title ?? "your piece"} back with a note.`,
     reply: (p) =>
       `${p.actorName || "Someone in your class"} replied to your post in ${p.title ?? "a discussion"}.`,
@@ -338,7 +338,7 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         : `ذكرك ${p.actorName || "أحد أفراد المدرسة"} في ${p.titleAr || p.title || "مستند"}.`,
     library: (p) =>
       p.shared
-        ? `أصبح ${p.title ?? "ما شاركته"} في مكتبة المدرسة.`
+        ? `أصبح ${p.title ?? "ما شاركته"} من قوالب المدرسة.`
         : `أعاد ${p.actorNameAr || p.actorName || "المراجع"} ${p.title ?? "ما شاركته"} إليك مع ملاحظة.`,
     reply: (p) =>
       `ردّ ${p.actorNameAr || p.actorName || "أحد زملائك"} على مشاركتك في ${p.title ?? "النقاش"}.`,

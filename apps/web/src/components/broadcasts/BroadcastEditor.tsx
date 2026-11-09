@@ -192,7 +192,7 @@ function wordsProblems(view: KindView, draft: Draft): string[] {
 export interface BroadcastEditorProps {
   kind: BroadcastKind;
   existing: EditorData | null;
-  /** The library piece a new one starts from. */
+  /** The template a new one starts from. */
   template?: StartingPiece;
   onClose: (id?: string) => void;
   onCreated: (id: string) => void;

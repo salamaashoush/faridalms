@@ -25,14 +25,14 @@ import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import type { Piece } from "~/components/library/Library";
+import type { Piece } from "~/components/templates/PieceSheet";
 
-import { KIND_LABEL, PieceSheet } from "~/components/library/Library";
 import { labelOf } from "~/components/people/format";
+import { KIND_LABEL, PieceSheet } from "~/components/templates/PieceSheet";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { subjectsQuery } from "~/queries/classes";
-import { libraryQuery, libraryQueueQuery } from "~/queries/library";
+import { templatesQuery, templateQueueQuery } from "~/queries/templates";
 import { currentUserQuery } from "~/queries/user";
 import { removeTemplate } from "~/server/templates";
 import { formatDate } from "~/utils/datetime";
@@ -52,18 +52,18 @@ const searchSchema = v.object({
   q: v.fallback(v.optional(v.string(), ""), ""),
 });
 
-export const Route = createFileRoute("/_app/library")({
-  staticData: { breadcrumb: m.libraryTitle },
+export const Route = createFileRoute("/_app/templates")({
+  staticData: { breadcrumb: m.templatesTitle },
   validateSearch: searchSchema,
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, ...Object.values(TEMPLATE_AUTHORS).flat());
     await context.queryClient.ensureQueryData(
-      libraryQuery({ kind: deps.kind, subjectId: deps.subjectId, q: deps.q }),
+      templatesQuery({ kind: deps.kind, subjectId: deps.subjectId, q: deps.q }),
     );
   },
-  component: LibraryPage,
+  component: TemplatesPage,
 });
 
 function ownerOf(row: Piece) {
@@ -116,7 +116,7 @@ function pieceColumns(
   return [
     {
       id: "title",
-      header: m.libraryName(),
+      header: m.templatesName(),
       primary: true,
       cell: (row) => (
         <PieceTitle row={row} onOpen={() => show(row, reviewing)} />
@@ -124,17 +124,17 @@ function pieceColumns(
     },
     {
       id: "kind",
-      header: m.libraryKind(),
+      header: m.templatesKind(),
       cell: (row) => KIND_LABEL[row.kind](),
     },
     {
       id: "subject",
-      header: m.librarySubject(),
+      header: m.templatesSubject(),
       cell: (row) => subjectName(row.subjectId),
     },
     {
       id: "owner",
-      header: m.libraryBy(),
+      header: m.templatesBy(),
       cell: (row) => (
         <span className="grid gap-0.5">
           <bdi>{ownerOf(row)}</bdi>
@@ -144,7 +144,7 @@ function pieceColumns(
     },
     {
       id: "updated",
-      header: m.libraryUpdated(),
+      header: m.templatesUpdated(),
       cell: (row) => formatDate(row.updatedAt),
     },
   ];
@@ -161,19 +161,19 @@ function pieceCard(reviewing: boolean, show: Open) {
   };
 }
 
-function LibraryPage() {
+function TemplatesPage() {
   const user = useCurrentUser();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(
-    libraryQuery({
+    templatesQuery({
       kind: search.kind,
       subjectId: search.subjectId,
       q: search.q,
     }),
   ).data;
-  const queue = useQuery({ ...libraryQueueQuery, enabled: data.reviews });
+  const queue = useQuery({ ...templateQueueQuery, enabled: data.reviews });
   const subjects = useQuery(subjectsQuery).data?.rows ?? [];
   const [open, setOpen] = useState<{
     piece: Piece;
@@ -197,7 +197,7 @@ function LibraryPage() {
     (reviewing: boolean) =>
     (row: Piece): RowAction[] => [
       {
-        label: m.libraryPreview(),
+        label: m.templatesPreview(),
         icon: Eye,
         inline: true,
         onSelect: () => show(row, reviewing),
@@ -205,13 +205,13 @@ function LibraryPage() {
       ...(!reviewing && (row.mine || data.reviews)
         ? [
             {
-              label: m.libraryRemove(),
+              label: m.templatesRemove(),
               icon: Trash2,
               destructive: true as const,
               confirm: {
-                title: m.libraryRemoveTitle({ title: row.title }),
-                body: m.libraryRemoveBody(),
-                label: m.libraryRemove(),
+                title: m.templatesRemoveTitle({ title: row.title }),
+                body: m.templatesRemoveBody(),
+                label: m.templatesRemove(),
               },
               onSelect: async () => {
                 try {
@@ -230,7 +230,7 @@ function LibraryPage() {
     ];
   const kindFacet: Facet = {
     id: "kind",
-    label: m.libraryKind(),
+    label: m.templatesKind(),
     single: true,
     options: kindsWritten(user.capabilities).map((kind) => ({
       value: kind,
@@ -242,7 +242,7 @@ function LibraryPage() {
   };
   const subjectFacet: Facet = {
     id: "subject",
-    label: m.librarySubject(),
+    label: m.templatesSubject(),
     single: true,
     options: subjects.map((row) => ({
       value: row.id,
@@ -255,14 +255,14 @@ function LibraryPage() {
     search: {
       value: search.q,
       onChange: (q) => patch({ q }),
-      label: m.librarySearch(),
+      label: m.templatesSearch(),
     },
     facets: subjects.length > 0 ? [kindFacet, subjectFacet] : [kindFacet],
     onReset: () => patch({ q: "", kind: "", subjectId: "" }),
   };
   const shelf = (
     <DataTable
-      caption={m.libraryCaption()}
+      caption={m.templatesCaption()}
       rows={data.rows}
       columns={pieceColumns(false, show, subjectName)}
       rowLabel={(row) => row.title}
@@ -271,8 +271,8 @@ function LibraryPage() {
       card={pieceCard(false, show)}
       empty={{
         icon: BookMarked,
-        title: m.libraryEmptyTitle(),
-        description: m.libraryEmptyBody(),
+        title: m.templatesEmptyTitle(),
+        description: m.templatesEmptyBody(),
       }}
     />
   );
@@ -280,18 +280,18 @@ function LibraryPage() {
   return (
     <Page width="list">
       <PageHeader
-        title={m.libraryTitle()}
-        description={m.libraryHint()}
+        title={m.templatesTitle()}
+        description={m.templatesHint()}
         count={data.rows.length}
       />
       {data.reviews ? (
         <RecordTabs
-          label={m.librarySections()}
+          label={m.templatesSections()}
           tabs={[
-            { value: "shelf", label: m.libraryShelf() },
+            { value: "shelf", label: m.templatesShelf() },
             {
               value: "review",
-              label: `${m.libraryToReview()} ${waiting.length}`,
+              label: `${m.templatesToReview()} ${waiting.length}`,
             },
           ]}
           value={search.tab}
@@ -299,7 +299,7 @@ function LibraryPage() {
         >
           {search.tab === "review" ? (
             <DataTable
-              caption={m.libraryToReview()}
+              caption={m.templatesToReview()}
               rows={waiting}
               columns={pieceColumns(true, show, subjectName)}
               rowLabel={(row) => row.title}
@@ -307,8 +307,8 @@ function LibraryPage() {
               card={pieceCard(true, show)}
               empty={{
                 icon: BookMarked,
-                title: m.libraryQueueEmptyTitle(),
-                description: m.libraryQueueEmptyBody(),
+                title: m.templatesQueueEmptyTitle(),
+                description: m.templatesQueueEmptyBody(),
               }}
             />
           ) : (

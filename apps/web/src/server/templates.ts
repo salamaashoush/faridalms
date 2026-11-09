@@ -1,5 +1,5 @@
 import {
-  librarySchema,
+  browseTemplatesSchema,
   reviewTemplateSchema,
   saveSectionTemplateSchema,
   saveTemplateSchema,
@@ -36,11 +36,11 @@ export const removeTemplate = createServerFn({ method: "POST" })
   .validator(checked(templateRefSchema))
   .handler(({ data }) => backend().templates.remove(data));
 
-export const getLibrary = createServerFn({ method: "GET" })
-  .validator(checked(librarySchema))
-  .handler(({ data }) => record(backend().templates.library(data)));
+export const browseTemplates = createServerFn({ method: "GET" })
+  .validator(checked(browseTemplatesSchema))
+  .handler(({ data }) => record(backend().templates.browse(data)));
 
-export const getLibraryQueue = createServerFn({ method: "GET" }).handler(() =>
+export const getTemplateQueue = createServerFn({ method: "GET" }).handler(() =>
   record(backend().templates.queue()),
 );
 

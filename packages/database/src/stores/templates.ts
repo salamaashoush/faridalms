@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
-import type { LibraryState } from "../tables/documents";
+import type { TemplateState } from "../tables/documents";
 
 import { holds, isoOf } from "./sql";
 
@@ -31,7 +31,7 @@ export interface TemplateRow {
   title: string;
   description: string;
   subjectId: string | null;
-  state: LibraryState;
+  state: TemplateState;
   reviewNote: string | null;
   ownerNameEn: string | null;
   ownerNameAr: string | null;
@@ -50,7 +50,7 @@ type TemplateRecord = {
   title: string;
   description: string;
   subject_descriptor_id: string | null;
-  state: LibraryState;
+  state: TemplateState;
   review_note: string | null;
   name_en: string | null;
   name_ar: string | null;
@@ -82,7 +82,7 @@ const columns = sql`t.id, t.version, t.org_id, t.owner_user_id, t.builtin_key, t
   ${isoOf(sql`t.date_last_modified`)} as updated_at`;
 
 /**
- * A school's library pieces: those it shares, with the viewer's own whatever
+ * A school's templates: those it shares, with the viewer's own whatever
  * their state. Narrowed to a kind, a subject, words in the title or
  * description, or to what waits for review.
  */
@@ -173,7 +173,7 @@ export async function insertTemplate(
     title: string;
     description: string;
     subjectId: string | null;
-    state: LibraryState;
+    state: TemplateState;
     moduleId?: string | null;
   },
 ): Promise<{ id: string }> {
@@ -194,7 +194,7 @@ export async function reviewTemplate(
   input: {
     tenantId: string;
     id: string;
-    state: Exclude<LibraryState, "pending">;
+    state: Exclude<TemplateState, "pending">;
     note: string | null;
     reviewerId: string;
   },

@@ -82,7 +82,7 @@ export interface BuiltInGroup {
   items: BuiltInPiece[];
 }
 
-const templatesQuery = (kind: TemplateKind) => ({
+const kindTemplatesQuery = (kind: TemplateKind) => ({
   queryKey: ["templates", kind],
   queryFn: () => listTemplates({ data: { kind } }),
 });
@@ -108,7 +108,7 @@ export function TemplatePicker({
   builtIn,
 }: TemplatePickerProps) {
   const queryClient = useQueryClient();
-  const rows = useQuery(templatesQuery(kind)).data ?? [];
+  const rows = useQuery(kindTemplatesQuery(kind)).data ?? [];
   const apply = useMutation({
     mutationFn: (id: string) => openTemplate({ data: { id } }),
     onSuccess: (result) => onApply(result.content),
@@ -326,14 +326,14 @@ export function TemplatePicker({
   );
 }
 
-/** A library piece a new document starts from. */
+/** A template a new document starts from. */
 export interface StartingPiece {
   title: string;
   content: ContentDocument;
 }
 
 /**
- * Applies the library piece a new document was opened from, once, after its
+ * Applies the template a new document was opened from, once, after its
  * editor is drawn, so the first save stores it as any other edit would.
  */
 export function useStartFrom(
@@ -366,7 +366,7 @@ export function SaveTemplateDialog({
   suggestedTitle,
 }: SaveTemplateDialogProps) {
   const queryClient = useQueryClient();
-  const reviews = useCapability("library:review");
+  const reviews = useCapability("templates:review");
   const subjects = useQuery(subjectsQuery).data?.rows ?? [];
   const [title, setTitle] = useState(suggestedTitle);
   const [description, setDescription] = useState("");

@@ -50,7 +50,7 @@ const KIND_LABEL: Record<ChoosableKind, () => string> = {
   reminder: m.ntfKindReminder,
   consent: m.ntfKindConsent,
   mention: m.ntfKindMention,
-  library: m.ntfKindLibrary,
+  library: m.ntfKindTemplates,
   reply: m.ntfKindReply,
   enquiry: m.ntfKindEnquiry,
   application: m.ntfKindApplication,
@@ -75,7 +75,7 @@ const SMS_LABEL: Record<SmsMode, () => string> = {
 
 /**
  * Absences, consent requests and answers to the changes a family asked for
- * reach families, register reminders and library reviews reach staff,
+ * reach families, register reminders and template reviews reach staff,
  * replies those who post in discussions, work set, returned and graded
  * reaches students and their families, and enquiries those who work them;
  * nobody else gets them.

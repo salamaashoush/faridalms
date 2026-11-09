@@ -81,7 +81,7 @@ const ADMISSIONS: readonly Capability[] = [
   "admissions:configure",
 ];
 
-/** Whoever writes any kind of template; the library's page asks the same. */
+/** Whoever writes any kind of template; the Templates page asks the same. */
 const TEMPLATE_WRITERS: readonly Capability[] = [
   ...new Set(Object.values(TEMPLATE_AUTHORS).flat()),
 ];
@@ -235,13 +235,13 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
       title: m.navSectionSchool,
       items: [
         {
-          to: "/library",
+          to: "/templates",
           label: m.navLibrary,
           icon: BookMarked,
           capability: TEMPLATE_WRITERS,
           pages: [
             {
-              to: "/library",
+              to: "/templates",
               label: m.navTemplates,
               capability: TEMPLATE_WRITERS,
             },

@@ -15,7 +15,7 @@ import { PlanEditor } from "~/components/learning/PlanEditor";
 import * as m from "~/i18n/messages";
 import { collaborationQuery } from "~/queries/documents";
 import { moduleRecordQuery, planQuery } from "~/queries/learning";
-import { templateQuery } from "~/queries/library";
+import { templateQuery } from "~/queries/templates";
 import { currentUserQuery } from "~/queries/user";
 import { requirePage } from "~/utils/page-access";
 
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_app/_staff/module-plan")({
   staticData: { trail: <PlanTrail />, section: "/modules" },
   validateSearch: v.object({
     moduleId: v.pipe(v.string(), v.uuid()),
-    /** A library piece the plan starts from while it is unwritten. */
+    /** A template the plan starts from while it is unwritten. */
     template: v.optional(v.pipe(v.string(), v.uuid())),
   }),
   loaderDeps: ({ search }) => search,

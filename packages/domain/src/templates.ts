@@ -66,14 +66,14 @@ export type DocumentTemplateKind = (typeof DOCUMENT_TEMPLATE_KINDS)[number];
 export const saveTemplateSchema = v.object({
   kind: v.picklist(DOCUMENT_TEMPLATE_KINDS),
   title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
-  /** What it is for and how it is taught, as the library shows it. */
+  /** What it is for and how it is taught, as Templates shows it. */
   description: note,
   subjectId: optionalId,
   content: contentDocumentSchema,
 });
 export type SaveTemplate = v.InferOutput<typeof saveTemplateSchema>;
 
-/** A website section kept in the library, in both languages, to start new sections from. */
+/** A website section kept as a template, in both languages, to start new sections from. */
 export const saveSectionTemplateSchema = v.object({
   title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
   description: note,
@@ -104,7 +104,7 @@ export const templateKindSchema = v.object({
 });
 export const templateRefSchema = v.object({ id });
 
-/** A whole module offered to the library, its lessons and plan with it. */
+/** A whole module offered as a template, its lessons and plan with it. */
 export const shareModuleSchema = v.object({
   moduleId: id,
   title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
@@ -112,11 +112,11 @@ export const shareModuleSchema = v.object({
   subjectId: optionalId,
 });
 
-/** A module from the library started for one of the teacher's classes. */
-export const moduleFromLibrarySchema = v.object({ id, classId: id });
+/** A module from a template started for one of the teacher's classes. */
+export const moduleFromTemplateSchema = v.object({ id, classId: id });
 
-/** The school library as its teachers browse it. */
-export const librarySchema = v.object({
+/** The school's templates as its teachers browse them. */
+export const browseTemplatesSchema = v.object({
   kind: v.optional(v.union([v.literal(""), v.picklist(TEMPLATE_KINDS)]), ""),
   subjectId: optionalId,
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),

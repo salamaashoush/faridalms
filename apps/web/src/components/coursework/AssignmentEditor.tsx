@@ -463,7 +463,7 @@ export interface AssignmentEditorProps {
   classId?: string;
   /** The module a new discussion is started from. */
   moduleId?: string;
-  /** The library piece a new assignment starts from. */
+  /** The template a new assignment starts from. */
   template?: StartingPiece;
   onClose: (id?: string) => void;
   onCreated: (id: string) => void;

@@ -50,7 +50,7 @@ describe("the staff sidebar", () => {
     );
     expect(sections.find((section) => section.id === "school")).toEqual({
       id: "school",
-      items: ["/library", "/settings"],
+      items: ["/templates", "/settings"],
       more: [
         "/website",
         "/academic-years",
@@ -82,7 +82,7 @@ describe("the staff sidebar", () => {
       "/admissions/intakes",
       "/admissions/reports",
       "/admissions/letters",
-      "/library",
+      "/templates",
       "/media",
     ])
       expect(offered).toContain(path);
@@ -103,14 +103,14 @@ describe("an area's link", () => {
   it("offers the media only to those who put pictures in what they write", () => {
     const library = NAVIGATION.staff
       .flatMap((section) => section.items)
-      .find((item) => item.to === "/library");
-    if (!library) throw new Error("The library is not in the navigation");
+      .find((item) => item.to === "/templates");
+    if (!library) throw new Error("The Library area is not in the navigation");
     expect(
       pagesOf(library, viewer(["admissions:configure"])).map((page) => page.to),
-    ).toEqual(["/library"]);
+    ).toEqual(["/templates"]);
     expect(
       pagesOf(library, viewer(["learning:author"])).map((page) => page.to),
-    ).toEqual(["/library", "/media"]);
+    ).toEqual(["/templates", "/media"]);
   });
 });
 

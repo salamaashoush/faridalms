@@ -212,11 +212,11 @@ const usesQuery = (id: string) => ({
 });
 
 const USE_KIND: Record<Use["hostType"], () => string> = {
-  lesson: m.libraryKindLesson,
-  assignment: m.libraryKindAssignment,
-  module_plan: m.libraryKindPlan,
-  announcement: m.libraryKindAnnouncement,
-  news: m.libraryKindNews,
+  lesson: m.templateKindLesson,
+  assignment: m.templateKindAssignment,
+  module_plan: m.templateKindPlan,
+  announcement: m.templateKindAnnouncement,
+  news: m.templateKindNews,
   site_page: m.sharedUsePage,
 };
 

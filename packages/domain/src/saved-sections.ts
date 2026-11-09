@@ -13,7 +13,7 @@ import {
 } from "./site-sections";
 
 /**
- * A website section kept to use again, as a library template or a shared
+ * A website section kept to use again, as a template or a shared
  * section: the section in the language it was written in, and the words of
  * the other language over the same structure, when the site has them.
  */

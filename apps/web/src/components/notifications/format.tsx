@@ -291,8 +291,8 @@ export function noticeText(notice: Notice): { title: string; body: string } {
     case "library":
       return {
         title: params.shared
-          ? m.ntfLibraryShared()
-          : m.ntfLibrarySentBack({
+          ? m.ntfTemplateShared()
+          : m.ntfTemplateSentBack({
               name:
                 both(params.actorName, params.actorNameAr) ||
                 inLocale(notice.actorNameEn, notice.actorNameAr),
@@ -570,7 +570,7 @@ export function NoticeLink({
       );
     case "library":
       return (
-        <Link {...rest} to="/library" search={{}}>
+        <Link {...rest} to="/templates" search={{}}>
           {children}
         </Link>
       );

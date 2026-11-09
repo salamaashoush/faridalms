@@ -212,7 +212,7 @@ describe("saved sections", () => {
     await api.shared.remove({ id: kept.id });
   });
 
-  test("a section template is kept in the library in both languages and started from as a copy", async () => {
+  test("a section template is kept in both languages and started from as a copy", async () => {
     const { api } = await principal();
     const english = textSection("Our values", "Kindness and curiosity.");
     const arabic = {

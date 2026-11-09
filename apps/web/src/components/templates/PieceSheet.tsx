@@ -17,7 +17,7 @@ import { LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { libraryQuery } from "~/queries/library";
+import type { templatesQuery } from "~/queries/templates";
 
 import { classTitle } from "~/components/classes/format";
 import { ContentView } from "~/components/content/ContentView";
@@ -28,27 +28,27 @@ import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { consentFormsQuery } from "~/queries/consents";
 import { courseworkOptionsQuery } from "~/queries/coursework";
 import { learningOptionsQuery } from "~/queries/learning";
-import { sectionTemplateQuery, templateQuery } from "~/queries/library";
-import { moduleFromLibrary } from "~/server/learning";
+import { sectionTemplateQuery, templateQuery } from "~/queries/templates";
+import { moduleFromTemplate } from "~/server/learning";
 import { reviewTemplate } from "~/server/templates";
 import { getMessageFromError } from "~/utils/error";
 
 export const KIND_LABEL: Record<TemplateKind, () => string> = {
-  lesson: m.libraryKindLesson,
-  assignment: m.libraryKindAssignment,
-  unit_plan: m.libraryKindPlan,
-  news: m.libraryKindNews,
-  announcement: m.libraryKindAnnouncement,
-  event: m.libraryKindEvent,
-  consent_form: m.libraryKindConsentForm,
-  module: m.libraryKindModule,
-  message: m.libraryKindMessage,
-  admission_letter: m.libraryKindAdmissionLetter,
-  section: m.libraryKindSection,
+  lesson: m.templateKindLesson,
+  assignment: m.templateKindAssignment,
+  unit_plan: m.templateKindPlan,
+  news: m.templateKindNews,
+  announcement: m.templateKindAnnouncement,
+  event: m.templateKindEvent,
+  consent_form: m.templateKindConsentForm,
+  module: m.templateKindModule,
+  message: m.templateKindMessage,
+  admission_letter: m.templateKindAdmissionLetter,
+  section: m.templateKindSection,
 };
 
 export type Piece = Awaited<
-  ReturnType<NonNullable<ReturnType<typeof libraryQuery>["queryFn"]>>
+  ReturnType<NonNullable<ReturnType<typeof templatesQuery>["queryFn"]>>
 >["rows"][number];
 
 export interface PieceSheetProps {
@@ -59,7 +59,7 @@ export interface PieceSheetProps {
 }
 
 /**
- * A library piece as it reads, with what can be done with it: started in a
+ * A template as it reads, with what can be done with it: started in a
  * module or class as the teacher's own copy, or, waiting for review, shared
  * with the school or sent back to its owner with a note.
  */
@@ -71,7 +71,7 @@ export function PieceSheet({
 }: PieceSheetProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const reviews = useCapability("library:review");
+  const reviews = useCapability("templates:review");
   const section = piece.kind === "section";
   // A reply is used from inside a message, and a letter of admission is
   // the school's own to edit; neither starts a document of its own here.
@@ -118,13 +118,13 @@ export function PieceSheet({
       reviewTemplate({ data: { id: piece.id, share, note: note.trim() } }),
     onSuccess: async (_, share) => {
       await queryClient.invalidateQueries({ queryKey: ["templates"] });
-      toast.success(share ? m.libraryShared() : m.librarySentBack());
+      toast.success(share ? m.templatesShared() : m.templatesSentBack());
       onClose();
     },
   });
   const startModule = useMutation({
     mutationFn: () =>
-      moduleFromLibrary({ data: { id: piece.id, classId: chosen } }),
+      moduleFromTemplate({ data: { id: piece.id, classId: chosen } }),
     onSuccess: async ({ id }) => {
       await queryClient.invalidateQueries({ queryKey: ["learning"] });
       onClose();
@@ -226,9 +226,9 @@ export function PieceSheet({
           {reviewing && reviews ? (
             <>
               <FormField
-                id="library-note"
-                label={m.libraryNote()}
-                hint={m.libraryNoteHint()}
+                id="template-note"
+                label={m.templatesNote()}
+                hint={m.templatesNoteHint()}
                 optional
               >
                 {(control) => (
@@ -252,7 +252,7 @@ export function PieceSheet({
                   {decide.isPending && decide.variables ? (
                     <LoaderCircle className="animate-spin" aria-hidden />
                   ) : null}
-                  {m.libraryShare()}
+                  {m.templatesShare()}
                 </Button>
                 <Button
                   type="button"
@@ -261,7 +261,7 @@ export function PieceSheet({
                   disabled={decide.isPending}
                   onClick={() => decide.mutate(false)}
                 >
-                  {m.librarySendBack()}
+                  {m.templatesSendBack()}
                 </Button>
               </div>
             </>
@@ -269,19 +269,19 @@ export function PieceSheet({
             <>
               {places.length > 0 ? (
                 <SelectField
-                  id="library-use-in"
+                  id="template-use-in"
                   label={
                     piece.kind === "assignment" || piece.kind === "module"
-                      ? m.libraryClass()
+                      ? m.templatesClass()
                       : piece.kind === "consent_form"
-                        ? m.libraryPurpose()
-                        : m.libraryModule()
+                        ? m.templatesPurpose()
+                        : m.templatesModule()
                   }
                   hint={
                     piece.kind === "unit_plan"
-                      ? m.libraryPlanHint()
+                      ? m.templatesPlanHint()
                       : piece.kind === "consent_form"
-                        ? m.libraryPurposeHint()
+                        ? m.templatesPurposeHint()
                         : undefined
                   }
                   value={chosen}
@@ -291,7 +291,7 @@ export function PieceSheet({
               ) : null}
               {section || reply ? (
                 <p className="text-sm leading-5 text-muted-foreground">
-                  {section ? m.librarySectionHint() : m.libraryReplyHint()}
+                  {section ? m.templatesSectionHint() : m.templatesReplyHint()}
                 </p>
               ) : null}
               <div className="flex flex-wrap gap-2">
@@ -309,7 +309,7 @@ export function PieceSheet({
                     }
                     onClick={use}
                   >
-                    {letter ? m.libraryEditLetter() : m.libraryUse()}
+                    {letter ? m.templatesEditLetter() : m.templatesUse()}
                   </Button>
                 )}
                 <Button

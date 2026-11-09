@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_app/_staff/announcement-editor")({
   staticData: { breadcrumb: m.annEditorBreadcrumb, section: "/announcements" },
   validateSearch: v.object({
     id: v.optional(v.pipe(v.string(), v.uuid())),
-    /** A library piece a new one starts from. */
+    /** A template a new one starts from. */
     template: v.optional(v.pipe(v.string(), v.uuid())),
   }),
   loaderDeps: ({ search }) => search,

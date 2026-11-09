@@ -56,7 +56,7 @@ export const CAPABILITIES = [
   "learning:author",
   "learning:read",
   "standards:manage",
-  "library:review",
+  "templates:review",
   "exams:manage",
   "badges:issue",
   "billing:read",

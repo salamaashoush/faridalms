@@ -2789,7 +2789,7 @@ describe("a module's file area", () => {
 });
 
 describe("templates", () => {
-  test("a teacher offers a lesson to the school library, which shares it once reviewed", async () => {
+  test("a teacher offers a lesson as a school template, which is shared once reviewed", async () => {
     const { keeper, stranger } = await teachers();
     const saved = await keeper.templates.save({
       kind: "lesson",
@@ -2831,7 +2831,7 @@ describe("templates", () => {
         office.templates.review({ id: saved.id, share: false, note: "" }),
       ),
     ).toMatchObject({ code: "CONFLICT", message: "templates.reviewed" });
-    const shelf = await stranger.templates.library({
+    const shelf = await stranger.templates.browse({
       kind: "",
       q: "close reading",
     });
@@ -2876,15 +2876,15 @@ describe("templates", () => {
       subjectId: "",
     });
     expect(shared.state).toBe("shared");
-    // The copy the library keeps is in nobody's list of modules.
+    // The copy the template keeps is in nobody's list of modules.
     expect(await listed()).toBe(before);
-    const shelf = await stranger.templates.library({ kind: "module", q: "" });
+    const shelf = await stranger.templates.browse({ kind: "module", q: "" });
     expect(shelf.rows.map((row) => row.id)).toContain(shared.id);
     const preview = await stranger.templates.open({ id: shared.id });
     expect(JSON.stringify(preview.content)).toContain(lessons[0]?.title ?? "");
     const { classes } = await stranger.learning.modules({});
     const classId = classes[0]?.id ?? "";
-    const started = await stranger.learning.moduleFromLibrary({
+    const started = await stranger.learning.moduleFromTemplate({
       id: shared.id,
       classId,
     });
@@ -2896,7 +2896,7 @@ describe("templates", () => {
     );
     expect(
       await rejection(
-        stranger.learning.moduleFromLibrary({
+        stranger.learning.moduleFromTemplate({
           id: shared.id,
           classId: crypto.randomUUID(),
         }),
@@ -2905,7 +2905,7 @@ describe("templates", () => {
     await office.templates.remove({ id: shared.id });
     expect(
       await rejection(
-        stranger.learning.moduleFromLibrary({ id: shared.id, classId }),
+        stranger.learning.moduleFromTemplate({ id: shared.id, classId }),
       ),
     ).toMatchObject({ code: "NOT_FOUND" });
     // The copy leaves the module lists the tests after this one read by title.
@@ -2939,14 +2939,14 @@ describe("templates", () => {
       await rejection(keeper.templates.list({ kind: "consent_form" })),
     ).toMatchObject({ code: "FORBIDDEN" });
     expect(
-      (await keeper.templates.library({ kind: "", q: "" })).rows.some(
+      (await keeper.templates.browse({ kind: "", q: "" })).rows.some(
         (row) => row.kind === "consent_form",
       ),
     ).toBe(false);
     expect(
-      (
-        await office.templates.library({ kind: "consent_form", q: "" })
-      ).rows.map((row) => row.id),
+      (await office.templates.browse({ kind: "consent_form", q: "" })).rows.map(
+        (row) => row.id,
+      ),
     ).toContain(photos.id);
     await keeper.templates.remove({ id: trip.id });
     await office.templates.remove({ id: photos.id });

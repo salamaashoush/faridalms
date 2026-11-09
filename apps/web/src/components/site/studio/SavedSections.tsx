@@ -35,9 +35,9 @@ import { ScopeField, SharedUses } from "~/components/content/SharedBlocks";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { sectionTemplateQuery } from "~/queries/library";
 import { sharedSectionQuery } from "~/queries/shared";
 import { siteOverviewQuery } from "~/queries/site";
+import { sectionTemplateQuery } from "~/queries/templates";
 import { listShared, saveSharedSection } from "~/server/shared";
 import { listTemplates, saveSectionTemplate } from "~/server/templates";
 import { getMessageFromError } from "~/utils/error";
@@ -103,7 +103,7 @@ export interface SavedSectionPreviewProps {
 
 /**
  * A kept section drawn in the school's own website theme, in the reader's
- * language where it has it, as the library shows it.
+ * language where it has it, as Templates shows it.
  */
 export function SavedSectionPreview({ saved }: SavedSectionPreviewProps) {
   const user = useCurrentUser();
@@ -141,8 +141,8 @@ export interface SaveSectionDialogProps {
 }
 
 /**
- * Keeps a section, in both languages, to use again: as a library template
- * a new section starts from, reviewed as any library piece is, or as a
+ * Keeps a section, in both languages, to use again: as a template
+ * a new section starts from, reviewed as any template is, or as a
  * shared section the page then shows, kept the same on every page.
  */
 export function SaveSectionDialog({
@@ -505,7 +505,7 @@ export interface SavedSectionsProps {
 
 /**
  * The sections the school kept: its shared sections, which a page shows
- * as they stand and every change to which it follows, and the library's
+ * as they stand and every change to which it follows, and its
  * section templates, each copied onto the page to change freely.
  */
 export function SavedSections({

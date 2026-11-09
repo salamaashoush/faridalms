@@ -251,9 +251,9 @@ export function getMessageFromError(error: unknown): string {
       case "learning.targets_needed":
         return m.lrnErrTargetsNeeded();
       case "templates.reviewed":
-        return m.errorLibraryReviewed();
+        return m.errorTemplateReviewed();
       case "templates.not_owner":
-        return m.errorLibraryNotOwner();
+        return m.errorTemplateNotOwner();
       case "school_year.closed":
         return m.errorSchoolYearClosed();
       case "school_year.overlapping":

@@ -5,7 +5,7 @@ import * as v from "valibot";
 import { ConsentFormEditor } from "~/components/consents/ConsentFormEditor";
 import * as m from "~/i18n/messages";
 import { consentFormQuery } from "~/queries/consents";
-import { templateQuery } from "~/queries/library";
+import { templateQuery } from "~/queries/templates";
 import { currentUserQuery } from "~/queries/user";
 import { requirePage } from "~/utils/page-access";
 
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_app/consent-form-editor")({
   staticData: { breadcrumb: m.consentFormEditing, section: "/privacy" },
   validateSearch: v.object({
     purpose: v.pipe(v.string(), v.uuid()),
-    /** A library piece the form starts from, while it says nothing yet. */
+    /** A template the form starts from, while it says nothing yet. */
     template: v.optional(v.pipe(v.string(), v.uuid())),
   }),
   loaderDeps: ({ search }) => search,

@@ -20,7 +20,7 @@ import {
   moduleRecordQuery,
   routeChoicesQuery,
 } from "~/queries/learning";
-import { templateQuery } from "~/queries/library";
+import { templateQuery } from "~/queries/templates";
 import { currentUserQuery } from "~/queries/user";
 import { requirePage } from "~/utils/page-access";
 
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_app/_staff/lesson-editor")({
   validateSearch: v.object({
     id: v.optional(v.pipe(v.string(), v.uuid())),
     moduleId: v.pipe(v.string(), v.uuid()),
-    /** A library piece a new lesson starts from. */
+    /** A template a new lesson starts from. */
     template: v.optional(v.pipe(v.string(), v.uuid())),
   }),
   loaderDeps: ({ search }) => search,

@@ -21,7 +21,7 @@ import {
 } from "@faridalms/domain/saved-sections";
 import {
   KEPT_BUILTIN_KINDS,
-  librarySchema,
+  browseTemplatesSchema,
   reviewTemplateSchema,
   saveSectionTemplateSchema,
   saveTemplateSchema,
@@ -36,7 +36,6 @@ import { ORPCError } from "@orpc/server";
 import type { UnitContext } from "../core/context";
 
 import { refuseIfHeld } from "../core/holds";
-import { templateHost, usableTemplate, writesKind } from "../core/library";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -45,6 +44,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { templateHost, usableTemplate, writesKind } from "../core/templates";
 import {
   placeMedia,
   registerHostReader,
@@ -70,7 +70,8 @@ const listed = (context: UnitContext, row: TemplateRow) => ({
 /** Its owner or a reviewer changes a piece; a built-in one, whoever writes its kind. */
 const mayChange = (context: UnitContext, row: TemplateRow) =>
   row.ownerUserId
-    ? row.ownerUserId === context.actor.userId || can(context, "library:review")
+    ? row.ownerUserId === context.actor.userId ||
+      can(context, "templates:review")
     : writesKind(context, row.kind);
 
 // Whoever may start from a template may open the pictures and files in it.
@@ -96,9 +97,9 @@ export const list = readProcedure
     return rows.map((row) => listed(context, row));
   });
 
-/** The school library: what it shares of the kinds the viewer writes, and their own. */
-export const library = readProcedure
-  .input(librarySchema)
+/** The school's templates: what it shares of the kinds the viewer writes, and their own. */
+export const browse = readProcedure
+  .input(browseTemplatesSchema)
   .handler(async ({ input, context }) => {
     const kinds = TEMPLATE_KINDS.filter((kind) => writesKind(context, kind));
     if (kinds.length === 0) throw new ORPCError("FORBIDDEN");
@@ -114,13 +115,13 @@ export const library = readProcedure
       rows: rows
         .filter((row) => kinds.includes(row.kind))
         .map((row) => listed(context, row)),
-      reviews: can(context, "library:review"),
+      reviews: can(context, "templates:review"),
     };
   });
 
-/** What teachers have offered the library and waits for a reviewer. */
+/** What teachers have offered as templates and waits for a reviewer. */
 export const queue = readProcedure.handler(async ({ context }) => {
-  requireCapability(context, "library:review");
+  requireCapability(context, "templates:review");
   const rows = await templatesOf(context.tx, {
     tenantId: context.tenantId,
     orgId: context.schoolId,
@@ -135,7 +136,7 @@ export const queue = readProcedure.handler(async ({ context }) => {
 export const review = writeProcedure
   .input(reviewTemplateSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "library:review");
+    requireCapability(context, "templates:review");
     const row = await templateById(context.tx, context.tenantId, input.id);
     if (!row || row.orgId !== context.schoolId)
       throw new ORPCError("NOT_FOUND");
@@ -154,7 +155,7 @@ export const review = writeProcedure
       objectId: row.id,
       details: { title: row.title },
     });
-    // Its owner hears how it went, and finds the reviewer's note in the library.
+    // Its owner hears how it went, and finds the reviewer's note in Templates.
     const [reviewer] = await namesOf(context.tx, context.tenantId, [
       context.actor.userId,
     ]);
@@ -201,7 +202,7 @@ export const save = writeProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, ...TEMPLATE_AUTHORS[input.kind]);
     // A reviewer's own piece needs no other reviewer.
-    const state = can(context, "library:review") ? "shared" : "pending";
+    const state = can(context, "templates:review") ? "shared" : "pending";
     const created = await insertTemplate(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -236,7 +237,7 @@ export const save = writeProcedure
   });
 
 /**
- * Keeps a website section, in both languages, in the school's library, to
+ * Keeps a website section, in both languages, in the school's templates, to
  * start new sections from on any page. Its pictures and files are copied
  * in, so it stays whole whatever becomes of the page it came from, and it
  * waits for a reviewer as any other piece does.
@@ -245,7 +246,7 @@ export const saveSection = writeProcedure
   .input(saveSectionTemplateSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, ...TEMPLATE_AUTHORS.section);
-    const state = can(context, "library:review") ? "shared" : "pending";
+    const state = can(context, "templates:review") ? "shared" : "pending";
     const created = await insertTemplate(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -345,7 +346,7 @@ export const update = writeProcedure
     return { version };
   });
 
-/** Takes away a library piece its owner, or a reviewer, no longer wants offered. */
+/** Takes away a template its owner, or a reviewer, no longer wants offered. */
 export const remove = writeProcedure
   .input(templateRefSchema)
   .handler(async ({ input, context }) => {
@@ -355,7 +356,7 @@ export const remove = writeProcedure
       throw new ORPCError("CONFLICT", { message: "templates.kept" });
     if (
       row.ownerUserId !== context.actor.userId &&
-      !can(context, "library:review")
+      !can(context, "templates:review")
     )
       throw new ORPCError("FORBIDDEN", { message: "templates.not_owner" });
     await removeTemplate(context.tx, {

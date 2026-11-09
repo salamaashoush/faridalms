@@ -81,15 +81,15 @@ export const libraryTile: MediaGridTile<LibraryRow> = {
 export function hostKindLabel(hostType: string): string {
   switch (hostType) {
     case "lesson":
-      return m.libraryKindLesson();
+      return m.templateKindLesson();
     case "assignment":
-      return m.libraryKindAssignment();
+      return m.templateKindAssignment();
     case "module_plan":
-      return m.libraryKindPlan();
+      return m.templateKindPlan();
     case "announcement":
-      return m.libraryKindAnnouncement();
+      return m.templateKindAnnouncement();
     case "news":
-      return m.libraryKindNews();
+      return m.templateKindNews();
     case "site_page":
       return m.sharedUsePage();
     case "calendar_event":

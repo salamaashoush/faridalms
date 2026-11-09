@@ -231,7 +231,7 @@ import {
 } from "@faridalms/domain/standards";
 import {
   shareModuleSchema,
-  moduleFromLibrarySchema,
+  moduleFromTemplateSchema,
 } from "@faridalms/domain/templates";
 import {
   documentWritten,
@@ -252,7 +252,6 @@ import {
   mayEditModule,
   moduleOfSchool,
 } from "../core/learning-access";
-import { templateHost, usableTemplate } from "../core/library";
 import { publishTelling } from "../core/mentions";
 import { spreadModuleDiscussions } from "../core/module-discussions";
 import { modulesOf } from "../core/modules";
@@ -269,6 +268,7 @@ import { wordsIssues } from "../core/publication";
 import { requireStudent, requireTaught, teaches } from "../core/reach";
 import { applyRemarks } from "../core/remarks";
 import { signalPacing } from "../core/signals";
+import { templateHost, usableTemplate } from "../core/templates";
 import { checkTranslation } from "../core/translation-review";
 import {
   registerArea,
@@ -1265,7 +1265,7 @@ export const duplicateModule = writeProcedure
     return created;
   });
 
-/** What a module offered to the library is, for its preview: its summary and lessons. */
+/** What a module offered as a template is, for its preview: its summary and lessons. */
 function moduleOverview(
   summary: string,
   lessons: readonly { title: string }[],
@@ -1280,7 +1280,7 @@ function moduleOverview(
 }
 
 /**
- * Offers a whole module to the school library, its lessons, their rules
+ * Offers a whole module as a school template, its lessons, their rules
  * and its unit plan. What is kept is a copy, archived and set for no
  * class, so the piece stays as offered whatever becomes of the module; a
  * reviewer's own piece needs no other reviewer.
@@ -1301,7 +1301,7 @@ export const shareModule = writeProcedure
       state: "archived",
       publishAt: context.now.toISOString(),
     });
-    const state = can(context, "library:review") ? "shared" : "pending";
+    const state = can(context, "templates:review") ? "shared" : "pending";
     const created = await insertTemplate(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -1335,9 +1335,9 @@ export const shareModule = writeProcedure
     return { ...created, state };
   });
 
-/** Starts a module from the library for one of the teacher's classes, as a draft of their own. */
-export const moduleFromLibrary = writeProcedure
-  .input(moduleFromLibrarySchema)
+/** Starts a module from a template for one of the teacher's classes, as a draft of their own. */
+export const moduleFromTemplate = writeProcedure
+  .input(moduleFromTemplateSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "learning:author");
     const piece = await usableTemplate(context, input.id);

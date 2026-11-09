@@ -162,7 +162,7 @@ function conditionOf(draft: Draft): LessonCondition | null | undefined {
 export interface LessonEditorProps {
   existing: Existing | null;
   moduleId: string;
-  /** The library piece a new lesson starts from. */
+  /** The template a new lesson starts from. */
   template?: StartingPiece;
   onClose: () => void;
   onCreated: (id: string) => void;
