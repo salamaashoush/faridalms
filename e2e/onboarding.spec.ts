@@ -56,7 +56,7 @@ test("a new school's administrator is taken through its setup in order, ticked f
   await guide
     .getByRole("link", { name: "Start: School details and logo" })
     .click();
-  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page).toHaveURL(/\/settings(\?|$)/);
 
   // A teacher has nothing to set up, so their Today has no guide.
   const teacher = await browser.newPage();

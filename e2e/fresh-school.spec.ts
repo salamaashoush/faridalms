@@ -101,20 +101,37 @@ async function tabsOf(page: Page, href: string): Promise<string[]> {
   return faults;
 }
 
-/** Opens every page in the menu and every tab of each, noting what fails. */
-async function walk(page: Page, who: keyof typeof MORE) {
-  await untilHydrated(page);
-  const hrefs = await page
-    .getByRole("navigation")
+/**
+ * What the navigation offers on the page in view, with every section's
+ * More opened, since a folded link is offered all the same.
+ */
+async function offered(page: Page): Promise<string[]> {
+  const folded = page.getByRole("button", {
+    name: /^More in /,
+    expanded: false,
+  });
+  while ((await folded.count()) > 0) await folded.first().click();
+  return page
+    .getByRole("navigation", { name: "Primary" })
     .getByRole("link")
     .evaluateAll((links) =>
       links
         .map((link) => link.getAttribute("href"))
         .filter((href): href is string => href?.startsWith("/") ?? false),
     );
-  expect(hrefs.length).toBeGreaterThan(0);
+}
+
+/**
+ * Opens every page the navigation offers, and those it offers once an
+ * area is open, with every tab of each, noting what fails.
+ */
+async function walk(page: Page, who: keyof typeof MORE) {
+  await untilHydrated(page);
+  const queue = [...new Set([...(await offered(page)), ...(MORE[who] ?? [])])];
+  expect(queue.length).toBeGreaterThan(0);
+  const seen = new Set(queue);
   const faults: string[] = [];
-  for (const href of new Set([...hrefs, ...(MORE[who] ?? [])])) {
+  for (let href = queue.shift(); href !== undefined; href = queue.shift()) {
     await open(page, href);
     const found = await faultsOf(page, href);
     faults.push(...found);
@@ -122,6 +139,11 @@ async function walk(page: Page, who: keyof typeof MORE) {
     if (found.some((fault) => !fault.endsWith(": blank"))) continue;
     try {
       faults.push(...(await tabsOf(page, href)));
+      for (const next of await offered(page))
+        if (!seen.has(next)) {
+          seen.add(next);
+          queue.push(next);
+        }
     } catch (error) {
       faults.push(`${href}: ${String(error).split("\n")[0]}`);
     }
