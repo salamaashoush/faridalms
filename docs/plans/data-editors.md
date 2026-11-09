@@ -392,6 +392,30 @@ Grade scales.
   fixed set, so they have no Add: a school sets or clears the amount of a
   fee it charges. Priorities stay an ordered list, as before.
 
+### Messages by score
+
+`apps/web/src/components/learning/FeedbackBands.tsx`, a module's mixed
+review, a scored lesson's and a quiz's settings.
+
+- **Sources.** Moodle's quiz overall feedback pairs each message with a
+  grade boundary, each running to the next. Canvas edits a criterion's
+  ratings together in its "Edit criterion" dialog and works out where
+  each starts from the next (canvas-lms, CriterionModal.tsx and
+  rubricUtils.ts); Toddle's comment bank is keyed by grade and subject,
+  not by score (weak source).
+- **Decision.** The messages are the standard table, highest first, with
+  the scores each covers worked out from the next ("80% and above",
+  "0 to under 80%") and the message as a wrapping column. A message opens
+  in a sheet with the score it starts at (its hint says what it covers)
+  and the message; Add opens it starting at the first free score of 80
+  and 0. Remove asks first. In a lesson's or a quiz's 280px settings
+  panel the table draws as cards, its phone layout.
+- **Why it departs from Canvas, and why that is safe.** A message holds
+  only its lower score and its range is derived, so one message changes
+  without touching another; the one rule of the set, a score used once,
+  is checked in the sheet. The rows belong to the lesson, quiz or module
+  being written and are kept with it, saved by its own Save or autosave.
+
 ## Ranking, worst first
 
 | #   | Editor                                   | Where                                                       | State                                                                  |
@@ -407,7 +431,7 @@ Grade scales.
 | 9   | Quote and provisioning add-ons (console) | `apps/ops/src/components/QuoteAddOns.tsx`, `provisioning.*` | Quote add-ons a table; provisioning add-ons left                       |
 | 10  | Bell schedule extras                     | `apps/web/src/components/years/BellSchedules.tsx`           | Rebuilt: day's times and own periods as rows                           |
 | 11  | Prices (console)                         | `apps/ops/src/components/PriceFields.tsx`                   | Rebuilt: a table, each price in its own sheet                          |
-| 12  | Feedback bands                           | `apps/web/src/components/learning/FeedbackBands.tsx`        | Rebuilt                                                                |
+| 12  | Feedback bands                           | `apps/web/src/components/learning/FeedbackBands.tsx`        | Rows: a message per row, the scores it covers derived                  |
 | 13  | Rollover classes                         | `apps/web/src/components/years/Rollover.tsx`                | Left                                                                   |
 | 14  | Previous schools (apply)                 | `apps/web/src/components/admissions/ApplicationForm.tsx`    | Left                                                                   |
 | 15  | Hosts in provisioning (console)          | `apps/ops/src/components/DraftHosts.tsx`                    | Rebuilt: a table, each host saved from its sheet                       |

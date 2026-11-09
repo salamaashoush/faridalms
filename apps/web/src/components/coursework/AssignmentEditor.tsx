@@ -1664,6 +1664,7 @@ export function AssignmentEditor({
                 <FeedbackBands
                   bands={draft.quiz.bands}
                   onChange={(value) => setQuiz("bands", value)}
+                  layout="cards"
                 />
               </DetailsSection>
             ) : null}

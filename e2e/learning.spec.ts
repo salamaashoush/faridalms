@@ -206,15 +206,25 @@ test("a student reviews a module's finished lessons together and reads the messa
   // What a student reads after a mixed review is set on the module.
   await page.getByRole("button", { name: "Edit module" }).click();
   await untilHydrated(page);
-  const review = page.getByRole("group", { name: "Message by score" });
-  await review.getByRole("button", { name: "Add a message" }).click();
-  await review
-    .getByRole("textbox", { name: "Message from 80%" })
-    .fill("You know your colours.");
-  await review.getByRole("button", { name: "Add a message" }).click();
-  await review
-    .getByRole("textbox", { name: "Message from 0%" })
-    .fill("Look at the colours again.");
+  // Each message is added in its own sheet, starting at the first score
+  // not yet taken (80, then 0); the grid of inputs it replaced was found
+  // by its cells' names.
+  const review = page.getByRole("region", { name: "Message by score" });
+  const addMessage = async (text: string) => {
+    await review.getByRole("button", { name: "Add a message" }).click();
+    const sheet = page.getByRole("dialog", { name: "Add a message" });
+    await sheet.getByRole("textbox", { name: "Message" }).fill(text);
+    await sheet.getByRole("button", { name: "Add a message" }).click();
+    await expect(sheet).toBeHidden();
+  };
+  await addMessage("You know your colours.");
+  await addMessage("Look at the colours again.");
+  await expect(
+    review.getByRole("row", { name: /^80% and above/ }),
+  ).toContainText("You know your colours.");
+  await expect(
+    review.getByRole("row", { name: /^0 to under 80%/ }),
+  ).toContainText("Look at the colours again.");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page).toHaveURL(recordUrl);
   await chooseFromMenu(

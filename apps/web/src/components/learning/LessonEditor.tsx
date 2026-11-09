@@ -788,6 +788,7 @@ export function LessonEditor({
                 <FeedbackBands
                   bands={draft.bands}
                   onChange={(bands) => set("bands", bands)}
+                  layout="cards"
                 />
               ) : null}
             </DetailsSection>
