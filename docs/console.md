@@ -288,8 +288,10 @@ version, and a version no longer offered is retired.
 - **History** is the record's change log: each version added and retired,
   by whom, when and why.
 - **The version sheet** groups its fields under headings: the version
-  (names, the day it is sold from), Prices (each price its own box:
-  currency and how it is charged, then the amount and the least a year),
+  (names, the day it is sold from), Prices (a table of each price, how
+  it is charged and the least a year, with Add price; Add, or a price's
+  row, opens that one price in a sheet over the version's: currency, how
+  it is charged, the amount and the least a year; Remove asks first),
   Modules, Storage (empty takes the platform's default) and Allowances
   (empty is unlimited), each field as wide as its answer, then Why.
 

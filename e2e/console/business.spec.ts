@@ -70,11 +70,24 @@ test("an owner sells a plan, versions it and retires the old version", async ({
   await page.getByRole("button", { name: "New version" }).click();
   const next = page.getByRole("form", { name: `New version of ${name}` });
   await next.getByLabel("Students", { exact: true }).fill("500");
+  // A price is changed in a sheet of its own, over the version's.
+  await next
+    .getByRole("button", { name: "Edit EGP 350.00 per student a year" })
+    .click();
+  const price = page.getByRole("form", {
+    name: "Edit the price in EGP per student a year",
+  });
+  await price.getByLabel("Amount (EGP)").fill("375");
+  await price.getByRole("button", { name: "Save price" }).click();
+  await expect(price).toBeHidden();
   await next.getByLabel("Why").fill("More students for the price");
   await next.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("New version saved.")).toBeVisible();
   await expect(versions.getByRole("row", { name: /^Version 2/ })).toContainText(
     "Students: 400 → 500",
+  );
+  await expect(versions.getByRole("row", { name: /^Version 2/ })).toContainText(
+    "Price per student a year: EGP 350.00 → EGP 375.00",
   );
 
   await more.click();

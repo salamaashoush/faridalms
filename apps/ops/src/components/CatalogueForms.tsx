@@ -3,7 +3,11 @@ import type {
   PlanVersionRow,
 } from "@faridalms/database/business/catalogue";
 import type { ModuleId } from "@faridalms/domain/modules";
-import type { AddOnKind, LimitKey } from "@faridalms/domain/subscriptions";
+import type {
+  AddOnKind,
+  LimitKey,
+  Price,
+} from "@faridalms/domain/subscriptions";
 
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import { BASIC_ENTITLEMENTS, settableOf } from "@faridalms/domain/plans";
@@ -31,7 +35,7 @@ import {
 import { retire, saveAddOn, savePlan } from "../server/catalogue";
 import { CountFields, draftOf, limitsOf, StorageFields } from "./LimitFields";
 import { ModuleFields } from "./ModuleFields";
-import { PriceFields, priceDraftOf, pricesOf } from "./PriceFields";
+import { PriceFields } from "./PriceFields";
 import { ReasonSheet } from "./ReasonSheet";
 import { WhyField } from "./Why";
 
@@ -162,9 +166,7 @@ export function PlanForm({
   const [limits, setLimits] = useState(() =>
     draftOf(pickLimits(from ?? settableOf(BASIC_ENTITLEMENTS))),
   );
-  const [prices, setPrices] = useState(() =>
-    (from?.prices ?? []).map(priceDraftOf),
-  );
+  const [prices, setPrices] = useState<Price[]>(from?.prices ?? []);
   const [submitted, setSubmitted] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -177,11 +179,6 @@ export function PlanForm({
       error={answer}
       onSubmit={async () => {
         setSubmitted(true);
-        const priced = pricesOf(prices);
-        if (!priced) {
-          setAnswer("Give each price an amount, or remove it.");
-          return;
-        }
         if (basicsMissing(basics, !from)) return;
         setSaving(true);
         setAnswer(null);
@@ -195,7 +192,7 @@ export function PlanForm({
                 nameAr: basics.nameAr,
                 modules,
                 limits: limitsOf(limits),
-                prices: priced,
+                prices,
                 validFrom: basics.validFrom,
                 reason: basics.reason,
               },
@@ -223,7 +220,7 @@ export function PlanForm({
         <BasicsFields basics={basics} newOne={!from} submitted={submitted} />
       </FormSection>
       <FormSection title="Prices">
-        <PriceFields drafts={prices} onChange={setPrices} checked={submitted} />
+        <PriceFields prices={prices} onChange={setPrices} />
       </FormSection>
       <FormSection title="Modules">
         <ModuleFields modules={modules} onChange={setModules} labelHidden />
@@ -281,9 +278,7 @@ export function AddOnForm({
       ? String(isStorageKey(from.limitKey) ? from.amount / GIB : from.amount)
       : "",
   );
-  const [prices, setPrices] = useState(() =>
-    (from?.prices ?? []).map(priceDraftOf),
-  );
+  const [prices, setPrices] = useState<Price[]>(from?.prices ?? []);
   const [submitted, setSubmitted] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -297,11 +292,6 @@ export function AddOnForm({
       error={answer}
       onSubmit={async () => {
         setSubmitted(true);
-        const priced = pricesOf(prices);
-        if (!priced) {
-          setAnswer("Give each price an amount, or remove it.");
-          return;
-        }
         const typed = Number(amount);
         const packed =
           kind === "limit_pack" && Number.isFinite(typed) && typed > 0
@@ -326,7 +316,7 @@ export function AddOnForm({
                 module: kind === "module" ? module : null,
                 limitKey: kind === "limit_pack" ? limitKey : null,
                 amount: packed,
-                prices: priced,
+                prices,
                 validFrom: basics.validFrom,
                 reason: basics.reason,
               },
@@ -389,7 +379,7 @@ export function AddOnForm({
         ) : null}
       </FormSection>
       <FormSection title="Prices">
-        <PriceFields drafts={prices} onChange={setPrices} checked={submitted} />
+        <PriceFields prices={prices} onChange={setPrices} />
       </FormSection>
       <WhyField
         value={basics.reason}

@@ -195,8 +195,15 @@ export async function addPlan(page: Page, name: string) {
   await form.getByLabel("Name in Arabic").fill("الخطة التجريبية");
   await form.getByRole("checkbox", { name: "Coding and blocks" }).check();
   await form.getByLabel("Students", { exact: true }).fill("400");
-  await form.getByRole("button", { name: "Add a price" }).click();
-  await form.getByLabel("Amount").fill("350");
+  await form.getByRole("button", { name: "Add price" }).click();
+  const price = page.getByRole("form", { name: "Add a price" });
+  await price.getByLabel("Amount (EGP)").fill("350");
+  await price.getByRole("button", { name: "Add price" }).click();
+  await expect(
+    form.getByRole("table", { name: "Prices" }).getByRole("row", {
+      name: /EGP 350.00 per student a year/,
+    }),
+  ).toBeVisible();
   await form.getByLabel("Why").fill("The launch catalogue");
   await form.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Plan saved.")).toBeVisible();
