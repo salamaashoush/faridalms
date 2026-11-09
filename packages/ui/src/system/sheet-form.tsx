@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Button } from "../button";
+import { cn } from "../cn";
 import {
   Sheet,
   SheetClose,
@@ -28,6 +29,8 @@ export interface SheetFormProps {
   destructive?: boolean;
   /** What happened to what is written so far, as a sheet that keeps a draft says. */
   status?: string | null;
+  /** Wide holds a matrix, such as a rubric's criteria by levels. */
+  size?: "default" | "wide";
   children: ReactNode;
 }
 
@@ -47,6 +50,7 @@ export function SheetForm({
   submitLabel,
   destructive = false,
   status,
+  size = "default",
   children,
 }: SheetFormProps) {
   const strings = useSystemStrings();
@@ -63,7 +67,12 @@ export function SheetForm({
       <SheetContent
         side={side}
         showCloseButton={false}
-        className="gap-0 p-0 data-[side=left]:w-full data-[side=right]:w-full data-[side=left]:sm:max-w-[480px] data-[side=right]:sm:max-w-[480px]"
+        className={cn(
+          "gap-0 p-0 data-[side=left]:w-full data-[side=right]:w-full",
+          size === "wide"
+            ? "data-[side=left]:sm:max-w-[960px] data-[side=right]:sm:max-w-[960px]"
+            : "data-[side=left]:sm:max-w-[480px] data-[side=right]:sm:max-w-[480px]",
+        )}
       >
         <form
           noValidate

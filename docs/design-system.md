@@ -27,6 +27,7 @@ package gains it first, with a test and a line in this table.
 | Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                                                                                                                                                  |
 | Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                                                                                                                                            |
 | Data editors   | `data-grid` (`DataGrid`, `GridFigure`, `NumberCell`, `TextCell`, `NoteCell`, `SelectCell`, `CheckCell`, `TimeCell`, `DateCell`, `GridAddButton`, `GridRemoveButton`, `useFocusAfterRender`): figures and rows read at a glance and edited in place |
+| Rubrics        | `rubric` (`RubricMatrix`, `RubricLevelPicker`, `RubricLevelEditor`): criteria by levels, read, marked and written one criterion at a time                                                                                                          |
 | Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `CheckboxGroupField`, `FieldError`), `combobox-field`, `time-zone-field`                                                                                                     |
 | Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                                                                                                                                              |
 | Empty states   | `empty-state` (`EmptyState`, `FilteredEmptyState`, `EmptyStateScope`), `record-page` (`RecordEmpty`), `value` (`Value absent`)                                                                                                                     |
@@ -404,7 +405,7 @@ record with tabs never uses it.
 #### Section sheets
 
 - A section is edited in a sheet from the end side, 480px wide, full width on
-  phones. The title sits in a header row with the close button (32px, 40px on
+  phones. A sheet that holds a matrix (a rubric) is 960px (`size="wide"`). The title sits in a header row with the close button (32px, 40px on
   phones) centred on it.
 - Fields follow the Forms rules. Save and Cancel sit in the footer, start side;
   a server error that belongs to a field appears on that field.
@@ -577,10 +578,11 @@ reasoning and the list of editors still to move is
   a trash icon on every row. A list of like rows (bands, lines, periods)
   adds with an "Add" button under it and removes with a quiet × at each
   row's end, named for the row (GOV.UK "Add another").
-- **Sentences get a line of their own.** Text too long for a column (what
-  work at a rubric level looks like) is a `NoteCell` on the row's own
-  line under it (`rowDetail`), never a one-line field squeezed into a
-  column, and never a stack of boxes per row.
+- **Sentences get a line of their own.** Text too long for a column (a
+  few sentences about a row) is a `NoteCell` on the row's own line under
+  it (`rowDetail`), never a one-line field squeezed into a column, and
+  never a stack of boxes per row. A matrix whose cells are themselves
+  sentences is not a grid of this kind (Rubrics below).
 - **What a list derives is shown beside it.** A figure worked out from the
   rows sits in the grid, never in a sentence under it: the scores each
   grade band covers are a column ("70 to under 90"), and weights that must
@@ -601,6 +603,47 @@ reasoning and the list of editors still to move is
   column's heading is read, not shown. A wider grid scrolls in its own
   named region with its first column held in place. Columns follow the
   reading direction; figures never reverse.
+
+### Rubrics
+
+A rubric is criteria by levels, each level worth points and saying what
+work at it looks like (Canvas, Google Classroom, Brightspace, Teams). It
+is not a `DataGrid`: its cells are sentences, and the same matrix is
+written by a teacher, used by a grader and read by a student and a
+family, so all four share `packages/ui/src/system/rubric.tsx`. The
+research and the decisions are in `docs/plans/data-editors.md` under
+Rubric.
+
+- **Read as a matrix.** `RubricMatrix` shows each criterion on a tinted
+  row with the most it earns ("Up to 4 points"), then its levels side by
+  side in the order written, each with its name, its points and its
+  description. Levels stand side by side while the container gives each
+  about 9rem, so up to six in the 960px sheet and four in a reader; below
+  that, and on a phone, they stack as a list. Columns follow the reading
+  direction. A Total row ends a rubric being written.
+- **Awarded in words.** An awarded level is outlined in the primary
+  colour and says "Awarded", and its criterion says "3 of 4 points" or
+  "Not marked"; a grader's comment on a criterion sits under its levels.
+- **Written one criterion at a time.** While writing, each criterion's
+  row ends in Edit and a `•••` (Move up, Move down, Duplicate, Remove,
+  which asks). Edit opens that criterion in place of its levels: its
+  name, then `RubricLevelEditor`, then the standards it counts toward,
+  with Done and Cancel ("Cancel changes to Use of evidence"). Opening
+  another, adding one or using the rubric first checks the open one and
+  keeps it open on what it lacks. The rest of the rubric stays readable
+  around it, so wording is matched against the other criteria.
+- **A level is one row.** `RubricLevelEditor` puts a level's name, its
+  points and its description side by side under column headings, the
+  description taking the room left and growing with its text; on a phone
+  each row stacks with its own labels. Points are text in either script,
+  like `NumberCell`. Each level's `•••` moves it up or down or removes
+  it, and the move is announced; Add a level puts one at the end and
+  focuses its name.
+- **Marked by choosing.** `RubricLevelPicker` is one criterion's levels
+  as a radio group: every level with its points and description, so the
+  grader reads the descriptors while choosing, the chosen one outlined as
+  an awarded cell is, and Clear to take it back. A classmate's review
+  uses it without points.
 
 ## Forms
 

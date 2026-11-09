@@ -95,7 +95,7 @@ export interface DataGridProps<Row> {
   rowEnd?: (row: Row) => ReactNode;
   /**
    * A line of its own under each row for what is too long for a column,
-   * such as what work at a rubric level looks like.
+   * such as a note on the row or its second-language name.
    */
   rowDetail?: (row: Row) => ReactNode;
   editing?: boolean;
@@ -915,7 +915,7 @@ export function TextCell({
 
 export interface NoteCellProps {
   id: string;
-  /** The cell's full name, such as "What work at Meets looks like". */
+  /** The cell's full name, such as "Note on Grade 2". */
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -925,7 +925,7 @@ export interface NoteCellProps {
 
 /**
  * A few sentences written in a row's own line (`DataGrid rowDetail`),
- * such as what work at a level looks like. Its text takes its own
+ * such as a note on the row. Its text takes its own
  * direction; Enter starts a new line, so the arrows and Enter stay the
  * text's, and Escape puts back what it held when it was reached.
  */

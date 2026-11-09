@@ -97,6 +97,28 @@ export interface SystemStrings {
   reset: string;
   rowActions: (name: string) => string;
   rowsPerPage: string;
+  /** Points a level is worth, worded for the number. */
+  rubricPoints: (count: number) => string;
+  /** The most a criterion earns, given its points already worded. */
+  rubricBest: (points: string) => string;
+  rubricScored: (score: string, best: string) => string;
+  rubricAwarded: string;
+  rubricNotMarked: string;
+  rubricTotal: string;
+  rubricCancelEdit: (criterion: string) => string;
+  rubricLevelsOf: (criterion: string) => string;
+  rubricClear: (criterion: string) => string;
+  rubricLevelMoved: (level: string, position: string) => string;
+  rubricMoveUp: string;
+  rubricMoveDown: string;
+  rubricRemoveLevel: string;
+  rubricAddLevel: string;
+  rubricLevelName: string;
+  rubricLevelPoints: string;
+  rubricLevelDescription: string;
+  rubricLevelNameOf: (number: string) => string;
+  rubricLevelPointsOf: (level: string) => string;
+  rubricLevelDescriptionOf: (level: string) => string;
   save: string;
   saved: string;
   searchAndFilter: string;
