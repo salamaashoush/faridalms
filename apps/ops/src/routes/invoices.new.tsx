@@ -1,3 +1,5 @@
+import type { InvoiceLine } from "@faridalms/domain/invoices";
+
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { FormFooter } from "@faridalms/ui/system/form-footer";
@@ -11,11 +13,7 @@ import { toast } from "sonner";
 import * as v from "valibot";
 
 import { attemptWith } from "../actions";
-import {
-  blankLine,
-  InvoiceLinesFields,
-  linesOf,
-} from "../components/InvoiceLinesForm";
+import { InvoiceLines } from "../components/InvoiceLinesForm";
 import { addInvoice, getInvoiceCustomers } from "../server/invoicing";
 
 export const Route = createFileRoute("/invoices/new")({
@@ -39,7 +37,7 @@ function NewInvoice() {
   const add = useServerFn(addInvoice);
   const fixed = customers.find((row) => row.id === given);
   const [customerId, setCustomerId] = useState(fixed?.id ?? "");
-  const [drafts, setDrafts] = useState(() => [blankLine()]);
+  const [lines, setLines] = useState<InvoiceLine[]>([]);
   const [forDay, setForDay] = useState(today);
   const [submitted, setSubmitted] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
@@ -63,9 +61,8 @@ function NewInvoice() {
           event.preventDefault();
           setSubmitted(true);
           if (!customer) return;
-          const read = linesOf(drafts);
-          if (!read.ok) {
-            setAnswer(read.message);
+          if (lines.length === 0) {
+            setAnswer("Add a line.");
             return;
           }
           setSaving(true);
@@ -73,7 +70,7 @@ function NewInvoice() {
           const out = await attemptWith(
             () =>
               add({
-                data: { customerId: customer.id, forDay, lines: read.lines },
+                data: { customerId: customer.id, forDay, lines },
               }),
             "The invoice could not be drafted.",
           );
@@ -122,17 +119,25 @@ function NewInvoice() {
           />
         </FormSection>
         <FormSection title="Lines">
-          <InvoiceLinesFields
+          <InvoiceLines
+            caption="Lines"
             currency={customer?.currency ?? null}
-            drafts={drafts}
-            onChange={setDrafts}
-            checked={submitted}
-            surface="page"
+            lines={lines}
+            onSave={(next) => {
+              setLines(next);
+              if (next.length) setAnswer(null);
+              return null;
+            }}
             vat={
               customer
                 ? { percent: customer.vatPercent, name: customer.vatName }
                 : undefined
             }
+            empty={{
+              title: "Add what the invoice is for",
+              description:
+                "Each line is a service or an item, in English and Arabic, with its quantity, price and any discount; the VAT and total are worked out under them.",
+            }}
           />
         </FormSection>
         <FormFooter

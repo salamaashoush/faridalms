@@ -42,6 +42,7 @@ import { Route as SubscriptionsIndexRouteImport } from './routes/subscriptions.i
 import { Route as SubscriptionsSubscriptionIdRouteImport } from './routes/subscriptions.$subscriptionId'
 import { Route as CatalogueAddOnsAddOnIdRouteImport } from './routes/catalogue.add-ons.$addOnId'
 import { Route as CataloguePlansPlanIdRouteImport } from './routes/catalogue.plans.$planId'
+import { Route as InvoicesInvoiceIdCreditRouteImport } from './routes/invoices.$invoiceId_.credit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -209,6 +210,11 @@ const CataloguePlansPlanIdRoute = CataloguePlansPlanIdRouteImport.update({
   path: '/catalogue/plans/$planId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InvoicesInvoiceIdCreditRoute = InvoicesInvoiceIdCreditRouteImport.update({
+  id: '/invoices/$invoiceId_/credit',
+  path: '/invoices/$invoiceId/credit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -244,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/subscriptions/': typeof SubscriptionsIndexRoute
   '/catalogue/add-ons/$addOnId': typeof CatalogueAddOnsAddOnIdRoute
   '/catalogue/plans/$planId': typeof CataloguePlansPlanIdRoute
+  '/invoices/$invoiceId/credit': typeof InvoicesInvoiceIdCreditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -279,6 +286,7 @@ export interface FileRoutesByTo {
   '/subscriptions': typeof SubscriptionsIndexRoute
   '/catalogue/add-ons/$addOnId': typeof CatalogueAddOnsAddOnIdRoute
   '/catalogue/plans/$planId': typeof CataloguePlansPlanIdRoute
+  '/invoices/$invoiceId/credit': typeof InvoicesInvoiceIdCreditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -315,6 +323,7 @@ export interface FileRoutesById {
   '/subscriptions/': typeof SubscriptionsIndexRoute
   '/catalogue/add-ons/$addOnId': typeof CatalogueAddOnsAddOnIdRoute
   '/catalogue/plans/$planId': typeof CataloguePlansPlanIdRoute
+  '/invoices/$invoiceId_/credit': typeof InvoicesInvoiceIdCreditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -352,6 +361,7 @@ export interface FileRouteTypes {
     | '/subscriptions/'
     | '/catalogue/add-ons/$addOnId'
     | '/catalogue/plans/$planId'
+    | '/invoices/$invoiceId/credit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -387,6 +397,7 @@ export interface FileRouteTypes {
     | '/subscriptions'
     | '/catalogue/add-ons/$addOnId'
     | '/catalogue/plans/$planId'
+    | '/invoices/$invoiceId/credit'
   id:
     | '__root__'
     | '/'
@@ -422,6 +433,7 @@ export interface FileRouteTypes {
     | '/subscriptions/'
     | '/catalogue/add-ons/$addOnId'
     | '/catalogue/plans/$planId'
+    | '/invoices/$invoiceId_/credit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -458,6 +470,7 @@ export interface RootRouteChildren {
   SubscriptionsIndexRoute: typeof SubscriptionsIndexRoute
   CatalogueAddOnsAddOnIdRoute: typeof CatalogueAddOnsAddOnIdRoute
   CataloguePlansPlanIdRoute: typeof CataloguePlansPlanIdRoute
+  InvoicesInvoiceIdCreditRoute: typeof InvoicesInvoiceIdCreditRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -693,6 +706,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CataloguePlansPlanIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invoices/$invoiceId_/credit': {
+      id: '/invoices/$invoiceId_/credit'
+      path: '/invoices/$invoiceId/credit'
+      fullPath: '/invoices/$invoiceId/credit'
+      preLoaderRoute: typeof InvoicesInvoiceIdCreditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -730,6 +750,7 @@ const rootRouteChildren: RootRouteChildren = {
   SubscriptionsIndexRoute: SubscriptionsIndexRoute,
   CatalogueAddOnsAddOnIdRoute: CatalogueAddOnsAddOnIdRoute,
   CataloguePlansPlanIdRoute: CataloguePlansPlanIdRoute,
+  InvoicesInvoiceIdCreditRoute: InvoicesInvoiceIdCreditRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -7,6 +7,7 @@ import {
   businessDetails,
   choose,
   createSchool,
+  hydrated,
   openDraftOf,
   OWNER,
   payByCard,
@@ -16,6 +17,106 @@ import {
   unique,
 } from "../fixtures/console";
 import { portal } from "../fixtures/sign-in";
+
+test("an invoice by hand is drafted, changed and credited one line at a time", async ({
+  page,
+}) => {
+  await signInAs(page, OWNER);
+  await businessDetails(page);
+  await page.goto("/customers");
+  await page.getByRole("button", { name: "New customer" }).click();
+  const customer = page.getByRole("form", { name: "New customer" });
+  const name = `Linden ${unique()}`;
+  await customer.getByLabel("Legal name in English").fill(name);
+  await customer.getByLabel("Why").fill("Bought a training day");
+  await customer.getByRole("button", { name: "Create customer" }).click();
+  await expect(page.getByRole("heading", { name })).toBeVisible();
+  const customerId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+
+  await page.goto(`/invoices/new?customerId=${customerId}`);
+  const form = page.getByRole("form", { name: "New invoice" });
+  await hydrated(form);
+  await form.getByRole("button", { name: "Save the draft" }).click();
+  await expect(form.getByRole("alert")).toContainText("Add a line.");
+  await form.getByRole("button", { name: "Add line" }).click();
+  const adding = page.getByRole("form", { name: "Add a line" });
+  await adding.getByRole("button", { name: "Add line" }).click();
+  await expect(adding.getByText("Describe it in English.")).toBeVisible();
+  await adding.getByLabel("Description in English").fill("Training day");
+  await adding.getByLabel("Description in Arabic").fill("يوم تدريب");
+  await adding.getByLabel("Quantity").fill("2");
+  await adding.getByLabel("Unit price (EGP)").fill("5000");
+  await adding.getByLabel("Discount (%)").fill("10");
+  // 2 at 5,000.00 less 10% is 9,000.00.
+  await expect(adding).toContainText("EGP 9,000.00");
+  await adding.getByRole("button", { name: "Add line" }).click();
+  const lines = form.getByRole("table", { name: "Lines" });
+  await expect(lines.getByRole("row", { name: /^Total/ })).toContainText(
+    "EGP 10,260.00",
+  );
+  await form.getByRole("button", { name: "Save the draft" }).click();
+  await expect(page.getByText("Draft saved.")).toBeVisible();
+
+  // On the draft each line is saved as soon as its sheet is.
+  const draftLines = page.getByRole("table", { name: "Lines" });
+  await draftLines
+    .getByRole("button", { name: "Edit line 1: Training day" })
+    .click();
+  const changing = page.getByRole("form", { name: "Edit line 1" });
+  await changing.getByLabel("Quantity").fill("3");
+  await changing.getByRole("button", { name: "Save line" }).click();
+  await expect(page.getByText("Line saved.")).toBeVisible();
+  // 3 at 5,000.00 less 10% is 13,500.00, and 14% VAT makes 15,390.00.
+  const paper = page.getByRole("article", { name: "Draft invoice" });
+  await expect(paper).toContainText("13,500.00");
+  await expect(paper).toContainText("15,390.00");
+
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Add a line" }).click();
+  const second = page.getByRole("form", { name: "Add a line" });
+  await second.getByLabel("Description in English").fill("Printed guides");
+  await second.getByLabel("Description in Arabic").fill("أدلة مطبوعة");
+  await second.getByLabel("Unit price (EGP)").fill("250");
+  await second.getByRole("button", { name: "Add line" }).click();
+  await expect(page.getByText("Line added.")).toBeVisible();
+  await expect(paper).toContainText("Printed guides");
+  await draftLines.getByRole("button", { name: "Actions for Line 2" }).click();
+  await page.getByRole("menuitem", { name: "Remove" }).click();
+  await page.getByRole("button", { name: "Remove" }).click();
+  await expect(page.getByText("Line removed.")).toBeVisible();
+  await expect(paper).not.toContainText("Printed guides");
+  // A draft keeps one line, so its last cannot be removed.
+  await draftLines.getByRole("button", { name: "Actions for Line 1" }).click();
+  await expect(page.getByRole("menuitem", { name: "Edit" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Remove" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  await page.getByRole("button", { name: "Issue this invoice" }).click();
+  await expect(page.getByText(/^Issued as INV-/)).toBeVisible();
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Credit it" }).click();
+  const creditNote = page.getByRole("form", { name: "Credit it" });
+  await creditNote.getByRole("button", { name: "Take back a line" }).click();
+  await page.getByRole("menuitem", { name: /^Training day/ }).click();
+  const taken = page.getByRole("form", { name: "Add a line" });
+  await expect(taken.getByLabel("Description in English")).toHaveValue(
+    "Training day",
+  );
+  await taken.getByLabel("Quantity").fill("1");
+  await taken.getByRole("button", { name: "Add line" }).click();
+  // One of the three, 4,500.00, and 14% VAT credits 5,130.00.
+  await expect(
+    creditNote.getByRole("table", { name: "Lines" }).getByRole("row", {
+      name: /^Total/,
+    }),
+  ).toContainText("EGP 5,130.00");
+  await creditNote.getByLabel("Why").fill("One day was cancelled");
+  await creditNote.getByRole("button", { name: "Issue credit note" }).click();
+  await expect(page.getByText(/^Credited as CN-\d{4}-\d{5}\./)).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Credit notes" }).locator("tbody tr"),
+  ).toHaveCount(1);
+});
 
 test("a contract is invoiced, paid by transfer and card, credited, and shown to its school", async ({
   browser,
@@ -94,14 +195,24 @@ test("a contract is invoiced, paid by transfer and card, credited, and shown to 
 
   await page.getByRole("button", { name: "More actions" }).click();
   await page.getByRole("menuitem", { name: "Credit it" }).click();
+  // A credit note is a page of its own: each line is added in its own sheet.
   const creditNote = page.getByRole("form", { name: "Credit it" });
-  await creditNote
+  await creditNote.getByRole("button", { name: "Add line" }).click();
+  const goodwill = page.getByRole("form", { name: "Add a line" });
+  await goodwill
     .getByLabel("Description in English")
     .fill("Goodwill for a late start");
-  await creditNote
+  await goodwill
     .getByLabel("Description in Arabic")
     .fill("تعويض عن تأخر البدء");
-  await creditNote.getByLabel(/^Unit price/).fill("100");
+  await goodwill.getByLabel(/^Unit price/).fill("100");
+  await goodwill.getByRole("button", { name: "Add line" }).click();
+  // 100.00 and 14% VAT credits 114.00.
+  await expect(
+    creditNote.getByRole("table", { name: "Lines" }).getByRole("row", {
+      name: /^Total/,
+    }),
+  ).toContainText("EGP 114.00");
   await creditNote.getByLabel("Why").fill("Agreed with the school");
   await creditNote.getByRole("button", { name: "Issue credit note" }).click();
   await expect(page.getByText(/^Credited as CN-\d{4}-\d{5}\./)).toBeVisible();

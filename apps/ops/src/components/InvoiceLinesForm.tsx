@@ -1,118 +1,39 @@
 import type { InvoiceLine } from "@faridalms/domain/invoices";
 import type { Currency } from "@faridalms/domain/subscriptions";
 import type {
-  GridColumn,
-  GridIssue,
-  GridSurface,
-} from "@faridalms/ui/system/data-grid";
+  Column,
+  DataTableCard,
+  DataTableTotal,
+  RowAction,
+} from "@faridalms/ui/system/data-table";
+import type { SheetState } from "@faridalms/ui/system/sheet-form";
+import type { LucideIcon } from "lucide-react";
 
-import { netMinor, vatMinor } from "@faridalms/domain/money";
+import { invoiceTotals } from "@faridalms/domain/invoices";
+import { netMinor } from "@faridalms/domain/money";
+import { Button } from "@faridalms/ui/button";
 import {
-  DataGrid,
-  DateCell,
-  GridAddButton,
-  GridRemoveButton,
-  NumberCell,
-  TextCell,
-  useFocusAfterRender,
-} from "@faridalms/ui/system/data-grid";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@faridalms/ui/dropdown-menu";
+import { phoneMenuItem } from "@faridalms/ui/system/action-menu";
+import { DataTable, RowButton } from "@faridalms/ui/system/data-table";
+import { TextField } from "@faridalms/ui/system/form-field";
+import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
 import { SummaryList } from "@faridalms/ui/system/summary-list";
+import { Value } from "@faridalms/ui/system/value";
+import { CopyPlus, Pencil, Plus, ReceiptText, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
-import { formatMoney, minorOf } from "../format";
+import type { LineDraft, LineErrors, LineField } from "../lines";
 
-/** A line as an operator edits it, money typed in the currency's units. */
-export interface LineDraft {
-  descriptionEn: string;
-  descriptionAr: string;
-  itemCode: string;
-  periodStart: string;
-  periodEnd: string;
-  quantity: string;
-  price: string;
-  discount: string;
-}
+import { formatDay, formatMoney } from "../format";
+import { blankLine, draftNet, lineDraftOf, readLine } from "../lines";
 
-export const lineDraftOf = (line: InvoiceLine): LineDraft => ({
-  descriptionEn: line.descriptionEn,
-  descriptionAr: line.descriptionAr,
-  itemCode: line.itemCode ?? "",
-  periodStart: line.periodStart ?? "",
-  periodEnd: line.periodEnd ?? "",
-  quantity: String(line.quantity),
-  price: (line.unitPriceMinor / 100).toFixed(2),
-  discount: String(line.discountPercent),
-});
-
-export const blankLine = (): LineDraft => ({
-  descriptionEn: "",
-  descriptionAr: "",
-  itemCode: "",
-  periodStart: "",
-  periodEnd: "",
-  quantity: "1",
-  price: "",
-  discount: "0",
-});
-
-/** The lines the drafts set, or why one cannot be read. */
-/** What reading the drafts gave: the lines, or why they cannot be read. */
-export type ReadLines =
-  | { ok: true; lines: InvoiceLine[] }
-  | { ok: false; message: string };
-
-export function linesOf(drafts: readonly LineDraft[]): ReadLines {
-  const lines: InvoiceLine[] = [];
-  for (const draft of drafts) {
-    const quantity = Number(draft.quantity);
-    const unitPriceMinor = minorOf(draft.price);
-    const discountPercent = Number(draft.discount || "0");
-    if (
-      !draft.descriptionEn.trim() ||
-      !draft.descriptionAr.trim() ||
-      !Number.isInteger(quantity) ||
-      quantity < 1 ||
-      unitPriceMinor === null ||
-      !Number.isFinite(discountPercent) ||
-      discountPercent < 0 ||
-      discountPercent > 100
-    )
-      return {
-        ok: false,
-        message:
-          "Give each line its description in both languages, a quantity, a price and a discount between 0 and 100.",
-      };
-    lines.push({
-      descriptionEn: draft.descriptionEn.trim(),
-      descriptionAr: draft.descriptionAr.trim(),
-      itemCode: draft.itemCode.trim() || null,
-      periodStart: draft.periodStart || null,
-      periodEnd: draft.periodEnd || null,
-      quantity,
-      unitPriceMinor,
-      discountPercent,
-    });
-  }
-  if (lines.length === 0) return { ok: false, message: "Add a line." };
-  return { ok: true, lines };
-}
-
-/** What a line comes to after its discount, once its numbers can be read. */
-function netOf(draft: LineDraft): number | null {
-  const quantity = Number(draft.quantity);
-  const unitPriceMinor = minorOf(draft.price);
-  const discountPercent = Number(draft.discount || "0");
-  if (
-    !Number.isInteger(quantity) ||
-    quantity < 1 ||
-    unitPriceMinor === null ||
-    !Number.isFinite(discountPercent) ||
-    discountPercent < 0 ||
-    discountPercent > 100
-  )
-    return null;
-  return netMinor({ quantity, unitPriceMinor, discountPercent });
-}
-
+/** The VAT the lines are totalled with. */
 export interface LinesVat {
   percent: number;
   name: string | null;
@@ -124,263 +45,491 @@ const amountIn = (minor: number, currency: Currency | null) =>
     ? formatMoney(minor, currency)
     : (minor / 100).toLocaleString("en", { minimumFractionDigits: 2 });
 
-export interface InvoiceLinesFieldsProps {
+const periodText = (line: InvoiceLine) =>
+  line.periodStart && line.periodEnd
+    ? `${formatDay(line.periodStart)} to ${formatDay(line.periodEnd)}`
+    : line.periodStart
+      ? `From ${formatDay(line.periodStart)}`
+      : line.periodEnd
+        ? `To ${formatDay(line.periodEnd)}`
+        : null;
+
+const percentText = (percent: number) => `${percent.toLocaleString("en")}%`;
+
+export interface LineSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** The line being changed, or null for a new one. */
+  line: InvoiceLine | null;
+  /** What a new line starts from, such as the invoice's line a credit note takes back. */
+  seed?: InvoiceLine | null;
+  /** Its number among the lines, to name it. */
+  number: number;
   /** Null until the customer, and so the currency, is chosen. */
   currency: Currency | null;
-  drafts: LineDraft[];
-  onChange: (drafts: LineDraft[]) => void;
-  /** Totals the lines under them, with this VAT, when given. */
-  vat?: LinesVat;
-  /** Save was tried: each line's problems show on their cells. */
-  checked?: boolean;
-  /** Where the lines stand: in a sheet, or on a page of their own. */
-  surface?: GridSurface;
+  /** Saves the line; answers what went wrong, or null. */
+  onSave: (line: InvoiceLine) => Promise<string | null> | string | null;
 }
 
-const lineCell = (index: number, field: string) => `line-${index}-${field}`;
-
-const figureOf = (text: string) => {
-  const value = Number(text);
-  return text.trim() === "" || !Number.isFinite(value) ? null : value;
-};
-
-/** What stops each line being read, tied to the cell it is about. */
-function lineIssues(drafts: readonly LineDraft[]): GridIssue[] {
-  return drafts.flatMap((draft, index) => {
-    const line = `Line ${index + 1}`;
-    const issues: GridIssue[] = [];
-    if (!draft.descriptionEn.trim())
-      issues.push({
-        target: lineCell(index, "en"),
-        label: line,
-        message: "Describe it in English.",
-      });
-    if (!draft.descriptionAr.trim())
-      issues.push({
-        target: lineCell(index, "ar"),
-        label: line,
-        message: "Describe it in Arabic.",
-      });
-    const quantity = Number(draft.quantity);
-    if (!Number.isInteger(quantity) || quantity < 1)
-      issues.push({
-        target: lineCell(index, "quantity"),
-        label: line,
-        message: "Give a quantity of 1 or more.",
-      });
-    if (minorOf(draft.price) === null)
-      issues.push({
-        target: lineCell(index, "price"),
-        label: line,
-        message: "Give its unit price.",
-      });
-    const discount = Number(draft.discount || "0");
-    if (!Number.isFinite(discount) || discount < 0 || discount > 100)
-      issues.push({
-        target: lineCell(index, "discount"),
-        label: line,
-        message: "Give a discount between 0 and 100.",
-      });
-    return issues;
+/**
+ * One line of an invoice or a credit note: what it is in both languages,
+ * its figures with what they come to, then the period and the tax
+ * authority's item code it may carry.
+ */
+export function LineSheet({
+  open,
+  onOpenChange,
+  line,
+  seed = null,
+  number,
+  currency,
+  onSave,
+}: LineSheetProps) {
+  const [draft, setDraft] = useState<LineDraft>(() => {
+    const start = line ?? seed;
+    return start ? lineDraftOf(start) : blankLine();
   });
-}
-
-interface LineGridOptions {
-  drafts: LineDraft[];
-  currency: Currency | null;
-  set: (index: number, change: Partial<LineDraft>) => void;
-  remove: (index: number) => void;
-}
-
-function lineGrid({ drafts, currency, set, remove }: LineGridOptions) {
-  const at = (draft: LineDraft) => drafts.indexOf(draft);
-  const name = (draft: LineDraft) => `line ${at(draft) + 1}`;
-  const rowHeader = {
-    header: "Description",
-    cell: (draft: LineDraft) => (
-      <TextCell
-        id={lineCell(at(draft), "en")}
-        label={`Description in English, ${name(draft)}`}
-        dir="ltr"
-        value={draft.descriptionEn}
-        onChange={(descriptionEn) => set(at(draft), { descriptionEn })}
-      />
-    ),
+  const [errors, setErrors] = useState<LineErrors | null>(null);
+  const [answer, setAnswer] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const set = (field: LineField, value: string) => {
+    const next = { ...draft, [field]: value };
+    setDraft(next);
+    if (errors) {
+      const read = readLine(next);
+      setErrors(read.ok ? {} : read.errors);
+    }
   };
-  const figure = (
-    field: "quantity" | "price" | "discount",
-    label: string,
-    decimals: number,
-  ) => ({
-    id: field,
-    header: label,
-    numeric: true,
-    cell: (draft: LineDraft) => (
-      <NumberCell
-        id={lineCell(at(draft), field)}
-        label={`${label}, ${name(draft)}`}
-        decimals={decimals}
-        value={figureOf(draft[field])}
-        onChange={(value) =>
-          set(at(draft), { [field]: value === null ? "" : String(value) })
+  const error = (field: LineField) => {
+    const message = errors?.[field];
+    return message ? [message] : undefined;
+  };
+  const net = draftNet(draft);
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title={line ? `Edit line ${number}` : "Add a line"}
+      submitLabel={line ? "Save line" : "Add line"}
+      pending={saving}
+      error={answer}
+      onSubmit={async () => {
+        const read = readLine(draft);
+        if (!read.ok) {
+          setErrors(read.errors);
+          return;
         }
+        setErrors({});
+        setSaving(true);
+        setAnswer(null);
+        const failed = await onSave(read.line);
+        setSaving(false);
+        if (failed) {
+          setAnswer(failed);
+          return;
+        }
+        onOpenChange(false);
+      }}
+    >
+      <TextField
+        label="Description in English"
+        dir="ltr"
+        maxLength={300}
+        value={draft.descriptionEn}
+        errors={error("descriptionEn")}
+        onChange={(event) => set("descriptionEn", event.target.value)}
       />
-    ),
-  });
-  const columns: GridColumn<LineDraft>[] = [
-    figure("quantity", "Quantity", 0),
-    figure("price", currency ? `Unit price (${currency})` : "Unit price", 2),
-    figure("discount", "Discount (%)", 2),
+      <TextField
+        label="Description in Arabic"
+        dir="rtl"
+        lang="ar"
+        maxLength={300}
+        value={draft.descriptionAr}
+        errors={error("descriptionAr")}
+        onChange={(event) => set("descriptionAr", event.target.value)}
+      />
+      <div className="grid items-start gap-6 sm:grid-cols-3">
+        <TextField
+          label="Quantity"
+          inputMode="numeric"
+          dir="ltr"
+          value={draft.quantity}
+          errors={error("quantity")}
+          onChange={(event) => set("quantity", event.target.value)}
+        />
+        <TextField
+          label={currency ? `Unit price (${currency})` : "Unit price"}
+          inputMode="decimal"
+          dir="ltr"
+          value={draft.price}
+          errors={error("price")}
+          onChange={(event) => set("price", event.target.value)}
+        />
+        <TextField
+          label="Discount (%)"
+          inputMode="decimal"
+          dir="ltr"
+          value={draft.discount}
+          errors={error("discount")}
+          onChange={(event) => set("discount", event.target.value)}
+        />
+      </div>
+      <div aria-live="polite">
+        <SummaryList
+          items={[
+            {
+              id: "net",
+              label: "Net, after its discount",
+              value:
+                net === null ? (
+                  <Value absent="Not priced yet" />
+                ) : (
+                  amountIn(net, currency)
+                ),
+            },
+          ]}
+        />
+      </div>
+      <div className="grid items-start gap-6 sm:grid-cols-2">
+        <TextField
+          label="Period from"
+          optional
+          type="date"
+          width="date"
+          value={draft.periodStart}
+          errors={error("periodStart")}
+          onChange={(event) => set("periodStart", event.target.value)}
+        />
+        <TextField
+          label="Period to"
+          optional
+          type="date"
+          width="date"
+          min={draft.periodStart || undefined}
+          value={draft.periodEnd}
+          errors={error("periodEnd")}
+          onChange={(event) => set("periodEnd", event.target.value)}
+        />
+      </div>
+      <TextField
+        label="Item code"
+        optional
+        hint="The item's code registered with the tax authority, where it has one."
+        dir="ltr"
+        width="reference"
+        maxLength={40}
+        value={draft.itemCode}
+        onChange={(event) => set("itemCode", event.target.value)}
+      />
+    </SheetForm>
+  );
+}
+
+/** What changed among the lines, for the page to say so. */
+export type LineChange = "added" | "changed" | "removed";
+
+interface LineRow extends InvoiceLine {
+  id: string;
+  number: number;
+}
+
+const lineName = (row: LineRow) => `line ${row.number}: ${row.descriptionEn}`;
+
+interface LineTableOptions {
+  lines: readonly InvoiceLine[];
+  currency: Currency | null;
+  onEdit: (row: LineRow) => void;
+}
+
+/**
+ * The table's columns and phone cards. Period and Discount show only when
+ * a line has one, so a plain invoice reads as quantity, price and net.
+ */
+function lineTable({ lines, currency, onEdit }: LineTableOptions) {
+  const opener = (row: LineRow) => (
+    <RowButton aria-label={`Edit ${lineName(row)}`} onClick={() => onEdit(row)}>
+      {row.descriptionEn}
+    </RowButton>
+  );
+  const periods = lines.some((line) => periodText(line) !== null);
+  const discounts = lines.some((line) => line.discountPercent > 0);
+  const columns: Column<LineRow>[] = [
+    {
+      id: "description",
+      header: "Description",
+      primary: true,
+      cell: (row) => (
+        <span className="grid min-w-0 py-2">
+          {opener(row)}
+          <span
+            dir="rtl"
+            lang="ar"
+            className="justify-self-start truncate text-[13px] leading-[18px] text-muted-foreground"
+          >
+            {row.descriptionAr}
+          </span>
+        </span>
+      ),
+    },
+    ...(periods
+      ? [
+          {
+            id: "period",
+            header: "Period",
+            cell: (row: LineRow) => (
+              <Value notApplicable={periodText(row) === null}>
+                {periodText(row)}
+              </Value>
+            ),
+          },
+        ]
+      : []),
+    {
+      id: "quantity",
+      header: "Quantity",
+      align: "end",
+      cell: (row) => row.quantity.toLocaleString("en"),
+    },
+    {
+      id: "price",
+      header: "Unit price",
+      align: "end",
+      cell: (row) => amountIn(row.unitPriceMinor, currency),
+    },
+    ...(discounts
+      ? [
+          {
+            id: "discount",
+            header: "Discount",
+            align: "end" as const,
+            cell: (row: LineRow) =>
+              row.discountPercent > 0 ? (
+                percentText(row.discountPercent)
+              ) : (
+                <Value notApplicable />
+              ),
+          },
+        ]
+      : []),
     {
       id: "net",
       header: "Net",
-      numeric: true,
-      cell: (draft) => {
-        const net = netOf(draft);
-        return net === null ? (
-          <span className="text-muted-foreground">
-            <span aria-hidden>—</span>
-            <span className="sr-only">Not priced yet</span>
-          </span>
-        ) : (
-          amountIn(net, currency)
-        );
-      },
+      align: "end",
+      cell: (row) => amountIn(netMinor(row), currency),
     },
   ];
-  const rowEnd = (draft: LineDraft) => (
-    <GridRemoveButton
-      label={`Remove ${name(draft)}`}
-      disabled={drafts.length <= 1}
-      onRemove={() => remove(at(draft))}
-    />
-  );
-  const rowDetail = (draft: LineDraft) => (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <span className="min-w-48 flex-1">
-        <TextCell
-          id={lineCell(at(draft), "ar")}
-          label={`Description in Arabic, ${name(draft)}`}
-          lang="ar"
-          placeholder="Description in Arabic"
-          value={draft.descriptionAr}
-          onChange={(descriptionAr) => set(at(draft), { descriptionAr })}
-        />
+  const card: DataTableCard<LineRow> = {
+    title: opener,
+    fact: (row) =>
+      `${row.quantity.toLocaleString("en")} × ${amountIn(row.unitPriceMinor, currency)}${row.discountPercent > 0 ? `, less ${percentText(row.discountPercent)}` : ""}`,
+    status: (row) => (
+      <span className="text-sm tabular-nums">
+        {amountIn(netMinor(row), currency)}
       </span>
-      <span className="w-28">
-        <TextCell
-          id={lineCell(at(draft), "code")}
-          label={`Item code, ${name(draft)}`}
-          dir="ltr"
-          placeholder="Item code"
-          value={draft.itemCode}
-          onChange={(itemCode) => set(at(draft), { itemCode })}
-        />
-      </span>
-      <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-        <span aria-hidden>Period</span>
-        <DateCell
-          id={lineCell(at(draft), "from")}
-          label={`Period from, ${name(draft)}`}
-          value={draft.periodStart}
-          onChange={(periodStart) => set(at(draft), { periodStart })}
-        />
-        <span aria-hidden>to</span>
-        <DateCell
-          id={lineCell(at(draft), "to")}
-          label={`Period to, ${name(draft)}`}
-          min={draft.periodStart || undefined}
-          value={draft.periodEnd}
-          onChange={(periodEnd) => set(at(draft), { periodEnd })}
-        />
-      </span>
-    </div>
-  );
-  return { rowHeader, columns, rowEnd, rowDetail };
+    ),
+  };
+  return { columns, card };
 }
 
-interface LinesTotalProps {
+export interface InvoiceLinesProps {
+  /** Names the table, and the card list on phones. */
+  caption: string;
+  /** Null until the customer, and so the currency, is chosen. */
   currency: Currency | null;
-  drafts: readonly LineDraft[];
-  vat: LinesVat;
+  lines: readonly InvoiceLine[];
+  /** Totals the lines under them with this VAT, when it is known. */
+  vat?: LinesVat;
+  /**
+   * Keeps the lines with one added, changed or removed: saves them, or
+   * holds them for the form. Answers what went wrong, or null.
+   */
+  onSave: (
+    lines: InvoiceLine[],
+    change: LineChange,
+  ) => Promise<string | null> | string | null;
+  /** The fewest lines it keeps: a saved draft always has one. */
+  least?: 0 | 1;
+  /** What the empty table asks for, with Add line beside it. */
+  empty: { title: string; description: string; icon?: LucideIcon };
+  /** Opens the sheet that adds a line, when the page offers that elsewhere too. */
+  adding?: SheetState;
+  /**
+   * Lines a new one may start from, offered from a menu beside Add line,
+   * such as the lines of the invoice a credit note takes back.
+   */
+  from?: { label: string; lines: readonly InvoiceLine[] };
 }
 
-function LinesTotal({ currency, drafts, vat }: LinesTotalProps) {
-  const nets = drafts.map(netOf);
-  const known = nets.filter((net) => net !== null);
-  const subtotal = known.reduce((sum, net) => sum + net, 0);
-  const tax = vatMinor(subtotal, vat.percent);
-  const vatLabel = `${vat.name ?? "VAT"} at ${vat.percent.toLocaleString("en")}%`;
-  return (
-    <SummaryList
-      items={[
-        {
-          id: "subtotal",
-          label:
-            known.length < drafts.length
-              ? "Subtotal of the lines priced so far"
-              : "Subtotal",
-          value: amountIn(subtotal, currency),
-        },
-        {
-          id: "vat",
-          label: vatLabel,
-          value: amountIn(tax, currency),
-        },
-        {
-          id: "total",
-          label: "Total",
-          value: amountIn(subtotal + tax, currency),
-        },
-      ]}
-    />
-  );
-}
-
-/** Invoice or credit note lines: what each is in both languages, its period and price. */
-export function InvoiceLinesFields({
+/**
+ * The lines of an invoice or a credit note as a table: each line's
+ * figures and what it comes to, the subtotal, VAT and total under them.
+ * Add line, or a line's Edit, opens that one line in a sheet; removing
+ * one asks first.
+ */
+export function InvoiceLines({
+  caption,
   currency,
-  drafts,
-  onChange,
+  lines,
   vat,
-  checked = false,
-  surface = "sheet",
-}: InvoiceLinesFieldsProps) {
-  const focusLater = useFocusAfterRender();
-  const set = (index: number, change: Partial<LineDraft>) =>
-    onChange(
-      drafts.map((draft, at) =>
-        at === index ? { ...draft, ...change } : draft,
-      ),
-    );
-  return (
-    <div className="grid min-w-0 gap-4">
-      <DataGrid<LineDraft>
-        caption="Lines"
-        editing
-        surface={surface}
-        {...lineGrid({
-          drafts,
-          currency,
-          set,
-          remove: (index) => onChange(drafts.filter((_, at) => at !== index)),
-        })}
-        groups={[{ id: "lines", title: "", rows: drafts }]}
-        rowKey={(draft) => `line-${drafts.indexOf(draft)}`}
-        issues={checked ? lineIssues(drafts) : []}
-        footer={
-          <GridAddButton
-            label="Add a line"
-            onAdd={() => {
-              onChange([...drafts, blankLine()]);
-              focusLater(lineCell(drafts.length, "en"));
-            }}
-          />
-        }
-      />
-      {vat ? (
-        <LinesTotal currency={currency} drafts={drafts} vat={vat} />
+  onSave,
+  least = 0,
+  empty,
+  adding: givenAdding,
+  from,
+}: InvoiceLinesProps) {
+  const ownAdding = useSheet();
+  const adding = givenAdding ?? ownAdding;
+  const editing = useSheet();
+  const [chosen, setChosen] = useState<number | null>(null);
+  const [seed, setSeed] = useState<InvoiceLine | null>(null);
+  const sources = (from?.lines ?? []).map((line, index) => ({
+    id: `source-${index + 1}`,
+    line,
+  }));
+  const rows: LineRow[] = lines.map((line, index) => ({
+    ...line,
+    id: `line-${index}`,
+    number: index + 1,
+  }));
+  const edit = (row: LineRow) => {
+    setChosen(row.number - 1);
+    editing.show();
+  };
+  const { columns, card } = lineTable({ lines, currency, onEdit: edit });
+  const totals = invoiceTotals(lines, vat?.percent ?? 0);
+  const totalRows: DataTableTotal[] = [
+    {
+      id: "subtotal",
+      label: "Subtotal",
+      cells: { net: amountIn(totals.subtotalMinor, currency) },
+    },
+    ...(vat
+      ? [
+          {
+            id: "vat",
+            label: `${vat.name ?? "VAT"} at ${percentText(vat.percent)}`,
+            cells: { net: amountIn(totals.vatMinor, currency) },
+          },
+          {
+            id: "total",
+            label: "Total",
+            cells: { net: amountIn(totals.totalMinor, currency) },
+          },
+        ]
+      : []),
+  ];
+  const rowActions = (row: LineRow): RowAction[] => [
+    { label: "Edit", icon: Pencil, onSelect: () => edit(row) },
+    ...(lines.length > least
+      ? [
+          {
+            label: "Remove",
+            icon: Trash2,
+            destructive: true as const,
+            confirm: {
+              title: `Remove ${lineName(row)}?`,
+              body: "It comes off the lines, and the total is worked out again.",
+              label: "Remove",
+            },
+            onSelect: async () => {
+              const failed = await onSave(
+                lines.filter((_, index) => index !== row.number - 1),
+                "removed",
+              );
+              if (failed) toast.error(failed);
+            },
+          },
+        ]
+      : []),
+  ];
+  const add = (
+    <div className="flex flex-wrap items-center gap-2">
+      {from?.lines.length ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button type="button" variant="outline" size="sm" />}
+          >
+            <CopyPlus aria-hidden />
+            {from.label}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-auto min-w-56">
+            {sources.map(({ id, line }) => (
+              <DropdownMenuItem
+                key={id}
+                className={phoneMenuItem}
+                onClick={() => {
+                  setSeed(line);
+                  adding.show();
+                }}
+              >
+                <span dir="auto">{line.descriptionEn}</span>
+                <span className="ms-auto ps-4 text-muted-foreground tabular-nums">
+                  {amountIn(netMinor(line), currency)}
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : null}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          setSeed(null);
+          adding.show();
+        }}
+      >
+        <Plus aria-hidden />
+        Add line
+      </Button>
     </div>
+  );
+  const editingLine = chosen === null ? undefined : lines[chosen];
+  return (
+    <>
+      <DataTable
+        caption={caption}
+        rows={rows}
+        columns={columns}
+        rowLabel={(row) => `Line ${row.number}`}
+        card={card}
+        rowActions={rowActions}
+        totals={rows.length ? totalRows : undefined}
+        actions={add}
+        empty={{
+          icon: empty.icon ?? ReceiptText,
+          title: empty.title,
+          description: empty.description,
+          action: add,
+        }}
+      />
+      <LineSheet
+        key={`add-${adding.key}`}
+        open={adding.open}
+        onOpenChange={adding.onOpenChange}
+        line={null}
+        seed={seed}
+        number={lines.length + 1}
+        currency={currency}
+        onSave={(line) => onSave([...lines, line], "added")}
+      />
+      {editingLine && chosen !== null ? (
+        <LineSheet
+          key={`edit-${editing.key}`}
+          open={editing.open}
+          onOpenChange={editing.onOpenChange}
+          line={editingLine}
+          number={chosen + 1}
+          currency={currency}
+          onSave={(line) =>
+            onSave(
+              lines.map((kept, index) => (index === chosen ? line : kept)),
+              "changed",
+            )
+          }
+        />
+      ) : null}
+    </>
   );
 }

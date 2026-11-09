@@ -10,6 +10,7 @@ import type {
   RowAction,
 } from "@faridalms/ui/system/data-table";
 import type { RecordTab } from "@faridalms/ui/system/record-page";
+import type { SheetState } from "@faridalms/ui/system/sheet-form";
 
 import { InvoiceDocument } from "@faridalms/documents/InvoiceDocument";
 import { Button, buttonVariants } from "@faridalms/ui/button";
@@ -37,6 +38,7 @@ import {
   FileCheck,
   HandCoins,
   Pencil,
+  Plus,
   Printer,
   ReceiptText,
   Send,
@@ -49,16 +51,10 @@ import type { TaxIdDocument } from "../components/TaxIdSheet";
 
 import { attempt, attemptWith, failure } from "../actions";
 import { EventList } from "../components/EventList";
-import {
-  blankLine,
-  InvoiceLinesFields,
-  lineDraftOf,
-  linesOf,
-} from "../components/InvoiceLinesForm";
+import { InvoiceLines } from "../components/InvoiceLinesForm";
 import { PauseSheet } from "../components/PauseSheet";
 import { PaymentSheet } from "../components/PaymentSheet";
 import { TaxIdSheet } from "../components/TaxIdSheet";
-import { WhyField } from "../components/Why";
 import {
   DUNNING_STEP_NAMES,
   formatDay,
@@ -70,9 +66,9 @@ import {
   PAYMENT_METHOD_NAMES,
   standingOf,
 } from "../format";
+import { plainLine } from "../lines";
 import { useMay } from "../may";
 import {
-  credit,
   getInvoice,
   issue,
   makePaymentLink,
@@ -139,7 +135,7 @@ function InvoicePage() {
   const open = invoice.state === "issued" || invoice.state === "partly_paid";
   const issuing = useIssue(data);
   const editing = useSheet();
-  const crediting = useSheet();
+  const addingLine = useSheet();
   const settling = useSheet();
   const paying = useSheet();
   const pausing = useSheet();
@@ -204,9 +200,22 @@ function InvoicePage() {
         : open
           ? { label: "Record a payment", icon: Banknote, onClick: paying.show }
           : undefined;
+  const creditIt = () =>
+    void navigate({
+      to: "/invoices/$invoiceId/credit",
+      params: { invoiceId: invoice.id },
+      search: {},
+    });
   const menu: ActionItem[] = [
     ...(mayBill && draft
-      ? [{ label: "Edit the draft", icon: Pencil, onSelect: editing.show }]
+      ? [
+          { label: "Add a line", icon: Plus, onSelect: addingLine.show },
+          {
+            label: "Edit the purchase order and language",
+            icon: Pencil,
+            onSelect: editing.show,
+          },
+        ]
       : []),
     ...(mayBill && open && action?.label !== "Record a payment"
       ? [{ label: "Record a payment", icon: Banknote, onSelect: paying.show }]
@@ -235,7 +244,7 @@ function InvoicePage() {
       ? [{ label: "Pause reminders", icon: BellOff, onSelect: pausing.show }]
       : []),
     ...(mayCredit
-      ? [{ label: "Credit it", icon: ReceiptText, onSelect: crediting.show }]
+      ? [{ label: "Credit it", icon: ReceiptText, onSelect: creditIt }]
       : []),
     ...(mayBill && !draft
       ? [
@@ -326,7 +335,7 @@ function InvoicePage() {
           ) : tab === "credits" ? (
             <CreditsTab
               data={data}
-              onCredit={mayCredit ? crediting.show : null}
+              onCredit={mayCredit ? creditIt : null}
               onRecordTaxId={mayBill ? recordTaxId : null}
             />
           ) : tab === "reminders" ? (
@@ -340,6 +349,7 @@ function InvoicePage() {
             <DocumentTab
               data={data}
               onEdit={mayBill && draft ? editing.show : null}
+              addingLine={addingLine}
               onPrint={print}
             />
           )}
@@ -351,14 +361,6 @@ function InvoicePage() {
           data={data}
           open={editing.open}
           onOpenChange={editing.onOpenChange}
-        />
-      ) : null}
-      {mayCredit ? (
-        <CreditSheet
-          key={`credit-${crediting.key}`}
-          data={data}
-          open={crediting.open}
-          onOpenChange={crediting.onOpenChange}
         />
       ) : null}
       {maySettle ? (
@@ -607,15 +609,18 @@ function ToDo({ data, onRecordTaxId }: ToDoProps) {
 
 interface DocumentTabProps extends InvoiceProps {
   onEdit: (() => void) | null;
+  /** The sheet that adds a line to a draft, which the header's menu opens too. */
+  addingLine: SheetState;
   onPrint: () => void;
 }
 
 /**
  * The paper as the customer receives it, in either language; a credit
- * note opened from its tab in its place. A draft says first what may still
- * change before it is issued.
+ * note opened from its tab in its place. A draft puts first what may still
+ * change before it is issued: its lines, each saved on its own, then its
+ * order number and language.
  */
-function DocumentTab({ data, onEdit, onPrint }: DocumentTabProps) {
+function DocumentTab({ data, onEdit, addingLine, onPrint }: DocumentTabProps) {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const { invoice, customer } = data;
@@ -631,6 +636,9 @@ function DocumentTab({ data, onEdit, onPrint }: DocumentTabProps) {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       {invoice.state === "draft" ? (
+        <DraftLines data={data} mayEdit={onEdit !== null} adding={addingLine} />
+      ) : null}
+      {invoice.state === "draft" ? (
         <SummaryList
           title="Before it is issued"
           align="start"
@@ -640,7 +648,7 @@ function DocumentTab({ data, onEdit, onPrint }: DocumentTabProps) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                aria-label="Edit the draft"
+                aria-label="Edit the purchase order and language"
                 onClick={onEdit}
               >
                 <Pencil aria-hidden />
@@ -664,11 +672,6 @@ function DocumentTab({ data, onEdit, onPrint }: DocumentTabProps) {
               id: "language",
               label: "Written in",
               value: invoice.language === "ar" ? "Arabic" : "English",
-            },
-            {
-              id: "lines",
-              label: "Lines",
-              value: `${plural(data.lines.length, "line", "lines")}, ${formatMoney(invoice.totalMinor, invoice.currency)} in all`,
             },
           ]}
         />
@@ -1092,11 +1095,67 @@ const LANGUAGE_OPTIONS = [
   { value: "ar", label: "Arabic" },
 ] as const;
 
-/** A draft's customer order number, its language and its lines, before it is issued. */
+interface DraftLinesProps extends InvoiceProps {
+  mayEdit: boolean;
+  adding: SheetState;
+}
+
+/**
+ * A draft's lines, each added, changed or removed on its own and saved at
+ * once, so the paper under them shows what will be issued.
+ */
+function DraftLines({ data, mayEdit, adding }: DraftLinesProps) {
+  const router = useRouter();
+  const save = useServerFn(saveInvoiceDraft);
+  const { invoice } = data;
+  if (!mayEdit) return null;
+  return (
+    <InvoiceLines
+      caption="Lines"
+      currency={invoice.currency}
+      lines={data.lines}
+      vat={{
+        percent: Number(invoice.vatPercent),
+        name: data.vatName?.en ?? null,
+      }}
+      least={1}
+      adding={adding}
+      empty={{
+        title: "Add what the invoice is for",
+        description: "A draft is issued with at least one line.",
+      }}
+      onSave={async (lines, change) => {
+        const failed = await attempt(
+          () =>
+            save({
+              data: {
+                id: invoice.id,
+                lines: lines.map(plainLine),
+                purchaseOrder: invoice.purchaseOrder ?? "",
+                language: invoice.language,
+              },
+            }),
+          "The line could not be saved.",
+        );
+        if (failed) return failed;
+        toast.success(
+          change === "added"
+            ? "Line added."
+            : change === "removed"
+              ? "Line removed."
+              : "Line saved.",
+        );
+        await router.invalidate();
+        return null;
+      }}
+    />
+  );
+}
+
+/** A draft's customer order number and the language it is written in. */
 function DraftSheet({ data, open, onOpenChange }: InvoiceSheetProps) {
   const router = useRouter();
   const save = useServerFn(saveInvoiceDraft);
-  const [drafts, setDrafts] = useState(() => data.lines.map(lineDraftOf));
   const [purchaseOrder, setPurchaseOrder] = useState(
     data.invoice.purchaseOrder ?? "",
   );
@@ -1107,16 +1166,10 @@ function DraftSheet({ data, open, onOpenChange }: InvoiceSheetProps) {
     <SheetForm
       open={open}
       onOpenChange={onOpenChange}
-      title="Edit the draft"
-      submitLabel="Save draft"
+      title="Edit the purchase order and language"
       pending={saving}
       error={answer}
       onSubmit={async () => {
-        const read = linesOf(drafts);
-        if (!read.ok) {
-          setAnswer(read.message);
-          return;
-        }
         setSaving(true);
         setAnswer(null);
         const failed = await attempt(
@@ -1124,7 +1177,7 @@ function DraftSheet({ data, open, onOpenChange }: InvoiceSheetProps) {
             save({
               data: {
                 id: data.invoice.id,
-                lines: read.lines,
+                lines: data.lines.map(plainLine),
                 purchaseOrder,
                 language,
               },
@@ -1154,16 +1207,6 @@ function DraftSheet({ data, open, onOpenChange }: InvoiceSheetProps) {
         value={language}
         options={LANGUAGE_OPTIONS}
         onChange={setLanguage}
-      />
-      <InvoiceLinesFields
-        currency={data.invoice.currency}
-        drafts={drafts}
-        onChange={setDrafts}
-        checked={answer !== null}
-        vat={{
-          percent: Number(data.invoice.vatPercent),
-          name: data.vatName?.en ?? null,
-        }}
       />
     </SheetForm>
   );
@@ -1227,71 +1270,6 @@ function SettleSheet({ data, open, onOpenChange }: InvoiceSheetProps) {
         errors={submitted && !amountMinor ? ["Give the amount."] : undefined}
         onChange={(event) => setAmount(event.target.value)}
       />
-    </SheetForm>
-  );
-}
-
-/** Credits the invoice, in part or whole, with why. */
-function CreditSheet({ data, open, onOpenChange }: InvoiceSheetProps) {
-  const router = useRouter();
-  const send = useServerFn(credit);
-  const [drafts, setDrafts] = useState(() => [blankLine()]);
-  const [reason, setReason] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const [answer, setAnswer] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  return (
-    <SheetForm
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Credit it"
-      destructive
-      submitLabel="Issue credit note"
-      pending={saving}
-      error={answer}
-      onSubmit={async () => {
-        setSubmitted(true);
-        const read = linesOf(drafts);
-        if (!read.ok) {
-          setAnswer(read.message);
-          return;
-        }
-        if (!reason.trim()) return;
-        setSaving(true);
-        setAnswer(null);
-        const out = await attemptWith(
-          () =>
-            send({
-              data: { invoiceId: data.invoice.id, lines: read.lines, reason },
-            }),
-          "It could not be credited.",
-        );
-        setSaving(false);
-        if (!out.ok) {
-          setAnswer(out.message);
-          return;
-        }
-        toast.success(`Credited as ${out.value.number}.`);
-        onOpenChange(false);
-        await router.invalidate();
-      }}
-    >
-      <p className="text-sm leading-5 text-muted-foreground">
-        An issued invoice is never changed: a credit note takes back what was
-        agreed, at the invoice's VAT, and the invoice is issued again if need
-        be.
-      </p>
-      <InvoiceLinesFields
-        currency={data.invoice.currency}
-        drafts={drafts}
-        onChange={setDrafts}
-        checked={submitted}
-        vat={{
-          percent: Number(data.invoice.vatPercent),
-          name: data.vatName?.en ?? null,
-        }}
-      />
-      <WhyField value={reason} onChange={setReason} submitted={submitted} />
     </SheetForm>
   );
 }
