@@ -20,9 +20,10 @@ import { getMessageFromError } from "~/utils/error";
 
 import { STATE_LABEL, shownState } from "./format";
 
-type YearData = Awaited<
+type MapData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof yearMapQuery>["queryFn"]>>
 >;
+type YearData = MapData & { year: NonNullable<MapData["year"]> };
 type Unit = YearData["units"][number];
 
 const DAY_MS = 86_400_000;

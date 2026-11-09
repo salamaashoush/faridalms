@@ -10,7 +10,6 @@ import { PAGE_SIZES } from "@faridalms/domain/paging";
 import { studentDirectorySchema } from "@faridalms/domain/people";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
-import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { isFiltered } from "@faridalms/ui/system/index-toolbar";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { StatusText } from "@faridalms/ui/system/status";
@@ -19,7 +18,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import {
   ArrowRightLeft,
-  CalendarX,
   Copy,
   Download,
   KeyRound,
@@ -46,6 +44,7 @@ import {
   STATUS_TONE,
 } from "~/components/people/format";
 import { LeaveSchool } from "~/components/people/LeaveSchool";
+import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { peopleOptionsQuery, studentsQuery } from "~/queries/students";
@@ -277,11 +276,7 @@ function StudentsPage() {
     return (
       <>
         <PageHeader title={m.adminStudentsTitle()} />
-        <EmptyState
-          icon={CalendarX}
-          title={m.studentsNoYear()}
-          description={m.studentsNoYearBody()}
-        />
+        <NoSchoolYear shows={m.noYearShowsStudents()} />
       </>
     );
   const yearFacet: Facet = {

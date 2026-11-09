@@ -5,7 +5,6 @@ import { STAFF_ABSENCE_REASONS } from "@faridalms/domain/timetable";
 import { Button } from "@faridalms/ui/button";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
 import { DataTable } from "@faridalms/ui/system/data-table";
-import { EmptyState } from "@faridalms/ui/system/empty-state";
 import {
   FormField,
   SelectField,
@@ -35,6 +34,7 @@ import { toast } from "sonner";
 
 import { classTitle } from "~/components/classes/format";
 import { CheckboxRow } from "~/components/people/fields";
+import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { coverDayQuery, coverOptionsQuery } from "~/queries/timetable";
@@ -244,7 +244,7 @@ export function CoverDay({ on }: CoverDayProps) {
   const [adding, setAdding] = useState(false);
   const [choosing, setChoosing] = useState(false);
   const [arranging, setArranging] = useState<Lesson | null>(null);
-  if (!data) return <EmptyState icon={CalendarX2} title={m.ttNoYear()} />;
+  if (!data) return <NoSchoolYear shows={m.noYearShowsTimetable()} />;
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["timetable"] });
   const periods: Periods = new Map(

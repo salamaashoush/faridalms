@@ -11,6 +11,7 @@ import { BellRing, ClipboardCheck, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 
 import { classTitle } from "~/components/classes/format";
+import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { attendanceBoardQuery } from "~/queries/attendance";
@@ -122,7 +123,7 @@ export function Board({ date, states, onChange }: BoardProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(attendanceBoardQuery(date)).data;
-  if (!data.year) return null;
+  if (!data.year) return <NoSchoolYear shows={m.noYearShowsRegisters()} />;
   const all: Row[] = data.rows.map((row) => ({
     ...row,
     id: `${row.classId}|${row.periodId}`,

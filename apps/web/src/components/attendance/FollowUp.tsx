@@ -6,7 +6,6 @@ import { Button } from "@faridalms/ui/button";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
-import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { FormField } from "@faridalms/ui/system/form-field";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { StatusText } from "@faridalms/ui/system/status";
@@ -19,11 +18,12 @@ import {
 } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarX2, CircleCheck, PhoneCall, ShieldAlert } from "lucide-react";
+import { CircleCheck, PhoneCall, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { classTitle } from "~/components/classes/format";
+import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { followUpQuery } from "~/queries/attendance";
@@ -270,7 +270,7 @@ export function FollowUp({ date, onDate }: FollowUpProps) {
   ).data.followUp;
   const navigate = useNavigate();
   const [logging, setLogging] = useState<Call | null>(null);
-  if (!data) return <EmptyState icon={CalendarX2} title={m.attNoYear()} />;
+  if (!data) return <NoSchoolYear shows={m.noYearShowsFollowUp()} />;
   const giveReason = (row: Overdue): RowAction[] => [
     {
       label: m.fupGiveReason(),

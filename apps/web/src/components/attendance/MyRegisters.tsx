@@ -5,7 +5,6 @@ import type {
 import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
-import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -18,6 +17,7 @@ import {
   STATE_TONE,
 } from "~/components/attendance/format";
 import { classTitle } from "~/components/classes/format";
+import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { attendanceDayQuery } from "~/queries/attendance";
@@ -183,7 +183,7 @@ export function MyRegisters({ date, onDate }: MyRegistersProps) {
       onSelect: () => void open(row),
     },
   ];
-  if (!data.year) return <EmptyState icon={UserCheck} title={m.attNoYear()} />;
+  if (!data.year) return <NoSchoolYear shows={m.noYearShowsRegisters()} />;
   const max = data.today < data.year.lastDay ? data.today : data.year.lastDay;
   return (
     <>

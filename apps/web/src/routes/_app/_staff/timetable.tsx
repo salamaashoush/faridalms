@@ -3,7 +3,6 @@ import type { Column } from "@faridalms/ui/system/data-table";
 
 import { Input } from "@faridalms/ui/input";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
-import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { SelectField } from "@faridalms/ui/system/form-field";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
@@ -14,7 +13,7 @@ import {
   Link,
   stripSearchParams,
 } from "@tanstack/react-router";
-import { CalendarCheck2, CalendarX2 } from "lucide-react";
+import { CalendarCheck2 } from "lucide-react";
 import * as v from "valibot";
 
 import type { CardCell } from "~/components/timetable/Weeks";
@@ -31,6 +30,7 @@ import {
   teacherLabel,
   TeacherWeek,
 } from "~/components/timetable/Weeks";
+import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import { loadTeaches, useTeaches } from "~/hooks/useTeaches";
 import * as m from "~/i18n/messages";
@@ -343,8 +343,7 @@ interface SchoolTimetableProps {
 function SchoolTimetable({ view, search, patch }: SchoolTimetableProps) {
   const options = useSuspenseQuery(timetableOptionsQuery).data;
   const picked = pickedOf(search, options);
-  if (!options.year)
-    return <EmptyState icon={CalendarX2} title={m.ttNoYear()} />;
+  if (!options.year) return <NoSchoolYear shows={m.noYearShowsTimetable()} />;
   const picker =
     view === "classes" ? (
       <SelectField

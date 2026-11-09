@@ -11,6 +11,7 @@ import * as v from "valibot";
 
 import { classChoices } from "~/components/classes/format";
 import { YearMap } from "~/components/learning/YearMap";
+import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { yearMapQuery } from "~/queries/learning";
@@ -43,6 +44,13 @@ function YearMapPage() {
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
   const map = useSuspenseQuery(yearMapQuery(search.classId)).data;
+  if (!map.year)
+    return (
+      <>
+        <PageHeader title={m.yearMapTitle()} />
+        <NoSchoolYear shows={m.noYearShowsYearMap()} />
+      </>
+    );
   if (!map.classId)
     return (
       <>
@@ -83,7 +91,7 @@ function YearMapPage() {
             }
           />
         ) : (
-          <YearMap map={map} today={user.today} />
+          <YearMap map={{ ...map, year: map.year }} today={user.today} />
         )}
       </div>
     </>

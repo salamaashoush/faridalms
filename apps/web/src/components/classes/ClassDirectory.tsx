@@ -9,17 +9,17 @@ import type { ReactNode } from "react";
 
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
-import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { isFiltered } from "@faridalms/ui/system/index-toolbar";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { StatusText } from "@faridalms/ui/system/status";
 import { Value } from "@faridalms/ui/system/value";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { CalendarX, Pencil, Plus, School } from "lucide-react";
+import { Pencil, Plus, School } from "lucide-react";
 
 import { classTitle, subjectName } from "~/components/classes/format";
 import { displayName, labelOf } from "~/components/people/format";
+import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classDirectoryQuery, classOptionsQuery } from "~/queries/classes";
@@ -160,13 +160,7 @@ export function ClassDirectory({
     return (
       <>
         <PageHeader title={title} />
-        {frame(
-          <EmptyState
-            icon={CalendarX}
-            title={m.studentsNoYear()}
-            description={m.studentsNoYearBody()}
-          />,
-        )}
+        {frame(<NoSchoolYear shows={m.noYearShowsClasses()} />)}
       </>
     );
   const year = data.year;

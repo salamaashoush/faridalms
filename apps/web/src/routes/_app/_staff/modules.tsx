@@ -24,6 +24,7 @@ import {
   STATE_LABEL,
   STATE_TONE,
 } from "~/components/learning/format";
+import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import * as m from "~/i18n/messages";
 import { teachingModulesQuery } from "~/queries/learning";
 import { currentUserQuery } from "~/queries/user";
@@ -192,6 +193,13 @@ function ModulesPage() {
               navigate({ to: "/module-editor", search: { id: row.id } }),
           },
         ];
+  if (!data.yearSet)
+    return (
+      <>
+        <PageHeader title={m.navModules()} description={m.lrnTeachHint()} />
+        <NoSchoolYear shows={m.noYearShowsModules()} />
+      </>
+    );
   return (
     <>
       <PageHeader
