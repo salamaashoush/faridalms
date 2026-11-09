@@ -442,6 +442,31 @@ review, a scored lesson's and a quiz's settings.
   domain's checks (one register a day, no break with a register, other
   times only on the period's days) show on the field they concern.
 
+### Bell schedules
+
+`apps/web/src/components/years/BellSchedules.tsx`, a year's Periods tab.
+
+- **Sources.** PowerSchool keeps several bell schedules, each a table of
+  its items with start, end and duration, an item opened alone in "Edit
+  Bell Schedule Item" (dpi.nc.gov, PowerSchool bell schedules quick
+  reference). Veracross and Toddle could not be checked. No source showed
+  a timeline helping anyone set the times of a day.
+- **Decision.** The year's schedules are the standard table, each with
+  the periods it holds ("6 of 8") and its own periods named under it. Add
+  asks only for the names and saves a schedule holding every period at
+  its own times, then opens it. A schedule opens in a panel with two
+  tables: every period of the day at the schedule's time or "Not held",
+  and its periods of its own with code, kind and time. A period opens in
+  a sheet (held that day, start, end); a period of its own opens in a
+  sheet with its names, code, kind and times, and Remove asks first. Each
+  sheet saves the schedule with that one change. Rename and Remove stay
+  in the schedule's menu.
+- **Why a table and not a timeline.** The question a school answers is
+  "what time does Period 2 start on a late-start day", one period at a
+  time, and the systems schools already know answer it with rows of
+  times. A timeline would show gaps and overlaps at a glance, but the
+  domain already refuses overlaps on save and says so in the sheet.
+
 ## Ranking, worst first
 
 | #   | Editor                                   | Where                                                       | State                                                                  |
@@ -455,7 +480,7 @@ review, a scored lesson's and a quiz's settings.
 | 7   | Periods                                  | `apps/web/src/components/years/YearPeriods.tsx`             | Rows: a period per row, saved from a date                              |
 | 8   | Invoice and credit note lines (console)  | `apps/ops/src/components/InvoiceLinesForm.tsx`              | Rebuilt: a table, each line in its own sheet                           |
 | 9   | Quote and provisioning add-ons (console) | `apps/ops/src/components/QuoteAddOns.tsx`, `provisioning.*` | Quote add-ons a table; provisioning add-ons left                       |
-| 10  | Bell schedule extras                     | `apps/web/src/components/years/BellSchedules.tsx`           | Rebuilt: day's times and own periods as rows                           |
+| 10  | Bell schedule extras                     | `apps/web/src/components/years/BellSchedules.tsx`           | Rows: a schedule opens to its periods, each saved alone                |
 | 11  | Prices (console)                         | `apps/ops/src/components/PriceFields.tsx`                   | Rebuilt: a table, each price in its own sheet                          |
 | 12  | Feedback bands                           | `apps/web/src/components/learning/FeedbackBands.tsx`        | Rows: a message per row, the scores it covers derived                  |
 | 13  | Rollover classes                         | `apps/web/src/components/years/Rollover.tsx`                | Left                                                                   |

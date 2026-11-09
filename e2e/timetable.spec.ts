@@ -143,19 +143,39 @@ test("an administrator runs a day on a bell schedule", async ({
   await page.getByRole("link", { name: "2026–2027" }).first().click();
   await page.getByRole("tab", { name: "Periods" }).click();
   await untilHydrated(page);
+  // A schedule is added by its names, then opens on its periods, each
+  // changed and saved on its own; the grid it replaced held them all.
   await page.getByRole("button", { name: "Add bell schedule" }).click();
-  const sheet = page.getByRole("dialog");
+  const sheet = page.getByRole("dialog", { name: "Add bell schedule" });
   await sheet.getByLabel("Name in English").fill("Late start");
-  for (const name of ["Registration", "Period 2", "Period 3", "Break"])
-    await sheet.getByRole("checkbox", { name }).click();
-  await sheet.getByLabel("Starts").first().fill("09:00");
-  await sheet.getByLabel("Ends").first().fill("09:45");
-  await sheet.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("Bell schedule saved")).toBeVisible();
+  await sheet.getByRole("button", { name: "Add bell schedule" }).click();
+  await expect(page.getByText("Bell schedule saved").first()).toBeVisible();
+  const schedule = page.getByRole("dialog", { name: "Late start" });
+  for (const name of ["Registration", "Period 2", "Period 3", "Break"]) {
+    await schedule.getByRole("button", { name, exact: true }).click();
+    const times = page.getByRole("dialog", { name: `${name} on Late start` });
+    await times.getByRole("checkbox", { name: "Held that day" }).click();
+    await times.getByRole("button", { name: "Save times" }).click();
+    await expect(times).toBeHidden();
+    await expect(
+      schedule.getByRole("row", { name: new RegExp(`^${name} Not held`) }),
+    ).toBeVisible();
+  }
+  await schedule.getByRole("button", { name: "Period 1", exact: true }).click();
+  const first = page.getByRole("dialog", { name: "Period 1 on Late start" });
+  await first.getByLabel("Starts").fill("09:00");
+  await first.getByLabel("Ends").fill("09:45");
+  await first.getByRole("button", { name: "Save times" }).click();
+  await expect(first).toBeHidden();
+  await schedule.getByRole("button", { name: "Close" }).click();
 
   await page.getByRole("tab", { name: "School days" }).click();
   await untilHydrated(page);
   await page.getByRole("button", { name: /^Wednesday, June 9/ }).click();
+  // Another spec adds a schedule of its own alongside, so the day names
+  // which one it runs on rather than taking whichever is offered first.
+  await page.getByRole("combobox", { name: /^Bell times/ }).click();
+  await page.getByRole("option", { name: "Late start" }).click();
   await page.getByRole("button", { name: "Use for these days" }).click();
   await expect(page.getByText("Days changed: 1")).toBeVisible();
   await expect(
@@ -220,18 +240,26 @@ test("a bell schedule adds an assembly that a class can have a lesson in for tha
   await page.getByRole("tab", { name: "Periods" }).click();
   await untilHydrated(page);
   await page.getByRole("button", { name: "Add bell schedule" }).click();
-  const sheet = page.getByRole("dialog");
+  const sheet = page.getByRole("dialog", { name: "Add bell schedule" });
   await sheet.getByLabel("Name in English").first().fill("Assembly day");
-  await sheet.getByRole("button", { name: "Add a period of its own" }).click();
-  await sheet
-    .getByRole("textbox", { name: "Name in English, New period", exact: true })
+  await sheet.getByRole("button", { name: "Add bell schedule" }).click();
+  const schedule = page.getByRole("dialog", { name: "Assembly day" });
+  await schedule
+    .getByRole("button", { name: "Add a period of its own" })
+    .click();
+  const own = page.getByRole("dialog", { name: "Add a period of its own" });
+  await own
+    .getByRole("textbox", { name: "Name in English", exact: true })
     .fill("Assembly");
-  await sheet.getByLabel("Code, Assembly", { exact: true }).fill("asm");
-  await sheet.getByLabel("Starts, Assembly", { exact: true }).fill("06:30");
-  await sheet.getByLabel("Ends, Assembly", { exact: true }).fill("07:00");
-
-  await sheet.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("Bell schedule saved")).toBeVisible();
+  await own.getByLabel("Code", { exact: true }).fill("asm");
+  await own.getByLabel("Starts", { exact: true }).fill("06:30");
+  await own.getByLabel("Ends", { exact: true }).fill("07:00");
+  await own.getByRole("button", { name: "Add a period of its own" }).click();
+  await expect(own).toBeHidden();
+  await expect(
+    schedule.getByRole("row", { name: /^Assembly asm/ }),
+  ).toBeVisible();
+  await schedule.getByRole("button", { name: "Close" }).click();
   await expect(page.getByText("Its own: Assembly")).toBeVisible();
 
   await page.getByRole("tab", { name: "School days" }).click();
