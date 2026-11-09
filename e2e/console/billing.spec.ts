@@ -119,7 +119,9 @@ test("a contract is invoiced, paid by transfer and card, credited, and shown to 
     .filter({ hasText: `Invoice ${number}` });
   await expect(listed).toContainText("Paid");
   await expect(school.getByText("Example Bank, IBAN EG00 0000")).toBeVisible();
-  await listed.getByRole("button", { name: `Invoice ${number}` }).click();
+  await listed
+    .getByRole("button", { name: `Invoice ${number}`, exact: true })
+    .click();
   const sheet = school.getByRole("dialog", { name: `Invoice ${number}` });
   await expect(sheet.getByRole("article")).toContainText("39,900.00");
   await context.close();
