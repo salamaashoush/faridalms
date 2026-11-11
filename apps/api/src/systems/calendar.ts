@@ -508,7 +508,6 @@ export const reviewTranslation = writeProcedure
       translated: documentWritten(
         (await draftWords(context, host(row.id))).other,
       ),
-      nothingToCheck: "calendar.nothing_to_check",
     });
   });
 

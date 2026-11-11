@@ -1429,7 +1429,6 @@ export const reviewLessonTranslation = writeProcedure
       translated: documentWritten(
         translation ? lessonContentOf(translation.content) : null,
       ),
-      nothingToCheck: "learning.nothing_to_check",
     });
   });
 

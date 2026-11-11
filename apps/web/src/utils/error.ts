@@ -453,8 +453,6 @@ export function getMessageFromError(error: unknown): string {
         return m.annErrAlreadyOut();
       case "announcements.title":
         return m.annTitleNeeded();
-      case "announcements.nothing_to_check":
-        return m.translationErrNothingToCheck();
       case "announcements.nobody":
         return m.annErrNobody();
       case "announcements.no_ack":
@@ -469,8 +467,7 @@ export function getMessageFromError(error: unknown): string {
         return m.annErrSlug();
       case "announcements.no_website":
         return m.annErrNoWebsite();
-      case "consents.nothing_to_check":
-      case "calendar.nothing_to_check":
+      case "translation.nothing_to_check":
         return m.translationErrNothingToCheck();
       case "external_id.taken":
         return m.identifiersErrTaken();
@@ -939,9 +936,6 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrConditionUnscored();
       case "learning.translation_language":
         return m.lrnErrTranslationLanguage();
-      case "learning.nothing_to_check":
-      case "coursework.nothing_to_check":
-        return m.translationErrNothingToCheck();
       case "coursework.translation_language":
         return m.courseworkErrTranslationLanguage();
       case "learning.condition_in_use":

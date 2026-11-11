@@ -586,7 +586,7 @@ describe("writing announcements with headings", () => {
       ),
     ).toMatchObject({
       code: "CONFLICT",
-      message: "announcements.nothing_to_check",
+      message: "translation.nothing_to_check",
     });
   });
 

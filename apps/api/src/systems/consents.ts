@@ -327,7 +327,6 @@ export const reviewForm = writeProcedure
       translated: documentWritten(
         (await consentWords(context, row.id)).translation,
       ),
-      nothingToCheck: "consents.nothing_to_check",
     });
   });
 

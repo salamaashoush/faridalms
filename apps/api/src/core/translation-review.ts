@@ -40,7 +40,7 @@ const AUDIT_ACTIONS = {
  * Records that a host's translation was checked against the original as it
  * now reads, or takes the check back, for a caller that has already
  * established the person may change the host. Only a written translation can
- * be checked; `nothingToCheck` is the host's refusal when there is none.
+ * be checked.
  */
 export async function checkTranslation(
   context: UnitContext,
@@ -51,13 +51,14 @@ export async function checkTranslation(
     expectedVersion: number;
     reviewed: boolean;
     translated: boolean;
-    nothingToCheck: string;
   },
 ) {
   if (input.version !== input.expectedVersion)
     throw new ORPCError("CONFLICT", { message: "conflict.version" });
   if (input.reviewed && !input.translated)
-    throw new ORPCError("CONFLICT", { message: input.nothingToCheck });
+    throw new ORPCError("CONFLICT", {
+      message: "translation.nothing_to_check",
+    });
   const version = await reviewTranslation(context.tx, {
     tenantId: context.tenantId,
     host: input.host,

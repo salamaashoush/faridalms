@@ -299,7 +299,10 @@ describe("answering for a child", () => {
           reviewed: true,
         }),
       ),
-    ).toMatchObject({ code: "CONFLICT", message: "consents.nothing_to_check" });
+    ).toMatchObject({
+      code: "CONFLICT",
+      message: "translation.nothing_to_check",
+    });
     const translated = await office.consents.saveForm({
       id: draft.id,
       expectedVersion: draft.version,

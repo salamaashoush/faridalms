@@ -231,7 +231,7 @@ describe("an event in two languages", () => {
           reviewed: true,
         }),
       ),
-    ).toMatchObject({ message: "calendar.nothing_to_check" });
+    ).toMatchObject({ message: "translation.nothing_to_check" });
 
     const saved = await office.calendar.save({
       ...event("Science evening"),

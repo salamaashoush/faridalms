@@ -801,7 +801,6 @@ export const review = writeProcedure
       expectedVersion: input.expectedVersion,
       reviewed: input.reviewed,
       translated: documentWritten((await draftWords(context, host(row))).other),
-      nothingToCheck: "announcements.nothing_to_check",
     });
   });
 

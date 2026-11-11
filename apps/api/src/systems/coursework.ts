@@ -1341,7 +1341,6 @@ export const reviewBriefTranslation = writeProcedure
       expectedVersion: input.expectedVersion,
       reviewed: input.reviewed,
       translated: documentWritten(translation?.content ?? null),
-      nothingToCheck: "coursework.nothing_to_check",
     });
   });
 
