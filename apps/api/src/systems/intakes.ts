@@ -98,8 +98,8 @@ export const options = readProcedure.handler(async ({ context }) => {
       templatesOf(context.tx, {
         ...org(context),
         viewerId: context.actor.userId,
-        kind: "admission_letter",
-      }),
+        kinds: ["admission_letter"],
+      }).then(({ rows }) => rows),
     ]);
   const country = school?.countryCode ?? null;
   return {

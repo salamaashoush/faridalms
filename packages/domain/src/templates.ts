@@ -3,6 +3,7 @@ import * as v from "valibot";
 import type { Capability } from "./capabilities";
 
 import { contentDocumentSchema } from "./content";
+import { pageField } from "./paging";
 import { savedSectionSchema } from "./saved-sections";
 
 /** What a school keeps templates for: documents its staff start often. */
@@ -117,6 +118,7 @@ export const browseTemplatesSchema = v.object({
   kind: v.optional(v.union([v.literal(""), v.picklist(TEMPLATE_KINDS)]), ""),
   subjectId: optionalId,
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
+  page: pageField,
 });
 
 /** A reviewer shares a piece with the school, or sends it back with a note. */

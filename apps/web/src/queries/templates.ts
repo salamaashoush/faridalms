@@ -13,6 +13,7 @@ export const templatesQuery = (input: {
   kind: TemplateKind | "";
   subjectId: string;
   q: string;
+  page: number;
 }) =>
   queryOptions({
     queryKey: ["templates", "browse", input],

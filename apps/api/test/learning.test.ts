@@ -2951,6 +2951,32 @@ describe("templates", () => {
     await keeper.templates.remove({ id: trip.id });
     await office.templates.remove({ id: photos.id });
   });
+
+  test("the shelf pages past its first templates rather than stopping short", async () => {
+    const office = await signedIn("northwind", login("principal"));
+    const tag = crypto.randomUUID().slice(0, 8);
+    const made = await Promise.all(
+      Array.from({ length: 27 }, (_, index) =>
+        office.templates.save({
+          kind: "consent_form",
+          title: `Shelf ${tag} ${String(index).padStart(2, "0")}`,
+          description: "",
+          content: plainContent("May we?"),
+        }),
+      ),
+    );
+    const first = await office.templates.browse({ kind: "", q: tag });
+    expect(first).toMatchObject({ total: 27, page: 1, pages: 2 });
+    expect(first.rows).toHaveLength(25);
+    const second = await office.templates.browse({ kind: "", q: tag, page: 2 });
+    expect(second.rows.map((row) => row.title)).toEqual([
+      `Shelf ${tag} 25`,
+      `Shelf ${tag} 26`,
+    ]);
+    await Promise.all(
+      made.map((row) => office.templates.remove({ id: row.id })),
+    );
+  });
 });
 
 const bankQuestion = (prompt: string) =>

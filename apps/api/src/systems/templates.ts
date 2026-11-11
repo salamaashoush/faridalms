@@ -15,6 +15,7 @@ import {
   updateTemplate,
 } from "@faridalms/database/stores/templates";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import { paged, pageWindow } from "@faridalms/domain/paging";
 import {
   savedSectionFileIds,
   savedSectionPlainText,
@@ -88,11 +89,11 @@ export const list = readProcedure
   .input(templateKindSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, ...TEMPLATE_AUTHORS[input.kind]);
-    const rows = await templatesOf(context.tx, {
+    const { rows } = await templatesOf(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       viewerId: context.actor.userId,
-      kind: input.kind,
+      kinds: [input.kind],
     });
     return rows.map((row) => listed(context, row));
   });
@@ -103,18 +104,21 @@ export const browse = readProcedure
   .handler(async ({ input, context }) => {
     const kinds = TEMPLATE_KINDS.filter((kind) => writesKind(context, kind));
     if (kinds.length === 0) throw new ORPCError("FORBIDDEN");
-    const rows = await templatesOf(context.tx, {
+    const { rows, total } = await templatesOf(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       viewerId: context.actor.userId,
-      kind: input.kind || null,
+      kinds: input.kind ? kinds.filter((kind) => kind === input.kind) : kinds,
       subjectId: input.subjectId,
       q: input.q,
+      ...pageWindow(input.page),
     });
     return {
-      rows: rows
-        .filter((row) => kinds.includes(row.kind))
-        .map((row) => listed(context, row)),
+      ...paged(
+        rows.map((row) => listed(context, row)),
+        total,
+        input.page,
+      ),
       reviews: can(context, "templates:review"),
     };
   });
@@ -122,11 +126,11 @@ export const browse = readProcedure
 /** What teachers have offered as templates and waits for a reviewer. */
 export const queue = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "templates:review");
-  const rows = await templatesOf(context.tx, {
+  const { rows } = await templatesOf(context.tx, {
     tenantId: context.tenantId,
     orgId: context.schoolId,
     viewerId: context.actor.userId,
-    kind: null,
+    kinds: TEMPLATE_KINDS,
     pending: true,
   });
   return rows.map((row) => listed(context, row));

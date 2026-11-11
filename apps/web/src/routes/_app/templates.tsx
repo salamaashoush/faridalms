@@ -4,6 +4,7 @@ import type {
   IndexToolbarProps,
 } from "@faridalms/ui/system/index-toolbar";
 
+import { pageField } from "@faridalms/domain/paging";
 import {
   kindsWritten,
   TEMPLATE_AUTHORS,
@@ -50,6 +51,7 @@ const searchSchema = v.object({
   ),
   subjectId: v.fallback(v.optional(v.string(), ""), ""),
   q: v.fallback(v.optional(v.string(), ""), ""),
+  page: v.fallback(pageField, 1),
 });
 
 export const Route = createFileRoute("/_app/templates")({
@@ -60,7 +62,12 @@ export const Route = createFileRoute("/_app/templates")({
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, ...Object.values(TEMPLATE_AUTHORS).flat());
     await context.queryClient.ensureQueryData(
-      templatesQuery({ kind: deps.kind, subjectId: deps.subjectId, q: deps.q }),
+      templatesQuery({
+        kind: deps.kind,
+        subjectId: deps.subjectId,
+        q: deps.q,
+        page: deps.page,
+      }),
     );
   },
   component: TemplatesPage,
@@ -171,6 +178,7 @@ function TemplatesPage() {
       kind: search.kind,
       subjectId: search.subjectId,
       q: search.q,
+      page: search.page,
     }),
   ).data;
   const queue = useQuery({ ...templateQueueQuery, enabled: data.reviews });
@@ -189,7 +197,9 @@ function TemplatesPage() {
       open: true,
     }));
   const patch = (change: Partial<v.InferOutput<typeof searchSchema>>) =>
-    void navigate({ search: (previous) => ({ ...previous, ...change }) });
+    void navigate({
+      search: (previous) => ({ ...previous, page: 1, ...change }),
+    });
   const subjectName = (id: string | null) =>
     id ? (labelOf(subjects.find((row) => row.id === id)) ?? "") : "";
 
@@ -269,6 +279,13 @@ function TemplatesPage() {
       toolbar={toolbar}
       rowActions={rowActions(false)}
       card={pieceCard(false, show)}
+      pagination={{
+        page: data.page,
+        pages: data.pages,
+        total: data.total,
+        pageSize: data.pageSize,
+        onPage: (page) => patch({ page }),
+      }}
       empty={{
         icon: BookMarked,
         title: m.templatesEmptyTitle(),
@@ -282,7 +299,7 @@ function TemplatesPage() {
       <PageHeader
         title={m.templatesTitle()}
         description={m.templatesHint()}
-        count={data.rows.length}
+        count={data.total}
       />
       {data.reviews ? (
         <RecordTabs

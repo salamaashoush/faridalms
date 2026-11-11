@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type { TemplateState } from "../tables/documents";
 
-import { holds, isoOf } from "./sql";
+import { holds, isoOf, textArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -91,20 +91,23 @@ export async function templatesOf(
     tenantId: string;
     orgId: string;
     viewerId: string;
-    kind: TemplateKind | null;
+    kinds: readonly TemplateKind[];
     subjectId?: string;
     q?: string;
     pending?: boolean;
+    limit?: number;
+    offset?: number;
   },
-): Promise<TemplateRow[]> {
+): Promise<{ rows: TemplateRow[]; total: number }> {
   const q = input.q?.trim() ?? "";
-  const rows = await tx.execute<TemplateRecord>(sql`
-    select ${columns}
+  if (input.kinds.length === 0) return { rows: [], total: 0 };
+  const rows = await tx.execute<TemplateRecord & { total: number }>(sql`
+    select ${columns}, (count(*) over ())::int as total
     from core.document_templates t
     left join core.users u on u.tenant_id = t.tenant_id and u.id = t.owner_user_id
     where t.tenant_id = ${input.tenantId}::uuid and t.org_id = ${input.orgId}::uuid
       and t.status = 'active'
-      ${input.kind ? sql`and t.kind = ${input.kind}` : sql``}
+      and t.kind = any(${textArray(input.kinds)})
       ${
         input.pending
           ? sql`and t.state = 'pending'`
@@ -113,8 +116,8 @@ export async function templatesOf(
       ${input.subjectId ? sql`and t.subject_descriptor_id = ${input.subjectId}::uuid` : sql``}
       ${q ? sql`and (${holds(q, [sql`t.title`, sql`t.description`])})` : sql``}
     order by lower(t.title), t.id
-    limit 200`);
-  return rows.map(templateOf);
+    limit ${input.limit ?? 200} offset ${input.offset ?? 0}`);
+  return { rows: rows.map(templateOf), total: rows[0]?.total ?? 0 };
 }
 
 export async function templateById(
