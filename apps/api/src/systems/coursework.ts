@@ -2291,13 +2291,56 @@ export const replyToComment = writeProcedure
     if (!found) throw new ORPCError("NOT_FOUND");
     if (!(await gradesAttempt(context, found.attemptId)))
       await answerableComment(context, found.id);
-    return insertReply(context.tx, {
+    const reply = await insertReply(context.tx, {
       tenantId: context.tenantId,
       commentId: found.id,
       userId: context.actor.userId,
       body: input.body,
     });
+    await tellReply(context, found);
+    return reply;
   });
+
+/**
+ * A reply under a comment tells the other side of it: the student when a
+ * grader answers, the comment's author when the student does. One unread
+ * notice an assignment, however many replies follow.
+ */
+async function tellReply(
+  context: UnitContext,
+  answered: { attemptId: string; authorId: string },
+) {
+  const attempt = await attemptById(
+    context.tx,
+    context.tenantId,
+    answered.attemptId,
+  );
+  if (!attempt) return;
+  const to =
+    context.actor.userId === attempt.studentId
+      ? answered.authorId
+      : attempt.studentId;
+  if (to === context.actor.userId) return;
+  const assignment = await assignmentById(
+    context.tx,
+    context.tenantId,
+    attempt.assignmentId,
+  );
+  if (!assignment) return;
+  const [replier] = await namesOf(context.tx, context.tenantId, [
+    context.actor.userId,
+  ]);
+  await notify(context, [to], {
+    kind: "reply",
+    subject: { type: "assignment", id: assignment.id },
+    collapse: true,
+    params: {
+      title: assignment.title,
+      actorName: replier?.fullNameEn ?? replier?.fullNameAr ?? "",
+      actorNameAr: replier?.fullNameAr ?? replier?.fullNameEn ?? "",
+    },
+  });
+}
 
 /** Takes back a comment; only the grader who wrote it may. */
 export const uncomment = writeProcedure

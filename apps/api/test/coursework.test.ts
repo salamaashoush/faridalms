@@ -679,6 +679,12 @@ describe("handing in and returning work", () => {
       body: "The first line, where you greet her.",
     });
     expect(await waiting()).toBe(0);
+    const replies = async (api: typeof student.api) =>
+      (await api.notifications.list({ tab: "all" })).rows.filter(
+        (row) => row.kind === "reply" && row.subjectId === saved.id,
+      ).length;
+    expect(await replies(student.api)).toBe(1);
+    expect(await replies(teacher.api)).toBe(1);
     const answered = await teacher.api.coursework.grading({
       assignmentId: saved.id,
       studentId: me.id,
