@@ -3,10 +3,9 @@ import type {
   HistoryField,
   HistoryValue,
 } from "@faridalms/domain/history";
+import type { FieldChange } from "@faridalms/ui/system/change-log";
 
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
-import { cn } from "@faridalms/ui/cn";
-import { ArrowRight } from "lucide-react";
 
 import { MEANING_LABEL } from "~/components/attendance/format";
 import { inLocale } from "~/hooks/useCurrentUser";
@@ -91,45 +90,13 @@ function shown(change: HistoryChange, value: HistoryValue) {
   }
 }
 
-export interface HistoryChangesProps {
-  changes: readonly HistoryChange[];
-}
-
-/** The old and new value of each field an entry changed. */
-export function HistoryChanges({ changes }: HistoryChangesProps) {
-  if (changes.length === 0) return null;
-  return (
-    <dl className="mt-1 grid gap-1 text-[13px] leading-[18px]">
-      {changes.map((change) => (
-        <div
-          key={change.field}
-          className="flex flex-wrap items-baseline gap-x-2"
-        >
-          <dt className="text-muted-foreground">
-            {FIELD_LABEL[change.field]()}
-          </dt>
-          <dd className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
-            <span className="sr-only">{m.historyWas()}</span>
-            <bdi
-              dir={change.kind === "phone" ? "ltr" : undefined}
-              className={cn(
-                "text-muted-foreground",
-                blank(change.before) ? "italic" : "line-through",
-              )}
-            >
-              {shown(change, change.before)}
-            </bdi>
-            <ArrowRight
-              aria-hidden
-              className="size-3.5 shrink-0 self-center text-muted-foreground rtl:rotate-180"
-            />
-            <span className="sr-only">{m.historyNow()}</span>
-            <bdi dir={change.kind === "phone" ? "ltr" : undefined}>
-              {shown(change, change.after)}
-            </bdi>
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
+/** The old and new value of each field an entry changed, in the reader's words. */
+export function fieldChanges(changes: readonly HistoryChange[]): FieldChange[] {
+  return changes.map((change) => ({
+    field: FIELD_LABEL[change.field](),
+    before: shown(change, change.before),
+    after: shown(change, change.after),
+    beforeBlank: blank(change.before),
+    ltr: change.kind === "phone",
+  }));
 }

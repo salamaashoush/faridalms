@@ -7,6 +7,8 @@ export const ENGLISH_STRINGS: SystemStrings = {
   ascending: "Ascending",
   cancel: "Cancel",
   changePhoto: "Change photo",
+  changedWas: "was",
+  changedNow: "now",
   choose: (label) => `Choose ${label}…`,
   clear: "Clear",
   clearFilter: "Clear filter",

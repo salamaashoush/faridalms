@@ -246,7 +246,7 @@ test("an administrator adds a year with terms, closes it and reopens it with a r
   ).toBeVisible();
 
   await page.getByRole("tab", { name: "History", exact: true }).click();
-  const history = page.getByRole("region", { name: "History" });
+  const history = page.getByRole("table", { name: "History" });
   await expect(history.getByText("Year reopened")).toBeVisible();
   await expect(history.getByText("Correct a mistyped grade")).toBeVisible();
   await expect(history.getByText("Year closed")).toBeVisible();

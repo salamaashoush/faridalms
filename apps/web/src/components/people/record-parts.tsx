@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Skeleton } from "@faridalms/ui/skeleton";
+import { ChangeLog } from "@faridalms/ui/system/change-log";
 import {
   Fact,
   Facts,
@@ -16,13 +17,12 @@ import { StatusText } from "@faridalms/ui/system/status";
 import { Value } from "@faridalms/ui/system/value";
 import { Suspense } from "react";
 
-import { inLocale } from "~/hooks/useCurrentUser";
+import { historyEntry, historyLabels } from "~/components/system/history";
 import * as m from "~/i18n/messages";
-import { auditActionLabel } from "~/utils/audit-actions";
 import { formatInstant } from "~/utils/datetime";
 
 import { formatPhone } from "./format";
-import { HistoryChanges } from "./history-changes";
+import { fieldChanges } from "./history-changes";
 
 export interface PhoneProps {
   value: string | null | undefined;
@@ -172,49 +172,38 @@ interface HistorySectionProps {
 
 function HistorySection({ entries, more }: HistorySectionProps) {
   return (
-    <RecordSection
-      title={m.recordHistory()}
-      description={m.recordHistoryHint()}
-    >
-      {entries.length === 0 ? (
-        <RecordEmpty>{m.recordHistoryEmpty()}</RecordEmpty>
-      ) : (
-        <RecordList>
-          {entries.map((entry) => (
-            <li key={entry.id} className="grid gap-0.5 py-3">
-              <span className="text-sm leading-5 font-medium">
-                {auditActionLabel(entry.action)}
-              </span>
-              <span className="text-[13px] leading-[18px] text-muted-foreground">
-                {[
-                  formatInstant(entry.occurredAt, "medium"),
-                  entry.actorNameEn || entry.actorNameAr
-                    ? inLocale(entry.actorNameEn, entry.actorNameAr)
-                    : m.historySystem(),
-                ].join(" · ")}
-              </span>
-              <HistoryChanges changes={entry.changes} />
-              {entry.reason ? (
-                <span dir="auto" className="text-sm leading-5">
-                  {entry.reason}
-                </span>
-              ) : null}
-            </li>
-          ))}
-        </RecordList>
-      )}
+    <div className="grid gap-3">
+      <ChangeLog
+        labels={historyLabels({
+          caption: m.recordHistory(),
+          empty: m.recordHistoryEmpty(),
+          emptyHint: m.recordHistoryHint(),
+        })}
+        entries={entries.map((entry) => ({
+          ...historyEntry({
+            id: entry.id,
+            action: entry.action,
+            occurredAt: entry.occurredAt,
+            actorEn: entry.actorNameEn,
+            actorAr: entry.actorNameAr,
+          }),
+          details: [],
+          changes: fieldChanges(entry.changes),
+          why: entry.reason ?? null,
+        }))}
+      />
       {more ? (
         <Button
           type="button"
           variant="outline"
-          className="mt-3 justify-self-start max-md:h-10"
+          className="justify-self-start max-md:h-10"
           disabled={more.pending}
           onClick={more.onMore}
         >
           {m.recordHistoryMore()}
         </Button>
       ) : null}
-    </RecordSection>
+    </div>
   );
 }
 

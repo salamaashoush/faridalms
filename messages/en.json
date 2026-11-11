@@ -1890,6 +1890,11 @@
   "historyBlank": "Blank",
   "historyWas": "was",
   "historyNow": "now",
+  "historyColChange": "Change",
+  "historyColWhy": "Why",
+  "historyColWho": "By",
+  "historyColWhen": "When",
+  "historyColRecord": "Record",
   "contractPaymentOverdue": "A payment for your school's plan is overdue. Contact your account manager so your school keeps full access.",
   "contractPlanEndsSoon": "Your school's plan ends soon. Contact your account manager to renew it.",
   "contractTrialEnds": [

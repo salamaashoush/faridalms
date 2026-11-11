@@ -1,16 +1,15 @@
 import type { ExamBoard, ExamChangeDetails } from "@faridalms/domain/exams";
 
-import { Pagination } from "@faridalms/ui/system/data-table";
-import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { ChangeLog } from "@faridalms/ui/system/change-log";
 import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { historyEntry, historyLabels } from "~/components/system/history";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { examHistoryQuery } from "~/queries/exams";
-import { auditActionLabel } from "~/utils/audit-actions";
-import { formatDate, formatInstant, formatMonthLabel } from "~/utils/datetime";
+import { formatDate, formatMonthLabel } from "~/utils/datetime";
 
 import { sessionName } from "./names";
 
@@ -86,51 +85,44 @@ export function ExamHistory({ open, onOpenChange }: ExamHistoryProps) {
       description={m.examHistoryHint()}
     >
       {history ? (
-        history.rows.length ? (
-          <>
-            <ol className="grid gap-5">
-              {history.rows.map((row) => {
-                const { reason, belowBoard: below } = row.details;
-                return (
-                  <li key={row.id} className="grid gap-1 text-sm leading-5">
-                    <span className="font-medium" dir="auto">
-                      {auditActionLabel(row.action)}
-                      {": "}
-                      <bdi>{subject(row.details)}</bdi>
-                    </span>
-                    <span className="text-[13px] leading-[18px] text-muted-foreground">
-                      {formatInstant(row.occurredAt, "medium")}
-                      {" · "}
-                      <bdi>{inLocale(row.actorEn, row.actorAr)}</bdi>
-                    </span>
-                    {differences(row.details).map((line) => (
-                      <span key={line} className="text-muted-foreground">
-                        {line}
-                      </span>
-                    ))}
-                    {below ? (
-                      <span className="text-warning-foreground dark:text-warning">
-                        {m.examKeepBelowBoard({ date: formatDate(below) })}
-                      </span>
-                    ) : null}
-                    {reason ? <q dir="auto">{reason}</q> : null}
-                  </li>
-                );
-              })}
-            </ol>
-            {history.pages > 1 ? (
-              <Pagination
-                page={history.page}
-                pages={history.pages}
-                total={history.total}
-                pageSize={history.pageSize}
-                onPage={setPage}
-              />
-            ) : null}
-          </>
-        ) : (
-          <EmptyState placement="section" title={m.examHistoryEmpty()} />
-        )
+        <ChangeLog
+          labels={historyLabels({
+            caption: m.examHistory(),
+            empty: m.examHistoryEmpty(),
+            spans: true,
+          })}
+          entries={history.rows.map((row) => {
+            const below = row.details.belowBoard;
+            return {
+              ...historyEntry({
+                id: row.id,
+                action: row.action,
+                occurredAt: row.occurredAt,
+                actorEn: row.actorEn,
+                actorAr: row.actorAr,
+              }),
+              details: [
+                ...differences(row.details),
+                ...(below
+                  ? [m.examKeepBelowBoard({ date: formatDate(below) })]
+                  : []),
+              ],
+              why: row.details.reason ?? null,
+              record: <bdi>{subject(row.details)}</bdi>,
+            };
+          })}
+          pagination={
+            history.pages > 1
+              ? {
+                  page: history.page,
+                  pages: history.pages,
+                  total: history.total,
+                  pageSize: history.pageSize,
+                  onPage: setPage,
+                }
+              : undefined
+          }
+        />
       ) : (
         <div aria-busy="true" className="min-h-20" />
       )}

@@ -22,6 +22,10 @@ export interface SystemStrings {
   ascending: string;
   cancel: string;
   changePhoto: string;
+  /** Said before a field's earlier value in a change log, for a screen reader. */
+  changedWas: string;
+  /** Said before a field's new value in a change log, for a screen reader. */
+  changedNow: string;
   choose: (label: string) => string;
   clear: string;
   clearFilter: string;

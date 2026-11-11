@@ -100,6 +100,48 @@ describe("ChangeLog", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows each field a change moved, its old value struck out and its new one", () => {
+    renderWithSystem(
+      <ChangeLog
+        labels={LABELS}
+        entries={[
+          {
+            id: "1",
+            what: "Guardian changed",
+            details: [],
+            changes: [
+              { field: "Mobile", before: "+20 100", after: "+20 122", ltr: true },
+              {
+                field: "Preferred name",
+                before: "Blank",
+                after: "Sam",
+                beforeBlank: true,
+              },
+            ],
+            why: null,
+            who: "Salama Ashoush",
+            when: "Nov 7, 2026, 4:00 PM",
+            at: "2026-11-07T14:00:00Z",
+          },
+        ]}
+      />,
+    );
+    const table = screen.getByRole("table", { name: "Changes" });
+    expect(
+      within(table)
+        .getAllByRole("term")
+        .map((term) => term.textContent),
+    ).toEqual(["Mobile", "Preferred name"]);
+    const [phone, name] = within(table).getAllByRole("definition");
+    expect(phone).toHaveTextContent("was+20 100now+20 122");
+    expect(within(phone as HTMLElement).getByText("+20 100")).toHaveClass(
+      "line-through",
+    );
+    expect(within(name as HTMLElement).getByText("Blank")).toHaveClass(
+      "italic",
+    );
+  });
+
   it("says in a line that nothing has changed yet", () => {
     renderWithSystem(<ChangeLog labels={LABELS} entries={[]} />);
     expect(

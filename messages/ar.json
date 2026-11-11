@@ -1988,6 +1988,11 @@
   "historyBlank": "فارغ",
   "historyWas": "كان",
   "historyNow": "أصبح",
+  "historyColChange": "التغيير",
+  "historyColWhy": "السبب",
+  "historyColWho": "بواسطة",
+  "historyColWhen": "الوقت",
+  "historyColRecord": "السجل",
   "contractPaymentOverdue": "تأخر سداد دفعة من اشتراك مدرستك. تواصل مع مدير حسابك لتحتفظ مدرستك بكامل الصلاحيات.",
   "contractPlanEndsSoon": "ينتهي اشتراك مدرستك قريبًا. تواصل مع مدير حسابك لتجديده.",
   "contractTrialEnds": [

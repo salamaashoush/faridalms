@@ -3,9 +3,10 @@ import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 import type { ReactNode } from "react";
 
 import { Checkbox } from "@faridalms/ui/checkbox";
-import { DataTable, Pagination } from "@faridalms/ui/system/data-table";
+import { ChangeLog } from "@faridalms/ui/system/change-log";
+import { DataTable } from "@faridalms/ui/system/data-table";
 import { TextField } from "@faridalms/ui/system/form-field";
-import { RecordEmpty, RecordSection } from "@faridalms/ui/system/record-page";
+import { RecordSection } from "@faridalms/ui/system/record-page";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge } from "@faridalms/ui/system/status";
 import { Value } from "@faridalms/ui/system/value";
@@ -24,11 +25,11 @@ import {
   CAPABILITY_LABEL,
   SENSITIVE_CAPABILITIES,
 } from "~/components/people/capabilities";
+import { historyEntry, historyLabels } from "~/components/system/history";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
 import { saveAccessRole } from "~/server/access";
-import { auditActionLabel } from "~/utils/audit-actions";
 import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -153,49 +154,42 @@ function AccessChanges() {
       title={m.accessChanges()}
       description={m.accessChangesHint()}
     >
-      {data.rows.length === 0 ? (
-        <RecordEmpty>{m.accessNoChanges()}</RecordEmpty>
-      ) : (
-        <div className="grid gap-4">
-          <ul className="divide-y">
-            {data.rows.map((row) => (
-              <li
-                key={row.id}
-                className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-2.5 text-sm leading-5"
-              >
-                <span className="font-medium">
-                  {auditActionLabel(row.action)}
-                </span>
-                <span dir="auto" className="min-w-0">
-                  <Value>
-                    {row.subjectNameEn || row.subjectNameAr
-                      ? inLocale(row.subjectNameEn, row.subjectNameAr)
-                      : null}
-                  </Value>
-                </span>
-                <span className="ms-auto text-[13px] leading-[18px] text-muted-foreground">
-                  <bdi>
-                    {row.actorNameEn || row.actorNameAr
-                      ? inLocale(row.actorNameEn, row.actorNameAr)
-                      : m.historySystem()}
-                  </bdi>
-                  {" · "}
-                  {formatInstant(row.occurredAt, "medium")}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {data.pages > 1 ? (
-            <Pagination
-              page={data.page}
-              pages={data.pages}
-              total={data.total}
-              pageSize={data.pageSize}
-              onPage={setPage}
-            />
-          ) : null}
-        </div>
-      )}
+      <ChangeLog
+        labels={historyLabels({
+          caption: m.accessChanges(),
+          empty: m.accessNoChanges(),
+          spans: true,
+        })}
+        entries={data.rows.map((row) => ({
+          ...historyEntry({
+            id: row.id,
+            action: row.action,
+            occurredAt: row.occurredAt,
+            actorEn: row.actorNameEn,
+            actorAr: row.actorNameAr,
+          }),
+          details: [],
+          why: null,
+          record: (
+            <Value>
+              {row.subjectNameEn || row.subjectNameAr
+                ? inLocale(row.subjectNameEn, row.subjectNameAr)
+                : null}
+            </Value>
+          ),
+        }))}
+        pagination={
+          data.pages > 1
+            ? {
+                page: data.page,
+                pages: data.pages,
+                total: data.total,
+                pageSize: data.pageSize,
+                onPage: setPage,
+              }
+            : undefined
+        }
+      />
     </RecordSection>
   );
 }

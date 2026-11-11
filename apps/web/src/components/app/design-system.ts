@@ -22,6 +22,8 @@ export function portalDesignSystem(): DesignSystemValue {
       ascending: m.indexAscending(),
       cancel: m.commonCancel(),
       changePhoto: m.photoChange(),
+      changedWas: m.historyWas(),
+      changedNow: m.historyNow(),
       choose: (label) => m.managementChoose({ label }),
       clear: m.commonClear(),
       clearFilter: m.indexClearFilter(),
