@@ -31,10 +31,13 @@ Who a picture shows is named from the floating bar, on a picture of its
 own and on each picture of a gallery alike (its bar's "Who is in it"
 lists them), so the check reaches every picture a document holds.
 
-Lessons, quizzes, assignment briefs, learner responses, assessment
-feedback, messages, announcements, calendar events, consent
-forms and website sections all save the shared document; their readers
-render it through the static renderer. Plain-text and Markdown messages
+Lessons, quizzes, assignment briefs, learner responses, messages,
+discussion posts, announcements, calendar events, consent forms and website
+sections all save the shared document; their readers render it through the
+static renderer. Talk about a document is plain text by design: comments on
+a passage (a writer's comments, and a marker's comments on handed-in work),
+their replies, and the feedback a marker writes beside a mark, each at most
+a few thousand characters, so marking stays a matter of typing. Plain-text and Markdown messages
 written by older clients keep their format and renderers. An announcement
 keeps one document per language, the translation checked as a
 whole against the original. Documents keep their published versions, which
