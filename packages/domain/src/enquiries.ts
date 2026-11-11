@@ -104,6 +104,19 @@ export const enquiryListSchema = v.object({
 export type EnquiryListQuery = v.InferOutput<typeof enquiryListSchema>;
 
 /**
+ * Who an enquiry is from and what they ask, alike whether a family wrote it
+ * on the website or staff took it down.
+ */
+export const enquirerFields = {
+  name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
+  email,
+  phone: words(40),
+  childName: words(120),
+  childYear: words(60),
+  message: words(2000),
+};
+
+/**
  * An enquiry staff take by phone, at the desk, at an event or from a
  * referral. Like a form, it needs a name and a way to reach the family.
  */
@@ -112,12 +125,7 @@ export const logEnquirySchema = v.pipe(
     source: v.picklist(LOGGED_SOURCES),
     purpose: v.picklist(ENQUIRY_PURPOSES),
     locale: v.picklist(["en", "ar"]),
-    name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
-    email,
-    phone: words(40),
-    childName: words(120),
-    childYear: words(60),
-    message: words(2000),
+    ...enquirerFields,
     assigneeId: v.optional(v.union([v.literal(""), id]), ""),
   }),
   v.check((input) => input.email !== "" || input.phone !== "", "enquiry.reach"),

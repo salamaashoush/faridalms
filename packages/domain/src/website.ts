@@ -10,7 +10,7 @@ import type {
 
 import { pictureEntries } from "./commons";
 import { isSafeContentUrl } from "./content";
-import { MAX_QUESTIONS } from "./enquiries";
+import { enquirerFields, MAX_QUESTIONS } from "./enquiries";
 import { pageField } from "./paging";
 import {
   bodyIssues,
@@ -258,18 +258,7 @@ export const enquirySchema = v.object({
   locale: v.picklist(SITE_LOCALES),
   page: v.pipe(v.string(), v.maxLength(80)),
   sectionId: id,
-  name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
-  email: v.optional(
-    v.union([
-      v.literal(""),
-      v.pipe(v.string(), v.trim(), v.maxLength(254), v.email()),
-    ]),
-    "",
-  ),
-  phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), ""),
-  childName: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(120)), ""),
-  childYear: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(60)), ""),
-  message: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ""),
+  ...enquirerFields,
   answers: v.optional(
     v.pipe(
       v.record(id, v.unknown()),
