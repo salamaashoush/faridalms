@@ -45,6 +45,7 @@ export const Route = createFileRoute("/_app/_staff/notification-audit")({
 function aboutOf(row: Row) {
   if (row.kind === "invite") return m.ntfLinkInvite();
   if (row.kind === "reset") return m.ntfLinkReset();
+  if (row.kind === "register") return m.ntfLinkRegister();
   return row.title;
 }
 

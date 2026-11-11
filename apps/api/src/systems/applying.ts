@@ -55,7 +55,10 @@ import {
   issueInvite,
   reserveLoginName,
 } from "@faridalms/database/stores/invites";
-import { reachability } from "@faridalms/database/stores/notifications";
+import {
+  logLinkDelivery,
+  reachability,
+} from "@faridalms/database/stores/notifications";
 import {
   addContact,
   insertPerson,
@@ -276,7 +279,7 @@ export const register = schoolProcedure
           ? null
           : await holderOfName(tx, { tenantId, loginName: input.email });
         if (signedIn || (holder && holder.accountState !== "invited")) {
-          await mail.send({
+          const { receipt } = await mail.send({
             to: input.email,
             ...alreadyRegisteredMessage({
               locale: input.locale,
@@ -290,6 +293,18 @@ export const register = schoolProcedure
               ).toString(),
             }),
           });
+          const existing = signedIn?.userId ?? holder?.userId;
+          if (existing)
+            await logLinkDelivery(tx, {
+              tenantId,
+              orgId: schoolId,
+              userId: existing,
+              purpose: "register",
+              address: input.email,
+              locale: input.locale,
+              receipt,
+              error: null,
+            });
           await writeAudit(tx, tenantId, {
             action: "account.register_existing",
             objectType: "user",
@@ -362,8 +377,9 @@ export const register = schoolProcedure
         });
         if (!invite) return false;
         const names = arabic ? input.names.ar : input.names.en;
+        let receipt: string | null;
         try {
-          await mail.send({
+          ({ receipt } = await mail.send({
             to: input.email,
             ...registerMessage({
               locale: input.locale,
@@ -377,10 +393,20 @@ export const register = schoolProcedure
               link: welcomeLink(school, context.domains, secret, input.intake),
               days: INVITE_DAYS,
             }),
-          });
+          }));
         } catch {
           throw new ORPCError("BAD_GATEWAY", { message: "register.not_sent" });
         }
+        await logLinkDelivery(tx, {
+          tenantId,
+          orgId: schoolId,
+          userId,
+          purpose: "register",
+          address: input.email,
+          locale: input.locale,
+          receipt,
+          error: null,
+        });
         return false;
       },
     );

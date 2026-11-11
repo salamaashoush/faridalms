@@ -142,6 +142,9 @@ describe("registering to apply", () => {
     const sent = seeded().mail.sent.findLast((row) => row.to === address);
     expect(sent?.subject).toContain("already have an account");
     expect(sent?.text).not.toMatch(/\/welcome#/);
+    const office = await principal();
+    const log = await office.notifications.deliveries({ channel: "email" });
+    expect(log.rows.some((row) => row.kind === "register")).toBe(true);
   });
 
   test("a form filled faster than a person types is answered and dropped", async () => {

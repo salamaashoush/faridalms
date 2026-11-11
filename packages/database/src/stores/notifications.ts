@@ -204,7 +204,7 @@ export async function logLinkDelivery(
     tenantId: string;
     orgId: string;
     userId: string;
-    purpose: "invite" | "reset";
+    purpose: "invite" | "reset" | "register";
     address: string;
     locale: "ar" | "en";
     receipt: string | null;
@@ -399,7 +399,7 @@ export interface DeliveryLogRow {
   sentAt: string | null;
   attempts: number;
   lastError: string | null;
-  kind: NotificationKind | "message" | "invite" | "reset";
+  kind: NotificationKind | "message" | "invite" | "reset" | "register";
   title: string | null;
   /** The person told; null for an outside contact a conversation wrote to. */
   userId: string | null;
