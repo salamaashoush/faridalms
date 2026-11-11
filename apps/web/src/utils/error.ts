@@ -164,7 +164,6 @@ const INTERNAL_CODES: ReadonlySet<string> = new Set([
   "site.colour",
   "site.duplicate_section",
   "site.saved_section",
-  "site_post_recipient.exists",
   "submission.exists",
   "templates.exists",
   "tenant.directory_differs",
@@ -868,8 +867,6 @@ export function getMessageFromError(error: unknown): string {
         return m.errFormQuestionUnready();
       case "form.unchanged":
         return m.errFormUnchanged();
-      case "form.stale":
-        return m.errFormStale();
       case "form.name":
         return m.afmErrName();
       case "admissions.full":
@@ -916,8 +913,6 @@ export function getMessageFromError(error: unknown): string {
         return m.errApplicationNotSent();
       case "application.exists":
         return m.errApplicationExists();
-      case "application.stale":
-        return m.errApplicationStale();
       case "register.no_mail":
         return m.registerErrNoMail();
       case "register.not_sent":
