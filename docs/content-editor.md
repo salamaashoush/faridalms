@@ -2,7 +2,7 @@
 
 The LMS and CMS need one content system. Its editor, document validation,
 static renderer and media authorization form the common boundary; each host
-supplies the record context and available actions, including publication rules. A news post, an assignment brief,
+supplies the record context and available actions, including publication rules. An announcement, an assignment brief,
 a message and a school blog article must not each implement their own rich-text
 engine. Lexical is the editor framework selected for this shared surface.
 
@@ -32,11 +32,11 @@ own and on each picture of a gallery alike (its bar's "Who is in it"
 lists them), so the check reaches every picture a document holds.
 
 Lessons, quizzes, assignment briefs, learner responses, assessment
-feedback, messages, announcements, calendar events, news posts, consent
+feedback, messages, announcements, calendar events, consent
 forms and website sections all save the shared document; their readers
 render it through the static renderer. Plain-text and Markdown messages
-written by older clients keep their format and renderers. A news post or
-announcement keeps one document per language, the translation checked as a
+written by older clients keep their format and renderers. An announcement
+keeps one document per language, the translation checked as a
 whole against the original. Documents keep their published versions, which
 a writer can bring back, and lessons and briefs are written together live
 through `apps/collab`.

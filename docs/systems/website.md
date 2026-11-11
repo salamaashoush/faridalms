@@ -31,13 +31,14 @@ foundation's documents, file publications and the `site` role. Evidence:
   site, sent on to one of its pages (by id, so a renamed page keeps its
   redirects) or to a path or web address. The site role reads where an
   address leads, never who added it.
-- **Posts** (`core.broadcasts` of kind `news`): the school's news,
-  written in the News screen rather than the website builder, one of the two
-  kinds of broadcast beside announcements. A post's body is a `rich_text`
-  document hosted as `news` in its own first language, with the other
-  language as its translation. Only posts whose `visibility` is `public` get published
-  copies; `school` posts reach their audience inside the app and never the
-  website.
+- **Posts** (`core.broadcasts` with `visibility = 'public'`): the
+  website's news is the school's announcements put on the website, written
+  in the Announcements screen rather than the website builder. An
+  announcement's body is a `rich_text` document hosted as `announcement` in
+  its own first language, with the other language as its translation. Only
+  one whose `visibility` is `public` gets published copies, and only at a
+  school with the website; the rest reach their audience inside the app and
+  never the website.
 - **Published copies** (`core.site_published_pages`, `site_published_posts`):
   one row per language, written at publish time; the only content the `site`
   role reads.
@@ -296,7 +297,7 @@ own. A switch keeps the page out of search engines.
   language names none. Addresses are absolute, on the school's website host
   (its own canonical one once active), whichever host the page was read on.
   The first language answers at the bare path, the other at `?lang=`.
-  News posts name their summary and cover picture the same way.
+  Posts name their summary and cover picture the same way.
 - **`/sitemap.xml`** on the website host lists every published page not kept
   out of search and every published post, once per language it is written
   in, each with its alternates and `lastmod` from when that copy was

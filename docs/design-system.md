@@ -462,9 +462,10 @@ publishing changes state (Notion, Linear, Polaris).
 - Once published, edits still save as they are made but are held back from
   readers, who keep the copy last published until it is updated, whichever
   client made the edit: the save-state slot says what waits, with Discard
-  (back to the copy readers have) and Update. Announcements and news are one
-  broadcast editor (`components/broadcasts/BroadcastEditor.tsx`) configured by
-  kind; updating an announcement asks whether to notify recipients again.
+  (back to the copy readers have) and Update. The announcement editor
+  (`components/announcements/AnnouncementEditor.tsx`) puts one on the website
+  with a single switch; updating an announcement asks whether to notify
+  recipients again.
 - The editor's floating bar is reached from the keyboard as well as the
   pointer (TinyMCE, CKEditor): Tab on a chosen block or Alt+F10 anywhere
   moves focus into it, the arrow keys, Home and End move along it (mirrored

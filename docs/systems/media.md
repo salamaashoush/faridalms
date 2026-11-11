@@ -13,9 +13,9 @@ rewrite every row of the school's media for no change in behaviour.
 
 - Whoever writes for others (`MEDIA_USERS` in
   `packages/domain/src/media.ts`: assignments, lessons, events,
-  notices, news and the website) reads all of it, chooses from it, uploads
+  announcements and the website) reads all of it, chooses from it, uploads
   into it and crops a picture into a new item.
-- Those who put pictures in front of others, news and the website
+- Those who put pictures in front of others, announcements and the website
   (`MEDIA_KEEPERS`), also keep it: folders, an item's name, description
   and credit, who a picture shows, moving items and the trash.
 - The page is Media (`/media`), the second page of the Library area in the
@@ -82,7 +82,7 @@ use may say them otherwise.
   one zip (`/v1/media/items.zip`), and, for its keepers, to tag,
   move or delete into the trash.
 - Where an item is used is read from the documents that hold it, lessons,
-  assignments, unit plans, notices, news, events, website pages and shared
+  assignments, unit plans, announcements, events, website pages and shared
   blocks, by title. Deleting an item in use names how many documents show
   it before it goes.
 
@@ -138,7 +138,7 @@ them once no file holds the bytes.
   copy, each a derivative of its publication, and keeps their names, the
   picture's size, placeholder and focal point in the published copy
   (`content.pictures`), so a visitor's browser picks a size from
-  `<source>`s with no request to the API. A news post's cover is drawn the
+  `<source>`s with no request to the API. A website post's cover is drawn the
   same way, on its page and on every card listing it. Sizes made after a
   page or post was published go up beside its public copy as the media
   service reports them (`publishLateSizes`), and the copies visitors read
@@ -158,7 +158,7 @@ way in, supplied by `SchoolMediaProvider` for those who may use it.
 - A selected picture's bar keeps it in media too, with the words the
   document gives it (`media.keep`), as a media record of its own
   sharing the bytes.
-- The website studio's picture and media fields and a news post's cover
+- The website studio's picture and media fields and a website post's cover
   choose from it beside their upload.
 
 ## Uploading into it
@@ -190,7 +190,7 @@ module files use.
 ## Uploads in documents
 
 "In documents" lists what staff put straight into the documents they wrote
-(news, notices, lessons, assignments, events, website pages) and media
+(announcements, lessons, assignments, events, website pages) and media
 does not hold yet: one row per stored object, newest first, the
 200 most recent looked through, and only those the viewer may open. A
 student's work, a conversation's files and a recording still to be cut

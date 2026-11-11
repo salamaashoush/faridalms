@@ -21,7 +21,7 @@ in their official help centres. Visual and interaction rules live in
 5. **Nothing destroys work.** No edit deletes a submission, a register mark or a
    history row; changes are dated and audited.
 6. **Families get digests, not alert storms.** Instant notifications only for
-   absence, returned work, urgent news and direct messages.
+   absence, returned work, urgent announcements and direct messages.
 7. **One app for every role, bilingual and mirrored.** Content is structured,
    never raw HTML, so it can be translated and shown right to left.
 
@@ -33,7 +33,7 @@ and notifications sit in the sidebar header.
 - **Teacher:** Today · Classes · To review · Coursework · Modules · Calendar ·
   Messages. Attendance opens from a timetable period; timetable lives in Today
   and Calendar.
-- **Family:** Home · Calendar · Messages · News · Announcements · Child. A child chip in the header switches between children
+- **Family:** Home · Calendar · Messages · Announcements · Child. A child chip in the header switches between children
   (avatar, name, colour); Home defaults to all children and the chosen child is
   kept in the URL.
 - **Student:** Home · Classes · To do · Calendar · Messages · Grades.
@@ -49,8 +49,8 @@ and notifications sit in the sidebar header.
   week's due dates and events; class cards.
 - **Family Home:** per child, today's presence and now/next period; needs
   attention (missing work, new result, absence, unread teacher message, at most
-  3, one action each); due this week. Then up to 3 pinned announcements and the
-  latest school news. No averages as headlines, no infinite feed.
+  3, one action each); due this week. Then the latest 3 announcements, pinned
+  first. No averages as headlines, no infinite feed.
 - **Student Home:** due soon (7 days, at most 5, missing flagged); today's
   timetable; continue lesson; class announcements; classes.
 - **Admin Today:** needs action (registers not taken with Remind all,
@@ -250,38 +250,34 @@ audited.
 
 ## Announcements
 
+Everything the school sends to its people is an announcement, written as one
+document in the shared editor. One may also go on the school's website, where
+it is the website's news; there is no separate news system.
+
 - Feed: pinned first (with an optional pin-until), then cards with author,
-  audience, urgency, title, excerpt, attachments, Acknowledge when required,
+  audience, urgency, title, summary, attachments, Acknowledge when required,
   and event and RSVP blocks; filters by child and category; expired posts move
-  to Past.
+  to Past. It holds what reached the reader and everything on the website,
+  searchable.
 - Composer: audience (everyone, staff, families, students, by scope), subject,
   body, attachments, event and RSVP, require acknowledgement with a due date,
   comments off, on or private replies, pin until, expiry. Urgency: normal
   (respects preferences), time-sensitive (skips the digest), emergency (admins,
   bypasses quiet hours). Written in one language or both, each with its own
-  title, the translation checked against the original as for news; readers
-  open their own language first and the notice carries the opening words.
+  title, the translation checked against the original (the check lapses when
+  the original changes); readers open their own language first and the notice
+  carries the summary, else the opening words. A weekly or monthly newsletter
+  is an announcement started from a newsletter template.
   Preview, Schedule, Post, Duplicate. Edits are silent unless the author
   chooses Send update.
 - Delivery report: per recipient channel status, viewed, acknowledged,
   language; remind those who have not acknowledged; export.
-
-## News
-
-One kind of story: a post, written as one document in the shared editor, in
-one language or both, with a translation someone checks against the original
-(the check lapses when the original changes). A post is either for the
-website and the school, or for the school only; school-only news never
-reaches the website. A post has a summary, a cover picture, an audience that is told
-when it goes out (required for school-only news, optional for website news),
-and on the website a category, an address and pinning; without a cover its
-website card shows the first picture in the post. A weekly or monthly
-newsletter is a post started from a newsletter template. Publishing fixes who
-it reached and notifies them once with the summary; edits stay private until
-published again, and readers see when a post was updated. Duplicate, archive,
-schedule, version history and a read report per post. Readers get one column
-and a language switch; News lists everything public and everything that
-reached them, searchable.
+- Also on the website (schools with the website): one switch puts it on the
+  website as well, with a cover picture, a category, an address and pinning;
+  without a cover its website card shows the first picture in it. Its
+  audience then becomes optional, so it can go on the website without telling
+  anyone. Taking it back to a draft or into the archive takes it off the
+  website.
 
 ## Calendar
 
@@ -296,7 +292,7 @@ add silently. Every person and every child has an iCal subscription link.
 - Bell with Needs action and All tabs, grouped by day and type, each item with
   a child chip and a link; Mark all read. Covers everything, new posts
   included.
-- Preferences: a matrix of Messages, Announcements, News, Calendar
+- Preferences: a matrix of Messages, Announcements, Calendar
   reminders and Academics against in-app, email and SMS, each Instant, Digest
   or Off; emergency and time-sensitive are locked on. Digest daily or weekly at
   a chosen time, skipped when empty. Quiet hours and weekend mute, with a note
@@ -330,7 +326,8 @@ are edited side by side with a missing-translation badge. Draft, Published and
 Published with unpublished changes; scheduling; version history with restore;
 phone and desktop preview in both languages; editors submit and admins approve;
 checks before publishing (one H1, alt text, descriptive links). Posts are
-news (see News), with a cover, summary, category, pin and schedule. A
+announcements put on the website (see Announcements), with a cover, summary,
+category, pin and schedule. A
 site-wide banner for closures.
 
 ## Settings

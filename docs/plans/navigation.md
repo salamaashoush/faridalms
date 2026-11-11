@@ -155,7 +155,7 @@ area pages.
 
 What each holds:
 
-- `/templates` holds **templates**: lessons, unit plans, assignments, news,
+- `/templates` holds **templates**: lessons, unit plans, assignments,
   announcements, events, consent forms, whole modules, reply templates
   (kind "Reply"), letters of admission and website sections. Each is a
   starting copy; using one makes a new document.

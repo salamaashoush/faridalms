@@ -175,7 +175,7 @@ functions run, for its own school.
 
 A school's website is data in the cell: settings with its theme and chrome
 (`site_settings`), a page tree that is also the menu (`site_pages`), and
-news posts (`broadcasts` of kind `news`); its first language and its logo are the school's
+the announcements put on it (`broadcasts` with `visibility = 'public'`); its first language and its logo are the school's
 own (`orgs.default_locale`, `orgs.logo_file_id`). A page's content is a `page` document of
 sections, each `{ id, type, variant, style, data }`, whose fields are
 declared once per type in `packages/domain/src/site-sections.ts`; that
@@ -221,12 +221,12 @@ the pictures they show, both languages are snapshotted in
 `document_versions`, and readers always read that published copy, never a
 draft. A publication is a draft, published or archived; published with its
 time still to come is scheduled (`phaseOf` in
-`packages/domain/src/publication.ts`). Announcements and news are the two
-kinds of one broadcast (`core.broadcasts`, its audiences and recipients),
-told through `notify` when they go out, and the API answers both under one
-namespace, `broadcasts.announcements` and `broadcasts.news`, which the web
-reaches through one bridge (`apps/web/src/server/broadcasts.ts`); news is
-a module of its own, so its part answers only where the school has it.
+`packages/domain/src/publication.ts`). An announcement (`core.broadcasts`,
+its audiences and recipients) is the one thing a school sends its people,
+told through `notify` when it goes out; one with `visibility = 'public'` is
+also written to the website, which needs the website module. The API
+answers it under `announcements` and the web reaches it through
+`apps/web/src/server/announcements.ts`.
 Translations are documents of
 their own linked to their source, and a frozen document (a sent message,
 the wording of a privacy notice) cannot change.
@@ -366,13 +366,13 @@ channel that will not be used still gets its row, skipped with the reason
 (the preference is off, there is no address, the address is unreachable,
 no provider is configured), so the office can answer why someone got
 nothing. In-app delivery is the notification row itself, and read state is
-per person. The kinds today are announcements and urgent notices, news,
+per person. The kinds today are announcements and urgent notices,
 messages and replies, absences, events, reminders, consents, mentions,
 template reviews, enquiries, applications, answers to the medical-summary
 changes a family asked for, and the teaching events: work
 set, work returned or sent back, and a period's grades released, each told
 to the students and to their guardians who take notices. Whatever was
-set to go out later (an announcement, a news post, work set to open later)
+set to go out later (an announcement, work set to open later)
 is told when it goes live, by the publication clock in the API process.
 The clock runs as the `worker` role on the database's clock and claims what
 is due, so two replicas never tell it twice. One taken back first is never
@@ -428,7 +428,7 @@ period by its teachers, or by whoever covers that lesson, for those periods
 only; a date outside the school year is refused and a correction needs a
 reason. Calendar events carry a document of the shared editor, with plain
 text derived from it on every save, and share their audiences with
-announcements and news (`stores/audiences.ts`).
+announcements (`stores/audiences.ts`).
 
 ## Search
 

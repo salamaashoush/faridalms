@@ -255,7 +255,7 @@ work set, handed in and marked, with feedback and a released term-to-date
 grade, written for its age and subject (the Arabic classes' in Arabic).
 KG classes have young children's lessons, and older ones a module per
 subject. Families and teachers have conversations, the school has
-announcements, news and a calendar around today, a few children have
+announcements, newsletters and a calendar around today, a few children have
 medical alerts, and admissions and enquiries are under way. A website the
 school already has stays as it is. The content lives in
 `packages/database/src/demo.ts`; the development seed is unchanged.

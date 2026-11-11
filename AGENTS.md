@@ -206,7 +206,7 @@ scrollable region with a caption. Nothing in the old portal was responsive.
 
 ## One document model, no special fields
 
-Every piece of content a person writes (news, announcements, assignments,
+Every piece of content a person writes (announcements, assignments,
 lessons, consent forms, pages) is one editor document (`packages/editor`,
 `ContentDocument`). This is the rule the whole product is built on; a reviewer
 rejects anything that works around it.
@@ -230,7 +230,7 @@ rejects anything that works around it.
   shows the first picture. Computing it is fine; asking the author to enter
   content again is not.
 - **No surface is special.** Before adding a control for one kind of document
-  (news, a page, a lesson), ask whether every document needs it. If it does,
+  (an announcement, a page, a lesson), ask whether every document needs it. If it does,
   it is an editor capability; if it does not, it is a setting of that
   document.
 
@@ -241,7 +241,7 @@ rejects anything that works around it.
 Routes are grouped by the session's context, its workspace: staff pages live
 at the root under the pathless `apps/web/src/routes/_app/_staff/` layout
 (`/today`, `/classes`, `/settings`), a family's under `_app/family/`, a
-student's under `_app/me/`, and pages every context opens (calendar, news,
+student's under `_app/me/`, and pages every context opens (calendar,
 announcements) directly under `_app/`. `_app.tsx` gates authentication and
 renders the shell; `_app/_staff.tsx`, `_app/family.tsx` and `_app/me.tsx` gate
 the context. Both are required, because the server authorises data but only

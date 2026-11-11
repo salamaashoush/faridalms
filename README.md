@@ -16,7 +16,8 @@ included. Ask for a demonstration there. Prefer to run it yourself? See
   in a Scratch studio, Python, p5.js and the micro:bit editor; feedback,
   marking, a gradebook, standards and early-years goals.
 - **School life**: attendance, timetables, the school year and its terms,
-  calendars, announcements, news, messages and notifications by email.
+  calendars, announcements (on the website too), messages and
+  notifications by email.
 - **Records**: students and families, enrolment, documents, consents, and
   a history of every change.
 - **A website**: built from sections, with news, events and contact forms,
