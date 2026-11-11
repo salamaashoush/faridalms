@@ -69,7 +69,6 @@ export const MODULE_NAMES: Record<ModuleId, string> = {
   gradebook: "Gradebook",
   attendance: "Attendance",
   timetable: "Timetable",
-  news: "News",
   website: "Website",
   custom_domains: "Custom domains",
   admissions: "Admissions",
@@ -93,7 +92,6 @@ export const MODULE_HINTS: Record<ModuleId, string> = {
   gradebook: "Marks and grades by class, term and subject",
   attendance: "Registers, absence reports, follow-up and the front desk",
   timetable: "Each class's week of lessons, and cover for absent teachers",
-  news: "Announcements and news posts to the school's community",
   website: "The school's public website and its pages",
   custom_domains: "The website and portal on the school's own domain",
   admissions: "Enquiries, applications and offers for new students",
@@ -650,7 +648,7 @@ export const MODULE_GROUPS: readonly ModuleGroup[] = [
   },
   {
     title: "Communication and website",
-    modules: ["news", "website", "custom_domains", "sms"],
+    modules: ["website", "custom_domains", "sms"],
   },
   { title: "Connections", modules: ["integrations", "sso"] },
 ];

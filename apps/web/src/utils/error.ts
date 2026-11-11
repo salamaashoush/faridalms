@@ -462,15 +462,14 @@ export function getMessageFromError(error: unknown): string {
         return m.annErrNoAck();
       case "announcements.audience_target":
         return m.annAudienceTarget();
-      case "news.archived":
-        return m.newsErrArchived();
-      case "news.already_out":
-        return m.newsErrAlreadyOut();
-      case "news.nobody":
-        return m.annErrNobody();
-      case "news.empty":
-        return m.newsBodyNeeded();
-      case "news.nothing_to_check":
+      case "announcements.empty":
+        return m.annBodyNeeded();
+      case "announcements.audience":
+        return m.annErrAudience();
+      case "announcements.slug":
+        return m.annErrSlug();
+      case "announcements.no_website":
+        return m.annErrNoWebsite();
       case "consents.nothing_to_check":
       case "calendar.nothing_to_check":
         return m.translationErrNothingToCheck();
@@ -498,12 +497,6 @@ export function getMessageFromError(error: unknown): string {
         return m.consentErrFuture();
       case "consents.scan":
         return m.consentScanNeeded();
-      case "news.consent":
-        return m.newsErrConsent();
-      case "news.title":
-        return m.newsTitleNeeded();
-      case "news.audience":
-        return m.newsErrAudience();
       case "messages.no_guardians":
         return m.msgNoGuardians();
       case "messages.recipient":

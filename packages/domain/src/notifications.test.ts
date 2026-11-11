@@ -94,7 +94,7 @@ describe("delivery time", () => {
     ).toBe("2026-10-04T04:00:00.000Z");
     expect(
       deliveryTime({
-        kind: "news",
+        kind: "announcement",
         channel: "sms",
         preferences: DEFAULT_PREFERENCES,
         school: cairo,
@@ -126,11 +126,11 @@ describe("stored preferences", () => {
   it("keep a person's choices when a kind is added after they chose", () => {
     const { consent: _email, ...email } = {
       ...DEFAULT_PREFERENCES.email,
-      news: "off" as const,
+      announcement: "off" as const,
     };
     const { consent: _sms, ...sms } = DEFAULT_PREFERENCES.sms;
     const read = preferencesOf({ ...DEFAULT_PREFERENCES, email, sms });
-    expect(read.email.news).toBe("off");
+    expect(read.email.announcement).toBe("off");
     expect(read.email.consent).toBe(DEFAULT_PREFERENCES.email.consent);
   });
 });

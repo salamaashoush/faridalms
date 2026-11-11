@@ -1,5 +1,8 @@
-import type { FeedQuery, ManageQuery } from "@faridalms/domain/announcements";
-import type { ReportQuery } from "@faridalms/domain/broadcasts";
+import type {
+  FeedQuery,
+  ManageQuery,
+  ReportQuery,
+} from "@faridalms/domain/announcements";
 
 import { queryOptions } from "@tanstack/react-query";
 
@@ -10,7 +13,7 @@ import {
   getAnnouncementOptions,
   getAnnouncementReport,
   getManagedAnnouncements,
-} from "~/server/broadcasts";
+} from "~/server/announcements";
 
 export const announcementFeedQuery = (query: FeedQuery) =>
   queryOptions({

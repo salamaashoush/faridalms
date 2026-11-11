@@ -19,7 +19,6 @@ import { reachOf } from "@faridalms/database/stores/audiences";
 import {
   announcementFeed,
   managedBroadcasts,
-  newsFor,
 } from "@faridalms/database/stores/broadcasts";
 import {
   classesTaughtBy,
@@ -592,7 +591,7 @@ function localTitle(
 /**
  * A family's home: for each child today's presence, the lesson now and
  * next, up to three things that need them, and what is due this week; then
- * pinned announcements and the latest school news.
+ * the latest announcements, pinned first.
  */
 /** The label of one of a list's choices, in both languages. */
 function labelIn(
@@ -684,7 +683,7 @@ export const family = readProcedure
     const chosen = input.studentId
       ? links.filter((link) => link.studentId === input.studentId)
       : links;
-    const [threads, unread, feed, { rows: news }] = await Promise.all([
+    const [threads, unread, feed] = await Promise.all([
       threadsOf(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
@@ -708,17 +707,6 @@ export const family = readProcedure
         limit: 3,
         offset: 0,
       }).then(({ rows }) => rows),
-      newsFor(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        viewerId: context.actor.userId,
-        q: "",
-        sort: "date",
-        direction: "desc",
-        locale: "en",
-        limit: 1,
-        offset: 0,
-      }),
     ]);
     const young = await youngStudents(context.tx, {
       tenantId: context.tenantId,
@@ -824,28 +812,18 @@ export const family = readProcedure
       })),
       children,
       messages: { unread, threads: threads.rows },
-      pinned: feed
-        .filter((row) => row.pinned)
-        .slice(0, 3)
-        .map((row) => ({
-          id: row.id,
-          title: localTitle(context, row),
-          summary: row.summary,
-          urgency: row.urgency,
-          readAt: row.readAt,
-        })),
-      news:
-        (await modulesOf(context)).news && news[0]
-          ? {
-              id: news[0].id,
-              titleEn: news[0].titleEn,
-              titleAr: news[0].titleAr,
-              excerptEn: news[0].excerptEn,
-              excerptAr: news[0].excerptAr,
-              summary: news[0].summary,
-              readAt: news[0].readAt,
-            }
-          : null,
+      announcements: feed.map((row) => ({
+        id: row.id,
+        title: localTitle(context, row),
+        summary:
+          (localeOf(context) === "ar" ? row.excerptAr : row.excerptEn) ||
+          row.excerptEn ||
+          row.excerptAr ||
+          row.summary,
+        urgency: row.urgency,
+        pinned: row.pinned,
+        readAt: row.readAt,
+      })),
     };
   });
 
@@ -1072,7 +1050,6 @@ export const admin = readProcedure.handler(async ({ context }) => {
         await managedBroadcasts(context.tx, {
           tenantId: context.tenantId,
           schoolId: context.schoolId,
-          kind: "announcement",
           tab: "published",
           q: "",
           limit: 3,
@@ -1085,33 +1062,8 @@ export const admin = readProcedure.handler(async ({ context }) => {
           title: localTitle(context, row),
           recipients: row.recipients,
           read: row.read,
-          kind: "announcement" as const,
         }))
     : [];
-  const news =
-    on.news && can(context, "news:manage")
-      ? (
-          await managedBroadcasts(context.tx, {
-            tenantId: context.tenantId,
-            schoolId: context.schoolId,
-            kind: "news",
-            tab: "published",
-            q: "",
-            // Only those sent to an audience have a reach to show.
-            limit: 200,
-            offset: 0,
-          })
-        ).rows
-          .filter((row) => row.recipients > 0)
-          .slice(0, 2)
-          .map((row) => ({
-            id: row.id,
-            title: localTitle(context, row),
-            recipients: row.recipients,
-            read: row.read,
-            kind: "news" as const,
-          }))
-      : [];
   let checklist: {
     yearEnds: string;
     nextYear: boolean;
@@ -1157,7 +1109,7 @@ export const admin = readProcedure.handler(async ({ context }) => {
     documents,
     attendance,
     events,
-    communications: [...announcements, ...news],
+    communications: announcements,
     checklist,
     onboarding: await onboardingFor(context),
   };

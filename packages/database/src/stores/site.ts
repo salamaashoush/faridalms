@@ -465,7 +465,7 @@ export async function siteCategories(
   }>(sql`
     select c.id, c.version, c.slug, c.name_en, c.name_ar, c.position,
       (select count(*)::int from core.broadcasts p
-        where p.tenant_id = c.tenant_id and p.kind = 'news' and p.category_id = c.id
+        where p.tenant_id = c.tenant_id and p.category_id = c.id and p.visibility = 'public'
           and p.status = 'active') as posts
     from core.site_categories c
     where c.tenant_id = ${tenantId}::uuid and c.org_id = ${orgId}::uuid and c.status = 'active'

@@ -8,7 +8,6 @@ type Tx = CellTransaction;
 
 /** Hosts whose words are written in two languages, and the table each lives in. */
 const HOSTS = {
-  news: "broadcasts",
   announcement: "broadcasts",
   privacy_notice: "privacy_notices",
   lesson: "lessons",

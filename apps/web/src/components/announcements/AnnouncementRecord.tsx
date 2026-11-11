@@ -17,7 +17,12 @@ import {
 } from "@faridalms/ui/system/record-page";
 import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
 import { StatusText } from "@faridalms/ui/system/status";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Archive, CircleCheck, Copy, Pencil, Search, Send } from "lucide-react";
 import { useDeferredValue, useEffect, useState } from "react";
@@ -33,14 +38,22 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import {
+  announcementQuery,
+  announcementReportQuery,
+} from "~/queries/announcements";
+import {
+  archiveAnnouncement,
+  duplicateAnnouncement,
+  markAnnouncementSeen,
+  publishAnnouncement,
+} from "~/server/announcements";
+import {
   formatDate,
   formatInstant,
   formatList,
   formatNumber,
 } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
-
-import type { BroadcastKind, KindView, RecordData } from "./kinds";
 
 import {
   audienceLabel,
@@ -49,25 +62,25 @@ import {
   URGENCY_LABEL,
   URGENCY_TONE,
 } from "./format";
-import { KINDS } from "./kinds";
 
+type RecordData = Awaited<
+  ReturnType<NonNullable<ReturnType<typeof announcementQuery>["queryFn"]>>
+>;
 type ReportRow = Awaited<
-  ReturnType<NonNullable<ReturnType<KindView["reportQuery"]>["queryFn"]>>
+  ReturnType<NonNullable<ReturnType<typeof announcementReportQuery>["queryFn"]>>
 >["rows"][number] & { id: string };
 
 const titleOf = (data: { titleEn: string; titleAr: string }) =>
   inLocale(data.titleEn || null, data.titleAr || null);
 
-export interface BroadcastTrailProps {
-  kind: BroadcastKind;
+export interface AnnouncementTrailProps {
   id: string;
 }
 
-/** A broadcast's title in the reader's language, for its breadcrumb. */
-export function BroadcastTrail({ kind, id }: BroadcastTrailProps) {
-  return (
-    <BreadcrumbCurrent>{titleOf(KINDS[kind].useRecord(id))}</BreadcrumbCurrent>
-  );
+/** An announcement's title in the reader's language, for its breadcrumb. */
+export function AnnouncementTrail({ id }: AnnouncementTrailProps) {
+  const data = useSuspenseQuery(announcementQuery(id)).data;
+  return <BreadcrumbCurrent>{titleOf(data)}</BreadcrumbCurrent>;
 }
 
 interface ReadProps {
@@ -132,18 +145,17 @@ function reportCard(withAck: boolean) {
 }
 
 interface ReportProps {
-  view: KindView;
   data: RecordData;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-function Report({ view, data, open, onOpenChange }: ReportProps) {
+function Report({ data, open, onOpenChange }: ReportProps) {
   const [search, setSearch] = useState("");
   const q = useDeferredValue(search.trim());
   const [page, setPage] = useState(1);
   const report = useQuery({
-    ...view.reportQuery({ id: data.id, q, page }),
+    ...announcementReportQuery({ id: data.id, q, page }),
     enabled: open,
   }).data;
   const rows: ReportRow[] = (report?.rows ?? []).map((row) => ({
@@ -156,7 +168,7 @@ function Report({ view, data, open, onOpenChange }: ReportProps) {
       open={open}
       onOpenChange={onOpenChange}
       title={m.annReport()}
-      description={view.copy.reportHint()}
+      description={m.annReportHint()}
     >
       <Facts short>
         <Fact label={m.annReached()}>{formatNumber(counts.recipients)}</Fact>
@@ -202,7 +214,7 @@ function Report({ view, data, open, onOpenChange }: ReportProps) {
               }
             : undefined
         }
-        empty={{ title: q ? m.annReportNoMatch() : view.copy.notSent() }}
+        empty={{ title: q ? m.annReportNoMatch() : m.annNotSent() }}
       />
     </SheetPanel>
   );
@@ -232,21 +244,20 @@ function Notice({ children, action }: NoticeProps) {
   );
 }
 
-export interface BroadcastRecordProps {
-  kind: BroadcastKind;
+export interface AnnouncementRecordProps {
   id: string;
 }
 
 /**
- * One broadcast as its reader sees it: the copy that went out, in the
- * reader's language where it has one. Those who manage the kind also see who
- * it reached, edits still waiting, and a draft never sent as a preview.
+ * One announcement as its reader sees it: the copy that went out, in the
+ * reader's language where it has one. Those who manage announcements also
+ * see who it reached, edits still waiting, and a draft never sent as a
+ * preview.
  */
-export function BroadcastRecord({ kind, id }: BroadcastRecordProps) {
-  const view = KINDS[kind];
+export function AnnouncementRecord({ id }: AnnouncementRecordProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const data = view.useRecord(id);
+  const data = useSuspenseQuery(announcementQuery(id)).data;
   const viewer: ContentLocale = getLocale() === "ar" ? "ar" : "en";
   const [locale, setLocale] = useState<ContentLocale>(
     data.translation && viewer === otherLocale(data.primaryLocale)
@@ -256,27 +267,34 @@ export function BroadcastRecord({ kind, id }: BroadcastRecordProps) {
   const [reporting, setReporting] = useState(false);
   const width = useReaderWidth();
   const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: [view.queryKey] });
+    queryClient.invalidateQueries({ queryKey: ["announcements"] });
   const { mutate: markSeen } = useMutation({
-    mutationFn: () => view.seen(id, false),
+    mutationFn: () =>
+      markAnnouncementSeen({ data: { id, acknowledge: false } }),
     onSuccess: refresh,
   });
   const unread = !data.canManage && data.readAt === null;
   useEffect(() => {
     if (unread) markSeen();
   }, [unread, markSeen]);
-  const acknowledge = useMutation({ mutationFn: () => view.seen(id, true) });
+  const acknowledge = useMutation({
+    mutationFn: () => markAnnouncementSeen({ data: { id, acknowledge: true } }),
+  });
   const revise = useMutation({
     mutationFn: () =>
-      view.publish({
-        id: data.id,
-        expectedVersion: data.version,
-        publishAt: "",
-        revision: "telling",
+      publishAnnouncement({
+        data: {
+          id: data.id,
+          expectedVersion: data.version,
+          sendUpdate: true,
+        },
       }),
   });
   const archive = useMutation({
-    mutationFn: () => view.archive(data.id, data.version),
+    mutationFn: () =>
+      archiveAnnouncement({
+        data: { id: data.id, expectedVersion: data.version },
+      }),
   });
   const run = async (action: () => Promise<unknown>, done: string) => {
     try {
@@ -288,14 +306,12 @@ export function BroadcastRecord({ kind, id }: BroadcastRecordProps) {
     }
   };
   const openEditor = (editing: string) =>
-    void (kind === "announcement"
-      ? navigate({ to: "/announcement-editor", search: { id: editing } })
-      : navigate({ to: "/news-editor", search: { id: editing } }));
+    void navigate({ to: "/announcement-editor", search: { id: editing } });
   const copy = async () => {
     try {
-      const created = await view.duplicate(data.id);
+      const created = await duplicateAnnouncement({ data: { id: data.id } });
       await refresh();
-      toast.success(view.copy.duplicated());
+      toast.success(m.annDuplicated());
       openEditor(created.id);
     } catch (error) {
       toast.error(getMessageFromError(error));
@@ -312,7 +328,7 @@ export function BroadcastRecord({ kind, id }: BroadcastRecordProps) {
       primary: data.primaryLocale,
       locale: shownLocale,
     }),
-    link: view.recordPath(data.id),
+    link: `/announcements/${data.id}`,
   });
   const scheduled = data.shown === "scheduled";
   const reported = data.canManage && data.report && !data.preview;
@@ -324,15 +340,15 @@ export function BroadcastRecord({ kind, id }: BroadcastRecordProps) {
     ...(data.publishAt
       ? [
           {
-            label: scheduled ? m.newsGoesOut() : m.annSent(),
+            label: scheduled ? m.annGoesOut() : m.annSent(),
             value: formatInstant(data.publishAt),
           },
         ]
       : []),
     ...(data.visibility === "public"
-      ? [{ label: m.newsWhere(), value: m.newsWherePublic() }]
+      ? [{ label: m.annColWhere(), value: m.annWherePublic() }]
       : []),
-    ...(data.audiences.length > 0 && (kind === "announcement" || data.canManage)
+    ...(data.audiences.length > 0
       ? [
           {
             label: m.annAudience(),
@@ -402,19 +418,19 @@ export function BroadcastRecord({ kind, id }: BroadcastRecordProps) {
             ...(data.canManage
               ? [
                   {
-                    label: view.copy.duplicate(),
+                    label: m.annDuplicate(),
                     icon: Copy,
                     onSelect: () => void copy(),
                   },
-                  ...(kind === "announcement" && out
+                  ...(out
                     ? [
                         {
-                          label: view.copy.revise(),
+                          label: m.annSendUpdate(),
                           icon: Send,
                           onSelect: () =>
                             void run(
                               () => revise.mutateAsync(),
-                              view.copy.revised(),
+                              m.annUpdateSent(),
                             ),
                         },
                       ]
@@ -427,7 +443,7 @@ export function BroadcastRecord({ kind, id }: BroadcastRecordProps) {
                           onSelect: () =>
                             void run(
                               () => archive.mutateAsync(),
-                              view.copy.archived(),
+                              m.annArchived(),
                             ),
                         },
                       ]
@@ -447,10 +463,10 @@ export function BroadcastRecord({ kind, id }: BroadcastRecordProps) {
         {editable && data.changedSince && out ? (
           <Notice
             action={{
-              label: view.copy.revise(),
+              label: m.annSendUpdate(),
               pending: revise.isPending,
               onClick: () =>
-                void run(() => revise.mutateAsync(), view.copy.revised()),
+                void run(() => revise.mutateAsync(), m.annUpdateSent()),
             }}
           >
             {m.bcastEditsWaiting()}
@@ -494,12 +510,7 @@ export function BroadcastRecord({ kind, id }: BroadcastRecordProps) {
           </div>
         ) : null}
         {reported ? (
-          <Report
-            view={view}
-            data={data}
-            open={reporting}
-            onOpenChange={setReporting}
-          />
+          <Report data={data} open={reporting} onOpenChange={setReporting} />
         ) : null}
         {printing.sheet}
       </div>

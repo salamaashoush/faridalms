@@ -14,9 +14,9 @@ import { Megaphone, Plus } from "lucide-react";
 import * as v from "valibot";
 
 import {
-  BroadcastItem,
-  ManagedBroadcasts,
-} from "~/components/broadcasts/BroadcastLists";
+  AnnouncementItem,
+  ManagedAnnouncements,
+} from "~/components/announcements/AnnouncementLists";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
@@ -94,19 +94,20 @@ function Feed({ tab, q, page, onPage }: FeedProps) {
         aria-label={m.annTitle()}
       >
         {rows.map((row) => (
-          <BroadcastItem
+          <AnnouncementItem
             key={row.id}
-            kind="announcement"
             item={{
               id: row.id,
               title: row.title,
-              unread: row.readAt === null,
+              unread: row.recipient && row.readAt === null,
               pinned: row.pinned,
               urgency: row.urgency,
               author: inLocale(row.authorNameEn, row.authorNameAr),
               when: row.publishAt,
-              website: false,
-              summary: row.summary,
+              website: row.visibility === "public",
+              summary:
+                inLocale(row.excerptEn || null, row.excerptAr || null) ||
+                row.summary,
               ack: row.requiresAck
                 ? { acknowledgedAt: row.acknowledgedAt, ackDueOn: row.ackDueOn }
                 : null,
@@ -171,8 +172,7 @@ function AnnouncementsPage() {
             }}
           />
           {isManage(search.tab) ? (
-            <ManagedBroadcasts
-              kind="announcement"
+            <ManagedAnnouncements
               tab={search.tab}
               q={search.q}
               page={search.page}

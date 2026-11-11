@@ -69,7 +69,7 @@ test("the results page groups every kind and opens one kind in full", async ({
   ).toBeVisible();
 });
 
-test("a family on a phone searches in Arabic and finds its news but no students", async ({
+test("a family on a phone searches in Arabic and finds its announcements but no students", async ({
   page,
   context,
 }) => {

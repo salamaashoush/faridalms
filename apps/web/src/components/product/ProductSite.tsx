@@ -450,7 +450,6 @@ function Modules() {
     m.productModuleTimetables(),
     m.productModuleCalendar(),
     m.productModuleAnnouncements(),
-    m.productModuleNews(),
     m.productModuleMessages(),
     m.productModuleRecords(),
     m.productModuleConsents(),

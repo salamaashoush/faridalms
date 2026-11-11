@@ -64,7 +64,7 @@ test("a parent hands the device to a young child and a grown-up's answer brings 
   await expect(page.getByRole("button", { name: "Account" })).toHaveCount(0);
   // The child finds every page a young child may open, and no other.
   const navigation = page.getByRole("navigation", { name: "Primary" });
-  for (const name of ["Home", "To do", "Timetable", "Modules", "News"])
+  for (const name of ["Home", "To do", "Timetable", "Modules", "Announcements"])
     await expect(
       navigation.getByRole("link", { name, exact: true }),
     ).toBeVisible();

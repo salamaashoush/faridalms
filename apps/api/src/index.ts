@@ -281,7 +281,7 @@ const stopAdmissionsClock = env.CELL_WORKER_URL
   : null;
 
 // Whatever was set to go out later is told to its readers once it is out:
-// announcements, news and work set to open later.
+// announcements and work set to open later.
 const stopPublicationClock = env.CELL_WORKER_URL
   ? startPublicationClock({
       cell,

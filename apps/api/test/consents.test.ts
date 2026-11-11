@@ -323,7 +323,7 @@ describe("answering for a child", () => {
   });
 });
 
-/** A picture the office uploads for news: a PNG signature is all the check reads. */
+/** A picture the office uploads for an announcement: a PNG signature is all the check reads. */
 async function picture() {
   const office = await sessionFor("northwind", login("principal"));
   const png = new Blob([
@@ -395,6 +395,11 @@ const post = (
   coverAltEn: "",
   coverAltAr: "",
   pinned: false,
+  urgency: "normal" as const,
+  pinnedUntil: "",
+  expiresOn: "",
+  requiresAck: false,
+  ackDueOn: "",
   audiences:
     visibility === "school"
       ? [{ scope: "families" as const, classId: "", gradeId: "" }]
@@ -411,7 +416,7 @@ describe("pictures of students", () => {
     const fileId = await picture();
     // Its own title, apart from the seeded draft the website test keeps hidden.
     const draft = post("Field day", fileId, "public");
-    const saved = await office.broadcasts.news.save(draft);
+    const saved = await office.announcements.save(draft);
     await office.files.tagPictured({ id: fileId, studentIds: [studentId] });
     const { files } = await office.files.pictured({ ids: [fileId] });
     expect(files[0]?.people.map((row) => [row.id, row.website])).toEqual([
@@ -419,7 +424,7 @@ describe("pictures of students", () => {
     ]);
     expect(
       await rejection(
-        office.broadcasts.news.publish({
+        office.announcements.publish({
           id: saved.id,
           expectedVersion: saved.version,
         }),
@@ -427,7 +432,7 @@ describe("pictures of students", () => {
     ).toMatchObject({ code: "CONFLICT", message: "site.consent" });
 
     await answerFor(family, "photo_school_website", true);
-    await office.broadcasts.news.publish({
+    await office.announcements.publish({
       id: saved.id,
       expectedVersion: saved.version,
     });
@@ -447,25 +452,25 @@ describe("pictures of students", () => {
     expect(history.map((entry) => entry.action)).toContain("file.unpublish");
   });
 
-  test("school news checks the answer for photos in school news", async () => {
+  test("an announcement inside the school checks the answer for photos in school news", async () => {
     const family = await mother();
     const studentId = await answerFor(family, "photo_school_news", false);
     const office = await principal();
     const fileId = await picture();
-    const saved = await office.broadcasts.news.save(
+    const saved = await office.announcements.save(
       post("Class assembly", fileId, "school"),
     );
     await office.files.tagPictured({ id: fileId, studentIds: [studentId] });
     expect(
       await rejection(
-        office.broadcasts.news.publish({
+        office.announcements.publish({
           id: saved.id,
           expectedVersion: saved.version,
         }),
       ),
-    ).toMatchObject({ code: "CONFLICT", message: "news.consent" });
+    ).toMatchObject({ code: "CONFLICT", message: "announcements.consent" });
     await answerFor(family, "photo_school_news", true);
-    await office.broadcasts.news.publish({
+    await office.announcements.publish({
       id: saved.id,
       expectedVersion: saved.version,
     });
@@ -478,7 +483,7 @@ describe("pictures of students", () => {
     const [first, second] = [await picture(), await picture()];
     const draft = post("Gallery day", first, "school");
     const words = plainContent("Gallery day was a great day.");
-    const saved = await office.broadcasts.news.save({
+    const saved = await office.announcements.save({
       ...draft,
       body: {
         root: {
@@ -501,14 +506,14 @@ describe("pictures of students", () => {
     await office.files.tagPictured({ id: second, studentIds: [studentId] });
     expect(
       await rejection(
-        office.broadcasts.news.publish({
+        office.announcements.publish({
           id: saved.id,
           expectedVersion: saved.version,
         }),
       ),
-    ).toMatchObject({ code: "CONFLICT", message: "news.consent" });
+    ).toMatchObject({ code: "CONFLICT", message: "announcements.consent" });
     await answerFor(family, "photo_school_news", true);
-    await office.broadcasts.news.publish({
+    await office.announcements.publish({
       id: saved.id,
       expectedVersion: saved.version,
     });

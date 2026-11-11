@@ -102,7 +102,6 @@ export const attendanceEvents = core.table("attendance_events", {
 export type NotificationKind =
   | "announcement"
   | "urgent"
-  | "news"
   | "message"
   | "absence"
   | "event"

@@ -46,7 +46,7 @@ import {
   AudienceList,
   audienceIssue,
   audienceSummary,
-} from "~/components/broadcasts/AudienceList";
+} from "~/components/announcements/AudienceList";
 import { contentIssueMessages } from "~/components/content/checks";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";

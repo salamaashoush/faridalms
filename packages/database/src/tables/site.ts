@@ -41,7 +41,6 @@ import { users } from "./people";
 import { orgs, tenants } from "./tenancy";
 
 export type SiteLocale = "en" | "ar";
-export type PostVisibility = "public" | "school";
 export type SiteState = "draft" | "published" | "archived";
 export type BannerTone = "info" | "warning" | "danger";
 export type { SocialLink };

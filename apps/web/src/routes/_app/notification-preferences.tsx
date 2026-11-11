@@ -43,7 +43,6 @@ export const Route = createFileRoute("/_app/notification-preferences")({
 
 const KIND_LABEL: Record<ChoosableKind, () => string> = {
   announcement: m.ntfKindAnnouncement,
-  news: m.ntfKindNews,
   message: m.ntfKindMessage,
   absence: m.ntfKindAbsence,
   event: m.ntfKindEvent,

@@ -23,7 +23,7 @@ const announce = async (
   title: string,
   urgency: "normal" | "urgent",
 ) => {
-  const saved = await office.broadcasts.announcements.save({
+  const saved = await office.announcements.save({
     id: "",
     expectedVersion: 0,
     primaryLocale: "en" as const,
@@ -38,7 +38,7 @@ const announce = async (
     requiresAck: false,
     ackDueOn: "",
   });
-  await office.broadcasts.announcements.publish({
+  await office.announcements.publish({
     id: saved.id,
     expectedVersion: saved.version,
   });
@@ -48,7 +48,7 @@ const announce = async (
 describe("the notification centre", () => {
   test("a notice that asks for acknowledgement waits under action until given", async () => {
     const office = await principal();
-    const saved = await office.broadcasts.announcements.save({
+    const saved = await office.announcements.save({
       id: "",
       expectedVersion: 0,
       primaryLocale: "en",
@@ -63,7 +63,7 @@ describe("the notification centre", () => {
       requiresAck: true,
       ackDueOn: "",
     });
-    await office.broadcasts.announcements.publish({
+    await office.announcements.publish({
       id: saved.id,
       expectedVersion: saved.version,
     });
@@ -74,7 +74,7 @@ describe("the notification centre", () => {
     expect(notice.needsAction).toBe(true);
     expect(waiting.waiting).toBeGreaterThan(0);
 
-    await family.broadcasts.announcements.seen({
+    await family.announcements.seen({
       id: saved.id,
       acknowledge: true,
     });

@@ -216,11 +216,10 @@ const USE_KIND: Record<Use["hostType"], () => string> = {
   assignment: m.templateKindAssignment,
   module_plan: m.templateKindPlan,
   announcement: m.templateKindAnnouncement,
-  news: m.templateKindNews,
   site_page: m.sharedUsePage,
 };
 
-const WEBSITE = new Set<Use["hostType"]>(["site_page", "news"]);
+const WEBSITE = new Set<Use["hostType"]>(["site_page", "announcement"]);
 
 export interface SharedUsesProps {
   id: string;

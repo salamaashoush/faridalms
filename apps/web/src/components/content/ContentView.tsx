@@ -63,8 +63,6 @@ function mentionHref(mention: Mention): string | null {
       return `/lessons/${mention.id}`;
     case "assignment":
       return `/assignments/${mention.id}`;
-    case "news":
-      return `/news/${mention.id}`;
     case "announcement":
       return `/announcements/${mention.id}`;
     case "event":

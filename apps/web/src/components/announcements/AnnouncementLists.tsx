@@ -1,4 +1,4 @@
-import type { Urgency } from "@faridalms/domain/announcements";
+import type { ManageTab, Urgency } from "@faridalms/domain/announcements";
 import type { Column } from "@faridalms/ui/system/data-table";
 
 import { cn } from "@faridalms/ui/cn";
@@ -11,10 +11,7 @@ import { CircleCheck, Pin } from "lucide-react";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { managedAnnouncementsQuery } from "~/queries/announcements";
-import { managedNewsQuery } from "~/queries/news";
 import { formatDate, formatInstant, formatNumber } from "~/utils/datetime";
-
-import type { BroadcastKind } from "./kinds";
 
 import { URGENCY_LABEL, URGENCY_TONE } from "./format";
 
@@ -24,36 +21,10 @@ type ManagedRow = Awaited<
   >
 >["rows"][number];
 
-type ManageTab = "drafts" | "scheduled" | "published" | "archived";
-
 const titleOf = (row: { titleEn: string; titleAr: string }) =>
   inLocale(row.titleEn || null, row.titleAr || null);
 
-interface BroadcastLinkProps {
-  kind: BroadcastKind;
-  id: string;
-  className: string;
-  children: React.ReactNode;
-}
-
-function BroadcastLink({ kind, id, className, children }: BroadcastLinkProps) {
-  return kind === "announcement" ? (
-    <Link
-      to="/announcements/$announcementId"
-      params={{ announcementId: id }}
-      className={className}
-    >
-      {children}
-    </Link>
-  ) : (
-    <Link to="/news/$postId" params={{ postId: id }} className={className}>
-      {children}
-    </Link>
-  );
-}
-
-export interface BroadcastItemProps {
-  kind: BroadcastKind;
+export interface AnnouncementItemProps {
   item: {
     id: string;
     title: string;
@@ -69,8 +40,8 @@ export interface BroadcastItemProps {
   };
 }
 
-/** One broadcast as its readers' list shows it, of either kind. */
-export function BroadcastItem({ kind, item }: BroadcastItemProps) {
+/** One announcement as its readers' list shows it. */
+export function AnnouncementItem({ item }: AnnouncementItemProps) {
   return (
     <li className="grid gap-1.5 py-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -80,9 +51,9 @@ export function BroadcastItem({ kind, item }: BroadcastItemProps) {
             aria-label={m.annPinned()}
           />
         ) : null}
-        <BroadcastLink
-          kind={kind}
-          id={item.id}
+        <Link
+          to="/announcements/$announcementId"
+          params={{ announcementId: item.id }}
           className={cn(
             "min-w-0 text-base leading-6 hover:text-primary hover:underline",
             item.unread ? "font-semibold" : "font-medium",
@@ -92,7 +63,7 @@ export function BroadcastItem({ kind, item }: BroadcastItemProps) {
           {item.unread ? (
             <span className="sr-only"> {m.annUnread()}</span>
           ) : null}
-        </BroadcastLink>
+        </Link>
         {item.urgency === "normal" ? null : (
           <StatusBadge tone={URGENCY_TONE[item.urgency]}>
             {URGENCY_LABEL[item.urgency]()}
@@ -103,7 +74,7 @@ export function BroadcastItem({ kind, item }: BroadcastItemProps) {
         {[
           item.author,
           item.when ? formatInstant(item.when) : null,
-          item.website ? m.newsWebsite() : null,
+          item.website ? m.annOnWebsite() : null,
         ]
           .filter(Boolean)
           .join(" · ")}
@@ -132,31 +103,20 @@ export function BroadcastItem({ kind, item }: BroadcastItemProps) {
 }
 
 interface ManagedTitleProps {
-  kind: BroadcastKind;
   row: ManagedRow;
 }
 
-function ManagedTitle({ kind, row }: ManagedTitleProps) {
+function ManagedTitle({ row }: ManagedTitleProps) {
   const title = titleOf(row);
-  if (row.state !== "draft")
-    return kind === "announcement" ? (
-      <RowLink
-        to="/announcements/$announcementId"
-        params={{ announcementId: row.id }}
-      >
-        {title}
-      </RowLink>
-    ) : (
-      <RowLink to="/news/$postId" params={{ postId: row.id }}>
-        {title}
-      </RowLink>
-    );
-  return kind === "announcement" ? (
+  return row.state === "draft" ? (
     <RowLink to="/announcement-editor" search={{ id: row.id }}>
       {title}
     </RowLink>
   ) : (
-    <RowLink to="/news-editor" search={{ id: row.id }}>
+    <RowLink
+      to="/announcements/$announcementId"
+      params={{ announcementId: row.id }}
+    >
       {title}
     </RowLink>
   );
@@ -175,32 +135,29 @@ function reach(row: ManagedRow) {
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function managedColumns(kind: BroadcastKind): Column<ManagedRow>[] {
+function managedColumns(): Column<ManagedRow>[] {
   return [
     {
       id: "title",
       header: m.annColTitle(),
       primary: true,
-      cell: (row) => <ManagedTitle kind={kind} row={row} />,
+      cell: (row) => <ManagedTitle row={row} />,
     },
-    kind === "announcement"
-      ? {
-          id: "urgency",
-          header: m.annColUrgency(),
-          cell: (row) => (
-            <StatusText tone={URGENCY_TONE[row.urgency]}>
-              {URGENCY_LABEL[row.urgency]()}
-            </StatusText>
-          ),
-        }
-      : {
-          id: "where",
-          header: m.newsColWhere(),
-          cell: (row) =>
-            row.visibility === "public"
-              ? m.newsWherePublic()
-              : m.newsSchoolOnly(),
-        },
+    {
+      id: "urgency",
+      header: m.annColUrgency(),
+      cell: (row) => (
+        <StatusText tone={URGENCY_TONE[row.urgency]}>
+          {URGENCY_LABEL[row.urgency]()}
+        </StatusText>
+      ),
+    },
+    {
+      id: "where",
+      header: m.annColWhere(),
+      cell: (row) =>
+        row.visibility === "public" ? m.annWherePublic() : m.annWhereSchool(),
+    },
     {
       id: "when",
       header: m.annColWhen(),
@@ -210,44 +167,35 @@ function managedColumns(kind: BroadcastKind): Column<ManagedRow>[] {
   ];
 }
 
-function managedCard(kind: BroadcastKind) {
-  return {
-    title: (row: ManagedRow) => <ManagedTitle kind={kind} row={row} />,
-    fact: (row: ManagedRow) => reach(row),
-  };
-}
+const managedCard = {
+  title: (row: ManagedRow) => <ManagedTitle row={row} />,
+  fact: (row: ManagedRow) => reach(row),
+};
 
-export interface ManagedBroadcastsProps {
-  kind: BroadcastKind;
+export interface ManagedAnnouncementsProps {
   tab: ManageTab;
   q: string;
   page: number;
   onPage: (page: number) => void;
 }
 
-/** The broadcasts of one kind those who manage it work through, on one tab. */
-export function ManagedBroadcasts({
-  kind,
+/** The announcements those who manage them work through, on one tab. */
+export function ManagedAnnouncements({
   tab,
   q,
   page,
   onPage,
-}: ManagedBroadcastsProps) {
+}: ManagedAnnouncementsProps) {
   const data = useSuspenseQuery(
-    kind === "announcement"
-      ? managedAnnouncementsQuery({ tab, q, page })
-      : managedNewsQuery({ tab, q, page }),
+    managedAnnouncementsQuery({ tab, q, page }),
   ).data;
-  const { rows } = data;
   return (
     <DataTable
-      caption={
-        kind === "announcement" ? m.annManagedCaption() : m.newsManagedCaption()
-      }
-      rows={rows}
-      columns={managedColumns(kind)}
+      caption={m.annManagedCaption()}
+      rows={data.rows}
+      columns={managedColumns()}
       rowLabel={(row) => titleOf(row)}
-      card={managedCard(kind)}
+      card={managedCard}
       pagination={{
         page: data.page,
         pages: data.pages,
@@ -257,12 +205,8 @@ export function ManagedBroadcasts({
       }}
       empty={{
         icon: CircleCheck,
-        title:
-          kind === "announcement" ? m.annManagedEmpty() : m.newsManagedEmpty(),
-        description:
-          kind === "announcement"
-            ? m.annManagedEmptyBody()
-            : m.newsManagedEmptyBody(),
+        title: m.annManagedEmpty(),
+        description: m.annManagedEmptyBody(),
       }}
     />
   );

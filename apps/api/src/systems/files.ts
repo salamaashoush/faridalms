@@ -64,9 +64,8 @@ const UPLOADERS: Record<FilePurpose, Capability[] | null> = {
     "calendar:author",
     "calendar:manage",
     "announcements:manage",
-    "news:manage",
   ],
-  site_media: ["site:manage", "news:manage"],
+  site_media: ["site:manage", "announcements:manage"],
   avatar: null,
   // A family's note for an absence; it is of use only once a report holds it.
   evidence: null,
@@ -328,7 +327,6 @@ const CAPTIONERS: Capability[] = [
   "learning:author",
   "assignments:author",
   "announcements:manage",
-  "news:manage",
   "site:manage",
 ];
 
@@ -416,8 +414,8 @@ export const replaceInArea = writeProcedure
     return { ok: true };
   });
 
-/** Those who put pictures of students in front of others: news and the website. */
-const PHOTO_EDITORS: Capability[] = ["news:manage", "site:manage"];
+/** Those who put pictures of students in front of others: announcements and the website. */
+const PHOTO_EDITORS: Capability[] = ["announcements:manage", "site:manage"];
 
 async function readablePictures(context: UnitContext, ids: readonly string[]) {
   const found = await filesByIds(context.tx, context.tenantId, ids);

@@ -37,9 +37,9 @@ describe("the template reviewer's capability", () => {
     const reviewer = await role(a.tenantId, "Head of English", [
       "people:read",
       "library:review",
-      "news:manage",
+      "announcements:manage",
     ]);
-    const writer = await role(a.tenantId, "Newsletter", ["news:manage"]);
+    const writer = await role(a.tenantId, "Office", ["announcements:manage"]);
     const elsewhere = await role(b.tenantId, "Reviewer", ["library:review"]);
     try {
       const sql = await renameCapability();
@@ -49,9 +49,11 @@ describe("the template reviewer's capability", () => {
       expect(await capabilitiesOf(a.tenantId, reviewer)).toEqual([
         "people:read",
         "templates:review",
-        "news:manage",
+        "announcements:manage",
       ]);
-      expect(await capabilitiesOf(a.tenantId, writer)).toEqual(["news:manage"]);
+      expect(await capabilitiesOf(a.tenantId, writer)).toEqual([
+        "announcements:manage",
+      ]);
       expect(await capabilitiesOf(b.tenantId, elsewhere)).toEqual([
         "templates:review",
       ]);

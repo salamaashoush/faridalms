@@ -357,17 +357,17 @@ function FamilyHome() {
         </HomeList>
       </HomeCard>
     ) : null,
-    data.pinned.length > 0 ? (
+    data.announcements.length > 0 ? (
       <HomeCard
-        key="pinned"
-        title={m.homePinnedNews()}
+        key="announcements"
+        title={m.homeAnnouncements()}
         action={{
           label: m.homeOpenAnnouncements(),
           link: { to: "/announcements", search: {} },
         }}
       >
         <HomeList>
-          {data.pinned.map((row) => (
+          {data.announcements.map((row) => (
             <HomeItem
               key={row.id}
               title={
@@ -382,41 +382,6 @@ function FamilyHome() {
               summary={row.summary}
             />
           ))}
-        </HomeList>
-      </HomeCard>
-    ) : null,
-    data.news ? (
-      <HomeCard
-        key="news"
-        title={m.homeLatestNews()}
-        action={{
-          label: m.homeOpenNews(),
-          link: { to: "/news", search: {} },
-        }}
-      >
-        <HomeList>
-          <HomeItem
-            title={
-              <Link
-                to="/news/$postId"
-                params={{ postId: data.news.id }}
-                className={itemLink}
-              >
-                <bdi>
-                  {inLocale(
-                    data.news.titleEn || null,
-                    data.news.titleAr || null,
-                  )}
-                </bdi>
-              </Link>
-            }
-            summary={
-              inLocale(
-                data.news.excerptEn || null,
-                data.news.excerptAr || null,
-              ) || data.news.summary
-            }
-          />
         </HomeList>
       </HomeCard>
     ) : null,

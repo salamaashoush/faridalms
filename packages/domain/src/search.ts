@@ -13,7 +13,6 @@ export const SEARCH_KINDS = [
   "assignments",
   "learning",
   "announcements",
-  "news",
   "events",
   "messages",
   "notes",
@@ -24,7 +23,6 @@ export type SearchKind = (typeof SEARCH_KINDS)[number];
 const KIND_MODULE: Partial<Record<SearchKind, ModuleId>> = {
   assignments: "coursework",
   learning: "elearning",
-  news: "news",
 };
 
 export const kindOn = (
@@ -60,7 +58,6 @@ const KIND_CAPABILITIES: Record<SearchKind, readonly Capability[]> = {
   assignments: ["assignments:author", "own-work:read", "children:read"],
   learning: ["learning:author", "learning:read", "children:read"],
   announcements: [],
-  news: [],
   events: ["calendar:read"],
   messages: ["messages:read"],
   // A team's own notes, logged contacts and held mail, for whoever reads a
@@ -87,7 +84,6 @@ export type SearchTarget =
   | "module"
   | "lesson"
   | "announcement"
-  | "news"
   | "event"
   | "thread";
 

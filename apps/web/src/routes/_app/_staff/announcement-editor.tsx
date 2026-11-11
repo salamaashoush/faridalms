@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
 
 import {
-  BroadcastEditorPage,
-  loadBroadcastEditor,
-} from "~/components/broadcasts/BroadcastEditorPage";
+  AnnouncementEditorPage,
+  loadAnnouncementEditor,
+} from "~/components/announcements/AnnouncementEditorPage";
 import * as m from "~/i18n/messages";
 import { currentUserQuery } from "~/queries/user";
 import { requirePage } from "~/utils/page-access";
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_app/_staff/announcement-editor")({
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "announcements:manage");
-    await loadBroadcastEditor("announcement", context.queryClient, deps);
+    await loadAnnouncementEditor(context.queryClient, deps);
   },
   component: EditorPage,
 });
@@ -29,8 +29,7 @@ function EditorPage() {
   const { id, template } = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <BroadcastEditorPage
-      kind="announcement"
+    <AnnouncementEditorPage
       id={id}
       template={template}
       onClose={(saved) =>

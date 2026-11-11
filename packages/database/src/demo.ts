@@ -17,7 +17,7 @@ import type {
   EventPlan,
   FilledSchool,
   Names,
-  NewsPlan,
+  NewsletterPlan,
   SchoolPlan,
   SeededTenant,
   Tx,
@@ -34,7 +34,7 @@ import {
   GIRLS,
   insertAnnouncements,
   insertEvents,
-  insertNews,
+  insertNewsletters,
   MOTHERS,
   need,
   random,
@@ -2589,9 +2589,8 @@ async function notices(
   await insertAnnouncements(tx, { ...author, on: today }, announcements);
   await seedNotifications(tx, school.tenantId, school.schoolId);
 
-  const news: NewsPlan[] = [
+  const newsletters: NewsletterPlan[] = [
     {
-      slug: "october-newsletter",
       title: "October newsletter",
       publishAt: at(addDays(today, -10), "07:00"),
       english: article([
@@ -2632,7 +2631,6 @@ async function notices(
       ]),
     },
     {
-      slug: "u13-football-semi-final",
       title: "Under-13 football team reaches the cup semi-final",
       publishAt: at(addDays(today, -2), "15:30"),
       english: article([
@@ -2648,7 +2646,6 @@ async function notices(
       arabic: null,
     },
     {
-      slug: "kg-farm-visit",
       title: "KG2 visits the farm",
       publishAt: at(addDays(today, -6), "12:00"),
       english: article([
@@ -2664,7 +2661,6 @@ async function notices(
       arabic: null,
     },
     {
-      slug: "november-newsletter",
       title: "November newsletter",
       publishAt: null,
       english: article([
@@ -2676,7 +2672,7 @@ async function notices(
       arabic: null,
     },
   ];
-  await insertNews(tx, { ...author, on: today }, news);
+  await insertNewsletters(tx, { ...author, on: today }, newsletters);
 
   const grade = (code: string) =>
     classes.find((taught) => taught.homeroomTitle === code)?.homeroomId ?? null;

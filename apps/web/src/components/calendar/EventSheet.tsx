@@ -23,7 +23,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { audienceLabel } from "~/components/broadcasts/format";
+import { audienceLabel } from "~/components/announcements/format";
 import { TranslatedView } from "~/components/content/TranslatedView";
 import { usePrint } from "~/components/print/usePrint";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";

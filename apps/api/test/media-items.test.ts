@@ -500,7 +500,7 @@ describe("the school's media", () => {
   test("uploads staff made in documents are offered for keeping, never a student's work", async () => {
     const office = await sessionFor("northwind", login("principal"));
     const inNews = await uploadPicture(office, "assembly.png", uniquePng());
-    await office.api.broadcasts.news.save({
+    await office.api.announcements.save({
       id: "",
       expectedVersion: 0,
       visibility: "school",
@@ -509,12 +509,17 @@ describe("the school's media", () => {
       titleAr: "",
       excerptEn: "",
       excerptAr: "",
-      slug: "assembly-library-news",
+      slug: "",
       categoryId: "",
       coverFileId: "",
       coverAltEn: "",
       coverAltAr: "",
       pinned: false,
+      urgency: "normal",
+      pinnedUntil: "",
+      expiresOn: "",
+      requiresAck: false,
+      ackDueOn: "",
       audiences: [{ scope: "families", classId: "", gradeId: "" }],
       body: withPicture(inNews, "The assembly"),
       translation: null,

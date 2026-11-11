@@ -39,7 +39,8 @@ interface Need {
 /**
  * The office's day: the school's setup first while it is under way, then
  * what needs someone to act, how attendance is going, what is coming, how
- * recent news was read, and the next year's setup when this one is ending.
+ * recent announcements were read, and the next year's setup when this one
+ * is ending.
  */
 export function useOfficeDay(): DayCards {
   const data = useSuspenseQuery(adminHomeQuery).data;
@@ -174,35 +175,20 @@ export function useOfficeDay(): DayCards {
       </HomeCard>
     ) : null,
     data.communications.length > 0 ? (
-      <HomeCard key="communications" title={m.homeRecentNews()}>
+      <HomeCard key="communications" title={m.homeRecentAnnouncements()}>
         <HomeList>
           {data.communications.map((row) => (
             <HomeItem
-              key={`${row.kind}-${row.id}`}
+              key={row.id}
               title={
-                row.kind === "announcement" ? (
-                  <Link
-                    to="/announcements/$announcementId"
-                    params={{ announcementId: row.id }}
-                    className={itemLink}
-                  >
-                    <bdi>{row.title}</bdi>
-                  </Link>
-                ) : (
-                  <Link
-                    to="/news/$postId"
-                    params={{ postId: row.id }}
-                    className={itemLink}
-                  >
-                    <bdi>{row.title}</bdi>
-                  </Link>
-                )
+                <Link
+                  to="/announcements/$announcementId"
+                  params={{ announcementId: row.id }}
+                  className={itemLink}
+                >
+                  <bdi>{row.title}</bdi>
+                </Link>
               }
-              facts={[
-                row.kind === "announcement"
-                  ? m.navAnnouncements()
-                  : m.navNews(),
-              ]}
               status={
                 <span className="text-[13px] text-muted-foreground tabular-nums">
                   {m.homeReadOf({

@@ -37,7 +37,6 @@ export const KIND_LABEL: Record<TemplateKind, () => string> = {
   lesson: m.templateKindLesson,
   assignment: m.templateKindAssignment,
   unit_plan: m.templateKindPlan,
-  news: m.templateKindNews,
   announcement: m.templateKindAnnouncement,
   event: m.templateKindEvent,
   consent_form: m.templateKindConsentForm,
@@ -148,8 +147,6 @@ export function PieceSheet({
         to: "/module-plan",
         search: { moduleId: chosen, template: piece.id },
       });
-    else if (piece.kind === "news")
-      void navigate({ to: "/news-editor", search: { template: piece.id } });
     else if (piece.kind === "announcement")
       void navigate({
         to: "/announcement-editor",

@@ -11,7 +11,6 @@ export type TemplateKind =
   | "lesson"
   | "assignment"
   | "unit_plan"
-  | "news"
   | "announcement"
   | "event"
   | "consent_form"

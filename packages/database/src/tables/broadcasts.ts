@@ -1,5 +1,8 @@
-import type { AudienceScope, Urgency } from "@faridalms/domain/announcements";
-import type { BroadcastKind } from "@faridalms/domain/broadcasts";
+import type {
+  AudienceScope,
+  Urgency,
+  Visibility,
+} from "@faridalms/domain/announcements";
 import type { PublicationState } from "@faridalms/domain/publication";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
@@ -12,8 +15,6 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-
-import type { PostVisibility } from "./site";
 
 import {
   baseConstraints,
@@ -33,29 +34,29 @@ import { siteCategories, slugPattern } from "./site";
 import { classes } from "./teaching";
 import { orgs, tenants } from "./tenancy";
 
-export type { AudienceScope, BroadcastKind, PublicationState, Urgency };
+export type { AudienceScope, PublicationState, Urgency, Visibility };
 
 /**
- * What the school sends to its people: an announcement, which can ask to be
- * acknowledged, or a news post, which can also be on the website. Its words
- * are the document hosted as its kind, with the other language as its
- * translation. It is scheduled while published with `publish_at` still to
- * come, and `told_at` records when its readers were told it is out.
+ * An announcement: what the school sends to its audience, which can ask to
+ * be acknowledged, and can also be on the website with an address, a
+ * category and a cover. Its words are the document hosted as
+ * `announcement`, with the other language as its translation. It is
+ * scheduled while published with `publish_at` still to come, and `told_at`
+ * records when its readers were told it is out.
  */
 export const broadcasts = core.table.withRLS(
   "broadcasts",
   {
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
-    kind: text("kind").$type<BroadcastKind>().notNull(),
     titleEn: text("title_en").notNull().default(""),
     titleAr: text("title_ar").notNull().default(""),
     state: text("state").$type<PublicationState>().notNull().default("draft"),
     publishAt: instant("publish_at"),
     toldAt: instant("told_at"),
-    /** News on the website is public; everything else reaches only its audience. */
+    /** One on the website is public; otherwise it reaches only its audience. */
     visibility: text("visibility")
-      .$type<PostVisibility>()
+      .$type<Visibility>()
       .notNull()
       .default("school"),
     authorUserId: uuid("author_user_id").notNull(),
@@ -99,7 +100,6 @@ export const broadcasts = core.table.withRLS(
       [siteCategories.tenantId, siteCategories.id],
     ),
     fk("broadcasts", [t.tenantId, t.coverFileId], [files.tenantId, files.id]),
-    ck("broadcasts", "kind", sql`kind in ('announcement', 'news')`),
     ck("broadcasts", "state", sql`state in ('draft', 'published', 'archived')`),
     ck(
       "broadcasts",
@@ -124,16 +124,7 @@ export const broadcasts = core.table.withRLS(
       sql`urgency in ('normal', 'important', 'urgent')`,
     ),
     ck("broadcasts", "ack_due_on", sql`ack_due_on is null or requires_ack`),
-    ck(
-      "broadcasts",
-      "announcement",
-      sql`kind = 'announcement' or (urgency = 'normal' and pinned_until is null and expires_on is null and not requires_ack and update_sent_at is null)`,
-    ),
-    ck(
-      "broadcasts",
-      "news",
-      sql`(kind = 'news') = (slug is not null) and (kind = 'news' or (visibility = 'school' and category_id is null and excerpt_en = '' and excerpt_ar = '' and cover_file_id is null and cover_alt_en = '' and cover_alt_ar = '' and not pinned))`,
-    ),
+    ck("broadcasts", "website", sql`visibility = 'school' or slug is not null`),
     ck(
       "broadcasts",
       "slug",
@@ -153,7 +144,7 @@ export const broadcasts = core.table.withRLS(
       .on(t.tenantId, t.orgId, t.slug)
       .where(sql`status = 'active' and slug is not null`),
     index("broadcasts_org_idx")
-      .on(t.tenantId, t.orgId, t.kind, t.publishAt)
+      .on(t.tenantId, t.orgId, t.publishAt)
       .where(sql`status = 'active'`),
     index("broadcasts_untold_idx")
       .on(t.tenantId, t.publishAt)

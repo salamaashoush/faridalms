@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { PASSWORD, signIn, signInWith } from "./fixtures/sign-in";
 
 // Lessons and registers depend on the weekday the suite runs, so these checks
-// hold on any day: classes, family news and attendance always have a card.
+// hold on any day: classes, announcements and attendance always have a card.
 test("a teacher's day lists their classes and opens one", async ({ page }) => {
   await signInWith(
     page,
@@ -17,7 +17,7 @@ test("a teacher's day lists their classes and opens one", async ({ page }) => {
   await expect(page).toHaveURL(/\/classes\/[a-f0-9-]+/);
 });
 
-test("a family's home shows their child and the latest school news", async ({
+test("a family's home shows their child and the latest announcements", async ({
   page,
 }) => {
   await signInWith(
@@ -29,7 +29,9 @@ test("a family's home shows their child and the latest school news", async ({
   await expect(
     page.getByRole("region", { name: "Yasmin Sabry" }),
   ).toBeVisible();
-  await expect(page.getByRole("region", { name: "Latest news" })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Announcements" }),
+  ).toBeVisible();
 });
 
 // Each browser asks as a family of its own: a guardian may keep only a few

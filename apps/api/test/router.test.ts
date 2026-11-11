@@ -30,10 +30,11 @@ describe("the router", () => {
     ).toEqual([]);
   });
 
-  it("keeps announcements and news under the one broadcasts namespace", () => {
-    expect(namespaces).toContain("broadcasts/announcements");
-    expect(namespaces).toContain("broadcasts/news");
-    expect(namespaces).not.toContain("announcements");
+  it("answers announcements as one namespace, with no news beside it", () => {
+    expect(namespaces).toContain("announcements");
+    expect(namespaces.some((name) => name.startsWith("broadcasts"))).toBe(
+      false,
+    );
     expect(namespaces).not.toContain("news");
   });
 });

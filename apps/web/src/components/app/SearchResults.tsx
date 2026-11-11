@@ -18,7 +18,6 @@ import {
   GraduationCap,
   Inbox,
   Megaphone,
-  Newspaper,
   NotebookPen,
   School,
   Users,
@@ -37,7 +36,6 @@ export const SEARCH_KIND_LABEL: Record<SearchKind, () => string> = {
   assignments: m.searchKindAssignments,
   learning: m.searchKindLearning,
   announcements: m.searchKindAnnouncements,
-  news: m.searchKindNews,
   events: m.searchKindEvents,
   messages: m.searchKindMessages,
   notes: m.searchKindNotes,
@@ -50,7 +48,6 @@ export const SEARCH_KIND_ICON: Record<SearchKind, LucideIcon> = {
   assignments: ClipboardList,
   learning: BookOpen,
   announcements: Megaphone,
-  news: Newspaper,
   events: CalendarDays,
   messages: Inbox,
   notes: NotebookPen,
@@ -255,10 +252,6 @@ export function HitLink({
           params={{ announcementId: hit.id }}
           {...shared}
         />
-      );
-    case "news":
-      return (
-        <Link to="/news/$postId" params={{ postId: hit.id }} {...shared} />
       );
     case "event":
       return (

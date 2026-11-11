@@ -192,7 +192,7 @@ describe("shared blocks", () => {
     );
   });
 
-  test("the office shows one in news, which goes on the website as it reads when published", async () => {
+  test("the office shows one in an announcement, which goes on the website as it reads when published", async () => {
     const office = await principal();
     const kept = await office.shared.save({
       expectedVersion: 0,
@@ -201,7 +201,7 @@ describe("shared blocks", () => {
       content: plainContent("Sign in at the front desk."),
     });
     const body = plainContent("Parents' evening is on Tuesday.");
-    const post = await office.broadcasts.news.save({
+    const post = await office.announcements.save({
       id: "",
       expectedVersion: 0,
       visibility: "public",
@@ -216,6 +216,11 @@ describe("shared blocks", () => {
       coverAltEn: "",
       coverAltAr: "",
       pinned: false,
+      urgency: "normal",
+      pinnedUntil: "",
+      expiresOn: "",
+      requiresAck: false,
+      ackDueOn: "",
       audiences: [],
       body: {
         root: {
@@ -230,8 +235,8 @@ describe("shared blocks", () => {
     });
     expect(
       (await office.shared.uses({ id: kept.id })).map((row) => row.hostType),
-    ).toEqual(["news"]);
-    await office.broadcasts.news.publish({
+    ).toEqual(["announcement"]);
+    await office.announcements.publish({
       id: post.id,
       expectedVersion: post.version,
     });

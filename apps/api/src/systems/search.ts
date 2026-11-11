@@ -60,7 +60,6 @@ const TYPES: Record<SearchKind, readonly string[]> = {
   assignments: ["assignment"],
   learning: ["learning_module", "lesson"],
   announcements: ["announcement"],
-  news: ["news"],
   events: ["calendar_event"],
   messages: ["message_thread"],
   notes: ["team_thread"],
@@ -72,7 +71,6 @@ const TARGET: Record<string, SearchTarget> = {
   learning_module: "module",
   lesson: "lesson",
   announcement: "announcement",
-  news: "news",
   calendar_event: "event",
   message_thread: "thread",
   team_thread: "thread",
@@ -179,22 +177,8 @@ async function resolverOf(
     case "announcements": {
       const access = {
         ...school,
-        kind: "announcement" as const,
         viewerId,
         manage: can(context, "announcements:manage"),
-      };
-      return {
-        within: broadcastsReached(access),
-        resolve: (ids) =>
-          broadcastsAmong(context.tx, { ...base, ...access, ids }),
-      };
-    }
-    case "news": {
-      const access = {
-        ...school,
-        kind: "news" as const,
-        viewerId,
-        manage: can(context, "news:manage"),
       };
       return {
         within: broadcastsReached(access),
@@ -370,7 +354,6 @@ const MENTIONED_IN: Record<MentionKind, readonly SearchKind[]> = {
   module: ["learning"],
   lesson: ["learning"],
   assignment: ["assignments"],
-  news: ["news"],
   announcement: ["announcements"],
   event: ["events"],
 };

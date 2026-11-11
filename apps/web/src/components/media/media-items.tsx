@@ -88,8 +88,6 @@ export function hostKindLabel(hostType: string): string {
       return m.templateKindPlan();
     case "announcement":
       return m.templateKindAnnouncement();
-    case "news":
-      return m.templateKindNews();
     case "site_page":
       return m.sharedUsePage();
     case "calendar_event":

@@ -23,7 +23,6 @@ import { Route as AppExamsRouteImport } from './routes/_app/exams'
 import { Route as AppFamilyRouteImport } from './routes/_app/family'
 import { Route as AppHealthChangesRouteImport } from './routes/_app/health-changes'
 import { Route as AppMeRouteImport } from './routes/_app/me'
-import { Route as AppNewsEditorRouteImport } from './routes/_app/news-editor'
 import { Route as AppNotificationPreferencesRouteImport } from './routes/_app/notification-preferences'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppPrivacyRouteImport } from './routes/_app/privacy'
@@ -114,8 +113,6 @@ import { Route as AppMeMessagesRouteImport } from './routes/_app/me/messages'
 import { Route as AppMeModulesRouteImport } from './routes/_app/me/modules'
 import { Route as AppMeTimetableRouteImport } from './routes/_app/me/timetable'
 import { Route as AppModulesModuleIdRouteImport } from './routes/_app/modules/$moduleId'
-import { Route as AppNewsIndexRouteImport } from './routes/_app/news.index'
-import { Route as AppNewsPostIdRouteImport } from './routes/_app/news.$postId'
 import { Route as AppPeopleUserIdRouteImport } from './routes/_app/people.$userId'
 import { Route as AppPracticeModuleIdRouteImport } from './routes/_app/practice.$moduleId'
 import { Route as AppProfilesUserIdRouteImport } from './routes/_app/profiles.$userId'
@@ -219,11 +216,6 @@ const AppHealthChangesRoute = AppHealthChangesRouteImport.update({
 const AppMeRoute = AppMeRouteImport.update({
   id: '/me',
   path: '/me',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppNewsEditorRoute = AppNewsEditorRouteImport.update({
-  id: '/news-editor',
-  path: '/news-editor',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationPreferencesRoute =
@@ -685,16 +677,6 @@ const AppModulesModuleIdRoute = AppModulesModuleIdRouteImport.update({
   path: '/modules/$moduleId',
   getParentRoute: () => AppRoute,
 } as any)
-const AppNewsIndexRoute = AppNewsIndexRouteImport.update({
-  id: '/news/',
-  path: '/news/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppNewsPostIdRoute = AppNewsPostIdRouteImport.update({
-  id: '/news/$postId',
-  path: '/news/$postId',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppPeopleUserIdRoute = AppPeopleUserIdRouteImport.update({
   id: '/people/$userId',
   path: '/people/$userId',
@@ -901,7 +883,6 @@ export interface FileRoutesByFullPath {
   '/family': typeof AppFamilyRouteWithChildren
   '/health-changes': typeof AppHealthChangesRoute
   '/me': typeof AppMeRouteWithChildren
-  '/news-editor': typeof AppNewsEditorRoute
   '/notification-preferences': typeof AppNotificationPreferencesRoute
   '/notifications': typeof AppNotificationsRoute
   '/privacy': typeof AppPrivacyRoute
@@ -987,7 +968,6 @@ export interface FileRoutesByFullPath {
   '/me/modules': typeof AppMeModulesRoute
   '/me/timetable': typeof AppMeTimetableRoute
   '/modules/$moduleId': typeof AppModulesModuleIdRoute
-  '/news/$postId': typeof AppNewsPostIdRoute
   '/people/$userId': typeof AppPeopleUserIdRoute
   '/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/profiles/$userId': typeof AppProfilesUserIdRoute
@@ -1015,7 +995,6 @@ export interface FileRoutesByFullPath {
   '/calendar/': typeof AppCalendarIndexRoute
   '/family/': typeof AppFamilyIndexRoute
   '/me/': typeof AppMeIndexRoute
-  '/news/': typeof AppNewsIndexRoute
   '/standards/': typeof AppStandardsIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
   '/board/$pacedId': typeof AppStaffBoardPacedIdRoute
@@ -1042,7 +1021,6 @@ export interface FileRoutesByTo {
   '/event-editor': typeof AppEventEditorRoute
   '/exams': typeof AppExamsRoute
   '/health-changes': typeof AppHealthChangesRoute
-  '/news-editor': typeof AppNewsEditorRoute
   '/notification-preferences': typeof AppNotificationPreferencesRoute
   '/notifications': typeof AppNotificationsRoute
   '/privacy': typeof AppPrivacyRoute
@@ -1127,7 +1105,6 @@ export interface FileRoutesByTo {
   '/me/modules': typeof AppMeModulesRoute
   '/me/timetable': typeof AppMeTimetableRoute
   '/modules/$moduleId': typeof AppModulesModuleIdRoute
-  '/news/$postId': typeof AppNewsPostIdRoute
   '/people/$userId': typeof AppPeopleUserIdRoute
   '/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/profiles/$userId': typeof AppProfilesUserIdRoute
@@ -1155,7 +1132,6 @@ export interface FileRoutesByTo {
   '/calendar': typeof AppCalendarIndexRoute
   '/family': typeof AppFamilyIndexRoute
   '/me': typeof AppMeIndexRoute
-  '/news': typeof AppNewsIndexRoute
   '/standards': typeof AppStandardsIndexRoute
   '/site/$school': typeof SiteSchoolIndexRoute
   '/board/$pacedId': typeof AppStaffBoardPacedIdRoute
@@ -1188,7 +1164,6 @@ export interface FileRoutesById {
   '/_app/family': typeof AppFamilyRouteWithChildren
   '/_app/health-changes': typeof AppHealthChangesRoute
   '/_app/me': typeof AppMeRouteWithChildren
-  '/_app/news-editor': typeof AppNewsEditorRoute
   '/_app/notification-preferences': typeof AppNotificationPreferencesRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/privacy': typeof AppPrivacyRoute
@@ -1274,7 +1249,6 @@ export interface FileRoutesById {
   '/_app/me/modules': typeof AppMeModulesRoute
   '/_app/me/timetable': typeof AppMeTimetableRoute
   '/_app/modules/$moduleId': typeof AppModulesModuleIdRoute
-  '/_app/news/$postId': typeof AppNewsPostIdRoute
   '/_app/people/$userId': typeof AppPeopleUserIdRoute
   '/_app/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/_app/profiles/$userId': typeof AppProfilesUserIdRoute
@@ -1302,7 +1276,6 @@ export interface FileRoutesById {
   '/_app/calendar/': typeof AppCalendarIndexRoute
   '/_app/family/': typeof AppFamilyIndexRoute
   '/_app/me/': typeof AppMeIndexRoute
-  '/_app/news/': typeof AppNewsIndexRoute
   '/_app/standards/': typeof AppStandardsIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
   '/_app/_staff/board/$pacedId': typeof AppStaffBoardPacedIdRoute
@@ -1333,7 +1306,6 @@ export interface FileRouteTypes {
     | '/family'
     | '/health-changes'
     | '/me'
-    | '/news-editor'
     | '/notification-preferences'
     | '/notifications'
     | '/privacy'
@@ -1419,7 +1391,6 @@ export interface FileRouteTypes {
     | '/me/modules'
     | '/me/timetable'
     | '/modules/$moduleId'
-    | '/news/$postId'
     | '/people/$userId'
     | '/practice/$moduleId'
     | '/profiles/$userId'
@@ -1447,7 +1418,6 @@ export interface FileRouteTypes {
     | '/calendar/'
     | '/family/'
     | '/me/'
-    | '/news/'
     | '/standards/'
     | '/site/$school/'
     | '/board/$pacedId'
@@ -1474,7 +1444,6 @@ export interface FileRouteTypes {
     | '/event-editor'
     | '/exams'
     | '/health-changes'
-    | '/news-editor'
     | '/notification-preferences'
     | '/notifications'
     | '/privacy'
@@ -1559,7 +1528,6 @@ export interface FileRouteTypes {
     | '/me/modules'
     | '/me/timetable'
     | '/modules/$moduleId'
-    | '/news/$postId'
     | '/people/$userId'
     | '/practice/$moduleId'
     | '/profiles/$userId'
@@ -1587,7 +1555,6 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/family'
     | '/me'
-    | '/news'
     | '/standards'
     | '/site/$school'
     | '/board/$pacedId'
@@ -1619,7 +1586,6 @@ export interface FileRouteTypes {
     | '/_app/family'
     | '/_app/health-changes'
     | '/_app/me'
-    | '/_app/news-editor'
     | '/_app/notification-preferences'
     | '/_app/notifications'
     | '/_app/privacy'
@@ -1705,7 +1671,6 @@ export interface FileRouteTypes {
     | '/_app/me/modules'
     | '/_app/me/timetable'
     | '/_app/modules/$moduleId'
-    | '/_app/news/$postId'
     | '/_app/people/$userId'
     | '/_app/practice/$moduleId'
     | '/_app/profiles/$userId'
@@ -1733,7 +1698,6 @@ export interface FileRouteTypes {
     | '/_app/calendar/'
     | '/_app/family/'
     | '/_app/me/'
-    | '/_app/news/'
     | '/_app/standards/'
     | '/site/$school/'
     | '/_app/_staff/board/$pacedId'
@@ -1886,13 +1850,6 @@ declare module '@tanstack/react-router' {
       path: '/me'
       fullPath: '/me'
       preLoaderRoute: typeof AppMeRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/news-editor': {
-      id: '/_app/news-editor'
-      path: '/news-editor'
-      fullPath: '/news-editor'
-      preLoaderRoute: typeof AppNewsEditorRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/notification-preferences': {
@@ -2525,20 +2482,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppModulesModuleIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/news/': {
-      id: '/_app/news/'
-      path: '/news'
-      fullPath: '/news/'
-      preLoaderRoute: typeof AppNewsIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/news/$postId': {
-      id: '/_app/news/$postId'
-      path: '/news/$postId'
-      fullPath: '/news/$postId'
-      preLoaderRoute: typeof AppNewsPostIdRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/people/$userId': {
       id: '/_app/people/$userId'
       path: '/people/$userId'
@@ -2933,7 +2876,6 @@ interface AppRouteChildren {
   AppFamilyRoute: typeof AppFamilyRouteWithChildren
   AppHealthChangesRoute: typeof AppHealthChangesRoute
   AppMeRoute: typeof AppMeRouteWithChildren
-  AppNewsEditorRoute: typeof AppNewsEditorRoute
   AppNotificationPreferencesRoute: typeof AppNotificationPreferencesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppPrivacyRoute: typeof AppPrivacyRoute
@@ -2954,7 +2896,6 @@ interface AppRouteChildren {
   AppLessonFrameLessonIdRoute: typeof AppLessonFrameLessonIdRoute
   AppLessonsLessonIdRoute: typeof AppLessonsLessonIdRoute
   AppModulesModuleIdRoute: typeof AppModulesModuleIdRoute
-  AppNewsPostIdRoute: typeof AppNewsPostIdRoute
   AppPeopleUserIdRoute: typeof AppPeopleUserIdRoute
   AppPracticeModuleIdRoute: typeof AppPracticeModuleIdRoute
   AppProfilesUserIdRoute: typeof AppProfilesUserIdRoute
@@ -2966,7 +2907,6 @@ interface AppRouteChildren {
   AppAdmissionsIndexRoute: typeof AppAdmissionsIndexRoute
   AppAnnouncementsIndexRoute: typeof AppAnnouncementsIndexRoute
   AppCalendarIndexRoute: typeof AppCalendarIndexRoute
-  AppNewsIndexRoute: typeof AppNewsIndexRoute
   AppStandardsIndexRoute: typeof AppStandardsIndexRoute
   AppAdmissionsApplicationsApplicationIdRoute: typeof AppAdmissionsApplicationsApplicationIdRoute
   AppAdmissionsEnquiriesEnquiryIdRoute: typeof AppAdmissionsEnquiriesEnquiryIdRoute
@@ -2984,7 +2924,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppFamilyRoute: AppFamilyRouteWithChildren,
   AppHealthChangesRoute: AppHealthChangesRoute,
   AppMeRoute: AppMeRouteWithChildren,
-  AppNewsEditorRoute: AppNewsEditorRoute,
   AppNotificationPreferencesRoute: AppNotificationPreferencesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppPrivacyRoute: AppPrivacyRoute,
@@ -3005,7 +2944,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppLessonFrameLessonIdRoute: AppLessonFrameLessonIdRoute,
   AppLessonsLessonIdRoute: AppLessonsLessonIdRoute,
   AppModulesModuleIdRoute: AppModulesModuleIdRoute,
-  AppNewsPostIdRoute: AppNewsPostIdRoute,
   AppPeopleUserIdRoute: AppPeopleUserIdRoute,
   AppPracticeModuleIdRoute: AppPracticeModuleIdRoute,
   AppProfilesUserIdRoute: AppProfilesUserIdRoute,
@@ -3017,7 +2955,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdmissionsIndexRoute: AppAdmissionsIndexRoute,
   AppAnnouncementsIndexRoute: AppAnnouncementsIndexRoute,
   AppCalendarIndexRoute: AppCalendarIndexRoute,
-  AppNewsIndexRoute: AppNewsIndexRoute,
   AppStandardsIndexRoute: AppStandardsIndexRoute,
   AppAdmissionsApplicationsApplicationIdRoute:
     AppAdmissionsApplicationsApplicationIdRoute,

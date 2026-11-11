@@ -1040,7 +1040,7 @@ export async function seedSchool(
     passwordHash: string;
     visitor: Visitor;
     /**
-     * Writes the school's coursework, lessons, messages, notices, news and
+     * Writes the school's coursework, lessons, messages, announcements and
      * events in place of the development seed's few examples.
      */
     content?: (tx: Tx, school: FilledSchool) => Promise<void>;
@@ -1436,7 +1436,7 @@ export async function seedSchool(
     );
     await seedMessages(tx, tenantId, schoolId, yearId);
     await seedAnnouncements(tx, tenantId, schoolId);
-    await seedSchoolNews(tx, tenantId, schoolId);
+    await seedNewsletters(tx, tenantId, schoolId);
     await seedConsents(
       tx,
       tenantId,
@@ -1625,7 +1625,6 @@ export async function insertAnnouncements(
       tenantId,
       id,
       orgId: schoolId,
-      kind: "announcement",
       titleEn: plan.title,
       urgency: plan.urgency,
       state: plan.publishAt ? "published" : "draft",
@@ -1669,8 +1668,8 @@ export async function insertAnnouncements(
   }
 }
 
-/** What a seeded news post leaves unset, as the editor would. */
-const newsFields = {
+/** What a seeded announcement leaves unset, as the editor would. */
+const unsetFields = {
   titleAr: "",
   urgency: "normal" as const,
   pinnedUntil: null,
@@ -1692,23 +1691,22 @@ const part = (heading: string, body: string) => ({
 });
 
 /**
- * September's news sent to the school in both languages, the Arabic not yet
- * checked against the English, and October's still a draft. Both are for
- * the school only, never the website.
+ * September's newsletter sent to the school in both languages, the Arabic
+ * not yet checked against the English, and October's still a draft. Both
+ * are for the school only, never the website.
  */
-async function seedSchoolNews(tx: Tx, tenantId: string, schoolId: string) {
+async function seedNewsletters(tx: Tx, tenantId: string, schoolId: string) {
   const [principal] = await tx.execute<{ user_id: string }>(sql`
     select r.user_id from core.user_roles r
     where r.tenant_id = ${tenantId}::uuid and r.org_id = ${schoolId}::uuid
       and r.role in ('principal', 'site_administrator') and r.status = 'active'
     order by r.role, r.user_id limit 1`);
   if (!principal) return;
-  await insertNews(
+  await insertNewsletters(
     tx,
     { tenantId, schoolId, authorId: principal.user_id, on: "2026-09-27" },
     [
       {
-        slug: "september-newsletter",
         title: "September newsletter",
         publishAt: new Date("2026-09-18T07:00:00Z"),
         english: headedContent([
@@ -1741,7 +1739,6 @@ async function seedSchoolNews(tx: Tx, tenantId: string, schoolId: string) {
         ]),
       },
       {
-        slug: "october-newsletter",
         title: "October newsletter",
         publishAt: null,
         english: headedContent([
@@ -1753,30 +1750,28 @@ async function seedSchoolNews(tx: Tx, tenantId: string, schoolId: string) {
   );
 }
 
-export interface NewsPlan {
-  slug: string;
+export interface NewsletterPlan {
   title: string;
   publishAt: Date | null;
   english: ContentDocument;
   arabic: ContentDocument | null;
 }
 
-/** News for the whole school by one author, the published told to everyone `on` that day. */
-export async function insertNews(
+/** Newsletters to the whole school by one author, the published told to everyone `on` that day. */
+export async function insertNewsletters(
   tx: Tx,
   input: { tenantId: string; schoolId: string; authorId: string; on: string },
-  plans: readonly NewsPlan[],
+  plans: readonly NewsletterPlan[],
 ) {
   const { tenantId, schoolId } = input;
   const audience: Audience = { scope: "school", classId: null, gradeId: null };
   for (const plan of plans) {
     const created = await insertBroadcast(tx, {
-      ...newsFields,
+      ...unsetFields,
       tenantId,
       schoolId,
       authorId: input.authorId,
-      kind: "news",
-      slug: plan.slug,
+      slug: null,
       titleEn: plan.title,
       visibility: "school",
     });
@@ -1785,7 +1780,7 @@ export async function insertNews(
       owner: { kind: "broadcast", id: created.id },
       audiences: [audience],
     });
-    const host = { type: "news", id: created.id };
+    const host = { type: "announcement", id: created.id };
     const original = await saveDocument(tx, {
       tenantId,
       orgId: schoolId,
@@ -2239,7 +2234,7 @@ export async function seedNotifications(
     select a.id, a.title_en as title, r.user_id from core.broadcasts a
     join core.broadcast_recipients r on r.tenant_id = a.tenant_id and r.broadcast_id = a.id
     where a.tenant_id = ${tenantId}::uuid and a.org_id = ${schoolId}::uuid
-      and a.kind = 'announcement' and a.requires_ack and a.state = 'published'`);
+      and a.requires_ack and a.state = 'published'`);
   const inserted = await insertNotifications(tx, {
     tenantId,
     orgId: schoolId,
@@ -3790,11 +3785,10 @@ async function seedSite(
   ];
   for (const plan of posts) {
     const created = await insertBroadcast(tx, {
-      ...newsFields,
+      ...unsetFields,
       tenantId,
       schoolId,
       authorId: userId,
-      kind: "news",
       categoryId: news?.id ?? null,
       slug: plan.slug,
       titleEn: plan.titleEn,
@@ -3804,7 +3798,7 @@ async function seedSite(
       pinned: plan.pinned,
       visibility: "public",
     });
-    const host = { type: "news", id: created.id };
+    const host = { type: "announcement", id: created.id };
     const english = plainContent(plan.bodyEn);
     const original = await saveDocument(tx, {
       tenantId,
@@ -3846,7 +3840,7 @@ async function seedSite(
       await snapshotPublish(tx, { tenantId, documentId: other.id, userId });
       await reviewTranslation(tx, {
         tenantId,
-        host: "news",
+        host: "announcement",
         id: created.id,
         userId,
         reviewed: true,

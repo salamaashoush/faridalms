@@ -150,7 +150,7 @@ describe("holding a document while it is edited", () => {
 
   test("an announcement is held by whoever manages announcements", async () => {
     const office = await principal();
-    const saved = await office.broadcasts.announcements.save({
+    const saved = await office.announcements.save({
       id: "",
       expectedVersion: 0,
       primaryLocale: "en",

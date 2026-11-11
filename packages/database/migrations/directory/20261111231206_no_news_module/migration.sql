@@ -1,0 +1,6 @@
+-- News is no longer a module: announcements, which every school has, took
+-- its place. Plans and entitlements stop naming it before the checks drop it.
+UPDATE "school_plans" SET "modules" = array_remove("modules", 'news') WHERE 'news' = any ("modules");--> statement-breakpoint
+UPDATE "school_entitlements" SET "modules" = array_remove("modules", 'news') WHERE 'news' = any ("modules");--> statement-breakpoint
+ALTER TABLE "school_plans" DROP CONSTRAINT "school_plans_modules_check", ADD CONSTRAINT "school_plans_modules_check" CHECK (modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'exams', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[]);--> statement-breakpoint
+ALTER TABLE "school_entitlements" DROP CONSTRAINT "school_entitlements_modules_check", ADD CONSTRAINT "school_entitlements_modules_check" CHECK (modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'exams', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[]);

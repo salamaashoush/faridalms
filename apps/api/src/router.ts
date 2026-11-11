@@ -43,7 +43,6 @@ import * as learningSystem from "./systems/learning";
 import * as ltiSystem from "./systems/lti";
 import * as mediaSystem from "./systems/media";
 import * as messagesSystem from "./systems/messages";
-import * as newsSystem from "./systems/news";
 import * as notificationsSystem from "./systems/notifications";
 import * as peerSystem from "./systems/peer";
 import * as peopleSystem from "./systems/people";
@@ -147,12 +146,7 @@ export const router = {
   timetable: owned("timetable", timetableSystem),
   cover: owned("cover", coverSystem),
   messages: owned("messages", messagesSystem),
-  // Announcements and news are both broadcasts and share their model; news
-  // is a module of its own, so each part keeps its owner.
-  broadcasts: {
-    announcements: owned(["broadcasts", "announcements"], announcementsSystem),
-    news: owned(["broadcasts", "news"], newsSystem),
-  },
+  announcements: owned("announcements", announcementsSystem),
   calendar: owned("calendar", calendarSystem),
   notifications: owned("notifications", notificationsSystem),
   learning: owned("learning", learningSystem),

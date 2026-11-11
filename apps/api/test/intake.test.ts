@@ -168,7 +168,7 @@ describe("leads for the operator console", () => {
     // The same question the same day is the same lead to the console.
     expect(questions[1]?.body.intakeId).toBe(questions[0]?.body.intakeId);
     expect(
-      await rejection(principal.school.askAboutModule({ module: "news" })),
+      await rejection(principal.school.askAboutModule({ module: "timetable" })),
     ).toMatchObject({ message: "module.in_plan" });
   });
 

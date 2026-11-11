@@ -310,7 +310,7 @@ describe("pictures", () => {
     );
     const slug = `harvest-${crypto.randomUUID().slice(0, 8)}`;
     const body = plainContent("The harvest came in.");
-    const saved = await office.api.broadcasts.news.save({
+    const saved = await office.api.announcements.save({
       id: "",
       expectedVersion: 0,
       visibility: "public",
@@ -325,6 +325,11 @@ describe("pictures", () => {
       coverAltEn: "Baskets of dates",
       coverAltAr: "",
       pinned: false,
+      urgency: "normal",
+      pinnedUntil: "",
+      expiresOn: "",
+      requiresAck: false,
+      ackDueOn: "",
       audiences: [],
       body: {
         root: {
@@ -344,7 +349,7 @@ describe("pictures", () => {
       },
       translation: null,
     });
-    const published = await office.api.broadcasts.news.publish({
+    const published = await office.api.announcements.publish({
       id: saved.id,
       expectedVersion: saved.version,
     });
@@ -399,9 +404,11 @@ describe("pictures", () => {
     );
     expect(size ? (await new Response(size).bytes()).byteLength : 0).toBe(5);
     // Publishing again finds them published and copies nothing twice.
-    await office.api.broadcasts.news.publish({
+    await office.api.announcements.publish({
       id: saved.id,
       expectedVersion: published.version,
+      sendUpdate: true,
+      quietly: true,
     });
     expect((await read()).coverPicture).toEqual(kept);
   });

@@ -10,7 +10,7 @@ import {
 } from "./search";
 
 describe("searchableKinds", () => {
-  it("gives a family its children's work, the news, the calendar and messages", () => {
+  it("gives a family its children's work, announcements, the calendar and messages", () => {
     expect(
       searchableKinds([
         "children:read",
@@ -22,7 +22,6 @@ describe("searchableKinds", () => {
       "assignments",
       "learning",
       "announcements",
-      "news",
       "events",
       "messages",
     ]);
@@ -37,7 +36,6 @@ describe("searchableKinds", () => {
       "classes",
       "assignments",
       "announcements",
-      "news",
     ]);
   });
 
@@ -47,8 +45,8 @@ describe("searchableKinds", () => {
     expect(searchableKinds(["attendance:manage"])).toContain("notes");
   });
 
-  it("leaves only the school's news to someone with no capability", () => {
-    expect(searchableKinds([])).toEqual(["announcements", "news"]);
+  it("leaves only announcements to someone with no capability", () => {
+    expect(searchableKinds([])).toEqual(["announcements"]);
   });
 });
 

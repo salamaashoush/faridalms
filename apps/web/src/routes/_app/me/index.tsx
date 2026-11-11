@@ -48,7 +48,7 @@ function Home() {
 
 /**
  * A student's home: work due soon with anything missing first, today's
- * lessons, a lesson to pick up again, and news from their classes.
+ * lessons, a lesson to pick up again, and announcements for them.
  */
 function StudentHome() {
   const data = useSuspenseQuery(studentHomeQuery).data;
@@ -139,8 +139,8 @@ function StudentHome() {
     ) : null,
     data.announcements.length > 0 ? (
       <HomeCard
-        key="news"
-        title={m.homeClassNews()}
+        key="announcements"
+        title={m.homeAnnouncements()}
         action={{
           label: m.homeOpenAnnouncements(),
           link: { to: "/announcements", search: {} },

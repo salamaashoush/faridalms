@@ -7,17 +7,12 @@ import {
   announcementEditorQuery,
   announcementOptionsQuery,
 } from "~/queries/announcements";
-import { newsEditorQuery, newsOptionsQuery } from "~/queries/news";
 import { templateQuery } from "~/queries/templates";
 
-import type { BroadcastKind } from "./kinds";
+import { AnnouncementEditor } from "./AnnouncementEditor";
 
-import { BroadcastEditor } from "./BroadcastEditor";
-import { KINDS } from "./kinds";
-
-/** What a broadcast editor's route loads before it draws. */
-export function loadBroadcastEditor(
-  kind: BroadcastKind,
+/** What the announcement editor's route loads before it draws. */
+export function loadAnnouncementEditor(
   queryClient: QueryClient,
   deps: { id?: string; template?: string },
 ) {
@@ -25,39 +20,31 @@ export function loadBroadcastEditor(
     ...(deps.template && !deps.id
       ? [queryClient.ensureQueryData(templateQuery(deps.template))]
       : []),
-    kind === "announcement"
-      ? queryClient.ensureQueryData(announcementOptionsQuery)
-      : queryClient.ensureQueryData(newsOptionsQuery),
+    queryClient.ensureQueryData(announcementOptionsQuery),
     ...(deps.id
-      ? [
-          kind === "announcement"
-            ? queryClient.ensureQueryData(announcementEditorQuery(deps.id))
-            : queryClient.ensureQueryData(newsEditorQuery(deps.id)),
-        ]
+      ? [queryClient.ensureQueryData(announcementEditorQuery(deps.id))]
       : []),
   ]);
 }
 
 interface Handlers {
-  kind: BroadcastKind;
   onClose: (id?: string) => void;
   onCreated: (id: string) => void;
 }
 
 function Existing({ id, ...handlers }: Handlers & { id: string }) {
-  const existing = KINDS[handlers.kind].useEditor(id);
+  const existing = useSuspenseQuery(announcementEditorQuery(id)).data;
   return (
-    <BroadcastEditor key={existing.id} existing={existing} {...handlers} />
+    <AnnouncementEditor key={existing.id} existing={existing} {...handlers} />
   );
 }
 
 function Started({ template, ...handlers }: Handlers & { template: string }) {
   const piece = useSuspenseQuery(templateQuery(template)).data;
-  return <BroadcastEditor existing={null} template={piece} {...handlers} />;
+  return <AnnouncementEditor existing={null} template={piece} {...handlers} />;
 }
 
-export interface BroadcastEditorPageProps {
-  kind: BroadcastKind;
+export interface AnnouncementEditorPageProps {
   id?: string;
   template?: string;
   onClose: (id?: string) => void;
@@ -66,21 +53,19 @@ export interface BroadcastEditorPageProps {
 }
 
 /**
- * A broadcast editor at its address: a stored one by id, a new one from a
- * template, or a blank one. The first autosave gives a new draft its
+ * The announcement editor at its address: a stored one by id, a new one
+ * from a template, or a blank one. The first autosave gives a new draft its
  * address, so a reload reopens it, while the editor already open stays
  * mounted with what is being typed.
  */
-export function BroadcastEditorPage({
-  kind,
+export function AnnouncementEditorPage({
   id,
   template,
   onClose,
   onAddress,
-}: BroadcastEditorPageProps) {
+}: AnnouncementEditorPageProps) {
   const [started, setStarted] = useState<string | null>(null);
   const handlers: Handlers = {
-    kind,
     onClose,
     onCreated: (saved) => {
       setStarted(saved);
@@ -92,6 +77,6 @@ export function BroadcastEditorPage({
   ) : template ? (
     <Started template={template} {...handlers} />
   ) : (
-    <BroadcastEditor existing={null} {...handlers} />
+    <AnnouncementEditor existing={null} {...handlers} />
   );
 }

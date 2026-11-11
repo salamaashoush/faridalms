@@ -339,7 +339,6 @@ export const documentTemplates = core.table.withRLS(
         | "lesson"
         | "assignment"
         | "unit_plan"
-        | "news"
         | "announcement"
         | "event"
         | "consent_form"
@@ -381,7 +380,7 @@ export const documentTemplates = core.table.withRLS(
     ck(
       "document_templates",
       "kind",
-      sql`kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module', 'message', 'admission_letter', 'section')`,
+      sql`kind in ('lesson', 'assignment', 'unit_plan', 'announcement', 'event', 'consent_form', 'module', 'message', 'admission_letter', 'section')`,
     ),
     ck(
       "document_templates",

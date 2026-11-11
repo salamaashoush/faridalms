@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import {
-  BroadcastRecord,
-  BroadcastTrail,
-} from "~/components/broadcasts/BroadcastRecord";
+  AnnouncementRecord,
+  AnnouncementTrail,
+} from "~/components/announcements/AnnouncementRecord";
 import { announcementQuery } from "~/queries/announcements";
 
 export const Route = createFileRoute("/_app/announcements/$announcementId")({
-  staticData: { trail: <AnnouncementTrail />, section: "/announcements" },
+  staticData: { trail: <Trail />, section: "/announcements" },
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(
       announcementQuery(params.announcementId),
@@ -15,12 +15,12 @@ export const Route = createFileRoute("/_app/announcements/$announcementId")({
   component: AnnouncementPage,
 });
 
-function AnnouncementTrail() {
+function Trail() {
   const { announcementId } = Route.useParams();
-  return <BroadcastTrail kind="announcement" id={announcementId} />;
+  return <AnnouncementTrail id={announcementId} />;
 }
 
 function AnnouncementPage() {
   const { announcementId } = Route.useParams();
-  return <BroadcastRecord kind="announcement" id={announcementId} />;
+  return <AnnouncementRecord id={announcementId} />;
 }

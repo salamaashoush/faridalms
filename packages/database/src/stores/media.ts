@@ -419,7 +419,7 @@ export interface MediaUse {
 
 /**
  * The records whose documents show a file, in either language, by the
- * title of each: lessons, assignments, unit plans, notices, news, events,
+ * title of each: lessons, assignments, unit plans, announcements, events,
  * website pages and shared blocks. Others are named by their kind alone.
  */
 export async function fileUses(
@@ -452,7 +452,7 @@ export async function fileUses(
     left join core.learning_modules m on m.tenant_id = ${tenantId}::uuid and m.id = h.host_id
       and h.host_type = 'module_plan'
     left join core.broadcasts n on n.tenant_id = ${tenantId}::uuid and n.id = h.host_id
-      and h.host_type = n.kind
+      and h.host_type = 'announcement'
     left join core.site_pages sp on sp.tenant_id = ${tenantId}::uuid and sp.id = h.host_id
       and h.host_type = 'site_page'
     left join core.calendar_events e on e.tenant_id = ${tenantId}::uuid and e.id = h.host_id

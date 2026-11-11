@@ -1,4 +1,8 @@
-import type { AudienceInput } from "@faridalms/domain/announcements";
+import type {
+  AudienceInput,
+  Urgency,
+  Visibility,
+} from "@faridalms/domain/announcements";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { ContentLocale } from "@faridalms/domain/translations";
 
@@ -32,7 +36,7 @@ import {
 import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { Textarea } from "@faridalms/ui/textarea";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Archive, CalendarClock, Send } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -68,22 +72,86 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
+import type {
+  announcementEditorQuery} from "~/queries/announcements";
+import {
+  announcementOptionsQuery,
+} from "~/queries/announcements";
+import {
+  archiveAnnouncement,
+  getAnnouncementEditor,
+  publishAnnouncement,
+  reviewAnnouncementTranslation,
+  saveAnnouncement,
+} from "~/server/announcements";
 import { instantFromLocal, localInput } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import type {
-  BroadcastKind,
-  Draft,
-  EditorData,
-  KindView,
-  Options,
-} from "./kinds";
-
 import { AudienceList, audienceIssue, audienceSummary } from "./AudienceList";
 import { STATE_LABEL, STATE_TONE, URGENCY_LABEL } from "./format";
-import { KINDS } from "./kinds";
 
+type EditorData = Awaited<
+  ReturnType<NonNullable<ReturnType<typeof announcementEditorQuery>["queryFn"]>>
+>;
+type Options = Awaited<
+  ReturnType<NonNullable<(typeof announcementOptionsQuery)["queryFn"]>>
+>;
 type Review = EditorData["translationReview"];
+
+/** Everything an author sets on an announcement, as the editor holds it. */
+interface Draft {
+  primaryLocale: ContentLocale;
+  bilingual: boolean;
+  titleEn: string;
+  titleAr: string;
+  body: ContentDocument;
+  translation: ContentDocument;
+  audiences: AudienceInput[];
+  urgency: Urgency;
+  pinnedUntil: string;
+  expiresOn: string;
+  requiresAck: boolean;
+  ackDueOn: string;
+  visibility: Visibility;
+  excerptEn: string;
+  excerptAr: string;
+  slug: string;
+  categoryId: string;
+  coverFileId: string;
+  coverAltEn: string;
+  coverAltAr: string;
+  pinned: boolean;
+}
+
+function saveOf(draft: Draft, id: string, version: number) {
+  const website = draft.visibility === "public";
+  return saveAnnouncement({
+    data: {
+      id,
+      expectedVersion: version,
+      primaryLocale: draft.primaryLocale,
+      titleEn: draft.titleEn.trim(),
+      titleAr: draft.titleAr.trim(),
+      body: draft.body,
+      translation: draft.bilingual ? draft.translation : null,
+      audiences: draft.audiences,
+      urgency: draft.urgency,
+      pinnedUntil: draft.pinnedUntil,
+      expiresOn: draft.expiresOn,
+      requiresAck: draft.requiresAck,
+      ackDueOn: draft.requiresAck ? draft.ackDueOn : "",
+      visibility: draft.visibility,
+      excerptEn: draft.excerptEn.trim(),
+      excerptAr: draft.excerptAr.trim(),
+      slug: website ? draft.slug : "",
+      categoryId: website ? draft.categoryId : "",
+      coverFileId: draft.coverFileId,
+      coverAltEn: draft.coverAltEn.trim(),
+      coverAltAr: draft.coverAltAr.trim(),
+      pinned: website && draft.pinned,
+    },
+  });
+}
 
 const FAMILIES: AudienceInput[] = [
   { scope: "families", classId: "", gradeId: "" },
@@ -93,13 +161,13 @@ const NEWSLETTERS = ["weekly", "monthly"] as const;
 type Newsletter = (typeof NEWSLETTERS)[number];
 
 const NEWSLETTER_LABEL: Record<Newsletter, () => string> = {
-  weekly: m.newsTemplateWeekly,
-  monthly: m.newsTemplateMonthly,
+  weekly: m.annTemplateWeekly,
+  monthly: m.annTemplateMonthly,
 };
 
 const NEWSLETTER_HINT: Record<Newsletter, () => string> = {
-  weekly: m.newsTemplateWeeklyHint,
-  monthly: m.newsTemplateMonthlyHint,
+  weekly: m.annTemplateWeeklyHint,
+  monthly: m.annTemplateMonthlyHint,
 };
 
 /** Starter headings, in the post's language rather than the writer's. */
@@ -107,12 +175,12 @@ const NEWSLETTER_HEADINGS: Record<
   Newsletter,
   ((inputs: object, options: { locale: ContentLocale }) => string)[]
 > = {
-  weekly: [m.newsStarterPrincipal, m.newsStarterWeek, m.newsStarterDates],
+  weekly: [m.annStarterPrincipal, m.annStarterWeek, m.annStarterDates],
   monthly: [
-    m.newsStarterPrincipal,
-    m.newsStarterHighlights,
-    m.newsStarterClasses,
-    m.newsStarterDates,
+    m.annStarterPrincipal,
+    m.annStarterHighlights,
+    m.annStarterClasses,
+    m.annStarterDates,
   ],
 };
 
@@ -124,8 +192,10 @@ function slugOf(title: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
-  return slug || `news-${Date.now().toString(36)}`;
+  return slug || `post-${Date.now().toString(36)}`;
 }
+
+const field = (name: string) => `announcement-${name}`;
 
 const pick = <T,>(locale: ContentLocale, en: T, ar: T) =>
   locale === "ar" ? ar : en;
@@ -164,17 +234,17 @@ function draftOf(existing: EditorData | null): Draft {
 }
 
 /** What stops the words going out, as the server would refuse them, in the writer's words. */
-function wordsProblems(view: KindView, draft: Draft): string[] {
+function wordsProblems(draft: Draft): string[] {
   const other = otherLocale(draft.primaryLocale);
   const written = (locale: ContentLocale) =>
     locale === draft.primaryLocale ||
     (draft.bilingual && documentWritten(draft.translation));
-  if (view.kind === "announcement")
+  if (draft.visibility === "school")
     return [
       ...contentIssueMessages(draft.body),
       ...(written(other) ? contentIssueMessages(draft.translation) : []),
     ];
-  // A post reads as a page under its title, wherever it is shown.
+  // On the website it reads as a page under its title.
   return [draft.primaryLocale, other].filter(written).flatMap((locale) =>
     postIssues({
       coverFileId: draft.coverFileId || null,
@@ -189,8 +259,7 @@ function wordsProblems(view: KindView, draft: Draft): string[] {
   );
 }
 
-export interface BroadcastEditorProps {
-  kind: BroadcastKind;
+export interface AnnouncementEditorProps {
   existing: EditorData | null;
   /** The template a new one starts from. */
   template?: StartingPiece;
@@ -199,22 +268,19 @@ export interface BroadcastEditorProps {
 }
 
 /**
- * A broadcast written as a document: an announcement to its audience, or a
- * news post to its audience, the website or both. The title and words take
- * the page, in its first language and the other beside it; who it reaches
- * and how it behaves sit beside them. Everything saves itself as it is
- * written, and its readers keep what they were sent until an update goes
- * out, which for an announcement asks whether to tell them again.
+ * An announcement written as a document, to its audience, the website or
+ * both. The title and words take the page, in its first language and the
+ * other beside it; who it reaches and how it behaves sit beside them.
+ * Everything saves itself as it is written, and its readers keep what they
+ * were sent until an update goes out, which asks whether to tell them again.
  */
-export function BroadcastEditor({
-  kind,
+export function AnnouncementEditor({
   existing,
   template,
   onClose,
   onCreated,
-}: BroadcastEditorProps) {
-  const view = KINDS[kind];
-  const options = view.useOptions();
+}: AnnouncementEditorProps) {
+  const options: Options = useSuspenseQuery(announcementOptionsQuery).data;
   const queryClient = useQueryClient();
   const documentMedia = useDocumentMedia();
   const id = useRef(existing?.id ?? "");
@@ -254,8 +320,7 @@ export function BroadcastEditor({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const live = state === "published";
   const other = otherLocale(draft.primaryLocale);
-  const isNews = kind === "news";
-  const isPublic = isNews && draft.visibility === "public";
+  const isPublic = draft.visibility === "public";
   const pictured = usePicturePeople(isPublic ? "website" : "news");
   const media = useMemo(
     () => ({ ...documentMedia, people: pictured.open }),
@@ -263,21 +328,16 @@ export function BroadcastEditor({
   );
   const telling = draft.audiences.length > 0;
   const reachable =
-    audienceIssue(draft.audiences) === null &&
-    (telling || (view.audienceOptional && isPublic));
+    audienceIssue(draft.audiences) === null && (telling || isPublic);
 
   const persist = useCallback(
     async (value: Draft) => {
       if (!valid) throw new Error("content.invalid");
-      const englishTitle = value.titleEn.trim();
-      if (isNews && !value.slug && !fallbackSlug.current)
-        fallbackSlug.current = slugOf(englishTitle);
+      const website = value.visibility === "public";
+      if (website && !value.slug && !fallbackSlug.current)
+        fallbackSlug.current = slugOf(value.titleEn.trim());
       const send = (slug: string) =>
-        view.save(
-          isNews ? { ...value, slug } : value,
-          id.current,
-          version.current,
-        );
+        saveOf({ ...value, slug }, id.current, version.current);
       const slug = value.slug || fallbackSlug.current;
       // The address follows the title until the writer sets one, and another
       // post may already stand there; refusing it would refuse every save
@@ -285,7 +345,7 @@ export function BroadcastEditor({
       // of a post does, and the writer can still change it.
       const saved = await send(slug).catch(async (error: unknown) => {
         if (
-          !isNews ||
+          !website ||
           slugTouched.current ||
           !(error instanceof Error) ||
           error.message !== "site.slug_taken"
@@ -304,25 +364,25 @@ export function BroadcastEditor({
       setStoredId(saved.id);
       setReview(saved.translationReview);
       if (live) setChanged(true);
-      await queryClient.invalidateQueries({ queryKey: [view.queryKey] });
+      await queryClient.invalidateQueries({ queryKey: ["announcements"] });
       if (created) onCreated(saved.id);
     },
-    [valid, isNews, view, live, queryClient, onCreated],
+    [valid, live, queryClient, onCreated],
   );
 
   const primaryTitle = pick(draft.primaryLocale, draft.titleEn, draft.titleAr);
   const titleOf = (value: Draft) =>
     pick(value.primaryLocale, value.titleEn, value.titleAr).trim() ||
-    view.copy.untitled();
+    m.annUntitled();
   const { autosave, editing } = useHeldDocument({
-    host: stored ? { hostType: kind, hostId: storedId } : null,
+    host: stored ? { hostType: "announcement", hostId: storedId } : null,
     value: draft,
     save: persist,
     // The server needs a title to list it by, and someone it can reach.
     enabled: state !== "archived" && primaryTitle.trim() !== "" && reachable,
     version: () => version.current,
     latest: async () => {
-      const data = await view.loadEditor(id.current);
+      const data = await getAnnouncementEditor({ data: { id: id.current } });
       return { value: draftOf(data), version: data.version, data };
     },
     adopt: ({ value, version: kept, data }) => {
@@ -351,23 +411,20 @@ export function BroadcastEditor({
     if (!editing.handles(error)) toast.error(getMessageFromError(error));
   };
 
-  const change = useCallback(
-    (patch: Partial<Draft>) => {
-      setIssues([]);
-      setDraft((current) => {
-        const next = { ...current, ...patch };
-        if (
-          isNews &&
-          patch.titleEn !== undefined &&
-          !slugTouched.current &&
-          patch.titleEn.trim()
-        )
-          next.slug = slugOf(patch.titleEn);
-        return next;
-      });
-    },
-    [isNews],
-  );
+  const change = useCallback((patch: Partial<Draft>) => {
+    setIssues([]);
+    setDraft((current) => {
+      const next = { ...current, ...patch };
+      if (
+        next.visibility === "public" &&
+        patch.titleEn !== undefined &&
+        !slugTouched.current &&
+        patch.titleEn.trim()
+      )
+        next.slug = slugOf(patch.titleEn);
+      return next;
+    });
+  }, []);
   const changeBody = useCallback(
     (body: ContentDocument) => change({ body }),
     [change],
@@ -389,23 +446,21 @@ export function BroadcastEditor({
       })
     : null;
 
-  const builtIn: BuiltInGroup | undefined = isNews
-    ? {
-        label: m.newsTemplateGroup(),
-        items: NEWSLETTERS.map((starter) => ({
-          key: starter,
-          title: NEWSLETTER_LABEL[starter](),
-          hint: NEWSLETTER_HINT[starter](),
-          content: () =>
-            headedContent(
-              NEWSLETTER_HEADINGS[starter].map((heading) => ({
-                heading: heading({}, { locale: draft.primaryLocale }),
-                body: emptyContent(),
-              })),
-            ),
-        })),
-      }
-    : undefined;
+  const builtIn: BuiltInGroup = {
+    label: m.annTemplateGroup(),
+    items: NEWSLETTERS.map((starter) => ({
+      key: starter,
+      title: NEWSLETTER_LABEL[starter](),
+      hint: NEWSLETTER_HINT[starter](),
+      content: () =>
+        headedContent(
+          NEWSLETTER_HEADINGS[starter].map((heading) => ({
+            heading: heading({}, { locale: draft.primaryLocale }),
+            body: emptyContent(),
+          })),
+        ),
+    })),
+  };
   useStartFrom(
     template,
     useCallback((piece: StartingPiece) => {
@@ -422,19 +477,19 @@ export function BroadcastEditor({
   );
 
   const later = !live && sendAt !== "";
-  const wordIssues = wordsProblems(view, draft);
+  const wordIssues = wordsProblems(draft);
 
   const problems = () => {
     const found: string[] = [];
-    if (!primaryTitle.trim()) found.push(view.copy.titleNeeded());
-    if (!documentWritten(draft.body)) found.push(view.copy.bodyNeeded());
+    if (!primaryTitle.trim()) found.push(m.annTitleNeeded());
+    if (!documentWritten(draft.body)) found.push(m.annBodyNeeded());
     if (!reachable) {
-      found.push(audienceIssue(draft.audiences) ?? m.newsErrAudience());
+      found.push(audienceIssue(draft.audiences) ?? m.annErrAudience());
       setDetailsOpen(true);
     }
     if (wordIssues.length) {
       found.push(...wordIssues);
-      if (isNews) setDetailsOpen(true);
+      if (isPublic) setDetailsOpen(true);
     }
     return found;
   };
@@ -447,15 +502,16 @@ export function BroadcastEditor({
     try {
       await persist(draft);
       autosave.markSaved(draft);
-      await view.publish({
-        id: id.current,
-        expectedVersion: version.current,
-        publishAt: later ? instantFromLocal(sendAt) : "",
-        revision: "first",
+      await publishAnnouncement({
+        data: {
+          id: id.current,
+          expectedVersion: version.current,
+          publishAt: later ? instantFromLocal(sendAt) : "",
+        },
       });
-      await queryClient.invalidateQueries({ queryKey: [view.queryKey] });
+      await queryClient.invalidateQueries({ queryKey: ["announcements"] });
       await queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      toast.success(later ? view.copy.scheduled() : view.copy.published());
+      toast.success(later ? m.annScheduled() : m.annPublished());
       onClose(id.current);
     } catch (error) {
       failed(error);
@@ -474,21 +530,23 @@ export function BroadcastEditor({
     try {
       await persist(draft);
       autosave.markSaved(draft);
-      const out = await view.publish({
-        id: id.current,
-        expectedVersion: version.current,
-        publishAt: "",
-        revision: notify ? "telling" : "quietly",
+      const out = await publishAnnouncement({
+        data: {
+          id: id.current,
+          expectedVersion: version.current,
+          sendUpdate: true,
+          quietly: !notify,
+        },
       });
       version.current = out.version;
-      await queryClient.invalidateQueries({ queryKey: [view.queryKey] });
+      await queryClient.invalidateQueries({ queryKey: ["announcements"] });
       setChanged(false);
       setSent({
         body: draft.body,
         translation: draft.bilingual ? draft.translation : null,
       });
       setState("published");
-      toast.success(view.copy.revised());
+      toast.success(m.annUpdateSent());
     } catch (error) {
       failed(error);
     } finally {
@@ -503,7 +561,13 @@ export function BroadcastEditor({
     try {
       await persist(draft);
       autosave.markSaved(draft);
-      const out = await view.review(id.current, version.current, reviewed);
+      const out = await reviewAnnouncementTranslation({
+        data: {
+          id: id.current,
+          expectedVersion: version.current,
+          reviewed,
+        },
+      });
       version.current = out.version;
       setReview(out.review);
     } catch (error) {
@@ -518,10 +582,12 @@ export function BroadcastEditor({
     try {
       if (id.current) {
         await autosave.flush();
-        await view.archive(id.current, version.current);
+        await archiveAnnouncement({
+          data: { id: id.current, expectedVersion: version.current },
+        });
       }
-      await queryClient.invalidateQueries({ queryKey: [view.queryKey] });
-      toast.success(view.copy.archived());
+      await queryClient.invalidateQueries({ queryKey: ["announcements"] });
+      toast.success(m.annArchived());
       onClose();
     } catch (error) {
       failed(error);
@@ -536,12 +602,11 @@ export function BroadcastEditor({
   const titleKey = shown === "ar" ? "titleAr" : "titleEn";
   const excerptKey = shown === "ar" ? "excerptAr" : "excerptEn";
   const altKey = shown === "ar" ? "coverAltAr" : "coverAltEn";
-  const field = (name: string) => `${view.prefix}-${name}`;
 
   return (
     <>
       <DocumentPage
-        heading={existing ? view.copy.editTitle() : view.copy.newTitle()}
+        heading={existing ? m.annEditTitle() : m.annNewTitle()}
         print={{
           title: draft[titleKey].trim() || primaryTitle,
           content: translating ? draft.translation : draft.body,
@@ -557,7 +622,7 @@ export function BroadcastEditor({
             ? {
                 waiting: m.bcastWaiting(),
                 pending: pending === "update" || uploading,
-                updateLabel: view.copy.revise(),
+                updateLabel: m.annSendUpdate(),
                 onDiscard: sent
                   ? () => {
                       change({
@@ -570,10 +635,7 @@ export function BroadcastEditor({
                       setChanged(false);
                     }
                   : undefined,
-                onUpdate: () =>
-                  kind === "announcement"
-                    ? setAsking(true)
-                    : void update(false),
+                onUpdate: () => setAsking(true),
               }
             : undefined
         }
@@ -588,20 +650,20 @@ export function BroadcastEditor({
                 onClick: () => void send(),
               }
         }
-        link={stored ? view.recordPath(storedId) : undefined}
+        link={stored ? `/announcements/${storedId}` : undefined}
         preview={{ label: m.docPreview(), onClick: () => setPreviewing(true) }}
         templates={{
-          kind,
+          kind: "announcement",
           empty: untouched,
           content: draft.body,
           title: primaryTitle,
           onApply: replaceBody,
-          ...(builtIn ? { builtIn } : {}),
+          builtIn,
         }}
         comments={
           stored
             ? {
-                hostType: kind,
+                hostType: "announcement",
                 hostId: storedId,
                 editor: field(translating ? "translation" : "body"),
                 part: translating ? "translation" : "body",
@@ -611,7 +673,7 @@ export function BroadcastEditor({
         history={
           stored
             ? {
-                hostType: kind,
+                hostType: "announcement",
                 hostId: storedId,
                 onRestore: (content) => {
                   setWriting(draft.primaryLocale);
@@ -630,7 +692,7 @@ export function BroadcastEditor({
                   onSelect: () => void archive(),
                   confirm: {
                     title: m.annArchiveTitle({
-                      title: primaryTitle.trim() || view.copy.untitled(),
+                      title: primaryTitle.trim() || m.annUntitled(),
                     }),
                     body: m.annArchiveBody(),
                     label: m.annArchive(),
@@ -640,13 +702,11 @@ export function BroadcastEditor({
             : []
         }
         summary={[
-          ...(isNews
-            ? [isPublic ? m.newsWherePublic() : m.newsWhereSchool()]
-            : []),
+          ...(isPublic ? [m.annWherePublic()] : []),
           telling
             ? audienceSummary(draft.audiences, options)
-            : m.newsAudienceNone(),
-          ...(isNews ? [] : [URGENCY_LABEL[draft.urgency]()]),
+            : m.annAudienceNone(),
+          URGENCY_LABEL[draft.urgency](),
           draft.bilingual
             ? m.contentBothLanguages()
             : LOCALE_LABEL[draft.primaryLocale](),
@@ -689,7 +749,7 @@ export function BroadcastEditor({
               <DocumentTitle
                 id={field("title")}
                 label={m.docTitle()}
-                placeholder={view.copy.untitled()}
+                placeholder={m.annUntitled()}
                 maxLength={200}
                 value={draft[titleKey]}
                 onChange={(title) => change({ [titleKey]: title })}
@@ -704,36 +764,33 @@ export function BroadcastEditor({
         }
         aside={
           <DetailsPanel title={m.docDetails()}>
-            {isNews ? (
-              <DetailsSection title={m.newsWhere()} hint={m.newsWhereHint()}>
-                <SelectField
-                  id={field("where")}
-                  label={m.newsWhere()}
-                  labelHidden
-                  value={draft.visibility}
-                  options={[
-                    { value: "school", label: m.newsWhereSchool() },
-                    { value: "public", label: m.newsWherePublic() },
-                  ]}
-                  onChange={(visibility) =>
+            {options.site || isPublic ? (
+              <DetailsSection title={m.annColWhere()}>
+                <CheckboxRow
+                  label={m.annOnWebsiteCheck()}
+                  hint={m.annOnWebsiteHint()}
+                  checked={isPublic}
+                  onChange={(checked) =>
                     change({
-                      visibility,
+                      visibility: checked ? "public" : "school",
                       audiences:
-                        visibility === "school" && !telling
-                          ? FAMILIES
-                          : draft.audiences,
+                        !checked && !telling ? FAMILIES : draft.audiences,
+                      slug:
+                        checked && !draft.slug && draft.titleEn.trim()
+                          ? slugOf(draft.titleEn)
+                          : draft.slug,
                     })
                   }
                 />
               </DetailsSection>
             ) : null}
             <DetailsSection
-              title={isNews ? m.newsAudience() : m.annSectionAudience()}
-              hint={isPublic ? m.newsAudienceOptional() : m.annAudienceHint()}
+              title={m.annSectionAudience()}
+              hint={isPublic ? m.annAudienceOptional() : m.annAudienceHint()}
             >
               {isPublic ? (
                 <CheckboxRow
-                  label={m.newsAddAudience()}
+                  label={m.annTellPeople()}
                   checked={telling}
                   onChange={(checked) =>
                     change({ audiences: checked ? FAMILIES : [] })
@@ -806,30 +863,24 @@ export function BroadcastEditor({
                 </Button>
               </DetailsSection>
             ) : null}
-            {isNews ? (
-              <NewsSettings
-                draft={draft}
-                shown={shown}
-                excerptKey={excerptKey}
-                altKey={altKey}
-                options={options}
-                problems={wordIssues}
-                field={field}
-                onPeople={pictured.open}
-                onChange={change}
-                onSlug={() => {
-                  slugTouched.current = true;
-                }}
-              />
-            ) : null}
+            <WebsiteSettings
+              draft={draft}
+              shown={shown}
+              excerptKey={excerptKey}
+              altKey={altKey}
+              options={options}
+              problems={wordIssues}
+              onPeople={pictured.open}
+              onChange={change}
+              onSlug={() => {
+                slugTouched.current = true;
+              }}
+            />
             <DetailsSection title={m.annSectionDelivery()}>
-              {isNews ? null : (
-                <AnnouncementSettings
-                  draft={draft}
-                  field={field}
-                  onChange={change}
-                />
-              )}
+              <AnnouncementSettings
+                draft={draft}
+                onChange={change}
+              />
               {live ? (
                 <p className="text-[13px] leading-[18px] text-muted-foreground">
                   {m.bcastPublishedHint()}
@@ -902,7 +953,7 @@ export function BroadcastEditor({
         >
           {pick(previewLocale, draft.titleEn, draft.titleAr) ||
             primaryTitle ||
-            view.copy.untitled()}
+            m.annUntitled()}
         </h2>
         <TranslatedView
           body={draft.body}
@@ -943,14 +994,12 @@ export function BroadcastEditor({
 
 interface AnnouncementSettingsProps {
   draft: Draft;
-  field: (name: string) => string;
   onChange: (patch: Partial<Draft>) => void;
 }
 
 /** How an announcement behaves for its readers: urgency, pinning, expiry and acknowledgement. */
 function AnnouncementSettings({
   draft,
-  field,
   onChange,
 }: AnnouncementSettingsProps) {
   return (
@@ -1004,38 +1053,39 @@ function AnnouncementSettings({
   );
 }
 
-interface NewsSettingsProps {
+interface WebsiteSettingsProps {
   draft: Draft;
   shown: ContentLocale;
   excerptKey: "excerptEn" | "excerptAr";
   altKey: "coverAltEn" | "coverAltAr";
   options: Options;
   problems: string[];
-  field: (name: string) => string;
   onPeople: (fileId: string) => void;
   onChange: (patch: Partial<Draft>) => void;
   onSlug: () => void;
 }
 
-/** What a news post carries for its cards and the website: summary, picture and address. */
-function NewsSettings({
+/**
+ * What an announcement carries for its cards: a summary, and on the website
+ * its picture, category and address. A picture shows only on the website.
+ */
+function WebsiteSettings({
   draft,
   shown,
   excerptKey,
   altKey,
   options,
   problems,
-  field,
   onPeople,
   onChange,
   onSlug,
-}: NewsSettingsProps) {
+}: WebsiteSettingsProps) {
   return (
     <>
-      <DetailsSection title={m.newsSummary()} hint={m.newsSummaryHint()}>
+      <DetailsSection title={m.annSummary()} hint={m.annSummaryHint()}>
         <FormField
           id={field("summary")}
-          label={`${m.newsSummary()} (${LOCALE_LABEL[shown]()})`}
+          label={`${m.annSummary()} (${LOCALE_LABEL[shown]()})`}
           optional
         >
           {(control) => (
@@ -1053,28 +1103,30 @@ function NewsSettings({
           )}
         </FormField>
       </DetailsSection>
-      <DetailsSection title={m.newsPicture()}>
-        <PictureField
-          fileId={draft.coverFileId || null}
-          label={m.newsPicture()}
-          onChange={(fileId) => onChange({ coverFileId: fileId ?? "" })}
-          fromMedia
-          onPeople={onPeople}
-        />
-        {draft.coverFileId ? (
-          <TextField
-            id={field("picture-alt")}
-            label={`${m.newsPictureAlt()} (${LOCALE_LABEL[shown]()})`}
-            lang={shown}
-            dir={shown === "ar" ? "rtl" : "ltr"}
-            maxLength={300}
-            value={draft[altKey]}
-            onChange={(event) => onChange({ [altKey]: event.target.value })}
-          />
-        ) : null}
-      </DetailsSection>
       {draft.visibility === "public" ? (
-        <DetailsSection title={m.newsWebsite()}>
+        <DetailsSection title={m.annPicture()}>
+          <PictureField
+            fileId={draft.coverFileId || null}
+            label={m.annPicture()}
+            onChange={(fileId) => onChange({ coverFileId: fileId ?? "" })}
+            fromMedia
+            onPeople={onPeople}
+          />
+          {draft.coverFileId ? (
+            <TextField
+              id={field("picture-alt")}
+              label={`${m.annPictureAlt()} (${LOCALE_LABEL[shown]()})`}
+              lang={shown}
+              dir={shown === "ar" ? "rtl" : "ltr"}
+              maxLength={300}
+              value={draft[altKey]}
+              onChange={(event) => onChange({ [altKey]: event.target.value })}
+            />
+          ) : null}
+        </DetailsSection>
+      ) : null}
+      {draft.visibility === "public" ? (
+        <DetailsSection title={m.annOnWebsite()}>
           <SelectField
             id={field("category")}
             label={m.siteCategory()}

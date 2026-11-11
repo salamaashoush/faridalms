@@ -19,7 +19,6 @@ const KIND_OF: Partial<Record<SearchTarget, MentionKind>> = {
   module: "module",
   lesson: "lesson",
   assignment: "assignment",
-  news: "news",
   announcement: "announcement",
   event: "event",
 };

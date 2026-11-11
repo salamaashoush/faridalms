@@ -255,7 +255,7 @@ export async function publishMedia(
 /** The hosts whose published copies keep their pictures' sizes, by what each copy is. */
 const COPIES: Readonly<Record<string, "page" | "post">> = {
   site_page: "page",
-  news: "post",
+  announcement: "post",
 };
 
 /**

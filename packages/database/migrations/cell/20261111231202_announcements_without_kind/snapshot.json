@@ -1,0 +1,224 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "fd622bf3-8df7-4f15-824e-d2ddc9c027cd",
+  "prevIds": [
+    "46834c0b-807a-4bd3-b3a6-ec4f8b15a01b"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcasts"
+      ],
+      "writes": [
+        "s|ck|core.broadcasts.broadcasts_kind_check",
+        "n|ck|core.broadcasts.broadcasts_kind_check",
+        "e|ck|core.broadcasts.broadcasts_kind_check",
+        "n|con|core.broadcasts.broadcasts_kind_check"
+      ],
+      "reads": [
+        "n|tbl|core.broadcasts",
+        "n|sch|core",
+        "e|col|core.broadcasts.kind"
+      ]
+    },
+    {
+      "statementType": "drop_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcasts"
+      ],
+      "writes": [
+        "s|ck|core.broadcasts.broadcasts_announcement_check",
+        "n|ck|core.broadcasts.broadcasts_announcement_check",
+        "e|ck|core.broadcasts.broadcasts_announcement_check",
+        "n|con|core.broadcasts.broadcasts_announcement_check"
+      ],
+      "reads": [
+        "n|tbl|core.broadcasts",
+        "n|sch|core",
+        "e|col|core.broadcasts.kind",
+        "e|col|core.broadcasts.urgency",
+        "e|col|core.broadcasts.pinned_until",
+        "e|col|core.broadcasts.expires_on",
+        "e|col|core.broadcasts.requires_ack",
+        "e|col|core.broadcasts.update_sent_at"
+      ]
+    },
+    {
+      "statementType": "drop_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcasts"
+      ],
+      "writes": [
+        "s|ck|core.broadcasts.broadcasts_news_check",
+        "n|ck|core.broadcasts.broadcasts_news_check",
+        "e|ck|core.broadcasts.broadcasts_news_check",
+        "n|con|core.broadcasts.broadcasts_news_check"
+      ],
+      "reads": [
+        "n|tbl|core.broadcasts",
+        "n|sch|core",
+        "e|col|core.broadcasts.kind",
+        "e|col|core.broadcasts.slug",
+        "e|col|core.broadcasts.visibility",
+        "e|col|core.broadcasts.category_id",
+        "e|col|core.broadcasts.excerpt_en",
+        "e|col|core.broadcasts.excerpt_ar",
+        "e|col|core.broadcasts.cover_file_id",
+        "e|col|core.broadcasts.cover_alt_en",
+        "e|col|core.broadcasts.cover_alt_ar",
+        "e|col|core.broadcasts.pinned"
+      ]
+    },
+    {
+      "statementType": "drop_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "broadcasts",
+        "kind"
+      ],
+      "writes": [
+        "s|col|core.broadcasts.kind",
+        "n|col|core.broadcasts.kind",
+        "e|col|core.broadcasts.kind"
+      ],
+      "reads": [
+        "n|tbl|core.broadcasts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "broadcasts",
+        "broadcasts_org_idx"
+      ],
+      "writes": [
+        "s|idx|core.broadcasts_org_idx",
+        "n|idx|core.broadcasts_org_idx",
+        "e|idx|core.broadcasts_org_idx",
+        "n|rel|core.broadcasts_org_idx"
+      ],
+      "reads": [
+        "n|tbl|core.broadcasts",
+        "n|sch|core",
+        "n|col|core.broadcasts.tenant_id",
+        "n|col|core.broadcasts.org_id",
+        "n|col|core.broadcasts.publish_at"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcasts"
+      ],
+      "writes": [
+        "s|ck|core.broadcasts.broadcasts_website_check",
+        "n|ck|core.broadcasts.broadcasts_website_check",
+        "e|ck|core.broadcasts.broadcasts_website_check",
+        "n|con|core.broadcasts.broadcasts_website_check"
+      ],
+      "reads": [
+        "n|tbl|core.broadcasts",
+        "n|sch|core",
+        "n|col|core.broadcasts.visibility",
+        "n|col|core.broadcasts.slug"
+      ]
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "document_templates"
+      ],
+      "writes": [
+        "s|ck|core.document_templates.document_templates_kind_check"
+      ],
+      "reads": [
+        "n|tbl|core.document_templates",
+        "n|sch|core",
+        "n|col|core.document_templates.kind",
+        "e|col|core.document_templates.kind"
+      ],
+      "sqlHash": "64ee28221a9952bd"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcasts",
+        "name": "broadcasts_website_check",
+        "value": "visibility = 'school' or slug is not null",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"broadcasts\",\"kind\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"broadcasts\",\"broadcasts_kind_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"broadcasts\",\"broadcasts_announcement_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"broadcasts\",\"broadcasts_news_check\"]"
+    },
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"core\",\"broadcasts_org_idx\"]",
+      "set": {
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "org_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "publish_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ]
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"core\",\"document_templates\",\"document_templates_kind_check\"]",
+      "set": {
+        "value": "kind in ('lesson', 'assignment', 'unit_plan', 'announcement', 'event', 'consent_form', 'module', 'message', 'admission_letter', 'section')"
+      }
+    }
+  ]
+}

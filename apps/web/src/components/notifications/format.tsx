@@ -21,7 +21,6 @@ import {
   Megaphone,
   MessageSquare,
   MessageSquareText,
-  Newspaper,
   Reply,
   School,
   ShieldCheck,
@@ -51,7 +50,6 @@ const both = (en?: string, ar?: string) => inLocale(en || null, ar || null);
 export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   announcement: Megaphone,
   urgent: Siren,
-  news: Newspaper,
   message: MessageSquare,
   absence: UserX,
   event: CalendarDays,
@@ -101,8 +99,6 @@ export function noticeText(notice: Notice): { title: string; body: string } {
       };
     case "urgent":
       return { title: m.ntfUrgent(), body: title };
-    case "news":
-      return { title: m.ntfNews(), body: title };
     case "message":
       return {
         title: m.ntfMessage({
@@ -390,12 +386,6 @@ function CommentedIn({
           {children}
         </Link>
       );
-    case "news":
-      return (
-        <Link {...rest} to="/news-editor" search={{ id }} hash={hash}>
-          {children}
-        </Link>
-      );
     case "announcement":
       return (
         <Link {...rest} to="/announcement-editor" search={{ id }} hash={hash}>
@@ -455,12 +445,6 @@ function MentionedIn({
           {children}
         </Link>
       );
-    case "news":
-      return (
-        <Link {...rest} to="/news/$postId" params={{ postId: id }}>
-          {children}
-        </Link>
-      );
     case "announcement":
       return (
         <Link
@@ -497,12 +481,6 @@ export function NoticeLink({
           to="/announcements/$announcementId"
           params={{ announcementId: id }}
         >
-          {children}
-        </Link>
-      );
-    case "news":
-      return (
-        <Link {...rest} to="/news/$postId" params={{ postId: id }}>
           {children}
         </Link>
       );

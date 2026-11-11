@@ -17,7 +17,6 @@ import {
   ClipboardList,
   FileText,
   Megaphone,
-  Newspaper,
   User,
   Users,
 } from "lucide-react";
@@ -36,7 +35,6 @@ const ICONS: Record<MentionKind, LucideIcon> = {
   module: BookOpen,
   lesson: FileText,
   assignment: ClipboardList,
-  news: Newspaper,
   announcement: Megaphone,
   event: CalendarDays,
 };

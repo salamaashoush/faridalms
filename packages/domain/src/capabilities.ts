@@ -29,7 +29,6 @@ export const CAPABILITIES = [
   "calendar:manage",
   "calendar:author",
   "announcements:manage",
-  "news:manage",
   "site:manage",
   "admissions:read",
   "admissions:manage",

@@ -14,11 +14,13 @@ const unique = (label: string, browserName: string) =>
   `${label} (${browserName} ${crypto.randomUUID().slice(0, 6)})`;
 
 async function newPost(page: Page, title: string) {
-  await page.goto("/news-editor");
+  await page.goto("/announcement-editor");
   // The editor takes over from the server's copy once the page has hydrated.
-  await expect(page.locator("#news-body[contenteditable=true]")).toBeVisible();
+  await expect(
+    page.locator("#announcement-body[contenteditable=true]"),
+  ).toBeVisible();
   await page.getByRole("textbox", { name: "Title" }).fill(title);
-  const body = page.locator("#news-body");
+  const body = page.locator("#announcement-body");
   await body.click();
   return body;
 }
@@ -31,7 +33,7 @@ async function insertPicture(page: Page) {
   await (
     await chooser
   ).setFiles({ name: "sky.jpg", mimeType: "image/jpeg", buffer: PICTURE });
-  await expect(page.locator("#news-body img")).toHaveAttribute(
+  await expect(page.locator("#announcement-body img")).toHaveAttribute(
     "src",
     /\/files\/[0-9a-f-]{36}/,
   );
@@ -47,7 +49,7 @@ test("a picture's bar is reached, used and left with the keyboard alone", async 
   await page.keyboard.press("Enter");
   await insertPicture(page);
 
-  await page.locator("#news-body > p").first().click();
+  await page.locator("#announcement-body > p").first().click();
   await page.keyboard.press("End");
   await page.keyboard.press("ArrowDown");
   const bar = page.getByRole("toolbar", { name: "Block options" });
@@ -64,7 +66,7 @@ test("a picture's bar is reached, used and left with the keyboard alone", async 
 
   // Escape goes back to the text with the picture still chosen.
   await page.keyboard.press("Escape");
-  await expect(page.locator("#news-body")).toBeFocused();
+  await expect(page.locator("#announcement-body")).toBeFocused();
   await expect(bar).toBeVisible();
 
   await page.keyboard.press("Alt+F10");
@@ -77,8 +79,10 @@ test("a picture's bar is reached, used and left with the keyboard alone", async 
   }).toPass();
   await page.keyboard.press("Enter");
   await page.getByRole("menuitem", { name: "Medium" }).press("Enter");
-  await expect(page.locator("#news-body figure")).toHaveClass(/sm:w-1\/2/);
-  await expect(page.locator("#news-body")).toBeFocused();
+  await expect(page.locator("#announcement-body figure")).toHaveClass(
+    /sm:w-1\/2/,
+  );
+  await expect(page.locator("#announcement-body")).toBeFocused();
 });
 
 test("a formula keeps every key typed while its field is still loading", async ({
@@ -128,7 +132,7 @@ test("a formula keeps every key typed while its field is still loading", async (
   await page.keyboard.type("=y");
   await page.keyboard.press("Enter");
   await expect(
-    page.locator("#news-body [data-math-node] annotation"),
+    page.locator("#announcement-body [data-math-node] annotation"),
   ).toHaveText("x+1=y");
 });
 
@@ -150,9 +154,11 @@ test("each picture of a gallery names who is in it from the bar", async ({
     { name: "relay.jpg", mimeType: "image/jpeg", buffer: PICTURE },
     { name: "jump.jpg", mimeType: "image/jpeg", buffer: PICTURE },
   ]);
-  await expect(page.locator("#news-body .fe-gallery img")).toHaveCount(2);
+  await expect(page.locator("#announcement-body .fe-gallery img")).toHaveCount(
+    2,
+  );
 
-  await page.locator("#news-body > p").first().click();
+  await page.locator("#announcement-body > p").first().click();
   await page.keyboard.press("End");
   await page.keyboard.press("ArrowDown");
   const bar = page.getByRole("toolbar", { name: "Block options" });
@@ -187,7 +193,7 @@ test.describe("on a phone", () => {
     await page.keyboard.type("Above the picture.");
     await page.keyboard.press("Enter");
     await insertPicture(page);
-    await page.locator("#news-body img").click();
+    await page.locator("#announcement-body img").click();
     const bar = page.getByRole("toolbar", { name: "Block options" });
     await expect(bar).toBeVisible();
     for (const control of await bar.locator("a[href], button").all()) {
@@ -218,7 +224,7 @@ test("a draft titled like a post already written still saves its words", async (
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await page.reload();
   await untilHydrated(page);
-  await expect(page.locator("#news-body")).toContainText(
+  await expect(page.locator("#announcement-body")).toContainText(
     "The second post, under the same title.",
   );
 });
@@ -250,7 +256,7 @@ test("words typed while saving fails are kept and saved once it works", async ({
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await page.reload();
   await untilHydrated(page);
-  await expect(page.locator("#news-body")).toHaveText(
+  await expect(page.locator("#announcement-body")).toHaveText(
     "Saved first. Typed while it failed.",
   );
 });

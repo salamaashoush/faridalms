@@ -2,11 +2,11 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 import type {
-  BroadcastKind,
   PublicationState,
   Urgency,
+  Visibility,
 } from "../tables/broadcasts";
-import type { PostVisibility, SiteLocale } from "../tables/site";
+import type { SiteLocale } from "../tables/site";
 
 import { liveSql, scheduledSql } from "./publication";
 import { holds, isoOf, uuidArray } from "./sql";
@@ -17,7 +17,6 @@ export interface BroadcastRow {
   id: string;
   version: number;
   orgId: string;
-  kind: BroadcastKind;
   titleEn: string;
   titleAr: string;
   /** The language it was first written in, once it has words. */
@@ -25,7 +24,7 @@ export interface BroadcastRow {
   state: PublicationState;
   publishAt: string | null;
   toldAt: string | null;
-  visibility: PostVisibility;
+  visibility: Visibility;
   authorUserId: string;
   authorNameEn: string | null;
   authorNameAr: string | null;
@@ -49,14 +48,13 @@ type BroadcastRecord = {
   id: string;
   version: number;
   org_id: string;
-  kind: BroadcastKind;
   title_en: string;
   title_ar: string;
   primary_locale: SiteLocale | null;
   state: PublicationState;
   publish_at: string | null;
   told_at: string | null;
-  visibility: PostVisibility;
+  visibility: Visibility;
   author_user_id: string;
   author_en: string | null;
   author_ar: string | null;
@@ -76,9 +74,9 @@ type BroadcastRecord = {
   pinned: boolean;
 };
 
-const columns = sql`b.id, b.version, b.org_id, b.kind, b.title_en, b.title_ar,
+const columns = sql`b.id, b.version, b.org_id, b.title_en, b.title_ar,
   (select d.locale from core.documents d where d.tenant_id = b.tenant_id
-    and d.host_type = b.kind and d.host_id = b.id and d.status = 'active'
+    and d.host_type = 'announcement' and d.host_id = b.id and d.status = 'active'
     and d.translation_of_id is null order by d.date_last_modified desc limit 1) as primary_locale,
   b.state, ${isoOf(sql`b.publish_at`)} as publish_at, ${isoOf(sql`b.told_at`)} as told_at,
   b.visibility, b.author_user_id, u.full_name_en as author_en, u.full_name_ar as author_ar,
@@ -98,7 +96,7 @@ const scheduled = scheduledSql(sql`b.state`, sql`b.publish_at`);
 export const publishedText = sql`(select v.plain_text from core.documents d
   join core.document_versions v on v.tenant_id = d.tenant_id and v.document_id = d.id
     and v.reason = 'publish' and v.redacted_at is null
-  where d.tenant_id = b.tenant_id and d.host_type = b.kind and d.host_id = b.id
+  where d.tenant_id = b.tenant_id and d.host_type = 'announcement' and d.host_id = b.id
     and d.status = 'active' and d.translation_of_id is null
   order by v.created_at desc, v.document_version desc limit 1)`;
 
@@ -107,7 +105,6 @@ function rowOf(row: BroadcastRecord): BroadcastRow {
     id: row.id,
     version: row.version,
     orgId: row.org_id,
-    kind: row.kind,
     titleEn: row.title_en,
     titleAr: row.title_ar,
     primaryLocale: row.primary_locale,
@@ -146,11 +143,11 @@ export async function broadcastById(
   return row ? rowOf(row) : null;
 }
 
-/** What an author sets on a broadcast; a kind leaves the other kind's settings at their defaults. */
+/** What an author sets on an announcement. */
 export interface BroadcastFields {
   titleEn: string;
   titleAr: string;
-  visibility: PostVisibility;
+  visibility: Visibility;
   urgency: Urgency;
   pinnedUntil: string | null;
   expiresOn: string | null;
@@ -172,14 +169,13 @@ export async function insertBroadcast(
     tenantId: string;
     schoolId: string;
     authorId: string;
-    kind: BroadcastKind;
   },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.broadcasts (tenant_id, org_id, kind, title_en, title_ar, visibility,
+    insert into core.broadcasts (tenant_id, org_id, title_en, title_ar, visibility,
       author_user_id, urgency, pinned_until, expires_on, requires_ack, ack_due_on, category_id,
       slug, excerpt_en, excerpt_ar, cover_file_id, cover_alt_en, cover_alt_ar, pinned)
-    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.kind}, ${input.titleEn},
+    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.titleEn},
       ${input.titleAr}, ${input.visibility}, ${input.authorId}::uuid, ${input.urgency},
       ${input.pinnedUntil}::date, ${input.expiresOn}::date, ${input.requiresAck},
       ${input.ackDueOn}::date, ${input.categoryId}::uuid, ${input.slug}, ${input.excerptEn},
@@ -444,13 +440,12 @@ export interface ManagedRow extends BroadcastRow {
   acknowledged: number;
 }
 
-/** A school's broadcasts of one kind on one tab, pinned first then newest, with every tab's count. */
+/** A school's announcements on one tab, pinned first then newest, with every tab's count. */
 export async function managedBroadcasts(
   tx: Tx,
   input: {
     tenantId: string;
     schoolId: string;
-    kind: BroadcastKind;
     tab: ManageTab;
     q: string;
     limit: number;
@@ -458,7 +453,7 @@ export async function managedBroadcasts(
   },
 ): Promise<{ rows: ManagedRow[]; counts: Record<ManageTab, number> }> {
   const scope = sql`b.tenant_id = ${input.tenantId}::uuid and b.org_id = ${input.schoolId}::uuid
-    and b.kind = ${input.kind} and b.status = 'active'`;
+    and b.status = 'active'`;
   const search = input.q
     ? sql`and (${holds(input.q, [sql`b.title_en`, sql`b.title_ar`])})`
     : sql``;
@@ -492,13 +487,16 @@ export async function managedBroadcasts(
 
 export interface FeedRow extends BroadcastRow {
   summary: string;
+  /** Whether it reached the reader, rather than only standing on the website. */
+  recipient: boolean;
   readAt: string | null;
   acknowledgedAt: string | null;
 }
 
 /**
- * The announcements a person has been sent and can read now: pinned first,
- * then newest. Current holds what has not expired; past what has.
+ * The announcements a person can read now: those sent to them and those on
+ * the website, pinned first, then newest. Current holds what has not
+ * expired; past what has.
  */
 export async function announcementFeed(
   tx: Tx,
@@ -517,6 +515,7 @@ export async function announcementFeed(
     BroadcastRecord & {
       summary: string | null;
       pinned_now: boolean;
+      recipient: boolean;
       read_at: string | null;
       acknowledged_at: string | null;
       total: number;
@@ -524,15 +523,16 @@ export async function announcementFeed(
   >(sql`
     select ${columns}, left(t.text, 240) as summary,
            coalesce(b.pinned_until >= ${input.today}::date, false) as pinned_now,
+           r.id is not null as recipient,
            (count(*) over ())::int as total,
            ${isoOf(sql`r.read_at`)} as read_at, ${isoOf(sql`r.acknowledged_at`)} as acknowledged_at
-    from core.broadcast_recipients r
-    join ${from} on b.tenant_id = r.tenant_id and b.id = r.broadcast_id
-      and b.status = 'active' and b.org_id = ${input.schoolId}::uuid
-      and b.kind = 'announcement' and ${live}
+    from ${from}
+    left join core.broadcast_recipients r on r.tenant_id = b.tenant_id and r.broadcast_id = b.id
+      and r.user_id = ${input.viewerId}::uuid and r.status = 'active'
     cross join lateral (select ${publishedText} as text) t
-    where r.tenant_id = ${input.tenantId}::uuid and r.user_id = ${input.viewerId}::uuid
-      and r.status = 'active'
+    where b.tenant_id = ${input.tenantId}::uuid and b.org_id = ${input.schoolId}::uuid
+      and b.status = 'active' and ${live}
+      and (r.id is not null or b.visibility = 'public')
       and (case when ${input.tab === "past"}
                 then b.expires_on < ${input.today}::date
                 else b.expires_on is null or b.expires_on >= ${input.today}::date end)
@@ -545,75 +545,9 @@ export async function announcementFeed(
       ...rowOf(row),
       summary: row.summary ?? "",
       pinned: row.pinned_now,
+      recipient: row.recipient,
       readAt: row.read_at,
       acknowledgedAt: row.acknowledged_at,
-    })),
-    total: rows[0]?.total ?? 0,
-  };
-}
-
-export interface NewsRow extends BroadcastRow {
-  summary: string;
-  /** Null when the post reached the reader through the website, not an audience. */
-  readAt: string | null;
-  recipient: boolean;
-}
-
-/**
- * A page of the posts a person may read inside the school: every post out
- * on the website, and school posts that reached them, by when they went
- * out or by title in the reader's language first, with how many there are.
- */
-export async function newsFor(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    schoolId: string;
-    viewerId: string;
-    q: string;
-    sort: "date" | "title";
-    direction: "asc" | "desc";
-    locale: "en" | "ar";
-    limit: number;
-    offset: number;
-  },
-): Promise<{ rows: NewsRow[]; total: number }> {
-  const dir = input.direction === "asc" ? sql`asc` : sql`desc`;
-  const title =
-    input.locale === "ar"
-      ? sql`lower(coalesce(nullif(b.title_ar, ''), b.title_en))`
-      : sql`lower(coalesce(nullif(b.title_en, ''), b.title_ar))`;
-  const order =
-    input.sort === "title"
-      ? sql`${title} ${dir}, b.publish_at desc, b.id`
-      : sql`b.publish_at ${dir}, b.id`;
-  const rows = await tx.execute<
-    BroadcastRecord & {
-      summary: string | null;
-      read_at: string | null;
-      recipient: boolean;
-      total: number;
-    }
-  >(sql`
-    select ${columns}, left(t.text, 240) as summary,
-      ${isoOf(sql`r.read_at`)} as read_at, r.id is not null as recipient,
-      (count(*) over ())::int as total
-    from ${from}
-    left join core.broadcast_recipients r on r.tenant_id = b.tenant_id and r.broadcast_id = b.id
-      and r.user_id = ${input.viewerId}::uuid and r.status = 'active'
-    cross join lateral (select ${publishedText} as text) t
-    where b.tenant_id = ${input.tenantId}::uuid and b.org_id = ${input.schoolId}::uuid
-      and b.kind = 'news' and b.status = 'active' and ${live}
-      and (b.visibility = 'public' or r.id is not null)
-      and (${holds(input.q, [sql`b.title_en`, sql`b.title_ar`, sql`t.text`])})
-    order by ${order}
-    limit ${input.limit} offset ${input.offset}`);
-  return {
-    rows: rows.map((row) => ({
-      ...rowOf(row),
-      summary: row.summary ?? "",
-      readAt: row.read_at,
-      recipient: row.recipient,
     })),
     total: rows[0]?.total ?? 0,
   };

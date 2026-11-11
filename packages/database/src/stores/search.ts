@@ -309,38 +309,36 @@ export async function learningAmong(tx: Tx, input: Among & LearningAccess) {
 interface BroadcastAccess {
   tenantId: string;
   schoolId: string;
-  kind: "announcement" | "news";
   viewerId: string;
   manage: boolean;
 }
 
 const broadcastOpen = (input: BroadcastAccess) => sql`(
   b.tenant_id = ${input.tenantId}::uuid and b.org_id = ${input.schoolId}::uuid
-  and b.kind = ${input.kind} and b.status = 'active'
+  and b.status = 'active'
   and (${input.manage} or (${liveSql(sql`b.state`, sql`b.publish_at`)}
     and (b.visibility = 'public' or exists (select 1 from core.broadcast_recipients r
       where r.tenant_id = b.tenant_id and r.broadcast_id = b.id
         and r.user_id = ${input.viewerId}::uuid and r.status = 'active')))))`;
 
-/** The broadcasts of one kind the viewer may open, by the rule `broadcastsAmong` reads them with. */
+/** The announcements the viewer may open, by the rule `broadcastsAmong` reads them with. */
 export const broadcastsReached = (input: BroadcastAccess) =>
   sql`(select b.id from core.broadcasts b where ${broadcastOpen(input)})`;
 
 /**
- * Broadcasts of one kind among `ids`: every one for those who manage the
- * kind, otherwise those out that reached the viewer or, for news, are on the
- * website. Readers are matched against the words as published, never a
+ * Announcements among `ids`: every one for those who manage them, otherwise
+ * those out that reached the viewer or are on the website. Readers are matched against the words as published, never a
  * draft of the next revision.
  */
 export async function broadcastsAmong(tx: Tx, input: Among & BroadcastAccess) {
   const text = input.manage
     ? sql`(select d.plain_text from core.documents d where d.tenant_id = b.tenant_id
-        and d.host_type = b.kind and d.host_id = b.id and d.status = 'active'
+        and d.host_type = 'announcement' and d.host_id = b.id and d.status = 'active'
         and d.translation_of_id is null)`
     : publishedText;
   return found(
     await tx.execute<Raw>(sql`
-      select b.id, b.kind as type,
+      select b.id, 'announcement' as type,
         ${input.ar ? sql`coalesce(nullif(b.title_ar, ''), b.title_en)` : sql`coalesce(nullif(b.title_en, ''), b.title_ar)`} as title,
         ${snippetOf(text, input.q)} as snippet, null as context,
         ${isoOf(sql`coalesce(b.publish_at, b.date_last_modified)`)} as "when",

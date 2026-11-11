@@ -263,7 +263,7 @@ export type ColumnLayout = (typeof columnLayouts)[number];
 export type ImageSize = (typeof imageSizes)[number];
 /**
  * What a mention may name: a person, the teaching a class follows, or what
- * the school sends and holds: its news, announcements and events.
+ * the school sends and holds: its announcements and events.
  */
 export const MENTION_KINDS = [
   "person",
@@ -271,7 +271,6 @@ export const MENTION_KINDS = [
   "module",
   "lesson",
   "assignment",
-  "news",
   "announcement",
   "event",
 ] as const;

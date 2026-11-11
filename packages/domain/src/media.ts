@@ -24,15 +24,14 @@ export const MEDIA_USERS = [
   "calendar:author",
   "calendar:manage",
   "announcements:manage",
-  "news:manage",
 ] as const satisfies readonly Capability[];
 
 /**
- * Those who put pictures in front of others, news and the website, keep
+ * Those who put pictures in front of others, announcements and the website, keep
  * it: its folders, what each item says, and its trash.
  */
 export const MEDIA_KEEPERS = [
-  "news:manage",
+  "announcements:manage",
   "site:manage",
 ] as const satisfies readonly Capability[];
 

@@ -11,10 +11,6 @@ import type { UnitContext } from "./context";
 import { audit } from "./procedure";
 
 const AUDIT_ACTIONS = {
-  news: {
-    checked: "news.translation_checked",
-    unchecked: "news.translation_unchecked",
-  },
   announcement: {
     checked: "announcement.translation_checked",
     unchecked: "announcement.translation_unchecked",

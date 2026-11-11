@@ -51,12 +51,11 @@ const hostOf = (id: string) => ({ type: "shared_block", id });
 const AUTHORS: readonly Capability[] = [
   "learning:author",
   "assignments:author",
-  "news:manage",
   "announcements:manage",
   "site:manage",
 ];
 
-/** Whoever writes the school's documents, teaching or news, may keep blocks and use the school's. */
+/** Whoever writes the school's documents, teaching or announcements, may keep blocks and use the school's. */
 function requireAuthor(context: UnitContext) {
   if (!AUTHORS.some((capability) => can(context, capability)))
     throw new ORPCError("FORBIDDEN");
