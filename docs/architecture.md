@@ -76,8 +76,8 @@ A cell is one jurisdiction's deployment: one Postgres 18 database named
 `cell` holding every tenant's rows, its object storage, and the API,
 worker, collaboration and media processes. A separate `directory` database
 maps a school's slug or host to its tenant and cell, and holds the cells,
-tenants, schools, hosts, school plans, storage usage reports, exam series,
-the sign-in name index and a change log of every edit to them. It holds no
+tenants, schools, hosts, school plans, storage usage reports, the sign-in
+name index and a change log of every edit to them. It holds no
 personal data: no user, no email, no phone, no operator name.
 
 Each runtime reads the directory as `directory_reader` with a 60-second

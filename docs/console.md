@@ -387,71 +387,27 @@ own (Stripe's Business details and Tax settings).
 Removed from the old page: the two-letter country code where a person
 reads a country, and the "No rates yet" line under a heading.
 
-## Exam sessions
-
-The owner or support keeps the boards' official sessions (Cambridge
-International, Pearson Edexcel, the IB, the UK boards under JCQ) that a
-school's exams officer adds to keep coursework for. Each session is a board,
-the month it sits in and the day its work may be deleted, after results
-enquiries and appeals close. The operator comes to do three things: add next
-year's sessions when a board publishes its dates, move a session's
-keep-until day when the board changes it, and withdraw a session added by
-mistake. Every one of these asks why, for the change log.
-
-A session has four facts and no collections, so it is a row, not a record:
-the page is one index table at the list width.
-
-- **Header**: the count of sessions, one line on what they are for, and Add
-  a session as the primary action. The menu holds Changes to sessions,
-  which opens the Changes page filtered to them, since a session's history
-  belongs to the directory's audit log rather than a second table under
-  this one.
-- **Toolbar**: Board, Year (the year it sits in) and Status facets in the
-  URL. Status is derived for the reader: Offered (schools can add it),
-  Ended (its keep-until day has passed, so schools no longer see it) or
-  Retired (withdrawn by an operator).
-- **Columns**: Session (the month it sits in), Board, Keep until, Status.
-  Newest sitting first, so next year's sessions lead and the ones long over
-  sink to the bottom. On a phone each row is a card: board and month, keep
-  until, status.
-- **Rows**: Change (inline) edits the keep-until day with a reason; the
-  menu offers Retire or Offer again, each with a reason, and Show its
-  changes, which opens Changes searched to that session.
-- **Adding** asks for board, month, keep-until day and why. A board and
-  month already listed is refused on the month field, pointing at the row,
-  instead of silently changing the existing session.
-- **Empty**: "Add the first session", saying what schools do with one.
-
-Removed: the session's raw id (`cambridge-2027-06`) under its name, the
-History section stacked under the table (a second collection on an index
-page; it is the Changes page's job), the explanatory sentence at the top of
-the sheet, and the Retired checkbox inside the edit sheet, since withdrawing
-a session is its own action, not a field.
-
-The console cannot say which schools added a session: that lives in each
-cell's database and no cell reports it to the directory yet.
-
 ## Changes
 
 Everyone with access to schools reads it, most often support asking "who
 changed this school, and why?" and the owner checking what was done across
 the platform. It is the directory's audit log (GitHub's organisation audit
 log): every change operators and the platform made to schools, school
-groups, web addresses, sign-in domains and exam sessions, newest first.
+groups, web addresses and sign-in domains, newest first.
 Customers, subscriptions and invoices keep their own history on their
 records.
 
 - **Header**: the number of changes in the log and one line naming what it
   covers. No action: the log is read, never written.
-- **Toolbar**: search (a school, a group, a web address, a session or words
-  in the reason), then Change (what was done, with how many of each), By
+- **Toolbar**: search (a school, a group, a web address or words in the
+  reason), then Change (what was done, with how many of each), By
   (each operator by name, and the platform's own cells) and When (today,
   the last 7, 30 or 90 days, any time) facets, all in the URL. Filtering
   happens on the server, so it covers the whole log, not the latest page.
 - **Columns**: Change (what was done, the reason on the second line and the
   fields it moved, with readable names, below), Record (the school the
   change is about, linked to its History tab, with the address, domain or
-  group under it; a session links to Exam sessions), By, When. The whole
+  group under it), By, When. The whole
   row opens the record.
 - **Pagination**: 50 a page in the footer.
 - **Empty**: a log with nothing in it says changes will appear as soon as

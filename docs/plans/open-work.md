@@ -9,13 +9,12 @@ larger than a few days of work gets its own plan beside this file.
 From `foundations.md`. W1 to W5 are merged.
 
 - **W6, conventions and records** (findings 13 to 18 and the P2 items):
-  - erasure for the six tables `erasure-rules.ts` still marks `to_erase`,
+  - erasure for the five tables `erasure-rules.ts` still marks `to_erase`,
     each needing a decision first, and the owner's and the lawyer's review
     of every rule (the list is in the ops repository,
     `plans/legal/erasure-registry.md`):
-    - `submissions`, `submission_attempts` and `attempt_declarations` are
-      held while an exam session keeps the work, which erasure does not
-      yet consult;
+    - `submissions` and `submission_attempts` are what the school's kept
+      assessments hang on, so they need emptying rather than removing;
     - `work_comments` are a teacher's words on a student's work, with the
       student's answers and replies hung under them;
     - `paced_lessons` name the student whose work was shown, which would
