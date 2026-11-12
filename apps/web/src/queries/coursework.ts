@@ -7,18 +7,19 @@ import {
   getAssignmentRecord,
   getChildBrief,
   getChildCoursework,
-  getStudentCoursework,
   getClassGroups,
+  getCommentBank,
   getCoursework,
   getCourseworkOptions,
-  getCommentBank,
+  getCourseworkToday,
   getDiscussion,
   getGrading,
-  getQuizAnswers,
-  getQuizPollResults,
   getMyCoursework,
   getMyWork,
+  getQuizAnswers,
+  getQuizPollResults,
   getReusable,
+  getStudentCoursework,
 } from "~/server/coursework";
 
 import type { PollCounts } from "./learning";
@@ -121,3 +122,9 @@ export const classGroupsQuery = (classId: string) =>
     queryKey: ["coursework", "groups", classId],
     queryFn: () => getClassGroups({ data: { classId } }),
   });
+
+/** What coursework says of today for Today: the viewer's own, or a learner's they follow. */
+export const courseworkTodayQuery = (studentId = "") => ({
+  queryKey: ["coursework", "today", studentId],
+  queryFn: () => getCourseworkToday({ data: { studentId } }),
+});

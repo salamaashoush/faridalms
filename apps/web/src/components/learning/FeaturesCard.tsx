@@ -18,6 +18,7 @@ import { schoolFeaturesQuery } from "~/queries/school-settings";
 import { askAboutModule, setSchoolFeature } from "~/server/school-settings";
 import { getMessageFromError } from "~/utils/error";
 import { MODULE_LABEL } from "~/utils/modules";
+import { useWords } from "~/utils/words";
 
 const LABEL: Record<
   SwitchedModule,
@@ -25,7 +26,7 @@ const LABEL: Record<
 > = {
   elearning: {
     name: m.learningFeatureToggle,
-    hint: m.learningFeatureToggleHint,
+    hint: m.learningFeatureToggleHintCore,
   },
   early_years: {
     name: m.earlyYearsFeatureToggle,
@@ -38,6 +39,7 @@ const LABEL: Record<
  * are available; one outside it shows, locked, so they know it exists.
  */
 export function FeaturesCard() {
+  const words = useWords();
   const queryClient = useQueryClient();
   const user = useCurrentUser();
   const { data } = useSuspenseQuery(schoolFeaturesQuery);
@@ -77,7 +79,7 @@ export function FeaturesCard() {
       saved={saved && changed.length === 0}
       isDirty={() => changed.length > 0}
     >
-      <div className="grid gap-4">
+      <div className="grid gap-4" data-module-catalogue>
         {SWITCHED_MODULES.map((feature) => {
           const offered = available.has(feature);
           const id = `feature-${feature}`;
@@ -109,13 +111,15 @@ export function FeaturesCard() {
                 id={`${id}-hint`}
                 className="ps-7 text-[13px] leading-[18px] text-muted-foreground"
               >
-                {offered ? LABEL[feature].hint() : m.featureNotInPlan()}
+                {offered
+                  ? words(`feature-${feature}`, LABEL[feature].hint)
+                  : m.featureNotInPlan()}
               </p>
             </div>
           );
         })}
       </div>
-      <div className="grid gap-2 border-t pt-4">
+      <div className="grid gap-2 border-t pt-4" data-module-catalogue>
         <h3 className="text-sm leading-5 font-semibold">
           {m.modulesInPlanTitle()}
         </h3>

@@ -1,6 +1,3 @@
-import type { Tone } from "@faridalms/ui/system/status";
-import type { LinkProps } from "@tanstack/react-router";
-
 import { Button } from "@faridalms/ui/button";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
@@ -23,14 +20,13 @@ import { House, LoaderCircle, Smile } from "lucide-react";
 import { Fragment } from "react";
 import * as v from "valibot";
 
-import { classTitle } from "~/components/classes/format";
 import {
   HomeCard,
   HomeItem,
   HomeList,
   itemLink,
 } from "~/components/home/parts";
-import { familyChildParts } from "~/components/home/slots";
+import { childDayParts, familyChildParts } from "~/components/home/slots";
 import { displayName } from "~/components/people/format";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSessionChange } from "~/hooks/useSessionChange";
@@ -39,7 +35,7 @@ import * as m from "~/i18n/messages";
 import { followedHomeQuery } from "~/queries/home";
 import { currentUserQuery } from "~/queries/user";
 import { startChildMode } from "~/server/auth";
-import { formatInstant, formatDate } from "~/utils/datetime";
+import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 import { filled } from "~/utils/extension";
 
@@ -54,7 +50,7 @@ export const Route = createFileRoute("/_app/family/")({
   loaderDeps: ({ search }) => ({ child: search.child }),
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    await Promise.all([
+    const [home] = await Promise.all([
       context.queryClient.ensureQueryData(followedHomeQuery(deps.child)),
       ...filled(context.extensions, user.modules, familyChildParts).flatMap(
         (part) => {
@@ -63,6 +59,15 @@ export const Route = createFileRoute("/_app/family/")({
         },
       ),
     ]);
+    const parts = filled(context.extensions, user.modules, childDayParts);
+    await Promise.all(
+      home.children.flatMap((child) =>
+        parts.flatMap((part) => {
+          const query = part.query(child.studentId, user.capabilities);
+          return query ? [context.queryClient.ensureQueryData(query)] : [];
+        }),
+      ),
+    );
   },
   component: FamilyHome,
 });
@@ -71,47 +76,6 @@ type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof followedHomeQuery>["queryFn"]>>
 >;
 type Child = Data["children"][number];
-
-const PRESENCE: Record<
-  Child["presence"],
-  { label: () => string; tone: Tone } | null
-> = {
-  present: { label: m.homePresent, tone: "success" },
-  late: { label: m.homeLate, tone: "warning" },
-  absent: { label: m.homeAbsent, tone: "neutral" },
-  absent_unexplained: { label: m.homeAbsentUnexplained, tone: "danger" },
-  none: null,
-};
-
-function attentionOf(
-  item: Child["attention"][number],
-  child: Child,
-): { label: string; link: LinkProps } {
-  const search = { studentId: child.studentId };
-  switch (item.kind) {
-    case "absence":
-      return {
-        label: m.homeAttentionAbsence(),
-        link: { to: "/family/attendance", search },
-      };
-    case "missing":
-      return {
-        label: m.homeAttentionMissing({ title: item.title }),
-        link: { to: "/family/assignments", search },
-      };
-    case "result":
-      return {
-        label: m.homeAttentionResult({ title: item.title }),
-        link: { to: "/family/grades", search },
-      };
-  }
-  return { label: "", link: { to: "/family" } };
-}
-
-const lesson = (slot: Child["now"], label: string) =>
-  slot
-    ? `${label}: ${classTitle({ code: slot.classCode, titleEn: slot.classTitleEn, titleAr: slot.classTitleAr })}`
-    : null;
 
 interface HandOverProps {
   child: Child;
@@ -167,7 +131,6 @@ interface ChildCardProps {
 }
 
 function ChildCard({ child, single }: ChildCardProps) {
-  const presence = PRESENCE[child.presence];
   const { capabilities } = useCurrentUser();
   const parts = useSlot(familyChildParts).flatMap((part) => {
     const query = part.query(capabilities);
@@ -180,14 +143,29 @@ function ChildCard({ child, single }: ChildCardProps) {
     part: row.part,
     read: reads[index]?.data,
   }));
+  const dayParts = useSlot(childDayParts)
+    .toSorted((a, b) => a.place - b.place)
+    .flatMap((part) => {
+      const query = part.query(child.studentId, capabilities);
+      return query ? [{ part, query }] : [];
+    });
+  const dayReads = useSuspenseQueries({
+    queries: dayParts.map((row) => row.query),
+  });
+  const days = dayParts.map((row, index) =>
+    row.part.dayOf(dayReads[index]?.data, child),
+  );
+  const lines = days.flatMap((day) => day.lines ?? []);
+  const status = days.find((day) => day.status)?.status;
+  const attention = days
+    .flatMap((day) => day.attention ?? [])
+    .toSorted((a, b) => a.rank - b.rank)
+    .slice(0, 3);
+  const sections = days.flatMap((day) => day.sections ?? []);
   return (
     <HomeCard
       title={displayName(child)}
-      description={
-        [lesson(child.now, m.homeNow()), lesson(child.next, m.homeNext())]
-          .filter(Boolean)
-          .join(" · ") || undefined
-      }
+      description={lines.join(" · ") || undefined}
       action={
         single
           ? undefined
@@ -198,66 +176,44 @@ function ChildCard({ child, single }: ChildCardProps) {
       }
     >
       <div className="grid gap-4">
-        {presence ? (
+        {status ? (
           <p className="text-sm">
-            <StatusText tone={presence.tone}>{presence.label()}</StatusText>
+            <StatusText tone={status.tone}>{status.label}</StatusText>
           </p>
         ) : null}
-        {child.attention.length > 0 ? (
+        {attention.length > 0 ? (
           <div className="grid gap-1">
             <h3 className="text-sm font-semibold">{m.homeNeedsAttention()}</h3>
             <HomeList>
-              {child.attention.map((item) => {
-                const shown = attentionOf(item, child);
-                return (
-                  <HomeItem
-                    key={`${item.kind}-${item.id}`}
-                    title={
-                      <Link {...shown.link} className={itemLink}>
-                        <bdi>{shown.label}</bdi>
-                      </Link>
-                    }
-                    facts={[
-                      item.classCode
-                        ? classTitle({
-                            code: item.classCode,
-                            titleEn: item.classTitleEn,
-                            titleAr: item.classTitleAr,
-                          })
-                        : null,
-                    ]}
-                  />
-                );
-              })}
-            </HomeList>
-          </div>
-        ) : null}
-        {child.due.length > 0 ? (
-          <div className="grid gap-1">
-            <h3 className="text-sm font-semibold">{m.homeDueThisWeek()}</h3>
-            <HomeList>
-              {child.due.map((row) => (
+              {attention.map((item) => (
                 <HomeItem
-                  key={row.assignmentId}
+                  key={item.key}
                   title={
-                    <bdi className="text-sm leading-5 font-medium">
-                      {row.title}
-                    </bdi>
+                    <Link {...item.link} className={itemLink}>
+                      <bdi>{item.label}</bdi>
+                    </Link>
                   }
-                  facts={[
-                    classTitle({
-                      code: row.classCode,
-                      titleEn: row.classTitleEn,
-                      titleAr: row.classTitleAr,
-                    }),
-                    row.dueAt ? formatInstant(row.dueAt) : null,
-                  ]}
+                  facts={[item.fact ?? null]}
                 />
               ))}
             </HomeList>
           </div>
         ) : null}
-        {!presence && child.attention.length === 0 && child.due.length === 0 ? (
+        {sections.map((section) => (
+          <div key={section.key} className="grid gap-1">
+            <h3 className="text-sm font-semibold">{section.title}</h3>
+            <HomeList>
+              {section.items.map((item) => (
+                <HomeItem
+                  key={item.key}
+                  title={item.title}
+                  facts={item.facts}
+                />
+              ))}
+            </HomeList>
+          </div>
+        ))}
+        {!status && attention.length === 0 && sections.length === 0 ? (
           <EmptyState
             placement="section"
             kind="done"

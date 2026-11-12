@@ -19,6 +19,7 @@ import {
   weekQuerySchema,
 } from "@faridalms/domain/timetable";
 import { createServerFn } from "@tanstack/react-start";
+import * as v from "valibot";
 
 import { backend, record } from "./backend";
 import { checked } from "./input";
@@ -98,3 +99,16 @@ export const changeLesson = createServerFn({ method: "POST" })
 export const restoreLesson = createServerFn({ method: "POST" })
   .validator(checked(clearChangeSchema))
   .handler(({ data }) => backend().cover.clearLessonChange(data));
+
+export const getTimetableToday = createServerFn({ method: "GET" })
+  .validator(
+    checked(
+      v.object({
+        studentId: v.optional(
+          v.union([v.literal(""), v.pipe(v.string(), v.uuid())]),
+          "",
+        ),
+      }),
+    ),
+  )
+  .handler(({ data }) => backend().timetable.today(data));

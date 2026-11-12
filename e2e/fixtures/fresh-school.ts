@@ -113,9 +113,15 @@ async function welcome(browser: Browser, slug: string, secret: string) {
  * walked; a teacher, a student and, where the school keeps families, their
  * mother, each with a password, placed nowhere.
  */
-async function firstPeople(admin: Api, slug: string, families: boolean) {
+async function firstPeople(
+  admin: Api,
+  slug: string,
+  without: readonly ModuleId[],
+) {
+  const families = !without.includes("families");
   for (const feature of SWITCHED_MODULES)
-    await admin.school.setFeature({ feature, enabled: true });
+    if (!without.includes(feature))
+      await admin.school.setFeature({ feature, enabled: true });
   const teacher = `teacher@${slug}.example.com`;
   const staff = await admin.people.saveStaff({
     names: names("Salama", "Teacher"),
@@ -203,11 +209,7 @@ export async function freshSchool(
   return {
     slug,
     admin,
-    ...(await firstPeople(
-      api,
-      slug,
-      !(options.without ?? []).includes("families"),
-    )),
+    ...(await firstPeople(api, slug, options.without ?? [])),
   };
 }
 

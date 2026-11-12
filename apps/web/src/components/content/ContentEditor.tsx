@@ -121,7 +121,8 @@ export function ContentEditor({
   const mentions = useEditorMentions(useMentionNames(value));
   const comments = useEditorComments(id);
   const helping = useEditorAssistant(assistant);
-  const { arabicMath } = useCurrentUser().school;
+  const { school, modules } = useCurrentUser();
+  const { arabicMath } = school;
   const message = variant === "message";
   const toolbarBox =
     toolbar && !disabled ? <div className="h-10 flex-1 bg-muted/25" /> : null;
@@ -197,6 +198,7 @@ export function ContentEditor({
           aiUse={aiUse}
           narration={narration}
           lessonActivities={lessonActivities}
+          modules={modules}
           feedbackTiming={feedbackTiming}
           arabicMath={arabicMath}
           language={language}

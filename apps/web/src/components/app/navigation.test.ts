@@ -5,11 +5,21 @@ import { BUILTIN_CAPABILITIES } from "@faridalms/domain/capabilities";
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import { describe, expect, it } from "vitest";
 
-import { pageOn } from "~/utils/modules";
+import { ADMISSIONS_NAV } from "~/components/admissions/contributions";
+import { MODULE_FILLINGS } from "~/extensions";
+import { filled } from "~/utils/extension";
+import { pageOn } from "~/utils/pages";
 
 import type { NavItem, Viewer } from "./navigation";
 
-import { arrange, firstPageOf, holds, NAVIGATION, pagesOf } from "./navigation";
+import {
+  arrange,
+  firstPageOf,
+  navigationOf,
+  navItems,
+  pagesOf,
+  shows,
+} from "./navigation";
 
 const everyModule = Object.fromEntries(
   MODULE_IDS.map((module) => [module, true]),
@@ -17,18 +27,19 @@ const everyModule = Object.fromEntries(
 
 const viewer = (capabilities: readonly Capability[]): Viewer => ({
   capabilities,
-  modules: everyModule,
+  opens: (path) => pageOn(MODULE_FILLINGS, everyModule, path),
 });
+
+/** The staff workspace's sections at a school with every module on. */
+const STAFF = navigationOf(
+  "staff",
+  filled(MODULE_FILLINGS, everyModule, navItems),
+);
 
 /** The staff sections as one person sees them: links in view, then folded. */
 function sidebarOf(person: Viewer) {
-  return NAVIGATION.staff.map((section) => {
-    const visible = section.items.filter(
-      (item) =>
-        holds(item, person.capabilities) &&
-        pageOn(person.modules, item.to) &&
-        (!item.pages || pagesOf(item, person).length > 0),
-    );
+  return STAFF.map((section) => {
+    const visible = section.items.filter((item) => shows(item, person));
     const { items, more } = arrange(visible);
     return {
       id: section.id,
@@ -71,11 +82,10 @@ describe("the staff sidebar", () => {
 
   it("loses no destination: every page is in view, under More or an area", () => {
     const admin = viewer(BUILTIN_CAPABILITIES.site_administrator);
-    const offered = NAVIGATION.staff
-      .flatMap((section) => section.items)
-      .flatMap((item: NavItem) =>
+    const offered = STAFF.flatMap((section) => section.items).flatMap(
+      (item: NavItem) =>
         [item.to].concat(pagesOf(item, admin).map((page) => page.to)),
-      );
+    );
     for (const path of [
       "/admissions/enquiries",
       "/admissions/applications",
@@ -92,18 +102,20 @@ describe("the staff sidebar", () => {
 describe("an area's link", () => {
   it("lands on the first of its pages the person may open", () => {
     expect(
-      firstPageOf("/admissions", viewer(BUILTIN_CAPABILITIES.principal)),
+      firstPageOf(ADMISSIONS_NAV, viewer(BUILTIN_CAPABILITIES.principal)),
     ).toBe("/admissions/enquiries");
-    expect(firstPageOf("/admissions", viewer(["admissions:configure"]))).toBe(
+    expect(firstPageOf(ADMISSIONS_NAV, viewer(["admissions:configure"]))).toBe(
       "/admissions/intakes",
     );
-    expect(firstPageOf("/admissions", viewer(["people:read"]))).toBe(undefined);
+    expect(firstPageOf(ADMISSIONS_NAV, viewer(["people:read"]))).toBe(
+      undefined,
+    );
   });
 
   it("offers the media only to those who put pictures in what they write", () => {
-    const library = NAVIGATION.staff
-      .flatMap((section) => section.items)
-      .find((item) => item.to === "/templates");
+    const library = STAFF.flatMap((section) => section.items).find(
+      (item) => item.to === "/templates",
+    );
     if (!library) throw new Error("The Library area is not in the navigation");
     expect(
       pagesOf(library, viewer(["admissions:configure"])).map((page) => page.to),

@@ -7,8 +7,14 @@ import { DecoratedProcedure, ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "./core/context";
 
+import {
+  office as attendanceOffice,
+  today as attendanceToday,
+} from "./attendance/today";
 import { signIn as badgeSignIn } from "./badges/sign-in";
 import { modulesOf } from "./core/modules";
+import { today as courseworkToday } from "./coursework/today";
+import { today as learningToday } from "./learning/today";
 import { peerSettings } from "./peer/settings";
 import * as absenceReportsSystem from "./systems/absence-reports";
 import * as accessSystem from "./systems/access";
@@ -66,6 +72,7 @@ import * as standardsSystem from "./systems/standards";
 import * as templatesSystem from "./systems/templates";
 import * as timetableSystem from "./systems/timetable";
 import * as yearsSystem from "./systems/years";
+import { today as timetableToday } from "./timetable/today";
 import { announcementOptions, announcementPost } from "./website/announcements";
 
 /**
@@ -144,25 +151,32 @@ export const router = {
   shared: owned("shared", sharedSystem),
   assistant: owned("assistant", assistantSystem),
   standards: owned("standards", standardsSystem),
-  coursework: owned("coursework", courseworkSystem),
+  coursework: owned("coursework", {
+    ...courseworkSystem,
+    today: courseworkToday,
+  }),
   peer: owned("peer", { ...peerSystem, settings: peerSettings }),
   reading: owned("reading", readingSystem),
   gradebook: owned("gradebook", gradebookSystem),
   grading: owned("grading", gradingSystem),
   privacy: owned("privacy", privacySystem),
-  attendance: owned("attendance", attendanceSystem),
+  attendance: owned("attendance", {
+    ...attendanceSystem,
+    today: attendanceToday,
+    office: attendanceOffice,
+  }),
   absenceReports: owned("absenceReports", absenceReportsSystem),
   followUp: owned("followUp", followUpSystem),
   familyShares: owned("familyShares", familySharesSystem),
   frontDesk: owned("frontDesk", frontDeskSystem),
   rollover: owned("rollover", rolloverSystem),
-  timetable: owned("timetable", timetableSystem),
+  timetable: owned("timetable", { ...timetableSystem, today: timetableToday }),
   cover: owned("cover", coverSystem),
   messages: owned("messages", messagesSystem),
   announcements: owned("announcements", announcementsSystem),
   calendar: owned("calendar", calendarSystem),
   notifications: owned("notifications", notificationsSystem),
-  learning: owned("learning", learningSystem),
+  learning: owned("learning", { ...learningSystem, today: learningToday }),
   pictures: owned("pictures", picturesSystem),
   media: owned("media", mediaSystem),
   site: owned("site", {

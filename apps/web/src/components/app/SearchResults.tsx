@@ -5,6 +5,7 @@ import type {
   SearchKind,
 } from "@faridalms/domain/search";
 import type { Workspace } from "@faridalms/domain/workspace";
+import type { LinkProps } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -12,46 +13,59 @@ import { matchedRuns } from "@faridalms/domain/search";
 import { cn } from "@faridalms/ui/cn";
 import { Link } from "@tanstack/react-router";
 import {
-  BookOpen,
   CalendarDays,
-  ClipboardList,
   GraduationCap,
   Inbox,
   Megaphone,
   NotebookPen,
   School,
+  Search,
   Users,
 } from "lucide-react";
 
 import { roleLabel } from "~/components/people/format";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { formatDate, formatInstant, formatList } from "~/utils/datetime";
+import { slot } from "~/utils/extension";
 
-export const SEARCH_KIND_LABEL: Record<SearchKind, () => string> = {
-  students: m.searchKindStudents,
-  people: m.searchKindPeople,
-  classes: m.searchKindClasses,
-  assignments: m.searchKindAssignments,
-  learning: m.searchKindLearning,
-  announcements: m.searchKindAnnouncements,
-  events: m.searchKindEvents,
-  messages: m.searchKindMessages,
-  notes: m.searchKindNotes,
+/** How a module's kind of search hit is named, marked and opened. */
+export interface SearchKindWords {
+  kind: SearchKind;
+  label: () => string;
+  icon: LucideIcon;
+  /** The page a hit of the kind opens, by what it is. */
+  linkOf(hit: SearchHit): LinkProps | null;
+}
+
+export const searchKindWords = slot<SearchKindWords>("search kind words");
+
+const OWN_WORDS: Partial<
+  Record<SearchKind, { label: () => string; icon: LucideIcon }>
+> = {
+  students: { label: m.searchKindStudents, icon: GraduationCap },
+  people: { label: m.searchKindPeople, icon: Users },
+  classes: { label: m.searchKindClasses, icon: School },
+  announcements: { label: m.searchKindAnnouncements, icon: Megaphone },
+  events: { label: m.searchKindEvents, icon: CalendarDays },
+  messages: { label: m.searchKindMessages, icon: Inbox },
+  notes: { label: m.searchKindNotes, icon: NotebookPen },
 };
 
-export const SEARCH_KIND_ICON: Record<SearchKind, LucideIcon> = {
-  students: GraduationCap,
-  people: Users,
-  classes: School,
-  assignments: ClipboardList,
-  learning: BookOpen,
-  announcements: Megaphone,
-  events: CalendarDays,
-  messages: Inbox,
-  notes: NotebookPen,
-};
+/** How each kind of hit is named and marked, core's and those of the modules on. */
+export function useSearchKinds() {
+  const added = useSlot(searchKindWords);
+  const wordsOf = (kind: SearchKind) =>
+    added.find((each) => each.kind === kind) ?? OWN_WORDS[kind];
+  return {
+    label: (kind: SearchKind) => wordsOf(kind)?.label() ?? kind,
+    icon: (kind: SearchKind) => wordsOf(kind)?.icon ?? Search,
+    linkOf: (hit: SearchHit) =>
+      added.find((each) => each.kind === hit.kind)?.linkOf(hit) ?? null,
+  };
+}
 
 const FLAG_LABEL: Record<SearchFlag, () => string> = {
   draft: m.searchFlagDraft,
@@ -198,11 +212,12 @@ export function HitLink({
   onNavigate,
   className,
 }: HitLinkProps) {
+  const kinds = useSearchKinds();
   const shared = {
     className: cn(HIT_ROW, className),
     onClick: () => onNavigate?.(hit),
     "data-search-hit": true,
-    children: <HitBody hit={hit} q={q} icon={SEARCH_KIND_ICON[hit.kind]} />,
+    children: <HitBody hit={hit} q={q} icon={kinds.icon(hit.kind)} />,
   };
   switch (hit.target) {
     case "student":
@@ -220,30 +235,6 @@ export function HitLink({
     case "class":
       return (
         <Link to="/classes/$classId" params={{ classId: hit.id }} {...shared} />
-      );
-    case "assignment":
-      return (
-        <Link
-          to="/assignments/$assignmentId"
-          params={{ assignmentId: hit.id }}
-          {...shared}
-        />
-      );
-    case "module":
-      return (
-        <Link
-          to="/modules/$moduleId"
-          params={{ moduleId: hit.id }}
-          {...shared}
-        />
-      );
-    case "lesson":
-      return (
-        <Link
-          to="/lessons/$lessonId"
-          params={{ lessonId: hit.id }}
-          {...shared}
-        />
       );
     case "announcement":
       return (
@@ -270,8 +261,8 @@ export function HitLink({
         />
       );
     default: {
-      const unreachable: never = hit.target;
-      return unreachable;
+      const link = kinds.linkOf(hit);
+      return link ? <Link {...link} {...shared} /> : null;
     }
   }
 }
@@ -292,6 +283,7 @@ export function SearchResults({
   onMore,
 }: SearchResultsProps) {
   const user = useCurrentUser();
+  const kinds = useSearchKinds();
   return (
     <div className="grid gap-4">
       {groups.map((group) => (
@@ -300,7 +292,7 @@ export function SearchResults({
             id={`search-${group.kind}`}
             className="px-3 pb-1 text-xs leading-5 font-medium text-muted-foreground"
           >
-            {SEARCH_KIND_LABEL[group.kind]()}
+            {kinds.label(group.kind)}
           </h3>
           <ul className="grid">
             {group.rows.map((hit) => (
@@ -323,9 +315,7 @@ export function SearchResults({
               className="ms-10 inline-flex rounded-md px-3 py-1.5 text-[13px] font-medium text-primary outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
             >
               {m.searchMoreOfKind({
-                kind: SEARCH_KIND_LABEL[group.kind]().toLocaleLowerCase(
-                  getLocale(),
-                ),
+                kind: kinds.label(group.kind).toLocaleLowerCase(getLocale()),
               })}
             </Link>
           ) : null}

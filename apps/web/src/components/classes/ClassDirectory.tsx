@@ -31,6 +31,8 @@ import * as m from "~/i18n/messages";
 import { classDirectoryQuery, classOptionsQuery } from "~/queries/classes";
 import { formatNumber } from "~/utils/datetime";
 
+import { listWords } from "./slots";
+
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classDirectoryQuery>["queryFn"]>>
 >;
@@ -147,6 +149,7 @@ export function ClassDirectory({
   title,
   frame,
 }: ClassDirectoryProps) {
+  const words = useSlot(listWords).find((each) => each.list === "classes");
   const navigate = useNavigate();
   const filters = useSlot(classFilters);
   const views = viewsOf(filters, search);
@@ -203,7 +206,7 @@ export function ClassDirectory({
       />
       {frame(
         <DataTable
-          caption={m.classesAllCaption()}
+          caption={(words?.caption ?? m.classesAllCaptionCore)()}
           rows={data.rows}
           columns={classColumns(options, moduleColumns)}
           rowLabel={(row) => classTitle(row)}
@@ -212,8 +215,8 @@ export function ClassDirectory({
           card={card}
           empty={{
             icon: School,
-            title: m.classesEmptyTitle(),
-            description: m.classesEmptyBody(),
+            title: (words?.title ?? m.classesEmptyTitleCore)(),
+            description: (words?.body ?? m.classesEmptyBodyCore)(),
             action: data.manage ? (
               <ButtonLink to="/class-editor" search={views}>
                 <Plus aria-hidden />

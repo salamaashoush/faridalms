@@ -1,4 +1,5 @@
 import type { QuestionKind } from "@faridalms/domain/content";
+import type { ModuleId } from "@faridalms/domain/modules";
 import type { ListType } from "@lexical/list";
 import type {
   ElementNode,
@@ -325,6 +326,8 @@ export interface BlockDefinition {
   draw?: boolean;
   /** Offered only where the school's standards can be read. */
   standards?: boolean;
+  /** The module whose namespace the block reads or writes, offered only where it is on. */
+  module?: ModuleId;
   /** Offered only where blocks are kept to show in many documents. */
   shared?: boolean;
   /** Offered only where the school's language model helps its teachers. */
@@ -348,6 +351,8 @@ export interface BlockScope {
   standards: boolean;
   shared: boolean;
   assistant: boolean;
+  /** The modules on at the school, where the editor knows them. */
+  modules: Readonly<Partial<Record<ModuleId, boolean>>> | null;
 }
 
 export function blockScope(environment: {
@@ -365,6 +370,7 @@ export function blockScope(environment: {
   standards?: unknown;
   shared?: unknown;
   assistant?: unknown;
+  modules?: Readonly<Partial<Record<ModuleId, boolean>>>;
 }): BlockScope {
   const questions = Boolean(environment.questions);
   return {
@@ -382,6 +388,7 @@ export function blockScope(environment: {
     standards: Boolean(environment.standards),
     shared: Boolean(environment.shared),
     assistant: questions && Boolean(environment.assistant),
+    modules: environment.modules ?? null,
   };
 }
 
@@ -399,7 +406,8 @@ export const offered = (block: BlockDefinition, scope: BlockScope) =>
   (scope.draws || !block.draw) &&
   (scope.standards || !block.standards) &&
   (scope.shared || !block.shared) &&
-  (scope.assistant || !block.assistant);
+  (scope.assistant || !block.assistant) &&
+  (!block.module || !scope.modules || scope.modules[block.module] === true);
 
 export const blockDefinitions: BlockDefinition[] = [
   {
@@ -535,6 +543,7 @@ export const blockDefinitions: BlockDefinition[] = [
       "نواتج",
     ],
     standards: true,
+    module: "standards",
   },
   {
     type: "glossary",
@@ -909,6 +918,7 @@ export const blockDefinitions: BlockDefinition[] = [
     keywords: ["bank", "kept", "saved", "reuse", "library", "بنك", "محفوظ"],
     question: true,
     bank: true,
+    module: "coursework",
   },
   {
     type: "bankDraw",
@@ -919,6 +929,7 @@ export const blockDefinitions: BlockDefinition[] = [
     keywords: ["draw", "random", "pool", "bank", "سحب", "عشوائي", "بنك"],
     question: true,
     bank: true,
+    module: "coursework",
     draw: true,
   },
   {
@@ -989,6 +1000,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "programQuestion",
+    module: "coding",
     group: "coding",
     icon: SquareTerminal,
     label: (s) => s.questionProgram,
@@ -1061,6 +1073,7 @@ export const blockDefinitions: BlockDefinition[] = [
     keywords: ["count", "counting", "how many", "ten frame", "عد", "كم"],
     question: true,
     activity: true,
+    module: "early_years",
   },
   {
     type: "tracingQuestion",
@@ -1079,6 +1092,7 @@ export const blockDefinitions: BlockDefinition[] = [
     ],
     question: true,
     activity: true,
+    module: "early_years",
   },
   {
     type: "spellingQuestion",
@@ -1098,6 +1112,7 @@ export const blockDefinitions: BlockDefinition[] = [
     ],
     question: true,
     activity: true,
+    module: "early_years",
   },
   {
     type: "hotspotQuestion",
@@ -1117,6 +1132,7 @@ export const blockDefinitions: BlockDefinition[] = [
     ],
     question: true,
     activity: true,
+    module: "early_years",
   },
   {
     type: "labellingQuestion",
@@ -1194,6 +1210,7 @@ export const blockDefinitions: BlockDefinition[] = [
     ],
     question: true,
     studio: true,
+    module: "coding",
   },
   {
     type: "projectQuestion",
@@ -1220,6 +1237,7 @@ export const blockDefinitions: BlockDefinition[] = [
     ],
     question: true,
     studio: true,
+    module: "coding",
   },
   {
     type: "sketchQuestion",
@@ -1243,6 +1261,7 @@ export const blockDefinitions: BlockDefinition[] = [
     ],
     question: true,
     studio: true,
+    module: "coding",
   },
   {
     type: "pythonQuestion",
@@ -1265,6 +1284,7 @@ export const blockDefinitions: BlockDefinition[] = [
     ],
     question: true,
     studio: true,
+    module: "coding",
   },
   {
     type: "microbitQuestion",
@@ -1290,6 +1310,7 @@ export const blockDefinitions: BlockDefinition[] = [
     ],
     question: true,
     studio: true,
+    module: "coding",
   },
   {
     type: "puzzleQuestion",
@@ -1316,6 +1337,7 @@ export const blockDefinitions: BlockDefinition[] = [
     ],
     question: true,
     puzzle: true,
+    module: "coding",
   },
   {
     type: "arrowsQuestion",
@@ -1340,6 +1362,7 @@ export const blockDefinitions: BlockDefinition[] = [
     ],
     question: true,
     puzzle: true,
+    module: "coding",
   },
   {
     type: "whyQuestion",
@@ -1359,6 +1382,7 @@ export const blockDefinitions: BlockDefinition[] = [
     ],
     question: true,
     activity: true,
+    module: "early_years",
   },
   {
     type: "readingQuestion",

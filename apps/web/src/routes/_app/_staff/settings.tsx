@@ -1,4 +1,5 @@
 import type { HeaderAction } from "@faridalms/ui/system/page-header";
+import type { QueryClient } from "@tanstack/react-query";
 
 import { Skeleton } from "@faridalms/ui/skeleton";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
@@ -17,6 +18,7 @@ import { Suspense, useState } from "react";
 import * as v from "valibot";
 
 import type { AccessRole } from "~/components/admin/AccessRolesPanel";
+import type { SettingsTab } from "~/components/admin/slots";
 import type { Subject, SubjectSort } from "~/components/admin/SubjectCatalogue";
 
 import {
@@ -35,18 +37,14 @@ import {
   subjectOf,
   SubjectSheet,
 } from "~/components/admin/SubjectCatalogue";
-import { AttendanceRules } from "~/components/attendance/AttendanceRules";
 import { UsageBar } from "~/components/files/UsageBar";
-import { GradingSettings } from "~/components/grading/GradingSettings";
 import { FeaturesCard } from "~/components/learning/FeaturesCard";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
 import { assistantSettingsQuery } from "~/queries/assistant";
-import { attendanceSettingsQuery } from "~/queries/attendance";
 import { subjectsQuery } from "~/queries/classes";
-import { gradingHistoryQuery, gradingOverviewQuery } from "~/queries/grading";
 import {
   pictureSourcesQuery,
   schoolFeaturesQuery,
@@ -57,15 +55,71 @@ import { currentUserQuery } from "~/queries/user";
 import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
 
-/** The settings' own tabs; a module's tab rides under its own value. */
-const SECTIONS = [
-  "school",
-  "subjects",
-  "attendance",
-  "grading",
-  "access",
-  "assistant",
-] as const;
+/** A tab as the page lists it: where it sits, who keeps it and what it loads. */
+interface ListedTab {
+  value: string;
+  label: () => string;
+  place: number;
+  capability?: string;
+  load(queryClient: QueryClient): Promise<unknown>;
+}
+
+/** The settings' own tabs at their places; the modules on add theirs between them. */
+const OWN_TABS: readonly ListedTab[] = [
+  {
+    value: "school",
+    label: m.settingsSchoolTab,
+    place: 10,
+    load: (queryClient) =>
+      Promise.all([
+        queryClient.ensureQueryData(schoolProfileQuery),
+        queryClient.ensureQueryData(schoolFeaturesQuery),
+        queryClient.ensureQueryData(pictureSourcesQuery),
+      ]),
+  },
+  {
+    value: "subjects",
+    label: m.adminSubjectsSection,
+    place: 20,
+    load: (queryClient) => queryClient.ensureQueryData(subjectsQuery),
+  },
+  {
+    value: "access",
+    label: m.adminPermissionsSection,
+    place: 60,
+    load: (queryClient) =>
+      Promise.all([
+        queryClient.ensureQueryData(accessRolesQuery),
+        queryClient.ensureQueryData(accessChangesQuery(1)),
+      ]),
+  },
+  {
+    value: "assistant",
+    label: m.assistantTab,
+    place: 70,
+    load: (queryClient) => queryClient.ensureQueryData(assistantSettingsQuery),
+  },
+];
+
+/** The tabs this person keeps, the settings' own and the modules', in their places. */
+const tabsFor = (
+  user: { capabilities: readonly string[] },
+  added: readonly SettingsTab[],
+): ListedTab[] =>
+  [
+    ...OWN_TABS,
+    ...added.map((tab) => ({
+      ...tab,
+      load: (queryClient: QueryClient) =>
+        Promise.all(
+          tab.queries().map((query) => queryClient.ensureQueryData(query)),
+        ),
+    })),
+  ]
+    .filter((tab) =>
+      user.capabilities.includes(tab.capability ?? "school:manage"),
+    )
+    .toSorted((a, b) => a.place - b.place);
 
 const searchSchema = v.object({
   section: v.optional(v.pipe(v.string(), v.regex(/^[a-z]{1,20}$/)), "school"),
@@ -86,69 +140,28 @@ export const Route = createFileRoute("/_app/_staff/settings")({
   loaderDeps: ({ search }) => ({ section: search.section }),
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    requirePage(user, "school:manage", "grading:manage");
-    const grading = gradesHere(user);
-    const moduleTab = filled(
-      context.extensions,
-      user.modules,
-      settingsTabs,
-    ).find((tab) => tab.value === deps.section);
-    // Someone who sets up only grading lands on its tab; a tab nobody here
-    // may open falls back to the one they can.
-    if (
-      (deps.section === "grading" ? !grading : !keepsSchool(user)) ||
-      (!moduleTab && !(SECTIONS as readonly string[]).includes(deps.section))
-    )
-      throw redirect({
-        to: "/settings",
-        search: {
-          section: grading && !keepsSchool(user) ? "grading" : "school",
-        },
-      });
+    const tabs = tabsFor(
+      user,
+      filled(context.extensions, user.modules, settingsTabs),
+    );
+    const first = tabs[0];
+    if (!first) return requirePage(user, "school:manage");
+    const tab = tabs.find((each) => each.value === deps.section);
+    // A tab nobody here may open falls back to the first they can.
+    if (!tab)
+      throw redirect({ to: "/settings", search: { section: first.value } });
     const { queryClient } = context;
-    if (moduleTab)
-      await Promise.all(
-        moduleTab.queries().map((query) => queryClient.ensureQueryData(query)),
-      );
-    else if (deps.section === "grading")
-      await Promise.all([
-        queryClient.ensureQueryData(gradingOverviewQuery),
-        queryClient.ensureQueryData(gradingHistoryQuery(1)),
-      ]);
-    else if (deps.section === "school")
-      await Promise.all([
-        queryClient.ensureQueryData(schoolProfileQuery),
-        queryClient.ensureQueryData(schoolFeaturesQuery),
-        queryClient.ensureQueryData(pictureSourcesQuery),
-        ...filled(context.extensions, user.modules, schoolSettingsSections).map(
-          (section) => queryClient.ensureQueryData(section.query()),
-        ),
-      ]);
-    else if (deps.section === "subjects")
-      await queryClient.ensureQueryData(subjectsQuery);
-    else if (deps.section === "attendance")
-      await queryClient.ensureQueryData(attendanceSettingsQuery);
-    else if (deps.section === "assistant")
-      await queryClient.ensureQueryData(assistantSettingsQuery);
-    else
-      await Promise.all([
-        queryClient.ensureQueryData(accessRolesQuery),
-        queryClient.ensureQueryData(accessChangesQuery(1)),
-      ]);
+    await Promise.all([
+      tab.load(queryClient),
+      ...(tab.value === "school"
+        ? filled(context.extensions, user.modules, schoolSettingsSections).map(
+            (section) => queryClient.ensureQueryData(section.query()),
+          )
+        : []),
+    ]);
   },
   component: SettingsRoute,
 });
-
-interface Viewer {
-  capabilities: readonly string[];
-  modules: { gradebook: boolean };
-}
-
-const keepsSchool = (user: Viewer) =>
-  user.capabilities.includes("school:manage");
-
-const gradesHere = (user: Viewer) =>
-  user.modules.gradebook && user.capabilities.includes("grading:manage");
 
 /**
  * A sheet opened from the URL. It stays mounted while it closes, so it can
@@ -170,6 +183,7 @@ function SettingsRoute() {
   const user = useCurrentUser();
   const moduleTabs = useSlot(settingsTabs);
   const moduleTab = moduleTabs.find((tab) => tab.value === search.section);
+  const tabs = tabsFor(user, moduleTabs);
   // An empty catalogue offers Add subject in its empty state instead, so the
   // page keeps one primary button.
   const subjects = (
@@ -205,34 +219,7 @@ function SettingsRoute() {
       />
       <RecordTabs
         label={m.adminSettingsTitle()}
-        tabs={[
-          ...(keepsSchool(user)
-            ? [
-                { value: "school" as const, label: m.settingsSchoolTab() },
-                {
-                  value: "subjects" as const,
-                  label: m.adminSubjectsSection(),
-                },
-                { value: "attendance" as const, label: m.attendanceTitle() },
-                ...moduleTabs.map((tab) => ({
-                  value: tab.value,
-                  label: tab.label(),
-                })),
-              ]
-            : []),
-          ...(gradesHere(user)
-            ? [{ value: "grading" as const, label: m.gradingTitle() }]
-            : []),
-          ...(keepsSchool(user)
-            ? [
-                {
-                  value: "access" as const,
-                  label: m.adminPermissionsSection(),
-                },
-                { value: "assistant" as const, label: m.assistantTab() },
-              ]
-            : []),
-        ]}
+        tabs={tabs.map((tab) => ({ value: tab.value, label: tab.label() }))}
         value={search.section}
         onChange={(section) => void navigate({ search: { section } })}
       >
@@ -240,14 +227,8 @@ function SettingsRoute() {
           <SchoolTab />
         ) : search.section === "subjects" ? (
           <SubjectsTab search={search} patch={patch} />
-        ) : search.section === "attendance" ? (
-          <SettingsPage>
-            <AttendanceRules />
-          </SettingsPage>
         ) : moduleTab ? (
           <moduleTab.Tab />
-        ) : search.section === "grading" ? (
-          <GradingSettings />
         ) : search.section === "assistant" ? (
           <AssistantSettings />
         ) : (

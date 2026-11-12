@@ -4,29 +4,30 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   getClassQuestions,
-  getPollResults,
+  getClassSounds,
   getClassVideos,
   getGallery,
-  getProgramRuns,
   getLearningOptions,
+  getLearningToday,
   getLessonEditor,
-  getPlan,
+  getModuleDiscussions,
   getModuleGlossary,
-  getModuleOutline,
   getModuleLive,
-  getPaced,
-  getPacing,
+  getModuleOutline,
   getModuleProgress,
   getModuleRecord,
   getMyModules,
-  getClassSounds,
   getNextLessons,
+  getPaced,
+  getPacing,
+  getPlan,
+  getPollResults,
   getPracticeSet,
+  getProgramRuns,
   getRouteChoices,
   getTeachingModules,
-  getWrittenAnswers,
   getUnitPlan,
-  getModuleDiscussions,
+  getWrittenAnswers,
   openLesson,
 } from "~/server/learning";
 
@@ -182,10 +183,10 @@ export const writtenAnswersQuery = (moduleId: string, classId: string) =>
     placeholderData: (previous) => previous,
   });
 
-export const nextLessonsQuery = queryOptions({
+export const nextLessonsQuery = {
   queryKey: ["learning", "next"],
   queryFn: () => getNextLessons(),
-});
+};
 
 export const myModulesQuery = (studentId: string) =>
   queryOptions({
@@ -233,3 +234,9 @@ export const galleryQuery = (lessonId: string, blockId: string) =>
     queryKey: ["learning", "gallery", lessonId, blockId],
     queryFn: () => getGallery({ data: { lessonId, blockId } }),
   });
+
+/** The module a student is part way through, for Today. */
+export const learningTodayQuery = {
+  queryKey: ["learning", "today"],
+  queryFn: () => getLearningToday(),
+};

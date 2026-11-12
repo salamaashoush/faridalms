@@ -1,13 +1,14 @@
 import { cn } from "@faridalms/ui/cn";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { BookOpen, ClipboardList, Play, Star } from "lucide-react";
+import { Play, Star } from "lucide-react";
 
 import { ReadAloud } from "~/components/learning/ReadAloud";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
-import { studentHomeQuery } from "~/queries/home";
-import { nextLessonsQuery } from "~/queries/learning";
+
+import { youngTasks } from "./slots";
 
 // A colour per module, so a child finds the same subject by its colour.
 const TONES = [
@@ -23,18 +24,6 @@ function toneOf(id: string): string {
   return TONES[sum % TONES.length] ?? "";
 }
 
-interface Task {
-  key: string;
-  title: string;
-  subtitle: string;
-  tone: string;
-  icon: typeof BookOpen;
-  begun: boolean;
-  link:
-    | { to: "/lessons/$lessonId"; params: { lessonId: string } }
-    | { to: "/assignments/$assignmentId"; params: { assignmentId: string } };
-}
-
 /**
  * A young child's home: a few big cards for what to do next, the lesson
  * they began first and marked to go on with, each with a speaker that reads
@@ -42,34 +31,21 @@ interface Task {
  */
 export function YoungHome() {
   const user = useCurrentUser();
-  const lessons = useSuspenseQuery(nextLessonsQuery).data.lessons;
-  const home = useSuspenseQuery(studentHomeQuery).data;
-  const tasks: Task[] = [
-    ...lessons.map((lesson) => ({
-      key: lesson.lessonId,
-      title: lesson.title,
-      subtitle: lesson.moduleTitle,
-      tone: toneOf(lesson.moduleId),
-      icon: BookOpen,
-      begun: lesson.begun,
-      link: {
-        to: "/lessons/$lessonId" as const,
-        params: { lessonId: lesson.lessonId },
-      },
-    })),
-    ...home.due.map((work) => ({
-      key: work.assignmentId,
-      title: work.title,
-      subtitle: m.homeYoungToDo(),
-      tone: toneOf(work.assignmentId),
-      icon: ClipboardList,
-      begun: work.state === "in_progress",
-      link: {
-        to: "/assignments/$assignmentId" as const,
-        params: { assignmentId: work.assignmentId },
-      },
-    })),
-  ].slice(0, 6);
+  const asked = useSlot(youngTasks).flatMap((part) => {
+    const query = part.query(user.capabilities);
+    return query ? [{ part, query }] : [];
+  });
+  const reads = useSuspenseQueries({
+    queries: asked.map((row) => row.query),
+  });
+  const tasks = asked
+    .toSorted((a, b) => a.part.place - b.part.place)
+    .flatMap((row) =>
+      row.part
+        .tasksOf(reads[asked.indexOf(row)]?.data)
+        .map((task) => ({ ...task, tone: toneOf(task.toneOf) })),
+    )
+    .slice(0, 6);
   const greeting = m.homeYoungHello({ name: user.name.split(" ")[0] ?? "" });
   return (
     <div className="mx-auto grid w-full max-w-4xl gap-8 py-4">

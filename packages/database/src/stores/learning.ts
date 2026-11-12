@@ -2701,3 +2701,17 @@ export async function moduleOfLesson(
     where tenant_id = ${tenantId}::uuid and id = ${lessonId}::uuid`);
   return row?.module_id ?? null;
 }
+
+/** Those of these classes that take any module, in the order given. */
+export async function classesWithUnits(
+  tx: Tx,
+  tenantId: string,
+  classIds: readonly string[],
+): Promise<string[]> {
+  const rows = await tx.execute<{ class_id: string }>(sql`
+    select distinct class_id from core.module_classes
+    where tenant_id = ${tenantId}::uuid and class_id = any(${uuidArray(classIds)})
+      and status = 'active'`);
+  const taking = new Set(rows.map((row) => row.class_id));
+  return classIds.filter((id) => taking.has(id));
+}

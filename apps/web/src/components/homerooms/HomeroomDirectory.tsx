@@ -20,7 +20,7 @@ import {
   useClassFacets,
 } from "~/components/classes/class-facets";
 import { classTitle, subjectName } from "~/components/classes/format";
-import { classFilters, viewsOf } from "~/components/classes/slots";
+import { classFilters, listWords, viewsOf } from "~/components/classes/slots";
 import { displayName } from "~/components/people/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
@@ -146,6 +146,7 @@ export function HomeroomDirectory({
   title,
   frame,
 }: ClassesTabProps) {
+  const words = useSlot(listWords).find((each) => each.list === "homerooms");
   const navigate = useNavigate();
   const filters = useSlot(classFilters);
   const views = viewsOf(filters, search);
@@ -208,8 +209,8 @@ export function HomeroomDirectory({
           card={card}
           empty={{
             icon: School,
-            title: m.homeroomsEmptyTitle(),
-            description: m.homeroomsEmptyBody(),
+            title: (words?.title ?? m.homeroomsEmptyTitleCore)(),
+            description: (words?.body ?? m.homeroomsEmptyBodyCore)(),
             action: data.manage ? (
               <ButtonLink to="/homeroom-editor" search={views}>
                 <Plus aria-hidden />

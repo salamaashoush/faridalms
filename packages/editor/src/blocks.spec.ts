@@ -1,6 +1,8 @@
+import type { ModuleId } from "@faridalms/domain/modules";
 import type { LexicalEditor, LexicalNode } from "lexical";
 
 import { contentDocumentSchema } from "@faridalms/domain/content";
+import { MODULE_IDS } from "@faridalms/domain/modules";
 import { $createCodeNode, CodeExtension } from "@lexical/code";
 import {
   buildEditorFromExtensions,
@@ -541,6 +543,71 @@ describe("where blocks are offered", () => {
     expect(offered(reading, lesson)).toBe(true);
     expect(offered(why, quiz)).toBe(false);
     expect(offered(reading, blockScope({}))).toBe(false);
+  });
+});
+
+/** Which module a block's flag means it reads or writes. */
+const FLAG_MODULE = {
+  bank: "coursework",
+  draw: "coursework",
+  standards: "standards",
+  studio: "coding",
+  puzzle: "coding",
+  activity: "early_years",
+} as const;
+
+const everyModule = Object.fromEntries(
+  MODULE_IDS.map((id) => [id, true]),
+) as Record<ModuleId, boolean>;
+
+/** A scope that offers every kind of block, at a school with these modules on. */
+const fullScope = (modules: Partial<Record<ModuleId, boolean>>) =>
+  blockScope({
+    media: true,
+    questions: true,
+    gates: true,
+    starter: true,
+    aiUse: true,
+    lessonActivities: true,
+    studio: true,
+    puzzles: true,
+    bank: true,
+    draws: true,
+    standards: true,
+    shared: true,
+    assistant: true,
+    modules,
+  });
+
+describe("blocks of a module", () => {
+  it("declares its module on every block whose flag reads a module's namespace", () => {
+    const undeclared = blockDefinitions.filter((block) =>
+      Object.entries(FLAG_MODULE).some(
+        ([flag, module]) =>
+          block[flag as keyof typeof FLAG_MODULE] && block.module !== module,
+      ),
+    );
+    expect(undeclared.map((block) => block.type)).toEqual([]);
+  });
+
+  it("offers none of a module's blocks in any document while the module is off", () => {
+    for (const module of MODULE_IDS) {
+      const scope = fullScope({ ...everyModule, [module]: false });
+      const leaked = blockDefinitions.filter(
+        (block) => block.module === module && offered(block, scope),
+      );
+      expect(leaked.map((block) => block.type)).toEqual([]);
+    }
+  });
+
+  it("offers core's blocks with every module off, and a module's once it is on", () => {
+    const none = fullScope({});
+    const text = named("paragraph");
+    const bank = named("bankQuestion");
+    if (!text || !bank) throw new Error("the blocks are missing");
+    expect(offered(text, none)).toBe(true);
+    expect(offered(bank, none)).toBe(false);
+    expect(offered(bank, fullScope({ coursework: true }))).toBe(true);
   });
 });
 

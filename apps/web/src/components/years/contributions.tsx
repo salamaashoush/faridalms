@@ -1,13 +1,22 @@
+import { CalendarCheck } from "lucide-react";
+
 import type { ModuleFillings } from "~/utils/extension";
 
 import { schoolSettingsSections } from "~/components/admin/slots";
+import { navItems } from "~/components/app/navigation";
 import {
   classEditorParts,
   classFilters,
   classHistoryNotes,
   classRecordParts,
+  listWords,
 } from "~/components/classes/slots";
-import { familyChildParts, officeCards } from "~/components/home/slots";
+import {
+  familyChildParts,
+  officeCards,
+  setupItemWords,
+  setupStepWords,
+} from "~/components/home/slots";
 import { STATUS_LABEL, STATUS_TONE } from "~/components/people/format";
 import {
   leavingParts,
@@ -27,6 +36,7 @@ import {
   yearOptionsQuery,
 } from "~/queries/years";
 import { fill } from "~/utils/extension";
+import { modulePages } from "~/utils/pages";
 
 import type { ClassYearRead } from "./YearParts";
 
@@ -69,6 +79,39 @@ type Asking = Awaited<ReturnType<NonNullable<(typeof askingQuery)["queryFn"]>>>;
 export const SCHOOL_YEARS: ModuleFillings = {
   module: "school_years",
   fillings: [
+    fill(listWords, {
+      list: "classes",
+      title: m.classesEmptyTitle,
+      body: m.classesEmptyBody,
+      caption: m.classesAllCaption,
+    }),
+    fill(listWords, { list: "classesTaught", caption: m.classesTaughtCaption }),
+    fill(setupStepWords, {
+      id: "year",
+      title: m.setupYearTitle,
+      body: m.setupYearBody,
+      capability: "years:manage",
+      link: { to: "/academic-years", search: {} },
+    }),
+    fill(setupItemWords, { item: "year_ready", label: m.onboardingYearReady }),
+    fill(modulePages, [
+      "/academic-years",
+      "/academic-year-editor",
+      "/rollover",
+      "/years",
+    ]),
+    fill(navItems, {
+      workspace: "staff",
+      section: "school",
+      item: {
+        to: "/academic-years",
+        label: m.navSchoolYear,
+        icon: CalendarCheck,
+        capability: ["years:manage", "school:manage"],
+        more: true,
+        place: 40,
+      },
+    }),
     fill(dayPlannerParts, yearDayPart),
     fill(classFilters, {
       key: "year",

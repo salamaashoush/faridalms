@@ -33,19 +33,19 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 
-import type { NavItem } from "~/components/app/navigation";
+import type { NavItem, PlacedItem } from "~/components/app/navigation";
 
 import { ContractNotice } from "~/components/app/ContractNotice";
 import { GrownUpGate } from "~/components/app/GrownUpGate";
 import {
   arrange,
-  holds,
-  MOBILE_TABS,
-  NAVIGATION,
+  mobileTabsOf,
   pagesOf,
+  shows,
 } from "~/components/app/navigation";
 import { NotificationBell } from "~/components/app/NotificationBell";
 import { UnreadMessagesCount } from "~/components/app/UnreadMessagesCount";
+import { useNavigation } from "~/components/app/useNavigation";
 import { WorkspaceBreadcrumb } from "~/components/app/WorkspaceBreadcrumb";
 import { WorkspaceSearch } from "~/components/app/WorkspaceSearch";
 import { ChangePassword } from "~/components/auth/ChangePassword";
@@ -54,7 +54,6 @@ import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
 import { getLocale, locales, setLocale } from "~/i18n/runtime";
 import { logout, SIDEBAR_MORE_COOKIE } from "~/server/auth";
-import { pageOn } from "~/utils/modules";
 
 const LOCALE_NAME: Record<string, string> = { en: "English", ar: "العربية" };
 
@@ -72,8 +71,11 @@ const PROFILE_LABEL: Record<Profile, () => string> = {
  * More when the section runs long for them, and each area's pages the
  * person may open beneath its link.
  */
-function useVisibleNavigation(): ShellNavSection[] {
-  const user = useCurrentUser();
+function useVisibleNavigation(): {
+  sections: ShellNavSection[];
+  placed: PlacedItem[];
+} {
+  const { sections, viewer: user } = useNavigation();
   const shown = (item: NavItem): ShellNavItem => ({
     to: item.to,
     label: item.label(),
@@ -88,23 +90,23 @@ function useVisibleNavigation(): ShellNavSection[] {
         }))
       : undefined,
   });
-  return NAVIGATION[user.workspace]
-    .map((section) => {
-      const visible = section.items.filter(
-        (item) =>
-          holds(item, user.capabilities) &&
-          pageOn(user.modules, item.to) &&
-          (!item.pages || pagesOf(item, user).length > 0),
-      );
-      const { items, more } = arrange(visible);
-      return {
-        id: section.id,
-        title: section.title?.(),
-        items: items.map(shown),
-        more: more.map(shown),
-      };
-    })
-    .filter((section) => section.items.length + section.more.length > 0);
+  const visible = sections.map((section) =>
+    section.items.filter((item) => shows(item, user)),
+  );
+  return {
+    placed: visible.flat(),
+    sections: sections
+      .map((section, index) => {
+        const { items, more } = arrange(visible[index] ?? []);
+        return {
+          id: section.id,
+          title: section.title?.(),
+          items: items.map(shown),
+          more: more.map(shown),
+        };
+      })
+      .filter((section) => section.items.length + section.more.length > 0),
+  };
 }
 
 /**
@@ -233,7 +235,7 @@ export function Shell({
     from: "__root__",
     select: (context) => context.auth.childMode,
   });
-  const navigation = useVisibleNavigation();
+  const { sections: navigation, placed } = useVisibleNavigation();
   const isActive = useIsActive();
   const [moreOpen, setMoreOpen] = useState(remembered);
   const young = user.profile === "young_student";
@@ -252,15 +254,7 @@ export function Shell({
     ...section.items,
     ...(section.more ?? []),
   ]);
-  const { first, last } = MOBILE_TABS[user.workspace];
-  const seen = (to: string) => items.find((item) => item.to === to);
-  const tabs = [
-    ...first
-      .map(seen)
-      .filter((item) => item !== undefined)
-      .slice(0, 3),
-    seen(last),
-  ].filter((item) => item !== undefined);
+  const tabs = mobileTabsOf(placed, items);
   return (
     <AppShell
       sidebarOpen={sidebarOpen}

@@ -257,3 +257,16 @@ export const removeRubric = createServerFn({ method: "POST" })
 export const reviewBriefTranslation = createServerFn({ method: "POST" })
   .validator(checked(reviewTranslationSchema))
   .handler(({ data }) => backend().coursework.reviewBriefTranslation(data));
+
+export const getCourseworkToday = createServerFn({ method: "GET" })
+  .validator(
+    checked(
+      v.object({
+        studentId: v.optional(
+          v.union([v.literal(""), v.pipe(v.string(), v.uuid())]),
+          "",
+        ),
+      }),
+    ),
+  )
+  .handler(({ data }) => backend().coursework.today(data));

@@ -205,3 +205,36 @@ export interface PersonRecordPart {
 }
 
 export const personRecordParts = slot<PersonRecordPart>("person record parts");
+
+/** What a student's record lets the viewer open, as the record answers it. */
+export type StudentAccess = Readonly<Record<string, boolean>>;
+
+/** A tab a module adds to a student's record, at its place among the record's own. */
+export interface StudentRecordTab {
+  value: string;
+  label: () => string;
+  place: number;
+  /** Whether the viewer opens it, from what the record lets them. */
+  shows(access: StudentAccess): boolean;
+  /** Whether it sits in columns like the record's own sections, or fills the width. */
+  columns?: boolean;
+  Tab: ComponentType<{ studentId: string }>;
+}
+
+export const studentRecordTabs = slot<StudentRecordTab>("student record tabs");
+
+/** What a module shows first on a student's overview: their lessons today, say. */
+export interface StudentOverviewPart {
+  key: string;
+  place: number;
+  shows(access: StudentAccess): boolean;
+  Part: ComponentType<{
+    studentId: string;
+    today: string;
+    onTab: (tab: string) => void;
+  }>;
+}
+
+export const studentOverviewParts = slot<StudentOverviewPart>(
+  "student overview parts",
+);

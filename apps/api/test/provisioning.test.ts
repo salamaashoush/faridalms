@@ -518,6 +518,7 @@ describe("creating a school from the operator console", () => {
     expect(await api.learning.unitPlan({ classId: "" })).toEqual({
       classes: [],
       classId: "",
+      opening: "",
       ready: false,
       frame: null,
       units: [],

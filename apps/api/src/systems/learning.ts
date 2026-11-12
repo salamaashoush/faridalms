@@ -124,12 +124,6 @@ import {
   TICKET_TTL_SECONDS,
 } from "@faridalms/domain/collab";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
-import {
-  contentOf,
-  listNode,
-  paragraphNode,
-  textNode,
-} from "@faridalms/domain/content-conversion";
 import { documentTerms } from "@faridalms/domain/glossary";
 import {
   checkBlocks,
@@ -275,9 +269,10 @@ import {
   moduleOfSchool,
   translationUnchecked,
 } from "../learning/access";
-import { moduleClasses } from "../learning/classes";
+import { firstWithUnits, moduleClasses } from "../learning/classes";
 import { ELEARNING_HOSTS } from "../learning/hosts";
 import { copyLesson, copyModule, planHost } from "../learning/module-copy";
+import { moduleOverview } from "../learning/overview";
 import {
   moduleParts,
   standardsNamed,
@@ -897,7 +892,8 @@ export const unitPlan = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "learning:author");
     const { classes } = await authoringClasses(context);
-    const classId = input.classId || classes[0]?.id || "";
+    const opening = await firstWithUnits(context, classes);
+    const classId = input.classId || opening;
     if (classId && !classes.some((row) => row.id === classId))
       throw new ORPCError("NOT_FOUND");
     const sources = await contributionsTo(context, unitFrames);
@@ -909,6 +905,7 @@ export const unitPlan = readProcedure
     return {
       classes,
       classId,
+      opening,
       /** What the frames come from is set up, as a school year is. */
       ready: (
         await Promise.all(sources.map((source) => source.ready(context)))
@@ -1268,20 +1265,6 @@ export const duplicateModule = writeProcedure
     });
     return created;
   });
-
-/** What a module offered as a template is, for its preview: its summary and lessons. */
-function moduleOverview(
-  summary: string,
-  lessons: readonly { title: string }[],
-) {
-  return contentOf([
-    ...(summary.trim() ? [paragraphNode([textNode(summary.trim())])] : []),
-    listNode(
-      "number",
-      lessons.map((lesson) => [textNode(lesson.title)]),
-    ),
-  ]);
-}
 
 /**
  * Offers a whole module as a school template, its lessons, their rules

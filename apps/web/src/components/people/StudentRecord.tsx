@@ -37,11 +37,8 @@ import {
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
-import { StudentAttendance } from "~/components/attendance/StudentAttendance";
 import { StudentConsents } from "~/components/consents/StudentConsents";
-import { StudentCoursework } from "~/components/coursework/StudentCoursework";
 import { NewMessage } from "~/components/messages/NewMessage";
-import { StudentSkills } from "~/components/standards/Progress";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import {
@@ -51,6 +48,8 @@ import {
 } from "~/queries/students";
 import { cancelLeaving } from "~/server/students";
 import { formatDate } from "~/utils/datetime";
+
+import type { StudentRecordTab } from "./slots";
 
 import { groupWords } from "../classes/slots";
 import { GroupTeachers, StudentClasses } from "../classes/StudentClasses";
@@ -66,72 +65,63 @@ import { IdentitySection } from "./IdentitySection";
 import { LeaveSchool } from "./LeaveSchool";
 import { PhotoDialog } from "./PhotoDialog";
 import { Deferred, HistoryFeed } from "./record-parts";
-import {
-  ArrangementsSection,
-  DemographicsSection,
-  HealthSection,
-} from "./RecordSections";
+import { DemographicsSection } from "./RecordSections";
 import { SignInSection } from "./SignInSection";
 import {
   studentClassesParts,
   studentFamilyParts,
+  studentOverviewParts,
   studentRecordParts,
+  studentRecordTabs,
 } from "./slots";
-import { StudentAttendanceSummary, StudentToday } from "./StudentOverview";
 import { StudentSheets } from "./StudentSheets";
 
-export const STUDENT_TABS = [
-  "overview",
-  "details",
-  "family",
-  "consents",
-  "enrollment",
-  "coursework",
-  "skills",
-  "attendance",
-  "health",
-  "support",
-  "account",
-  "history",
+/** A student record's own tabs at their places; the modules on add theirs between them. */
+const OWN_TABS = [
+  { value: "overview", label: m.recordOverview, place: 10 },
+  { value: "details", label: m.studentTabDetails, place: 20 },
+  { value: "consents", label: m.consentsTitle, place: 40 },
+  { value: "enrollment", label: m.studentTabEnrollment, place: 50 },
+  { value: "account", label: m.studentTabAccount, place: 110 },
+  { value: "history", label: m.recordHistory, place: 120 },
 ] as const;
-export type StudentTab = (typeof STUDENT_TABS)[number];
-
-const TAB_LABEL: Record<Exclude<StudentTab, "family">, () => string> = {
-  overview: m.recordOverview,
-  details: m.studentTabDetails,
-  consents: m.consentsTitle,
-  enrollment: m.studentTabEnrollment,
-  coursework: m.courseworkRecordTab,
-  skills: m.skillsTab,
-  attendance: m.attendanceTitle,
-  health: m.studentTabHealth,
-  support: m.studentTabSupport,
-  account: m.studentTabAccount,
-  history: m.recordHistory,
-};
+export type StudentTab = string;
 
 export type StudentData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof studentRecordQuery>["queryFn"]>>
 >;
 
-/** Which tabs this viewer may open. The route sends any other tab to Overview. */
-export function studentTabsFor(
+/** Whether this viewer may open one of the record's own tabs. */
+export function ownTabOpens(
   access: StudentData["access"],
-): Record<StudentTab, boolean> {
-  return {
-    overview: true,
-    details: true,
-    family: access.contacts,
-    consents: access.consents,
-    enrollment: true,
-    coursework: access.coursework,
-    skills: access.skills,
-    attendance: access.attendance,
-    health: access.health,
-    support: access.support,
-    account: access.manage,
-    history: access.history,
-  };
+  tab: string,
+): boolean {
+  switch (tab) {
+    case "overview":
+    case "details":
+    case "enrollment":
+      return true;
+    case "consents":
+      return access.consents;
+    case "account":
+      return access.manage;
+    case "history":
+      return access.history;
+    default:
+      return false;
+  }
+}
+
+/** Whether this viewer may open a tab, the record's own or one a module adds. */
+export function studentTabOpens(
+  access: StudentData["access"],
+  tab: string,
+  added: readonly StudentRecordTab[],
+): boolean {
+  return (
+    ownTabOpens(access, tab) ||
+    added.some((each) => each.value === tab && each.shows(access))
+  );
 }
 
 function formatAge(age: { years: number; months: number }) {
@@ -263,6 +253,10 @@ export function StudentRecord({
   const mover = useSlot(studentClassesParts)[0]?.move;
   const [leaving, setLeaving] = useState(false);
   const family = useSlot(studentFamilyParts)[0];
+  const addedTabs = useSlot(studentRecordTabs);
+  const overviewParts = useSlot(studentOverviewParts)
+    .filter((each) => each.shows(data.access))
+    .toSorted((a, b) => a.place - b.place);
   const recordParts = useSlot(studentRecordParts);
   const partReads = useSuspenseQueries({
     queries: recordParts.map((part) => part.query(studentId)),
@@ -280,16 +274,19 @@ export function StudentRecord({
   const [sheet, setSheet] = useState({ open: false, key: 0 });
   const { access } = data;
   const name = displayName(data);
-  const available = studentTabsFor(access);
-  const shown = (value: StudentTab) =>
-    available[value] && (value !== "family" || family !== undefined);
-  const tabs: RecordTab<StudentTab>[] = STUDENT_TABS.filter(shown).map(
-    (value) => ({
-      value,
-      label: value === "family" ? (family?.label() ?? "") : TAB_LABEL[value](),
-    }),
-  );
-  const active = shown(tab) ? tab : "overview";
+  const listed = [
+    ...OWN_TABS.filter((each) => ownTabOpens(access, each.value)),
+    ...(family && access.contacts
+      ? [{ value: "family", label: family.label, place: 30 }]
+      : []),
+    ...addedTabs.filter((each) => each.shows(access)),
+  ].toSorted((a, b) => a.place - b.place);
+  const tabs: RecordTab<StudentTab>[] = listed.map((each) => ({
+    value: each.value,
+    label: each.label(),
+  }));
+  const active = listed.some((each) => each.value === tab) ? tab : "overview";
+  const moduleTab = addedTabs.find((each) => each.value === active);
 
   const facts: HeaderFact[] = [];
   const second = otherName(data);
@@ -397,19 +394,15 @@ export function StudentRecord({
         <RecordColumns
           main={
             <>
-              {access.timetable ? (
-                <Deferred>
-                  <StudentToday studentId={studentId} today={data.today} />
-                </Deferred>
-              ) : null}
-              {access.attendance ? (
-                <Deferred>
-                  <StudentAttendanceSummary
+              {overviewParts.map(({ key, Part }) => (
+                <Deferred key={key}>
+                  <Part
                     studentId={studentId}
-                    onOpen={() => onTab("attendance")}
+                    today={data.today}
+                    onTab={onTab}
                   />
                 </Deferred>
-              ) : null}
+              ))}
               <DepartureSection data={data} facts={departureFacts} />
               {gone
                 ? null
@@ -508,49 +501,6 @@ export function StudentRecord({
         />
       );
       break;
-    case "coursework":
-      body = (
-        <Deferred>
-          <StudentCoursework studentId={studentId} />
-        </Deferred>
-      );
-      break;
-    case "skills":
-      body = (
-        <Deferred>
-          <StudentSkills studentId={studentId} />
-        </Deferred>
-      );
-      break;
-    case "attendance":
-      body = (
-        <Deferred>
-          <StudentAttendance studentId={studentId} />
-        </Deferred>
-      );
-      break;
-    case "health":
-      body = (
-        <RecordColumns
-          main={
-            <Deferred>
-              <HealthSection studentId={studentId} />
-            </Deferred>
-          }
-        />
-      );
-      break;
-    case "support":
-      body = (
-        <RecordColumns
-          main={
-            <Deferred>
-              <ArrangementsSection studentId={studentId} />
-            </Deferred>
-          }
-        />
-      );
-      break;
     case "account":
       body = (
         <RecordColumns
@@ -578,6 +528,22 @@ export function StudentRecord({
         />
       );
       break;
+    default:
+      body = moduleTab ? (
+        moduleTab.columns ? (
+          <RecordColumns
+            main={
+              <Deferred>
+                <moduleTab.Tab studentId={studentId} />
+              </Deferred>
+            }
+          />
+        ) : (
+          <Deferred>
+            <moduleTab.Tab studentId={studentId} />
+          </Deferred>
+        )
+      ) : null;
   }
 
   return (

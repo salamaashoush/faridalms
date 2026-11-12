@@ -10,10 +10,10 @@ import {
 } from "@faridalms/ui/system/app-shell";
 import { Link, useRouterState } from "@tanstack/react-router";
 
-import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 
-import { NAVIGATION, pathsOf } from "./navigation";
+import { pathsOf } from "./navigation";
+import { useNavigation } from "./useNavigation";
 
 /** The deepest of these paths the page sits at or beneath. */
 function deepest<T extends { to: string }>(
@@ -38,7 +38,7 @@ function deepest<T extends { to: string }>(
  * inside, with the record between them when the page names one.
  */
 export function WorkspaceBreadcrumb() {
-  const user = useCurrentUser();
+  const { sections } = useNavigation();
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
@@ -52,7 +52,7 @@ export function WorkspaceBreadcrumb() {
   const declared = useRouterState({
     select: (state) => state.matches.at(-1)?.staticData.section ?? null,
   });
-  const items = NAVIGATION[user.workspace].flatMap((section) => section.items);
+  const items = sections.flatMap((section) => section.items);
   const declaredPaths = declared === null ? [] : [declared].flat();
   const section =
     items.find((item) =>

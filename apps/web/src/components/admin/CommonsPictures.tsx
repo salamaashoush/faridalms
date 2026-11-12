@@ -11,12 +11,14 @@ import * as m from "~/i18n/messages";
 import { pictureSourcesQuery } from "~/queries/school-settings";
 import { setCommonsPictures } from "~/server/school-settings";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 /**
  * Whether the school's staff may search Wikimedia Commons for pictures.
  * Off until an administrator turns it on; students and families never see it.
  */
 export function CommonsPictures() {
+  const words = useWords();
   const queryClient = useQueryClient();
   const { data } = useSuspenseQuery(pictureSourcesQuery);
   const [enabled, setEnabled] = useState(data.commons);
@@ -33,7 +35,7 @@ export function CommonsPictures() {
   return (
     <SettingsSection
       title={m.settingsCommons()}
-      description={m.settingsCommonsHint()}
+      description={words("commonsHint", m.settingsCommonsHintCore)}
       onSubmit={() => {
         setSaved(false);
         return mutation.mutateAsync().then(

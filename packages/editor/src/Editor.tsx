@@ -1,5 +1,7 @@
-import "./prism";
 import type { ContentDocument } from "@faridalms/domain/content";
+
+import "./prism";
+import type { ModuleId } from "@faridalms/domain/modules";
 import type { Digits } from "@faridalms/domain/people";
 import type { Provider } from "@lexical/yjs";
 import type { EditorState } from "lexical";
@@ -221,6 +223,8 @@ export interface EditorProps {
   narration?: boolean;
   /** Activities only a lesson offers: spoken answers and counting. */
   lessonActivities?: boolean;
+  /** The modules on at the school; a block of one that is off is not offered. */
+  modules?: Readonly<Partial<Record<ModuleId, boolean>>>;
   /** Questions may keep how they went until the end or the teacher's word. */
   feedbackTiming?: boolean;
   /** How the school sets a new formula written in Arabic text. */
@@ -257,6 +261,7 @@ export default function Editor({
   aiUse = false,
   narration = false,
   lessonActivities = false,
+  modules,
   feedbackTiming = false,
   arabicMath = "ltr",
   onSynced,
@@ -306,6 +311,7 @@ export default function Editor({
       aiUse,
       narration,
       lessonActivities,
+      ...(modules ? { modules } : {}),
       feedbackTiming,
       arabicMath,
       ...(digits ? { digits } : {}),
@@ -331,6 +337,7 @@ export default function Editor({
       aiUse,
       narration,
       lessonActivities,
+      modules,
       feedbackTiming,
       arabicMath,
       digits,

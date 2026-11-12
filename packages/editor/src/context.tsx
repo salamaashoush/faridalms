@@ -7,6 +7,7 @@ import type {
 import type { PictureCredit } from "@faridalms/domain/commons";
 import type { ContentDocument, Mention } from "@faridalms/domain/content";
 import type { SpeechLanguage } from "@faridalms/domain/file";
+import type { ModuleId } from "@faridalms/domain/modules";
 import type { Digits } from "@faridalms/domain/people";
 import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
 import type { ContentLocale } from "@faridalms/domain/translations";
@@ -351,6 +352,8 @@ export interface EditorEnvironment {
    * and counting.
    */
   lessonActivities?: boolean;
+  /** The modules on at the school; a block of one that is off is not offered. */
+  modules?: Readonly<Partial<Record<ModuleId, boolean>>>;
   /**
    * Questions may keep how they went until the end of the lesson, or until
    * the teacher shows the class, as a lesson for older students may.

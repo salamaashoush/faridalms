@@ -1,38 +1,38 @@
-import { Progress } from "@faridalms/ui/progress";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordColumns } from "@faridalms/ui/system/record-page";
-import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { House, Play } from "lucide-react";
+import { House } from "lucide-react";
 
 import { classTitle } from "~/components/classes/format";
-import { STATE_LABEL, STATE_TONE } from "~/components/coursework/format";
+import { inPlace, loadCards, useModuleCards } from "~/components/home/cards";
 import {
   HomeCard,
   HomeItem,
   HomeList,
   itemLink,
-  Lessons,
 } from "~/components/home/parts";
+import { learnerCards, youngTasks } from "~/components/home/slots";
 import { YoungHome } from "~/components/home/YoungHome";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { studentHomeQuery } from "~/queries/home";
-import { nextLessonsQuery } from "~/queries/learning";
 import { currentUserQuery } from "~/queries/user";
-import { formatInstant, formatDate, formatNumber } from "~/utils/datetime";
+import { formatDate } from "~/utils/datetime";
 
 export const Route = createFileRoute("/_app/me/")({
   loader: async ({ context }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     await Promise.all([
       context.queryClient.ensureQueryData(studentHomeQuery),
-      user.profile === "young_student"
-        ? context.queryClient.ensureQueryData(nextLessonsQuery)
-        : null,
+      loadCards(
+        context.queryClient,
+        context.extensions,
+        user,
+        user.profile === "young_student" ? youngTasks : learnerCards,
+      ),
     ]);
   },
   component: Home,
@@ -47,96 +47,14 @@ function Home() {
 }
 
 /**
- * A student's home: work due soon with anything missing first, today's
- * lessons, a lesson to pick up again, and announcements for them.
+ * A student's home: what the modules on put first, work due soon and
+ * today's lessons, then a lesson to pick up again, announcements for them
+ * and their classes.
  */
 function StudentHome() {
   const data = useSuspenseQuery(studentHomeQuery).data;
-  const main = [
-    data.due.length > 0 ? (
-      <HomeCard
-        key="due"
-        title={m.homeDueSoon()}
-        action={{
-          label: m.homeOpenToDo(),
-          link: { to: "/me/assignments", search: {} },
-        }}
-      >
-        <HomeList>
-          {data.due.map((row) => (
-            <HomeItem
-              key={row.assignmentId}
-              title={
-                <Link
-                  to="/assignments/$assignmentId"
-                  params={{ assignmentId: row.assignmentId }}
-                  search={{}}
-                  className={itemLink}
-                >
-                  <bdi>{row.title}</bdi>
-                </Link>
-              }
-              facts={[
-                classTitle({
-                  code: row.classCode,
-                  titleEn: row.classTitleEn,
-                  titleAr: row.classTitleAr,
-                }),
-                row.dueAt ? formatInstant(row.dueAt) : null,
-              ]}
-              status={
-                <StatusText tone={STATE_TONE[row.state]}>
-                  {STATE_LABEL[row.state]()}
-                </StatusText>
-              }
-            />
-          ))}
-        </HomeList>
-      </HomeCard>
-    ) : null,
-    data.slots.length > 0 ? (
-      <HomeCard
-        key="lessons"
-        title={m.homeLessonsToday()}
-        action={{
-          label: m.homeOpenTimetable(),
-          link: { to: "/me/timetable", search: {} },
-        }}
-      >
-        <Lessons slots={data.slots} showTeacher />
-      </HomeCard>
-    ) : null,
-  ].filter(Boolean);
-  const aside = [
-    data.module ? (
-      <HomeCard key="module" title={m.homeContinue()}>
-        <div className="grid gap-3">
-          <Link
-            to="/modules/$moduleId"
-            params={{ moduleId: data.module.id }}
-            search={{}}
-            className={itemLink}
-          >
-            <span className="inline-flex items-center gap-2">
-              <Play aria-hidden className="size-4" />
-              <bdi>{data.module.title}</bdi>
-            </span>
-          </Link>
-          <Progress
-            value={(data.module.completed / data.module.lessons) * 100}
-            aria-label={m.lrnProgressOf({ title: data.module.title })}
-            className="gap-1"
-          >
-            <span className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
-              {m.lrnDoneOf({
-                count: formatNumber(data.module.completed),
-                total: formatNumber(data.module.lessons),
-              })}
-            </span>
-          </Progress>
-        </div>
-      </HomeCard>
-    ) : null,
+  const added = useModuleCards(learnerCards);
+  const own = [
     data.announcements.length > 0 ? (
       <HomeCard
         key="announcements"
@@ -181,7 +99,12 @@ function StudentHome() {
         </HomeList>
       </HomeCard>
     ) : null,
-  ].filter(Boolean);
+  ];
+  const main = inPlace(added.main);
+  const aside = inPlace([
+    ...own.map((node, index) => ({ place: (index + 2) * 10, node })),
+    ...added.side,
+  ]);
   return (
     <Page width="list">
       <PageHeader title={m.navHome()} description={formatDate(data.today)} />

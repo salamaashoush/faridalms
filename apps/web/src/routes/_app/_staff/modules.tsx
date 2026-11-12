@@ -29,14 +29,13 @@ import {
   STATE_LABEL,
   STATE_TONE,
 } from "~/components/learning/format";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { usePageOn } from "~/hooks/usePageOn";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { teachingModulesQuery } from "~/queries/learning";
 import { currentUserQuery } from "~/queries/user";
 import { formatNumber } from "~/utils/datetime";
 import { filled } from "~/utils/extension";
-import { pageOn } from "~/utils/modules";
 import { requirePage } from "~/utils/page-access";
 
 const TABS = [
@@ -157,7 +156,7 @@ const card = {
 function ModulesPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const user = useCurrentUser();
+  const opens = usePageOn();
   const views = viewsOf(useSlot(classFilters), search);
   const data = useSuspenseQuery(
     teachingModulesQuery(search.classId, { ended: search.ended, views }),
@@ -240,7 +239,7 @@ function ModulesPage() {
         description={m.lrnTeachHint()}
         action={create}
         menu={
-          data.classes.length > 0 && pageOn(user.modules, "/year-map")
+          data.classes.length > 0 && opens("/year-map")
             ? [
                 {
                   label: m.yearMapTitle(),

@@ -26,29 +26,20 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { mine } from "../notifications/mine";
 
 const PAGE = 30;
-
-const mine = (context: {
-  tenantId: string;
-  schoolId: string;
-  actor: { userId: string };
-}) => ({
-  tenantId: context.tenantId,
-  userId: context.actor.userId,
-  orgId: context.schoolId,
-});
 
 export const list = readProcedure
   .input(listNotificationsSchema)
   .handler(async ({ input, context }) => {
     const [page, counts] = await Promise.all([
       notificationsOf(context.tx, {
-        ...mine(context),
+        ...(await mine(context)),
         tab: input.tab,
         ...pageWindow(input.page, PAGE),
       }),
-      unreadCount(context.tx, mine(context)),
+      unreadCount(context.tx, await mine(context)),
     ]);
     return {
       ...page,
@@ -61,12 +52,12 @@ export const list = readProcedure
 export const recent = readProcedure.handler(async ({ context }) => {
   const [page, counts] = await Promise.all([
     notificationsOf(context.tx, {
-      ...mine(context),
+      ...(await mine(context)),
       tab: "all",
       limit: 8,
       offset: 0,
     }),
-    unreadCount(context.tx, mine(context)),
+    unreadCount(context.tx, await mine(context)),
   ]);
   return { rows: page.rows, ...counts };
 });
@@ -75,10 +66,10 @@ export const markRead = writeProcedure
   .input(markReadSchema)
   .handler(async ({ input, context }) => {
     await markNotificationsRead(context.tx, {
-      ...mine(context),
+      ...(await mine(context)),
       ids: input.ids,
     });
-    return unreadCount(context.tx, mine(context));
+    return unreadCount(context.tx, await mine(context));
   });
 
 export const preferences = readProcedure.handler(async ({ context }) => {

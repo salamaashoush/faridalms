@@ -14,6 +14,7 @@ import {
   unstaffedHomeroomsQuery,
 } from "~/queries/homerooms";
 import { fill } from "~/utils/extension";
+import { modulePages } from "~/utils/pages";
 
 import type { Of } from "./ClassParts";
 
@@ -26,6 +27,7 @@ import { MoveStudent, StudentHomeroom } from "./StudentHomeroom";
 export const HOMEROOMS: ModuleFillings = {
   module: "homerooms",
   fillings: [
+    fill(modulePages, ["/homeroom-editor"]),
     fill(classesTabs, {
       value: "homerooms",
       label: m.homeroomsTab,

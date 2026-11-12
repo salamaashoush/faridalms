@@ -24,6 +24,7 @@ import {
   undoCheckInSchema,
 } from "@faridalms/domain/attendance";
 import { createServerFn } from "@tanstack/react-start";
+import * as v from "valibot";
 
 import { backend, record } from "./backend";
 import { byId, checked } from "./input";
@@ -133,3 +134,20 @@ export const signStudentIn = createServerFn({ method: "POST" })
 export const signStudentOut = createServerFn({ method: "POST" })
   .validator(checked(signOutSchema))
   .handler(({ data }) => backend().frontDesk.signOut(data));
+
+export const getAttendanceToday = createServerFn({ method: "GET" })
+  .validator(
+    checked(
+      v.object({
+        studentId: v.optional(
+          v.union([v.literal(""), v.pipe(v.string(), v.uuid())]),
+          "",
+        ),
+      }),
+    ),
+  )
+  .handler(({ data }) => backend().attendance.today(data));
+
+export const getAttendanceOffice = createServerFn({ method: "GET" }).handler(
+  () => backend().attendance.office(),
+);

@@ -7,10 +7,10 @@ import {
   getGradingOverview,
 } from "~/server/grading";
 
-export const gradingOverviewQuery = queryOptions({
+export const gradingOverviewQuery = {
   queryKey: ["grading", "overview"],
   queryFn: () => getGradingOverview(),
-});
+};
 
 export const classGradingQuery = (classId: string) =>
   queryOptions({

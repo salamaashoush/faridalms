@@ -1,11 +1,23 @@
 import { StatusText } from "@faridalms/ui/system/status";
 import { Value } from "@faridalms/ui/system/value";
-import { ShieldAlert, UserX } from "lucide-react";
+import {
+  House,
+  Inbox,
+  ShieldAlert,
+  ShieldCheck,
+  UserX,
+  Users,
+} from "lucide-react";
 
 import type { ModuleFillings } from "~/utils/extension";
 
 import { audienceKinds } from "~/components/announcements/slots";
-import { officeNeeds } from "~/components/home/slots";
+import { navItems } from "~/components/app/navigation";
+import {
+  officeNeeds,
+  setupItemWords,
+  setupStepWords,
+} from "~/components/home/slots";
 import { formatPhone } from "~/components/people/format";
 import {
   personRecordParts,
@@ -21,6 +33,8 @@ import {
   withoutGuardianQuery,
 } from "~/queries/families";
 import { fill, NOTHING_READ } from "~/utils/extension";
+import { modulePages } from "~/utils/pages";
+import { moduleWords } from "~/utils/words";
 
 import { PersonChildren } from "./PersonChildren";
 import { StudentFamily, StudentFamilyOverview } from "./StudentFamily";
@@ -46,6 +60,83 @@ const phoneOf = (value: string | null) =>
 export const FAMILIES: ModuleFillings = {
   module: "families",
   fillings: [
+    fill(moduleWords, {
+      key: "learnersDecide",
+      words: m.settingsLearnersDecideHint,
+    }),
+    fill(moduleWords, { key: "commonsHint", words: m.settingsCommonsHint }),
+    fill(moduleWords, {
+      key: "feature-elearning",
+      words: m.learningFeatureToggleHint,
+    }),
+    fill(setupStepWords, {
+      id: "details",
+      title: m.setupDetailsTitle,
+      body: m.setupDetailsBody,
+      capability: "school:manage",
+      link: { to: "/settings", search: {} },
+    }),
+    fill(setupStepWords, {
+      id: "students",
+      title: m.setupStudentsTitle,
+      body: m.setupStudentsBody,
+      capability: "people:manage",
+      link: { to: "/students", search: {} },
+    }),
+    fill(setupItemWords, {
+      item: "guardians_linked",
+      label: m.onboardingGuardiansLinked,
+    }),
+    fill(setupItemWords, {
+      item: "families_signed_in",
+      label: m.onboardingFamiliesSignedIn,
+    }),
+    fill(modulePages, ["/family"]),
+    fill(navItems, {
+      workspace: "family",
+      section: "home",
+      item: {
+        to: "/family",
+        label: m.navHome,
+        icon: House,
+        exact: true,
+        place: 10,
+        mobile: 10,
+      },
+    }),
+    fill(navItems, {
+      workspace: "family",
+      section: "home",
+      item: {
+        to: "/family/children",
+        label: m.navChildren,
+        icon: Users,
+        capability: "children:read",
+        place: 20,
+      },
+    }),
+    fill(navItems, {
+      workspace: "family",
+      section: "home",
+      item: {
+        to: "/family/consents",
+        label: m.navConsents,
+        icon: ShieldCheck,
+        capability: "children:read",
+        place: 80,
+      },
+    }),
+    fill(navItems, {
+      workspace: "family",
+      section: "communication",
+      item: {
+        to: "/family/messages",
+        label: m.navMessages,
+        icon: Inbox,
+        count: "messages",
+        place: 10,
+      },
+    }),
     fill(studentFamilyParts, {
       label: m.studentTabFamily,
       Tab: StudentFamily,

@@ -1,19 +1,11 @@
-import { Button } from "@faridalms/ui/button";
-import { Fact, Facts } from "@faridalms/ui/system/record-page";
-import {
-  useMutation,
-  useQueryClient,
-  useSuspenseQueries,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { BellRing } from "lucide-react";
-import { toast } from "sonner";
 
 import type { DayCards } from "~/components/home/parts";
 import type { OfficeNeed } from "~/components/home/slots";
 
 import { eventTitle } from "~/components/calendar/format";
+import { inPlace } from "~/components/home/cards";
 import {
   HomeCard,
   HomeItem,
@@ -27,11 +19,7 @@ import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { adminHomeQuery } from "~/queries/home";
-import { remindTeachers } from "~/server/attendance";
-import { formatDate, formatNumber, formatPercent } from "~/utils/datetime";
-import { getMessageFromError } from "~/utils/error";
-
-type Need = OfficeNeed;
+import { formatDate, formatNumber } from "~/utils/datetime";
 
 /**
  * The office's day: the school's setup first while it is under way, then
@@ -48,7 +36,13 @@ export function useOfficeDay(): DayCards {
   const read = useSuspenseQueries({
     queries: asked.map((row) => row.query),
   });
-  const extra = asked.map((row, index) => row.part.needOf(read[index]?.data));
+  const extra = asked
+    .map((row, index) => ({
+      place: row.part.place ?? 50,
+      need: row.part.needOf(read[index]?.data),
+    }))
+    .toSorted((a, b) => a.place - b.place)
+    .flatMap((row) => (row.need ? [row.need] : []));
   const carded = useSlot(officeCards).flatMap((part) => {
     const query = part.query(capabilities);
     return query ? [{ part, query }] : [];
@@ -56,44 +50,13 @@ export function useOfficeDay(): DayCards {
   const cardReads = useSuspenseQueries({
     queries: carded.map((row) => row.query),
   });
-  const cards = carded.map((row, index) =>
-    row.part.cardOf(cardReads[index]?.data),
-  );
-  const queryClient = useQueryClient();
-  const remind = useMutation({
-    mutationFn: () =>
-      remindTeachers({
-        data: {
-          date: data.today,
-          classIds: data.registers?.classes.map((row) => row.classId) ?? [],
-        },
-      }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["home"] });
-      toast.success(m.homeReminded());
-    },
-    onError: (error) => toast.error(getMessageFromError(error)),
-  });
-  const needs: Need[] = [
-    ...(data.registers?.notTaken
-      ? [
-          {
-            key: "registers",
-            label: m.homeRegistersNotTaken({ count: data.registers.notTaken }),
-            link: { to: "/attendance", search: {} },
-          },
-        ]
-      : []),
-    ...(data.absences
-      ? [
-          {
-            key: "absences",
-            label: m.homeUnexplainedAbsences({ count: data.absences }),
-            link: { to: "/attendance", search: { tab: "absences" } },
-          },
-        ]
-      : []),
-    ...extra.filter((need) => need !== null),
+  const cards = carded.map((row, index) => ({
+    area: row.part.area ?? "side",
+    place: row.part.place ?? 0,
+    node: row.part.cardOf(cardReads[index]?.data),
+  }));
+  const needs: OfficeNeed[] = [
+    ...extra,
     ...(data.failed
       ? [
           {
@@ -106,8 +69,9 @@ export function useOfficeDay(): DayCards {
           },
         ]
       : []),
-  ] as Need[];
-  const main = [
+  ] as OfficeNeed[];
+  const footers = needs.flatMap((need) => (need.footer ? [need.footer] : []));
+  const own = [
     data.onboarding ? (
       <SchoolSetup key="onboarding" onboarding={data.onboarding} />
     ) : null,
@@ -126,50 +90,8 @@ export function useOfficeDay(): DayCards {
               />
             ))}
           </HomeList>
-          {data.registers?.notTaken ? (
-            <div>
-              <Button
-                type="button"
-                variant="outline"
-                className="max-md:h-10"
-                disabled={remind.isPending}
-                onClick={() => remind.mutate()}
-              >
-                <BellRing aria-hidden />
-                {m.homeRemindAll()}
-              </Button>
-            </div>
-          ) : null}
+          {footers}
         </div>
-      </HomeCard>
-    ) : null,
-    data.attendance ? (
-      <HomeCard
-        key="attendance"
-        title={m.homeAttendance()}
-        action={{
-          label: m.homeOpenAttendance(),
-          link: { to: "/attendance", search: { tab: "reports" } },
-        }}
-      >
-        <Facts short>
-          <Fact
-            label={m.homeAttendanceToday()}
-            notApplicable={data.attendance.today === null}
-          >
-            {data.attendance.today === null
-              ? null
-              : formatPercent(data.attendance.today)}
-          </Fact>
-          <Fact
-            label={m.homeAttendanceWeek()}
-            notApplicable={data.attendance.week === null}
-          >
-            {data.attendance.week === null
-              ? null
-              : formatPercent(data.attendance.week)}
-          </Fact>
-        </Facts>
       </HomeCard>
     ) : null,
     data.communications.length > 0 ? (
@@ -200,9 +122,16 @@ export function useOfficeDay(): DayCards {
         </HomeList>
       </HomeCard>
     ) : null,
-  ].filter(Boolean);
+  ];
+  const main = inPlace([
+    ...own.map((node, index) => ({
+      place: [0, 10, 30][index] ?? 30,
+      node,
+    })),
+    ...cards.filter((card) => card.area === "main"),
+  ]);
   const aside = [
-    ...cards,
+    ...inPlace(cards.filter((card) => card.area === "side")),
     data.documents.length > 0 ? (
       <HomeCard key="documents" title={m.homeDocumentsExpiring()}>
         <HomeList>

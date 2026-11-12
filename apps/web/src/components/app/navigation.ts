@@ -1,5 +1,4 @@
 import type { Capability } from "@faridalms/domain/capabilities";
-import type { ModuleId } from "@faridalms/domain/modules";
 import type { Workspace } from "@faridalms/domain/workspace";
 import type { LucideIcon } from "lucide-react";
 
@@ -7,21 +6,11 @@ import { MEDIA_USERS } from "@faridalms/domain/media";
 import { TEMPLATE_AUTHORS } from "@faridalms/domain/templates";
 import {
   BookMarked,
-  BookOpen,
-  CalendarCheck,
   CalendarDays,
-  ClipboardCheck,
-  ClipboardList,
-  FileUser,
-  Globe,
   GraduationCap,
-  HeartPulse,
   House,
   IdCard,
   Inbox,
-  Layers,
-  ListTodo,
-  ListTree,
   Megaphone,
   Receipt,
   School,
@@ -29,14 +18,11 @@ import {
   Settings,
   ShieldCheck,
   Sun,
-  Table2,
-  UserCheck,
-  UserPlus,
   Users,
 } from "lucide-react";
 
 import * as m from "~/i18n/messages";
-import { pageOn } from "~/utils/modules";
+import { slot } from "~/utils/extension";
 
 /** One page of an area, listed beneath the area's link while it is open. */
 export interface NavPage {
@@ -72,79 +58,67 @@ export interface NavSection {
   items: NavItem[];
 }
 
-const ADMISSIONS: readonly Capability[] = [
-  "admissions:read",
-  "admissions:manage",
-  "admissions:configure",
-];
-
 /** Whoever writes any kind of template; the Templates page asks the same. */
 const TEMPLATE_WRITERS: readonly Capability[] = [
   ...new Set(Object.values(TEMPLATE_AUTHORS).flat()),
 ];
 
+/** A link with its place in its section, low first, and its rank for a phone's bar. */
+export interface PlacedItem extends NavItem {
+  place: number;
+  /** Where it ranks among the links a phone keeps at the bottom; unranked links stay under More. */
+  mobile?: number;
+}
+
+export interface PlacedSection {
+  id: string;
+  title?: () => string;
+  items: PlacedItem[];
+}
+
+/** A link a module adds to a workspace's section, at its place there. */
+export interface ModuleNavItem {
+  workspace: Workspace;
+  section: string;
+  item: PlacedItem;
+}
+
+export const navItems = slot<ModuleNavItem>("nav items");
+
 /**
- * One tree per workspace. Staff share one, in which capabilities decide
- * what each person sees: a teacher's day starts from their teaching, an
- * office's from what needs doing, and someone who does both sees both
- * without changing role. An area of several pages (Admissions, Library) is
- * one link whose pages list beneath it while one of them is open, and what
- * is opened now and then folds under its section's More. A family starts
- * from their children. Only routes that exist appear here.
+ * Core's links, one tree per workspace; the modules on add theirs at their
+ * places. Staff share one, in which capabilities decide what each person
+ * sees: a teacher's day starts from their teaching, an office's from what
+ * needs doing, and someone who does both sees both without changing role.
+ * An area of several pages (Library) is one link whose pages list beneath
+ * it while one of them is open, and what is opened now and then folds under
+ * its section's More. Only routes that exist appear here.
  */
-export const NAVIGATION: Record<Workspace, NavSection[]> = {
+const CORE_NAVIGATION: Record<Workspace, PlacedSection[]> = {
   staff: [
     {
       id: "home",
-      items: [{ to: "/today", label: m.navToday, icon: Sun, exact: true }],
+      items: [
+        {
+          to: "/today",
+          label: m.navToday,
+          icon: Sun,
+          exact: true,
+          place: 10,
+          mobile: 10,
+        },
+      ],
     },
     {
       id: "teaching",
       title: m.navSectionTeaching,
       items: [
-        { to: "/classes", label: m.navClasses, icon: School },
         {
-          to: "/grading",
-          label: m.navToReview,
-          icon: ClipboardCheck,
-          capability: "submissions:grade",
-        },
-        {
-          to: "/assignments",
-          label: m.navCoursework,
-          icon: ClipboardList,
-          capability: ["assignments:author", "submissions:grade"],
-        },
-        {
-          to: "/gradebook",
-          label: m.navGradebook,
-          icon: BookOpen,
-          capability: "submissions:grade",
-        },
-        {
-          to: "/modules",
-          label: m.navModules,
-          icon: Layers,
-          capability: "learning:author",
-        },
-        {
-          to: "/attendance",
-          label: m.navAttendance,
-          icon: UserCheck,
-          capability: ["attendance:record", "attendance:manage"],
-        },
-        {
-          to: "/timetable",
-          label: m.navTimetable,
-          icon: Table2,
-          capability: ["timetable:read", "timetable:manage"],
-        },
-        {
-          to: "/standards",
-          label: m.navStandards,
-          icon: ListTree,
-          capability: ["learning:author", "standards:manage"],
-          more: true,
+          to: "/classes",
+          label: m.navClasses,
+          icon: School,
+          place: 10,
+          mobile: 20,
         },
       ],
     },
@@ -157,51 +131,15 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           label: m.navStudents,
           icon: GraduationCap,
           capability: ["people:read", "people:manage"],
-        },
-        {
-          to: "/admissions",
-          label: m.navAdmissions,
-          icon: UserPlus,
-          capability: ADMISSIONS,
-          pages: [
-            {
-              to: "/admissions/enquiries",
-              label: m.navEnquiries,
-              capability: ["admissions:read", "admissions:manage"],
-            },
-            {
-              to: "/admissions/applications",
-              label: m.navApplications,
-              capability: ["admissions:read", "admissions:manage"],
-            },
-            {
-              to: "/admissions/intakes",
-              label: m.navIntakes,
-              capability: ["admissions:read", "admissions:configure"],
-            },
-            {
-              to: "/admissions/reports",
-              label: m.navAdmissionReports,
-              capability: ["admissions:read", "admissions:manage"],
-            },
-            {
-              to: "/admissions/letters",
-              label: m.navLetters,
-              capability: "admissions:configure",
-            },
-          ],
+          place: 10,
+          mobile: 40,
         },
         {
           to: "/staff",
           label: m.navStaff,
           icon: Users,
           capability: "staff:manage",
-        },
-        {
-          to: "/health-changes",
-          label: m.navHealthChanges,
-          icon: HeartPulse,
-          capability: "health:write",
+          place: 30,
         },
       ],
     },
@@ -214,9 +152,20 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           label: m.navMessages,
           icon: Inbox,
           count: "messages",
+          place: 10,
         },
-        { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
-        { to: "/calendar", label: m.navCalendar, icon: CalendarDays },
+        {
+          to: "/announcements",
+          label: m.navAnnouncements,
+          icon: Megaphone,
+          place: 20,
+        },
+        {
+          to: "/calendar",
+          label: m.navCalendar,
+          icon: CalendarDays,
+          place: 30,
+        },
       ],
     },
     {
@@ -236,26 +185,14 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
             },
             { to: "/media", label: m.navMedia, capability: MEDIA_USERS },
           ],
+          place: 10,
         },
         {
           to: "/settings",
           label: m.navSettings,
           icon: Settings,
           capability: ["school:manage", "grading:manage"],
-        },
-        {
-          to: "/website",
-          label: m.navWebsite,
-          icon: Globe,
-          capability: "site:manage",
-          more: true,
-        },
-        {
-          to: "/academic-years",
-          label: m.navSchoolYear,
-          icon: CalendarCheck,
-          capability: ["years:manage", "school:manage"],
-          more: true,
+          place: 20,
         },
         {
           to: "/billing",
@@ -263,6 +200,7 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           icon: Receipt,
           capability: "billing:read",
           more: true,
+          place: 50,
         },
         {
           to: "/privacy",
@@ -270,6 +208,7 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           icon: ShieldCheck,
           capability: "privacy:manage",
           more: true,
+          place: 60,
         },
         {
           to: "/notification-audit",
@@ -277,81 +216,33 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           icon: Send,
           capability: "school:manage",
           more: true,
+          place: 70,
         },
       ],
     },
   ],
   family: [
-    {
-      id: "home",
-      items: [
-        { to: "/family", label: m.navHome, icon: House, exact: true },
-        {
-          to: "/family/children",
-          label: m.navChildren,
-          icon: Users,
-          capability: "children:read",
-        },
-        {
-          to: "/family/assignments",
-          label: m.navCoursework,
-          icon: ClipboardList,
-          capability: "children:read",
-        },
-        {
-          to: "/family/grades",
-          label: m.navGrades,
-          icon: BookOpen,
-          capability: "children:read",
-        },
-        {
-          to: "/family/attendance",
-          label: m.navAttendance,
-          icon: UserCheck,
-          capability: "children:read",
-        },
-        {
-          to: "/family/timetable",
-          label: m.navTimetable,
-          icon: Table2,
-          capability: "children:read",
-        },
-        {
-          to: "/family/modules",
-          label: m.navModules,
-          icon: Layers,
-          capability: "children:read",
-        },
-        {
-          to: "/family/consents",
-          label: m.navConsents,
-          icon: ShieldCheck,
-          capability: "children:read",
-        },
-        {
-          to: "/family/applications",
-          label: m.navApplications,
-          icon: FileUser,
-          capability: "applications:submit",
-        },
-      ],
-    },
+    { id: "home", items: [] },
     {
       id: "communication",
       title: m.navSectionCommunication,
       items: [
         {
-          to: "/family/messages",
-          label: m.navMessages,
-          icon: Inbox,
-          count: "messages",
+          to: "/announcements",
+          label: m.navAnnouncements,
+          icon: Megaphone,
+          place: 20,
         },
-        { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
-        { to: "/calendar", label: m.navCalendar, icon: CalendarDays },
+        {
+          to: "/calendar",
+          label: m.navCalendar,
+          icon: CalendarDays,
+          place: 30,
+          mobile: 30,
+        },
       ],
     },
   ],
-
   me: [
     {
       id: "home",
@@ -361,60 +252,22 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           label: m.navHome,
           icon: House,
           exact: true,
-        },
-        {
-          to: "/me/assignments",
-          label: m.navToDo,
-          icon: ListTodo,
-          capability: "own-work:read",
-        },
-        {
-          to: "/me/grades",
-          label: m.navGrades,
-          icon: BookOpen,
-          capability: "grades:read",
-        },
-        {
-          to: "/me/attendance",
-          label: m.navAttendance,
-          icon: UserCheck,
-          capability: "attendance:read",
-        },
-        {
-          to: "/me/timetable",
-          label: m.navTimetable,
-          icon: Table2,
-          capability: "timetable:read",
-        },
-        {
-          to: "/me/modules",
-          label: m.navModules,
-          icon: Layers,
-          capability: "learning:read",
+          place: 10,
+          mobile: 10,
         },
         {
           to: "/me/details",
           label: m.familyDetails,
           icon: IdCard,
           capability: "own-work:read",
-        },
-        {
-          to: "/me/health",
-          label: m.medicalTitleShort,
-          icon: HeartPulse,
-          capability: "own-work:read",
+          place: 70,
         },
         {
           to: "/me/consents",
           label: m.navConsents,
           icon: ShieldCheck,
           capability: "own-work:read",
-        },
-        {
-          to: "/me/applications",
-          label: m.navApplications,
-          icon: FileUser,
-          capability: "applications:submit",
+          place: 90,
         },
       ],
     },
@@ -428,39 +281,64 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           icon: Inbox,
           count: "messages",
           capability: "messages:read",
+          place: 10,
         },
-        { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
+        {
+          to: "/announcements",
+          label: m.navAnnouncements,
+          icon: Megaphone,
+          place: 20,
+        },
         {
           to: "/calendar",
           label: m.navCalendar,
           icon: CalendarDays,
           capability: "calendar:read",
+          place: 30,
+          mobile: 30,
         },
       ],
     },
   ],
 };
 
+/** A workspace's sections with core's links and those the modules on add, each in its place. */
+export function navigationOf(
+  workspace: Workspace,
+  added: readonly ModuleNavItem[],
+): PlacedSection[] {
+  return CORE_NAVIGATION[workspace].map((section) => ({
+    ...section,
+    items: [
+      ...section.items,
+      ...added
+        .filter(
+          (each) => each.workspace === workspace && each.section === section.id,
+        )
+        .map((each) => each.item),
+    ].toSorted((a, b) => a.place - b.place),
+  }));
+}
+
 /**
- * The destinations a phone keeps at the bottom, in order of preference; the
- * bar takes the first three the person sees and ends with messages, and
- * everything else is under More.
+ * The links a phone keeps at the bottom: the three best ranked the person
+ * sees, then their messages; everything else is under More.
  */
-export const MOBILE_TABS: Record<Workspace, { first: string[]; last: string }> =
-  {
-    staff: {
-      first: ["/today", "/classes", "/grading", "/students", "/admissions"],
-      last: "/messages",
-    },
-    family: {
-      first: ["/family", "/family/assignments", "/calendar"],
-      last: "/family/messages",
-    },
-    me: {
-      first: ["/me", "/me/assignments", "/calendar"],
-      last: "/me/messages",
-    },
-  };
+export function mobileTabsOf<T extends { to: string }>(
+  placed: readonly PlacedItem[],
+  seen: readonly T[],
+): T[] {
+  const shown = (to: string) => seen.find((item) => item.to === to);
+  const ranked = placed
+    .filter((item) => item.mobile !== undefined)
+    .toSorted((a, b) => (a.mobile ?? 0) - (b.mobile ?? 0))
+    .map((item) => shown(item.to))
+    .filter((item) => item !== undefined)
+    .slice(0, 3);
+  const messages = placed.find((item) => item.count === "messages");
+  const last = messages ? shown(messages.to) : undefined;
+  return last ? [...ranked, last] : ranked;
+}
 
 interface Gated {
   capability?: Capability | readonly Capability[];
@@ -479,15 +357,22 @@ export function holds(
 
 export interface Viewer {
   capabilities: readonly Capability[];
-  modules: Record<ModuleId, boolean>;
+  /** Whether the school has a page. */
+  opens: (path: string) => boolean;
 }
 
 /** The pages of an area this person may open, at a school that has them. */
 export function pagesOf(item: NavItem, viewer: Viewer): NavPage[] {
   return (item.pages ?? []).filter(
-    (tab) => holds(tab, viewer.capabilities) && pageOn(viewer.modules, tab.to),
+    (tab) => holds(tab, viewer.capabilities) && viewer.opens(tab.to),
   );
 }
+
+/** Whether a link shows for this person: theirs to open, at a school that has it, and an area with a page of theirs. */
+export const shows = (item: NavItem, viewer: Viewer) =>
+  holds(item, viewer.capabilities) &&
+  viewer.opens(item.to) &&
+  (!item.pages || pagesOf(item, viewer).length > 0);
 
 /** The paths a link stands for: its own and its pages'. */
 export function pathsOf(item: NavItem): string[] {
@@ -513,10 +398,7 @@ export function arrange<T extends { more?: true }>(
   if (items.length <= FOLD_ABOVE || more.length < 2) return { items, more: [] };
   return { items: items.filter((item) => !item.more), more };
 }
-/** The first page of a staff area this person may open, where its link lands. */
-export function firstPageOf(area: string, viewer: Viewer): string | undefined {
-  const item = NAVIGATION.staff
-    .flatMap((section) => section.items)
-    .find((candidate) => candidate.to === area);
-  return item ? pagesOf(item, viewer)[0]?.to : undefined;
+/** The first page of an area this person may open, where its link lands. */
+export function firstPageOf(item: NavItem, viewer: Viewer): string | undefined {
+  return pagesOf(item, viewer)[0]?.to;
 }

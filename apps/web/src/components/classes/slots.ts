@@ -1,3 +1,4 @@
+import type { Capability } from "@faridalms/domain/capabilities";
 import type { ClassDirectoryQuery, Views } from "@faridalms/domain/classes";
 import type { OpenSpan } from "@faridalms/domain/school";
 import type { PrimaryAction } from "@faridalms/ui/system/action-menu";
@@ -109,13 +110,31 @@ export interface ClassRecordSectionProps {
   young: boolean;
   /** The viewer teaches the class or keeps the school's classes. */
   keeps: boolean;
+  /** The viewer may change the class itself. */
+  manages: boolean;
 }
 
 /** A section a module adds beside a class's overview: how its lessons sound, say. */
 export interface ClassRecordSection {
   key: string;
+  /** Where it sits among the sections, low first. */
+  place?: number;
   Section: ComponentType<ClassRecordSectionProps>;
 }
+
+/** A tab a module adds to a class's record, at its place among the record's own. */
+export interface ClassRecordTab {
+  value: string;
+  label: () => string;
+  place: number;
+  /** Who sees it; any one of these. */
+  capability: Capability | readonly Capability[];
+  /** Whether the class has it at all: goals only for a class of young children, say. */
+  shows?: (record: ClassRecordData) => boolean;
+  Tab: ComponentType<{ classId: string }>;
+}
+
+export const classRecordTabs = slot<ClassRecordTab>("class record tabs");
 
 export const classRecordSections = slot<ClassRecordSection>(
   "class record sections",
@@ -239,3 +258,16 @@ export function viewsOf(
     }),
   );
 }
+
+/**
+ * A module's words for a list core or another module keeps, in place of its
+ * own: a list of the year's classes names the year, say.
+ */
+export interface ListWords {
+  list: "classes" | "classesTaught" | "homerooms";
+  title?: () => string;
+  body?: () => string;
+  caption?: () => string;
+}
+
+export const listWords = slot<ListWords>("list words");

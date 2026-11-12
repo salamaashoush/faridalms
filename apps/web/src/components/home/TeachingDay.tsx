@@ -1,4 +1,3 @@
-import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
@@ -6,123 +5,27 @@ import type { DayCards } from "~/components/home/parts";
 
 import { eventTitle } from "~/components/calendar/format";
 import { classTitle } from "~/components/classes/format";
+import { inPlace, useModuleCards } from "~/components/home/cards";
 import {
   HomeCard,
   HomeItem,
   HomeList,
   itemLink,
-  Lessons,
 } from "~/components/home/parts";
+import { teacherCards } from "~/components/home/slots";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { teacherHomeQuery } from "~/queries/home";
-import { formatInstant, formatDate, formatNumber } from "~/utils/datetime";
+import { formatDate } from "~/utils/datetime";
 
 /**
- * A teacher's day: lessons with their registers, then what is waiting for
- * them and what is coming. Each card has one way on and goes when empty.
+ * A teacher's day: what the modules on put first, their lessons and what
+ * waits for them, then messages, the week and their classes. Each card has
+ * one way on and goes when empty.
  */
 export function useTeachingDay(): DayCards {
   const data = useSuspenseQuery(teacherHomeQuery).data;
-  const main = [
-    data.slots.length > 0 ? (
-      <HomeCard
-        key="lessons"
-        title={m.homeLessonsToday()}
-        action={{
-          label: m.homeOpenAttendance(),
-          link: { to: "/attendance", search: {} },
-        }}
-      >
-        <Lessons slots={data.slots} registerDate={data.today} />
-      </HomeCard>
-    ) : null,
-    data.review.length > 0 ? (
-      <HomeCard
-        key="review"
-        title={m.homeToReview()}
-        description={m.homeToReviewCount({ count: data.reviewTotal })}
-        action={{
-          label: m.homeOpenToReview(),
-          link: { to: "/grading", search: {} },
-        }}
-      >
-        <HomeList>
-          {data.review.map((row) => (
-            <HomeItem
-              key={row.id}
-              title={
-                <Link
-                  to="/assignments/$assignmentId"
-                  params={{ assignmentId: row.id }}
-                  search={{ tab: "work" }}
-                  className={itemLink}
-                >
-                  <bdi>{row.title}</bdi>
-                </Link>
-              }
-              facts={[
-                classTitle({
-                  code: row.classCode,
-                  titleEn: row.classTitleEn,
-                  titleAr: row.classTitleAr,
-                }),
-              ]}
-              status={
-                <StatusText tone="warning">
-                  {m.homeToGradeCount({ count: row.toGrade })}
-                </StatusText>
-              }
-            />
-          ))}
-        </HomeList>
-      </HomeCard>
-    ) : null,
-    data.due.length > 0 ? (
-      <HomeCard
-        key="due"
-        title={m.homeDueThisWeek()}
-        action={{
-          label: m.homeOpenCoursework(),
-          link: { to: "/assignments", search: {} },
-        }}
-      >
-        <HomeList>
-          {data.due.map((row) => (
-            <HomeItem
-              key={row.id}
-              title={
-                <Link
-                  to="/assignments/$assignmentId"
-                  params={{ assignmentId: row.id }}
-                  search={{}}
-                  className={itemLink}
-                >
-                  <bdi>{row.title}</bdi>
-                </Link>
-              }
-              facts={[
-                classTitle({
-                  code: row.classCode,
-                  titleEn: row.classTitleEn,
-                  titleAr: row.classTitleAr,
-                }),
-                row.dueAt ? formatInstant(row.dueAt) : null,
-              ]}
-              status={
-                <span className="text-[13px] text-muted-foreground tabular-nums">
-                  {m.homeHandedInOf({
-                    count: formatNumber(row.handedIn),
-                    total: formatNumber(row.recipients),
-                  })}
-                </span>
-              }
-            />
-          ))}
-        </HomeList>
-      </HomeCard>
-    ) : null,
-  ].filter(Boolean);
+  const added = useModuleCards(teacherCards);
   const aside = [
     data.messages.unread > 0 ? (
       <HomeCard
@@ -214,6 +117,13 @@ export function useTeachingDay(): DayCards {
         </HomeList>
       </HomeCard>
     ) : null,
-  ].filter(Boolean);
-  return { today: data.today, main, aside };
+  ];
+  return {
+    today: data.today,
+    main: inPlace(added.main),
+    aside: inPlace([
+      ...aside.map((node, index) => ({ place: (index + 1) * 10, node })),
+      ...added.side,
+    ]),
+  };
 }

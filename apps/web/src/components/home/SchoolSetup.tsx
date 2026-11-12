@@ -1,7 +1,5 @@
-import type { Capability } from "@faridalms/domain/capabilities";
-import type { OnboardingItem, SetupStepId } from "@faridalms/domain/onboarding";
+import type { OnboardingItem } from "@faridalms/domain/onboarding";
 import type { SetupGuideStep } from "@faridalms/ui/system/setup-guide";
-import type { LinkProps } from "@tanstack/react-router";
 
 import { SetupGuide } from "@faridalms/ui/system/setup-guide";
 import { StatusText } from "@faridalms/ui/system/status";
@@ -9,10 +7,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 
+import type { SetupStepWords } from "~/components/home/slots";
 import type { adminHomeQuery } from "~/queries/home";
 
 import { HomeItem, HomeList } from "~/components/home/parts";
+import { setupItemWords, setupStepWords } from "~/components/home/slots";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { hideOnboarding } from "~/server/home";
 import { getMessageFromError } from "~/utils/error";
@@ -21,86 +22,51 @@ type AdminHome = Awaited<
   ReturnType<NonNullable<(typeof adminHomeQuery)["queryFn"]>>
 >;
 
-const ONBOARDING_LABEL: Record<OnboardingItem, () => string> = {
+/** How the list names core's own first steps; the modules name theirs. */
+const OWN_LABEL: Partial<Record<OnboardingItem, () => string>> = {
   admin_signed_in: m.onboardingAdminSignedIn,
   school_details: m.onboardingSchoolDetails,
-  year_ready: m.onboardingYearReady,
   classes: m.onboardingClasses,
   staff_invited: m.onboardingStaffInvited,
   staff_signed_in: m.onboardingStaffSignedIn,
   students_imported: m.onboardingStudentsImported,
-  guardians_linked: m.onboardingGuardiansLinked,
-  timetable_ready: m.onboardingTimetableReady,
-  families_signed_in: m.onboardingFamiliesSignedIn,
-  first_assignment: m.onboardingFirstAssignment,
-  first_register: m.onboardingFirstRegister,
-  website_published: m.onboardingWebsitePublished,
-  admissions_ready: m.onboardingAdmissionsReady,
-  custom_domain: m.onboardingCustomDomain,
   first_invoice_paid: m.onboardingFirstInvoicePaid,
   kickoff_call: m.onboardingKickoffCall,
   training: m.onboardingTraining,
   data_import: m.onboardingDataImport,
 };
 
-interface StepPage {
-  title: () => string;
-  body: () => string;
-  /** What the page that takes the step asks of whoever opens it. */
-  capability: Capability;
-  link: LinkProps;
-}
-
-const STEP_PAGE: Record<SetupStepId, StepPage> = {
-  details: {
+/** Core's own setup steps, in the words a school without any module reads. */
+const OWN_STEPS: readonly SetupStepWords[] = [
+  {
+    id: "details",
     title: m.setupDetailsTitle,
-    body: m.setupDetailsBody,
+    body: m.setupDetailsBodyCore,
     capability: "school:manage",
     link: { to: "/settings", search: {} },
   },
-  year: {
-    title: m.setupYearTitle,
-    body: m.setupYearBody,
-    capability: "years:manage",
-    link: { to: "/academic-years", search: {} },
-  },
-  classes: {
-    title: m.setupClassesTitle,
-    body: m.setupClassesBody,
+  {
+    id: "classes",
+    title: m.setupClassesTitleCore,
+    body: m.setupClassesBodyCore,
     capability: "classes:manage",
     link: { to: "/classes", search: {} },
   },
-  staff: {
+  {
+    id: "staff",
     title: m.setupStaffTitle,
     body: m.setupStaffBody,
     capability: "staff:manage",
     link: { to: "/staff", search: {} },
   },
-  students: {
-    title: m.setupStudentsTitle,
-    body: m.setupStudentsBody,
+  {
+    id: "students",
+    title: m.setupStudentsTitleCore,
+    body: m.setupStudentsBodyCore,
     capability: "people:manage",
     link: { to: "/students", search: {} },
   },
-  timetable: {
-    title: m.setupTimetableTitle,
-    body: m.setupTimetableBody,
-    capability: "timetable:manage",
-    link: { to: "/timetable", search: {} },
-  },
-  website: {
-    title: m.setupWebsiteTitle,
-    body: m.setupWebsiteBody,
-    capability: "site:manage",
-    link: { to: "/website", search: {} },
-  },
-  admissions: {
-    title: m.setupAdmissionsTitle,
-    body: m.setupAdmissionsBody,
-    capability: "admissions:configure",
-    link: { to: "/admissions/intakes", search: {} },
-  },
-};
+];
 
 export interface SchoolSetupProps {
   onboarding: NonNullable<AdminHome["onboarding"]>;
@@ -120,8 +86,15 @@ export function SchoolSetup({ onboarding }: SchoolSetupProps) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["home"] }),
     onError: (error) => toast.error(getMessageFromError(error)),
   });
-  const steps: SetupGuideStep[] = onboarding.steps.map((step) => {
-    const page = STEP_PAGE[step.id];
+  const words = new Map(
+    [...OWN_STEPS, ...useSlot(setupStepWords)].map((each) => [each.id, each]),
+  );
+  const labels = new Map(
+    useSlot(setupItemWords).map((each) => [each.item, each.label]),
+  );
+  const steps: SetupGuideStep[] = onboarding.steps.flatMap((step) => {
+    const page = words.get(step.id);
+    if (!page) return [];
     const may = user.capabilities.includes(page.capability);
     return {
       id: step.id,
@@ -151,7 +124,7 @@ export function SchoolSetup({ onboarding }: SchoolSetupProps) {
                 key={row.item}
                 title={
                   <span className="text-sm">
-                    {ONBOARDING_LABEL[row.item]()}
+                    {(OWN_LABEL[row.item] ?? labels.get(row.item))?.()}
                   </span>
                 }
                 status={

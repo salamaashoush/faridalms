@@ -1,7 +1,7 @@
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import * as v from "valibot";
 
-import { CLASS_TABS, ClassRecord } from "~/components/classes/ClassRecord";
+import { ClassRecord } from "~/components/classes/ClassRecord";
 import { classRecordParts } from "~/components/classes/slots";
 import { areaViewSearch } from "~/components/files/AreaFiles";
 import * as m from "~/i18n/messages";
@@ -11,7 +11,10 @@ import { filled } from "~/utils/extension";
 
 const searchSchema = v.object({
   // Old links named tabs that moved to other systems; they open the overview.
-  tab: v.fallback(v.optional(v.picklist(CLASS_TABS), "overview"), "overview"),
+  tab: v.fallback(
+    v.optional(v.pipe(v.string(), v.regex(/^[a-z]{1,20}$/)), "overview"),
+    "overview",
+  ),
   ...areaViewSearch,
 });
 

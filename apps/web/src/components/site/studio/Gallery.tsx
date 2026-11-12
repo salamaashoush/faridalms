@@ -9,6 +9,7 @@ import {
   SECTION_CATEGORIES,
   SECTION_SPECS,
   SECTION_TYPES,
+  sectionModule,
 } from "@faridalms/domain/site-sections";
 import {
   buildSection,
@@ -28,6 +29,7 @@ import { FilteredEmptyState } from "@faridalms/ui/system/empty-state";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 
 import type { RenderContext } from "../render/parts";
@@ -135,9 +137,15 @@ export function SectionGallery({
   );
   const [query, setQuery] = useState("");
   const needle = query.trim().toLocaleLowerCase();
+  const { modules } = useCurrentUser();
+  const offered = (type: SectionType) => {
+    const owner = sectionModule(type);
+    return owner === null || modules[owner];
+  };
   const types = SECTION_TYPES.filter(
     (type) =>
       category !== "saved" &&
+      offered(type) &&
       (category === "all" || SECTION_SPECS[type].category === category) &&
       (!needle ||
         `${SECTION_LABEL[type]()} ${SECTION_HINT[type]()}`

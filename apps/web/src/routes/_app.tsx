@@ -20,7 +20,7 @@ import { getFileFacts } from "~/server/files";
 import { leaveBareDomain } from "~/utils/bare-domain";
 import { adoptSchoolZone } from "~/utils/datetime";
 import { rememberDigits } from "~/utils/digits";
-import { pageOn } from "~/utils/modules";
+import { pageOn } from "~/utils/pages";
 
 async function currentFacts(ids: string[]) {
   const { files } = await getFileFacts({ data: { ids } });
@@ -46,7 +46,8 @@ export const Route = createFileRoute("/_app")({
     // A page of a module the school does not have is not there, as its API
     // answers; the navigation hides it from the same list.
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!pageOn(user.modules, location.pathname)) throw notFound();
+    if (!pageOn(context.extensions, user.modules, location.pathname))
+      throw notFound();
   },
   loader: async ({ context }) => {
     // The shell reads this synchronously via useSuspenseQuery, so it has to be

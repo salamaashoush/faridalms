@@ -14,10 +14,7 @@ import { LoaderCircle, Search, SearchX } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
-import {
-  SEARCH_KIND_LABEL,
-  SearchResults,
-} from "~/components/app/SearchResults";
+import { SearchResults, useSearchKinds } from "~/components/app/SearchResults";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { searchKindQuery, searchQuery } from "~/queries/search";
@@ -132,6 +129,7 @@ function SearchPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
+  const words = useSearchKinds();
   const [draft, setDraft] = useState(search.q);
   const q = search.q.trim();
   const kinds = searchableKinds(user.capabilities).filter((kind) =>
@@ -182,7 +180,7 @@ function SearchPage() {
           { value: "all" as const, label: m.searchAllKinds() },
           ...kinds.map((kind) => ({
             value: kind,
-            label: SEARCH_KIND_LABEL[kind](),
+            label: words.label(kind),
           })),
         ]}
         value={tab}

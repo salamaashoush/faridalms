@@ -18,6 +18,7 @@ import { schoolProfileQuery } from "~/queries/school-settings";
 import { saveSchoolProfile } from "~/server/school-settings";
 import { formatNumber, formatWeekday } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 type Profile = Awaited<
   ReturnType<NonNullable<(typeof schoolProfileQuery)["queryFn"]>>
@@ -64,6 +65,7 @@ function draftOf(profile: Profile): ProfileDraft {
 }
 
 export function SchoolProfileSection() {
+  const words = useWords();
   const queryClient = useQueryClient();
   const profile = useSuspenseQuery(schoolProfileQuery).data;
   const [initial, setInitial] = useState(() => draftOf(profile));
@@ -249,7 +251,7 @@ export function SchoolProfileSection() {
         <SelectField
           id="school-learners-decide"
           label={m.settingsLearnersDecide()}
-          hint={m.settingsLearnersDecideHint()}
+          hint={words("learnersDecide", m.settingsLearnersDecideHintCore)}
           value={String(draft.learnersDecideFrom)}
           options={DECIDING_AGES.map((age) => ({
             value: String(age),

@@ -10,8 +10,9 @@ import { isValidElement } from "react";
 
 import type { DayCards } from "~/components/home/parts";
 
+import { loadCards } from "~/components/home/cards";
 import { useOfficeDay } from "~/components/home/OfficeDay";
-import { officeNeeds } from "~/components/home/slots";
+import { officeNeeds, teacherCards } from "~/components/home/slots";
 import { useTeachingDay } from "~/components/home/TeachingDay";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { loadTeaches, useTeaches } from "~/hooks/useTeaches";
@@ -36,9 +37,11 @@ function sidesOf(
   teaches: boolean,
 ): Sides {
   const office = user.profile === "staff_admin";
-  const teachingWork =
-    user.capabilities.includes("assignments:author") ||
-    user.capabilities.includes("attendance:record");
+  const teachingWork = [
+    "classes:read",
+    "assignments:author",
+    "attendance:record",
+  ].some((capability) => user.capabilities.includes(capability));
   return { teaching: teachingWork && (teaches || !office), office };
 }
 
@@ -52,6 +55,9 @@ export const Route = createFileRoute("/_app/_staff/today")({
     const sides = sidesOf(user, teaches);
     await Promise.all([
       sides.teaching ? queryClient.ensureQueryData(teacherHomeQuery) : null,
+      sides.teaching
+        ? loadCards(queryClient, context.extensions, user, teacherCards)
+        : null,
       sides.office ? queryClient.ensureQueryData(adminHomeQuery) : null,
       ...(sides.office
         ? filled(context.extensions, user.modules, officeNeeds).flatMap(

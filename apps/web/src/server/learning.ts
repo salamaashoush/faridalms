@@ -377,3 +377,7 @@ export const getPracticeSet = createServerFn({ method: "GET" })
 export const checkPractice = createServerFn({ method: "POST" })
   .validator(checked(practiceCheckSchema))
   .handler(({ data }) => backend().learning.practiceCheck(data));
+
+export const getLearningToday = createServerFn({ method: "GET" }).handler(() =>
+  backend().learning.today(),
+);

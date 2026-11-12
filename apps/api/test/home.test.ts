@@ -17,15 +17,23 @@ describe("home pages", () => {
     );
     const home = await teacher.home.teacher();
     expect(home.classes.length).toBeGreaterThan(0);
-    for (const slot of home.slots) {
+    const { slots } = await teacher.timetable.today({});
+    for (const slot of slots) {
       expect(home.classes.map((row) => row.id)).toContain(slot.classId);
       expect(["now", "next", null]).toContain(slot.when);
     }
     expect(
-      home.slots.filter((slot) => slot.when === "now").length,
+      slots.filter((slot) => slot.when === "now").length,
     ).toBeLessThanOrEqual(1);
     expect(await rejection(teacher.home.admin())).toMatchObject({
       code: "FORBIDDEN",
+    });
+    // Without the timetable its lessons are not there to read.
+    await withoutModules("northwind", ["timetable"], async () => {
+      expect(await rejection(teacher.timetable.today({}))).toMatchObject({
+        code: "NOT_FOUND",
+      });
+      expect((await teacher.home.teacher()).classes.length).toBeGreaterThan(0);
     });
   });
 
@@ -36,8 +44,6 @@ describe("home pages", () => {
     expect(home.children.map((row) => row.studentId)).toEqual(
       home.choices.map((row) => row.studentId),
     );
-    for (const child of home.children)
-      expect(child.attention.length).toBeLessThanOrEqual(3);
     const [first] = home.choices;
     if (!first) throw new Error("the seeded parent has no child");
     const one = await family.home.followed({ studentId: first.studentId });
@@ -45,13 +51,27 @@ describe("home pages", () => {
     expect(
       await rejection(family.home.followed({ studentId: crypto.randomUUID() })),
     ).toMatchObject({ code: "NOT_FOUND" });
+    // Each module answers for a child the family follows, and no other.
+    const work = await family.coursework.today({ studentId: first.studentId });
+    expect(work.work.every((row) => row.title.length > 0)).toBe(true);
+    expect(
+      (await family.attendance.today({ studentId: first.studentId })).presence,
+    ).not.toBeNull();
+    expect(
+      await rejection(
+        family.coursework.today({ studentId: crypto.randomUUID() }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
   });
 
   test("a student sees what is due soon and the module to continue", async () => {
     const student = await signedIn("northwind", login("student"));
     const home = await student.home.student();
-    expect(home.due.length).toBeLessThanOrEqual(5);
-    const going = home.module;
+    expect(home.announcements.length).toBeLessThanOrEqual(3);
+    expect(home.classes.length).toBeGreaterThan(0);
+    const { work } = await student.coursework.today({});
+    expect(work.length).toBeGreaterThan(0);
+    const going = (await student.learning.today()).module;
     if (!going) throw new Error("the student has no module to continue");
     expect(going.completed).toBeLessThan(going.lessons);
     expect(await rejection(student.home.teacher())).toMatchObject({
@@ -63,9 +83,10 @@ describe("home pages", () => {
     const office = await signedIn("northwind", login("principal"));
     const home = await office.home.admin();
     expect(home.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(home.registers).not.toBeNull();
-    expect(home.attendance).not.toBeNull();
     expect(home.communications.length).toBeGreaterThan(0);
+    const attendance = await office.attendance.office();
+    expect(attendance.registers.notTaken).toBeGreaterThanOrEqual(0);
+    expect(attendance.attendance).not.toBeNull();
   });
 
   test("the office sees the school's first steps, live from its data, until it has taken them all", async () => {

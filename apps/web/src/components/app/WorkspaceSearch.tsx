@@ -16,10 +16,10 @@ import { useEffect, useRef, useState } from "react";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { searchQuery } from "~/queries/search";
-import { pageOn } from "~/utils/modules";
 
-import { holds, NAVIGATION, pagesOf } from "./navigation";
+import { holds, pagesOf } from "./navigation";
 import { HIT_ROW, HitLink, SearchResults } from "./SearchResults";
+import { useNavigation } from "./useNavigation";
 
 const RECENT_LIMIT = 6;
 
@@ -86,6 +86,7 @@ export interface WorkspaceSearchProps {
 export function WorkspaceSearch({ variant = "bar" }: WorkspaceSearchProps) {
   const hydrated = useHydrated();
   const user = useCurrentUser();
+  const navigation = useNavigation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -132,10 +133,11 @@ export function WorkspaceSearch({ variant = "bar" }: WorkspaceSearchProps) {
       index === -1 ? (step === 1 ? 0 : hits.length - 1) : index + step;
     hits[(next + hits.length) % hits.length]?.focus();
   };
-  const held = NAVIGATION[user.workspace]
+  const held = navigation.sections
     .flatMap((section) => section.items)
     .filter(
-      (item) => holds(item, user.capabilities) && pageOn(user.modules, item.to),
+      (item) =>
+        holds(item, user.capabilities) && navigation.viewer.opens(item.to),
     );
   // Typing reaches every page of an area by its own name as well, since
   // the sidebar lists them only inside the area.
@@ -147,7 +149,7 @@ export function WorkspaceSearch({ variant = "bar" }: WorkspaceSearchProps) {
           icon: item.icon,
         }))
       : held.flatMap((item) => {
-          const area = pagesOf(item, user);
+          const area = pagesOf(item, navigation.viewer);
           return area.length === 0
             ? [{ to: item.to, label: item.label(), icon: item.icon }]
             : area.map((page) => ({

@@ -4,6 +4,7 @@ import type { Picture } from "./commons";
 import type { ContentDocument } from "./content";
 import type { PublishIssue } from "./content-checks";
 import type { EmbedProvider } from "./embed";
+import type { ModuleId } from "./modules";
 
 import { pictureEntries, pictureFocusSchema, pictureNeedsAlt } from "./commons";
 import {
@@ -243,6 +244,8 @@ interface SectionSpec {
   category: SectionCategory;
   variants: readonly [string, ...string[]];
   fields: Record<string, Field>;
+  /** The module whose records it shows or takes, offered only where it is on. */
+  module?: ModuleId;
 }
 
 /**
@@ -559,6 +562,7 @@ export const SECTION_SPECS = {
    */
   admissions: {
     category: "conversion",
+    module: "admissions",
     variants: ["triad", "banner", "keyDate"],
     fields: {
       heading,
@@ -579,6 +583,7 @@ export const SECTION_SPECS = {
   /** The way in to applying: the portal's registration, preset to an intake when the section names one. */
   registerApply: {
     category: "conversion",
+    module: "admissions",
     variants: ["banner", "card"],
     fields: {
       eyebrow: t(80),
@@ -622,6 +627,7 @@ export const SECTION_SPECS = {
   },
   form: {
     category: "conversion",
+    module: "admissions",
     variants: ["split", "stacked", "card"],
     fields: {
       eyebrow: t(80),
@@ -665,6 +671,12 @@ export const SECTION_SPECS = {
 
 export type SectionType = keyof typeof SECTION_SPECS;
 export const SECTION_TYPES = Object.keys(SECTION_SPECS) as SectionType[];
+
+/** The module a section shows or takes the records of, or null for one every site has. */
+export const sectionModule = (type: SectionType): ModuleId | null => {
+  const spec: SectionSpec = SECTION_SPECS[type];
+  return spec.module ?? null;
+};
 type SpecOf<T extends SectionType> = (typeof SECTION_SPECS)[T];
 export type SectionData<T extends SectionType> = DataOf<SpecOf<T>["fields"]>;
 export type SectionVariant<T extends SectionType> =

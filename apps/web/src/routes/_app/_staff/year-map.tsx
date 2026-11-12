@@ -69,7 +69,7 @@ function YearMapPage() {
     single: true,
     options: classChoices(map.classes),
     selected: [map.classId],
-    defaultSelected: map.classes[0] ? [map.classes[0].id] : [],
+    defaultSelected: map.opening ? [map.opening] : [],
     onChange: ([next = ""]) => {
       void navigate({ search: { classId: next } });
     },

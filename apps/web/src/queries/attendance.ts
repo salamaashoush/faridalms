@@ -11,8 +11,10 @@ import {
   getAbsences,
   getAttendanceBoard,
   getAttendanceDay,
+  getAttendanceOffice,
   getAttendanceReport,
   getAttendanceSettings,
+  getAttendanceToday,
   getClassAttendance,
   getFollowUp,
   getFrontDesk,
@@ -53,10 +55,10 @@ export const attendanceReportQuery = (query: ReportQuery) =>
     placeholderData: (previous) => previous,
   });
 
-export const attendanceSettingsQuery = queryOptions({
+export const attendanceSettingsQuery = {
   queryKey: ["attendance", "settings"],
   queryFn: () => getAttendanceSettings(),
-});
+};
 
 export const studentAttendanceQuery = (studentId = "", page = 1) =>
   queryOptions({
@@ -95,3 +97,14 @@ export const frontDeskQuery = (date = "") =>
     queryKey: ["attendance", "front-desk", date],
     queryFn: () => getFrontDesk({ data: { date } }),
   });
+
+/** What attendance says of today for Today: the viewer's own, or a learner's they follow. */
+export const attendanceTodayQuery = (studentId = "") => ({
+  queryKey: ["attendance", "today", studentId],
+  queryFn: () => getAttendanceToday({ data: { studentId } }),
+});
+
+export const attendanceOfficeQuery = {
+  queryKey: ["attendance", "office"],
+  queryFn: () => getAttendanceOffice(),
+};

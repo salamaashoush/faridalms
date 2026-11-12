@@ -2,10 +2,10 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import * as v from "valibot";
 
 import { MESSAGES } from "~/components/notifications/format";
+import { studentRecordTabs } from "~/components/people/slots";
 import {
-  STUDENT_TABS,
   StudentRecord,
-  studentTabsFor,
+  studentTabOpens,
 } from "~/components/people/StudentRecord";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -14,6 +14,8 @@ import {
   studentHistoryQuery,
   studentRecordQuery,
 } from "~/queries/students";
+import { currentUserQuery } from "~/queries/user";
+import { filled } from "~/utils/extension";
 
 export const Route = createFileRoute("/_app/students/$studentId")({
   staticData: {
@@ -23,7 +25,7 @@ export const Route = createFileRoute("/_app/students/$studentId")({
   validateSearch: v.object({
     // Old links named tabs that no longer exist; they open the overview.
     tab: v.fallback(
-      v.optional(v.picklist(STUDENT_TABS), "overview"),
+      v.optional(v.pipe(v.string(), v.regex(/^[a-z]{1,20}$/)), "overview"),
       "overview",
     ),
   }),
@@ -36,11 +38,16 @@ export const Route = createFileRoute("/_app/students/$studentId")({
     ]);
     // A tab this viewer cannot open would show the overview under a URL that
     // still names the tab, and a shared link would keep naming it.
-    if (!studentTabsFor(record.access)[deps.tab])
+    const user = await queryClient.ensureQueryData(currentUserQuery);
+    const added = filled(context.extensions, user.modules, studentRecordTabs);
+    if (
+      !studentTabOpens(record.access, deps.tab, added) &&
+      !(deps.tab === "family" && record.access.contacts)
+    )
       throw redirect({
         to: "/students/$studentId",
         params: { studentId: params.studentId },
-        search: { tab: "overview" as const },
+        search: { tab: "overview" },
         replace: true,
       });
     if (deps.tab === "history")

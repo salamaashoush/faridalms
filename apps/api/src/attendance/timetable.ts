@@ -1,3 +1,4 @@
+import { classesTaughtBy } from "@faridalms/database/stores/classes";
 import { changesOn } from "@faridalms/database/stores/cover";
 import {
   dayPlan,
@@ -15,6 +16,8 @@ import type { ModuleContributions } from "../core/extension";
 
 import { contribute } from "../core/extension";
 import { periodUses } from "../timetable/period-uses";
+import { lessonMarks } from "../timetable/today";
+import { dayBoard } from "./board";
 import { registerPlans } from "./plans";
 
 /**
@@ -26,6 +29,32 @@ export const ATTENDANCE_WITH_TIMETABLE: ModuleContributions = {
   module: "attendance",
   needs: ["timetable"],
   contributions: [
+    contribute(lessonMarks, {
+      marksOn: async (context, input) => {
+        const [board, classes] = await Promise.all([
+          dayBoard(context, input.day),
+          classesTaughtBy(context.tx, context, {
+            userId: input.teacherId,
+            on: input.day,
+          }),
+        ]);
+        const taught = new Set(classes.map((row) => row.id));
+        return {
+          states: new Map(
+            board.map((row) => [`${row.classId}:${row.periodId}`, row.state]),
+          ),
+          owed: board
+            .filter((row) => taught.has(row.classId))
+            .map((row) => ({
+              classId: row.classId,
+              classCode: row.classCode,
+              classTitleEn: row.classTitleEn,
+              classTitleAr: row.classTitleAr,
+              periodId: row.periodId,
+            })),
+        };
+      },
+    }),
     contribute(registerPlans, {
       periodsOn: async (context, day) =>
         (

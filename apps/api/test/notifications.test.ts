@@ -379,6 +379,12 @@ describe("texts at a school without them", () => {
             and n.params ->> 'title' = ${title}`),
       );
 
+    // Quiet hours would hold the text past the run, whatever time it is.
+    const kept = await family.notifications.preferences();
+    await family.notifications.savePreferences({
+      preferences: { ...kept.preferences, quietFrom: "", quietTo: "" },
+      locale: kept.locale,
+    });
     await tell("Planned with texts on");
     expect(await textsOf("Planned with texts on")).toHaveLength(1);
     const texts = new MemoryProvider();
@@ -401,5 +407,9 @@ describe("texts at a school without them", () => {
     expect(await textsOf("Planned with texts on")).toEqual([
       { state: "skipped", reason: "module_off" },
     ]);
+    await family.notifications.savePreferences({
+      preferences: kept.preferences,
+      locale: kept.locale,
+    });
   });
 });

@@ -20,6 +20,8 @@ import * as m from "~/i18n/messages";
 import { classOptionsQuery, myClassesQuery } from "~/queries/classes";
 import { formatNumber } from "~/utils/datetime";
 
+import { listWords } from "./slots";
+
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof myClassesQuery>["queryFn"]>>
 >;
@@ -100,6 +102,9 @@ export interface MyClassesProps {
 
 /** The classes the viewer teaches or assists in, in the views modules offer. */
 export function MyClasses({ search, onSearch, title, frame }: MyClassesProps) {
+  const words = useSlot(listWords).find(
+    (each) => each.list === "classesTaught",
+  );
   const views = viewsOf(useSlot(classFilters), search);
   const data = useSuspenseQuery(myClassesQuery(views)).data;
   const options = useSuspenseQuery(classOptionsQuery).data;
@@ -118,7 +123,7 @@ export function MyClasses({ search, onSearch, title, frame }: MyClassesProps) {
           />
         ) : (
           <DataTable
-            caption={m.classesTaughtCaption()}
+            caption={(words?.caption ?? m.classesTaughtCaptionCore)()}
             rows={data.rows}
             columns={taughtColumns(options)}
             rowLabel={(row) => classTitle(row)}

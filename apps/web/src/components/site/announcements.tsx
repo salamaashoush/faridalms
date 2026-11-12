@@ -4,6 +4,7 @@ import { documentWritten, otherLocale } from "@faridalms/domain/translations";
 import { postIssues } from "@faridalms/domain/website";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { useQuery } from "@tanstack/react-query";
+import { Globe } from "lucide-react";
 
 import type {
   AnnouncementCopyFieldProps,
@@ -12,7 +13,9 @@ import type {
 import type { ModuleFillings } from "~/utils/extension";
 
 import { announcementCopyParts } from "~/components/announcements/slots";
+import { navItems } from "~/components/app/navigation";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
+import { setupItemWords, setupStepWords } from "~/components/home/slots";
 import { CheckboxRow } from "~/components/people/fields";
 import { DetailsSection } from "~/components/system/DocumentPage";
 import { inLocale } from "~/hooks/useCurrentUser";
@@ -20,6 +23,7 @@ import * as m from "~/i18n/messages";
 import { announcementSiteOptionsQuery } from "~/queries/site";
 import { getAnnouncementPost } from "~/server/site";
 import { fill } from "~/utils/extension";
+import { modulePages } from "~/utils/pages";
 
 import { PictureField } from "./PictureField";
 import { ISSUE_LABEL } from "./studio/labels";
@@ -174,6 +178,30 @@ function WebsitePost({
 export const WEBSITE: ModuleFillings = {
   module: "website",
   fillings: [
+    fill(setupStepWords, {
+      id: "website",
+      title: m.setupWebsiteTitle,
+      body: m.setupWebsiteBody,
+      capability: "site:manage",
+      link: { to: "/website", search: {} },
+    }),
+    fill(setupItemWords, {
+      item: "website_published",
+      label: m.onboardingWebsitePublished,
+    }),
+    fill(modulePages, ["/website", "/site-page-editor", "/site"]),
+    fill(navItems, {
+      workspace: "staff",
+      section: "school",
+      item: {
+        to: "/website",
+        label: m.navWebsite,
+        icon: Globe,
+        capability: "site:manage",
+        more: true,
+        place: 30,
+      },
+    }),
     fill(announcementCopyParts, {
       key: "website",
       initial: (announcementId) => ({

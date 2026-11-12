@@ -24,12 +24,7 @@ import { useState } from "react";
 import type { ClassPart } from "~/components/classes/slots";
 import type { AreaView } from "~/components/files/AreaFiles";
 
-import { ClassAttendance } from "~/components/attendance/ClassAttendance";
 import { AreaFiles } from "~/components/files/AreaFiles";
-import { ClassGradingSection } from "~/components/grading/ClassGrading";
-import { ClassGoals } from "~/components/standards/Goals";
-import { ClassSkills } from "~/components/standards/Progress";
-import { ClassWeek } from "~/components/timetable/Weeks";
 import {
   inLocale,
   useCapability,
@@ -46,28 +41,19 @@ import { displayName, lastDay } from "../people/format";
 import { Deferred } from "../people/record-parts";
 import { AddStudentSheet, WithdrawSheet } from "./Enrolment";
 import { classTitle, subjectName } from "./format";
-import { classRecordParts, classRecordSections } from "./slots";
+import {
+  classRecordParts,
+  classRecordSections,
+  classRecordTabs,
+} from "./slots";
 
-export const CLASS_TABS = [
-  "overview",
-  "students",
-  "timetable",
-  "attendance",
-  "skills",
-  "goals",
-  "files",
+/** A class record's own tabs at their places; the modules on add theirs between them. */
+const OWN_TABS = [
+  { value: "overview", label: m.recordOverview, place: 10 },
+  { value: "students", label: m.classesStudents, place: 20 },
+  { value: "files", label: m.filesTab, place: 70 },
 ] as const;
-export type ClassTab = (typeof CLASS_TABS)[number];
-
-const TAB_LABEL: Record<ClassTab, () => string> = {
-  overview: m.recordOverview,
-  students: m.classesStudents,
-  timetable: m.ttTitle,
-  attendance: m.attendanceTitle,
-  skills: m.skillsTab,
-  goals: m.goalsTab,
-  files: m.filesTab,
-};
+export type ClassTab = string;
 
 type ClassData = ClassRecordData;
 type Student = ClassData["roster"][number];
@@ -360,15 +346,19 @@ export function ClassRecord({
           }),
           {},
         );
-  const modules = useCurrentUser().modules;
-  const sections = useSlot(classRecordSections);
-  const seesAttendance = useCapability("attendance:read") && modules.attendance;
-  const seesTimetable = useCapability("timetable:read") && modules.timetable;
-  const setsUpGrading = useCapability("grading:manage");
+  const sections = useSlot(classRecordSections).toSorted(
+    (a, b) => (a.place ?? 0) - (b.place ?? 0),
+  );
+  const user = useCurrentUser();
+  const added = useSlot(classRecordTabs).filter(
+    (each) =>
+      [each.capability]
+        .flat()
+        .some((capability) => user.capabilities.includes(capability)) &&
+      (each.shows?.(data) ?? true),
+  );
   const keepsClasses = useCapability("classes:manage");
   const teaches = useCapability("assignments:author");
-  const grades = useCapability("submissions:grade");
-  const keepsGrading = setsUpGrading || keepsClasses;
   const youngClass = data.young;
   const title = classTitle(data);
   const room = options.rooms.find((row) => row.id === data.locationId);
@@ -394,19 +384,17 @@ export function ClassRecord({
       label: m.classesRoom(),
       value: inLocale(room.nameEn, room.nameAr) || room.code,
     });
-  const available = CLASS_TABS.filter(
-    (value) =>
-      (value !== "attendance" || seesAttendance) &&
-      (value !== "timetable" || seesTimetable) &&
-      (value !== "skills" || (grades && modules.standards)) &&
-      (value !== "goals" || (grades && youngClass && modules.standards)) &&
-      (value !== "files" || data.access.files),
-  );
-  const active = available.includes(tab) ? tab : "overview";
-  const tabs: RecordTab<ClassTab>[] = available.map((value) => ({
-    value,
-    label: TAB_LABEL[value](),
+  const available = [...OWN_TABS, ...added]
+    .filter((each) => each.value !== "files" || data.access.files)
+    .toSorted((a, b) => a.place - b.place);
+  const active = available.some((each) => each.value === tab)
+    ? tab
+    : "overview";
+  const tabs: RecordTab<ClassTab>[] = available.map((each) => ({
+    value: each.value,
+    label: each.label(),
   }));
+  const moduleTab = added.find((each) => each.value === active);
   const body =
     active === "students" ? (
       <RecordColumns
@@ -418,17 +406,9 @@ export function ClassRecord({
           />
         }
       />
-    ) : active === "attendance" ? (
-      <ClassAttendance classId={data.id} />
-    ) : active === "timetable" ? (
-      <ClassWeek classId={data.id} />
-    ) : active === "skills" ? (
+    ) : moduleTab ? (
       <Deferred>
-        <ClassSkills classId={data.id} />
-      </Deferred>
-    ) : active === "goals" ? (
-      <Deferred>
-        <ClassGoals classId={data.id} />
+        <moduleTab.Tab classId={data.id} />
       </Deferred>
     ) : active === "files" ? (
       <AreaFiles
@@ -451,14 +431,9 @@ export function ClassRecord({
                 classId={data.id}
                 young={youngClass}
                 keeps={(teaches || keepsClasses) && data.access.staff}
+                manages={data.access.manage}
               />
             ))}
-            {keepsGrading || teaches ? (
-              <ClassGradingSection
-                classId={data.id}
-                canEdit={keepsGrading && data.access.manage}
-              />
-            ) : null}
           </>
         }
       />

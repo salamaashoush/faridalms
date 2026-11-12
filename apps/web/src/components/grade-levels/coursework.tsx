@@ -100,6 +100,7 @@ export const GRADE_LEVELS_WITH_COURSEWORK: ModuleFillings = {
     }),
     fill(settingsTabs, {
       value: "reading",
+      place: 45,
       label: m.readingSettingsTab,
       queries: () => [
         { queryKey: ["reading", "norms"], queryFn: () => getReadingNorms() },

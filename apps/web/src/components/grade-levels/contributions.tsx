@@ -166,6 +166,7 @@ export const GRADE_LEVELS: ModuleFillings = {
     }),
     fill(settingsTabs, {
       value: "grades",
+      place: 40,
       label: m.gradeLevelsTab,
       queries: () => [gradeSettingsQuery],
       Tab: GradeLevelsSettings,

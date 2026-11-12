@@ -11,6 +11,7 @@ import * as m from "~/i18n/messages";
 import { workTermQuery } from "~/queries/gradebook";
 import { getWorkTerm } from "~/server/gradebook";
 import { fill } from "~/utils/extension";
+import { modulePages } from "~/utils/pages";
 
 import { RegradeAction } from "./RegradeSheet";
 
@@ -43,6 +44,7 @@ export const GRADEBOOK_IN_YEARS: ModuleFillings = {
   module: "gradebook",
   needs: ["school_years"],
   fillings: [
+    fill(modulePages, ["/me/grades", "/family/grades"]),
     fill(assignmentEditorParts, {
       key: "term",
       section: "grading",

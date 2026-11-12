@@ -13,6 +13,7 @@ import {
   getTimetableGrid,
   getTimetableOptions,
   getTimetables,
+  getTimetableToday,
 } from "~/server/timetable";
 
 export const timetableOptionsQuery = (views: Views = {}) =>
@@ -77,3 +78,9 @@ export const coverOptionsQuery = (input: {
     queryKey: ["timetable", "cover-options", input],
     queryFn: () => getCoverOptions({ data: input }),
   });
+
+/** What timetable says of today for Today: the viewer's own, or a learner's they follow. */
+export const timetableTodayQuery = (studentId = "") => ({
+  queryKey: ["timetable", "today", studentId],
+  queryFn: () => getTimetableToday({ data: { studentId } }),
+});

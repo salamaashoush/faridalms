@@ -471,16 +471,7 @@ function sameLink(from: string, to: string): boolean {
  * missing here and an entry that no longer occurs, so the list only
  * shrinks.
  */
-export const PENDING_IMPORTS: Readonly<Record<string, readonly string[]>> = {
-  surfaces: [
-    "apps/api/src/systems/home.ts -> attendance",
-    "apps/api/src/systems/home.ts -> coursework",
-    "apps/api/src/systems/home.ts -> elearning",
-    "apps/api/src/systems/home.ts -> timetable",
-    "apps/web/src/components/classes/ClassRecord.tsx -> timetable",
-    "apps/web/src/components/people/StudentOverview.tsx -> timetable",
-  ],
-};
+export const PENDING_IMPORTS: Readonly<Record<string, readonly string[]>> = {};
 
 /**
  * Where every module's parts are put together: the API's router and

@@ -10,7 +10,7 @@ import type {
   NotificationKind,
 } from "../tables/partitioned";
 
-import { holds, isoOf, uuidArray } from "./sql";
+import { holds, isoOf, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -260,10 +260,13 @@ export async function notificationsOf(
     tab: "action" | "all";
     limit: number;
     offset: number;
+    /** Kinds not to list: those of modules that are off. */
+    hidden: readonly string[];
   },
 ): Promise<{ rows: NotificationRow[]; total: number }> {
   const filter = sql`n.tenant_id = ${input.tenantId}::uuid and n.user_id = ${input.userId}::uuid
     and n.org_id = ${input.orgId}::uuid and n.status = 'active'
+    and not (n.kind = any(${textArray(input.hidden)}))
     and (${input.tab === "all"} or (n.needs_action and n.acted_at is null))`;
   const [count] = await tx.execute<{ total: number }>(sql`
     select count(*)::int as total from core.notifications n where ${filter}`);
@@ -297,7 +300,12 @@ export async function notificationsOf(
 
 export async function unreadCount(
   tx: Tx,
-  input: { tenantId: string; userId: string; orgId: string },
+  input: {
+    tenantId: string;
+    userId: string;
+    orgId: string;
+    hidden: readonly string[];
+  },
 ): Promise<{ unread: number; waiting: number }> {
   const [row] = await tx.execute<{ unread: number; waiting: number }>(sql`
     select count(*) filter (where read_at is null)::int as unread,
@@ -305,6 +313,7 @@ export async function unreadCount(
     from core.notifications
     where tenant_id = ${input.tenantId}::uuid and user_id = ${input.userId}::uuid
       and org_id = ${input.orgId}::uuid and status = 'active'
+      and not (kind = any(${textArray(input.hidden)}))
       and (read_at is null or (needs_action and acted_at is null))`);
   return { unread: row?.unread ?? 0, waiting: row?.waiting ?? 0 };
 }
