@@ -1,2 +1,0 @@
-CREATE POLICY "p_erase_update" ON "core"."document_files" AS PERMISSIVE FOR UPDATE TO "retention" USING (app.erasure_listed(tenant_id, 'document', "document_id")) WITH CHECK (status = 'tobedeleted');--> statement-breakpoint
-CREATE POLICY "p_erase_delete" ON "core"."document_files" AS PERMISSIVE FOR DELETE TO "retention" USING (status = 'tobedeleted' and (app.erasure_listed(tenant_id, 'document', "document_id")));

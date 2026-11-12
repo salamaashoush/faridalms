@@ -1,2 +1,0 @@
-ALTER TABLE "core"."orgs" ADD COLUMN "arabic_math" text DEFAULT 'ltr' NOT NULL;--> statement-breakpoint
-ALTER TABLE "core"."orgs" ADD CONSTRAINT "orgs_arabic_math_check" CHECK (arabic_math in ('ltr', 'rtl'));

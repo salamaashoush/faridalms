@@ -338,11 +338,6 @@ export const admissionApplications = core.table.withRLS(
     submittedAt: instant("submitted_at"),
     /** What the office decided, kept after it is released for the record and the reports. */
     decision: text("decision").$type<Decision>(),
-    // These three reference users and applications through keys the access
-    // migration adds NOT VALID: drizzle-kit 1.0.0-rc.5 writes a key on an
-    // existing table as validated, and validating one reads the table under
-    // its forced row security, where a migration has no tenant. New rows are
-    // checked.
     decidedAt: instant("decided_at"),
     decidedByUserId: uuid("decided_by_user_id"),
     /** When the family was told: by hand, or on the intake's day. */
@@ -389,6 +384,21 @@ export const admissionApplications = core.table.withRLS(
       "admission_applications",
       [t.tenantId, t.enquiryId],
       [siteEnquiries.tenantId, siteEnquiries.id],
+    ),
+    fk(
+      "admission_applications",
+      [t.tenantId, t.decidedByUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "admission_applications",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "admission_applications",
+      [t.tenantId, t.deferredFromId],
+      [t.tenantId, t.id],
     ),
     ck(
       "admission_applications",

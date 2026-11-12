@@ -1,1 +1,0 @@
-ALTER TABLE "core"."lesson_responses" DROP CONSTRAINT "lesson_responses_state_check", ADD CONSTRAINT "lesson_responses_state_check" CHECK (state in ('answered', 'revealed', 'needs_marking', 'marked', 'reviewed', 'hint', 'remarked'));

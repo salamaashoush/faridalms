@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX "login_identities_badge_key" ON "core"."login_identities" ("tenant_id","secret_hash") WHERE status = 'active' and kind = 'badge' and voided_at is null;

@@ -114,6 +114,11 @@ export const studentSchoolYears = core.table.withRLS(
       [t.tenantId, t.importRunId],
       [importRuns.tenantId, importRuns.id],
     ),
+    fk(
+      "student_school_years",
+      [t.tenantId, t.intentionByUserId],
+      [users.tenantId, users.id],
+    ),
     ck(
       "student_school_years",
       "school_year_type",

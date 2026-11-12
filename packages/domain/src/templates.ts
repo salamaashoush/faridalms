@@ -153,8 +153,7 @@ export function messageFields(
  * The replies an office sends most, in both languages, given to every
  * school when it is made as message templates it may edit or remove. The
  * email's subject is the conversation's, so a family's mail program keeps
- * every message of it together. A custom migration gave them to the
- * schools that existed before; it copies these words.
+ * every message of it together.
  */
 export const BUILTIN_MESSAGE_TEMPLATES: readonly {
   key: string;

@@ -1,3 +1,0 @@
-ALTER TABLE "core"."document_templates" ADD COLUMN "module_id" uuid;--> statement-breakpoint
-ALTER TABLE "core"."document_templates" ADD CONSTRAINT "document_templates_module_check" CHECK ((kind = 'module') = (module_id is not null));--> statement-breakpoint
-ALTER TABLE "core"."document_templates" DROP CONSTRAINT "document_templates_kind_check", ADD CONSTRAINT "document_templates_kind_check" CHECK (kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module'));

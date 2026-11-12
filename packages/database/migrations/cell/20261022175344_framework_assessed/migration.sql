@@ -1,1 +1,0 @@
-ALTER TABLE "core"."standard_frameworks" ADD COLUMN "assessed" boolean DEFAULT true NOT NULL;

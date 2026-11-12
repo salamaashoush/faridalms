@@ -1,2 +1,0 @@
-ALTER TABLE "core"."student_school_years" ADD COLUMN "destination_school" text;--> statement-breakpoint
-ALTER TABLE "core"."student_school_years" ADD CONSTRAINT "student_school_years_destination_school_check" CHECK (char_length(destination_school) between 1 and 160);

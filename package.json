@@ -39,6 +39,7 @@
     "smoke:containers": "bun --env-file=.env scripts/smoke-containers.ts",
     "db:generate:directory": "bun --bun drizzle-kit generate --config packages/database/drizzle.directory.config.ts",
     "db:generate:business": "bun --bun drizzle-kit generate --config packages/database/drizzle.business.config.ts",
+    "db:baseline": "bun scripts/db-baseline.ts",
     "db:provision": "bun --env-file-if-exists=.env scripts/db.ts provision",
     "db:create": "bun --env-file-if-exists=.env scripts/db.ts create",
     "db:verify": "bun --env-file-if-exists=.env scripts/db-verify.ts",

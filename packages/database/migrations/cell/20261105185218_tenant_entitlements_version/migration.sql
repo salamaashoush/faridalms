@@ -1,1 +1,0 @@
-ALTER TABLE "ops"."tenant_registry" ADD COLUMN "entitlements_version" integer DEFAULT 0 NOT NULL;

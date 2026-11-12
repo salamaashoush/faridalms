@@ -81,9 +81,6 @@ export const calendarEvents = core.table.withRLS(
      * and a digest of the original's words then.
      */
     translationReviewedAt: instant("translation_reviewed_at"),
-    // Keyed to users NOT VALID by the custom migration: drizzle-kit writes a
-    // key on an existing table as validated, and validating reads the table
-    // under forced row security, where a migration has no tenant.
     translationReviewedByUserId: uuid("translation_reviewed_by_user_id"),
     translationSourceDigest: text("translation_source_digest"),
     ...entityColumns(),
@@ -95,6 +92,11 @@ export const calendarEvents = core.table.withRLS(
     fk(
       "calendar_events",
       [t.tenantId, t.authorUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "calendar_events",
+      [t.tenantId, t.translationReviewedByUserId],
       [users.tenantId, users.id],
     ),
     ck(

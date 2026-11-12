@@ -1,3 +1,0 @@
-ALTER TABLE "core"."assignments" ADD COLUMN "discussion_group" uuid;--> statement-breakpoint
-CREATE UNIQUE INDEX "assignments_discussion_class_key" ON "core"."assignments" ("tenant_id","discussion_group","class_id") WHERE status = 'active' and discussion_group is not null;--> statement-breakpoint
-ALTER TABLE "core"."assignments" ADD CONSTRAINT "assignments_discussion_group_check" CHECK (discussion_group is null or module_id is not null);

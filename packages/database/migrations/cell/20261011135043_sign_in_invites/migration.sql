@@ -1,4 +1,0 @@
-CREATE UNIQUE INDEX "login_identities_invite_key" ON "core"."login_identities" ("tenant_id","secret_hash") WHERE status = 'active' and kind = 'invite' and voided_at is null;--> statement-breakpoint
-ALTER TABLE "core"."login_identities" DROP CONSTRAINT "login_identities_kind_check", ADD CONSTRAINT "login_identities_kind_check" CHECK (kind in ('password', 'oidc', 'saml', 'clever', 'classlink', 'badge', 'invite'));--> statement-breakpoint
-ALTER TABLE "core"."login_identities" DROP CONSTRAINT "login_identities_void_reason_check", ADD CONSTRAINT "login_identities_void_reason_check" CHECK (void_reason in ('lost', 'rollover', 'aged_out', 'admin', 'compromised', 'unused', 'merge_pending', 'used'));--> statement-breakpoint
-ALTER TABLE "core"."login_identities" DROP CONSTRAINT "login_identities_badge_check", ADD CONSTRAINT "login_identities_badge_check" CHECK (kind not in ('badge', 'invite') or (secret_hash is not null and expires_at is not null));

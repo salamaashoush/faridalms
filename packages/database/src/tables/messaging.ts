@@ -66,8 +66,6 @@ export const messageContacts = core.table.withRLS(
     linkedAt: instant("linked_at"),
     bouncedAt: instant("bounced_at"),
     complaintAt: instant("complaint_at"),
-    // Keyed to message_contacts NOT VALID by the custom migration, as
-    // thread_members.contact_id.
     mergedIntoId: uuid("merged_into_id"),
     mergedAt: instant("merged_at"),
     ...entityColumns(),
@@ -76,6 +74,7 @@ export const messageContacts = core.table.withRLS(
     pk("message_contacts", t.tenantId, t.id),
     ...baseConstraints("message_contacts", t, tenants),
     fk("message_contacts", [t.tenantId, t.userId], [users.tenantId, users.id]),
+    fk("message_contacts", [t.tenantId, t.mergedIntoId], [t.tenantId, t.id]),
     ck(
       "message_contacts",
       "email",
@@ -221,9 +220,6 @@ export const threadMembers = core.table.withRLS(
     ...tenantColumns(),
     threadId: uuid("thread_id").notNull(),
     userId: uuid("user_id"),
-    // Keyed to message_contacts NOT VALID by the custom migration: drizzle-kit
-    // writes a key on an existing table as validated, and validating reads
-    // the table under forced row security, where a migration has no tenant.
     contactId: uuid("contact_id"),
     role: text("role").$type<ThreadRole>().notNull().default("member"),
     joinedAt: instant("joined_at")
@@ -243,6 +239,11 @@ export const threadMembers = core.table.withRLS(
       [messageThreads.tenantId, messageThreads.id],
     ),
     fk("thread_members", [t.tenantId, t.userId], [users.tenantId, users.id]),
+    fk(
+      "thread_members",
+      [t.tenantId, t.contactId],
+      [messageContacts.tenantId, messageContacts.id],
+    ),
     ck("thread_members", "role", sql`role in ('owner', 'member', 'reader')`),
     ck(
       "thread_members",
@@ -380,7 +381,6 @@ export const messages = core.table.withRLS(
     threadId: uuid("thread_id").notNull(),
     kind: text("kind").$type<EntryKind>().notNull().default("message"),
     authorUserId: uuid("author_user_id"),
-    // Keyed NOT VALID by the custom migration, as thread_members.contact_id.
     authorContactId: uuid("author_contact_id"),
     body: text("body").notNull(),
     details: jsonb("details")
@@ -400,6 +400,11 @@ export const messages = core.table.withRLS(
       [messageThreads.tenantId, messageThreads.id],
     ),
     fk("messages", [t.tenantId, t.authorUserId], [users.tenantId, users.id]),
+    fk(
+      "messages",
+      [t.tenantId, t.authorContactId],
+      [messageContacts.tenantId, messageContacts.id],
+    ),
     ck(
       "messages",
       "kind",

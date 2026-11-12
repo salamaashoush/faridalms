@@ -223,18 +223,21 @@ for (const file of files) {
         );
 }
 
-// Migrations from the one reach model on call its functions rather than
-// writing the rules out again.
-const REACH_MODEL = "20261101163828_reach_model";
+// Migrations call the reach model's functions rather than writing its rules
+// out again. Only the two functions that define them, and a vocabulary in a
+// CHECK, as in the table declarations, may name them.
+const RULE_DEFINITIONS =
+  /create function app\.(?:guardian_permits|staff_roles)\([\s\S]*?\$\$[\s\S]*?\$\$;/gi;
+const VOCABULARY =
+  /\bcheck\s*\((?:[^()']|'[^']*'|\((?:[^()']|'[^']*')*\))*\)/gi;
 for (const folder of Object.values(MIGRATIONS))
   for await (const path of new Glob(`${folder}/*/migration.sql`).scan(".")) {
     const text = await Bun.file(path).text();
     problems.push(...migrationProblems(path, text));
-    const name = path.split("/").at(-2) ?? "";
-    if (
-      name > REACH_MODEL &&
-      (GUARDIAN_RULE.test(text) || STAFF_LIST.test(text))
-    )
+    const rest = text
+      .replaceAll(RULE_DEFINITIONS, "")
+      .replaceAll(VOCABULARY, "");
+    if (GUARDIAN_RULE.test(rest) || STAFF_LIST.test(rest))
       problems.push(`${path}: writes the guardian rule or the staff roles out`);
   }
 

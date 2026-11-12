@@ -1264,12 +1264,11 @@ export async function completeFixture(
     targetYearId: nextYear,
     plan: { classes: [], students: [] },
   });
-  // What a release before conversations wrote: an enquiry with no
-  // conversation, which the move into Messages gives one.
-  const legacyEnquiry = id();
+  // An enquiry staff logged by phone, not yet given its conversation.
+  const loggedEnquiry = id();
   await tx.insert(siteEnquiries).values({
     tenantId,
-    id: legacyEnquiry,
+    id: loggedEnquiry,
     orgId: schoolId,
     source: "phone",
     locale: "en",
@@ -1300,6 +1299,6 @@ export async function completeFixture(
     builtinRoleId: builtin?.id,
     photoId,
     erasedSubject,
-    legacyEnquiry,
+    loggedEnquiry,
   };
 }

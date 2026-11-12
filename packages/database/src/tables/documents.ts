@@ -40,6 +40,7 @@ import {
 import { descriptors } from "./descriptors";
 import { files, tenantKeys } from "./files";
 import { userRelationships } from "./membership";
+import { messageContacts } from "./messaging";
 import { users } from "./people";
 import { recordsRequests } from "./privacy";
 import { orgs, tenants } from "./tenancy";
@@ -133,9 +134,6 @@ export const healthChanges = health.table.withRLS(
     keyVersion: integer("key_version").notNull(),
     ciphertext: bytea("ciphertext").notNull(),
     /** A report the family sent with the change, such as a doctor's letter. */
-    // Keyed to files NOT VALID by the custom migration: drizzle-kit writes a
-    // key on an existing table as validated, and validating reads the table
-    // under forced row security, where a migration has no tenant.
     fileId: uuid("file_id"),
     filePurpose: text("file_purpose").notNull().default("health_report"),
     ...entityColumns(),
@@ -177,6 +175,11 @@ export const healthChanges = health.table.withRLS(
       "requested_changes",
       [t.tenantId, t.keyPurpose, t.keyVersion],
       [tenantKeys.tenantId, tenantKeys.purpose, tenantKeys.keyVersion],
+    ),
+    fk(
+      "requested_changes",
+      [t.tenantId, t.fileId, t.filePurpose],
+      [files.tenantId, files.id, files.purpose],
     ),
     uq("requested_changes", t.tenantId, t.requestId),
     ck(
@@ -937,9 +940,7 @@ export const erasureApprovals = core.table.withRLS(
     createdAt: instant("created_at")
       .notNull()
       .default(sql`statement_timestamp()`),
-    // A person, or an outside contact who never had an account; keyed to
-    // message_contacts NOT VALID by the custom migration, since the table
-    // already holds rows.
+    /** A person, or an outside contact who never had an account. */
     subjectUserId: uuid("subject_user_id"),
     subjectContactId: uuid("subject_contact_id"),
     basis: text("basis")
@@ -958,6 +959,11 @@ export const erasureApprovals = core.table.withRLS(
       "erasure_approvals",
       [t.tenantId, t.subjectUserId],
       [users.tenantId, users.id],
+    ),
+    fk(
+      "erasure_approvals",
+      [t.tenantId, t.subjectContactId],
+      [messageContacts.tenantId, messageContacts.id],
     ),
     fk(
       "erasure_approvals",

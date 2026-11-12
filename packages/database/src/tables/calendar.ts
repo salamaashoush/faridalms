@@ -322,9 +322,6 @@ export const calendarDates = core.table.withRLS(
     /** Waits on an announcement, as holidays set by the moon do; shown as expected. */
     provisional: boolean("provisional").notNull().default(false),
     /** The other times the day runs on; none keeps its periods' own. */
-    // Keyed to bell_schedules NOT VALID by the custom migration: drizzle-kit
-    // writes a key on an existing table as validated, and validating reads
-    // the table under forced row security, where a migration has no tenant.
     bellScheduleId: uuid("bell_schedule_id"),
     /** The day of the timetable's cycle it runs as instead of its own. */
     runsAs: smallint("runs_as"),
@@ -342,6 +339,11 @@ export const calendarDates = core.table.withRLS(
       "calendar_dates",
       [t.tenantId, t.eventDescriptorId, t.eventNs],
       [descriptors.tenantId, descriptors.id, descriptors.namespace],
+    ),
+    fk(
+      "calendar_dates",
+      [t.tenantId, t.bellScheduleId, t.schoolYearId],
+      [bellSchedules.tenantId, bellSchedules.id, bellSchedules.schoolYearId],
     ),
     ck(
       "calendar_dates",
@@ -438,8 +440,6 @@ export const classPeriods = core.table.withRLS(
       .default(sql`'[]'::jsonb`),
     validDuring: daterange("valid_during").notNull(),
     /** The bell schedule whose days alone hold it, beyond the year's own periods. */
-    // Keyed to bell_schedules NOT VALID by the custom migration, as
-    // calendar_dates.bell_schedule_id.
     bellScheduleId: uuid("bell_schedule_id"),
     ...entityColumns(),
   },
@@ -457,6 +457,11 @@ export const classPeriods = core.table.withRLS(
         academicSessions.schoolYearId,
         academicSessions.orgId,
       ],
+    ),
+    fk(
+      "class_periods",
+      [t.tenantId, t.bellScheduleId, t.schoolYearId],
+      [bellSchedules.tenantId, bellSchedules.id, bellSchedules.schoolYearId],
     ),
     ck(
       "class_periods",

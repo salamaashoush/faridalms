@@ -1,302 +1,101 @@
-import { emptyContent } from "@faridalms/domain/content-conversion";
+import { contentPlainText } from "@faridalms/domain/content";
+import {
+  emptyContent,
+  plainContent,
+} from "@faridalms/domain/content-conversion";
 import { SQL } from "bun";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
-import { readdir } from "node:fs/promises";
-import { join } from "node:path";
 
-import { MIGRATIONS } from "../src/migrate";
+import { saveDocument } from "../src/stores/documents";
+import { openEnquiryConversation } from "../src/stores/enquiries";
 import {
   approveErasure,
   contactErasurePlan,
   eraseContact,
 } from "../src/stores/erasure";
-import { contactFor, mergeContacts, replyTarget } from "../src/stores/messages";
+import {
+  contactFor,
+  mergeContacts,
+  postMessage,
+  replyTarget,
+} from "../src/stores/messages";
 import { harness, probe, urlFor } from "./harness";
-
-async function migrationText(suffix: string) {
-  const folder = (await readdir(MIGRATIONS.cell)).find((name) =>
-    name.endsWith(suffix),
-  );
-  if (!folder) throw new Error(`the ${suffix} migration is missing`);
-  return Bun.file(join(MIGRATIONS.cell, folder, "migration.sql")).text();
-}
 
 async function rows<T>(text: string, params: unknown[] = []): Promise<T[]> {
   return (await harness().su.unsafe(text, params)) as T[];
 }
 
+let opening: Promise<{ enquiry: string; thread: string }> | undefined;
 /**
- * The enquiry threads and logged calls as a release before conversations
- * kept them: both tables as their own migrations made them, which a later
- * one drops, and the rows such a release wrote for the fixture's legacy
- * enquiry and a child's absence.
+ * The fixture's logged enquiry with its conversation in the admissions
+ * mailbox: the call it was logged as, a note, the office's reply, each with
+ * its document, and a change of state.
  */
-async function writeAsBefore() {
-  const { su, a, fixtures } = harness();
-  const legacy = fixtures.get(a.tenantId)?.legacyEnquiry;
-  if (!legacy) throw new Error("the fixture keeps a legacy enquiry");
-  for (const [suffix, table] of [
-    ["_attendance_contacts", '"core"."attendance_contacts"'],
-    ["_enquiry_record", '"core"."site_enquiry_entries"'],
-  ] as const)
-    for (const statement of (await migrationText(suffix)).split(
-      "--> statement-breakpoint",
-    ))
-      if (statement.includes(table)) await su.unsafe(statement);
-  const [enquiry] = await rows<{ org_id: string; author: string }>(
-    "select org_id, created_by_user_id as author from core.site_enquiries where id = $1",
-    [legacy],
-  );
-  const [link] = await rows<{ student: string }>(
-    "select student_user_id as student from core.user_relationships where tenant_id = $1 order by id limit 1",
-    [a.tenantId],
-  );
-  if (!enquiry || !link) throw new Error("the fixture has no family");
-  await su.unsafe(
-    `insert into core.site_enquiry_entries (tenant_id, org_id, enquiry_id, kind, body, details, author_user_id)
-     values ($1, $2, $3, 'note', 'Prefers mornings.', '{}', $4),
-            ($1, $2, $3, 'reply', 'Dear Salama, Tuesday at ten suits us.', '{"subject":"Visiting","locale":"en"}', $4),
-            ($1, $2, $3, 'state', '', '{"from":"open","to":"in_progress","automatic":true}', $4)`,
-    [a.tenantId, enquiry.org_id, legacy, enquiry.author],
-  );
-  await su.unsafe(
-    `insert into core.attendance_contacts (tenant_id, org_id, student_user_id, day_on, outcome, recorded_by_user_id)
-     values ($1, $2, $3, '2026-11-02', 'no_answer', $4)`,
-    [a.tenantId, enquiry.org_id, link.student, enquiry.author],
-  );
-  return {
-    legacy,
-    schoolId: enquiry.org_id,
-    author: enquiry.author,
-    student: link.student,
-  };
-}
-
-/** The part of the conversations migration that moves rows, which a test may run again. */
-async function moveIntoMessages() {
-  const text = await migrationText("_conversations_access");
-  return text.slice(text.indexOf("create or replace function pg_temp.e164"));
-}
-
-let moving: Promise<Awaited<ReturnType<typeof writeAsBefore>>> | undefined;
-/** The old rows written and moved into Messages, twice, as the move ran. */
-function moved() {
-  moving ??= (async () => {
-    const written = await writeAsBefore();
-    const move = await moveIntoMessages();
-    await harness().su.unsafe(move);
-    await harness().su.unsafe(move);
-    return written;
+function conversation() {
+  opening ??= (async () => {
+    const { a, fixtures } = harness();
+    const t = a.tenantId;
+    const enquiry = fixtures.get(t)?.loggedEnquiry;
+    if (!enquiry) throw new Error("the fixture keeps a logged enquiry");
+    const client = new SQL(urlFor(null));
+    try {
+      return await drizzle({ client }).transaction(async (tx) => {
+        await tx.execute(
+          sql`select app.begin_unit(${t}::uuid, null, null, null, 'probe', 'system')`,
+        );
+        const thread = await openEnquiryConversation(tx, {
+          tenantId: t,
+          enquiryId: enquiry,
+        });
+        const [found] = await tx.execute<{ org_id: string; author: string }>(
+          sql`select org_id, created_by_user_id as author from core.site_enquiries
+              where tenant_id = ${t}::uuid and id = ${enquiry}::uuid`,
+        );
+        if (!thread || !found)
+          throw new Error("the enquiry has no conversation");
+        for (const [kind, words] of [
+          ["note", "Prefers mornings."],
+          ["message", "Dear Salama, Tuesday at ten suits us."],
+        ] as const) {
+          const posted = await postMessage(tx, {
+            tenantId: t,
+            threadId: thread,
+            kind,
+            authorId: found.author,
+            body: words,
+          });
+          const content = plainContent(words);
+          await saveDocument(tx, {
+            tenantId: t,
+            orgId: found.org_id,
+            host: { type: "message", id: posted.id },
+            content: content as unknown as Record<string, unknown>,
+            plainText: contentPlainText(content),
+            mediaIds: [],
+            userId: found.author,
+            frozen: true,
+          });
+        }
+        await postMessage(tx, {
+          tenantId: t,
+          threadId: thread,
+          kind: "event",
+          authorId: null,
+          body: "",
+          details: { event: "state", from: "open", to: "in_progress" },
+        });
+        return { enquiry, thread };
+      });
+    } finally {
+      await client.close();
+    }
   })();
-  return moving;
+  return opening;
 }
 
-let contracting: Promise<{ late: string; enquiry: string }> | undefined;
-/**
- * What an older release wrote after the move, copied by the contract step,
- * twice, and the old tables dropped as the next migration drops them.
- */
-function contracted() {
-  contracting ??= (async () => {
-    const { su, a } = harness();
-    const { legacy, schoolId, author, student } = await moved();
-    const late = Bun.randomUUIDv7();
-    const enquiry = Bun.randomUUIDv7();
-    await su.unsafe(
-      `insert into core.site_enquiries (tenant_id, id, org_id, source, locale, purpose, name, email,
-         phone, message, state)
-       values ($1, $2, $3, 'website', 'ar', 'general', 'Salama Ashoush', 'salama.late@example.com',
-         '', 'هل يوجد نقل مدرسي؟', 'open')`,
-      [a.tenantId, enquiry, schoolId],
-    );
-    await su.unsafe(
-      `insert into core.site_enquiry_entries (tenant_id, id, org_id, enquiry_id, kind, body, details, author_user_id)
-       values ($1, $2, $3, $4, 'call', 'Called back, no answer.', '{}', $5),
-              ($1, uuidv7(), $3, $6, 'note', 'Asked about the bus.', '{}', $5)`,
-      [a.tenantId, late, schoolId, legacy, author, enquiry],
-    );
-    await su.unsafe(
-      `insert into core.attendance_contacts (tenant_id, org_id, student_user_id, day_on, outcome, note, recorded_by_user_id)
-       values ($1, $2, $3, '2026-11-03', 'reached', 'Spoke to the family.', $4)`,
-      [a.tenantId, schoolId, student, author],
-    );
-    const contract = await migrationText("_conversation_contract");
-    await su.unsafe(contract);
-    await su.unsafe(contract);
-    await su.unsafe(await migrationText("_conversation_contract_drop"));
-    return { late, enquiry };
-  })();
-  return contracting;
-}
-
-describe("the move of enquiry threads and logged calls into Messages", () => {
-  test("an enquiry's thread becomes its conversation in the admissions mailbox, once", async () => {
-    const { legacy } = await moved();
-
-    const [enquiry] = await rows<{
-      thread_id: string | null;
-      phone_normalized: string | null;
-    }>(
-      "select thread_id, phone_normalized from core.site_enquiries where id = $1",
-      [legacy],
-    );
-    expect(enquiry?.thread_id).toBeTruthy();
-    expect(enquiry?.phone_normalized).toBe("+201005550177");
-    const [thread] = await rows<{
-      kind: string;
-      mailbox: string;
-      subject: string;
-    }>(
-      "select kind, mailbox, subject from core.message_threads where id = $1",
-      [enquiry?.thread_id],
-    );
-    expect(thread).toMatchObject({ kind: "mailbox", mailbox: "admissions" });
-    expect(thread?.subject).toStartWith("Your visit to ");
-    const members = await rows<{
-      email: string | null;
-      role: string;
-      user_id: string | null;
-    }>(
-      `select c.email, m.role, m.user_id from core.thread_members m
-       left join core.message_contacts c on c.tenant_id = m.tenant_id and c.id = m.contact_id
-       where m.thread_id = $1 order by m.role`,
-      [enquiry?.thread_id],
-    );
-    expect(members.map((row) => row.role)).toEqual(["member", "owner"]);
-    expect(members[0]?.email).toBe("salama.legacy@example.com");
-
-    const entries = await rows<{
-      kind: string;
-      body: string;
-      details: Record<string, unknown>;
-      has_document: boolean;
-    }>(
-      `select x.kind, x.body, x.details, exists (select 1 from core.documents d
-         where d.host_type = 'message' and d.host_id = x.id and d.frozen_at is not null) as has_document
-       from core.messages x where x.thread_id = $1 order by x.created_at, x.id`,
-      [enquiry?.thread_id],
-    );
-    expect(entries.map((row) => row.kind)).toEqual([
-      "call",
-      "note",
-      "message",
-      "event",
-    ]);
-    expect(entries[0]?.body).toBe("Asked about a visit.");
-    expect(entries[2]?.body).toBe("Dear Salama, Tuesday at ten suits us.");
-    expect(entries[3]?.details).toMatchObject({
-      event: "state",
-      from: "open",
-      to: "in_progress",
-      automatic: true,
-    });
-    expect(entries.slice(0, 3).every((row) => row.has_document)).toBe(true);
-    expect(
-      entries.every(
-        (row) =>
-          typeof row.details.migratedFrom === "string" || row.kind === "call",
-      ),
-    ).toBe(true);
-  });
-
-  test("a logged attendance call becomes a call in the office's conversation with the family", async () => {
-    const { a } = harness();
-    await moved();
-    const calls = await rows<{
-      mailbox: string;
-      outcome: string;
-      on: string;
-      student: string;
-    }>(
-      `select t.mailbox, x.details ->> 'outcome' as outcome, x.details ->> 'on' as on,
-         x.details ->> 'studentId' as student
-       from core.messages x join core.message_threads t on t.id = x.thread_id
-       where x.tenant_id = $1 and x.kind = 'call' and x.details ? 'studentId'`,
-      [a.tenantId],
-    );
-    expect(calls.length).toBe(1);
-    expect(calls[0]).toMatchObject({
-      mailbox: "attendance",
-      outcome: "no_answer",
-      on: "2026-11-02",
-    });
-  });
-
-  test("what an older release wrote after the move is copied once, then the old tables go", async () => {
-    const { a } = harness();
-    const { legacy } = await moved();
-    const { late, enquiry } = await contracted();
-
-    const copied = await rows<{
-      thread_id: string;
-      kind: string;
-      body: string;
-    }>(
-      "select thread_id, kind, body from core.messages where details ->> 'migratedFrom' = $1",
-      [late],
-    );
-    expect(copied.length).toBe(1);
-    expect(copied[0]).toMatchObject({
-      kind: "call",
-      body: "Called back, no answer.",
-    });
-    const [old] = await rows<{ thread_id: string }>(
-      "select thread_id from core.site_enquiries where id = $1",
-      [legacy],
-    );
-    expect(copied[0]?.thread_id).toBe(old?.thread_id ?? "");
-
-    const [opened] = await rows<{ thread_id: string | null }>(
-      "select thread_id from core.site_enquiries where id = $1",
-      [enquiry],
-    );
-    expect(opened?.thread_id).toBeTruthy();
-    const entries = await rows<{
-      kind: string;
-      body: string;
-      migrated: boolean;
-      has_document: boolean;
-    }>(
-      `select x.kind, x.body, x.details ? 'migratedFrom' as migrated,
-         exists (select 1 from core.documents d
-           where d.host_type = 'message' and d.host_id = x.id and d.frozen_at is not null) as has_document
-       from core.messages x where x.thread_id = $1 order by x.created_at, x.id`,
-      [opened?.thread_id],
-    );
-    expect(entries.map((row) => [row.kind, row.body, row.migrated])).toEqual([
-      ["message", "هل يوجد نقل مدرسي؟", false],
-      ["note", "Asked about the bus.", true],
-    ]);
-    expect(entries.every((row) => row.has_document)).toBe(true);
-    const [thread] = await rows<{ subject: string; mailbox: string }>(
-      "select subject, mailbox from core.message_threads where id = $1",
-      [opened?.thread_id],
-    );
-    expect(thread?.mailbox).toBe("admissions");
-    expect(thread?.subject).toStartWith("رسالتكم إلى ");
-
-    const calls = await rows<{ outcome: string; body: string; thread: string }>(
-      `select x.details ->> 'outcome' as outcome, x.body, x.thread_id as thread
-       from core.messages x
-       where x.tenant_id = $1 and x.kind = 'call' and x.details ? 'studentId'
-       order by x.created_at`,
-      [a.tenantId],
-    );
-    expect(calls.map((row) => [row.outcome, row.body])).toEqual([
-      ["no_answer", ""],
-      ["reached", "Spoke to the family."],
-    ]);
-    expect(new Set(calls.map((row) => row.thread)).size).toBe(1);
-
-    const [tables] = await rows<{ n: number }>(
-      `select count(*)::int as n from pg_tables where schemaname = 'core'
-         and tablename in ('site_enquiry_entries', 'attendance_contacts')`,
-    );
-    expect(tables?.n).toBe(0);
-  });
-
+describe("the office's message templates", () => {
   test("every school was given the office's replies as message templates", async () => {
     const { a } = harness();
     const templates = await rows<{ n: number }>(
@@ -313,7 +112,7 @@ describe("the move of enquiry threads and logged calls into Messages", () => {
 describe("conversations under row security", () => {
   test("a family finds messages alone; a staff note is found only as the team's", async () => {
     const { a } = harness();
-    await moved();
+    await conversation();
     const found = await rows<{ kind: string; result_type: string }>(
       `select x.kind, e.result_type from search.entries e join core.messages x on x.id = e.entity_id
        where e.tenant_id = $1 and e.entity_type = 'message'
@@ -375,8 +174,7 @@ describe("conversations under row security", () => {
 describe("erasing an outside contact", () => {
   test("empties their conversation, their enquiry and their address, keeping each entry in its place", async () => {
     const { a } = harness();
-    const { legacy } = await moved();
-    await contracted();
+    const { enquiry } = await conversation();
     const t = a.tenantId;
     const client = new SQL(urlFor(null));
     const db = drizzle({ client });
@@ -396,14 +194,14 @@ describe("erasing an outside contact", () => {
           from core.site_enquiries e
           join core.thread_members m on m.tenant_id = e.tenant_id and m.thread_id = e.thread_id
             and m.contact_id is not null
-          where e.tenant_id = ${t}::uuid and e.id = ${legacy}::uuid`);
-        if (!found) throw new Error("the legacy enquiry has no contact");
+          where e.tenant_id = ${t}::uuid and e.id = ${enquiry}::uuid`);
+        if (!found) throw new Error("the enquiry has no contact");
         const plan = await contactErasurePlan(tx, {
           tenantId: t,
           contactId: found.contact,
         });
         expect(plan.threads).toEqual([found.thread]);
-        expect(plan.enquiries).toEqual([legacy]);
+        expect(plan.enquiries).toEqual([enquiry]);
         expect(plan.documents.length).toBeGreaterThan(0);
         await approveErasure(tx, {
           tenantId: t,
@@ -443,7 +241,7 @@ describe("erasing an outside contact", () => {
                  (select count(*)::int from core.documents d join core.messages x on x.id = d.host_id
                    where d.tenant_id = ${t}::uuid and d.host_type = 'message'
                      and x.thread_id = ${found.thread}::uuid and d.plain_text <> '') as documents,
-                 (select name from core.site_enquiries where tenant_id = ${t}::uuid and id = ${legacy}::uuid) as enquiry`);
+                 (select name from core.site_enquiries where tenant_id = ${t}::uuid and id = ${enquiry}::uuid) as enquiry`);
         expect(after).toMatchObject({
           email: null,
           name: "",

@@ -1062,8 +1062,7 @@ export const letterKey = (kind: LetterKind, locale: "en" | "ar") =>
 
 /**
  * The letters every school starts with, in both languages, given to it as
- * templates it edits. A custom migration gave them to the schools that
- * existed before; it copies these words.
+ * templates it edits.
  */
 export const BUILTIN_LETTERS: readonly {
   kind: LetterKind;

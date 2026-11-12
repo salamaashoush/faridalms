@@ -5505,52 +5505,70 @@ that tries to reference a file the saving person cannot read.
 ## 9. Migration generation rules
 
 1. **Source of truth.** The cell schema is Drizzle v1 TypeScript in
-   `packages/database/src/cell/`, with its own `drizzle.cell.config.ts` writing
-   to `drizzle-cell/`. The legacy `drizzle/` and `drizzle-control/` stay
-   untouched until the last school has moved.
-2. **Generated migrations are never edited** (AGENTS.md). If the output is
-   wrong, change the schema and regenerate.
-3. **What Drizzle declares**: tables, columns (including `bytea`, `cidr`,
+   `packages/database/src/tables/`, which `packages/database/drizzle.config.ts`
+   writes to `packages/database/migrations/cell/`. The directory and business
+   databases have their own schema modules, configs and folders beside it.
+2. **One baseline per database.** Each folder holds a baseline written as if
+   the schema were designed today: the `tables` migration drizzle-kit
+   generates from the declarations, from empty, and hand-written migrations by
+   topic for what it cannot express, each object once and in its final form.
+   The cell's run in this order: `schemas`, `functions`, `tables`, `keys`,
+   `partitions`, `search`, `views`, `triggers`, `access`. The directory and
+   business databases have `tables` and `access`. The functions come before
+   the tables, with `check_function_bodies` off, because the tables' policies
+   call them; the one function that takes a table's row type comes with the
+   views.
+3. **Rewritten in place until the modular-core work is finished**
+   (`docs/plans/modular-core.md`). A change edits the declarations, runs
+   `bun run db:baseline`, which generates the `tables` migration again from
+   empty and keeps every topic migration in its place, and edits by hand the
+   topic migration it touches. Nothing is appended, and a database made from
+   an earlier baseline is made again rather than migrated. From the first
+   release after that work an applied migration is never edited: a change
+   appends its generated migration and, right after it, the custom one that
+   completes it (`drizzle-kit generate --custom --name <topic>`).
+4. **Generated migrations are never edited** (AGENTS.md). If the output is
+   wrong, change the declaration and regenerate.
+5. **What Drizzle declares**: tables, columns (including `bytea`, `cidr`,
    arrays and `generatedAlwaysAs(...)` stored columns), composite primary,
    unique and foreign keys, partial and expression indexes (the ICU collation
-   indexes as `sql` expressions), `NULLS NOT DISTINCT`, checks, `pgTable.withRLS`
-   and `pgPolicy` for the isolation, permissive and purpose-gate policies (one
-   `pgPolicy` object reused across tables becomes a policy per table), roles
-   declared as `pgRole(...).existing()` ([R2] section 9). `daterange` and
-   `tsvector` are `customType`s. Ids use ``.default(sql`uuidv7()`)``, never
-   `.defaultRandom()`.
-4. **What goes in a custom migration** (`drizzle-kit generate --custom --name
-   <topic>`), committed in the same change right after the generated migration
-   it completes: `FORCE ROW LEVEL SECURITY`; grants and revokes, including
-   column grants; functions and triggers; `EXCLUDE`, `WITHOUT OVERLAPS` and
-   `PERIOD` keys; deferrable keys; extensions and schemas; partitioned tables
-   and their registry rows in `ops.partitioned_tables`; views. Drizzle rc.4
-   emits none of these ([R2] finding 8).
-5. **Partitioned tables** are declared in a TypeScript module the app imports
-   for types but `drizzle.cell.config.ts` does not list, because drizzle-kit has
-   no `PARTITION BY`; their DDL lives only in custom migrations ([R2] section 7).
-6. **Never `drizzle-kit push`** against a cell; it introspects and would drop
+   indexes as `sql` expressions), checks, `pgTable.withRLS` and `pgPolicy` for
+   the isolation, permissive and purpose-gate policies (one `pgPolicy` object
+   reused across tables becomes a policy per table), roles declared as
+   `pgRole(...).existing()` ([R2] section 9). `daterange` and `tsvector` are
+   `customType`s. Ids use ``.default(sql`uuidv7()`)``, never `.defaultRandom()`.
+6. **What is hand-written**: `FORCE ROW LEVEL SECURITY`; grants and revokes,
+   including column grants; functions and triggers; `EXCLUDE`,
+   `WITHOUT OVERLAPS` and `PERIOD` keys; deferrable keys; `NULLS NOT DISTINCT`
+   unique indexes; column compression; extensions, schemas and collations;
+   partitioned tables and their registry rows in `ops.partitioned_tables`; the
+   search index; views. Drizzle rc.4 emits none of these ([R2] finding 8).
+7. **Partitioned tables** are declared in a TypeScript module the app imports
+   for types but `drizzle.config.ts` does not list, because drizzle-kit has no
+   `PARTITION BY`; their DDL lives only in the `partitions` migration ([R2]
+   section 7).
+8. **Never `drizzle-kit push`** against a cell; it introspects and would drop
    what it does not understand. `generate` diffs snapshots and leaves unknown
    constraints alone.
-7. **Execution.** Migrations run as `migrator` with `SET ROLE cell_owner`, over
+9. **Execution.** Migrations run as `migrator` with `SET ROLE cell_owner`, over
    a direct connection, in one transaction, with `lock_timeout = 5s`. An index
    on a large existing table is built beforehand by an operator with
    `CREATE INDEX CONCURRENTLY` and declared `IF NOT EXISTS` in the migration.
-8. **No tenant data in migrations.** A migration has no tenant context, so it
-   can read and write no tenant rows. Backfills and seed additions are
-   per-tenant worker jobs, run after the migration that adds the column and
-   before the one that makes it `NOT NULL`. Cell metadata without tenants
-   (`ops.partitioned_tables`) may be written by a migration.
-9. **Expand and contract** for every change a running release depends on: add,
-   backfill, switch reads, then drop in a later release.
-10. **Roles and role settings** are provisioning code, not migrations: the
+10. **No tenant data in migrations.** A migration has no tenant context, so it
+    can read and write no tenant rows. Backfills and seed additions are
+    per-tenant worker jobs, run after the migration that adds the column and
+    before the one that makes it `NOT NULL`. Cell metadata without tenants
+    (`ops.partitioned_tables`) may be written by a migration.
+11. **Expand and contract** for every change a running release depends on: add,
+    backfill, switch reads, then drop in a later release.
+12. **Roles and role settings** are provisioning code, not migrations: the
     runtime roles including `site` and `integration`, `pgboss_owner`, the
     operators' personal roles, and the `pg_hba.conf` rule for `backup_dump`.
-11. **The pg-boss pipeline step** runs the pg-boss CLI migrations as
+13. **The pg-boss pipeline step** runs the pg-boss CLI migrations as
     `pgboss_owner`, creates or updates the queues, and re-applies the grants of
     section 7.6 to every job table, because a new queue gets a new table and
     default privileges are never used.
-12. **CI**: apply every migration to an empty cluster; run `drizzle-kit
+14. **CI**: apply every migration to an empty cluster; run `drizzle-kit
     generate` and fail if it writes a file (schema and migrations disagree);
     run gates 1 to 3 (section 8).
 

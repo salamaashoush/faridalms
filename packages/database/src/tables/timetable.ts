@@ -108,9 +108,6 @@ export const classMeetings = core.table.withRLS(
     /** The homeroom whose students the class takes, or the class itself. */
     groupClassId: uuid("group_class_id").notNull(),
     /** The timetable it belongs to, which is followed only on its own days. */
-    // Keyed to timetables NOT VALID by the custom migration, as
-    // calendar_dates.bell_schedule_id: validating a key on an existing table
-    // reads it under forced row security, where a migration has no tenant.
     timetableId: uuid("timetable_id").notNull(),
     /** The day of its timetable's cycle: the ISO weekday in an ordinary week. */
     weekday: smallint("weekday").notNull(),
@@ -140,6 +137,16 @@ export const classMeetings = core.table.withRLS(
       "class_meetings",
       [t.tenantId, t.groupClassId],
       [classes.tenantId, classes.id],
+    ),
+    fk(
+      "class_meetings",
+      [t.tenantId, t.timetableId, t.schoolYearId, t.orgId],
+      [
+        timetables.tenantId,
+        timetables.id,
+        timetables.schoolYearId,
+        timetables.orgId,
+      ],
     ),
     fk(
       "class_meetings",

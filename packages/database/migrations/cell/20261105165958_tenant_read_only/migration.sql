@@ -1,1 +1,0 @@
-ALTER TABLE "ops"."tenant_registry" DROP CONSTRAINT "tenant_registry_lifecycle_check", ADD CONSTRAINT "tenant_registry_lifecycle_check" CHECK (lifecycle in ('provisioning', 'importing', 'active', 'read_only', 'frozen', 'suspended', 'offboarding'));

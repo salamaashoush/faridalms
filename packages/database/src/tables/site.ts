@@ -37,6 +37,7 @@ import {
   roles,
   tenantColumns,
 } from "./conventions";
+import { messageThreads } from "./messaging";
 import { users } from "./people";
 import { orgs, tenants } from "./tenancy";
 
@@ -448,18 +449,13 @@ export const siteEnquiries = core.table.withRLS(
       .notNull()
       .default(sql`statement_timestamp()`),
     closedReason: text("closed_reason").$type<CloseReason>(),
-    // These four reference users through keys the access migration adds NOT
-    // VALID: drizzle-kit 1.0.0-rc.5 writes a key on an existing table as
-    // validated, and validating one reads the table under its forced row
-    // security, where a migration has no tenant. New rows are checked.
     assigneeUserId: uuid("assignee_user_id"),
     firstRespondedAt: instant("first_responded_at"),
     createdByUserId: uuid("created_by_user_id"),
     familyUserId: uuid("family_user_id"),
     applicantUserId: uuid("applicant_user_id"),
     // The enquiry's conversation in the admissions mailbox, where the family
-    // is written to and every note, contact and change is kept. Keyed NOT
-    // VALID by the custom migration, for the reason above.
+    // is written to and every note, contact and change is kept.
     threadId: uuid("thread_id"),
     // What the release before the enquiry's states reads and writes; nothing
     // here does, and the columns go once no such release runs.
@@ -472,6 +468,31 @@ export const siteEnquiries = core.table.withRLS(
     ...baseConstraints("site_enquiries", t, tenants),
     fk("site_enquiries", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
     fk("site_enquiries", [t.tenantId, t.handledBy], [users.tenantId, users.id]),
+    fk(
+      "site_enquiries",
+      [t.tenantId, t.assigneeUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "site_enquiries",
+      [t.tenantId, t.createdByUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "site_enquiries",
+      [t.tenantId, t.familyUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "site_enquiries",
+      [t.tenantId, t.applicantUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "site_enquiries",
+      [t.tenantId, t.threadId],
+      [messageThreads.tenantId, messageThreads.id],
+    ),
     ck(
       "site_enquiries",
       "source",

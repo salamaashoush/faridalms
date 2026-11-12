@@ -1,2 +1,0 @@
-ALTER TABLE "core"."lesson_progress" ALTER COLUMN "attempts" SET DEFAULT 1;--> statement-breakpoint
-ALTER TABLE "core"."lesson_progress" DROP CONSTRAINT "lesson_progress_attempts_check", ADD CONSTRAINT "lesson_progress_attempts_check" CHECK (attempts between 1 and 1000);

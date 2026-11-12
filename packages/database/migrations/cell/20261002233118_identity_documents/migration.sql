@@ -1,3 +1,0 @@
-ALTER TABLE "core"."external_ids" ADD COLUMN "issuing_country_code" text;--> statement-breakpoint
-ALTER TABLE "core"."external_ids" ADD CONSTRAINT "external_ids_issuing_country_code_check" CHECK (issuing_country_code ~ '^[A-Z]{2}$');--> statement-breakpoint
-ALTER TABLE "core"."external_ids" DROP CONSTRAINT "external_ids_sensitive_check", ADD CONSTRAINT "external_ids_sensitive_check" CHECK (system_meaning not in ('national_id', 'passport', 'residence_permit', 'birth_certificate') or identifier_ciphertext is not null);

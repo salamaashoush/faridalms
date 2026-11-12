@@ -1,1 +1,0 @@
-ALTER TABLE "core"."lesson_watches" ADD COLUMN "replayed" int4multirange DEFAULT '{}' NOT NULL;

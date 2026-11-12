@@ -1,1 +1,0 @@
-ALTER TABLE "core"."lessons" ADD COLUMN "young" boolean DEFAULT false NOT NULL;
