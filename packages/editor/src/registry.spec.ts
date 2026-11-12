@@ -56,13 +56,7 @@ describe("block placement", () => {
     },
   };
 
-  // An outside tool's link takes the school's first tool when it is drawn,
-  // which an editor without a screen never does.
-  const drawnFirst = new Set(["outsideTool"]);
-
-  for (const block of blockDefinitions.filter(
-    (definition) => !drawnFirst.has(definition.type),
-  ))
+  for (const block of blockDefinitions)
     for (const [place, $make] of Object.entries(places))
       it(`saves ${block.type} inserted in ${place}`, () => {
         const editor = buildContentEditor();

@@ -2,7 +2,6 @@ import { PACKS } from "@faridalms/puzzles/levels";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import type { ContentDocument } from "./content";
 import type {
   ChoiceBlock,
   CrosswordBlock,
@@ -23,7 +22,6 @@ import type {
   WordSearchBlock,
 } from "./learning";
 
-import { plainContent } from "./content-conversion";
 import { crosswordLayout, crosswordLetters, squaresOf } from "./crossword";
 import {
   answerKey,
@@ -40,7 +38,6 @@ import {
   gateScore,
   highlightTokens,
   lessonIssue,
-  lessonPackages,
   lessonConditionSchema,
   lessonDocumentSchema,
   lessonScore,
@@ -392,38 +389,6 @@ describe("feedback that waits", () => {
     expect(feedbackAtOf(memory)).toBe("now");
   });
 
-  it("finishes a lesson on its course packages once every one is satisfied", () => {
-    const packageId = "11111111-1111-4111-8111-111111111111";
-    const other = "22222222-2222-4222-8222-222222222222";
-    const without = plainContent("Read, then open the course.");
-    const content = {
-      root: {
-        ...without.root,
-        children: [
-          ...(without.root.children ?? []),
-          course(packageId),
-          course(other),
-        ],
-      },
-    } as ContentDocument;
-    const document = lessonOfContent(content);
-    expect(lessonPackages(document)).toEqual([packageId, other]);
-    const rule = { completion: "package" as const, passScore: null };
-    expect(completionMet(rule, document, {}, {}, new Set([packageId]))).toBe(
-      false,
-    );
-    expect(
-      completionMet(rule, document, {}, {}, new Set([packageId, other])),
-    ).toBe(true);
-    expect(lessonIssue({ completion: "package", content })).toBeNull();
-    expect(lessonIssue({ completion: "package", content: without })).toBe(
-      "learning.needs_package",
-    );
-    expect(
-      completionMet(rule, lessonOfContent(without), {}, {}, new Set()),
-    ).toBe(false);
-  });
-
   it("keeps a young lesson's feedback at once", () => {
     const content = contentOfLesson({
       version: 2,
@@ -435,27 +400,6 @@ describe("feedback that waits", () => {
     );
     expect(lessonIssue({ completion: "view", content })).toBeNull();
   });
-});
-
-/** A course package block holding one unit. */
-const course = (packageId: string) => ({
-  type: "cmi5",
-  version: 1,
-  fileId: "33333333-3333-4333-8333-333333333333",
-  cmi5: {
-    packageId,
-    courseId: "https://publisher.example.com/course/1",
-    title: "Floods",
-    aus: [
-      {
-        id: "https://publisher.example.com/au/1",
-        title: "Part one",
-        url: "index.html",
-        moveOn: "Completed" as const,
-        launchMethod: "AnyWindow" as const,
-      },
-    ],
-  },
 });
 
 function gatedIssue(blocks: LessonDocument["blocks"], young = false) {

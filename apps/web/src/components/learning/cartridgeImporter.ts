@@ -4,7 +4,7 @@ import type {
   CartridgeRule,
   CartridgeSubmission,
 } from "@faridalms/domain/cartridge-read";
-import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
+import type { ContentDocument } from "@faridalms/domain/content";
 import type { LessonBlock, LessonCompletion } from "@faridalms/domain/learning";
 import type { UploadedFile } from "@faridalms/editor";
 
@@ -48,8 +48,6 @@ interface Importer {
   files: ReadonlyMap<string, Uint8Array>;
   /** Stores a file of the package with the school. */
   upload: (file: File) => Promise<UploadedFile>;
-  /** The outside tools of this school, which a kept lesson's links may name. */
-  toolIds: ReadonlySet<string>;
 }
 
 /** Stores each package file once, whoever links it. */
@@ -160,23 +158,8 @@ async function keptLesson(
     const stored = await store(packagePath(path, `../../${href}`));
     if (stored) text = text.replaceAll(fileId, stored.fileId);
   }
-  const content = JSON.parse(text) as ContentDocument;
-  // A link to an outside tool this school has not registered cannot launch.
-  const known = (nodes: ContentNode[] | undefined): ContentNode[] =>
-    (nodes ?? []).flatMap((node) =>
-      node.type === "lti" && !importer.toolIds.has(node.lti?.toolId ?? "")
-        ? []
-        : [
-            {
-              ...node,
-              ...(node.children ? { children: known(node.children) } : {}),
-            },
-          ],
-    );
   return {
-    content: {
-      root: { ...content.root, children: known(content.root.children) },
-    },
+    content: JSON.parse(text) as ContentDocument,
     language: kept.language ?? null,
   };
 }
@@ -265,7 +248,7 @@ export async function importBanks(
     }) => Promise<unknown>;
   },
 ): Promise<{ kept: number; check: number }> {
-  const store = storer({ ...importer, toolIds: new Set() });
+  const store = storer(importer);
   let kept = 0;
   let check = 0;
   for (const bank of cartridge.banks) {
@@ -466,13 +449,13 @@ export async function importCartridge(
       opened = { id, store: storer(scoped), importer: scoped };
       return opened;
     };
-    // What this app exported after a whole lesson, its questions and its
-    // tool links, is already in the lesson.
+    // What this app exported after a whole lesson, its questions, is
+    // already in the lesson.
     let whole = false;
     for (const item of module.items) {
       done += 1;
       importer.onProgress(done, total);
-      if (whole && (item.kind === "quiz" || item.kind === "tool")) continue;
+      if (whole && item.kind === "quiz") continue;
       try {
         if (item.kind === "assignment") {
           // A date already past belongs to the course it came from.

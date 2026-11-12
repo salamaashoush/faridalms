@@ -5,7 +5,7 @@ import { partName } from "./learning";
 /**
  * A module as an IMS Common Cartridge 1.1, the version Moodle and Canvas
  * both import: its lessons as pages, each lesson's questions as a quiz
- * after it, its links to outside tools, and the files they show. Questions
+ * after it, and the files they show. Questions
  * take CC's QTI 1.2.1 profile where it has a form for them; any other kind
  * goes as a teacher-marked essay that shows its parts, with the key for
  * the marker. Beside them, out of the course's way, every lesson is kept
@@ -14,7 +14,6 @@ import { partName } from "./learning";
 
 const CC = "http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1";
 const QTI = "http://www.imsglobal.org/xsd/ims_qtiasiv1p2";
-const LTI_XSD = "http://www.imsglobal.org/xsd/lti/ltiv1p0";
 const CANVAS = "http://canvas.instructure.com/xsd/cccv1p0";
 
 /**
@@ -457,24 +456,6 @@ export function ccBank(bank: {
   const { profile, file } = namesOf(bank.version ?? "1.1");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <questestinterop xmlns="${QTI}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="${QTI} ${profile}/${file}_qtiasiv1p2p1_v1p0.xsd"><objectbank ident="${bank.ident}"><qtimetadata>${field("bank_title", bank.title)}</qtimetadata>${bank.items.join("")}</objectbank></questestinterop>
-`;
-}
-
-/** A link to an outside tool as CC 1.1 carries one; the tool must be registered again where it lands. */
-export function ccToolLink(link: {
-  title: string;
-  description: string;
-  url: string;
-  custom: Record<string, string>;
-  version?: CcVersion;
-}): string {
-  const root =
-    link.version === "1.3"
-      ? "http://www.imsglobal.org/xsd/imslticc_v1p3"
-      : "http://www.imsglobal.org/xsd/imslticc_v1p0";
-  const custom = Object.entries(link.custom);
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<cartridge_basiclti_link xmlns="${root}" xmlns:blti="http://www.imsglobal.org/xsd/imsbasiclti_v1p0" xmlns:lticm="http://www.imsglobal.org/xsd/imslticm_v1p0" xmlns:lticp="http://www.imsglobal.org/xsd/imslticp_v1p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="${root} ${link.version === "1.3" ? "http://www.imsglobal.org/xsd/imslticc_v1p3.xsd" : `${LTI_XSD}/imslticc_v1p0.xsd`} http://www.imsglobal.org/xsd/imsbasiclti_v1p0 ${LTI_XSD}/imsbasiclti_v1p0p1.xsd http://www.imsglobal.org/xsd/imslticm_v1p0 ${LTI_XSD}/imslticm_v1p0.xsd http://www.imsglobal.org/xsd/imslticp_v1p0 ${LTI_XSD}/imslticp_v1p0.xsd"><blti:title>${escape(link.title)}</blti:title><blti:description>${escape(link.description)}</blti:description>${custom.length ? `<blti:custom>${custom.map(([name, value]) => `<lticm:property name="${escape(name)}">${escape(value)}</lticm:property>`).join("")}</blti:custom>` : ""}<blti:launch_url>${escape(link.url)}</blti:launch_url><blti:secure_launch_url>${escape(link.url)}</blti:secure_launch_url><blti:vendor><lticp:code>farida</lticp:code><lticp:name>Farida</lticp:name></blti:vendor></cartridge_basiclti_link>
 `;
 }
 

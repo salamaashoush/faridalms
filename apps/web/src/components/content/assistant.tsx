@@ -15,7 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { useLtiHost } from "~/components/content/lti";
+import { useDocumentHost } from "~/components/content/document-host";
 import * as m from "~/i18n/messages";
 import { assistantStatusQuery } from "~/queries/assistant";
 import { formatNumber } from "~/utils/datetime";
@@ -68,7 +68,7 @@ function useAssistantStatus(on: boolean) {
  * brief this page edits, once it is saved and while the school offers it.
  */
 export function useEditorAssistant(on: boolean): EditorAssistant | undefined {
-  const host = useLtiHost();
+  const host = useDocumentHost();
   const id = host?.id ?? null;
   const type = host?.type ?? null;
   const provider = useAssistantStatus(on && id !== null);

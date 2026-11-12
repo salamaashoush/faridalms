@@ -11,7 +11,6 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Lock } from "lucide-react";
 
-import { LtiHostProvider } from "~/components/content/lti";
 import {
   LessonPlayer,
   LessonPreview,
@@ -98,14 +97,10 @@ function LessonTrail() {
 function LessonPage() {
   const { lessonId } = Route.useParams();
   const { auth } = Route.useRouteContext();
-  return (
-    <LtiHostProvider type="lesson" id={lessonId}>
-      {learns(auth.workspace) ? (
-        <LessonPlayer key={lessonId} lessonId={lessonId} />
-      ) : (
-        <LessonPreview lessonId={lessonId} />
-      )}
-    </LtiHostProvider>
+  return learns(auth.workspace) ? (
+    <LessonPlayer key={lessonId} lessonId={lessonId} />
+  ) : (
+    <LessonPreview lessonId={lessonId} />
   );
 }
 

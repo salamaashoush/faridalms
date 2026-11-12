@@ -27,8 +27,6 @@ import {
 } from "~/components/admin/AccessRolesPanel";
 import { AssistantSettings } from "~/components/admin/AssistantSettings";
 import { CommonsPictures } from "~/components/admin/CommonsPictures";
-import { OutsideTools } from "~/components/admin/OutsideTools";
-import { RecordStore } from "~/components/admin/RecordStore";
 import { SchoolProfileSection } from "~/components/admin/SchoolEditors";
 import {
   filterSubjects,
@@ -48,7 +46,6 @@ import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
 import { assistantSettingsQuery } from "~/queries/assistant";
 import { attendanceSettingsQuery } from "~/queries/attendance";
 import { subjectsQuery } from "~/queries/classes";
-import { ltiToolsQuery } from "~/queries/lti";
 import { readingNormsQuery } from "~/queries/reading";
 import {
   pictureSourcesQuery,
@@ -58,7 +55,6 @@ import {
 } from "~/queries/school-settings";
 import { peopleOptionsQuery } from "~/queries/students";
 import { currentUserQuery } from "~/queries/user";
-import { recordStoreQuery } from "~/queries/xapi";
 import { formatDate } from "~/utils/datetime";
 import { requirePage } from "~/utils/page-access";
 
@@ -70,9 +66,7 @@ const searchSchema = v.object({
       "attendance",
       "reading",
       "access",
-      "tools",
       "assistant",
-      "records",
     ]),
     "school",
   ),
@@ -106,14 +100,10 @@ export const Route = createFileRoute("/_app/_staff/settings")({
       await queryClient.ensureQueryData(subjectsQuery);
     else if (deps.section === "attendance")
       await queryClient.ensureQueryData(attendanceSettingsQuery);
-    else if (deps.section === "tools")
-      await queryClient.ensureQueryData(ltiToolsQuery);
     else if (deps.section === "assistant")
       await queryClient.ensureQueryData(assistantSettingsQuery);
     else if (deps.section === "reading")
       await queryClient.ensureQueryData(readingNormsQuery);
-    else if (deps.section === "records")
-      await queryClient.ensureQueryData(recordStoreQuery);
     else
       await Promise.all([
         queryClient.ensureQueryData(accessRolesQuery),
@@ -181,9 +171,7 @@ function SettingsRoute() {
           { value: "attendance", label: m.attendanceTitle() },
           { value: "reading", label: m.readingSettingsTab() },
           { value: "access", label: m.adminPermissionsSection() },
-          { value: "tools", label: m.ltiTools() },
           { value: "assistant", label: m.assistantTab() },
-          { value: "records", label: m.settingsRecordsTab() },
         ]}
         value={search.section}
         onChange={(section) => void navigate({ search: { section } })}
@@ -200,12 +188,8 @@ function SettingsRoute() {
           <SettingsPage>
             <ReadingNorms />
           </SettingsPage>
-        ) : search.section === "tools" ? (
-          <OutsideTools />
         ) : search.section === "assistant" ? (
           <AssistantSettings />
-        ) : search.section === "records" ? (
-          <RecordStore />
         ) : (
           <Suspense fallback={<Skeleton className="h-40 w-full" />}>
             <AccessTab search={search} patch={patch} />

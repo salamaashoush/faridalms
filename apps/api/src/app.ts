@@ -8,12 +8,10 @@ import type { ApiDependencies, RequestContext } from "./core/context";
 
 import { handleAssistantRequest } from "./assistant/routes";
 import { handleCalendarFeed } from "./calendar/feed";
-import { handleCmi5Request } from "./cmi5/routes";
 import { handleWorkExport } from "./files/exports";
 import { handlePublicFileRequest } from "./files/public";
 import { handleFileRequest } from "./files/routes";
 import { askLimiter, handleEdgeAsk } from "./hosts/ask";
-import { handleLtiRequest } from "./lti/routes";
 import { handleMediaRequest } from "./media/streams";
 import { handleInboundMail } from "./messages/inbound";
 import { router } from "./router";
@@ -94,8 +92,6 @@ export function createApp(dependencies: ApiDependencies) {
           (await handleCalendarFeed(request, url, context)) ??
           (await handleWorkExport(request, url, context)) ??
           (await handleMediaRequest(request, url, context)) ??
-          (await handleLtiRequest(request, url, context)) ??
-          (await handleCmi5Request(request, url, context)) ??
           (await handleAssistantRequest(request, url, context)) ??
           (await handleFileRequest(request, url, context));
         if (file) response = file;

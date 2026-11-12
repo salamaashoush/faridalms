@@ -190,8 +190,6 @@ const NEVER_SENT = new Set<string>([
   "file",
   "media",
   "embed",
-  "lti",
-  "cmi5",
   "diagram",
   "draw",
   "shared",

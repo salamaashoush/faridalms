@@ -39,7 +39,6 @@ import * as identifiersSystem from "./systems/identifiers";
 import * as identity from "./systems/identity";
 import * as intakesSystem from "./systems/intakes";
 import * as learningSystem from "./systems/learning";
-import * as ltiSystem from "./systems/lti";
 import * as mediaSystem from "./systems/media";
 import * as messagesSystem from "./systems/messages";
 import * as notificationsSystem from "./systems/notifications";
@@ -58,7 +57,6 @@ import * as siteSystem from "./systems/site";
 import * as standardsSystem from "./systems/standards";
 import * as templatesSystem from "./systems/templates";
 import * as timetableSystem from "./systems/timetable";
-import * as xapiSystem from "./systems/xapi";
 import * as yearsSystem from "./systems/years";
 
 /**
@@ -150,8 +148,6 @@ export const router = {
   learning: owned("learning", learningSystem),
   pictures: owned("pictures", picturesSystem),
   media: owned("media", mediaSystem),
-  lti: owned("lti", ltiSystem),
-  xapi: owned("xapi", xapiSystem),
   site: owned("site", siteSystem),
   admissions: owned("admissions", admissionsSystem),
   intakes: owned("intakes", intakesSystem),

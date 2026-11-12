@@ -42,13 +42,11 @@ import {
   $parseSerializedNode,
 } from "lexical";
 import {
-  AppWindow,
   ArrowDownUp,
   BookA,
   BookOpenText,
   LibraryBig,
   FileInput,
-  PackageOpen,
   FileText,
   CodeXml,
   FileCode,
@@ -130,9 +128,6 @@ import {
   $createPuzzleQuestion,
   $createPythonQuestion,
   $createSketchQuestion,
-  $createLtiNode,
-  $isLtiNode,
-  $selectLti,
   $createReadingQuestion,
   $createWhyQuestion,
   $createDateQuestion,
@@ -231,7 +226,6 @@ export type BlockType =
   | "pollQuestion"
   | "whyQuestion"
   | "readingQuestion"
-  | "outsideTool"
   | "gate"
   | "pageBreak"
   | "studentCopy"
@@ -244,8 +238,7 @@ export type BlockType =
   | "glossary"
   | "bibliography"
   | "word"
-  | "qtiImport"
-  | "cmi5Package";
+  | "qtiImport";
 
 /** The groups the insert menus show blocks in, in this order. */
 export const BLOCK_GROUPS = [
@@ -336,8 +329,6 @@ export interface BlockDefinition {
   standards?: boolean;
   /** Offered only where blocks are kept to show in many documents. */
   shared?: boolean;
-  /** Offered only where the school has outside tools to link to. */
-  tools?: boolean;
   /** Offered only where the school's language model helps its teachers. */
   assistant?: boolean;
 }
@@ -358,7 +349,6 @@ export interface BlockScope {
   draws: boolean;
   standards: boolean;
   shared: boolean;
-  tools: boolean;
   assistant: boolean;
 }
 
@@ -376,7 +366,6 @@ export function blockScope(environment: {
   draws?: boolean;
   standards?: unknown;
   shared?: unknown;
-  tools?: { list: readonly unknown[] };
   assistant?: unknown;
 }): BlockScope {
   const questions = Boolean(environment.questions);
@@ -394,7 +383,6 @@ export function blockScope(environment: {
     draws: questions && Boolean(environment.bank) && Boolean(environment.draws),
     standards: Boolean(environment.standards),
     shared: Boolean(environment.shared),
-    tools: Boolean(environment.tools?.list.length),
     assistant: questions && Boolean(environment.assistant),
   };
 }
@@ -413,7 +401,6 @@ export const offered = (block: BlockDefinition, scope: BlockScope) =>
   (scope.draws || !block.draw) &&
   (scope.standards || !block.standards) &&
   (scope.shared || !block.shared) &&
-  (scope.tools || !block.tools) &&
   (scope.assistant || !block.assistant);
 
 export const blockDefinitions: BlockDefinition[] = [
@@ -741,43 +728,7 @@ export const blockDefinitions: BlockDefinition[] = [
     ],
     prompt: true,
   },
-  {
-    type: "outsideTool",
-    group: "media",
-    icon: AppWindow,
-    label: (s) => s.ltiTool,
-    hint: (s) => s.ltiToolHint,
-    keywords: [
-      "lti",
-      "tool",
-      "app",
-      "simulation",
-      "publisher",
-      "launch",
-      "أداة",
-      "تطبيق",
-      "محاكاة",
-    ],
-    tools: true,
-  },
-  {
-    type: "cmi5Package",
-    group: "media",
-    icon: PackageOpen,
-    label: (s) => s.cmi5Import,
-    hint: (s) => s.cmi5ImportHint,
-    keywords: [
-      "cmi5",
-      "xapi",
-      "package",
-      "course",
-      "elearning",
-      "حزمة",
-      "مقرر",
-    ],
-    media: true,
-    activity: true,
-  },
+
   {
     type: "diagram",
     group: "media",
@@ -1661,10 +1612,6 @@ function $selectInside(node: LexicalNode) {
     $selectStandards(node);
     return;
   }
-  if ($isLtiNode(node)) {
-    $selectLti(node);
-    return;
-  }
   if ($isToggleNode(node)) {
     node.getFirstChild()?.selectEnd();
     return;
@@ -1712,7 +1659,6 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (type === "whyQuestion") return $createWhyQuestion();
   if (type === "dateQuestion") return $createDateQuestion();
   if (type === "readingQuestion") return $createReadingQuestion();
-  if (type === "outsideTool") return $createLtiNode("", "");
   if (type === "sketchQuestion") return $createSketchQuestion();
   if (type === "pythonQuestion") return $createPythonQuestion();
   if (type === "microbitQuestion") return $createMicrobitQuestion();

@@ -47,8 +47,7 @@ export type LessonCompletion =
   | "quiz"
   | "score"
   | "reflection"
-  | "watch"
-  | "package";
+  | "watch";
 
 /**
  * A module of lessons a teacher sets for classes of one school year. It
@@ -324,7 +323,7 @@ export const lessons = core.table.withRLS(
     ck(
       "lessons",
       "completion",
-      sql`completion in ('view', 'mark', 'quiz', 'score', 'reflection', 'watch', 'package')`,
+      sql`completion in ('view', 'mark', 'quiz', 'score', 'reflection', 'watch')`,
     ),
     ck(
       "lessons",

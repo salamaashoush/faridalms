@@ -29,10 +29,8 @@ delete_allowed(name, role) as (values
   ('core.standard_evidence', 'retention'), ('core.goal_judgements', 'retention'),
   ('core.goal_reports', 'retention'),
   ('core.standard_observations', 'retention'),
-  ('core.peer_reviews', 'retention'), ('core.lti_replays', 'retention'), ('core.lti_scores', 'retention'),
+  ('core.peer_reviews', 'retention'),
   ('core.discussion_likes', 'retention'), ('core.peer_review_comments', 'retention'),
-  ('core.xapi_statements', 'retention'), ('core.cmi5_registrations', 'retention'),
-  ('core.cmi5_sessions', 'retention'), ('core.cmi5_states', 'retention'),
   ('core.module_audiences', 'retention'), ('core.lesson_openings', 'retention'),
   ('core.lesson_progress', 'retention'), ('core.lesson_releases', 'retention'),
   ('core.lesson_watches', 'retention'), ('core.assignment_recipients', 'retention'),
@@ -90,7 +88,7 @@ union all
 select name, p.polname || ' lets retention change rows without an erasure approval' from t
   join pg_policy p on p.polrelid = t.oid
   where p.polcmd in ('w', 'd') and p.polroles @> array[(select oid from pg_roles where rolname = 'retention')]
-    and name not in ('core.tenant_keys', 'core.auth_attempts', 'core.lti_replays', 'core.xapi_statements')
+    and name not in ('core.tenant_keys', 'core.auth_attempts')
     and coalesce(pg_get_expr(p.polqual, p.polrelid), '') not like '%erasure_%'
 union all
 select name, 'names an outside contact without an erasure rule' from t

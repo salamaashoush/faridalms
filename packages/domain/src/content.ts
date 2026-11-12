@@ -4,20 +4,16 @@ import { levelSchema } from "@faridalms/puzzles/level";
 import * as v from "valibot";
 
 import type { FootnoteSource } from "./citations";
-import type { Cmi5LaunchMode, Cmi5Package } from "./cmi5";
 import type { PictureCredit, PictureFocus } from "./commons";
 import type { EmbedProvider } from "./embed";
-import type { LtiLink } from "./lti";
 import type { MathForm } from "./math-forms";
 import type { ProjectFile, ProjectLanguage } from "./project";
 import type { ScratchFeature } from "./scratch-project";
 
 import { MAX_DESCRIPTION_TEXT, parseDescriptions } from "./chapters";
 import { footnoteSourceSchema } from "./citations";
-import { CMI5_LAUNCH_MODES, cmi5PackageSchema } from "./cmi5";
 import { pictureCreditSchema, pictureFocusSchema } from "./commons";
 import { embedProviders, isEmbedId } from "./embed";
-import { ltiLinkSchema } from "./lti";
 import { MATH_FORMS } from "./math-forms";
 import { projectLanguages, starterFilesSchema } from "./project";
 import { scratchChecksSchema } from "./scratch-project";
@@ -128,8 +124,6 @@ export const contentNodeTypes = [
   "file",
   "media",
   "embed",
-  "lti",
-  "cmi5",
   "diagram",
   "question",
   "question-prompt",
@@ -370,12 +364,6 @@ export interface ContentNode {
   noSkipping?: boolean;
   provider?: EmbedProvider;
   embedId?: string;
-  /** A link to one of the school's outside tools. */
-  lti?: LtiLink;
-  /** A course package in the cmi5 profile, its zip the node's file. */
-  cmi5?: Cmi5Package;
-  /** How the package's units launch, when not to record what students achieve. */
-  launchMode?: Cmi5LaunchMode;
   sceneFileId?: string;
   kind?: QuestionKind;
   questionId?: string;
@@ -717,9 +705,6 @@ const nodeShape: v.GenericSchema<ContentNode> = v.pipe(
     noSkipping: v.optional(v.boolean()),
     provider: v.optional(v.picklist(embedProviders)),
     embedId: v.optional(v.pipe(v.string(), v.maxLength(400))),
-    lti: v.optional(ltiLinkSchema),
-    cmi5: v.optional(cmi5PackageSchema),
-    launchMode: v.optional(v.picklist(CMI5_LAUNCH_MODES)),
     sceneFileId: v.optional(v.pipe(v.string(), v.uuid())),
     projectFileId: v.optional(v.pipe(v.string(), v.uuid())),
     projectFiles: v.optional(starterFilesSchema),
@@ -1176,21 +1161,6 @@ const NODE_RULES: Record<ContentNode["type"], NodeRule> = {
       node.embedId !== undefined &&
       isEmbedId(node.provider, node.embedId),
     text: mediaText,
-  },
-  lti: {
-    stands: "block",
-    shape: "leaf",
-    check: (node) => Boolean(node.lti),
-    text: (node) => node.lti?.title ?? "",
-  },
-  cmi5: {
-    stands: "block",
-    shape: "leaf",
-    check: (node) => Boolean(node.cmi5) && Boolean(node.fileId),
-    text: (node) =>
-      [node.cmi5?.title ?? "", ...(node.cmi5?.aus ?? []).map((au) => au.title)]
-        .filter(Boolean)
-        .join("\n"),
   },
   diagram: {
     stands: "block",

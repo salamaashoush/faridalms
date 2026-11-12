@@ -129,14 +129,6 @@ const INTERNAL_CODES: ReadonlySet<string> = new Set([
   "login_identity.handoff_taken",
   "login_identity.invite_taken",
   "login_identity.subject_taken",
-  "lti.line_item_exists",
-  "lti.score_exists",
-  "lti.score_maximum",
-  "cmi5.registration_exists",
-  "cmi5.state_exists",
-  "cmi5.url",
-  "xapi.statement_exists",
-  "xapi.store_exists",
   "media.not_drafting",
   "media.not_encoding",
   "media.not_previewing",
@@ -977,8 +969,6 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnRuleNeedsReflection();
       case "learning.needs_media":
         return m.lrnRuleNeedsMedia();
-      case "learning.needs_package":
-        return m.lrnRuleNeedsPackage();
       case "learning.gate_opens_nothing":
         return m.lrnGateOpensNothing();
       case "learning.young_gate":
@@ -1057,20 +1047,6 @@ export function getMessageFromError(error: unknown): string {
         return m.calAudienceNotAllowed();
       case "calendar.title_needed":
         return m.calTitleNeeded();
-      case "lti.url":
-      case "lti.https":
-        return m.ltiErrUrl();
-      case "lti.custom_too_many":
-        return m.ltiErrCustom();
-      case "xapi.url":
-      case "xapi.https":
-        return m.xapiErrUrl();
-      case "xapi.secret_needed":
-        return m.xapiErrSecret();
-      case "lti.key_address":
-        return m.ltiErrKeyAddress();
-      case "xapi.store_address":
-        return m.xapiErrStoreAddress();
       case "assistant.off":
         return m.assistantErrOff();
       case "assistant.unavailable":
@@ -1097,9 +1073,6 @@ export function getMessageFromError(error: unknown): string {
         return m.assistantErrTranslationUnchecked();
       case "assistant.over_ceiling":
         return m.assistantErrOverCeiling();
-      case "lti.client_exists":
-      case "lti.key_exists":
-        return m.ltiErrRace();
       case "org.identifier_taken":
         return m.errorSchoolIdentifierTaken();
       case "org_feature.exists":
@@ -1109,7 +1082,7 @@ export function getMessageFromError(error: unknown): string {
       case "descriptor_override.exists":
         return m.errorConflictVersion();
       case "calendar_feed.exists":
-        return m.ltiErrRace();
+        return m.errorConflictVersion();
       case "file_subject.exists":
       case "media_item_tag.exists":
       case "media_item_text.exists":

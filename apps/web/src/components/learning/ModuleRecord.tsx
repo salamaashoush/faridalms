@@ -56,7 +56,6 @@ import type { AreaView } from "~/components/files/AreaFiles";
 
 import { classTitle } from "~/components/classes/format";
 import { ContentView } from "~/components/content/ContentView";
-import { toolGrading, toolWorkHref } from "~/components/content/lti";
 import { SaveTemplateDialog } from "~/components/content/Templates";
 import { AreaFiles } from "~/components/files/AreaFiles";
 import { displayName } from "~/components/people/format";
@@ -574,53 +573,6 @@ function doneOf(data: Progress, student: StudentRow) {
   });
 }
 
-type ToolColumn = Progress["tools"][number];
-
-interface ToolMarkProps {
-  data: Progress;
-  column: ToolColumn;
-  student: StudentRow;
-}
-
-/** A student's score in a tool's column, as the tool last reported it. */
-function ToolMark({ data, column, student }: ToolMarkProps) {
-  const score = data.toolScores.find(
-    (row) => row.lineItemId === column.id && row.studentId === student.id,
-  );
-  const state = score ? toolGrading(score.gradingProgress) : m.ltiNoScore();
-  if (score?.result === null || score?.result === undefined)
-    return (
-      <span title={state} className="text-muted-foreground">
-        <span aria-hidden>–</span>
-        <span className="sr-only">{state}</span>
-      </span>
-    );
-  const mark = m.ltiScoreOf({
-    score: formatNumber(Math.round(score.result * 100) / 100),
-    maximum: formatNumber(column.scoreMaximum),
-  });
-  const className = cn(
-    "text-[13px] tabular-nums",
-    score.gradingProgress !== "FullyGraded" && "text-muted-foreground",
-  );
-  // Where the tool can show the work behind the score, the score opens it.
-  return column.reviewable ? (
-    <a
-      href={toolWorkHref(column.id, student.id)}
-      target="_blank"
-      rel="noopener"
-      title={`${state} · ${m.ltiOpenWork()}`}
-      className={cn(className, "underline underline-offset-2")}
-    >
-      {mark}
-    </a>
-  ) : (
-    <span title={state} className={className}>
-      {mark}
-    </span>
-  );
-}
-
 interface StudentNameProps {
   row: StudentRow;
 }
@@ -653,13 +605,6 @@ function matrixColumns(
           student={row}
           onToggle={(done) => onToggle(lesson.id, row, done)}
         />
-      ),
-    })),
-    ...data.tools.map((column, index) => ({
-      id: column.id,
-      header: m.ltiToolColumn({ number: formatNumber(index + 1) }),
-      cell: (row: StudentRow) => (
-        <ToolMark data={data} column={column} student={row} />
       ),
     })),
     {
@@ -780,27 +725,7 @@ function Matrix({ moduleId, classId }: MatrixProps) {
               </li>
             );
           })}
-          {data.tools.map((column, index) => (
-            <li key={column.id} className="min-w-0">
-              {m.ltiToolColumn({ number: formatNumber(index + 1) })}:{" "}
-              <bdi>{column.label}</bdi> · <bdi>{column.toolName}</bdi>
-            </li>
-          ))}
         </ol>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="max-md:h-10"
-          onClick={() =>
-            window.location.assign(
-              `/exports/modules/${moduleId}?as=statements&classId=${classId}`,
-            )
-          }
-        >
-          <FileDown aria-hidden />
-          {m.lrnExportResults()}
-        </Button>
       </div>
       <DataTable
         caption={m.lrnProgressCaption({ title: data.module.title })}

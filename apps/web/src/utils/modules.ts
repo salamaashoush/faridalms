@@ -81,7 +81,6 @@ export const MODULE_LABEL: Record<ModuleId, () => string> = {
   early_years: m.moduleEarlyYears,
   coding: m.moduleCoding,
   video: m.moduleVideo,
-  integrations: m.moduleIntegrations,
   sso: m.moduleSso,
   sms: m.moduleSms,
 };

@@ -1,18 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  CC13_TYPES,
-  CC_TYPES,
-  ccAssignment,
-  ccManifest,
-  ccToolLink,
-} from "./cartridge";
+import { CC13_TYPES, CC_TYPES, ccAssignment, ccManifest } from "./cartridge";
 import { cartridgeFile, readCartridge } from "./cartridge-read";
 
 const bytes = (text: string) => new TextEncoder().encode(text);
 
 describe("a Common Cartridge's course", () => {
-  it("reads what this school exports: pages, quizzes and tool links in their module", () => {
+  it("reads pages, quizzes and an outside tool's link in their module", () => {
     const files = new Map([
       [
         "imsmanifest.xml",
@@ -57,12 +51,7 @@ describe("a Common Cartridge's course", () => {
       [
         "t1.xml",
         bytes(
-          ccToolLink({
-            title: "Simulator",
-            description: "Rivers",
-            url: "https://tool.example.com/launch",
-            custom: {},
-          }),
+          `<cartridge_basiclti_link xmlns="http://www.imsglobal.org/xsd/imslticc_v1p0" xmlns:blti="http://www.imsglobal.org/xsd/imsbasiclti_v1p0"><blti:title>Simulator</blti:title><blti:description>Rivers</blti:description><blti:launch_url>https://tool.example.com/launch</blti:launch_url></cartridge_basiclti_link>`,
         ),
       ],
     ]);

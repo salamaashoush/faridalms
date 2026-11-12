@@ -35,19 +35,8 @@ import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AdminSplatRouteImport } from './routes/admin.$'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AssistantRunRouteImport } from './routes/assistant/run'
-import { Route as Cmi5FetchRouteImport } from './routes/cmi5/fetch'
-import { Route as Cmi5LaunchRouteImport } from './routes/cmi5/launch'
 import { Route as ExportsMediaRouteImport } from './routes/exports/media'
 import { Route as FilesFileIdRouteImport } from './routes/files/$fileId'
-import { Route as LtiAuthRouteImport } from './routes/lti/auth'
-import { Route as LtiDeepLinkRouteImport } from './routes/lti/deep-link'
-import { Route as LtiJwksRouteImport } from './routes/lti/jwks'
-import { Route as LtiLaunchRouteImport } from './routes/lti/launch'
-import { Route as LtiOpenidConfigurationRouteImport } from './routes/lti/openid-configuration'
-import { Route as LtiPickRouteImport } from './routes/lti/pick'
-import { Route as LtiRegisterRouteImport } from './routes/lti/register'
-import { Route as LtiReviewRouteImport } from './routes/lti/review'
-import { Route as LtiTokenRouteImport } from './routes/lti/token'
 import { Route as SiteSchoolRouteImport } from './routes/site/$school'
 import { Route as TeachSplatRouteImport } from './routes/teach.$'
 import { Route as AppStaffAcademicYearEditorRouteImport } from './routes/_app/_staff/academic-year-editor'
@@ -123,7 +112,6 @@ import { Route as AppStandardsMapRouteImport } from './routes/_app/standards/map
 import { Route as AppStudentsStudentIdRouteImport } from './routes/_app/students.$studentId'
 import { Route as AppYearsYearIdRouteImport } from './routes/_app/years.$yearId'
 import { Route as AuthAuthHandoffRouteImport } from './routes/_auth/auth.handoff'
-import { Route as Cmi5XapiSplatRouteImport } from './routes/cmi5/xapi.$'
 import { Route as ExportsAssignmentsAssignmentIdRouteImport } from './routes/exports/assignments.$assignmentId'
 import { Route as ExportsClassesClassIdRouteImport } from './routes/exports/classes.$classId'
 import { Route as ExportsModulesModuleIdRouteImport } from './routes/exports/modules.$moduleId'
@@ -131,8 +119,6 @@ import { Route as ExportsStudentsStudentIdRouteImport } from './routes/exports/s
 import { Route as FeedsSchoolFileRouteImport } from './routes/feeds/$school/$file'
 import { Route as FilesFileIdPartsRouteImport } from './routes/files/$fileId.parts'
 import { Route as FilesFileIdStreamRouteImport } from './routes/files/$fileId.stream'
-import { Route as LtiAgsSplatRouteImport } from './routes/lti/ags.$'
-import { Route as LtiNrpsSplatRouteImport } from './routes/lti/nrps.$'
 import { Route as SiteSchoolIndexRouteImport } from './routes/site/$school/index'
 import { Route as SiteSchoolSplatRouteImport } from './routes/site/$school/$'
 import { Route as SiteSchoolRobotsDottxtRouteImport } from './routes/site/$school/robots[.]txt'
@@ -279,16 +265,6 @@ const AssistantRunRoute = AssistantRunRouteImport.update({
   path: '/assistant/run',
   getParentRoute: () => rootRouteImport,
 } as any)
-const Cmi5FetchRoute = Cmi5FetchRouteImport.update({
-  id: '/cmi5/fetch',
-  path: '/cmi5/fetch',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const Cmi5LaunchRoute = Cmi5LaunchRouteImport.update({
-  id: '/cmi5/launch',
-  path: '/cmi5/launch',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ExportsMediaRoute = ExportsMediaRouteImport.update({
   id: '/exports/media',
   path: '/exports/media',
@@ -297,51 +273,6 @@ const ExportsMediaRoute = ExportsMediaRouteImport.update({
 const FilesFileIdRoute = FilesFileIdRouteImport.update({
   id: '/files/$fileId',
   path: '/files/$fileId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LtiAuthRoute = LtiAuthRouteImport.update({
-  id: '/lti/auth',
-  path: '/lti/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LtiDeepLinkRoute = LtiDeepLinkRouteImport.update({
-  id: '/lti/deep-link',
-  path: '/lti/deep-link',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LtiJwksRoute = LtiJwksRouteImport.update({
-  id: '/lti/jwks',
-  path: '/lti/jwks',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LtiLaunchRoute = LtiLaunchRouteImport.update({
-  id: '/lti/launch',
-  path: '/lti/launch',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LtiOpenidConfigurationRoute = LtiOpenidConfigurationRouteImport.update({
-  id: '/lti/openid-configuration',
-  path: '/lti/openid-configuration',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LtiPickRoute = LtiPickRouteImport.update({
-  id: '/lti/pick',
-  path: '/lti/pick',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LtiRegisterRoute = LtiRegisterRouteImport.update({
-  id: '/lti/register',
-  path: '/lti/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LtiReviewRoute = LtiReviewRouteImport.update({
-  id: '/lti/review',
-  path: '/lti/review',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LtiTokenRoute = LtiTokenRouteImport.update({
-  id: '/lti/token',
-  path: '/lti/token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SiteSchoolRoute = SiteSchoolRouteImport.update({
@@ -727,11 +658,6 @@ const AuthAuthHandoffRoute = AuthAuthHandoffRouteImport.update({
   path: '/auth/handoff',
   getParentRoute: () => AuthRoute,
 } as any)
-const Cmi5XapiSplatRoute = Cmi5XapiSplatRouteImport.update({
-  id: '/cmi5/xapi/$',
-  path: '/cmi5/xapi/$',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ExportsAssignmentsAssignmentIdRoute =
   ExportsAssignmentsAssignmentIdRouteImport.update({
     id: '/exports/assignments/$assignmentId',
@@ -768,16 +694,6 @@ const FilesFileIdStreamRoute = FilesFileIdStreamRouteImport.update({
   id: '/stream',
   path: '/stream',
   getParentRoute: () => FilesFileIdRoute,
-} as any)
-const LtiAgsSplatRoute = LtiAgsSplatRouteImport.update({
-  id: '/lti/ags/$',
-  path: '/lti/ags/$',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LtiNrpsSplatRoute = LtiNrpsSplatRouteImport.update({
-  id: '/lti/nrps/$',
-  path: '/lti/nrps/$',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const SiteSchoolIndexRoute = SiteSchoolIndexRouteImport.update({
   id: '/',
@@ -895,19 +811,8 @@ export interface FileRoutesByFullPath {
   '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
   '/assistant/run': typeof AssistantRunRoute
-  '/cmi5/fetch': typeof Cmi5FetchRoute
-  '/cmi5/launch': typeof Cmi5LaunchRoute
   '/exports/media': typeof ExportsMediaRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
-  '/lti/auth': typeof LtiAuthRoute
-  '/lti/deep-link': typeof LtiDeepLinkRoute
-  '/lti/jwks': typeof LtiJwksRoute
-  '/lti/launch': typeof LtiLaunchRoute
-  '/lti/openid-configuration': typeof LtiOpenidConfigurationRoute
-  '/lti/pick': typeof LtiPickRoute
-  '/lti/register': typeof LtiRegisterRoute
-  '/lti/review': typeof LtiReviewRoute
-  '/lti/token': typeof LtiTokenRoute
   '/site/$school': typeof SiteSchoolRouteWithChildren
   '/teach/$': typeof TeachSplatRoute
   '/academic-year-editor': typeof AppStaffAcademicYearEditorRoute
@@ -977,7 +882,6 @@ export interface FileRoutesByFullPath {
   '/students/$studentId': typeof AppStudentsStudentIdRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
   '/auth/handoff': typeof AuthAuthHandoffRoute
-  '/cmi5/xapi/$': typeof Cmi5XapiSplatRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/classes/$classId': typeof ExportsClassesClassIdRoute
   '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
@@ -985,8 +889,6 @@ export interface FileRoutesByFullPath {
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
-  '/lti/ags/$': typeof LtiAgsSplatRoute
-  '/lti/nrps/$': typeof LtiNrpsSplatRoute
   '/site/$school/$': typeof SiteSchoolSplatRoute
   '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
   '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
@@ -1033,19 +935,8 @@ export interface FileRoutesByTo {
   '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
   '/assistant/run': typeof AssistantRunRoute
-  '/cmi5/fetch': typeof Cmi5FetchRoute
-  '/cmi5/launch': typeof Cmi5LaunchRoute
   '/exports/media': typeof ExportsMediaRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
-  '/lti/auth': typeof LtiAuthRoute
-  '/lti/deep-link': typeof LtiDeepLinkRoute
-  '/lti/jwks': typeof LtiJwksRoute
-  '/lti/launch': typeof LtiLaunchRoute
-  '/lti/openid-configuration': typeof LtiOpenidConfigurationRoute
-  '/lti/pick': typeof LtiPickRoute
-  '/lti/register': typeof LtiRegisterRoute
-  '/lti/review': typeof LtiReviewRoute
-  '/lti/token': typeof LtiTokenRoute
   '/teach/$': typeof TeachSplatRoute
   '/academic-year-editor': typeof AppStaffAcademicYearEditorRoute
   '/academic-years': typeof AppStaffAcademicYearsRoute
@@ -1114,7 +1005,6 @@ export interface FileRoutesByTo {
   '/students/$studentId': typeof AppStudentsStudentIdRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
   '/auth/handoff': typeof AuthAuthHandoffRoute
-  '/cmi5/xapi/$': typeof Cmi5XapiSplatRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/classes/$classId': typeof ExportsClassesClassIdRoute
   '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
@@ -1122,8 +1012,6 @@ export interface FileRoutesByTo {
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
-  '/lti/ags/$': typeof LtiAgsSplatRoute
-  '/lti/nrps/$': typeof LtiNrpsSplatRoute
   '/site/$school/$': typeof SiteSchoolSplatRoute
   '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
   '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
@@ -1176,19 +1064,8 @@ export interface FileRoutesById {
   '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
   '/assistant/run': typeof AssistantRunRoute
-  '/cmi5/fetch': typeof Cmi5FetchRoute
-  '/cmi5/launch': typeof Cmi5LaunchRoute
   '/exports/media': typeof ExportsMediaRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
-  '/lti/auth': typeof LtiAuthRoute
-  '/lti/deep-link': typeof LtiDeepLinkRoute
-  '/lti/jwks': typeof LtiJwksRoute
-  '/lti/launch': typeof LtiLaunchRoute
-  '/lti/openid-configuration': typeof LtiOpenidConfigurationRoute
-  '/lti/pick': typeof LtiPickRoute
-  '/lti/register': typeof LtiRegisterRoute
-  '/lti/review': typeof LtiReviewRoute
-  '/lti/token': typeof LtiTokenRoute
   '/site/$school': typeof SiteSchoolRouteWithChildren
   '/teach/$': typeof TeachSplatRoute
   '/_app/_staff/academic-year-editor': typeof AppStaffAcademicYearEditorRoute
@@ -1258,7 +1135,6 @@ export interface FileRoutesById {
   '/_app/students/$studentId': typeof AppStudentsStudentIdRoute
   '/_app/years/$yearId': typeof AppYearsYearIdRoute
   '/_auth/auth/handoff': typeof AuthAuthHandoffRoute
-  '/cmi5/xapi/$': typeof Cmi5XapiSplatRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/classes/$classId': typeof ExportsClassesClassIdRoute
   '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
@@ -1266,8 +1142,6 @@ export interface FileRoutesById {
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
-  '/lti/ags/$': typeof LtiAgsSplatRoute
-  '/lti/nrps/$': typeof LtiNrpsSplatRoute
   '/site/$school/$': typeof SiteSchoolSplatRoute
   '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
   '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
@@ -1318,19 +1192,8 @@ export interface FileRouteTypes {
     | '/admin/$'
     | '/api/health'
     | '/assistant/run'
-    | '/cmi5/fetch'
-    | '/cmi5/launch'
     | '/exports/media'
     | '/files/$fileId'
-    | '/lti/auth'
-    | '/lti/deep-link'
-    | '/lti/jwks'
-    | '/lti/launch'
-    | '/lti/openid-configuration'
-    | '/lti/pick'
-    | '/lti/register'
-    | '/lti/review'
-    | '/lti/token'
     | '/site/$school'
     | '/teach/$'
     | '/academic-year-editor'
@@ -1400,7 +1263,6 @@ export interface FileRouteTypes {
     | '/students/$studentId'
     | '/years/$yearId'
     | '/auth/handoff'
-    | '/cmi5/xapi/$'
     | '/exports/assignments/$assignmentId'
     | '/exports/classes/$classId'
     | '/exports/modules/$moduleId'
@@ -1408,8 +1270,6 @@ export interface FileRouteTypes {
     | '/feeds/$school/$file'
     | '/files/$fileId/parts'
     | '/files/$fileId/stream'
-    | '/lti/ags/$'
-    | '/lti/nrps/$'
     | '/site/$school/$'
     | '/site/$school/robots.txt'
     | '/site/$school/sitemap.xml'
@@ -1456,19 +1316,8 @@ export interface FileRouteTypes {
     | '/admin/$'
     | '/api/health'
     | '/assistant/run'
-    | '/cmi5/fetch'
-    | '/cmi5/launch'
     | '/exports/media'
     | '/files/$fileId'
-    | '/lti/auth'
-    | '/lti/deep-link'
-    | '/lti/jwks'
-    | '/lti/launch'
-    | '/lti/openid-configuration'
-    | '/lti/pick'
-    | '/lti/register'
-    | '/lti/review'
-    | '/lti/token'
     | '/teach/$'
     | '/academic-year-editor'
     | '/academic-years'
@@ -1537,7 +1386,6 @@ export interface FileRouteTypes {
     | '/students/$studentId'
     | '/years/$yearId'
     | '/auth/handoff'
-    | '/cmi5/xapi/$'
     | '/exports/assignments/$assignmentId'
     | '/exports/classes/$classId'
     | '/exports/modules/$moduleId'
@@ -1545,8 +1393,6 @@ export interface FileRouteTypes {
     | '/feeds/$school/$file'
     | '/files/$fileId/parts'
     | '/files/$fileId/stream'
-    | '/lti/ags/$'
-    | '/lti/nrps/$'
     | '/site/$school/$'
     | '/site/$school/robots.txt'
     | '/site/$school/sitemap.xml'
@@ -1598,19 +1444,8 @@ export interface FileRouteTypes {
     | '/admin/$'
     | '/api/health'
     | '/assistant/run'
-    | '/cmi5/fetch'
-    | '/cmi5/launch'
     | '/exports/media'
     | '/files/$fileId'
-    | '/lti/auth'
-    | '/lti/deep-link'
-    | '/lti/jwks'
-    | '/lti/launch'
-    | '/lti/openid-configuration'
-    | '/lti/pick'
-    | '/lti/register'
-    | '/lti/review'
-    | '/lti/token'
     | '/site/$school'
     | '/teach/$'
     | '/_app/_staff/academic-year-editor'
@@ -1680,7 +1515,6 @@ export interface FileRouteTypes {
     | '/_app/students/$studentId'
     | '/_app/years/$yearId'
     | '/_auth/auth/handoff'
-    | '/cmi5/xapi/$'
     | '/exports/assignments/$assignmentId'
     | '/exports/classes/$classId'
     | '/exports/modules/$moduleId'
@@ -1688,8 +1522,6 @@ export interface FileRouteTypes {
     | '/feeds/$school/$file'
     | '/files/$fileId/parts'
     | '/files/$fileId/stream'
-    | '/lti/ags/$'
-    | '/lti/nrps/$'
     | '/site/$school/$'
     | '/site/$school/robots.txt'
     | '/site/$school/sitemap.xml'
@@ -1726,29 +1558,15 @@ export interface RootRouteChildren {
   AdminSplatRoute: typeof AdminSplatRoute
   ApiHealthRoute: typeof ApiHealthRoute
   AssistantRunRoute: typeof AssistantRunRoute
-  Cmi5FetchRoute: typeof Cmi5FetchRoute
-  Cmi5LaunchRoute: typeof Cmi5LaunchRoute
   ExportsMediaRoute: typeof ExportsMediaRoute
   FilesFileIdRoute: typeof FilesFileIdRouteWithChildren
-  LtiAuthRoute: typeof LtiAuthRoute
-  LtiDeepLinkRoute: typeof LtiDeepLinkRoute
-  LtiJwksRoute: typeof LtiJwksRoute
-  LtiLaunchRoute: typeof LtiLaunchRoute
-  LtiOpenidConfigurationRoute: typeof LtiOpenidConfigurationRoute
-  LtiPickRoute: typeof LtiPickRoute
-  LtiRegisterRoute: typeof LtiRegisterRoute
-  LtiReviewRoute: typeof LtiReviewRoute
-  LtiTokenRoute: typeof LtiTokenRoute
   SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
   TeachSplatRoute: typeof TeachSplatRoute
-  Cmi5XapiSplatRoute: typeof Cmi5XapiSplatRoute
   ExportsAssignmentsAssignmentIdRoute: typeof ExportsAssignmentsAssignmentIdRoute
   ExportsClassesClassIdRoute: typeof ExportsClassesClassIdRoute
   ExportsModulesModuleIdRoute: typeof ExportsModulesModuleIdRoute
   ExportsStudentsStudentIdRoute: typeof ExportsStudentsStudentIdRoute
   FeedsSchoolFileRoute: typeof FeedsSchoolFileRoute
-  LtiAgsSplatRoute: typeof LtiAgsSplatRoute
-  LtiNrpsSplatRoute: typeof LtiNrpsSplatRoute
   PublicMediaPTokenNameRoute: typeof PublicMediaPTokenNameRoute
 }
 
@@ -1936,20 +1754,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssistantRunRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/cmi5/fetch': {
-      id: '/cmi5/fetch'
-      path: '/cmi5/fetch'
-      fullPath: '/cmi5/fetch'
-      preLoaderRoute: typeof Cmi5FetchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/cmi5/launch': {
-      id: '/cmi5/launch'
-      path: '/cmi5/launch'
-      fullPath: '/cmi5/launch'
-      preLoaderRoute: typeof Cmi5LaunchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/exports/media': {
       id: '/exports/media'
       path: '/exports/media'
@@ -1962,69 +1766,6 @@ declare module '@tanstack/react-router' {
       path: '/files/$fileId'
       fullPath: '/files/$fileId'
       preLoaderRoute: typeof FilesFileIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lti/auth': {
-      id: '/lti/auth'
-      path: '/lti/auth'
-      fullPath: '/lti/auth'
-      preLoaderRoute: typeof LtiAuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lti/deep-link': {
-      id: '/lti/deep-link'
-      path: '/lti/deep-link'
-      fullPath: '/lti/deep-link'
-      preLoaderRoute: typeof LtiDeepLinkRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lti/jwks': {
-      id: '/lti/jwks'
-      path: '/lti/jwks'
-      fullPath: '/lti/jwks'
-      preLoaderRoute: typeof LtiJwksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lti/launch': {
-      id: '/lti/launch'
-      path: '/lti/launch'
-      fullPath: '/lti/launch'
-      preLoaderRoute: typeof LtiLaunchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lti/openid-configuration': {
-      id: '/lti/openid-configuration'
-      path: '/lti/openid-configuration'
-      fullPath: '/lti/openid-configuration'
-      preLoaderRoute: typeof LtiOpenidConfigurationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lti/pick': {
-      id: '/lti/pick'
-      path: '/lti/pick'
-      fullPath: '/lti/pick'
-      preLoaderRoute: typeof LtiPickRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lti/register': {
-      id: '/lti/register'
-      path: '/lti/register'
-      fullPath: '/lti/register'
-      preLoaderRoute: typeof LtiRegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lti/review': {
-      id: '/lti/review'
-      path: '/lti/review'
-      fullPath: '/lti/review'
-      preLoaderRoute: typeof LtiReviewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lti/token': {
-      id: '/lti/token'
-      path: '/lti/token'
-      fullPath: '/lti/token'
-      preLoaderRoute: typeof LtiTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/site/$school': {
@@ -2552,13 +2293,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAuthHandoffRouteImport
       parentRoute: typeof AuthRoute
     }
-    '/cmi5/xapi/$': {
-      id: '/cmi5/xapi/$'
-      path: '/cmi5/xapi/$'
-      fullPath: '/cmi5/xapi/$'
-      preLoaderRoute: typeof Cmi5XapiSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/exports/assignments/$assignmentId': {
       id: '/exports/assignments/$assignmentId'
       path: '/exports/assignments/$assignmentId'
@@ -2607,20 +2341,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/files/$fileId/stream'
       preLoaderRoute: typeof FilesFileIdStreamRouteImport
       parentRoute: typeof FilesFileIdRoute
-    }
-    '/lti/ags/$': {
-      id: '/lti/ags/$'
-      path: '/lti/ags/$'
-      fullPath: '/lti/ags/$'
-      preLoaderRoute: typeof LtiAgsSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lti/nrps/$': {
-      id: '/lti/nrps/$'
-      path: '/lti/nrps/$'
-      fullPath: '/lti/nrps/$'
-      preLoaderRoute: typeof LtiNrpsSplatRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/site/$school/': {
       id: '/site/$school/'
@@ -3043,29 +2763,15 @@ const rootRouteChildren: RootRouteChildren = {
   AdminSplatRoute: AdminSplatRoute,
   ApiHealthRoute: ApiHealthRoute,
   AssistantRunRoute: AssistantRunRoute,
-  Cmi5FetchRoute: Cmi5FetchRoute,
-  Cmi5LaunchRoute: Cmi5LaunchRoute,
   ExportsMediaRoute: ExportsMediaRoute,
   FilesFileIdRoute: FilesFileIdRouteWithChildren,
-  LtiAuthRoute: LtiAuthRoute,
-  LtiDeepLinkRoute: LtiDeepLinkRoute,
-  LtiJwksRoute: LtiJwksRoute,
-  LtiLaunchRoute: LtiLaunchRoute,
-  LtiOpenidConfigurationRoute: LtiOpenidConfigurationRoute,
-  LtiPickRoute: LtiPickRoute,
-  LtiRegisterRoute: LtiRegisterRoute,
-  LtiReviewRoute: LtiReviewRoute,
-  LtiTokenRoute: LtiTokenRoute,
   SiteSchoolRoute: SiteSchoolRouteWithChildren,
   TeachSplatRoute: TeachSplatRoute,
-  Cmi5XapiSplatRoute: Cmi5XapiSplatRoute,
   ExportsAssignmentsAssignmentIdRoute: ExportsAssignmentsAssignmentIdRoute,
   ExportsClassesClassIdRoute: ExportsClassesClassIdRoute,
   ExportsModulesModuleIdRoute: ExportsModulesModuleIdRoute,
   ExportsStudentsStudentIdRoute: ExportsStudentsStudentIdRoute,
   FeedsSchoolFileRoute: FeedsSchoolFileRoute,
-  LtiAgsSplatRoute: LtiAgsSplatRoute,
-  LtiNrpsSplatRoute: LtiNrpsSplatRoute,
   PublicMediaPTokenNameRoute: PublicMediaPTokenNameRoute,
 }
 export const routeTree = rootRouteImport

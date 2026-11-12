@@ -6,7 +6,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
 
-import { LtiHostProvider } from "~/components/content/lti";
 import {
   AssignmentRecord,
   RECORD_TABS,
@@ -106,23 +105,21 @@ function AssignmentPage() {
   };
   return (
     <BriefReading value={reading}>
-      <LtiHostProvider type="assignment" id={assignmentId}>
-        {learns(auth.workspace) ? (
-          <LearnerWork assignmentId={assignmentId} />
-        ) : (
-          <AssignmentRecord
-            assignmentId={assignmentId}
-            tab={tab}
-            onTab={(next) => {
-              void navigate({
-                resetScroll: false,
-                replace: true,
-                search: (previous) => ({ ...previous, tab: next }),
-              });
-            }}
-          />
-        )}
-      </LtiHostProvider>
+      {learns(auth.workspace) ? (
+        <LearnerWork assignmentId={assignmentId} />
+      ) : (
+        <AssignmentRecord
+          assignmentId={assignmentId}
+          tab={tab}
+          onTab={(next) => {
+            void navigate({
+              resetScroll: false,
+              replace: true,
+              search: (previous) => ({ ...previous, tab: next }),
+            });
+          }}
+        />
+      )}
     </BriefReading>
   );
 }

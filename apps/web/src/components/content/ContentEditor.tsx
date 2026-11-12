@@ -12,7 +12,6 @@ import { lazy, Suspense, useCallback, useMemo, useState } from "react";
 import { useEditorStudio } from "~/components/coding/useEditorStudio";
 import { useEditorAssistant } from "~/components/content/assistant";
 import { useEditorComments } from "~/components/content/comments/DocumentComments";
-import { useEditorTools } from "~/components/content/lti";
 import {
   useEditorMentions,
   useMentionNames,
@@ -120,7 +119,6 @@ export function ContentEditor({
   const tagging = useEditorStandards(teaching || standards);
   const sharing = useEditorShared(sharedBlocks ?? (teaching || standards));
   const mentions = useEditorMentions(useMentionNames(value));
-  const tools = useEditorTools();
   const comments = useEditorComments(id);
   const helping = useEditorAssistant(assistant);
   const { arabicMath } = useCurrentUser().school;
@@ -181,7 +179,6 @@ export function ContentEditor({
           standards={tagging}
           shared={sharing.shared}
           mentions={mentions}
-          tools={tools}
           comments={comments}
           assistant={helping}
           placeholder={placeholder}

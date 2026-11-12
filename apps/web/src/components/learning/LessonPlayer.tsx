@@ -128,7 +128,6 @@ const RULE_HINT: Record<LessonCompletion, (() => string) | null> = {
   score: null,
   reflection: m.lrnRuleReflection,
   watch: m.lrnRuleWatch,
-  package: m.lrnRulePackage,
 };
 
 const ruleText = (completion: LessonCompletion, passScore: number | null) =>

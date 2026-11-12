@@ -70,7 +70,6 @@ import type { MediaWatch } from "./player";
 import { AiUseView } from "./ai-use-view";
 import { BibliographyList } from "./bibliography-view";
 import { ChartView } from "./chart-view";
-import { Cmi5Card, cmi5ModeNote } from "./cmi5-card";
 import { codeGutter, codeLanguageName } from "./code-language";
 import { useFileFacts } from "./file-facts";
 import { FileCard, PictureView, StoredImage } from "./files";
@@ -83,8 +82,6 @@ import {
 } from "./format";
 import { GlossaryList } from "./glossary-view";
 import { linked } from "./linked";
-import { LtiCard } from "./lti-card";
-import { LtiFrame } from "./lti-frame";
 import { MathText } from "./math";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "./media-view";
 import { PanelsView } from "./panels-view";
@@ -119,11 +116,6 @@ export interface ViewStrings
   footnotes: string;
   footnoteRef: (number: number) => string;
   footnoteBack: (number: number) => string;
-  ltiOpen: string;
-  cmi5Start: string;
-  cmi5Units: (count: number) => string;
-  cmi5BrowseNote: string;
-  cmi5ReviewNote: string;
   codeCopy: string;
   codeCopied: string;
 }
@@ -167,9 +159,6 @@ interface Context {
   shared?: ComponentType<{ id: string }> | undefined;
   mentionHref?: ((mention: Mention) => string | null) | undefined;
   mentionName?: ((mention: Mention) => string | undefined) | undefined;
-  ltiHref?: ((linkId: string) => string | null) | undefined;
-  /** Where a course package's unit launches, in the lesson shown. */
-  cmi5Href?: ((packageId: string, index: number) => string | null) | undefined;
   speaker?: ((text: string) => ReactNode) | undefined;
   /** The language the document's own numbers are written for. */
   numbering: string;
@@ -840,44 +829,6 @@ function draw(
         </sup>
       );
     }
-    case "lti": {
-      const href = node.lti
-        ? (context.ltiHref?.(node.lti.linkId) ?? null)
-        : null;
-      if (node.lti?.frame && href)
-        return (
-          <LtiFrame
-            key={key}
-            title={node.lti.title}
-            href={href}
-            height={node.lti.frame.height}
-            openLabel={context.strings.ltiOpen}
-          />
-        );
-      return node.lti ? (
-        <LtiCard
-          key={key}
-          title={node.lti.title}
-          href={href}
-          openLabel={context.strings.ltiOpen}
-        />
-      ) : null;
-    }
-    case "cmi5":
-      return node.cmi5 ? (
-        <Cmi5Card
-          key={key}
-          course={node.cmi5}
-          href={(index) =>
-            node.cmi5
-              ? (context.cmi5Href?.(node.cmi5.packageId, index) ?? null)
-              : null
-          }
-          startLabel={context.strings.cmi5Start}
-          unitsLabel={context.strings.cmi5Units(node.cmi5.aus.length)}
-          modeNote={cmi5ModeNote(node.launchMode, context.strings)}
-        />
-      ) : null;
     // A shared block reads as part of the page, drawn as it now is.
     case "shared":
       return context.shared && node.sharedId ? (
@@ -1331,8 +1282,6 @@ export function ContentRenderer({
   shared,
   mentionHref,
   mentionName,
-  ltiHref,
-  cmi5Href,
   speaker,
   digits,
   lang,
@@ -1363,9 +1312,6 @@ export function ContentRenderer({
   mentionHref?: (mention: Mention) => string | null;
   /** What a mention is called now, where known; else the name it was written with. */
   mentionName?: ((mention: Mention) => string | undefined) | undefined;
-  /** Where a link to an outside tool launches; without it the link only names the tool. */
-  ltiHref?: (linkId: string) => string | null;
-  cmi5Href?: (packageId: string, index: number) => string | null;
   /** A button reading words aloud, offered beside a defined word; none without it. */
   speaker?: (text: string) => ReactNode;
   /** The digits the reader's school writes Arabic in, for the numbers the document draws. */
@@ -1399,8 +1345,6 @@ export function ContentRenderer({
     shared,
     mentionHref,
     mentionName,
-    ltiHref,
-    cmi5Href,
     speaker,
     numbering,
     number: (value) =>

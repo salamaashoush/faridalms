@@ -245,30 +245,6 @@ export const ssoDomains = pgTable(
   ],
 );
 
-export const integrationClients = pgTable(
-  "integration_clients",
-  {
-    clientId: text("client_id").primaryKey(),
-    tenantId: uuid("tenant_id").notNull(),
-    kind: text("kind").$type<"oneroster" | "lti">().notNull(),
-    createdAt: createdAt(),
-    revokedAt: instant("revoked_at"),
-  },
-  (t) => [
-    foreignKey({
-      name: "integration_clients_tenant_id_fkey",
-      columns: [t.tenantId],
-      foreignColumns: [tenants.id],
-    }),
-    check(
-      "integration_clients_client_id_check",
-      sql`client_id ~ '^[A-Za-z0-9_-]{16,64}$'`,
-    ),
-    check("integration_clients_kind_check", sql`kind in ('oneroster', 'lti')`),
-    index("integration_clients_tenant_idx").on(t.tenantId),
-  ],
-);
-
 /**
  * What a school's plan allows: storage for the school and caps for each
  * class, module and person, and which modules it may use. A missing row or
@@ -301,7 +277,7 @@ export const schoolPlans = pgTable(
       "school_plans_modules_check",
       // The registry's ids, written out because a check is fixed DDL;
       // a test saves a plan naming every module in packages/domain/src/modules.ts.
-      sql`modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[]`,
+      sql`modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[]`,
     ),
   ],
 );
@@ -345,7 +321,7 @@ export const schoolEntitlements = pgTable(
       "school_entitlements_modules_check",
       // The registry's ids, written out because a check is fixed DDL;
       // a test saves entitlements naming every module in packages/domain/src/modules.ts.
-      sql`modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[]`,
+      sql`modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[]`,
     ),
     check(
       "school_entitlements_bytes_check",
@@ -505,14 +481,7 @@ export const changes = pgTable(
       .default(sql`statement_timestamp()`),
     actor: text("actor").notNull(),
     subjectType: text("subject_type")
-      .$type<
-        | "cell"
-        | "tenant"
-        | "school"
-        | "host"
-        | "sso_domain"
-        | "integration_client"
-      >()
+      .$type<"cell" | "tenant" | "school" | "host" | "sso_domain">()
       .notNull(),
     subjectId: text("subject_id").notNull(),
     action: text("action").notNull(),
@@ -527,7 +496,7 @@ export const changes = pgTable(
     ),
     check(
       "changes_subject_type_check",
-      sql`subject_type in ('cell', 'tenant', 'school', 'host', 'sso_domain', 'integration_client')`,
+      sql`subject_type in ('cell', 'tenant', 'school', 'host', 'sso_domain')`,
     ),
     check("changes_action_check", sql`char_length(action) between 1 and 60`),
     check("changes_reason_check", sql`char_length(reason) between 1 and 500`),

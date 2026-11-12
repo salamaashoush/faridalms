@@ -1629,39 +1629,19 @@ export async function unansweredComments(
   return row?.count ?? 0;
 }
 
-/** A mark as it went out to its student. */
-export interface ReleasedMark {
-  attemptId: string;
-  studentId: string;
-  /** The mark after any late penalty; none when the work went back unmarked. */
-  score: number | null;
-  releasedAt: Date;
-}
-
-/** Releases the assessments of the given attempts, returning the marks that went out. */
+/** Releases the assessments of the given attempts, returning the attempts whose marks went out. */
 export async function releaseAssessments(
   tx: Tx,
   tenantId: string,
   attemptIds: readonly string[],
-): Promise<ReleasedMark[]> {
+): Promise<string[]> {
   if (attemptIds.length === 0) return [];
-  const rows = await tx.execute<{
-    attempt_id: string;
-    student_user_id: string;
-    score: string | number | null;
-    released_at: Date | string;
-  }>(sql`
+  const rows = await tx.execute<{ attempt_id: string }>(sql`
     update core.assessments set released_at = statement_timestamp()
     where tenant_id = ${tenantId}::uuid and attempt_id = any(${uuidArray(attemptIds)})
       and status = 'active' and released_at is null
-    returning attempt_id, student_user_id, coalesce(effective_score, score) as score,
-      released_at`);
-  return rows.map((row) => ({
-    attemptId: row.attempt_id,
-    studentId: row.student_user_id,
-    score: row.score === null ? null : Number(row.score),
-    releasedAt: new Date(row.released_at),
-  }));
+    returning attempt_id`);
+  return rows.map((row) => row.attempt_id);
 }
 
 export interface LearnerRow {

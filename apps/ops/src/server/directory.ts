@@ -296,12 +296,10 @@ export const listChanges = createServerFn({ method: "GET" })
             detail: null,
             schoolId: null,
           };
-        default:
-          return {
-            name: change.subjectId,
-            detail: "Integration",
-            schoolId: null,
-          };
+        default: {
+          const unreachable: never = change.subjectType;
+          return unreachable;
+        }
       }
     };
     return {

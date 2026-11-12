@@ -57,8 +57,8 @@ import { AssistantTranslate } from "~/components/content/assistant";
 import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { DocumentHostProvider } from "~/components/content/document-host";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
-import { LtiHostProvider } from "~/components/content/lti";
 import { useStartFrom } from "~/components/content/Templates";
 import { TranslationNote } from "~/components/content/TranslationNote";
 import { blockIssue } from "~/components/learning/issues";
@@ -865,7 +865,7 @@ export function AssignmentEditor({
       : null;
 
   return (
-    <LtiHostProvider type="assignment" id={storedId || null}>
+    <DocumentHostProvider type="assignment" id={storedId || null}>
       <DocumentPage
         heading={existing ? m.courseworkEditTitle() : m.courseworkNewTitle()}
         onBack={async () => {
@@ -1761,6 +1761,6 @@ export function AssignmentEditor({
           onClose={() => setReusing((current) => ({ ...current, open: false }))}
         />
       ) : null}
-    </LtiHostProvider>
+    </DocumentHostProvider>
   );
 }

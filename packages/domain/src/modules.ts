@@ -20,7 +20,6 @@ export const MODULE_IDS = [
   "early_years",
   "coding",
   "video",
-  "integrations",
   "sso",
   "sms",
 ] as const;
@@ -125,12 +124,6 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     systems: [],
   },
   video: { requires: [], basic: false, schoolSwitch: false, systems: [] },
-  integrations: {
-    requires: [],
-    basic: false,
-    schoolSwitch: false,
-    systems: ["lti", "xapi"],
-  },
   sso: { requires: [], basic: false, schoolSwitch: false, systems: [] },
   sms: { requires: [], basic: false, schoolSwitch: false, systems: [] },
 };

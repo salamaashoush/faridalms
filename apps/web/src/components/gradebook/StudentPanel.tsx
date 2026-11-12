@@ -17,7 +17,7 @@ import type { Book, Student } from "./book";
 import type { TermGrades } from "./useTermGrades";
 
 import { calculatedScore, calculatedText, TERM_MAXIMUM } from "./book";
-import { ResultMark, ToolMark } from "./marks";
+import { ResultMark } from "./marks";
 
 interface TermGradeFieldProps {
   book: Book;
@@ -241,18 +241,6 @@ export function StudentPanel({
             id: work.id,
             label: work.title,
             value: <ResultMark book={book} work={work} student={student} />,
-          }))}
-        />
-      ) : null}
-      {book.tools.length ? (
-        <SummaryList
-          title={m.gradebookTools()}
-          items={book.tools.map((column) => ({
-            id: column.id,
-            label: column.label,
-            value: (
-              <ToolMark book={book} column={column} studentId={student.id} />
-            ),
           }))}
         />
       ) : null}

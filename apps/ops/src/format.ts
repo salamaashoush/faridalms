@@ -74,7 +74,6 @@ export const MODULE_NAMES: Record<ModuleId, string> = {
   early_years: "Early years",
   coding: "Coding and blocks",
   video: "Video",
-  integrations: "Integrations",
   sso: "Single sign-on",
   sms: "SMS",
 };
@@ -96,7 +95,6 @@ export const MODULE_HINTS: Record<ModuleId, string> = {
   early_years: "Observations and learning journeys for the early years",
   coding: "Block and text coding projects that run in the browser",
   video: "Uploaded and streamed video with captions",
-  integrations: "Tools from other providers launched inside lessons (LTI)",
   sso: "Sign in through the school's own identity provider",
   sms: "Text messages to families",
 };
@@ -623,5 +621,5 @@ export const MODULE_GROUPS: readonly ModuleGroup[] = [
     title: "Communication and website",
     modules: ["website", "custom_domains", "sms"],
   },
-  { title: "Connections", modules: ["integrations", "sso"] },
+  { title: "Connections", modules: ["sso"] },
 ];

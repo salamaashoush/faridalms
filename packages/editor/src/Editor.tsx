@@ -48,7 +48,6 @@ import type {
   EditorComments,
   EditorShared,
   EditorMentions,
-  EditorTools,
   EditorMedia,
   EditorPuzzles,
   EditorStandards,
@@ -71,7 +70,6 @@ import {
 import { AssistantPlugin } from "./plugins/assistant";
 import { BankPlugin } from "./plugins/bank";
 import { BlockHandlePlugin } from "./plugins/BlockHandle";
-import { Cmi5ImportPlugin } from "./plugins/cmi5";
 import { CodeBlockPlugin } from "./plugins/code-block";
 import { CommentsPlugin } from "./plugins/comments";
 import { DiagramPlugin } from "./plugins/diagram";
@@ -186,8 +184,6 @@ export interface EditorProps {
   shared?: EditorShared;
   /** Finds whom and what may be mentioned with @. */
   mentions?: EditorMentions;
-  /** The school's outside tools, to link to. */
-  tools?: EditorTools;
   /** Comments the document's writers leave each other, kept outside it. */
   comments?: EditorComments;
   /** Help from the school's language model, where the host offers it. */
@@ -247,7 +243,6 @@ export default function Editor({
   standards,
   shared,
   mentions,
-  tools,
   comments,
   assistant,
   locale,
@@ -296,7 +291,6 @@ export default function Editor({
       standards,
       shared,
       mentions,
-      tools,
       comments,
       assistant,
       locale:
@@ -326,7 +320,6 @@ export default function Editor({
       standards,
       shared,
       mentions,
-      tools,
       comments,
       assistant,
       locale,
@@ -708,7 +701,6 @@ const Surface = memo(function Surface({
       <MediaPlugin onBusyChange={onUploadingChange} />
       <WordImportPlugin />
       <QtiImportPlugin />
-      <Cmi5ImportPlugin />
       <EmbedPlugin />
       <TableInsertPlugin />
       <BankPlugin />

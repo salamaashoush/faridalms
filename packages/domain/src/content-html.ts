@@ -301,8 +301,6 @@ class Writer {
       case "shared":
       case "starter":
       case "ai-use":
-      case "lti":
-      case "cmi5":
       case "glossary":
       case "pagebreak":
       case "diagram":

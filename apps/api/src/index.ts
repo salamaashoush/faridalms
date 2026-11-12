@@ -40,7 +40,6 @@ import { startDelivery } from "./notifications/scheduler";
 import { commonsSearcher } from "./pictures/commons";
 import { createProvisioner } from "./provisioning/host";
 import { startQuizClock } from "./quizzes/clock";
-import { startStatementSender } from "./xapi/sender";
 
 const cell = openCell(
   {
@@ -329,19 +328,6 @@ const stopProgramReruns = env.CELL_WORKER_URL
     })
   : null;
 
-// Statements go to schools' own record stores. Every replica may run the
-// pass; a statement is held by one sender before it is sent.
-const stopStatements = env.CELL_WORKER_URL
-  ? startStatementSender({
-      cell,
-      directory,
-      cellId: env.CELL_ID,
-      cellSecret,
-      intervalMs: 15_000,
-      purgeMs: env.FILE_SWEEP_MS,
-    })
-  : null;
-
 // Schools' own hosts are checked when due: on request, then hourly. Every
 // replica may run the pass; a host is claimed by one before it is checked.
 const stopHostChecks = hosts?.checks.start(30_000) ?? null;
@@ -372,7 +358,6 @@ async function shutdown() {
   await stopPeerReviewClock?.();
   await stopPartitions?.();
   await stopProgramReruns?.();
-  await stopStatements?.();
   await stopHostChecks?.();
   await stopLoginIndex?.();
   await directorySync?.close();

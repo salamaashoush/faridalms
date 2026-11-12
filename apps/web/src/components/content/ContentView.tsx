@@ -23,7 +23,6 @@ import { getLocale } from "~/i18n/runtime";
 import { sharedBlockQuery } from "~/queries/shared";
 import { digits } from "~/utils/digits";
 
-import { useCmi5Href, useLtiHref } from "./lti";
 import { useMentionNames } from "./mentions";
 import { aiUseStrings, fileStrings } from "./strings";
 
@@ -135,8 +134,6 @@ export function ContentView({
   runs = true,
   lang,
 }: ContentViewProps) {
-  const ltiHref = useLtiHref();
-  const cmi5Href = useCmi5Href();
   const mentionName = useMentionNames(document);
   return (
     <ContentRenderer
@@ -179,11 +176,6 @@ export function ContentView({
         chartCategory: m.editorChartCategory({}, { locale }),
         chartOther: m.editorChartOther({}, { locale }),
         chartEmpty: m.editorChartEmpty({}, { locale }),
-        ltiOpen: m.ltiOpen({}, { locale }),
-        cmi5Start: m.cmi5Start({}, { locale }),
-        cmi5Units: (count: number) => m.cmi5Units({ count }, { locale }),
-        cmi5BrowseNote: m.cmi5BrowseNote({}, { locale }),
-        cmi5ReviewNote: m.cmi5ReviewNote({}, { locale }),
         codeCopy: m.editorCodeCopy({}, { locale }),
         codeCopied: m.editorCodeCopied({}, { locale }),
       }}
@@ -202,8 +194,6 @@ export function ContentView({
       mentionName={mentionName}
       speaker={termSpeaker}
       digits={digits()}
-      ltiHref={ltiHref}
-      cmi5Href={cmi5Href}
       lang={lang}
     />
   );

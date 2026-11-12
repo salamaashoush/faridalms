@@ -7,13 +7,11 @@ import { AiUseNode } from "./ai-use";
 import { BibliographyNode } from "./bibliography";
 import { $isCalloutNode, CalloutNode } from "./callout";
 import { ChartNode } from "./chart";
-import { Cmi5Node } from "./cmi5";
 import { $isColumnNode, ColumnNode, ColumnsNode } from "./columns";
 import { DrawNode } from "./draw";
 import { FootnoteNode } from "./footnote";
 import { GateNode } from "./gate";
 import { GlossaryNode } from "./glossary";
-import { LtiNode } from "./lti";
 import { MathNode } from "./math";
 import { FileNode, ImageNode } from "./media";
 import { MentionNode } from "./mention";
@@ -59,7 +57,6 @@ export * from "./draw";
 export * from "./footnote";
 export * from "./gate";
 export * from "./glossary";
-export * from "./lti";
 export * from "./math";
 export * from "./media";
 export * from "./mention";
@@ -92,8 +89,6 @@ export const blockNodes = [
   FileNode,
   MediaNode,
   EmbedNode,
-  LtiNode,
-  Cmi5Node,
   DiagramNode,
   QuestionNode,
   QuestionPromptNode,

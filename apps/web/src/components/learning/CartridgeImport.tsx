@@ -5,7 +5,7 @@ import { unpackZip } from "@faridalms/editor/packages";
 import { ComboboxField } from "@faridalms/ui/system/combobox-field";
 import { FormField } from "@faridalms/ui/system/form-field";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -15,7 +15,6 @@ import { classTitle } from "~/components/classes/format";
 import { CheckboxRow } from "~/components/people/fields";
 import { uploadDocumentFile } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
-import { availableToolsQuery } from "~/queries/lti";
 import { saveBankQuestion } from "~/server/bank";
 import { saveAssignment } from "~/server/coursework";
 import { initiateUpload } from "~/server/files";
@@ -55,7 +54,6 @@ export function CartridgeImport({
   const saveOne = useServerFn(saveLesson);
   const assign = useServerFn(saveAssignment);
   const keepQuestion = useServerFn(saveBankQuestion);
-  const tools = useQuery({ ...availableToolsQuery, enabled: open }).data;
   const [found, setFound] = useState<{
     files: Map<string, Uint8Array>;
     cartridge: Cartridge;
@@ -82,7 +80,6 @@ export function CartridgeImport({
       const course = await importCartridge(found.cartridge, chosen, {
         files: found.files,
         classIds,
-        toolIds: new Set((tools ?? []).map((tool) => tool.id)),
         uploadTo: (host) => (file) => uploadDocumentFile(initiate, file, host),
         saveModule: async (module) =>
           (

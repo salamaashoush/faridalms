@@ -184,7 +184,7 @@ export const planVersions = pgTable(
     uniqueIndex("plan_versions_plan_version_key").on(t.planId, t.version),
     check(
       "plan_versions_modules_check",
-      sql`modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[]`,
+      sql`modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[]`,
     ),
     check(
       "plan_versions_limits_check",
@@ -243,7 +243,7 @@ export const addOnVersions = pgTable(
     uniqueIndex("add_on_versions_add_on_version_key").on(t.addOnId, t.version),
     check(
       "add_on_versions_module_check",
-      sql`module is null or module = any (array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[])`,
+      sql`module is null or module = any (array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[])`,
     ),
     check(
       "add_on_versions_limit_key_check",
@@ -525,7 +525,7 @@ export const subscriptionOverrides = pgTable(
     index("subscription_overrides_subscription_idx").on(t.subscriptionId),
     check(
       "subscription_overrides_module_check",
-      sql`module is null or module = any (array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[])`,
+      sql`module is null or module = any (array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[])`,
     ),
     check(
       "subscription_overrides_limit_key_check",

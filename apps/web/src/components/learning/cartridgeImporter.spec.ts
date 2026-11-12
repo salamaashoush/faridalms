@@ -89,7 +89,6 @@ describe("bringing a cartridge's course in", () => {
     const result = await importCartridge(cartridge, [0, 1, 2], {
       files,
       classIds: ["class-a", "class-b"],
-      toolIds: new Set(),
       uploadTo: () => () => Promise.reject(new Error("no files here")),
       saveModule: (module) => {
         modules.push(module);

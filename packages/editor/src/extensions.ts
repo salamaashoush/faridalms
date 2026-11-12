@@ -128,7 +128,6 @@ import {
   ToggleTitleNode,
 } from "./nodes";
 import { $insertFootnote } from "./nodes/footnote";
-import { $uniqueLinkIds } from "./nodes/lti";
 
 /** The root, which is never new, and the leaves typing makes and remakes. */
 const UNWATCHED = new Set<string>([
@@ -630,7 +629,6 @@ export const BlocksExtension = defineExtension({
         joined = false;
         $assignBlockIds(root, new Set());
         $uniqueAnswerIds(root, editor.getEditorState());
-        $uniqueLinkIds(root, editor.getEditorState());
       }),
       editor.registerNodeTransform(QuestionNode, (node) => {
         if (!$isRootNode(node.getParent())) $unwrapInto(node);

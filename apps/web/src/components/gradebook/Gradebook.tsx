@@ -48,14 +48,7 @@ import {
   isUnreleased,
   termCellId,
 } from "./book";
-import {
-  gradebookMarks,
-  NothingYet,
-  ResultMark,
-  ToolHeader,
-  ToolMark,
-  WorkHeader,
-} from "./marks";
+import { gradebookMarks, NothingYet, ResultMark, WorkHeader } from "./marks";
 import { StudentPanel } from "./StudentPanel";
 import { useTermGrades } from "./useTermGrades";
 
@@ -150,14 +143,6 @@ function gradebookGrid({ book, grades, editable, onOpen }: GridOptions) {
       numeric: true,
       cell: (student) => (
         <ResultMark book={book} work={work} student={student} />
-      ),
-    })),
-    ...book.tools.map((column): GridColumn<Student> => ({
-      id: `tool-${column.id}`,
-      header: <ToolHeader column={column} />,
-      numeric: true,
-      cell: (student) => (
-        <ToolMark book={book} column={column} studentId={student.id} />
       ),
     })),
   ];

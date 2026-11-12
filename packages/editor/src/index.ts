@@ -19,8 +19,6 @@ export type {
   EditorPuzzles,
   EditorStandards,
   EditorStudio,
-  EditorTools,
-  LtiPicking,
   StandardRef,
   UnfinishedUpload,
   UploadedFile,

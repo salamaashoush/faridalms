@@ -692,34 +692,6 @@ describe("erasing a student's work", () => {
             and x.status = 'active'
           where l.tenant_id = ${t}::uuid and l.id = ${lesson.id}::uuid
           limit 1`);
-        // A score an outside tool sent for them.
-        await tx.execute(sql`
-          with tool as (
-            insert into core.lti_tools (tenant_id, org_id, name, client_id, deployment_id, login_url,
-                                        launch_url, redirect_urls, jwks_url)
-            select ${t}::uuid, org_id, 'Simulator', gen_random_uuid()::text, gen_random_uuid()::text,
-                   'https://tool.example.com/login', 'https://tool.example.com/launch',
-                   '["https://tool.example.com/launch"]', 'https://tool.example.com/jwks'
-            from core.learning_modules m join core.lessons l on l.tenant_id = m.tenant_id and l.module_id = m.id
-            where l.tenant_id = ${t}::uuid and l.id = ${lesson.id}::uuid
-            returning id),
-          item as (
-            insert into core.lti_line_items (tenant_id, tool_id, module_id, label, score_maximum)
-            select ${t}::uuid, tool.id, l.module_id, 'Flood simulation', 10
-            from tool, core.lessons l where l.tenant_id = ${t}::uuid and l.id = ${lesson.id}::uuid
-            returning id)
-          insert into core.lti_scores (tenant_id, line_item_id, student_user_id, score_given,
-                                       score_maximum, activity_progress, grading_progress, scored_at)
-          select ${t}::uuid, item.id, ${work.student}::uuid, 8, 10, 'Completed', 'FullyGraded',
-                 statement_timestamp()
-          from item`);
-        // A statement about them waiting for the school's record store.
-        await tx.execute(sql`
-          insert into core.xapi_statements (tenant_id, org_id, statement_id, student_user_id, statement)
-          select ${t}::uuid, m.org_id, gen_random_uuid(), ${work.student}::uuid, '{"verb": {}}'
-          from core.lessons l
-          join core.learning_modules m on m.tenant_id = l.tenant_id and m.id = l.module_id
-          where l.tenant_id = ${t}::uuid and l.id = ${lesson.id}::uuid`);
         // The time and the reader their school gave them.
         await tx.execute(sql`
           insert into core.access_arrangements (tenant_id, org_id, student_user_id, extra_time, read_aloud)
@@ -856,8 +828,6 @@ describe("erasing a student's work", () => {
           reports: number;
           reviews: number;
           audiences: number;
-          tools: number;
-          statements: number;
         }>(sql`
           select (select count(*)::int from core.lesson_runs where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as runs,
@@ -888,11 +858,7 @@ describe("erasing a student's work", () => {
                    and (author_user_id = ${work.student}::uuid
                      or reviewer_user_id = ${work.student}::uuid)) as reviews,
                  (select count(*)::int from core.module_audiences where tenant_id = ${t}::uuid
-                   and student_user_id = ${work.student}::uuid) as audiences,
-                 (select count(*)::int from core.lti_scores where tenant_id = ${t}::uuid
-                   and student_user_id = ${work.student}::uuid) as tools,
-                 (select count(*)::int from core.xapi_statements where tenant_id = ${t}::uuid
-                   and student_user_id = ${work.student}::uuid) as statements`);
+                   and student_user_id = ${work.student}::uuid) as audiences`);
         expect(left).toEqual({
           runs: 0,
           code: 0,
@@ -908,8 +874,6 @@ describe("erasing a student's work", () => {
           reports: 0,
           reviews: 0,
           audiences: 0,
-          tools: 0,
-          statements: 0,
         });
         checked = true;
         throw rollback;

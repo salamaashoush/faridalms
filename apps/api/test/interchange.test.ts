@@ -8,7 +8,7 @@ import {
 import { describe, expect, test } from "bun:test";
 import { unzipSync } from "fflate";
 
-import { DOMAINS, login, raw, seeded, sessionFor } from "./harness";
+import { login, raw, seeded, sessionFor } from "./harness";
 
 const TITLE = "Reading stories together";
 const PIXEL = Uint8Array.from(
@@ -35,11 +35,7 @@ async function teacherOfModule() {
 }
 
 /** A module with one lesson asking the questions given, as its teacher wrote them. */
-async function moduleAsking(
-  title: string,
-  blocks: LessonBlock[],
-  publish = false,
-) {
+async function moduleAsking(title: string, blocks: LessonBlock[]) {
   const { session, classIds } = await teacherOfModule();
   const saved = await session.api.learning.saveModule({
     id: "",
@@ -52,7 +48,7 @@ async function moduleAsking(
   });
   const content = contentOfLesson({ version: 2, blocks });
   if (!content) throw new Error("no document");
-  const lesson = await session.api.learning.saveLesson({
+  await session.api.learning.saveLesson({
     id: "",
     moduleId: saved.id,
     expectedVersion: 0,
@@ -60,19 +56,9 @@ async function moduleAsking(
     completion: "view",
     passScore: null,
     content,
-    publish,
+    publish: false,
   });
-  if (publish)
-    await session.api.learning.publishModule({
-      id: saved.id,
-      expectedVersion: saved.version,
-    });
-  return {
-    teacher: session,
-    moduleId: saved.id,
-    classIds,
-    lessonId: lesson.id,
-  };
+  return { teacher: session, moduleId: saved.id };
 }
 
 const unzipped = async (response: Response) => {
@@ -499,119 +485,5 @@ describe("moving teaching between systems", () => {
         id: saved.id,
         expectedVersion: saved.version,
       });
-  });
-
-  test("a class's results in a module leave as xAPI statements", async () => {
-    const nile = crypto.randomUUID();
-    const choiceId = crypto.randomUUID();
-    const { teacher, moduleId, classIds, lessonId } = await moduleAsking(
-      "Rivers for the record store",
-      [
-        {
-          id: choiceId,
-          points: 2,
-          hints: [],
-          explanation: "",
-          tries: null,
-          type: "choice",
-          prompt: "Which river floods Egypt?",
-          options: [
-            { id: nile, text: "The Nile", feedback: "" },
-            { id: crypto.randomUUID(), text: "The Thames", feedback: "" },
-          ],
-          correctOptionIds: [nile],
-          multiple: false,
-          shuffle: false,
-        },
-      ],
-      true,
-    );
-    const pupil = await sessionFor("northwind", login("student"));
-    const me = await pupil.api.identity.currentUser();
-    await pupil.api.learning.respond({
-      lessonId,
-      blockId: choiceId,
-      response: { type: "choice", optionIds: [nile] },
-    });
-    let statements: Record<string, unknown>[] = [];
-    let classId = "";
-    for (const each of classIds) {
-      const response = await raw(
-        "northwind",
-        teacher.token,
-        `/v1/modules/${moduleId}/statements.json?classId=${each}`,
-      );
-      expect(response.status).toBe(200);
-      const read = (await response.json()) as Record<string, unknown>[];
-      if (read.some((statement) => JSON.stringify(statement).includes(me.id))) {
-        statements = read;
-        classId = each;
-      }
-    }
-    const answered = statements.find(
-      (statement) =>
-        (statement.verb as { id: string }).id ===
-        "http://adlnet.gov/expapi/verbs/answered",
-    );
-    // Statements name the school's portal, where a person finds the lesson.
-    const home = `https://northwind.${DOMAINS.portal}`;
-    expect(answered).toMatchObject({
-      actor: {
-        objectType: "Agent",
-        account: { homePage: home, name: me.id },
-      },
-      object: {
-        id: `${home}/lessons/${lessonId}#${choiceId}`,
-        definition: {
-          type: "http://adlnet.gov/expapi/activities/cmi.interaction",
-          interactionType: "choice",
-        },
-      },
-      result: {
-        score: { scaled: 1, raw: 2, min: 0, max: 2 },
-        success: true,
-        completion: true,
-      },
-      context: {
-        platform: "Farida",
-        contextActivities: {
-          parent: [{ id: `${home}/lessons/${lessonId}` }],
-          grouping: [
-            { id: `${home}/modules/${moduleId}` },
-            { id: `${home}/classes/${classId}` },
-          ],
-        },
-      },
-      version: "1.0.3",
-    });
-    expect(
-      statements.some(
-        (statement) =>
-          (statement.object as { id: string }).id ===
-            `${home}/lessons/${lessonId}` &&
-          (statement.actor as { account: { name: string } }).account.name ===
-            me.id,
-      ),
-    ).toBe(true);
-    // The same records give the same statement ids, so a store takes them once.
-    const again = (await (
-      await raw(
-        "northwind",
-        teacher.token,
-        `/v1/modules/${moduleId}/statements.json?classId=${classId}`,
-      )
-    ).json()) as { id: string }[];
-    expect(again.map((statement) => statement.id)).toEqual(
-      statements.map((statement) => String(statement.id)),
-    );
-    expect(
-      (
-        await raw(
-          "northwind",
-          pupil.token,
-          `/v1/modules/${moduleId}/statements.json?classId=${classId}`,
-        )
-      ).status,
-    ).toBe(404);
   });
 });

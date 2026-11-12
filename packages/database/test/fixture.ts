@@ -99,18 +99,8 @@ import {
   programRemarks,
   discussionLikes,
   discussionPosts,
-  ltiKeys,
-  ltiLineItems,
-  ltiReplays,
-  ltiScores,
-  xapiStatements,
-  xapiStores,
   assistantSettings,
   assistantRequests,
-  cmi5Registrations,
-  cmi5Sessions,
-  cmi5States,
-  ltiTools,
   peerReviewComments,
   peerReviews,
   passkeys,
@@ -722,91 +712,6 @@ export async function completeFixture(
     },
     body: "This line made me want to read on.",
   });
-  const [simulator] = await tx
-    .insert(ltiTools)
-    .values({
-      tenantId,
-      orgId: schoolId,
-      name: "River simulator",
-      clientId: id(),
-      deploymentId: id(),
-      loginUrl: "https://tool.example.com/login",
-      launchUrl: "https://tool.example.com/launch",
-      redirectUrls: ["https://tool.example.com/launch"],
-      jwksUrl: "https://tool.example.com/jwks",
-    })
-    .returning({ id: ltiTools.id });
-  if (!simulator) throw new Error("no tool");
-  const [column] = await tx
-    .insert(ltiLineItems)
-    .values({
-      tenantId,
-      toolId: simulator.id,
-      moduleId: setFor.moduleId,
-      lessonId: lesson.id,
-      linkId: id(),
-      declared: true,
-      label: "Flood simulation",
-      scoreMaximum: 10,
-    })
-    .returning({ id: ltiLineItems.id });
-  if (!column) throw new Error("no line item");
-  await tx.insert(ltiScores).values({
-    tenantId,
-    lineItemId: column.id,
-    studentUserId: userId,
-    scoreGiven: 8,
-    scoreMaximum: 10,
-    activityProgress: "Completed",
-    gradingProgress: "FullyGraded",
-    scoredAt: new Date("2026-09-22T10:00:00Z"),
-  });
-  const [registration] = await tx
-    .insert(cmi5Registrations)
-    .values({
-      tenantId,
-      orgId: schoolId,
-      lessonId: lesson.id,
-      packageId: id(),
-      studentUserId: userId,
-      progress: { "https://example.com/au/1": { completed: true } },
-    })
-    .returning({ id: cmi5Registrations.id });
-  if (!registration) throw new Error("no registration");
-  await tx.insert(cmi5Sessions).values({
-    tenantId,
-    registrationId: registration.id,
-    studentUserId: userId,
-    auId: "https://example.com/au/1",
-    activityId: "https://example.com/lessons/1#au",
-    verbs: ["initialized", "completed", "terminated"],
-    endedAt: new Date("2026-09-22T10:00:00Z"),
-    ending: "terminated",
-  });
-  await tx.insert(cmi5States).values({
-    tenantId,
-    registrationId: registration.id,
-    studentUserId: userId,
-    activityId: "https://example.com/lessons/1#au",
-    stateId: "bookmark",
-    contentType: "application/json",
-    body: '{"page":3}',
-  });
-  await tx.insert(xapiStores).values({
-    tenantId,
-    orgId: schoolId,
-    endpoint: "https://lrs.example.com/xapi/",
-    username: "school-key",
-    sealedSecret: "sealed",
-    enabled: true,
-  });
-  await tx.insert(xapiStatements).values({
-    tenantId,
-    orgId: schoolId,
-    statementId: id(),
-    studentUserId: userId,
-    statement: { verb: { id: "http://adlnet.gov/expapi/verbs/completed" } },
-  });
   await tx.insert(assistantSettings).values({
     tenantId,
     orgId: schoolId,
@@ -830,18 +735,6 @@ export async function completeFixture(
     outputTokens: 700,
     outcome: "done",
     finishedAt: new Date("2026-09-22T10:00:00Z"),
-  });
-  await tx.insert(ltiKeys).values({
-    tenantId,
-    orgId: schoolId,
-    kid: id(),
-    publicJwk: { kty: "RSA", n: "AQAB", e: "AQAB" },
-    sealedPrivateJwk: "sealed",
-  });
-  await tx.insert(ltiReplays).values({
-    tenantId,
-    keyHash: Buffer.alloc(32),
-    expiresAt: new Date(Date.now() + 3_600_000),
   });
   await tx.insert(quizAnswers).values({
     tenantId,

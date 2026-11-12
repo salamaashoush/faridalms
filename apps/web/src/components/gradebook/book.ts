@@ -11,7 +11,6 @@ export type Book = Awaited<
 export type Student = Book["students"][number];
 export type Work = Book["assignments"][number];
 export type Result = Book["results"][number];
-export type ToolColumn = Book["tools"][number];
 
 /** Term grades are kept out of 100; the server refuses more. */
 export const TERM_MAXIMUM = 100;

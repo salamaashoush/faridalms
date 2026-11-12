@@ -7,7 +7,6 @@ import type {
 import type { PictureCredit } from "@faridalms/domain/commons";
 import type { ContentDocument, Mention } from "@faridalms/domain/content";
 import type { SpeechLanguage } from "@faridalms/domain/file";
-import type { LtiPicked } from "@faridalms/domain/lti";
 import type { Digits } from "@faridalms/domain/people";
 import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
 import type { ContentLocale } from "@faridalms/domain/translations";
@@ -248,25 +247,6 @@ export interface EditorMentions {
   name?: (mention: Mention) => string | undefined;
 }
 
-/** The school's outside tools a document may link to, and where a link opens. */
-/** A pick of a tool's content under way in the tool's own window. */
-export interface LtiPicking {
-  /** What the teacher picked, in the tool's order, or nothing when the pick ended without an answer. */
-  picked: Promise<LtiPicked[] | null>;
-  cancel: () => void;
-}
-
-export interface EditorTools {
-  list: { id: string; name: string; deepLinking: boolean }[];
-  /** Where a link launches from; none until the document is saved. */
-  href: (linkId: string) => string | null;
-  /**
-   * Opens a tool's window to pick its content for a link, or gives nothing
-   * when the browser would not open it; absent until the document is saved.
-   */
-  pick?: (toolId: string) => LtiPicking | null;
-}
-
 /** A thread on a passage, as the editor marks it. */
 export interface CommentMark {
   id: string;
@@ -332,8 +312,6 @@ export interface EditorEnvironment {
   /** Comments while writing; absent where nobody may leave them. */
   comments?: EditorComments;
   media?: EditorMedia;
-  /** Links to outside tools; absent where the school has none to offer. */
-  tools?: EditorTools;
   /** Offers coding questions; absent where no studio is set up. */
   studio?: EditorStudio;
   /** Offers puzzle questions; absent where there is no designer to make one in. */
