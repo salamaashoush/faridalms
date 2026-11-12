@@ -176,5 +176,11 @@ Each step leaves `bun run ready` green.
 - Which of the new modules Basic includes. Until decided, Basic keeps what
   a school has today, so it gains all four.
 - The production cell holds only the demo school. The baseline cannot
-  migrate it, so it is recreated and refilled with `admin demo` at the next
-  deploy.
+  migrate it. The owner agreed on 2026-11-12 that production is recreated
+  and refilled with `admin demo` at the deploy that carries this work.
+
+## After this work
+
+- Plans: what each plan includes, redrawn over the new modules.
+- The marketing website, rewritten for schools, coding schools, academies
+  and video-course schools.
