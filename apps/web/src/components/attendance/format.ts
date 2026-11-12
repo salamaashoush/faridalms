@@ -46,6 +46,16 @@ export const STATE_TONE: Record<RegisterState, Tone> = {
   submitted: "success",
 };
 
+/** A register's state as a teacher's day names it. */
+export const DAY_REGISTER: Record<
+  RegisterState,
+  { label: () => string; tone: Tone }
+> = {
+  not_started: { label: m.homeRegisterNotTaken, tone: "warning" },
+  in_progress: { label: m.homeRegisterInProgress, tone: "info" },
+  submitted: { label: m.homeRegisterTaken, tone: "success" },
+};
+
 export function labelOf(row: {
   labelEn: string | null;
   labelAr: string | null;

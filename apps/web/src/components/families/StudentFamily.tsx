@@ -27,7 +27,7 @@ import { toast } from "sonner";
 
 import type { NamesDraft } from "~/components/people/fields";
 
-import { KIND_ICON, noticeText } from "~/components/notifications/format";
+import { useNoticeWords } from "~/components/notifications/format";
 import { ContactsSheet } from "~/components/people/ContactsSheet";
 import {
   EMPTY_NAMES,
@@ -564,19 +564,20 @@ export interface GuardianNoticesProps {
  * it rings them.
  */
 export function GuardianNotices({ studentId }: GuardianNoticesProps) {
-  const notices = useSuspenseQuery(guardianNoticesQuery(studentId)).data;
+  const sent = useSuspenseQuery(guardianNoticesQuery(studentId)).data;
+  const notices = useNoticeWords();
   return (
     <RecordSection
       title={m.studentNoticesTitle()}
       description={m.studentNoticesHint()}
     >
-      {notices.length === 0 ? (
+      {sent.length === 0 ? (
         <RecordEmpty>{m.studentNoticesNone()}</RecordEmpty>
       ) : (
         <RecordList>
-          {notices.map((notice) => {
-            const Icon = KIND_ICON[notice.kind];
-            const text = noticeText({
+          {sent.map((notice) => {
+            const Icon = notices.iconOf(notice.kind);
+            const text = notices.textOf({
               id: `${notice.kind}:${notice.subjectId}`,
               kind: notice.kind,
               subjectId: notice.subjectId,
@@ -584,6 +585,7 @@ export function GuardianNotices({ studentId }: GuardianNoticesProps) {
               actorNameEn: null,
               actorNameAr: null,
             });
+            if (!text) return null;
             const named = (read: boolean) =>
               notice.recipients
                 .filter((recipient) => recipient.read === read)

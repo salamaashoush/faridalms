@@ -23,6 +23,7 @@ import { draftQuery, myApplicationsQuery } from "~/queries/admissions";
 import { answerOffer, withdrawApplication } from "~/server/admissions";
 import { formatDate, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import {
   APPLICATION_STATE_LABEL,
@@ -55,6 +56,7 @@ interface OfferAnswerProps {
  * once more before it is sent, since the school acts on it at once.
  */
 function OfferAnswer({ row }: OfferAnswerProps) {
+  const words = useWords();
   const queryClient = useQueryClient();
   const [asking, setAsking] = useState<"accept" | "decline" | null>(null);
   const answer = useMutation({
@@ -101,8 +103,8 @@ function OfferAnswer({ row }: OfferAnswerProps) {
         }
         body={
           asking === "decline"
-            ? m.famOfferDeclineBody()
-            : m.famOfferAcceptBody()
+            ? words(m.famOfferDeclineBodyCore)()
+            : words(m.famOfferAcceptBodyCore)()
         }
         confirmLabel={
           asking === "decline" ? m.famOfferDecline() : m.famOfferAccept()
@@ -302,6 +304,7 @@ function ApplicationCard({ row }: ApplicationCardProps) {
 
 /** The viewer's applications to the school, for themself or for others: where each stands and the documents still asked for. */
 export function MyApplications() {
+  const words = useWords();
   const data = useSuspenseQuery(myApplicationsQuery).data;
   return (
     <Page width="list">
@@ -324,7 +327,7 @@ export function MyApplications() {
         <EmptyState
           icon={FileUser}
           title={m.famAppsEmpty()}
-          description={m.famAppsEmptyBody()}
+          description={words(m.famAppsEmptyBodyCore)()}
         />
       )}
     </Page>

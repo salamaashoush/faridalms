@@ -10,8 +10,10 @@ import type { ModuleContributions } from "../core/extension";
 
 import { classGuards } from "../classes/points";
 import { contribute } from "../core/extension";
+import { can } from "../core/procedure";
 import { setupMeasures } from "../core/setup";
 import { fileHosts } from "../files/authorize";
+import { studentRecordAccess } from "../people/points";
 import { leavingGuards } from "../people/sign-in-ways";
 import { ATTENDANCE_HOSTS } from "./hosts";
 
@@ -19,6 +21,10 @@ import { ATTENDANCE_HOSTS } from "./hosts";
 export const ATTENDANCE: ModuleContributions = {
   module: "attendance",
   contributions: [
+    contribute(studentRecordAccess, {
+      key: "attendance",
+      may: (context) => can(context, "attendance:read"),
+    }),
     contribute(fileHosts, ATTENDANCE_HOSTS),
     // A register that marks a student after their last day says they were
     // still here.

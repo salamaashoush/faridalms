@@ -23,6 +23,7 @@ import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { assignEnquiry, logEnquiry, moveEnquiry } from "~/server/admissions";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import { PURPOSE_LABEL, REASON_LABEL, SOURCE_LABEL } from "./labels";
 
@@ -369,6 +370,7 @@ export interface CloseSheetProps {
 
 /** Ends an enquiry the family did not take further, saying why. */
 export function CloseSheet({ enquiry, open, onOpenChange }: CloseSheetProps) {
+  const words = useWords();
   const refresh = useRefresh();
   const [reason, setReason] = useState<CloseReason>("answered");
   const [note, setNote] = useState("");
@@ -417,7 +419,7 @@ export function CloseSheet({ enquiry, open, onOpenChange }: CloseSheetProps) {
         value={reason}
         options={CLOSE_REASONS.map((value) => ({
           value,
-          label: REASON_LABEL[value](),
+          label: words(REASON_LABEL[value])(),
         }))}
         onChange={setReason}
       />

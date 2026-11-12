@@ -50,6 +50,7 @@ import * as m from "~/i18n/messages";
 import { saveIntake } from "~/server/admissions";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import type { IntakePartsRead } from "./parts";
 
@@ -340,6 +341,7 @@ interface ChecklistTableProps {
 
 /** The steps families meet, a row each, opened and changed on its own. */
 function ChecklistTable({ checklist, onChange, error }: ChecklistTableProps) {
+  const words = useWords();
   const [sheet, setSheet] = useState<{
     item: ChecklistItem | null;
     key: number;
@@ -370,7 +372,7 @@ function ChecklistTable({ checklist, onChange, error }: ChecklistTableProps) {
       destructive: true,
       confirm: {
         title: m.itkItemRemoveTitle({ item: stepName(item) }),
-        body: m.itkItemRemoveBody(),
+        body: words(m.itkItemRemoveBodyCore)(),
         label: m.itkItemRemoveAction(),
       },
       onSelect: () => onChange(checklist.filter((one) => one.key !== item.key)),
@@ -379,7 +381,7 @@ function ChecklistTable({ checklist, onChange, error }: ChecklistTableProps) {
   return (
     <>
       <DataTable
-        caption={m.itkChecklistTable()}
+        caption={words(m.itkChecklistTableCore)()}
         rows={checklist.map((item) => Object.assign({ id: item.key }, item))}
         columns={stepColumns(opener)}
         rowLabel={stepName}
@@ -473,6 +475,7 @@ function FeeSheet({
   onDone,
   onClose,
 }: FeeSheetProps) {
+  const words = useWords();
   const [value, setValue] = useState(feeAmount(amount));
   return (
     <SheetForm
@@ -480,7 +483,7 @@ function FeeSheet({
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
-      title={FEE_KIND_LABEL[kind]()}
+      title={words(FEE_KIND_LABEL[kind])()}
       submitLabel={m.itkFeeSave()}
       onSubmit={() => {
         onDone(value === null ? "" : String(value));
@@ -509,6 +512,7 @@ interface FeesTableProps {
 
 /** The intake's fees, one row for each kind the school may charge. */
 function FeesTable({ fees, currency, onChange }: FeesTableProps) {
+  const words = useWords();
   const [sheet, setSheet] = useState<{
     kind: FeeKind;
     key: number;
@@ -518,7 +522,7 @@ function FeesTable({ fees, currency, onChange }: FeesTableProps) {
     setSheet((current) => ({ kind, key: (current?.key ?? 0) + 1, open: true }));
   const opener: FeeOpener = (row) => (
     <RowButton onClick={() => open(row.id)}>
-      {FEE_KIND_LABEL[row.id]()}
+      {words(FEE_KIND_LABEL[row.id])()}
     </RowButton>
   );
   const rowActions = (row: FeeRow): RowAction[] => [
@@ -531,8 +535,10 @@ function FeesTable({ fees, currency, onChange }: FeesTableProps) {
             icon: Trash2,
             destructive: true as const,
             confirm: {
-              title: m.itkFeeClearTitle({ fee: FEE_KIND_LABEL[row.id]() }),
-              body: m.itkFeeClearBody(),
+              title: m.itkFeeClearTitle({
+                fee: words(FEE_KIND_LABEL[row.id])(),
+              }),
+              body: words(m.itkFeeClearBodyCore)(),
               label: m.itkFeeClear(),
             },
             onSelect: () => onChange({ ...fees, [row.id]: "" }),
@@ -545,7 +551,7 @@ function FeesTable({ fees, currency, onChange }: FeesTableProps) {
         caption={m.itkFeesTable({ currency })}
         rows={FEE_KINDS.map((kind) => ({ id: kind, amount: fees[kind] }))}
         columns={feeColumns(currency, opener)}
-        rowLabel={(row) => FEE_KIND_LABEL[row.id]()}
+        rowLabel={(row) => words(FEE_KIND_LABEL[row.id])()}
         rowActions={rowActions}
         card={feeCard(currency, opener)}
         empty={{ title: m.itkFeeNone() }}
@@ -587,6 +593,7 @@ export function IntakeEditor({
   initial,
   onDone,
 }: IntakeEditorProps) {
+  const words = useWords();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(initial);
   const leaving = useRef(false);
@@ -846,7 +853,7 @@ export function IntakeEditor({
 
       <FormSection
         title={m.itkSectionChecklist()}
-        description={m.itkSectionChecklistHint()}
+        description={words(m.itkSectionChecklistHintCore)()}
       >
         <ChecklistTable
           checklist={draft.checklist}
@@ -857,7 +864,7 @@ export function IntakeEditor({
 
       <FormSection
         title={m.itkSectionFees()}
-        description={m.itkSectionFeesHint()}
+        description={words(m.itkSectionFeesHintCore)()}
       >
         <SelectField
           id="intake-currency"
@@ -891,7 +898,7 @@ export function IntakeEditor({
         <TextField
           id="intake-offer-days"
           label={m.itkFieldOfferDays()}
-          hint={m.itkFieldOfferDaysHint()}
+          hint={words(m.itkFieldOfferDaysHintCore)()}
           type="number"
           inputMode="numeric"
           min={1}

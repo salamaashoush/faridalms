@@ -1,14 +1,9 @@
-import type {
-  applicationFormSchema,
-  Needs,
-  PreviousSchool,
-} from "@faridalms/domain/admissions";
+import type { Needs, PreviousSchool } from "@faridalms/domain/admissions";
 import type { FileSummary } from "@faridalms/domain/file";
 import type { LessonResponse } from "@faridalms/domain/learning";
 import type { PersonNamesInput } from "@faridalms/domain/people";
 import type { FormQuestion } from "@faridalms/domain/questions";
 import type { ContentLocale } from "@faridalms/domain/translations";
-import type * as v from "valibot";
 
 import {
   MAX_FILES_PER_ITEM,
@@ -53,7 +48,8 @@ import { toast } from "sonner";
 
 import { TranslatedView } from "~/components/content/TranslatedView";
 import { FileField } from "~/components/system/FileField";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { draftQuery, myApplicationsQuery } from "~/queries/admissions";
@@ -66,6 +62,13 @@ import {
 } from "~/server/admissions";
 import { formatAmount, formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
+
+import type {
+  ApplicationAnswers,
+  ApplicationDraft,
+  Names,
+} from "./apply-parts";
 
 import {
   AGE_LABEL,
@@ -76,21 +79,21 @@ import {
   NEEDS_LABEL,
   named,
 } from "./application-labels";
+import { hasName, NamesFields, noNames, text } from "./apply-parts";
+import { applicationSteps, previousSchoolGrades } from "./slots";
 
-export const APPLY_STEPS = [
+const APPLY_STEPS = [
   "child",
-  "family",
   "schools",
   "needs",
   "questions",
   "documents",
   "send",
 ] as const;
-export type ApplyStep = (typeof APPLY_STEPS)[number];
+type ApplyStep = (typeof APPLY_STEPS)[number];
 
 const STEP_LABEL: Record<ApplyStep, () => string> = {
-  child: m.applyStepChild,
-  family: m.applyStepFamily,
+  child: m.applyStepChildCore,
   schools: m.applyStepSchools,
   needs: m.applyStepNeeds,
   questions: m.applyStepQuestions,
@@ -98,114 +101,10 @@ const STEP_LABEL: Record<ApplyStep, () => string> = {
   send: m.applyStepSend,
 };
 
+const isApplyStep = (step: string): step is ApplyStep =>
+  (APPLY_STEPS as readonly string[]).includes(step);
+
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
-
-interface Parts {
-  given: string;
-  middle: string;
-  family: string;
-}
-interface Names {
-  ar: Parts;
-  en: Parts;
-}
-/** The form as the family edits it, every name part a string. */
-type FormAnswers = Omit<v.InferInput<typeof applicationFormSchema>, "other"> & {
-  other:
-    | (Omit<
-        NonNullable<v.InferInput<typeof applicationFormSchema>["other"]>,
-        "names"
-      > & { names: Names })
-    | null;
-};
-const text = (parts: {
-  given: string | null;
-  middle: string | null;
-  family: string | null;
-}) => ({
-  given: parts.given ?? "",
-  middle: parts.middle ?? "",
-  family: parts.family ?? "",
-});
-const noNames = (): Names => ({
-  ar: { given: "", middle: "", family: "" },
-  en: { given: "", middle: "", family: "" },
-});
-const hasName = (names: Names) =>
-  [names.ar, names.en].some(
-    (parts) => parts.given.trim() && parts.family.trim(),
-  );
-
-interface NamesFieldsProps {
-  id: string;
-  names: Names;
-  onChange: (names: Names) => void;
-  error?: string | null;
-}
-
-function NamesFields({ id, names, onChange, error }: NamesFieldsProps) {
-  const set = (script: "ar" | "en", part: keyof Names["en"], value: string) =>
-    onChange({ ...names, [script]: { ...names[script], [part]: value } });
-  return (
-    <div className="grid gap-4">
-      <fieldset className="grid gap-3">
-        <legend className="mb-1 text-sm font-medium">{m.applyNameAr()}</legend>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <TextField
-            id={`${id}-ar-given`}
-            label={m.applyGivenAr()}
-            dir="rtl"
-            value={names.ar.given}
-            onChange={(event) => set("ar", "given", event.target.value)}
-            errors={error ? [error] : undefined}
-          />
-          <TextField
-            id={`${id}-ar-middle`}
-            label={m.applyMiddleAr()}
-            optional
-            dir="rtl"
-            value={names.ar.middle}
-            onChange={(event) => set("ar", "middle", event.target.value)}
-          />
-          <TextField
-            id={`${id}-ar-family`}
-            label={m.applyFamilyName()}
-            dir="rtl"
-            value={names.ar.family}
-            onChange={(event) => set("ar", "family", event.target.value)}
-          />
-        </div>
-      </fieldset>
-      <fieldset className="grid gap-3">
-        <legend className="mb-1 text-sm font-medium">{m.applyNameEn()}</legend>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <TextField
-            id={`${id}-en-given`}
-            label={m.applyGivenEn()}
-            dir="ltr"
-            value={names.en.given}
-            onChange={(event) => set("en", "given", event.target.value)}
-          />
-          <TextField
-            id={`${id}-en-middle`}
-            label={m.applyMiddleEn()}
-            optional
-            dir="ltr"
-            value={names.en.middle}
-            onChange={(event) => set("en", "middle", event.target.value)}
-          />
-          <TextField
-            id={`${id}-en-family`}
-            label={m.applyFamilyName()}
-            dir="ltr"
-            value={names.en.family}
-            onChange={(event) => set("en", "family", event.target.value)}
-          />
-        </div>
-      </fieldset>
-    </div>
-  );
-}
 
 type Mine = Awaited<
   ReturnType<NonNullable<(typeof myApplicationsQuery)["queryFn"]>>
@@ -355,6 +254,7 @@ export function StartApplication({
   intakeId,
   onStarted,
 }: StartApplicationProps) {
+  const words = useWords();
   const queryClient = useQueryClient();
   const mine = useSuspenseQuery(myApplicationsQuery).data;
   const [chosenIntake, setChosenIntake] = useState(
@@ -391,7 +291,9 @@ export function StartApplication({
       }),
   });
   if (mine.intakes.length === 0)
-    return <EmptyState icon={CalendarX} title={m.applyNoIntakes()} />;
+    return (
+      <EmptyState icon={CalendarX} title={words(m.applyNoIntakesCore)()} />
+    );
   const intake = mine.intakes.find((row) => row.id === chosenIntake);
   return (
     <form
@@ -412,8 +314,8 @@ export function StartApplication({
       }}
     >
       <FormSection
-        title={m.applyIntakeTitle()}
-        description={m.applyIntakeHint()}
+        title={words(m.applyIntakeTitleCore)()}
+        description={words(m.applyIntakeHintCore)()}
       >
         <SelectField
           id="apply-intake"
@@ -478,6 +380,7 @@ interface IntakeFactsProps {
 }
 
 function IntakeFacts({ intake }: IntakeFactsProps) {
+  const words = useWords();
   return (
     <dl className="grid gap-x-6 gap-y-2 rounded-lg border bg-muted/30 px-4 py-3 text-sm sm:grid-cols-2">
       <div>
@@ -491,7 +394,7 @@ function IntakeFacts({ intake }: IntakeFactsProps) {
       {intake.fees.map((fee) => (
         <div key={fee.kind}>
           <dt className="text-[13px] text-muted-foreground">
-            {FEE_KIND_LABEL[fee.kind]()}
+            {words(FEE_KIND_LABEL[fee.kind])()}
           </dt>
           <dd>
             <bdi>{formatAmount(fee.amount, intake.currency)}</bdi>
@@ -587,9 +490,7 @@ function Question({ question, response, onChange, error }: QuestionProps) {
   );
 }
 
-type Draft = Awaited<
-  ReturnType<NonNullable<ReturnType<typeof draftQuery>["queryFn"]>>
->;
+type Draft = ApplicationDraft;
 
 function blankSchool(): PreviousSchool {
   return {
@@ -605,8 +506,9 @@ function blankSchool(): PreviousSchool {
 
 export interface ApplicationStepsProps {
   applicationId: string;
-  step: ApplyStep;
-  onStep: (step: ApplyStep) => void;
+  /** The step open, by its name in the address; the first where none or another is named. */
+  step: string | undefined;
+  onStep: (step: string) => void;
   onSent: (reference: string) => void;
 }
 
@@ -616,10 +518,12 @@ export interface ApplicationStepsProps {
  */
 export function ApplicationSteps({
   applicationId,
-  step,
+  step: asked,
   onStep,
   onSent,
 }: ApplicationStepsProps) {
+  const words = useWords();
+  const added = useSlot(applicationSteps);
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(draftQuery(applicationId)).data;
   const locale = getLocale() === "ar" ? "ar" : "en";
@@ -631,7 +535,7 @@ export function ApplicationSteps({
     documentNumber: "",
     documentCountry: data.child.document?.issuingCountry ?? "",
   }));
-  const [form, setForm] = useState<FormAnswers>(() => ({
+  const [form, setForm] = useState<ApplicationAnswers>(() => ({
     ...data.application.form,
     relationId: data.application.form.relationId,
     other: data.application.form.other
@@ -694,11 +598,6 @@ export function ApplicationSteps({
 
   const stepValid: Record<ApplyStep, boolean> = {
     child: childReady(child),
-    family:
-      Boolean(form.relationId) &&
-      form.responsible &&
-      (!form.other ||
-        (hasName(form.other.names) && Boolean(form.other.relationId))),
     schools: form.schools.every((school) => school.name.trim() !== ""),
     needs: true,
     questions: readFormAnswers(questions, form.answers).ok,
@@ -716,8 +615,21 @@ export function ApplicationSteps({
   };
   const steps = APPLY_STEPS.filter(
     (each) => each !== "needs" || data.asksNeeds,
-  );
+  ).flatMap((each): string[] => [
+    each,
+    ...added.filter((part) => part.after === each).map((part) => part.id),
+  ]);
+  const step = asked && steps.includes(asked) ? asked : "child";
   const index = steps.indexOf(step);
+  const part = added.find((each) => each.id === step);
+  const valid = (at: string) =>
+    isApplyStep(at)
+      ? stepValid[at]
+      : (added.find((each) => each.id === at)?.valid(form) ?? true);
+  const labelOf = (at: string) =>
+    isApplyStep(at)
+      ? words(STEP_LABEL[at])()
+      : (added.find((each) => each.id === at)?.label() ?? "");
 
   const persist = async () => {
     const saved = await save.mutateAsync();
@@ -727,10 +639,10 @@ export function ApplicationSteps({
     return saved.version;
   };
 
-  const go = async (to: ApplyStep, check: boolean) => {
+  const go = async (to: string, check: boolean) => {
     if (check) {
       setTried(true);
-      if (!stepValid[step]) return;
+      if (!valid(step)) return;
     }
     if (!sent) await persist().catch(() => undefined);
     setTried(false);
@@ -760,7 +672,7 @@ export function ApplicationSteps({
                 className="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 hover:bg-muted aria-[current=step]:border-primary aria-[current=step]:bg-primary/10 aria-[current=step]:text-primary"
               >
                 <span className="tabular-nums">{String(at + 1)}</span>
-                {STEP_LABEL[each]()}
+                {labelOf(each)}
               </button>
             </li>
           ))}
@@ -768,7 +680,7 @@ export function ApplicationSteps({
       </nav>
       <section aria-labelledby="apply-step-title" className="grid gap-6">
         <h2 id="apply-step-title" className="text-xl font-semibold">
-          {STEP_LABEL[step]()}
+          {labelOf(step)}
         </h2>
         {step === "child" ? (
           <>
@@ -782,12 +694,12 @@ export function ApplicationSteps({
             <StatusText
               tone={data.child.age === "fits" ? "success" : "warning"}
             >
-              {AGE_LABEL[data.child.age]()}
+              {words(AGE_LABEL[data.child.age])()}
             </StatusText>
           </>
         ) : null}
-        {step === "family" ? (
-          <FamilyStep
+        {part ? (
+          <part.Step
             form={form}
             onChange={setForm}
             options={data.options}
@@ -916,185 +828,18 @@ export function ApplicationSteps({
   );
 }
 
-interface FamilyStepProps {
-  form: FormAnswers;
-  onChange: (form: FormAnswers) => void;
-  options: Draft["options"];
-  tried: boolean;
-}
-
-function FamilyStep({ form, onChange, options, tried }: FamilyStepProps) {
-  const relations = [
-    { value: "", label: m.applyChoose() },
-    ...options.relations.map((row) => ({
-      value: row.id,
-      label: inLocale(row.labelEn, row.labelAr),
-    })),
-  ];
-  const other = form.other;
-  return (
-    <>
-      <SelectField
-        id="family-relation"
-        label={m.applyYourRelation()}
-        value={form.relationId ?? ""}
-        options={relations}
-        onChange={(relationId) => onChange({ ...form, relationId })}
-        errors={tried && !form.relationId ? [m.applyErrRelation()] : undefined}
-        width="name"
-      />
-      <TextField
-        id="family-phone"
-        label={m.applyYourPhone()}
-        optional
-        type="tel"
-        dir="ltr"
-        width="phone"
-        value={form.phone ?? ""}
-        onChange={(event) => onChange({ ...form, phone: event.target.value })}
-      />
-      <fieldset
-        className="grid gap-2"
-        aria-describedby="family-responsible-hint"
-        data-invalid={tried && !form.responsible ? true : undefined}
-      >
-        <legend className="text-sm leading-5 font-medium">
-          {m.applyResponsible()}
-        </legend>
-        <p
-          id="family-responsible-hint"
-          className="text-[13px] leading-[18px] text-muted-foreground"
-        >
-          {m.applyResponsibleHint()}
-        </p>
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={form.responsible}
-            onCheckedChange={(responsible) =>
-              onChange({ ...form, responsible })
-            }
-          />
-          {m.applyResponsibleYes()}
-        </label>
-        {tried && !form.responsible ? (
-          <p className="text-[13px] leading-[18px] text-destructive">
-            {m.applyErrResponsible()}
-          </p>
-        ) : null}
-      </fieldset>
-      <FormSection title={m.applyOtherTitle()} description={m.applyOtherHint()}>
-        {other ? (
-          <>
-            <SelectField
-              id="other-relation"
-              label={m.aplFieldRelation()}
-              value={other.relationId}
-              options={relations}
-              onChange={(relationId) =>
-                onChange({ ...form, other: { ...other, relationId } })
-              }
-              errors={
-                tried && !other.relationId ? [m.applyErrRelation()] : undefined
-              }
-              width="name"
-            />
-            <NamesFields
-              id="other"
-              names={other.names}
-              onChange={(names) =>
-                onChange({ ...form, other: { ...other, names } })
-              }
-              error={tried && !hasName(other.names) ? m.applyErrName() : null}
-            />
-            <div className="flex flex-wrap gap-4">
-              <TextField
-                id="other-email"
-                label={m.admFieldEmail()}
-                optional
-                type="email"
-                dir="ltr"
-                width="name"
-                value={other.email ?? ""}
-                onChange={(event) =>
-                  onChange({
-                    ...form,
-                    other: { ...other, email: event.target.value },
-                  })
-                }
-              />
-              <TextField
-                id="other-phone"
-                label={m.admFieldPhone()}
-                optional
-                type="tel"
-                dir="ltr"
-                width="phone"
-                value={other.phone ?? ""}
-                onChange={(event) =>
-                  onChange({
-                    ...form,
-                    other: { ...other, phone: event.target.value },
-                  })
-                }
-              />
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={other.livesWithChild}
-                onCheckedChange={(livesWithChild) =>
-                  onChange({ ...form, other: { ...other, livesWithChild } })
-                }
-              />
-              {m.applyLivesWith()}
-            </label>
-            <Button
-              type="button"
-              variant="ghost"
-              className="justify-self-start"
-              onClick={() => onChange({ ...form, other: null })}
-            >
-              <Trash2 aria-hidden className="size-4" />
-              {m.applyOtherRemove()}
-            </Button>
-          </>
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            className="justify-self-start"
-            onClick={() =>
-              onChange({
-                ...form,
-                other: {
-                  relationId: "",
-                  names: noNames(),
-                  email: "",
-                  phone: "",
-                  livesWithChild: true,
-                },
-              })
-            }
-          >
-            <Plus aria-hidden className="size-4" />
-            {m.applyOtherAdd()}
-          </Button>
-        )}
-      </FormSection>
-    </>
-  );
-}
-
 const yearOf = (value: string) =>
   /^\d{4}$/.test(value.trim()) ? Number(value) : null;
 
 interface SchoolsStepProps {
-  form: FormAnswers;
-  onChange: (form: FormAnswers) => void;
+  form: ApplicationAnswers;
+  onChange: (form: ApplicationAnswers) => void;
   tried: boolean;
 }
 
 function SchoolsStep({ form, onChange, tried }: SchoolsStepProps) {
-  const grades = useCurrentUser().modules.grade_levels;
+  const words = useWords();
+  const grades = useSlot(previousSchoolGrades).length > 0;
   const setSchool = (index: number, patch: Partial<PreviousSchool>) =>
     onChange({
       ...form,
@@ -1104,7 +849,9 @@ function SchoolsStep({ form, onChange, tried }: SchoolsStepProps) {
     });
   return (
     <>
-      <p className="text-sm text-muted-foreground">{m.applySchoolsHint()}</p>
+      <p className="text-sm text-muted-foreground">
+        {words(m.applySchoolsHintCore)()}
+      </p>
       <ol className="grid gap-4" aria-label={m.applyStepSchools()}>
         {form.schools.map((school, index) => (
           <li key={String(index)} className="grid gap-3 rounded-lg border p-4">
@@ -1186,7 +933,7 @@ function SchoolsStep({ form, onChange, tried }: SchoolsStepProps) {
             </div>
             <FormField
               id={`school-${String(index)}-leaving`}
-              label={m.applySchoolLeaving()}
+              label={words(m.applySchoolLeavingCore)()}
               optional
             >
               {(control) => (

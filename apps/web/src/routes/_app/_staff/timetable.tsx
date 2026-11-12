@@ -18,6 +18,7 @@ import {
 import { CalendarCheck2 } from "lucide-react";
 import * as v from "valibot";
 
+import type { LessonRegisters } from "~/components/timetable/slots";
 import type { CardCell } from "~/components/timetable/Weeks";
 
 import { classTitle } from "~/components/classes/format";
@@ -30,6 +31,7 @@ import { CoverDay } from "~/components/timetable/Cover";
 import { cycleDayLabel } from "~/components/timetable/cycle";
 import { Planner } from "~/components/timetable/Planner";
 import { SchoolDay } from "~/components/timetable/SchoolDay";
+import { lessonRegisters } from "~/components/timetable/slots";
 import { Timetables } from "~/components/timetable/Timetables";
 import {
   roomLabel,
@@ -156,16 +158,22 @@ function viewOf(search: Search, views: View[]): View {
     : (views[0] ?? "mine");
 }
 
-/** Today's lessons open their register; other days only show. */
-function registerCell(date: string): CardCell {
+/** Today's lessons open their register, where a module keeps registers; other days only show. */
+function registerCell(
+  date: string,
+  registers: LessonRegisters | undefined,
+): CardCell | undefined {
+  if (!registers) return undefined;
   return function renderCell({ meeting, period, card }) {
     if (meeting.on !== date || meeting.change?.cancelled) return card;
     return (
       <Link
-        to="/registers/$classId"
-        params={{ classId: meeting.classId }}
-        search={{ date, periodId: period.id }}
-        aria-label={m.ttOpenRegister({ lesson: meeting.classCode })}
+        {...registers.linkOf({
+          classId: meeting.classId,
+          periodId: period.id,
+          date,
+        })}
+        aria-label={registers.openLabel(meeting.classCode)}
         className="block h-full rounded-md hover:ring-2 hover:ring-ring/40 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
       >
         {card}
@@ -302,11 +310,12 @@ function TimetablePage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
+  const registers = useSlot(lessonRegisters)[0];
   const views = viewsOf(user, useTeaches());
   const view = viewOf(search, views);
   const body =
     view === "mine" ? (
-      <TeacherWeek cell={registerCell(user.today)} />
+      <TeacherWeek cell={registerCell(user.today, registers)} />
     ) : (
       <SchoolTimetable
         view={view}

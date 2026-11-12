@@ -25,6 +25,8 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { hostHref } from "~/utils/host";
 
+import { usePortalWords } from "./portal-words";
+
 export const faceName = (face: PortalFace) =>
   inLocale(face.name.en, face.name.ar);
 
@@ -171,6 +173,7 @@ export interface PortalHelpProps {
 
 /** Where to turn when the form does not let someone in: the school office. */
 export function PortalHelp({ face, topic }: PortalHelpProps) {
+  const words = usePortalWords(face);
   if (!face) return null;
   return (
     <section className="mt-10 grid gap-2 border-t pt-6 text-sm">
@@ -178,7 +181,9 @@ export function PortalHelp({ face, topic }: PortalHelpProps) {
         {topic === "apply" ? m.portalApplyHelpTitle() : m.portalHelpTitle()}
       </h2>
       <p className="leading-relaxed text-muted-foreground">
-        {topic === "apply" ? m.portalApplyHelpBody() : m.portalHelpBody()}
+        {topic === "apply"
+          ? m.portalApplyHelpBody()
+          : words(m.portalHelpBodyCore)()}
       </p>
       <ContactLinks face={face} className="mt-1 text-primary" />
     </section>
@@ -186,12 +191,15 @@ export function PortalHelp({ face, topic }: PortalHelpProps) {
 }
 
 /** What the band beside a portal's form says, in the school's name where it has one. */
-function bandOf(face: PortalFace | null): AuthBandContent {
+function bandOf(
+  face: PortalFace | null,
+  words: ReturnType<typeof usePortalWords>,
+): AuthBandContent {
   const website = face?.websiteHost ? hostHref(face.websiteHost, "/") : null;
   return {
-    eyebrow: face ? m.portalEyebrow() : m.workspaceLabel(),
+    eyebrow: face ? words(m.portalEyebrowCore)() : m.workspaceLabel(),
     heading: m.authBrandHeading(),
-    body: m.authBrandBody(),
+    body: face ? words(m.authBrandBodyCore)() : m.authBrandBody(),
     features: [
       {
         icon: BookOpen,
@@ -205,7 +213,9 @@ function bandOf(face: PortalFace | null): AuthBandContent {
       },
       {
         icon: Languages,
-        title: m.authFeatureLanguage(),
+        title: face
+          ? words(m.authFeatureLanguageCore)()
+          : m.authFeatureLanguage(),
         body: m.authFeatureLanguageBody(),
       },
     ],
@@ -237,11 +247,12 @@ export function PortalLayout({
   wide = false,
   children,
 }: PortalLayoutProps) {
+  const words = usePortalWords(face);
   return (
     <AuthLayout
       {...faceAccent(face)}
       mark={face ? <SchoolMark face={face} /> : <PlatformMark />}
-      band={bandOf(face)}
+      band={bandOf(face, words)}
       wide={wide}
       tools={
         <>

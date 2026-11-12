@@ -5,11 +5,15 @@ import type { IntakePartFieldProps } from "~/components/admissions/slots";
 import type { GradeOptions } from "~/queries/grade-levels";
 import type { ModuleFillings } from "~/utils/extension";
 
-import { intakeParts } from "~/components/admissions/slots";
+import {
+  intakeParts,
+  previousSchoolGrades,
+} from "~/components/admissions/slots";
 import { gradeChoices } from "~/components/grade-levels/fields";
 import * as m from "~/i18n/messages";
 import { gradeOptionsQuery } from "~/queries/grade-levels";
 import { fill } from "~/utils/extension";
+import { replaceWords } from "~/utils/words";
 
 const NONE = "none";
 
@@ -43,7 +47,10 @@ function IntakeGradeField({
   );
 }
 
-/** Intakes by grade, where admissions and grade levels are both on. */
+/**
+ * Intakes by grade, where admissions and grade levels are both on, with
+ * the words that speak of a grade.
+ */
 export const ADMISSIONS_BY_GRADE: ModuleFillings = {
   module: "admissions",
   needs: ["grade_levels"],
@@ -77,5 +84,10 @@ export const ADMISSIONS_BY_GRADE: ModuleFillings = {
       },
       Field: IntakeGradeField,
     }),
+    fill(previousSchoolGrades, true),
+    replaceWords(m.applyNoIntakesCore, m.applyNoIntakes),
+    replaceWords(m.aplAgeFitsCore, m.aplAgeFits),
+    replaceWords(m.famAppsEmptyBodyCore, m.famAppsEmptyBody),
+    replaceWords(m.applyIntakeTitleCore, m.applyIntakeTitle, ["school_years"]),
   ],
 };

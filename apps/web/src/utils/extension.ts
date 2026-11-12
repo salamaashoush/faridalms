@@ -61,3 +61,19 @@ export const NOTHING_READ: SlotQuery<null> = {
   queryKey: ["slots", "nothing"],
   queryFn: () => Promise.resolve(null),
 };
+
+/**
+ * Every module's fillings of a slot, on or off at the school: only for a
+ * page before sign-in, which knows nothing of the school's modules and
+ * picks among them by what the server says the school shows strangers.
+ */
+export function everyFilling<T>(
+  extensions: readonly ModuleFillings[],
+  to: Slot<T>,
+): T[] {
+  return extensions.flatMap((entry) =>
+    entry.fillings
+      .filter((filling) => filling.slot === to)
+      .map((filling) => filling.value as T),
+  );
+}

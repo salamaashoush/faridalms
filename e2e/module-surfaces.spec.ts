@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 import { freshSchool, signInTo } from "./fixtures/fresh-school";
 import { portal, untilHydrated } from "./fixtures/sign-in";
@@ -39,14 +40,36 @@ const wordsOf = (page: Page) =>
 
 const AGE = /^\d+ (years|سنة|سنوات)$/;
 
+/**
+ * Coursework's grade scale is a scale of marks, not a grade level: its
+ * label, exactly as the catalogues word it, is no word of grade levels.
+ */
+const catalogue = (language: "en" | "ar") =>
+  JSON.parse(
+    readFileSync(
+      new URL(`../messages/${language}.json`, import.meta.url),
+      "utf8",
+    ),
+  ) as Record<string, string>;
+const MARKS = new Set(
+  (["en", "ar"] as const).map((language) => catalogue(language).gradingScale),
+);
+
 /** The words of those modules a page shows, each in the line it stands in. */
 async function absentWords(page: Page, path: string, language: "en" | "ar") {
   await page.goto(path);
   await untilHydrated(page);
   await expect(page.locator("main")).toBeVisible();
+  // Sections that read their data after the page has drawn are part of it.
+  await page.waitForLoadState("networkidle");
   return (await wordsOf(page))
     .split("\n")
-    .filter((line) => !AGE.test(line.trim()) && line.match(ABSENT[language]))
+    .filter(
+      (line) =>
+        !AGE.test(line.trim()) &&
+        !MARKS.has(line.trim()) &&
+        line.match(ABSENT[language]),
+    )
     .map((line) => `${path}: ${line.trim()}`);
 }
 

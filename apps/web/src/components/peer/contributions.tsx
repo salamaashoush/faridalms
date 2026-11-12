@@ -23,6 +23,7 @@ import { getPeerSettings } from "~/server/peer";
 import { formatNumber, instantFromLocal, localInput } from "~/utils/datetime";
 import { fill } from "~/utils/extension";
 
+import { PEER_NOTICES } from "./notices";
 import {
   PeerReviewPanel,
   PeerReviewWork,
@@ -151,6 +152,7 @@ function LearnerReviews({ assignmentId }: WorkProps) {
 export const PEER_REVIEW: ModuleFillings = {
   module: "peer_review",
   fillings: [
+    PEER_NOTICES,
     fill(assignmentEditorParts, {
       key: "peer",
       section: "own",

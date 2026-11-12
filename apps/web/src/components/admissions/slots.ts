@@ -2,9 +2,12 @@ import type { Facet } from "@faridalms/ui/system/index-toolbar";
 import type { ComponentType } from "react";
 
 import type { ViewValue } from "~/components/classes/slots";
+import type { applicationQuery } from "~/queries/admissions";
 import type { SlotQuery } from "~/utils/extension";
 
 import { slot } from "~/utils/extension";
+
+import type { ApplicationAnswers, ApplicationDraft } from "./apply-parts";
 
 export interface IntakePartFieldProps {
   read: unknown;
@@ -62,3 +65,47 @@ export interface IntakeFilter {
 }
 
 export const intakeFilters = slot<IntakeFilter>("intake filters");
+
+export type ApplicationRecord = Awaited<
+  ReturnType<NonNullable<ReturnType<typeof applicationQuery>["queryFn"]>>
+>;
+
+export interface ApplicationContactProps {
+  row: ApplicationRecord;
+}
+
+/**
+ * Who sent an application and how to reach them, as a module that lets
+ * someone apply for another person shows it, with that person's relation
+ * to the applicant.
+ */
+export const applicationContacts = slot<ComponentType<ApplicationContactProps>>(
+  "application contacts",
+);
+
+export interface ApplicationStepProps {
+  form: ApplicationAnswers;
+  onChange: (form: ApplicationAnswers) => void;
+  options: ApplicationDraft["options"];
+  tried: boolean;
+}
+
+/**
+ * A step a module adds to the application form, after the step it names:
+ * who the person applying is to the applicant, say.
+ */
+export interface ApplicationStep {
+  id: string;
+  after: string;
+  label: () => string;
+  valid(form: ApplicationAnswers): boolean;
+  Step: ComponentType<ApplicationStepProps>;
+}
+
+export const applicationSteps = slot<ApplicationStep>("application steps");
+
+/** What else enrolling an applicant does, as a module adds it to the list the office reads first. */
+export const enrolNotes = slot<() => string>("enrol notes");
+
+/** Present where a module places learners by grade, so the form asks each earlier school's grade. */
+export const previousSchoolGrades = slot<true>("previous school grades");

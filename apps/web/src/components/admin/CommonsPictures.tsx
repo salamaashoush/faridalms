@@ -35,7 +35,7 @@ export function CommonsPictures() {
   return (
     <SettingsSection
       title={m.settingsCommons()}
-      description={words("commonsHint", m.settingsCommonsHintCore)}
+      description={words(m.settingsCommonsHintCore)()}
       onSubmit={() => {
         setSaved(false);
         return mutation.mutateAsync().then(

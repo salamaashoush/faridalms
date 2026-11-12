@@ -1,95 +1,52 @@
-import type {
-  ApplicationOutcome,
-  NoticeParams,
-  NotificationKind,
-} from "@faridalms/domain/notifications";
+import type { NotificationKind } from "@faridalms/domain/notifications";
 import type { Workspace } from "@faridalms/domain/workspace";
 import type { LucideIcon } from "lucide-react";
-import type { ComponentProps, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { Link } from "@tanstack/react-router";
 import {
   AtSign,
+  Bell,
   BookMarked,
-  CalendarClock,
   CalendarDays,
   ClipboardCheck,
-  ClipboardList,
-  FileUser,
-  GraduationCap,
   HeartPulse,
   Megaphone,
   MessageSquare,
-  MessageSquareText,
-  Reply,
-  School,
   ShieldCheck,
   Siren,
-  UserPlus,
-  UserX,
-  UsersRound,
 } from "lucide-react";
 
-import { EVENT_KIND_LABEL } from "~/components/admissions/application-labels";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
-import { formatDate, formatTime } from "~/utils/datetime";
+import { formatDate } from "~/utils/datetime";
 
-export interface Notice {
-  id: string;
-  kind: NotificationKind;
-  /** What kind of record the notice is about, where a link must know. */
-  subjectType?: string;
-  subjectId: string;
-  params: NoticeParams;
-  actorNameEn: string | null;
-  actorNameAr: string | null;
-}
+import type { Notice, NoticeLinkProps } from "./slots";
+
+import { noticeWords } from "./slots";
+
+export type { Notice } from "./slots";
 
 const both = (en?: string, ar?: string) => inLocale(en || null, ar || null);
 
-export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
+export const URGENT_ICON = Siren;
+
+/** The kinds of notice core sends, by their icon; a module's own come with its words. */
+const KIND_ICON: Partial<Record<NotificationKind, LucideIcon>> = {
   announcement: Megaphone,
-  urgent: Siren,
+  urgent: URGENT_ICON,
   message: MessageSquare,
-  absence: UserX,
   event: CalendarDays,
   reminder: ClipboardCheck,
   consent: ShieldCheck,
   mention: AtSign,
   library: BookMarked,
-  reply: Reply,
-  enquiry: UserPlus,
-  application: FileUser,
-  assignment: ClipboardList,
-  feedback: MessageSquareText,
-  grades: GraduationCap,
   correction: HeartPulse,
-  reenrolment: School,
-  admission_event: CalendarClock,
-  peer_review: UsersRound,
 };
 
-/** What a notice about an application's move is headed, for the family and for the office. */
-const OUTCOME_TITLE: Record<ApplicationOutcome, () => string> = {
-  offered: m.ntfOutcomeOffered,
-  waitlisted: m.ntfOutcomeWaitlisted,
-  declined_by_school: m.ntfOutcomeDeclined,
-  enrolled: m.ntfOutcomeEnrolled,
-  offer_expired: m.ntfOutcomeExpired,
-  deferred: m.ntfOutcomeDeferred,
-  accepted: m.ntfOutcomeAccepted,
-  offer_declined: m.ntfOutcomeOfferDeclined,
-};
-
-const ENQUIRY_TITLE = {
-  enquiry: m.ntfEnquiry,
-  visit: m.ntfEnquiryVisit,
-  general: m.ntfEnquiryGeneral,
-};
-
-/** What a notice says, in the reader's language, from what its producer recorded. */
-export function noticeText(notice: Notice): { title: string; body: string } {
+/** What a notice of core's says, in the reader's language, from what its producer recorded. */
+function coreText(notice: Notice): { title: string; body: string } | null {
   const { params } = notice;
   const title = both(params.title, params.titleAr);
   const date = params.date ?? "";
@@ -110,27 +67,6 @@ export function noticeText(notice: Notice): { title: string; body: string } {
         }),
         body: params.preview ?? "",
       };
-    case "absence":
-      if (params.report)
-        return {
-          title: (params.report === "accepted"
-            ? m.ntfReportAccepted
-            : m.ntfReportDeclined)({
-            name: both(params.studentName, params.studentNameAr),
-          }),
-          body: date ? formatDate(date) : "",
-        };
-      return {
-        title: m.ntfAbsence({
-          name: both(params.studentName, params.studentNameAr),
-        }),
-        body: [
-          date ? formatDate(date) : "",
-          both(params.className, params.classNameAr),
-        ]
-          .filter(Boolean)
-          .join(" · "),
-      };
     case "event":
       return {
         title: params.cancelled
@@ -139,13 +75,6 @@ export function noticeText(notice: Notice): { title: string; body: string } {
             ? m.ntfEventChanged()
             : m.ntfEvent(),
         body: [title, date ? formatDate(date) : ""].filter(Boolean).join(" · "),
-      };
-    case "peer_review":
-      return {
-        title: params.dueSoon ? m.ntfPeerDue() : m.ntfPeerHandedOut(),
-        body: [title, date ? m.ntfDue({ date: formatDate(date) }) : ""]
-          .filter(Boolean)
-          .join(" · "),
       };
     case "reminder":
       if (params.cover)
@@ -191,94 +120,6 @@ export function noticeText(notice: Notice): { title: string; body: string } {
         }),
         body: title,
       };
-    case "reply":
-      return {
-        title: m.ntfReply({
-          name:
-            both(params.actorName, params.actorNameAr) ||
-            inLocale(notice.actorNameEn, notice.actorNameAr),
-        }),
-        body: title,
-      };
-    case "enquiry":
-      return {
-        title: params.assigned
-          ? m.ntfEnquiryAssigned({
-              name:
-                both(params.actorName, params.actorNameAr) ||
-                inLocale(notice.actorNameEn, notice.actorNameAr),
-            })
-          : ENQUIRY_TITLE[params.purpose ?? "enquiry"](),
-        body: [title, params.preview ?? ""].filter(Boolean).join(" · "),
-      };
-    case "application":
-      if (params.outcome)
-        return {
-          title: OUTCOME_TITLE[params.outcome](),
-          body: [title, both(params.intakeName, params.intakeNameAr)]
-            .filter(Boolean)
-            .join(" · "),
-        };
-      return params.received
-        ? {
-            title: m.ntfApplicationReceived(),
-            body: m.ntfApplicationReceivedBody({
-              child: title,
-              intake: both(params.intakeName, params.intakeNameAr),
-              reference: params.reference ?? "",
-            }),
-          }
-        : {
-            title: m.ntfApplication(),
-            body: [title, both(params.intakeName, params.intakeNameAr)]
-              .filter(Boolean)
-              .join(" · "),
-          };
-    case "assignment":
-      return {
-        title: params.studentName
-          ? m.ntfAssignmentFor({
-              name: both(params.studentName, params.studentNameAr),
-            })
-          : m.ntfAssignment(),
-        body: [
-          title,
-          both(params.className, params.classNameAr),
-          date ? m.ntfDue({ date: formatDate(date) }) : "",
-        ]
-          .filter(Boolean)
-          .join(" · "),
-      };
-    case "feedback": {
-      const name = both(params.studentName, params.studentNameAr);
-      return {
-        title: params.gradeShown
-          ? name
-            ? m.ntfGradeShownFor({ name })
-            : m.ntfGradeShown()
-          : params.revise
-            ? name
-              ? m.ntfReviseFor({ name })
-              : m.ntfRevise()
-            : name
-              ? m.ntfFeedbackFor({ name })
-              : m.ntfFeedback(),
-        body: [title, both(params.className, params.classNameAr)]
-          .filter(Boolean)
-          .join(" · "),
-      };
-    }
-    case "grades":
-      return {
-        title: params.studentName
-          ? m.ntfGradesFor({
-              name: both(params.studentName, params.studentNameAr),
-            })
-          : m.ntfGrades(),
-        body: [title, both(params.className, params.classNameAr)]
-          .filter(Boolean)
-          .join(" · "),
-      };
     case "library":
       return {
         title: params.shared
@@ -299,39 +140,31 @@ export function noticeText(notice: Notice): { title: string; body: string } {
         }),
         body: m.ntfCorrectionBody(),
       };
-    case "reenrolment":
-      return {
-        title: m.ntfReenrolmentTitle({
-          name: both(params.studentName, params.studentNameAr),
-        }),
-        body: m.ntfReenrolmentBody({
-          year: both(params.title, params.titleAr),
-        }),
-      };
-    case "admission_event": {
-      const kind = EVENT_KIND_LABEL[params.eventKind ?? "tour"]();
-      return {
-        title: params.cancelled
-          ? m.ntfAdmissionEventCancelled({ kind })
-          : params.updated
-            ? m.ntfAdmissionEventMoved({ kind })
-            : m.ntfAdmissionEvent({ kind }),
-        body: [
-          title,
-          [
-            date ? formatDate(date, "weekday") : "",
-            params.startTime ? formatTime(params.startTime) : "",
-          ]
-            .filter(Boolean)
-            .join(" "),
-          params.location ?? "",
-        ]
-          .filter(Boolean)
-          .join(" · "),
-      };
-    }
   }
-  return { title: "", body: "" };
+  return null;
+}
+
+/**
+ * How the notices of the school's modules read: each kind's icon and words
+ * from core or from the module that owns it, and nothing of a kind whose
+ * module is off.
+ */
+export function useNoticeWords() {
+  const added = useSlot(noticeWords);
+  const of = (kind: NotificationKind) =>
+    added.find((each) => each.kind === kind);
+  return {
+    iconOf: (kind: NotificationKind): LucideIcon =>
+      of(kind)?.icon ?? KIND_ICON[kind] ?? Bell,
+    textOf: (notice: Notice): { title: string; body: string } | null =>
+      of(notice.kind)?.text(notice) ?? coreText(notice),
+    labelOf: (kind: NotificationKind) => of(kind)?.label,
+    offered: (
+      kind: NotificationKind,
+      workspace: Workspace,
+      capabilities: readonly string[],
+    ) => of(kind)?.offered?.(workspace, capabilities) ?? true,
+  };
 }
 
 /** Where each workspace reads its messages. */
@@ -341,7 +174,7 @@ export const MESSAGES = {
   me: "/me/messages",
 } as const;
 
-type Passed = Omit<ComponentProps<"a">, "href" | "children">;
+type Passed = Omit<NoticeLinkProps, "notice" | "workspace" | "children">;
 
 /**
  * The thread a comment mentioning the reader is in, opened in the editor
@@ -461,11 +294,14 @@ export function NoticeLink({
   workspace,
   children,
   ...rest
-}: Passed & {
-  notice: Notice;
-  workspace: Workspace;
-  children: ReactNode;
-}) {
+}: NoticeLinkProps) {
+  const added = useSlot(noticeWords).find((each) => each.kind === notice.kind);
+  if (added)
+    return (
+      <added.Link notice={notice} workspace={workspace} {...rest}>
+        {children}
+      </added.Link>
+    );
   const id = notice.subjectId;
   switch (notice.kind) {
     case "announcement":
@@ -485,30 +321,9 @@ export function NoticeLink({
           {children}
         </Link>
       );
-    case "absence":
-      return (
-        <Link
-          {...rest}
-          to="/family/attendance"
-          search={{ studentId: notice.params.studentId || undefined }}
-        >
-          {children}
-        </Link>
-      );
     case "event":
       return (
         <Link {...rest} to="/calendar/$eventId" params={{ eventId: id }}>
-          {children}
-        </Link>
-      );
-    case "peer_review":
-      return (
-        <Link
-          {...rest}
-          to="/assignments/$assignmentId"
-          params={{ assignmentId: id }}
-          search={{ tab: "reviews" }}
-        >
           {children}
         </Link>
       );
@@ -550,78 +365,6 @@ export function NoticeLink({
           {children}
         </Link>
       );
-    case "reply":
-      return (
-        <Link
-          {...rest}
-          to="/assignments/$assignmentId"
-          params={{ assignmentId: notice.subjectId }}
-          search={{}}
-        >
-          {children}
-        </Link>
-      );
-    case "enquiry":
-      return (
-        <Link
-          {...rest}
-          to="/admissions/enquiries/$enquiryId"
-          params={{ enquiryId: id }}
-        >
-          {children}
-        </Link>
-      );
-    case "assignment":
-    case "feedback":
-      return notice.params.studentId ? (
-        <Link
-          {...rest}
-          to="/family/assignments"
-          search={{
-            studentId: notice.params.studentId,
-            assignment: notice.subjectId,
-          }}
-        >
-          {children}
-        </Link>
-      ) : (
-        <Link
-          {...rest}
-          to="/assignments/$assignmentId"
-          params={{ assignmentId: notice.subjectId }}
-          search={{}}
-        >
-          {children}
-        </Link>
-      );
-    case "grades":
-      return notice.params.studentId ? (
-        <Link
-          {...rest}
-          to="/family/grades"
-          search={{ studentId: notice.params.studentId }}
-        >
-          {children}
-        </Link>
-      ) : (
-        <Link {...rest} to="/me/grades">
-          {children}
-        </Link>
-      );
-    case "application":
-      return notice.params.received || notice.params.toFamily ? (
-        <Link {...rest} to="/family/applications">
-          {children}
-        </Link>
-      ) : (
-        <Link
-          {...rest}
-          to="/admissions/applications/$applicationId"
-          params={{ applicationId: id }}
-        >
-          {children}
-        </Link>
-      );
     case "correction":
       return (
         <Link
@@ -632,26 +375,6 @@ export function NoticeLink({
           {children}
         </Link>
       );
-    case "reenrolment":
-      return (
-        <Link
-          {...rest}
-          to="/family"
-          search={{ child: notice.params.studentId || undefined }}
-        >
-          {children}
-        </Link>
-      );
-    case "admission_event":
-      return notice.params.applicationId ? (
-        <Link
-          {...rest}
-          to="/admissions/applications/$applicationId"
-          params={{ applicationId: notice.params.applicationId }}
-        >
-          {children}
-        </Link>
-      ) : null;
   }
   return null;
 }

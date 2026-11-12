@@ -23,6 +23,8 @@ import { Inbox, Plus } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
+import type { InWords } from "~/utils/words";
+
 import { LogEnquirySheet } from "~/components/admissions/EnquirySheets";
 import {
   PURPOSE_LABEL,
@@ -36,6 +38,7 @@ import { enquiriesQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
 import { formatInstant, formatNumber } from "~/utils/datetime";
 import { requirePage } from "~/utils/page-access";
+import { useWords } from "~/utils/words";
 
 const DEFAULT_SEARCH = v.parse(enquiryListSchema, {});
 
@@ -111,11 +114,11 @@ const State = ({ row }: StateProps) => (
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function columns(): Column<Row>[] {
+function columns(words: InWords): Column<Row>[] {
   return [
     {
       id: "family",
-      header: m.admColFamily(),
+      header: words(m.admColFamilyCore)(),
       primary: true,
       cell: (row) => <Family row={row} />,
     },
@@ -172,6 +175,7 @@ function EnquiriesPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
+  const words = useWords();
   const data = useSuspenseQuery(enquiriesQuery(search)).data;
   const [logging, setLogging] = useState(false);
   const update = (next: Partial<EnquiryListQuery>) =>
@@ -185,7 +189,7 @@ function EnquiriesPage() {
       <PageHeader
         title={m.admTitle()}
         count={search.q ? undefined : total}
-        description={m.admHint()}
+        description={words(m.admHintCore)()}
         action={
           data.manages
             ? {
@@ -272,7 +276,7 @@ function EnquiriesPage() {
           <DataTable
             caption={m.admCaption({ view: VIEW_LABEL[search.state]() })}
             rows={data.rows}
-            columns={columns()}
+            columns={columns(words)}
             rowLabel={(row) => row.name}
             card={card()}
             pagination={{

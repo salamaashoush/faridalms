@@ -231,6 +231,10 @@ export const LINK_FILES: Readonly<
     owner: "attendance",
     needs: ["timetable"],
   },
+  "apps/web/src/components/attendance/timetable.tsx": {
+    owner: "attendance",
+    needs: ["timetable"],
+  },
   "packages/database/src/tables/register-periods.ts": {
     owner: "attendance",
     needs: ["timetable"],
@@ -372,6 +376,10 @@ export const LINK_FILES: Readonly<
     needs: ["grade_levels"],
   },
   "apps/api/src/admissions/families.ts": {
+    owner: "admissions",
+    needs: ["families"],
+  },
+  "apps/web/src/components/admissions/families.tsx": {
     owner: "admissions",
     needs: ["families"],
   },

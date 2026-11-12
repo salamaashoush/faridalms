@@ -13,6 +13,7 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { yearOptionsQuery as yearOptions } from "~/queries/years";
 import { fill } from "~/utils/extension";
+import { replaceWords } from "~/utils/words";
 
 type Options = Awaited<
   ReturnType<NonNullable<(typeof yearOptionsQuery)["queryFn"]>>
@@ -123,5 +124,11 @@ export const ADMISSIONS_IN_YEARS: ModuleFillings = {
       },
       Field: IntakeYearField,
     }),
+    replaceWords(m.itkCaptionCore, m.itkCaption, ["grade_levels"]),
+    replaceWords(m.itkEmptyCore, m.itkEmpty),
+    replaceWords(m.adrEmptyCore, m.adrEmpty),
+    replaceWords(m.decDeferActionCore, m.decDeferAction),
+    replaceWords(m.decDeferHintCore, m.decDeferHint),
+    replaceWords(m.itkFeeTuitionCore, m.itkFeeTuition),
   ],
 };

@@ -58,6 +58,7 @@ import type { applicationQuery } from "~/queries/admissions";
 
 import { ContentView } from "~/components/content/ContentView";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { attendeesQuery, letterQuery } from "~/queries/admissions";
 import {
@@ -74,6 +75,7 @@ import {
 } from "~/server/admissions";
 import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import {
   DECISION_HINT,
@@ -83,6 +85,7 @@ import {
   EVENT_OUTCOME_TONE,
   LETTER_LABEL,
 } from "./application-labels";
+import { enrolNotes } from "./slots";
 
 export type Application = Awaited<
   ReturnType<NonNullable<ReturnType<typeof applicationQuery>["queryFn"]>>
@@ -113,6 +116,7 @@ export function DecideSheet({
   onOpenChange,
   onDone,
 }: DecideSheetProps) {
+  const words = useWords();
   const refresh = useRefresh();
   const [decision, setDecision] = useState<Decision>(current ?? "offer");
   const [note, setNote] = useState("");
@@ -162,7 +166,7 @@ export function DecideSheet({
         options={DECISIONS.map((value) => ({
           value,
           label: DECISION_LABEL[value](),
-          hint: DECISION_HINT[value](),
+          hint: words(DECISION_HINT[value])(),
         }))}
         onChange={setDecision}
       />
@@ -190,6 +194,7 @@ interface AnswerSheetProps {
 
 /** Records what a family told the office about their offer. */
 function AnswerSheet({ row, open, onOpenChange }: AnswerSheetProps) {
+  const words = useWords();
   const refresh = useRefresh();
   const [answer, setAnswer] = useState<OfferAnswer>("accept");
   const [note, setNote] = useState("");
@@ -209,7 +214,7 @@ function AnswerSheet({ row, open, onOpenChange }: AnswerSheetProps) {
     <SheetForm
       open={open}
       onOpenChange={onOpenChange}
-      title={m.decAnswerTitle()}
+      title={words(m.decAnswerTitleCore)()}
       submitLabel={m.decAnswerSave()}
       pending={save.isPending}
       error={save.error ? getMessageFromError(save.error) : null}
@@ -220,12 +225,12 @@ function AnswerSheet({ row, open, onOpenChange }: AnswerSheetProps) {
           return;
         }
         await refresh();
-        toast.success(m.decAnswerSaved());
+        toast.success(words(m.decAnswerSavedCore)());
         onOpenChange(false);
       }}
     >
       <ChoiceField
-        label={m.decAnswerLabel()}
+        label={words(m.decAnswerLabelCore)()}
         value={answer}
         options={[
           { value: "accept" as const, label: m.decAnswerAccept() },
@@ -257,6 +262,7 @@ interface DeferSheetProps {
 
 /** Moves an application to an intake of a later year. */
 function DeferSheet({ row, open, onOpenChange }: DeferSheetProps) {
+  const words = useWords();
   const refresh = useRefresh();
   const [intakeId, setIntakeId] = useState(row.laterIntakes[0]?.id ?? "");
   const [note, setNote] = useState("");
@@ -277,7 +283,7 @@ function DeferSheet({ row, open, onOpenChange }: DeferSheetProps) {
       open={open}
       onOpenChange={onOpenChange}
       title={m.decDeferTitle()}
-      submitLabel={m.decDeferAction()}
+      submitLabel={words(m.decDeferActionCore)()}
       pending={save.isPending}
       error={save.error ? getMessageFromError(save.error) : null}
       onSubmit={async () => {
@@ -292,7 +298,9 @@ function DeferSheet({ row, open, onOpenChange }: DeferSheetProps) {
         onOpenChange(false);
       }}
     >
-      <p className="text-sm text-muted-foreground">{m.decDeferHint()}</p>
+      <p className="text-sm text-muted-foreground">
+        {words(m.decDeferHintCore)()}
+      </p>
       <SelectField
         id="defer-intake"
         label={m.decDeferIntake()}
@@ -331,6 +339,7 @@ interface EnrolSheetProps {
  * the same child. A summary says what enrolling does before it is done.
  */
 function EnrolSheet({ row, open, onOpenChange }: EnrolSheetProps) {
+  const notes = useSlot(enrolNotes);
   const refresh = useRefresh();
   const [studentId, setStudentId] = useState("");
   const [reference, setReference] = useState(row.reference ?? "");
@@ -405,7 +414,9 @@ function EnrolSheet({ row, open, onOpenChange }: EnrolSheetProps) {
         <p className="font-medium">{m.decEnrolSummary()}</p>
         <ul className="grid list-disc gap-1 ps-5 text-muted-foreground">
           <li>{m.decEnrolPlaced({ intake })}</li>
-          <li>{m.decEnrolFamily()}</li>
+          {notes.map((note) => (
+            <li key={note()}>{note()}</li>
+          ))}
           <li>{m.decEnrolCarried()}</li>
           <li>{m.decEnrolClosed()}</li>
         </ul>
@@ -679,9 +690,13 @@ export interface LettersSectionProps {
 
 /** The letters the family was sent, each opened as they read it. */
 export function LettersSection({ row }: LettersSectionProps) {
+  const words = useWords();
   const [open, setOpen] = useState<Application["letters"][number] | null>(null);
   return (
-    <RecordSection title={m.decLettersTitle()} description={m.decLettersHint()}>
+    <RecordSection
+      title={m.decLettersTitle()}
+      description={words(m.decLettersHintCore)()}
+    >
       {row.letters.length ? (
         <ul className="-my-2 divide-y">
           {row.letters.map((letter) => (
@@ -833,6 +848,7 @@ export interface DecisionSectionProps {
 
 /** Where the decision stands: what was decided, whether the family knows, and the offer's days. */
 export function DecisionSection({ row }: DecisionSectionProps) {
+  const words = useWords();
   if (!row.decision && !row.deferredFromId && !row.deferredToId) return null;
   return (
     <RecordSection title={m.decSectionTitle()}>
@@ -857,7 +873,7 @@ export function DecisionSection({ row }: DecisionSectionProps) {
           </Fact>
         ) : null}
         {row.answeredAt ? (
-          <Fact label={m.decAnswered()} wide>
+          <Fact label={words(m.decAnsweredCore)()} wide>
             {formatDate(row.answeredAt.slice(0, 10))}
           </Fact>
         ) : null}
@@ -909,6 +925,7 @@ export function useDecisionActions(row: Application): {
   menu: ActionItem[];
   sheets: React.ReactNode;
 } {
+  const words = useWords();
   const refresh = useRefresh();
   const [sheet, setSheet] = useState<
     "decide" | "answer" | "defer" | "enrol" | null
@@ -975,7 +992,7 @@ export function useDecisionActions(row: Application): {
       icon: XCircle,
       confirm: {
         title: m.decRefuseTitle(),
-        body: m.decRefuseBody(),
+        body: words(m.decRefuseBodyCore)(),
         label: m.decRefuse(),
       },
       onSelect: () =>
@@ -987,7 +1004,7 @@ export function useDecisionActions(row: Application): {
   }
   if (row.state === "offered" && can("accepted"))
     menu.push({
-      label: m.decAnswerTitle(),
+      label: words(m.decAnswerTitleCore)(),
       icon: MessageSquareReply,
       onSelect: () => setSheet("answer"),
     });
@@ -999,7 +1016,7 @@ export function useDecisionActions(row: Application): {
     };
   if (can("deferred") && row.laterIntakes.length)
     menu.push({
-      label: m.decDeferAction(),
+      label: words(m.decDeferActionCore)(),
       icon: ArrowRightLeft,
       onSelect: () => setSheet("defer"),
     });

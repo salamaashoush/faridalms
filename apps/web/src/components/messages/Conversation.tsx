@@ -47,6 +47,7 @@ import { earlierEntriesQuery, threadQuery } from "~/queries/messages";
 import { acceptHeldMail, markThreadRead, sendMessage } from "~/server/messages";
 import { formatInstant, formatList, schoolDayOf } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import { useMessageDraft } from "./draft";
 import { ENTRY_ICON, entryTitle, NameLink } from "./entries";
@@ -247,8 +248,9 @@ function InternalEntry({
   threadId,
   contacts,
 }: InternalEntryProps) {
+  const words = useWords();
   const Icon = ENTRY_ICON[entry.kind];
-  const title = entryTitle(mailbox, entry.kind, entry.details);
+  const title = entryTitle(mailbox, entry.kind, entry.details, words);
   const author = nameOf({
     fullNameEn: entry.authorNameEn,
     fullNameAr: entry.authorNameAr,
@@ -335,6 +337,7 @@ interface ComposerProps {
  * held back until the writer has read what came in, or sends it anyway.
  */
 function Composer({ thread, fields }: ComposerProps) {
+  const words = useWords();
   const hydrated = useHydrated();
   const user = useCurrentUser();
   const queryClient = useQueryClient();
@@ -484,13 +487,13 @@ function Composer({ thread, fields }: ComposerProps) {
                 className="h-10"
               >
                 <SelectValue>
-                  {entryTitle(thread.mailbox, logged, {})}
+                  {entryTitle(thread.mailbox, logged, {}, words)}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {LOGGED_CONTACTS.map((value) => (
                   <SelectItem key={value} value={value}>
-                    {entryTitle(thread.mailbox, value, {})}
+                    {entryTitle(thread.mailbox, value, {}, words)}
                   </SelectItem>
                 ))}
               </SelectContent>

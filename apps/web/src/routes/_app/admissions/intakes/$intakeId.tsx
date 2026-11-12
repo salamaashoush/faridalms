@@ -44,6 +44,7 @@ import {
 import { formatDate, formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 import { requirePage } from "~/utils/page-access";
+import { useWords } from "~/utils/words";
 
 /** The board's phases, each the applications in some of an application's states. */
 const PHASES = {
@@ -237,6 +238,7 @@ function BoardPage() {
   const { intakeId } = Route.useParams();
   const { phase } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const words = useWords();
   const queryClient = useQueryClient();
   const board = useSuspenseQuery(boardQuery(intakeId)).data;
   const [deciding, setDeciding] = useState<Row[] | null>(null);
@@ -279,7 +281,7 @@ function BoardPage() {
             icon: Send,
             confirm: (picked) => ({
               title: m.brdReleaseTitle({ count: picked.length }),
-              body: m.brdReleaseBody(),
+              body: words(m.brdReleaseBodyCore)(),
               label: m.decRelease(),
             }),
             onSelect: (picked) =>
@@ -310,7 +312,7 @@ function BoardPage() {
             icon: CheckCheck,
             confirm: (picked) => ({
               title: m.brdOfferTitle({ count: picked.length }),
-              body: m.brdOfferBody({
+              body: words(m.brdOfferBodyCore)({
                 left: formatNumber(board.places.left),
               }),
               label: m.decOfferPlace(),
@@ -327,7 +329,7 @@ function BoardPage() {
             destructive: true,
             confirm: (picked) => ({
               title: m.brdRefuseTitle({ count: picked.length }),
-              body: m.decRefuseBody(),
+              body: words(m.decRefuseBodyCore)(),
               label: m.decRefuse(),
             }),
             onSelect: (picked) =>
@@ -346,7 +348,7 @@ function BoardPage() {
               title: m.brdEnrolTitle({ count: picked.length }),
               body: picked.some((row) => row.matchedStudents.length)
                 ? m.brdEnrolBodyMatched()
-                : m.brdEnrolBody(),
+                : words(m.brdEnrolBodyCore)(),
               label: m.decEnrolAction(),
             }),
             onSelect: (picked) => {

@@ -26,6 +26,7 @@ import { currentUserQuery } from "~/queries/user";
 import { formatNumber } from "~/utils/datetime";
 import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
+import { useWords } from "~/utils/words";
 
 const REPORTS = ["stage", "intake", "origin", "time"] as const;
 type ReportView = (typeof REPORTS)[number];
@@ -147,6 +148,7 @@ const days = (value: number | null) =>
 function ReportsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const words = useWords();
   const filters = useSlot(intakeFilters);
   const views = viewsOf(filters, search);
   const report = useSuspenseQuery(admissionReportsQuery(views)).data;
@@ -233,13 +235,13 @@ function ReportsPage() {
                   enrolled: formatNumber(countAt(row.funnel, "enrolled")),
                 }),
             }}
-            empty={{ icon: ChartColumn, title: m.adrEmpty() }}
+            empty={{ icon: ChartColumn, title: words(m.adrEmptyCore)() }}
           />
         ) : search.report === "origin" ? (
           <div className="grid gap-4">
             <Measure>{m.adrByOriginHint()}</Measure>
             <DataTable
-              caption={m.adrByOrigin()}
+              caption={words(m.adrByOriginCore)()}
               rows={origins}
               columns={stageColumns<OriginRow>({
                 id: "origin",
@@ -256,7 +258,7 @@ function ReportsPage() {
                     enrolled: formatNumber(countAt(row.funnel, "enrolled")),
                   }),
               }}
-              empty={{ icon: ChartColumn, title: m.adrEmpty() }}
+              empty={{ icon: ChartColumn, title: words(m.adrEmptyCore)() }}
             />
           </div>
         ) : (
@@ -298,7 +300,7 @@ function ReportsPage() {
                 title: (row) => APPLICATION_STATE_LABEL[row.state](),
                 fact: (row) => m.adrMedianFact({ days: days(row.medianDays) }),
               }}
-              empty={{ icon: ChartColumn, title: m.adrEmpty() }}
+              empty={{ icon: ChartColumn, title: words(m.adrEmptyCore)() }}
             />
           </div>
         )}

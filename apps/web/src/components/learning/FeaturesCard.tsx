@@ -111,9 +111,7 @@ export function FeaturesCard() {
                 id={`${id}-hint`}
                 className="ps-7 text-[13px] leading-[18px] text-muted-foreground"
               >
-                {offered
-                  ? words(`feature-${feature}`, LABEL[feature].hint)
-                  : m.featureNotInPlan()}
+                {offered ? words(LABEL[feature].hint)() : m.featureNotInPlan()}
               </p>
             </div>
           );

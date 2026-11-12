@@ -13,6 +13,7 @@ import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 
 import { EVENT_KIND_LABEL } from "./application-labels";
+import { ADMISSIONS_NOTICES } from "./notices";
 
 /** The Admissions area: one link whose pages list beneath it while one is open. */
 export const ADMISSIONS_NAV: PlacedItem = {
@@ -55,10 +56,11 @@ export const ADMISSIONS_NAV: PlacedItem = {
 export const ADMISSIONS: ModuleFillings = {
   module: "admissions",
   fillings: [
+    ...ADMISSIONS_NOTICES,
     fill(setupStepWords, {
       id: "admissions",
       title: m.setupAdmissionsTitle,
-      body: m.setupAdmissionsBody,
+      body: m.setupAdmissionsBodyCore,
       capability: "admissions:configure",
       link: { to: "/admissions/intakes", search: {} },
     }),

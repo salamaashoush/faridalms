@@ -30,6 +30,7 @@ import type { ModuleContributions } from "../core/extension";
 
 import { audienceKinds } from "../core/audiences";
 import { contribute } from "../core/extension";
+import { portalAudiences } from "../core/portal-face";
 import { can } from "../core/procedure";
 import { peopleOpened } from "../core/reach";
 import { setupMeasures } from "../core/setup";
@@ -68,6 +69,7 @@ export const FAMILIES: ModuleContributions = {
   module: "families",
   contributions: [
     contribute(fileHosts, FAMILIES_HOSTS),
+    contribute(portalAudiences, { audience: "families" }),
     contribute(actingFor, {
       learnersOf: (scope, input) =>
         learnersOf(scope.tx, { tenantId: scope.tenantId, ...input }),

@@ -13,11 +13,7 @@ import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { BellOff, CheckCheck, Settings } from "lucide-react";
 import * as v from "valibot";
 
-import {
-  KIND_ICON,
-  NoticeLink,
-  noticeText,
-} from "~/components/notifications/format";
+import { NoticeLink, useNoticeWords } from "~/components/notifications/format";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { notificationsQuery } from "~/queries/notifications";
@@ -51,6 +47,7 @@ function NotificationsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
+  const notices = useNoticeWords();
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(
     notificationsQuery(search.tab, search.page),
@@ -110,8 +107,9 @@ function NotificationsPage() {
             <div className="grid gap-4">
               <ul className="divide-y rounded-lg border bg-card">
                 {data.rows.map((row) => {
-                  const text = noticeText(row);
-                  const Icon = KIND_ICON[row.kind];
+                  const text = notices.textOf(row);
+                  if (!text) return null;
+                  const Icon = notices.iconOf(row.kind);
                   const unread = row.readAt === null;
                   return (
                     <li key={row.id}>

@@ -14,11 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Bell } from "lucide-react";
 
-import {
-  KIND_ICON,
-  NoticeLink,
-  noticeText,
-} from "~/components/notifications/format";
+import { NoticeLink, useNoticeWords } from "~/components/notifications/format";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { recentNotificationsQuery } from "~/queries/notifications";
@@ -31,6 +27,7 @@ export interface NotificationBellProps {
 
 export function NotificationBell({ className }: NotificationBellProps) {
   const user = useCurrentUser();
+  const notices = useNoticeWords();
   const queryClient = useQueryClient();
   const recent = useQuery(recentNotificationsQuery);
   const { mutate: markRead } = useMutation({
@@ -99,8 +96,9 @@ export function NotificationBell({ className }: NotificationBellProps) {
             </div>
           ) : (
             rows.map((row) => {
-              const text = noticeText(row);
-              const Icon = KIND_ICON[row.kind];
+              const text = notices.textOf(row);
+              if (!text) return null;
+              const Icon = notices.iconOf(row.kind);
               return (
                 <DropdownMenuItem
                   key={row.id}

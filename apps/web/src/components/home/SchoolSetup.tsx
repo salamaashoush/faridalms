@@ -17,6 +17,7 @@ import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { hideOnboarding } from "~/server/home";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 type AdminHome = Awaited<
   ReturnType<NonNullable<(typeof adminHomeQuery)["queryFn"]>>
@@ -86,6 +87,7 @@ export function SchoolSetup({ onboarding }: SchoolSetupProps) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["home"] }),
     onError: (error) => toast.error(getMessageFromError(error)),
   });
+  const inWords = useWords();
   const words = new Map(
     [...OWN_STEPS, ...useSlot(setupStepWords)].map((each) => [each.id, each]),
   );
@@ -98,8 +100,8 @@ export function SchoolSetup({ onboarding }: SchoolSetupProps) {
     const may = user.capabilities.includes(page.capability);
     return {
       id: step.id,
-      title: page.title(),
-      description: page.body(),
+      title: inWords(page.title)(),
+      description: inWords(page.body)(),
       done: step.done,
       optional: step.optional,
       ...(may

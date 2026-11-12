@@ -251,7 +251,7 @@ export function SchoolProfileSection() {
         <SelectField
           id="school-learners-decide"
           label={m.settingsLearnersDecide()}
-          hint={words("learnersDecide", m.settingsLearnersDecideHintCore)}
+          hint={words(m.settingsLearnersDecideHintCore)()}
           value={String(draft.learnersDecideFrom)}
           options={DECIDING_AGES.map((age) => ({
             value: String(age),

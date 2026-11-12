@@ -68,7 +68,14 @@ describe("home pages", () => {
     const student = await signedIn("northwind", login("student"));
     const home = await student.home.student();
     expect(home.announcements.length).toBeLessThanOrEqual(3);
-    expect(home.classes.length).toBeGreaterThan(0);
+    // The classes listed are those of today's lessons, as the timetable has them.
+    const { slots } = await student.timetable.today({});
+    expect(home.classes.map((row) => row.id)).toEqual([
+      ...new Set(slots.map((slot) => slot.classId)),
+    ]);
+    await withoutModules("northwind", ["timetable"], async () => {
+      expect((await student.home.student()).classes.length).toBeGreaterThan(0);
+    });
     const { work } = await student.coursework.today({});
     expect(work.length).toBeGreaterThan(0);
     const going = (await student.learning.today()).module;

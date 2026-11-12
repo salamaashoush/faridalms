@@ -346,3 +346,35 @@ export async function studentAlertsOf(
       result.set(id, [...(result.get(id) ?? []), alert]);
   return result;
 }
+
+/**
+ * What a module lets a viewer open on a student's record, under its key:
+ * the student's attendance, say.
+ */
+export interface StudentRecordAccess {
+  key: string;
+  may(context: UnitContext): boolean;
+}
+
+export const studentRecordAccess = point<StudentRecordAccess>(
+  "student record access",
+);
+
+/**
+ * What the viewer may open on a student's record: core's own, given, and
+ * each module's on, by key.
+ */
+export async function studentRecordAccessOf<T extends Record<string, boolean>>(
+  context: UnitContext,
+  own: T,
+): Promise<T & Readonly<Record<string, boolean>>> {
+  return {
+    ...Object.fromEntries(
+      (await contributionsTo(context, studentRecordAccess)).map((each) => [
+        each.key,
+        each.may(context),
+      ]),
+    ),
+    ...own,
+  };
+}

@@ -57,6 +57,7 @@ import { formatInstant, formatDate, formatMinutes } from "~/utils/datetime";
 import { numberLocale } from "~/utils/digits";
 import { getMessageFromError } from "~/utils/error";
 import { requirePage } from "~/utils/page-access";
+import { useWords } from "~/utils/words";
 
 export const Route = createFileRoute("/_app/admissions/enquiries/$enquiryId")({
   staticData: { trail: <EnquiryTrail />, section: "/admissions/enquiries" },
@@ -107,6 +108,7 @@ interface EnquiryConversationProps {
  * whose arrival could not open one gets one when staff first work it.
  */
 function EnquiryConversation({ enquiry }: EnquiryConversationProps) {
+  const words = useWords();
   const queryClient = useQueryClient();
   const open = useMutation({
     mutationFn: () => openEnquiryConversation({ data: { id: enquiry.id } }),
@@ -117,7 +119,7 @@ function EnquiryConversation({ enquiry }: EnquiryConversationProps) {
   return (
     <RecordSection
       title={m.admSectionConversation()}
-      description={m.admSectionConversationHint()}
+      description={words(m.admSectionConversationHintCore)()}
     >
       {enquiry.threadId ? (
         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
@@ -149,6 +151,7 @@ type Sheet = "assign" | "close" | null;
 
 function EnquiryPage() {
   const { enquiryId } = Route.useParams();
+  const words = useWords();
   const queryClient = useQueryClient();
   const enquiry = useSuspenseQuery(enquiryQuery(enquiryId)).data;
   const [sheet, setSheet] = useState<Sheet>(null);
@@ -177,7 +180,7 @@ function EnquiryPage() {
           onSelect: move("converted"),
           confirm: {
             title: m.admConvertTitle({ name: enquiry.name }),
-            body: m.admConvertBody(),
+            body: words(m.admConvertBodyCore)(),
             label: m.admConvertAction(),
           },
         },
@@ -201,7 +204,7 @@ function EnquiryPage() {
       },
     });
     await queryClient.invalidateQueries({ queryKey: ["admissions"] });
-    toast.success(m.admErased());
+    toast.success(words(m.admErasedCore)());
   };
   const menu: ActionItem[] = [
     ...(enquiry.manages
@@ -217,14 +220,14 @@ function EnquiryPage() {
     ...(enquiry.canErase && enquiry.contactId
       ? [
           {
-            label: m.admEraseAction(),
+            label: words(m.admEraseActionCore)(),
             icon: Trash2,
             destructive: true,
             onSelect: erase,
             confirm: {
               title: m.admEraseTitle({ name: enquiry.name }),
               body: m.admEraseBody(),
-              label: m.admEraseAction(),
+              label: words(m.admEraseActionCore)(),
             },
           },
         ]
@@ -303,7 +306,7 @@ function EnquiryPage() {
                 <Fact label={m.admFieldYear()}>{enquiry.childYear}</Fact>
                 {enquiry.state === "closed" && enquiry.closedReason ? (
                   <Fact label={m.admFieldReason()}>
-                    {REASON_LABEL[enquiry.closedReason]()}
+                    {words(REASON_LABEL[enquiry.closedReason])()}
                   </Fact>
                 ) : null}
                 {enquiry.source === "website" ? (
@@ -332,7 +335,7 @@ function EnquiryPage() {
             {enquiry.answers.length ? (
               <RecordSection
                 title={m.admSectionAnswers()}
-                description={m.admSectionAnswersHint()}
+                description={words(m.admSectionAnswersHintCore)()}
               >
                 <Facts>
                   {enquiry.answers.map((answer) => (
@@ -408,7 +411,7 @@ function EnquiryPage() {
                   ))}
                 </ul>
               ) : (
-                <RecordEmpty>{m.admRelatedNone()}</RecordEmpty>
+                <RecordEmpty>{words(m.admRelatedNoneCore)()}</RecordEmpty>
               )}
             </RecordSection>
           </>

@@ -1,14 +1,14 @@
 import { buttonVariants } from "@faridalms/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { Suspense } from "react";
 import * as v from "valibot";
 
 import {
-  APPLY_STEPS,
   ApplicationSteps,
   StartApplication,
 } from "~/components/admissions/ApplicationForm";
+import { usePortalWords } from "~/components/auth/portal-words";
 import {
   faceName,
   PortalHelp,
@@ -19,6 +19,7 @@ import { draftQuery, myApplicationsQuery } from "~/queries/admissions";
 import { faceQueryFor } from "~/queries/portal";
 import { currentUserQuery } from "~/queries/user";
 import { leaveBareDomain } from "~/utils/bare-domain";
+import { useWords } from "~/utils/words";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/apply")({
   validateSearch: v.object({
     application: v.optional(id),
     intake: v.optional(id),
-    step: v.optional(v.picklist(APPLY_STEPS)),
+    step: v.optional(v.string()),
   }),
   loaderDeps: ({ search }) => ({ application: search.application }),
   beforeLoad: ({ context, location }) =>
@@ -37,10 +38,11 @@ export const Route = createFileRoute("/apply")({
     const face = query
       ? await context.queryClient.ensureQueryData(query)
       : null;
+    if (!face?.doors.includes("apply")) throw notFound();
     if (!context.auth.isAuthenticated) return { face, applies: false };
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     const applies =
-      user.workspace === "family" &&
+      (user.workspace === "family" || user.workspace === "me") &&
       user.capabilities.includes("applications:submit");
     if (applies)
       await Promise.all([
@@ -60,10 +62,12 @@ export const Route = createFileRoute("/apply")({
 /** For someone not signed in: a family registers once, or signs in to carry on. */
 function ApplyGate() {
   const { intake } = Route.useSearch();
+  const { face } = Route.useLoaderData();
+  const words = usePortalWords(face);
   return (
     <div className="grid gap-4">
       <h2 className="text-xl font-semibold">{m.applyGateTitle()}</h2>
-      <p className="text-muted-foreground">{m.applyGateBody()}</p>
+      <p className="text-muted-foreground">{words(m.applyGateBodyCore)()}</p>
       <div className="flex flex-wrap gap-3">
         <Link to="/register" search={{ intake }} className={buttonVariants()}>
           {m.applyGateRegister()}
@@ -81,10 +85,15 @@ function ApplyGate() {
 }
 
 function NotFamily() {
+  const words = useWords();
   return (
     <div className="grid gap-3">
-      <h2 className="text-xl font-semibold">{m.applyNotFamilyTitle()}</h2>
-      <p className="text-muted-foreground">{m.applyNotFamilyBody()}</p>
+      <h2 className="text-xl font-semibold">
+        {words(m.applyNotFamilyTitleCore)()}
+      </h2>
+      <p className="text-muted-foreground">
+        {words(m.applyNotFamilyBodyCore)()}
+      </p>
       <Link to="/" className={buttonVariants({ variant: "outline" })}>
         {m.applyNotFamilyHome()}
       </Link>
@@ -108,7 +117,7 @@ function Flow() {
     <ApplicationSteps
       key={search.application}
       applicationId={search.application}
-      step={search.step ?? "child"}
+      step={search.step}
       onStep={(step) =>
         void navigate({ search: (previous) => ({ ...previous, step }) })
       }

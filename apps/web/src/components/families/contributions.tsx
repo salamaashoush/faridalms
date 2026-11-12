@@ -13,6 +13,7 @@ import type { ModuleFillings } from "~/utils/extension";
 
 import { audienceKinds } from "~/components/announcements/slots";
 import { navItems } from "~/components/app/navigation";
+import { portalSentence } from "~/components/auth/portal-words";
 import {
   officeNeeds,
   setupItemWords,
@@ -34,7 +35,7 @@ import {
 } from "~/queries/families";
 import { fill, NOTHING_READ } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
-import { moduleWords } from "~/utils/words";
+import { replaceWords } from "~/utils/words";
 
 import { PersonChildren } from "./PersonChildren";
 import { StudentFamily, StudentFamilyOverview } from "./StudentFamily";
@@ -60,15 +61,22 @@ const phoneOf = (value: string | null) =>
 export const FAMILIES: ModuleFillings = {
   module: "families",
   fillings: [
-    fill(moduleWords, {
-      key: "learnersDecide",
-      words: m.settingsLearnersDecideHint,
-    }),
-    fill(moduleWords, { key: "commonsHint", words: m.settingsCommonsHint }),
-    fill(moduleWords, {
-      key: "feature-elearning",
-      words: m.learningFeatureToggleHint,
-    }),
+    replaceWords(
+      m.settingsLearnersDecideHintCore,
+      m.settingsLearnersDecideHint,
+    ),
+    replaceWords(m.settingsCommonsHintCore, m.settingsCommonsHint),
+    portalSentence("families", m.portalEyebrowCore, m.portalEyebrow),
+    portalSentence("families", m.portalSignInLeadCore, m.portalSignInLead),
+    portalSentence("families", m.portalHelpBodyCore, m.portalHelpBody),
+    portalSentence("families", m.siteNotOpenBodyCore, m.siteNotOpenBody),
+    portalSentence("families", m.authBrandBodyCore, m.authBrandBody),
+    portalSentence(
+      "families",
+      m.authFeatureLanguageCore,
+      m.authFeatureLanguage,
+    ),
+    replaceWords(m.learningFeatureToggleHintCore, m.learningFeatureToggleHint),
     fill(setupStepWords, {
       id: "details",
       title: m.setupDetailsTitle,

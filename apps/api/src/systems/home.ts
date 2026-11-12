@@ -7,10 +7,7 @@ import {
   announcementFeed,
   managedBroadcasts,
 } from "@faridalms/database/stores/broadcasts";
-import {
-  classesTaughtBy,
-  classLabels,
-} from "@faridalms/database/stores/classes";
+import { classesTaughtBy } from "@faridalms/database/stores/classes";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import { eventsBetween } from "@faridalms/database/stores/events";
 import { expiringDocuments } from "@faridalms/database/stores/identifiers";
@@ -46,6 +43,7 @@ import {
   firstAnnouncements,
   openedAnnouncements,
 } from "../announcements/points";
+import { learnerHomeClasses } from "../classes/points";
 import { reachAt } from "../core/audiences";
 import { modulesOf } from "../core/modules";
 import {
@@ -305,11 +303,10 @@ export const student = readProcedure.handler(async ({ context }) => {
       offset: 0,
     }).then(({ rows }) => rows),
   ]);
-  const classes = await classLabels(
-    context.tx,
-    context.tenantId,
-    reach.classIds,
-  );
+  const classes = await learnerHomeClasses(context, {
+    studentId,
+    classIds: reach.classIds,
+  });
   return {
     today: context.today,
     announcements: feed.slice(0, 3).map((row) => ({
@@ -319,7 +316,7 @@ export const student = readProcedure.handler(async ({ context }) => {
       urgency: row.urgency,
       readAt: row.readAt,
     })),
-    classes: [...classes.values()],
+    classes,
   };
 });
 

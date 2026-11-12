@@ -111,7 +111,6 @@ import { classGroupsOf, classViewOf } from "../classes/points";
 import { guardingAccess, requireGrantable } from "../core/access";
 import { contributionsTo } from "../core/extension";
 import { refreshLoginsAfter } from "../core/login-index";
-import { modulesOf } from "../core/modules";
 import { welcomeLink } from "../core/portal";
 import {
   audit,
@@ -143,6 +142,7 @@ import {
   saveStudentParts,
   studentAlertsOf,
   studentListColumns,
+  studentRecordAccessOf,
   studentsByPhone,
   studentViewOf,
 } from "../people/points";
@@ -371,7 +371,6 @@ export const student = readProcedure
       groupOf(context, input.id),
       studentAlertsOf(context, [input.id], context.today),
     ]);
-    const modules = await modulesOf(context);
     return {
       ...record,
       reference: reference?.identifier ?? null,
@@ -388,7 +387,7 @@ export const student = readProcedure
       account,
       today: context.today,
       noPhotos: refusals.has(input.id),
-      access: {
+      access: await studentRecordAccessOf(context, {
         manage: can(context, "people:manage"),
         consents:
           can(context, "people:manage") || can(context, "privacy:manage"),
@@ -396,25 +395,9 @@ export const student = readProcedure
           can(context, "people:manage") || can(context, "identifiers:read"),
         contacts:
           can(context, "contacts:read") || can(context, "people:manage"),
-        health: modules.student_records && can(context, "health:read"),
-        support:
-          modules.student_records &&
-          (can(context, "people:read") || can(context, "support:manage")),
-        demographics:
-          modules.student_records && can(context, "demographics:read"),
         history: can(context, "people:manage") || can(context, "audit:read"),
-        attendance: modules.attendance && can(context, "attendance:read"),
-        timetable: modules.timetable && can(context, "timetable:read"),
         message: can(context, "messages:send"),
-        coursework:
-          modules.coursework &&
-          can(context, "people:read") &&
-          can(context, "assignments:read"),
-        skills:
-          modules.standards &&
-          can(context, "people:read") &&
-          can(context, "assignments:read"),
-      },
+      }),
     };
   });
 

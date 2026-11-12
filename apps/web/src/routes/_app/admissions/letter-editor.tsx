@@ -33,6 +33,7 @@ import {
   updateTemplate,
 } from "~/server/templates";
 import { requirePage } from "~/utils/page-access";
+import { useWords } from "~/utils/words";
 
 export const Route = createFileRoute("/_app/admissions/letter-editor")({
   staticData: {
@@ -54,8 +55,8 @@ export const Route = createFileRoute("/_app/admissions/letter-editor")({
 
 /** The fields every letter may say; a module's own follow under its key. */
 const FIELD_HINT: [string, () => string][] = [
-  ["family", m.ltrFieldFamily],
-  ["child", m.ltrFieldChild],
+  ["family", m.ltrFieldFamilyCore],
+  ["child", m.ltrFieldChildCore],
   ["intake", m.ltrFieldIntake],
   ["school", m.ltrFieldSchool],
   ["reference", m.ltrFieldReference],
@@ -70,6 +71,7 @@ const FIELD_HINT: [string, () => string][] = [
 function LetterEditorPage() {
   const { id } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const words = useWords();
   const queryClient = useQueryClient();
   const parts = useSlot(intakeParts);
   const template = useSuspenseQuery(templateQuery(id)).data;
@@ -161,7 +163,10 @@ function LetterEditorPage() {
         }
         aside={
           <DetailsPanel title={m.ltrFields()}>
-            <DetailsSection title={m.ltrFieldsTitle()} hint={m.ltrFieldsHint()}>
+            <DetailsSection
+              title={m.ltrFieldsTitle()}
+              hint={words(m.ltrFieldsHintCore)()}
+            >
               <dl className="grid gap-2 text-sm">
                 {[
                   ...FIELD_HINT,
@@ -181,7 +186,7 @@ function LetterEditorPage() {
                       </code>
                     </dt>
                     <dd className="text-[13px] text-muted-foreground">
-                      {hint()}
+                      {words(hint)()}
                     </dd>
                   </div>
                 ))}

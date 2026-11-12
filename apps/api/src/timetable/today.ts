@@ -1,3 +1,4 @@
+import type { ClassLabel } from "@faridalms/database/stores/classes";
 import type { LessonChange } from "@faridalms/database/stores/cover";
 import type { MeetingRow } from "@faridalms/database/stores/timetable";
 
@@ -286,6 +287,23 @@ async function learnerSlots(
     ...slot,
     teacherLink: linkOf(slot.teacherId),
   }));
+}
+
+/** The classes of a learner's lessons today, in the order they meet. */
+export async function learnerClassesToday(
+  context: UnitContext,
+  studentId: string,
+): Promise<ClassLabel[]> {
+  const classes = new Map<string, ClassLabel>();
+  for (const slot of await learnerSlots(context, studentId))
+    if (!classes.has(slot.classId))
+      classes.set(slot.classId, {
+        id: slot.classId,
+        code: slot.classCode,
+        titleEn: slot.classTitleEn,
+        titleAr: slot.classTitleAr,
+      });
+  return [...classes.values()];
 }
 
 /**

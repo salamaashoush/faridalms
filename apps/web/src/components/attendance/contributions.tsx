@@ -18,6 +18,7 @@ import { modulePages } from "~/utils/pages";
 
 import { AttendanceRules } from "./AttendanceRules";
 import { ClassAttendance } from "./ClassAttendance";
+import { ATTENDANCE_NOTICES } from "./notices";
 import { StudentAttendance } from "./StudentAttendance";
 import { StudentAttendanceSummary } from "./StudentSummary";
 import { ATTENDANCE_TODAY } from "./today";
@@ -26,6 +27,7 @@ import { ATTENDANCE_TODAY } from "./today";
 export const ATTENDANCE: ModuleFillings = {
   module: "attendance",
   fillings: [
+    ATTENDANCE_NOTICES,
     fill(setupItemWords, {
       item: "first_register",
       label: m.onboardingFirstRegister,

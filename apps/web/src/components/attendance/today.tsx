@@ -33,12 +33,13 @@ import { formatPercent } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 import { fill } from "~/utils/extension";
 
+import { DAY_REGISTER } from "./format";
+
 type Today = Awaited<
   ReturnType<ReturnType<typeof attendanceTodayQuery>["queryFn"]>
 >;
 type Office = Awaited<ReturnType<(typeof attendanceOfficeQuery)["queryFn"]>>;
 type Presence = Exclude<Today["presence"], null>;
-type RegisterState = Today["registers"][number]["state"];
 
 const PRESENCE: Record<Presence, { label: () => string; tone: Tone } | null> = {
   present: { label: m.homePresent, tone: "success" },
@@ -46,12 +47,6 @@ const PRESENCE: Record<Presence, { label: () => string; tone: Tone } | null> = {
   absent: { label: m.homeAbsent, tone: "neutral" },
   absent_unexplained: { label: m.homeAbsentUnexplained, tone: "danger" },
   none: null,
-};
-
-const REGISTER: Record<RegisterState, { label: () => string; tone: Tone }> = {
-  not_started: { label: m.homeRegisterNotTaken, tone: "warning" },
-  in_progress: { label: m.homeRegisterInProgress, tone: "info" },
-  submitted: { label: m.homeRegisterTaken, tone: "success" },
 };
 
 const manages = (capabilities: readonly string[]) =>
@@ -133,8 +128,8 @@ export const ATTENDANCE_TODAY: Filling[] = [
                   </Link>
                 }
                 status={
-                  <StatusText tone={REGISTER[row.state].tone}>
-                    {REGISTER[row.state].label()}
+                  <StatusText tone={DAY_REGISTER[row.state].tone}>
+                    {DAY_REGISTER[row.state].label()}
                   </StatusText>
                 }
               />

@@ -14,7 +14,6 @@ import { Page } from "@faridalms/ui/system/page";
 import {
   Fact,
   Facts,
-  phoneLink,
   RecordColumns,
   RecordEmpty,
   RecordHeader,
@@ -34,6 +33,8 @@ import { CalendarX, Eye, FileText, PlayCircle, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { InWords } from "~/utils/words";
+
 import {
   AGE_LABEL,
   APPLICATION_STATE_LABEL,
@@ -48,6 +49,7 @@ import {
   PRIORITY_LABEL,
   WITHDRAW_LABEL,
 } from "~/components/admissions/application-labels";
+import { ContactSection } from "~/components/admissions/ApplicationContact";
 import {
   DecisionSection,
   EventsSection,
@@ -55,7 +57,9 @@ import {
   useDecisionActions,
 } from "~/components/admissions/Decisions";
 import { FamilyConversation } from "~/components/admissions/FamilyConversation";
+import { applicationContacts } from "~/components/admissions/slots";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { applicationQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
@@ -69,6 +73,7 @@ import {
 import { formatInstant, formatDate, formatList } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 import { requirePage } from "~/utils/page-access";
+import { useWords } from "~/utils/words";
 
 export const Route = createFileRoute(
   "/_app/admissions/applications/$applicationId",
@@ -113,6 +118,8 @@ function useRefresh() {
 function ApplicationPage() {
   const { applicationId } = Route.useParams();
   const row = useSuspenseQuery(applicationQuery(applicationId)).data;
+  const words = useWords();
+  const Contact = useSlot(applicationContacts)[0] ?? ContactSection;
   const refresh = useRefresh();
   const [withdrawing, setWithdrawing] = useState(false);
   const review = useMutation({
@@ -194,7 +201,7 @@ function ApplicationPage() {
         main={
           <>
             <ChildSection row={row} />
-            <FamilySection row={row} />
+            <Contact row={row} />
             <RecordSection title={m.aplSectionSchools()}>
               {row.schools.length ? (
                 <ul className="-my-2 divide-y">
@@ -232,7 +239,7 @@ function ApplicationPage() {
             </RecordSection>
             <RecordSection
               title={m.aplSectionAnswers()}
-              description={m.admSectionAnswersHint()}
+              description={words(m.admSectionAnswersHintCore)()}
             >
               {row.answers.length ? (
                 <Facts>
@@ -285,8 +292,9 @@ interface ChildSectionProps {
 }
 
 function ChildSection({ row }: ChildSectionProps) {
+  const words = useWords();
   return (
-    <RecordSection title={m.aplSectionChild()}>
+    <RecordSection title={words(m.aplSectionChildCore)()}>
       <Facts>
         <Fact label={m.aplFieldNameEn()}>
           {row.child.nameEn ? <bdi dir="ltr">{row.child.nameEn}</bdi> : null}
@@ -300,7 +308,7 @@ function ChildSection({ row }: ChildSectionProps) {
         <Fact label={m.aplFieldSex()}>{label(row.child.sex)}</Fact>
         <Fact label={m.aplFieldAge()} wide>
           <StatusText tone={row.child.age === "fits" ? "success" : "warning"}>
-            {AGE_LABEL[row.child.age]()}
+            {words(AGE_LABEL[row.child.age])()}
           </StatusText>
           <span className="ms-2 text-[13px] text-muted-foreground">
             {m.aplCutoffOn({ date: formatDate(row.intake.ageCutoffOn) })}
@@ -317,102 +325,12 @@ function ChildSection({ row }: ChildSectionProps) {
   );
 }
 
-interface ContactFactsProps {
-  email: string | null;
-  phone: string | null;
-}
-
-function ContactFacts({ email, phone }: ContactFactsProps) {
-  return (
-    <>
-      <Fact label={m.admFieldEmail()} wide>
-        {email ? (
-          <a
-            href={`mailto:${email}`}
-            dir="ltr"
-            className={`text-primary hover:underline ${phoneLink}`}
-          >
-            {email}
-          </a>
-        ) : null}
-      </Fact>
-      <Fact label={m.admFieldPhone()} wide>
-        {phone ? (
-          <a
-            href={`tel:${phone.replaceAll(/[^\d+]/g, "")}`}
-            dir="ltr"
-            className={`text-primary hover:underline ${phoneLink}`}
-          >
-            {phone}
-          </a>
-        ) : null}
-      </Fact>
-    </>
-  );
-}
-
-interface FamilySectionProps {
-  row: Application;
-}
-
-function FamilySection({ row }: FamilySectionProps) {
-  return (
-    <RecordSection
-      title={m.aplSectionFamily()}
-      description={m.aplSectionFamilyHint()}
-    >
-      <Facts>
-        <Fact label={m.aplFieldApplicant()}>
-          <bdi>{inLocale(row.family.nameEn, row.family.nameAr)}</bdi>
-        </Fact>
-        <Fact label={m.aplFieldRelation()}>{label(row.family.relation)}</Fact>
-        <Fact label={m.aplFieldResponsible()}>
-          {row.family.responsible ? m.aplYes() : m.aplNo()}
-        </Fact>
-        <ContactFacts email={row.family.email} phone={row.family.phone} />
-      </Facts>
-      {row.other ? (
-        <div className="mt-6 border-t pt-4">
-          <h3 className="mb-3 text-sm font-semibold">{m.aplOtherGuardian()}</h3>
-          <Facts>
-            <Fact label={m.aplFieldName()}>
-              <bdi>
-                {inLocale(
-                  [row.other.names.en.given, row.other.names.en.family]
-                    .filter(Boolean)
-                    .join(" ") || null,
-                  [
-                    row.other.names.ar.given,
-                    row.other.names.ar.middle,
-                    row.other.names.ar.family,
-                  ]
-                    .filter(Boolean)
-                    .join(" ") || null,
-                )}
-              </bdi>
-            </Fact>
-            <Fact label={m.aplFieldRelation()}>
-              {label(row.other.relation)}
-            </Fact>
-            <Fact label={m.aplFieldLivesWith()}>
-              {row.other.livesWithChild ? m.aplYes() : m.aplNo()}
-            </Fact>
-            <ContactFacts
-              email={row.other.email || null}
-              phone={row.other.phone || null}
-            />
-          </Facts>
-        </div>
-      ) : null}
-    </RecordSection>
-  );
-}
-
 interface ChecklistSectionProps {
   row: Application;
 }
 
 function ChecklistSection({ row }: ChecklistSectionProps) {
+  const words = useWords();
   const refresh = useRefresh();
   const move = useMutation({
     mutationFn: (input: {
@@ -433,7 +351,7 @@ function ChecklistSection({ row }: ChecklistSectionProps) {
   return (
     <RecordSection
       title={m.aplSectionChecklist()}
-      description={m.aplSectionChecklistHint()}
+      description={words(m.aplSectionChecklistHintCore)()}
     >
       {row.items.length ? (
         <ul className="-my-3 divide-y" aria-label={m.aplSectionChecklist()}>
@@ -504,6 +422,7 @@ interface NeedsSectionProps {
 
 /** Health and needs stay closed until asked for, since each look is recorded. */
 function NeedsSection({ row }: NeedsSectionProps) {
+  const words = useWords();
   const read = useMutation({
     mutationFn: () => getApplicationNeeds({ data: { id: row.id } }),
   });
@@ -547,7 +466,9 @@ function NeedsSection({ row }: NeedsSectionProps) {
         </Facts>
       ) : (
         <p className="text-sm text-muted-foreground">
-          {row.additionalNeeds ? m.aplNeedsDeclared() : m.aplNeedsHidden()}
+          {row.additionalNeeds
+            ? words(m.aplNeedsDeclaredCore)()
+            : m.aplNeedsHidden()}
         </p>
       )}
     </RecordSection>
@@ -558,14 +479,20 @@ function NeedsSection({ row }: NeedsSectionProps) {
 function pick<K extends string>(
   labels: Record<K, () => string>,
   key: unknown,
+  words: InWords = (sentence) => sentence,
 ): string {
-  return typeof key === "string" && key in labels ? labels[key as K]() : "";
+  return typeof key === "string" && key in labels
+    ? words(labels[key as K])()
+    : "";
 }
 
-function entryText(entry: Application["entries"][number]): string {
+function entryText(
+  entry: Application["entries"][number],
+  words: InWords,
+): string {
   const details = entry.details;
   if (entry.kind === "state") {
-    const reason = pick(WITHDRAW_LABEL, details.reason);
+    const reason = pick(WITHDRAW_LABEL, details.reason, words);
     const decision = pick(DECISION_LABEL, details.decision);
     return `${m.aplEntryState({ state: pick(APPLICATION_STATE_LABEL, details.to) })}${decision ? ` · ${decision}` : ""}${reason ? ` · ${reason}` : ""}`;
   }
@@ -590,17 +517,18 @@ interface HistorySectionProps {
 }
 
 function HistorySection({ row }: HistorySectionProps) {
+  const words = useWords();
   return (
     <RecordSection
       title={m.aplSectionHistory()}
-      description={m.aplSectionHistoryHint()}
+      description={words(m.aplSectionHistoryHintCore)()}
     >
       {row.entries.length ? (
         <ol className="-my-3 divide-y" aria-label={m.aplSectionHistory()}>
           {row.entries.map((entry) => (
             <li key={entry.id} className="grid gap-1 py-3">
               <span className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                <span className="font-medium">{entryText(entry)}</span>
+                <span className="font-medium">{entryText(entry, words)}</span>
                 <span className="text-[13px] text-muted-foreground">
                   {entry.author
                     ? `${inLocale(entry.author.nameEn, entry.author.nameAr)} · `
@@ -695,6 +623,7 @@ interface AsideProps {
 }
 
 function Aside({ row }: AsideProps) {
+  const words = useWords();
   const found =
     row.matches.students.length +
     row.matches.guardians.length +
@@ -737,7 +666,7 @@ function Aside({ row }: AsideProps) {
       </RecordSection>
       <RecordSection
         title={m.aplSectionMatches()}
-        description={m.aplSectionMatchesHint()}
+        description={words(m.aplSectionMatchesHintCore)()}
       >
         {found || row.matches.staffParent ? (
           <ul className="-my-2 grid gap-0 divide-y text-sm">
@@ -780,20 +709,22 @@ function Aside({ row }: AsideProps) {
                 </Link>
                 <span className="text-[13px] text-muted-foreground">
                   {each.as === "applicant"
-                    ? m.aplMatchApplicant()
+                    ? words(m.aplMatchApplicantCore)()
                     : m.aplMatchOther()}
                 </span>
               </li>
             ))}
             {row.matches.staffParent ? (
               <li className="py-2 text-[13px] text-muted-foreground">
-                {m.aplMatchStaff()}
+                {words(m.aplMatchStaffCore)()}
               </li>
             ) : null}
           </ul>
         ) : (
           <RecordEmpty>
-            {row.state === "draft" ? m.aplMatchesLater() : m.aplMatchesNone()}
+            {row.state === "draft"
+              ? words(m.aplMatchesLaterCore)()
+              : m.aplMatchesNone()}
           </RecordEmpty>
         )}
       </RecordSection>
@@ -833,6 +764,7 @@ interface WithdrawSheetProps {
 }
 
 function WithdrawSheet({ row, open, onOpenChange }: WithdrawSheetProps) {
+  const words = useWords();
   const refresh = useRefresh();
   const [reason, setReason] = useState<WithdrawReason>("family_request");
   const [note, setNote] = useState("");
@@ -876,7 +808,7 @@ function WithdrawSheet({ row, open, onOpenChange }: WithdrawSheetProps) {
         value={reason}
         options={WITHDRAW_REASONS.map((value) => ({
           value,
-          label: WITHDRAW_LABEL[value](),
+          label: words(WITHDRAW_LABEL[value])(),
         }))}
         onChange={setReason}
       />

@@ -1,7 +1,7 @@
 import { BADGE_SECRET } from "@faridalms/domain/identity-schema";
 import { buttonVariants } from "@faridalms/ui/button";
 import { useMutation } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Clock, LoaderCircle, QrCode, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useRef } from "react";
@@ -25,9 +25,13 @@ export const Route = createFileRoute("/badge")({
       linked: linkedSlug(search.school),
       otherwise: "/sign-in",
     }),
-  loader: ({ context }) => {
+  loader: async ({ context }) => {
     const query = faceQueryFor(context.auth.school);
-    return query ? context.queryClient.ensureQueryData(query) : null;
+    const face = query
+      ? await context.queryClient.ensureQueryData(query)
+      : null;
+    if (!face?.doors.includes("badge")) throw notFound();
+    return face;
   },
   head: () => ({
     meta: [{ name: "referrer", content: "no-referrer" }],

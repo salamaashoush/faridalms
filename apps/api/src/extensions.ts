@@ -35,6 +35,7 @@ import { PEER_REVIEW_CLOCK } from "./peer/clock";
 import { PEER_REVIEW } from "./peer/contributions";
 import { QUIZ_CLOCK } from "./quizzes/clock";
 import { SMS } from "./sms/contributions";
+import { STANDARDS } from "./standards/contributions";
 import { STANDARDS_FROM_LESSONS } from "./standards/lessons";
 import { STANDARDS_FROM_WORK } from "./standards/work";
 import { STUDENT_RECORDS } from "./student-records/contributions";
@@ -81,6 +82,7 @@ export const MODULE_EXTENSIONS: readonly ModuleContributions[] = [
   PEER_REVIEW,
   SCHOOL_YEARS,
   SMS,
+  STANDARDS,
   STANDARDS_FROM_LESSONS,
   STANDARDS_FROM_WORK,
   STUDENT_RECORDS,

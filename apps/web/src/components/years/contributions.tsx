@@ -41,6 +41,7 @@ import { modulePages } from "~/utils/pages";
 import type { ClassYearRead } from "./YearParts";
 
 import { yearDayPart } from "./DayParts";
+import { YEARS_NOTICES } from "./notices";
 import {
   ExitLabel,
   StudentYearAside,
@@ -79,6 +80,7 @@ type Asking = Awaited<ReturnType<NonNullable<(typeof askingQuery)["queryFn"]>>>;
 export const SCHOOL_YEARS: ModuleFillings = {
   module: "school_years",
   fillings: [
+    YEARS_NOTICES,
     fill(listWords, {
       list: "classes",
       title: m.classesEmptyTitle,

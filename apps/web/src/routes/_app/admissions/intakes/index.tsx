@@ -39,6 +39,7 @@ import { currentUserQuery } from "~/queries/user";
 import { formatDate, formatList, formatNumber } from "~/utils/datetime";
 import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
+import { useWords } from "~/utils/words";
 
 // Loose, so a module's view rides in the address under its own key.
 const searchSchema = v.looseObject({
@@ -261,6 +262,7 @@ const FORM_CARD = {
 function IntakesPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const words = useWords();
   const filters = useSlot(intakeFilters);
   const parts = useSlot(intakeParts);
   const views = viewsOf(filters, search);
@@ -288,7 +290,7 @@ function IntakesPage() {
     <Page width="list">
       <PageHeader
         title={m.itkTitle()}
-        description={m.itkHint()}
+        description={words(m.itkHintCore)()}
         action={
           data.configures
             ? search.tab === "forms"
@@ -310,7 +312,7 @@ function IntakesPage() {
           role="note"
           className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm"
         >
-          {m.itkConsentsMissing({
+          {words(m.itkConsentsMissingCore)({
             purposes: formatList(
               missingWords.map((consent) =>
                 inLocale(consent.labelEn, consent.labelAr),
@@ -348,14 +350,14 @@ function IntakesPage() {
               />
             ) : null}
             <DataTable
-              caption={m.itkCaption()}
+              caption={words(m.itkCaptionCore)()}
               rows={data.intakes}
               columns={intakeColumns(data.today, parts)}
               rowLabel={(row) => inLocale(row.titleEn, row.titleAr)}
               card={intakeCard(data.today)}
               empty={{
                 icon: CalendarRange,
-                title: m.itkEmpty(),
+                title: words(m.itkEmptyCore)(),
                 description: m.itkEmptyBody(),
               }}
             />
@@ -370,7 +372,7 @@ function IntakesPage() {
             empty={{
               icon: FileText,
               title: m.afmEmpty(),
-              description: m.afmEmptyBody(),
+              description: words(m.afmEmptyBodyCore)(),
             }}
           />
         )}

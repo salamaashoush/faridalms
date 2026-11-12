@@ -1,7 +1,14 @@
 import { SQL } from "bun";
 import { describe, expect, test } from "bun:test";
 
-import { client, rejection, seeded, testDirectory } from "./harness";
+import { forgetFace } from "../src/core/portal-face";
+import {
+  client,
+  rejection,
+  seeded,
+  testDirectory,
+  withoutModules,
+} from "./harness";
 
 const stranger = (network = "198.51.100.20") =>
   client("", undefined, "en", { "x-forwarded-for": network }).identity;
@@ -11,7 +18,9 @@ describe("the portal's face", () => {
     const face = await stranger().portalFace({ school: "northwind" });
     expect(Object.keys(face).toSorted()).toEqual(
       [
+        "audiences",
         "contact",
+        "doors",
         "logoKey",
         "name",
         "palette",
@@ -28,6 +37,30 @@ describe("the portal's face", () => {
     expect(face.palette?.primary).toBe("#0B3D91");
     expect(face.websiteHost).toBe("northwind.example.net");
     expect(face.paused).toBe(false);
+    expect(face.audiences).toEqual(["families"]);
+    expect(face.doors.toSorted()).toEqual(["apply", "badge"]);
+  });
+
+  test("the sign-in names families only where the school keeps them, and says nothing else of its plan", async () => {
+    await withoutModules("northwind", ["families"], async () => {
+      forgetFace("northwind");
+      const face = await stranger("198.51.100.23").portalFace({
+        school: "northwind",
+      });
+      expect(face.audiences).toEqual([]);
+    });
+    forgetFace("northwind");
+  });
+
+  test("a page a module opens to strangers is named only where the module is on", async () => {
+    await withoutModules("northwind", ["admissions", "badges"], async () => {
+      forgetFace("northwind");
+      const face = await stranger("198.51.100.24").portalFace({
+        school: "northwind",
+      });
+      expect(face.doors).toEqual([]);
+    });
+    forgetFace("northwind");
   });
 
   test("a school that does not exist has no face", async () => {

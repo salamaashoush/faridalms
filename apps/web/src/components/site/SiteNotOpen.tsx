@@ -6,6 +6,7 @@ import { AuthHeading } from "@faridalms/ui/system/auth-layout";
 
 import type { PortalFace } from "~/queries/portal";
 
+import { usePortalWords } from "~/components/auth/portal-words";
 import { PortalLayout } from "~/components/auth/SchoolFace";
 import * as m from "~/i18n/messages";
 import { portalHref } from "~/utils/host";
@@ -22,6 +23,7 @@ export interface SiteNotOpenProps {
  */
 export function SiteNotOpen({ face, locale }: SiteNotOpenProps) {
   const t = { locale };
+  const words = usePortalWords(face);
   const school =
     (locale === "ar" ? face.name.ar : face.name.en) ||
     face.name.en ||
@@ -31,7 +33,7 @@ export function SiteNotOpen({ face, locale }: SiteNotOpenProps) {
     <PortalLayout face={face}>
       <AuthHeading
         title={m.siteNotOpenTitle({}, t)}
-        lead={m.siteNotOpenBody({ school }, t)}
+        lead={words(m.siteNotOpenBodyCore)({ school }, t)}
       />
       <a
         href={portalHref(face.school, "/sign-in")}

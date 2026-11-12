@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import type { RecordLink } from "~/components/people/PersonLink";
+import type { InWords } from "~/utils/words";
 
 import { enquiryEventText } from "~/components/admissions/labels";
 import { PersonLink } from "~/components/people/PersonLink";
@@ -52,9 +53,9 @@ const OUTCOME_LABEL: Record<ContactOutcome, () => string> = {
 /** What a recorded change says, by the system that owns the mailbox. */
 const EVENTS: Record<
   Mailbox,
-  (details: Record<string, unknown>) => string | null
+  (details: Record<string, unknown>, words: InWords) => string | null
 > = {
-  admissions: (details) => enquiryEventText(details, inLocale),
+  admissions: (details, words) => enquiryEventText(details, inLocale, words),
   attendance: () => null,
 };
 
@@ -63,9 +64,10 @@ export function entryTitle(
   mailbox: Mailbox | null,
   kind: Exclude<EntryKind, "message">,
   details: Record<string, unknown>,
+  words: InWords,
 ): string {
   if (kind === "event")
-    return (mailbox && EVENTS[mailbox](details)) ?? ENTRY_LABEL.event();
+    return (mailbox && EVENTS[mailbox](details, words)) ?? ENTRY_LABEL.event();
   if (
     kind === "call" &&
     typeof details.outcome === "string" &&

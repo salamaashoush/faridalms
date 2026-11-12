@@ -7,6 +7,8 @@ import type {
 } from "@faridalms/domain/enquiries";
 import type { Tone } from "@faridalms/ui/system/status";
 
+import type { InWords } from "~/utils/words";
+
 import * as m from "~/i18n/messages";
 
 export const STATE_LABEL: Record<EnquiryState, () => string> = {
@@ -45,7 +47,7 @@ export const REASON_LABEL: Record<CloseReason, () => string> = {
   another_school: m.admReasonAnotherSchool,
   not_eligible: m.admReasonNotEligible,
   no_places: m.admReasonNoPlaces,
-  no_response: m.admReasonNoResponse,
+  no_response: m.admReasonNoResponseCore,
   duplicate: m.admReasonDuplicate,
   spam: m.admReasonSpam,
   other: m.admReasonOther,
@@ -58,6 +60,7 @@ const isState = (value: unknown): value is EnquiryState =>
 export function enquiryEventText(
   details: Record<string, unknown>,
   nameOf: (en: string | null, ar: string | null) => string,
+  words: InWords,
 ): string | null {
   const event = details as Partial<EnquiryEvent> & Record<string, unknown>;
   if (event.event === "assigned") {
@@ -70,11 +73,11 @@ export function enquiryEventText(
   if (event.event === "state" && isState(details.to)) {
     const reason =
       typeof details.reason === "string" && details.reason in REASON_LABEL
-        ? REASON_LABEL[details.reason as CloseReason]()
+        ? words(REASON_LABEL[details.reason as CloseReason])()
         : "";
     const moved = details.automatic
       ? details.to === "converted"
-        ? m.admEntryApplied()
+        ? words(m.admEntryAppliedCore)()
         : m.admEntryStarted()
       : m.admEntryMoved({ state: STATE_LABEL[details.to]() });
     return reason ? `${moved}: ${reason}` : moved;

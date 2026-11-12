@@ -1,8 +1,12 @@
-import type { ClassesViewed } from "@faridalms/database/stores/classes";
+import type {
+  ClassesViewed,
+  ClassLabel,
+} from "@faridalms/database/stores/classes";
 import type { EnrollmentSource } from "@faridalms/database/tables/teaching";
 import type { Views } from "@faridalms/domain/classes";
 import type { OpenSpan } from "@faridalms/domain/school";
 
+import { classLabels } from "@faridalms/database/stores/classes";
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
@@ -435,4 +439,31 @@ export async function classesInView(
         settled: false,
         title: undefined,
       };
+}
+
+/**
+ * A module that knows which of a learner's classes their home lists: the
+ * classes of the lessons they have today, say.
+ */
+export interface HomeClasses {
+  classesOf(context: UnitContext, studentId: string): Promise<ClassLabel[]>;
+}
+
+export const homeClasses = point<HomeClasses>("home classes");
+
+/**
+ * The classes a learner's home lists: those a module on names, else every
+ * class they are in.
+ */
+export async function learnerHomeClasses(
+  context: UnitContext,
+  input: { studentId: string; classIds: readonly string[] },
+): Promise<ClassLabel[]> {
+  const named = (await contributionsTo(context, homeClasses))[0];
+  if (named) return named.classesOf(context, input.studentId);
+  return [
+    ...(
+      await classLabels(context.tx, context.tenantId, input.classIds)
+    ).values(),
+  ];
 }

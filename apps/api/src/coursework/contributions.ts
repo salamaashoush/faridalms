@@ -5,11 +5,13 @@ import type { GoLive } from "../core/publication";
 
 import { classJoins } from "../classes/points";
 import { contribute } from "../core/extension";
+import { can } from "../core/procedure";
 import { goLives } from "../core/publication";
 import { setupMeasures } from "../core/setup";
 import { fileHosts } from "../files/authorize";
 import { zipExports } from "../files/exports";
 import { allowanceFollowers } from "../people/allowances";
+import { studentRecordAccess } from "../people/points";
 import { searchSources } from "../search/points";
 import { DUE_FOLLOWS, dueByAllowances } from "./allowances";
 import { COURSEWORK_EXPORTS } from "./exports";
@@ -21,6 +23,11 @@ import { ASSIGNMENT_SEARCH } from "./search";
 export const COURSEWORK: ModuleContributions = {
   module: "coursework",
   contributions: [
+    contribute(studentRecordAccess, {
+      key: "coursework",
+      may: (context) =>
+        can(context, "people:read") && can(context, "assignments:read"),
+    }),
     contribute(fileHosts, COURSEWORK_HOSTS),
     contribute(fileHosts, WORK_HOSTS),
     contribute(goLives, COURSEWORK_GO_LIVES as readonly GoLive<unknown>[]),

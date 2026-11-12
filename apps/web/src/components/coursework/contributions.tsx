@@ -17,6 +17,7 @@ import { gradingOverviewQuery } from "~/queries/grading";
 import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 
+import { COURSEWORK_NOTICES } from "./notices";
 import { StudentCoursework } from "./StudentCoursework";
 import { COURSEWORK_TODAY } from "./today";
 
@@ -36,6 +37,7 @@ function ClassGrading({ classId, manages }: ClassRecordSectionProps) {
 export const COURSEWORK: ModuleFillings = {
   module: "coursework",
   fillings: [
+    ...COURSEWORK_NOTICES,
     fill(searchKindWords, {
       kind: "assignments",
       label: m.searchKindAssignments,

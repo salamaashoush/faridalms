@@ -40,6 +40,7 @@ import {
 } from "~/utils/datetime";
 import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
+import { useWords } from "~/utils/words";
 
 const DEFAULT_SEARCH = v.parse(applicationListSchema, {});
 // Loose, so a module's view rides in the address under its own key.
@@ -188,6 +189,7 @@ const viewLabel = (view: ApplicationView) =>
 function ApplicationsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const words = useWords();
   const filters = useSlot(intakeFilters);
   const views = viewsOf(filters, search);
   const data = useSuspenseQuery(applicationsQuery(search, views)).data;
@@ -230,7 +232,7 @@ function ApplicationsPage() {
                 places: formatNumber(intake.capacity),
                 live: formatNumber(intake.live),
               })
-            : m.aplHint()
+            : words(m.aplHintCore)()
         }
       />
       <RecordTabs
@@ -254,7 +256,7 @@ function ApplicationsPage() {
               value: search.q,
               onChange: (q) => update({ q }),
               label: m.aplSearch(),
-              placeholder: m.aplSearchPlaceholder(),
+              placeholder: words(m.aplSearchPlaceholderCore)(),
             }}
             facets={[
               ...viewFacets,
@@ -291,7 +293,7 @@ function ApplicationsPage() {
             empty={{
               icon: FileUser,
               title: m.aplEmpty({ view: viewLabel(search.state) }),
-              description: m.aplEmptyBody(),
+              description: words(m.aplEmptyBodyCore)(),
             }}
           />
         </div>

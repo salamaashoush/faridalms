@@ -1,9 +1,11 @@
 import type { ModuleFillings } from "./utils/extension";
 
 import { ADMISSIONS } from "./components/admissions/contributions";
+import { ADMISSIONS_WITH_FAMILIES } from "./components/admissions/families";
 import { ADMISSIONS_BY_GRADE } from "./components/admissions/grades";
 import { ADMISSIONS_IN_YEARS } from "./components/admissions/years";
 import { ATTENDANCE } from "./components/attendance/contributions";
+import { ATTENDANCE_WITH_TIMETABLE } from "./components/attendance/timetable";
 import { BADGES } from "./components/badges/contributions";
 import { COURSEWORK } from "./components/coursework/contributions";
 import { COURSEWORK_WITH_FAMILIES } from "./components/coursework/family-shares";
@@ -36,8 +38,10 @@ import { SCHOOL_YEARS } from "./components/years/contributions";
 export const MODULE_FILLINGS: readonly ModuleFillings[] = [
   ADMISSIONS,
   ADMISSIONS_BY_GRADE,
+  ADMISSIONS_WITH_FAMILIES,
   ADMISSIONS_IN_YEARS,
   ATTENDANCE,
+  ATTENDANCE_WITH_TIMETABLE,
   BADGES,
   COURSEWORK,
   COURSEWORK_WITH_FAMILIES,

@@ -93,7 +93,7 @@ export const FEE_KIND_LABEL: Record<FeeKind, () => string> = {
   application: m.itkFeeApplication,
   assessment: m.itkFeeAssessment,
   registration: m.itkFeeRegistration,
-  tuition: m.itkFeeTuition,
+  tuition: m.itkFeeTuitionCore,
   other: m.itkFeeOther,
 };
 
@@ -117,7 +117,7 @@ export const WINDOW_TONE: Record<IntakeWindow, Tone> = {
 };
 
 export const WITHDRAW_LABEL: Record<WithdrawReason, () => string> = {
-  family_request: m.aplWithdrawFamily,
+  family_request: m.aplWithdrawFamilyCore,
   another_school: m.aplWithdrawAnotherSchool,
   moving: m.aplWithdrawMoving,
   duplicate: m.aplWithdrawDuplicate,
@@ -142,7 +142,7 @@ export const NEEDS_HINT: Record<NeedsKind, () => string> = {
 };
 
 export const AGE_LABEL: Record<AgeFit, () => string> = {
-  fits: m.aplAgeFits,
+  fits: m.aplAgeFitsCore,
   young: m.aplAgeYoung,
   old: m.aplAgeOld,
   unknown: m.aplAgeUnknown,
@@ -155,9 +155,9 @@ export const DECISION_LABEL: Record<Decision, () => string> = {
 };
 
 export const DECISION_HINT: Record<Decision, () => string> = {
-  offer: m.decDecisionOfferHint,
+  offer: m.decDecisionOfferHintCore,
   waitlist: m.decDecisionWaitlistHint,
-  decline: m.decDecisionDeclineHint,
+  decline: m.decDecisionDeclineHintCore,
 };
 
 export const LETTER_LABEL: Record<LetterKind, () => string> = {

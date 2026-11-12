@@ -10,6 +10,7 @@ import { Conversation } from "~/components/messages/Conversation";
 import * as m from "~/i18n/messages";
 import { openApplicationConversation } from "~/server/admissions";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 export interface FamilyConversationProps {
   applicationId: string;
@@ -30,6 +31,7 @@ export function FamilyConversation({
   childName,
   manages,
 }: FamilyConversationProps) {
+  const words = useWords();
   const queryClient = useQueryClient();
   const open = useMutation({
     mutationFn: () =>
@@ -40,8 +42,8 @@ export function FamilyConversation({
   });
   return (
     <RecordSection
-      title={m.aplSectionConversation()}
-      description={m.aplSectionConversationHint()}
+      title={words(m.aplSectionConversationCore)()}
+      description={words(m.aplSectionConversationHintCore)()}
     >
       {threadId ? (
         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
@@ -60,7 +62,7 @@ export function FamilyConversation({
           onClick={() => open.mutate()}
         >
           <MessageSquarePlus aria-hidden />
-          {m.aplConversationStart()}
+          {words(m.aplConversationStartCore)()}
         </Button>
       ) : (
         <RecordEmpty>{m.aplConversationNone()}</RecordEmpty>

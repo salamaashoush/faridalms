@@ -1,4 +1,3 @@
-import type { ModuleId } from "@faridalms/domain/modules";
 import type {
   ChoosableKind,
   EmailMode,
@@ -28,7 +27,7 @@ import {
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { KIND_ICON } from "~/components/notifications/format";
+import { URGENT_ICON, useNoticeWords } from "~/components/notifications/format";
 import { CheckboxRow } from "~/components/people/fields";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -43,24 +42,16 @@ export const Route = createFileRoute("/_app/notification-preferences")({
   component: PreferencesPage,
 });
 
-const KIND_LABEL: Record<ChoosableKind, () => string> = {
+/** Core's kinds a person chooses how to hear of; a module names its own. */
+const KIND_LABEL: Partial<Record<ChoosableKind, () => string>> = {
   announcement: m.ntfKindAnnouncement,
   message: m.ntfKindMessage,
-  absence: m.ntfKindAbsence,
   event: m.ntfKindEvent,
   reminder: m.ntfKindReminder,
   consent: m.ntfKindConsent,
   mention: m.ntfKindMention,
   library: m.ntfKindTemplates,
-  reply: m.ntfKindReply,
-  enquiry: m.ntfKindEnquiry,
-  application: m.ntfKindApplication,
-  assignment: m.ntfKindAssignment,
-  feedback: m.ntfKindFeedback,
-  grades: m.ntfKindGrades,
   correction: m.ntfKindCorrection,
-  reenrolment: m.ntfKindReenrolment,
-  admission_event: m.ntfKindAdmissionEvent,
 };
 
 const EMAIL_LABEL: Record<EmailMode, () => string> = {
@@ -75,34 +66,15 @@ const SMS_LABEL: Record<SmsMode, () => string> = {
 };
 
 /**
- * Absences, consent requests and answers to the changes a family asked for
- * reach families, register reminders and template reviews reach staff,
- * replies those who post in discussions, work set, returned and graded
- * reaches students and their families, and enquiries those who work them;
- * nobody else gets them.
+ * Consent requests and answers to the changes a family asked for reach
+ * families, register reminders and template reviews reach staff, and each
+ * module says who its own kinds reach; nobody else gets them.
  */
-function kindsFor(
-  workspace: Workspace,
-  capabilities: readonly string[],
-  modules: Readonly<Record<ModuleId, boolean>>,
-): readonly ChoosableKind[] {
-  return CHOOSABLE_KINDS.filter(
-    (kind) =>
-      wordOn("notices", kind, modules) &&
-      ((kind !== "absence" && kind !== "consent" && kind !== "correction") ||
-        workspace === "family") &&
-      ((kind !== "reminder" && kind !== "library") || workspace === "staff") &&
-      (kind !== "reply" ||
-        workspace === "me" ||
-        capabilities.includes("submissions:grade")) &&
-      ((kind !== "assignment" && kind !== "feedback" && kind !== "grades") ||
-        workspace === "me" ||
-        workspace === "family") &&
-      (kind !== "enquiry" || capabilities.includes("admissions:manage")) &&
-      (kind !== "application" ||
-        capabilities.includes("admissions:manage") ||
-        capabilities.includes("applications:submit")),
-  );
+function coreOffers(kind: ChoosableKind, workspace: Workspace): boolean {
+  if (kind === "consent" || kind === "correction")
+    return workspace === "family";
+  if (kind === "reminder" || kind === "library") return workspace === "staff";
+  return true;
 }
 
 interface Draft {
@@ -113,6 +85,7 @@ interface Draft {
 function PreferencesPage() {
   const data = useSuspenseQuery(notificationPreferencesQuery).data;
   const user = useCurrentUser();
+  const notices = useNoticeWords();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<Draft>({
     preferences: data.preferences,
@@ -156,69 +129,70 @@ function PreferencesPage() {
           <ul className="grid gap-5">
             <li className="grid gap-1">
               <p className="flex items-center gap-2 text-sm leading-5 font-medium">
-                <KIND_ICON.urgent
-                  className="size-4 text-destructive"
-                  aria-hidden
-                />
+                <URGENT_ICON className="size-4 text-destructive" aria-hidden />
                 {m.ntfKindUrgent()}
               </p>
               <p className="text-[13px] leading-[18px] text-muted-foreground">
                 {data.texts ? m.ntfUrgentLocked() : m.ntfUrgentLockedEmail()}
               </p>
             </li>
-            {kindsFor(user.workspace, user.capabilities, user.modules).map(
-              (kind) => {
-                const Icon = KIND_ICON[kind];
-                return (
-                  <li
-                    key={kind}
-                    className="grid gap-3 border-t pt-5 @min-[560px]:grid-cols-[minmax(0,1fr)_auto] @min-[560px]:items-end"
-                  >
-                    <p className="flex items-center gap-2 text-sm leading-5 font-medium @min-[560px]:self-center">
-                      <Icon
-                        className="size-4 text-muted-foreground"
-                        aria-hidden
-                      />
-                      {KIND_LABEL[kind]()}
-                    </p>
-                    <div className="flex flex-wrap gap-3">
+            {CHOOSABLE_KINDS.filter(
+              (kind) =>
+                wordOn("notices", kind, user.modules) &&
+                (KIND_LABEL[kind] ?? notices.labelOf(kind)) !== undefined &&
+                coreOffers(kind, user.workspace) &&
+                notices.offered(kind, user.workspace, user.capabilities),
+            ).map((kind) => {
+              const Icon = notices.iconOf(kind);
+              return (
+                <li
+                  key={kind}
+                  className="grid gap-3 border-t pt-5 @min-[560px]:grid-cols-[minmax(0,1fr)_auto] @min-[560px]:items-end"
+                >
+                  <p className="flex items-center gap-2 text-sm leading-5 font-medium @min-[560px]:self-center">
+                    <Icon
+                      className="size-4 text-muted-foreground"
+                      aria-hidden
+                    />
+                    {(KIND_LABEL[kind] ?? notices.labelOf(kind))?.()}
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <SelectField
+                      id={`email-${kind}`}
+                      label={m.ntfEmail()}
+                      className="w-40"
+                      value={draft.preferences.email[kind]}
+                      options={EMAIL_MODES.map((mode) => ({
+                        value: mode,
+                        label: EMAIL_LABEL[mode](),
+                      }))}
+                      onChange={(mode) =>
+                        set({
+                          email: { ...draft.preferences.email, [kind]: mode },
+                        })
+                      }
+                    />
+                    {data.texts ? (
                       <SelectField
-                        id={`email-${kind}`}
-                        label={m.ntfEmail()}
-                        className="w-40"
-                        value={draft.preferences.email[kind]}
-                        options={EMAIL_MODES.map((mode) => ({
+                        id={`sms-${kind}`}
+                        label={m.ntfSms()}
+                        className="w-32"
+                        value={draft.preferences.sms[kind]}
+                        options={SMS_MODES.map((mode) => ({
                           value: mode,
-                          label: EMAIL_LABEL[mode](),
+                          label: SMS_LABEL[mode](),
                         }))}
                         onChange={(mode) =>
                           set({
-                            email: { ...draft.preferences.email, [kind]: mode },
+                            sms: { ...draft.preferences.sms, [kind]: mode },
                           })
                         }
                       />
-                      {data.texts ? (
-                        <SelectField
-                          id={`sms-${kind}`}
-                          label={m.ntfSms()}
-                          className="w-32"
-                          value={draft.preferences.sms[kind]}
-                          options={SMS_MODES.map((mode) => ({
-                            value: mode,
-                            label: SMS_LABEL[mode](),
-                          }))}
-                          onChange={(mode) =>
-                            set({
-                              sms: { ...draft.preferences.sms, [kind]: mode },
-                            })
-                          }
-                        />
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              },
-            )}
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
           {!data.texts ? (
             data.channels.email ? null : (

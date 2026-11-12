@@ -21,6 +21,28 @@ export interface PortalLook {
 export const portalLooks = point<PortalLook>("portal looks");
 
 /**
+ * Who a module brings to the portal besides students and staff, by the
+ * word the portal's pages know them by. It is all a stranger learns of the
+ * school's plan from its sign-in, since the page's words name them.
+ */
+export interface PortalAudience {
+  audience: string;
+}
+
+export const portalAudiences = point<PortalAudience>("portal audiences");
+
+/**
+ * A page a module opens to strangers on the school's portal, by its name:
+ * the application form, say. A stranger learns no more from it than from
+ * asking for the page.
+ */
+export interface PortalDoor {
+  door: string;
+}
+
+export const portalDoors = point<PortalDoor>("portal doors");
+
+/**
  * What a school's portal shows of the school before anyone signs in. The
  * portal's pages are the app's own, in its design system; this is only what
  * makes them the school's: its names, its logo, its colour and the way back
@@ -43,6 +65,10 @@ export interface PortalFace {
   turnstileKey: string | null;
   /** The school's portal is suspended: its page says so, and nobody signs in. */
   paused: boolean;
+  /** Who besides students and staff signs in here, by the word each module names them by. */
+  audiences: string[];
+  /** The pages the school's modules open to strangers, by name. */
+  doors: string[];
 }
 
 const TTL_MS = 60_000;
@@ -80,6 +106,8 @@ export async function portalFace(
       websiteHost: null,
       turnstileKey: null,
       paused: true,
+      audiences: [],
+      doors: [],
     };
   const value = await withPublicSite(context, slug, async (unit) => {
     const { tx, tenantId, schoolId } = unit;
@@ -114,6 +142,16 @@ export async function portalFace(
         : null,
       turnstileKey: context.turnstile?.siteKey ?? null,
       paused: false,
+      audiences: contributionsAmong(
+        context.extensions,
+        unit.modules,
+        portalAudiences,
+      ).map((each) => each.audience),
+      doors: contributionsAmong(
+        context.extensions,
+        unit.modules,
+        portalDoors,
+      ).map((each) => each.door),
     };
   });
   cache.delete(slug);

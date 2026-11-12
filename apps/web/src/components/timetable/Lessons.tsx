@@ -1,5 +1,3 @@
-import type { Tone } from "@faridalms/ui/system/status";
-
 import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
 import { Link } from "@tanstack/react-router";
 
@@ -9,8 +7,13 @@ import { classTitle } from "~/components/classes/format";
 import { HomeItem, HomeList, itemLink } from "~/components/home/parts";
 import { PersonLink } from "~/components/people/PersonLink";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { formatTime } from "~/utils/datetime";
+
+import type { RegisterState } from "./slots";
+
+import { lessonRegisters } from "./slots";
 
 export interface Slot {
   periodId: string;
@@ -29,17 +32,8 @@ export interface Slot {
   teacherNameAr: string | null;
   teacherLink: RecordLink;
   when: "now" | "next" | null;
-  register: "not_started" | "in_progress" | "submitted" | null;
+  register: RegisterState | null;
 }
-
-const REGISTER: Record<
-  "not_started" | "in_progress" | "submitted",
-  { label: () => string; tone: Tone }
-> = {
-  not_started: { label: m.homeRegisterNotTaken, tone: "warning" },
-  in_progress: { label: m.homeRegisterInProgress, tone: "info" },
-  submitted: { label: m.homeRegisterTaken, tone: "success" },
-};
 
 export interface LessonsProps {
   slots: Slot[];
@@ -50,13 +44,15 @@ export interface LessonsProps {
 
 /**
  * A day's lessons in order, the one on now and the next one marked. For a
- * teacher each lesson with a register links to it.
+ * teacher each lesson with a register links to it, where a module keeps
+ * registers.
  */
 export function Lessons({
   slots,
   registerDate,
   showTeacher = false,
 }: LessonsProps) {
+  const registers = useSlot(lessonRegisters)[0];
   return (
     <HomeList>
       {slots.map((slot) => {
@@ -71,17 +67,20 @@ export function Lessons({
           titleEn: slot.classTitleEn,
           titleAr: slot.classTitleAr,
         });
-        const register = slot.register ? REGISTER[slot.register] : null;
+        const register =
+          registers && slot.register ? registers.states[slot.register] : null;
         return (
           <HomeItem
             key={`${slot.periodId}-${slot.classId}`}
             title={
               <span className="flex flex-wrap items-center gap-2">
-                {registerDate && slot.register ? (
+                {registers && registerDate && slot.register ? (
                   <Link
-                    to="/registers/$classId"
-                    params={{ classId: slot.classId }}
-                    search={{ date: registerDate, periodId: slot.periodId }}
+                    {...registers.linkOf({
+                      classId: slot.classId,
+                      periodId: slot.periodId,
+                      date: registerDate,
+                    })}
                     className={itemLink}
                   >
                     <bdi>{name}</bdi>

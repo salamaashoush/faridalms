@@ -7,6 +7,7 @@ import type { ModuleContributions } from "../core/extension";
 import { consentMoments } from "../consents/points";
 import { addressConfirmations } from "../core/confirmed";
 import { contribute } from "../core/extension";
+import { portalDoors } from "../core/portal-face";
 import { retentionSubjects } from "../core/retention";
 import { setupMeasures } from "../core/setup";
 import { fileHosts } from "../files/authorize";
@@ -23,6 +24,7 @@ export const ADMISSIONS: ModuleContributions = {
   contributions: [
     admissionsCalendar,
     contribute(fileHosts, ADMISSIONS_HOSTS),
+    contribute(portalDoors, { door: "apply" }),
     contribute(mailboxHooks, ADMISSIONS_MAILBOXES),
     contribute(consentMoments, { meanings: APPLICATION_CONSENTS }),
     contribute(retentionSubjects, ADMISSIONS_RETENTION),

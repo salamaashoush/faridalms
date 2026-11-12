@@ -16,6 +16,7 @@ import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import * as m from "~/i18n/messages";
 import { publishForm, saveForm } from "~/server/admissions";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 export interface FormDraft extends AdmissionQuestions {
   id: string;
@@ -37,6 +38,7 @@ export interface FormEditorProps {
  * are answered against.
  */
 export function FormEditor({ initial, onDone }: FormEditorProps) {
+  const words = useWords();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(initial);
   const leaving = useRef(false);
@@ -77,7 +79,7 @@ export function FormEditor({ initial, onDone }: FormEditorProps) {
   return (
     <RecordForm
       title={draft.id ? m.afmEditTitle() : m.afmNewTitle()}
-      description={m.afmEditorHint()}
+      description={words(m.afmEditorHintCore)()}
       isDirty={() =>
         !leaving.current && JSON.stringify(draft) !== JSON.stringify(initial)
       }

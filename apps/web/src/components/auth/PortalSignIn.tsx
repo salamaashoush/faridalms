@@ -4,6 +4,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import * as m from "~/i18n/messages";
 import { bareHref } from "~/utils/host";
 
+import { usePortalWords } from "./portal-words";
 import { faceName, PortalHelp } from "./SchoolFace";
 import { SignInForm } from "./SignInForm";
 
@@ -16,12 +17,13 @@ export interface PortalSignInProps {
 /** Sign-in on a school's own portal, which welcomes people in the school's name. */
 export function PortalSignIn({ redirect }: PortalSignInProps) {
   const face = auth.useLoaderData();
+  const words = usePortalWords(face);
   return (
     <>
       {face ? (
         <AuthHeading
           title={m.portalWelcome({ school: faceName(face) })}
-          lead={m.portalSignInLead()}
+          lead={words(m.portalSignInLeadCore)()}
         />
       ) : (
         <AuthHeading title={m.authSignInTitle()} lead={m.authSignInBody()} />
