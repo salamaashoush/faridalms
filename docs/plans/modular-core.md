@@ -43,7 +43,10 @@ courses from a start date, for adults, with no year, cannot be represented.
    except that module's own, a module that requires or needs it, and the
    composition root; a source check refuses anything else. A contribution
    made by one module to another's point is the code's link table: it lives
-   with its provider and runs only where both are on.
+   with its provider and runs only where both are on. Such a contribution
+   sits in a declared link file that states the modules it needs. A file
+   that still imports a module it may not is listed, by the step that
+   removes it, in a list the source check lets only shrink.
 6. **The database cannot tell whether a module is on**, since entitlements
    live in the directory. So a module's rule that must stop when the module
    is off runs in its stores, called from its API; the database holds only
@@ -75,6 +78,10 @@ courses from a start date, for adults, with no year, cannot be represented.
 - **Enrolments**: a person in a class, in a role, over dates inside the
   class's `runs`. A class's roster is its enrolments, always; no reader
   resolves a roster through another class.
+- **Students**: a student is a person holding the student role at the
+  school. The day a student left, and the day their access ends, are core
+  facts (`student_departures`), the same with any module on or off, so
+  retention counts from the last day whatever a module adds to leaving.
 - **School days**: the school's week and its closures, by date. Attendance
   and the timetable read them; they belong to no year.
 - Documents and the editor, files, media, templates, comments, messages,
@@ -203,6 +210,10 @@ Each step leaves `bun run ready` green.
     (`docs/architecture.md`, `docs/systems/platform-foundation.md`,
     `docs/product-spec.md`, `docs/plans/onboarding.md`,
     `docs/plans/navigation.md`, `docs/plans/open-work.md`).
+
+Between steps 4 and 6 a class with no year link cannot take a register, a
+timetable entry, an assignment or a term grade; the API refuses it by name
+(`class.no_school_year`) and steps 5 and 6 remove each refusal.
 
 ## Not in this work
 
