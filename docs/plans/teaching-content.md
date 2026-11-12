@@ -855,33 +855,9 @@ Scratch Text to Speech, Translate and tutorials.
 
 1. **LTI 1.3** with Deep Linking and Assignment and Grade Services, so a
    school plugs in outside tools.
-   Done: Farida is an LTI 1.3 platform, as the owner decided. A school
-   registers outside tools in Settings, each given a client id and
-   deployment id, and finds there the issuer, key set, authorization and
-   access token addresses a tool's maker needs. A teacher places an
-   "Outside tool" block in a lesson or brief; whoever opens it launches
-   the tool by LTI 1.3's third-party-initiated sign-in, signed with the
-   school's own RSA key, as an instructor when they teach it and a
-   learner when they study it, with names only when the school says.
-   Selected, the block's bar offers the school's tools and "Choose
-   content": Deep Linking opens the tool's own window, and the simulation
-   or exercise picked there comes back to the link, checked against the
-   tool's published keys, its title, address, parameters and grade
-   column with it. Assignment and Grade Services let the tool report
-   back: a token endpoint that takes the tool's signed assertion once,
-   columns per course (a lesson's module, a brief's class) under an
-   address only a launch reveals, scores ordered by the tool's own
-   timestamps, and results scaled to the column. A link's picked content
-   gets its column at its first launch. Teachers see each tool column in
-   a module's progress beside its lessons, and a brief's grade sheet
-   lists what its tools scored the student, with a button to take the
-   score, scaled to the assignment's points, as the mark. A student's
-   scores go when they are erased.
-   Class lists, Submission Review, picking several items, tools framed in
-   the page, tool columns in the gradebook and Dynamic Registration are
-   done (`docs/systems/interoperability.md`). Left: rotating the school's
-   signing key on a schedule; a student seeing their tool scores in
-   Farida.
+   Withdrawn: outside tools, their grade columns and the integrations
+   module were removed in November 2026, as the owner decided they are
+   bolted on rather than what a school needs.
 2. **QTI 3 and Common Cartridge** import and export, so content comes in
    from Moodle and Canvas and leaves again.
    Done: a module exports its questions as a QTI 3 package, each kind QTI
@@ -935,21 +911,13 @@ Scratch Text to Speech, Translate and tutorials.
    its own import converters run over the exports, not a live site.
    Left: a live Canvas site, to confirm what its converters showed.
 3. **Results shaped for xAPI** (score, duration, completion).
-   Done: a module's progress view exports a class's results as Experience
-   API 1.0.3 statements, as the owner chose, with no store of our own:
-   each student's progress in each lesson (completed or attempted, its
-   score out of a hundred, whether it passed, and the time from opening to
-   finishing), each marked answer as an answered interaction of its kind
-   with its share of the question's points, and each video watched with
-   how much was seen. Students are named by their id under the school's
-   address, statements by ids the same records always give, so a record
-   store takes a second export without doubling it.
-   Statements go to a school's own record store as they happen, marks
-   and tools' scores among them, and cmi5 packages launch from a lesson.
+   Withdrawn with outside tools: the statements export, sending to a
+   school's record store and cmi5 course packages were removed in
+   November 2026.
 
 Waiting for the owner: help from a language model for teachers (drafting
 questions, levelling a text, translating), teaching languages beyond
-English and Arabic, how far LTI and QTI go, hosted video beside our own
+English and Arabic, how far QTI goes, hosted video beside our own
 pipeline, and generated narration audio for young children.
 
 ## Order of work

@@ -175,9 +175,9 @@ Pro); visible at once (Canvas automatic, ManageBac) or held until released
   with a clock when it came in late and an eye struck through while the
   student cannot see it. Without a score it says To grade (handed in),
   Missing (past the student's own due date with nothing in) or Excused, and
-  work not set for that student says Not assigned. Outside tools' columns
-  carry a plug. The legend under the grid names each mark on screen and a
-  screen reader hears the same words in the cell. The italic is gone.
+  work not set for that student says Not assigned. The legend under the
+  grid names each mark on screen and a screen reader hears the same words
+  in the cell. The italic is gone.
 - **Each result opens its grading.** A handed-in result links to the
   grading view for that student and work, and each work's heading opens the
   work, so the gradebook is a way into grading rather than a dead end.
@@ -199,7 +199,7 @@ Pro); visible at once (Canvas automatic, ManageBac) or held until released
 ## Kept
 
 Every term grade, comment, calculated grade, release, use of the calculated
-grades, outside tool score and link to its work, the range check, the
+grades, the range check, the
 closed-year read-only view, the leave guard, the `submissions:grade` page
 gate and the API's class reach are as they were.
 

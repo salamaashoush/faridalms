@@ -26,8 +26,7 @@ Before this model, questions were written down three ways.
   draws from the bank (`quiz_draws`, each the drawn node), mixed reviews
   (`practice.ts`), the printed paper (`print/PaperQuestion.tsx`), QTI 3.0
   and 1.2 and Common Cartridge (`qti.ts`, `qti12.ts`, `qti-read.ts`,
-  `cartridge*.ts`), the xAPI statements of an answer (`xapi.ts`,
-  `interactionType`), the teacher's answer boards and the Right now view
+  `cartridge*.ts`), the teacher's answer boards and the Right now view
   all read it this way. Grading scales (`grading.ts`) are grades, not
   questions.
 - **Website form questions.** Items of the `form` site section

@@ -4534,9 +4534,7 @@ hash and an asynchronous sealer ([R2] finding 4, probe). So:
 ### 6.15 Learning activity
 
 There is no activity log. Lesson progress, answers, watches and submissions
-are kept in their own tables, and an export to a learning record store
-writes them as xAPI statements from those records when asked
-(`packages/domain/src/xapi.ts`), so nothing records a child's activity a
+are kept in their own tables, and nothing records a child's activity a
 second time.
 
 ### 6.16 Repeated writes
