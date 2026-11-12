@@ -276,6 +276,15 @@ describe("badges at the class screen", () => {
         api.attendance.checkIn({ ...held, badge: "A".repeat(43) }),
       ),
     ).toMatchObject({ code: "NOT_FOUND" });
+    // With badges off a badge checks nobody in, and does again once they are on.
+    await withoutModules(YOUNG, ["badges"], async () => {
+      expect(await rejection(api.attendance.checkIn(held))).toMatchObject({
+        code: "NOT_FOUND",
+      });
+    });
+    expect(await api.attendance.checkIn(held)).toMatchObject({
+      studentId: child.userId,
+    });
 
     await office.attendance.saveSettings({
       ...kept,
@@ -305,6 +314,21 @@ describe("badges as a school's modules have them", () => {
     });
     expect((await client(YOUNG).badges.signIn({ secret })).workspace).toBe(
       "me",
+    );
+    // Nor does the office open badges as a way to sign in while they are off.
+    const office = await signedIn(YOUNG, login("principal", 0, 1));
+    const picked = { studentIds: [child.userId], way: "badges" as const };
+    await withoutModules(YOUNG, ["badges"], async () => {
+      expect(await rejection(office.people.signInsPlan(picked))).toMatchObject({
+        code: "BAD_REQUEST",
+        message: "sign_in.way",
+      });
+      expect(
+        await rejection(office.people.createSignIns(picked)),
+      ).toMatchObject({ code: "BAD_REQUEST", message: "sign_in.way" });
+    });
+    expect((await office.people.signInsPlan(picked)).had).toContain(
+      child.userId,
     );
   });
 

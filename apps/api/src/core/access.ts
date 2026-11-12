@@ -4,6 +4,7 @@ import {
   accessManagerCount,
   lockAccess,
 } from "@faridalms/database/stores/access";
+import { effectiveAccess } from "@faridalms/database/stores/identity";
 import { CAPABILITIES } from "@faridalms/domain/capabilities";
 import { ORPCError } from "@orpc/server";
 
@@ -39,18 +40,28 @@ export async function guardingAccess<T>(
   return result;
 }
 
-/** What the actor may grant: only capabilities they hold themselves. */
-export function grantable(context: UnitContext): Capability[] {
-  return CAPABILITIES.filter((capability) =>
-    context.actor.capabilities.has(capability),
-  );
+/**
+ * What the actor may grant: only capabilities their roles hold, those of a
+ * module that is off included, so a role keeps what it holds while the
+ * module is off and is given again what it held.
+ */
+export async function grantable(context: UnitContext): Promise<Capability[]> {
+  const held = await effectiveAccess(context.tx, {
+    tenantId: context.tenantId,
+    userId: context.actor.userId,
+    orgId: context.schoolId,
+    today: context.today,
+    context: context.actor.context,
+    young: false,
+  });
+  return CAPABILITIES.filter((capability) => held.capabilities.has(capability));
 }
 
-export function requireGrantable(
+export async function requireGrantable(
   context: UnitContext,
   capabilities: readonly string[],
 ) {
-  const held = new Set<string>(grantable(context));
+  const held = new Set<string>(await grantable(context));
   if (capabilities.some((capability) => !held.has(capability)))
     throw new ORPCError("FORBIDDEN", { message: "access.not_held" });
 }

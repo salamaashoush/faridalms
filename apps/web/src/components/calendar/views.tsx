@@ -30,13 +30,8 @@ import {
 
 import type { Change } from "./Reschedule";
 
-import {
-  CATEGORY_LABEL,
-  CATEGORY_MARK,
-  eventTitle,
-  specialDayLabel,
-  timeLabel,
-} from "./format";
+import { specialDayLabel, timeLabel } from "./format";
+import { useCalendarWords } from "./words";
 
 type Range = Awaited<
   ReturnType<NonNullable<ReturnType<typeof calendarRangeQuery>["queryFn"]>>
@@ -52,7 +47,7 @@ export interface CategoryIconProps {
 }
 
 export function CategoryIcon({ category, className }: CategoryIconProps) {
-  const { icon: Icon, colour } = CATEGORY_MARK[category];
+  const { icon: Icon, colour } = useCalendarWords().mark(category);
   return (
     <Icon
       className={cn("shrink-0", colour, className)}
@@ -163,12 +158,9 @@ interface EventLinkProps
  * or interview, the application it was booked for.
  */
 function EventLink({ event, ...rest }: EventLinkProps) {
-  return event.admission ? (
-    <Link
-      {...rest}
-      to="/admissions/applications/$applicationId"
-      params={{ applicationId: event.admission.applicationId }}
-    />
+  const link = useCalendarWords().linkOf(event);
+  return link ? (
+    <Link {...rest} {...link} />
   ) : (
     <Link
       {...rest}
@@ -187,6 +179,7 @@ interface EventChipProps {
 }
 
 function EventChip({ event, day, actions, drag }: EventChipProps) {
+  const words = useCalendarWords();
   const movable = Boolean(actions?.movable(event) && drag);
   const last = day === event.endsOn;
   return (
@@ -198,7 +191,7 @@ function EventChip({ event, day, actions, drag }: EventChipProps) {
     >
       <EventLink
         event={event}
-        title={eventTitle(event)}
+        title={words.title(event)}
         draggable={movable}
         onDragStart={
           movable && drag
@@ -234,7 +227,7 @@ function EventChip({ event, day, actions, drag }: EventChipProps) {
             <bdi dir="ltr">{event.startTime}</bdi>
           </span>
         ) : null}
-        <bdi className="truncate">{eventTitle(event)}</bdi>
+        <bdi className="truncate">{words.title(event)}</bdi>
       </EventLink>
       {movable && last && drag ? (
         <span
@@ -549,6 +542,7 @@ interface AgendaItemProps {
 }
 
 function AgendaItem({ event }: AgendaItemProps) {
+  const words = useCalendarWords();
   return (
     <li className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 py-2.5 max-sm:grid-cols-1 max-sm:gap-1">
       <span className="text-sm leading-5 text-muted-foreground tabular-nums">
@@ -563,7 +557,7 @@ function AgendaItem({ event }: AgendaItemProps) {
               event.cancelled && "text-muted-foreground line-through",
             )}
           >
-            <bdi>{eventTitle(event)}</bdi>
+            <bdi>{words.title(event)}</bdi>
           </EventLink>
           {event.state === "draft" ? (
             <StatusBadge tone="neutral">{m.calDraft()}</StatusBadge>
@@ -578,7 +572,7 @@ function AgendaItem({ event }: AgendaItemProps) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[18px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <CategoryIcon category={event.category} className="size-3.5" />
-            {CATEGORY_LABEL[event.category]()}
+            {words.label(event.category)}
           </span>
           {event.location ? (
             <span className="flex min-w-0 items-center gap-1">
@@ -753,6 +747,7 @@ export function MonthCompact({
   events,
   days,
 }: MonthCompactProps) {
+  const words = useCalendarWords();
   const secondary = useCurrentUser().school.secondaryCalendar;
   const weeks = monthWeeks(month, weekStart);
   const special = new Map(days.map((row) => [row.day, row]));
@@ -822,7 +817,7 @@ export function MonthCompact({
                         key={kind}
                         className={cn(
                           "size-1.5 rounded-full bg-current",
-                          CATEGORY_MARK[kind].colour,
+                          words.mark(kind).colour,
                         )}
                       />
                     ))}

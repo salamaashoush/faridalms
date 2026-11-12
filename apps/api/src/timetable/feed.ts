@@ -10,6 +10,12 @@ import {
 } from "@faridalms/database/stores/timetable";
 import { addDays } from "@faridalms/domain/school";
 
+import type { FeedEntry } from "../calendar/points";
+import type { ModuleContributions } from "../core/extension";
+
+import { feedSources } from "../calendar/points";
+import { contribute } from "../core/extension";
+
 /** How far a feed's lessons reach: last week, and the weeks ahead. */
 const BACK_DAYS = 7;
 const AHEAD_DAYS = 42;
@@ -22,26 +28,12 @@ const WORDS = {
 const key = (row: { classId: string; periodId: string }, day: string) =>
   `${row.classId}:${row.periodId}:${day}`;
 
-export interface FeedLesson {
-  id: string;
-  title: string;
-  startsOn: string;
-  endsOn: string;
-  startTime: string | null;
-  endTime: string | null;
-  location: string | null;
-  description: string;
-  cancelled: boolean;
-  version: number;
-  url: string;
-}
-
 /**
  * A person's lessons for their calendar feed, day by day as they are held:
  * a student's classes, and a teacher's own lessons with those they cover.
  * Cancelled lessons stay in the feed as cancelled, so apps remove them.
  */
-export async function feedLessons(
+async function feedLessons(
   tx: CellTransaction,
   input: {
     tenantId: string;
@@ -51,7 +43,7 @@ export async function feedLessons(
     locale: "en" | "ar";
     origin: string;
   },
-): Promise<FeedLesson[]> {
+): Promise<FeedEntry[]> {
   const from = addDays(input.today, -BACK_DAYS);
   const to = addDays(input.today, AHEAD_DAYS);
   const span: string[] = [];
@@ -123,7 +115,7 @@ export async function feedLessons(
     row: MeetingRow,
     change: LessonChange | undefined,
     cover: boolean,
-  ): FeedLesson | null => {
+  ): FeedEntry | null => {
     const period = periodOf(row);
     if (!period?.startTime || !period.endTime) return null;
     // A teacher away for a lesson someone covers has nothing on then.
@@ -158,7 +150,7 @@ export async function feedLessons(
     };
   };
   const seen = new Set<string>();
-  const lessons: FeedLesson[] = [];
+  const lessons: FeedEntry[] = [];
   for (const row of own) {
     const id = key(row, row.on);
     if (seen.has(id)) continue;
@@ -174,3 +166,18 @@ export async function feedLessons(
   }
   return lessons;
 }
+
+/** A person's lessons in their calendar feed, where the timetable plans them. */
+export const TIMETABLE_FEED: ModuleContributions = {
+  module: "timetable",
+  contributions: [
+    contribute(feedSources, {
+      entriesFor: (scope, input) =>
+        feedLessons(scope.tx, {
+          ...input,
+          tenantId: scope.tenantId,
+          schoolId: scope.schoolId,
+        }),
+    }),
+  ],
+};

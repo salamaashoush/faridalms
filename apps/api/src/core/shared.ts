@@ -15,6 +15,8 @@ import * as v from "valibot";
 
 import type { UnitContext } from "./context";
 
+import { contributionsTo, point } from "./extension";
+
 /**
  * Writes out the shared blocks some documents show, as they stand now, for
  * copies that leave the school's own pages: the website, an export. The
@@ -37,21 +39,25 @@ export async function sharedInliner(
   return (document) => inlineShared(document, blocks);
 }
 
-type Reviser = (context: UnitContext, sharedId: string) => Promise<number>;
-let reviser: Reviser | null = null;
-
-/** The website registers how its published pages follow a shared section that changed. */
-export function registerLiveReviser(revise: Reviser) {
-  reviser = revise;
+/**
+ * How a module's published copies follow a shared section that changed,
+ * answering how many it brought up to date: the website's pages, say.
+ */
+export interface LiveReviser {
+  revise(context: UnitContext, sharedId: string): Promise<number>;
 }
 
+export const liveRevisers = point<readonly LiveReviser[]>("live revisers");
+
 /**
- * Brings every published page showing a shared section up to date with it,
+ * Brings every published copy showing a shared section up to date with it,
  * answering how many there were.
  */
-export function reviseLivePages(context: UnitContext, sharedId: string) {
-  if (!reviser) throw new Error("the website has not registered its reviser");
-  return reviser(context, sharedId);
+export async function reviseLivePages(context: UnitContext, sharedId: string) {
+  let revised = 0;
+  for (const reviser of (await contributionsTo(context, liveRevisers)).flat())
+    revised += await reviser.revise(context, sharedId);
+  return revised;
 }
 
 /** The shared sections of the viewer's school among these, each as it stands now. */

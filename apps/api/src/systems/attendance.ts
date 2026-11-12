@@ -33,7 +33,6 @@ import {
   undoCheckIn as undoCheckInMark,
   writeRegister,
 } from "@faridalms/database/stores/attendance";
-import { findBadge } from "@faridalms/database/stores/badges";
 import {
   classById,
   classesTaughtBy,
@@ -82,6 +81,7 @@ import {
   registerIn,
   takenIn,
 } from "../attendance/plans";
+import { cardHolder } from "../attendance/points";
 import { settlementOf } from "../classes/points";
 import { notify } from "../core/notify";
 import {
@@ -93,7 +93,6 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { reachesClass, reachesStudent, teaches } from "../core/reach";
-import { badgeHash } from "../core/session";
 import { reportRange } from "../core/spans";
 import { hearersFor } from "../people/acting";
 
@@ -561,15 +560,12 @@ export const checkIn = writeProcedure
     if (!allowed)
       throw new ORPCError("FORBIDDEN", { message: "attendance.check_in_off" });
     const { classRow, roster, period } = await checkInRegister(context, input);
-    const holder = input.badge
-      ? await findBadge(context.tx, badgeHash(input.badge))
-      : null;
     const studentId =
       input.via === "touch"
         ? input.studentId
-        : holder?.accountState === "active"
-          ? holder.userId
-          : undefined;
+        : input.badge
+          ? await cardHolder(context, input.badge)
+          : null;
     // A badge from another class reads as no badge at all.
     if (!studentId || !roster.includes(studentId))
       throw new ORPCError("NOT_FOUND", { message: "attendance.not_roster" });

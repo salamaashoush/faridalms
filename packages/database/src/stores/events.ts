@@ -5,7 +5,7 @@ import type { EventCategory, EventState } from "../tables/events";
 import type { Reach } from "./audiences";
 
 import { reaches } from "./audiences";
-import { isoOf } from "./sql";
+import { isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -418,4 +418,25 @@ export async function openFeed(
   return row
     ? { userId: row.user_id, locale: row.locale === "ar" ? "ar" : "en" }
     : null;
+}
+
+/** Calendar events' titles, for the records that show their documents. */
+export async function eventTitles(
+  tx: Tx,
+  tenantId: string,
+  ids: readonly string[],
+): Promise<Map<string, { titleEn: string | null; titleAr: string | null }>> {
+  const rows = await tx.execute<{
+    id: string;
+    title_en: string | null;
+    title_ar: string | null;
+  }>(sql`
+    select id, title_en, title_ar from core.calendar_events
+    where tenant_id = ${tenantId}::uuid and id = any(${uuidArray(ids)}) and status = 'active'`);
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      { titleEn: row.title_en, titleAr: row.title_ar },
+    ]),
+  );
 }

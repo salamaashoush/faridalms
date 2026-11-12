@@ -1,10 +1,8 @@
-import type { EventKind } from "@faridalms/domain/admissions";
-import type { ShownCategory } from "@faridalms/domain/calendar";
+import type { CalendarCategory } from "@faridalms/domain/calendar";
 import type { LucideIcon } from "lucide-react";
 
 import {
   Bus,
-  CalendarClock,
   CalendarDays,
   Music,
   PartyPopper,
@@ -13,11 +11,10 @@ import {
   Users,
 } from "lucide-react";
 
-import { EVENT_KIND_LABEL } from "~/components/admissions/application-labels";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 
-export const CATEGORY_LABEL: Record<ShownCategory, () => string> = {
+export const CATEGORY_LABEL: Record<CalendarCategory, () => string> = {
   general: m.calCatGeneral,
   meeting: m.calCatMeeting,
   trip: m.calCatTrip,
@@ -25,12 +22,11 @@ export const CATEGORY_LABEL: Record<ShownCategory, () => string> = {
   sport: m.calCatSport,
   exam: m.calCatExam,
   celebration: m.calCatCelebration,
-  admissions: m.calCatAdmissions,
 };
 
 /** Each kind's mark: an icon to read and a colour to scan, never the colour alone. */
 export const CATEGORY_MARK: Record<
-  ShownCategory,
+  CalendarCategory,
   { icon: LucideIcon; colour: string }
 > = {
   general: {
@@ -46,26 +42,13 @@ export const CATEGORY_MARK: Record<
     icon: PartyPopper,
     colour: "text-fuchsia-600 dark:text-fuchsia-400",
   },
-  admissions: {
-    icon: CalendarClock,
-    colour: "text-teal-600 dark:text-teal-400",
-  },
 };
 
 /** An event's title in the reader's language, or the other when it has only one. */
 export const eventTitle = (event: {
   titleEn: string | null;
   titleAr: string | null;
-  admission?: { kind: EventKind } | null;
-}) => {
-  const title = inLocale(event.titleEn, event.titleAr);
-  return event.admission
-    ? m.calAdmissionTitle({
-        kind: EVENT_KIND_LABEL[event.admission.kind](),
-        name: title,
-      })
-    : title;
-};
+}) => inLocale(event.titleEn, event.titleAr);
 
 export interface Timed {
   startsOn: string;

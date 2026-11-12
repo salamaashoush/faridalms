@@ -10,8 +10,9 @@ import { schoolDate, addDays } from "@faridalms/domain/school";
 import type { RequestContext } from "../core/context";
 
 import { reachAt } from "../core/audiences";
+import { contributionsTo } from "../core/extension";
 import { portalOrigin } from "../core/portal";
-import { feedLessons } from "./lessons";
+import { feedSources } from "./points";
 
 const FEED = /^\/feeds\/([a-z0-9-]{1,60})\/([A-Za-z0-9_-]{43})\.ics$/;
 
@@ -35,9 +36,10 @@ export function newFeedToken() {
 
 /**
  * A person's calendar as an iCalendar file, for the calendar apps that poll
- * a private link without any session: events, closures and their lessons. The school is named in the address and
- * the secret stands for the person; what they see is worked out now, from
- * their reach today, so a link outlives nothing it should not.
+ * a private link without any session: events, closures, and what the
+ * modules on add, such as their lessons. The school is named in the
+ * address and the secret stands for the person; what they see is worked
+ * out now, from their reach today, so a link outlives nothing it should not.
  */
 export async function handleCalendarFeed(
   request: Request,
@@ -74,16 +76,14 @@ export async function handleCalendarFeed(
         from: addDays(today, -BACK_DAYS),
         to: addDays(today, AHEAD_DAYS),
       };
-      const reach = await reachAt(
-        {
-          tx,
-          tenantId: school.tenantId,
-          schoolId: school.schoolId,
-          school,
-          extensions: context.extensions,
-        },
-        { userId: owner.userId, on: today },
-      );
+      const scope = {
+        tx,
+        tenantId: school.tenantId,
+        schoolId: school.schoolId,
+        school,
+        extensions: context.extensions,
+      };
+      const reach = await reachAt(scope, { userId: owner.userId, on: today });
       const origin = portalOrigin(school, context.domains);
       const [events, days, lessons] = await Promise.all([
         eventsBetween(tx, {
@@ -93,14 +93,20 @@ export async function handleCalendarFeed(
           drafts: false,
         }),
         specialDays(tx, range),
-        feedLessons(tx, {
-          tenantId: school.tenantId,
-          schoolId: school.schoolId,
-          userId: owner.userId,
-          today,
-          locale: owner.locale,
-          origin,
-        }),
+        contributionsTo(scope, feedSources).then(async (sources) =>
+          (
+            await Promise.all(
+              sources.map((source) =>
+                source.entriesFor(scope, {
+                  userId: owner.userId,
+                  today,
+                  locale: owner.locale,
+                  origin,
+                }),
+              ),
+            )
+          ).flat(),
+        ),
       ]);
       const ar = owner.locale === "ar";
       const pick = (en: string | null, other: string | null) =>

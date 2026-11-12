@@ -1,5 +1,6 @@
 import type { ModuleFillings } from "./utils/extension";
 
+import { ADMISSIONS } from "./components/admissions/contributions";
 import { ADMISSIONS_BY_GRADE } from "./components/admissions/grades";
 import { ADMISSIONS_IN_YEARS } from "./components/admissions/years";
 import { COURSEWORK_WITH_FAMILIES } from "./components/coursework/family-shares";
@@ -22,6 +23,7 @@ import { SCHOOL_YEARS } from "./components/years/contributions";
  * those of the modules on at the school.
  */
 export const MODULE_FILLINGS: readonly ModuleFillings[] = [
+  ADMISSIONS,
   ADMISSIONS_BY_GRADE,
   ADMISSIONS_IN_YEARS,
   COURSEWORK_WITH_FAMILIES,

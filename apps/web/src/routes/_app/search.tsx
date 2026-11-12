@@ -1,10 +1,7 @@
 import type { SearchKind } from "@faridalms/domain/search";
 
-import {
-  SEARCH_KINDS,
-  kindOn,
-  searchableKinds,
-} from "@faridalms/domain/search";
+import { wordOn } from "@faridalms/domain/modules";
+import { SEARCH_KINDS, searchableKinds } from "@faridalms/domain/search";
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
@@ -138,7 +135,7 @@ function SearchPage() {
   const [draft, setDraft] = useState(search.q);
   const q = search.q.trim();
   const kinds = searchableKinds(user.capabilities).filter((kind) =>
-    kindOn(kind, user.modules),
+    wordOn("searchKinds", kind, user.modules),
   );
   const tab =
     search.kind === "all" || kinds.includes(search.kind) ? search.kind : "all";

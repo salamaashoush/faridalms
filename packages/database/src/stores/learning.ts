@@ -187,14 +187,42 @@ export async function updateModule(
   return row?.version ?? null;
 }
 
-/** Takes a module away, as a template's copy goes with the piece. */
-export async function retireModule(
+/** Keeps a module's copy as the one a template offers. */
+export async function keepModuleTemplate(
   tx: Tx,
-  input: { tenantId: string; id: string },
+  input: { tenantId: string; templateId: string; moduleId: string },
 ): Promise<void> {
   await tx.execute(sql`
+    insert into core.module_templates (tenant_id, template_id, module_id)
+    values (${input.tenantId}::uuid, ${input.templateId}::uuid, ${input.moduleId}::uuid)`);
+}
+
+/** The copy of a whole module a template keeps, or null for a template that keeps none. */
+export async function moduleOfTemplate(
+  tx: Tx,
+  input: { tenantId: string; templateId: string },
+): Promise<string | null> {
+  const [row] = await tx.execute<{ module_id: string }>(sql`
+    select module_id from core.module_templates
+    where tenant_id = ${input.tenantId}::uuid and template_id = ${input.templateId}::uuid
+      and status = 'active'`);
+  return row?.module_id ?? null;
+}
+
+/** Retires the module copy a removed template kept, and the link to it. */
+export async function retireTemplateModule(
+  tx: Tx,
+  input: { tenantId: string; templateId: string },
+): Promise<void> {
+  await tx.execute(sql`
+    with gone as (
+      update core.module_templates set status = 'tobedeleted'
+      where tenant_id = ${input.tenantId}::uuid and template_id = ${input.templateId}::uuid
+        and status = 'active'
+      returning module_id)
     update core.learning_modules set status = 'tobedeleted'
-    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and status = 'active'`);
+    where tenant_id = ${input.tenantId}::uuid and status = 'active'
+      and id in (select module_id from gone)`);
 }
 
 export async function setModuleState(
@@ -2558,4 +2586,118 @@ export async function lessonReadingsOf(
     fluency: row.fluency,
     markedAt: row.marked_at,
   }));
+}
+
+/** When a person last checked the translation against the original, or null. */
+export async function lessonTranslationReviewedAt(
+  tx: Tx,
+  tenantId: string,
+  id: string,
+): Promise<string | null> {
+  const [row] = await tx.execute<{ reviewed_at: string | null }>(sql`
+    select translation_reviewed_at::text as reviewed_at from core.lessons
+    where tenant_id = ${tenantId}::uuid and id = ${id}::uuid`);
+  return row?.reviewed_at ?? null;
+}
+
+/**
+ * Retires the projects and stage pictures of coding answers saved over
+ * since: all but a student's last `kept` saves of each question in each
+ * attempt, once older than `savedBefore`. A file a kept save still holds
+ * stays, and so does one offered to or shown in a class gallery, which
+ * holds a save as it stood however many came after. Keys come back only
+ * when no active row still points at the same object.
+ */
+export async function retireSupersededAnswers(
+  tx: Tx,
+  tenantId: string,
+  input: { kept: number; savedBefore: Date; limit: number },
+): Promise<string[]> {
+  const rows = await tx.execute<{ storage_key: string }>(sql`
+    with ranked as (
+      select r.response, r.created_at,
+        dense_rank() over (
+          partition by r.lesson_id, r.student_user_id, r.block_id, r.attempt
+          order by r.try desc) as recency
+      from core.lesson_responses r
+      where r.tenant_id = ${tenantId}::uuid and r.kind = 'scratch'
+    ),
+    held as (
+      select (response->'project'->>'fileId')::uuid as file_id, recency, created_at from ranked
+      union all
+      select (response->'thumbnail'->>'fileId')::uuid, recency, created_at from ranked
+      where response ? 'thumbnail'
+    ),
+    retired as (
+      update core.files set status = 'tobedeleted'
+      where tenant_id = ${tenantId}::uuid and id in (
+        select f.id from core.files f
+        where f.tenant_id = ${tenantId}::uuid and f.status = 'active'
+          and f.host_type = 'lesson_answer'
+          and f.id in (
+            select file_id from held
+            where recency > ${input.kept}
+              and created_at < ${input.savedBefore.toISOString()}::timestamptz)
+          and f.id not in (
+            select file_id from held
+            where file_id is not null and recency <= ${input.kept})
+          and not exists (
+            select 1 from core.lesson_shares s
+            where s.tenant_id = f.tenant_id and s.status = 'active'
+              and s.state <> 'declined'
+              and f.id::text in (
+                s.response->'project'->>'fileId',
+                s.response->'thumbnail'->>'fileId'))
+        order by f.created_at limit ${input.limit})
+      returning id, storage_key)
+    select distinct r.storage_key from retired r
+    where not exists (
+      select 1 from core.files f
+      where f.tenant_id = ${tenantId}::uuid and f.storage_key = r.storage_key
+        and f.status = 'active' and f.id not in (select id from retired))`);
+  return rows.map((row) => row.storage_key);
+}
+
+/** Lessons' titles with their module's, for the records that show their documents. */
+export async function lessonTitles(
+  tx: Tx,
+  tenantId: string,
+  ids: readonly string[],
+): Promise<Map<string, { title: string; module: string }>> {
+  const rows = await tx.execute<{
+    id: string;
+    title: string;
+    module: string;
+  }>(sql`
+    select l.id, l.title, m.title as module from core.lessons l
+    join core.learning_modules m on m.tenant_id = l.tenant_id and m.id = l.module_id
+    where l.tenant_id = ${tenantId}::uuid and l.id = any(${uuidArray(ids)})
+      and l.status = 'active'`);
+  return new Map(
+    rows.map((row) => [row.id, { title: row.title, module: row.module }]),
+  );
+}
+
+/** Modules' titles, for their unit plans' documents. */
+export async function moduleTitles(
+  tx: Tx,
+  tenantId: string,
+  ids: readonly string[],
+): Promise<Map<string, string>> {
+  const rows = await tx.execute<{ id: string; title: string }>(sql`
+    select id, title from core.learning_modules
+    where tenant_id = ${tenantId}::uuid and id = any(${uuidArray(ids)}) and status = 'active'`);
+  return new Map(rows.map((row) => [row.id, row.title]));
+}
+
+/** The module a lesson belongs to, which its editor is opened through. */
+export async function moduleOfLesson(
+  tx: Tx,
+  tenantId: string,
+  lessonId: string,
+): Promise<string | null> {
+  const [row] = await tx.execute<{ module_id: string }>(sql`
+    select module_id from core.lessons
+    where tenant_id = ${tenantId}::uuid and id = ${lessonId}::uuid`);
+  return row?.module_id ?? null;
 }

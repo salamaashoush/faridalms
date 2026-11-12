@@ -10,65 +10,12 @@ import {
 } from "@faridalms/database/stores/records";
 import { emptyNeeds, NEEDS_KINDS } from "@faridalms/domain/admissions";
 
-import type { UnitContext } from "./context";
+import type { UnitContext } from "../core/context";
+import type { ModuleContributions } from "../core/extension";
 
-export const healthCipher = (
-  context: Pick<UnitContext, "tenantId">,
-  rowId: string,
-  keyVersion: number,
-) => ({
-  tenantId: context.tenantId,
-  table: "health.records",
-  column: "ciphertext",
-  rowId,
-  keyVersion,
-});
-
-export const changeCipher = (
-  context: Pick<UnitContext, "tenantId">,
-  rowId: string,
-  keyVersion: number,
-) => ({
-  tenantId: context.tenantId,
-  table: "health.requested_changes",
-  column: "ciphertext",
-  rowId,
-  keyVersion,
-});
-
-/** Opens a sealed health value with the key version it was sealed under. */
-export async function openSealed(
-  context: UnitContext,
-  cipher: ReturnType<typeof healthCipher>,
-  ciphertext: Uint8Array,
-): Promise<unknown> {
-  const key = await context.keys.version(
-    context.tx,
-    context.tenantId,
-    "health",
-    cipher.keyVersion,
-  );
-  return JSON.parse(
-    await decryptField(key.key, new Uint8Array(ciphertext), cipher),
-  );
-}
-
-/** Seals a health value under the tenant's active key, for the row the cipher names. */
-export async function seal(
-  context: UnitContext,
-  cipherFor: (keyVersion: number) => ReturnType<typeof healthCipher>,
-  value: unknown,
-): Promise<{ keyVersion: number; ciphertext: Uint8Array }> {
-  const key = await context.keys.active(context.tx, context.tenantId, "health");
-  return {
-    keyVersion: key.version,
-    ciphertext: await encryptField(
-      key.key,
-      JSON.stringify(value),
-      cipherFor(key.version),
-    ),
-  };
-}
+import { contribute } from "../core/extension";
+import { healthCipher } from "../student-records/ciphers";
+import { applicantNeeds } from "./points";
 
 /** The health kinds an application asks about, by meaning. Run with the health purpose set. */
 async function needsKinds(context: UnitContext) {
@@ -91,7 +38,7 @@ async function needsKinds(context: UnitContext) {
  * record per kind asked, in the health system, so they need no copying when
  * the child is enrolled. Run with the health purpose set.
  */
-export async function readNeeds(
+async function readNeeds(
   context: UnitContext,
   applicantId: string,
 ): Promise<Needs & { ids: Partial<Record<NeedsKind, string>> }> {
@@ -132,7 +79,7 @@ export async function readNeeds(
  * a kind answered gets its record, one emptied loses it. Run with the
  * health purpose set. Answers the kinds that changed, by name only.
  */
-export async function writeNeeds(
+async function writeNeeds(
   context: UnitContext,
   applicantId: string,
   needs: Needs,
@@ -183,3 +130,12 @@ export async function writeNeeds(
   }
   return changed;
 }
+
+/** An applicant's health and needs kept as health records, where student records are kept. */
+export const ADMISSIONS_HEALTH: ModuleContributions = {
+  module: "admissions",
+  needs: ["student_records"],
+  contributions: [
+    contribute(applicantNeeds, { read: readNeeds, write: writeNeeds }),
+  ],
+};

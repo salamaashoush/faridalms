@@ -22,6 +22,7 @@ import type { UnitContext } from "../core/context";
 import type { ModuleScope } from "../core/extension";
 import type { NoticeScope } from "../core/notify";
 
+import { contributionsTo, point } from "../core/extension";
 import { notifyIn } from "../core/notify";
 import { actorsFor } from "../people/acting";
 
@@ -60,14 +61,11 @@ export interface WrittenEntry {
  * admissions, for one, records that a family was answered.
  */
 export interface MailboxHooks {
+  mailbox: Mailbox;
   written?: (scope: ConversationScope, entry: WrittenEntry) => Promise<void>;
 }
 
-const hooks = new Map<Mailbox, MailboxHooks>();
-
-export function registerMailbox(mailbox: Mailbox, rules: MailboxHooks) {
-  hooks.set(mailbox, rules);
-}
+export const mailboxHooks = point<readonly MailboxHooks[]>("mailbox hooks");
 
 /** Everyone who works a mailbox: the holders of its writer capability. */
 export async function mailboxTeam(
@@ -245,7 +243,11 @@ export async function writeEntry(
       collapse: true,
     });
   }
-  const written = thread.mailbox ? hooks.get(thread.mailbox)?.written : null;
+  const written = thread.mailbox
+    ? (await contributionsTo(scope, mailboxHooks))
+        .flat()
+        .find((hook) => hook.mailbox === thread.mailbox)?.written
+    : null;
   if (written)
     await written(scope, {
       threadId: thread.id,

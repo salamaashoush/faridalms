@@ -4,7 +4,13 @@ import { plainContent } from "@faridalms/domain/content-conversion";
 import { addDays } from "@faridalms/domain/school";
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, sessionFor, signedIn } from "./harness";
+import {
+  login,
+  rejection,
+  sessionFor,
+  signedIn,
+  withoutModules,
+} from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 const mother = () =>
@@ -102,6 +108,19 @@ describe("search", () => {
     const family = await mother();
     const theirs = await family.api.search.find({ q: "tidepool survey" });
     expect(ids(theirs, "assignments")).toHaveLength(0);
+
+    // With coursework off its work is not found, and is again once it is on.
+    await withoutModules("northwind", ["coursework"], async () => {
+      const off = await author.search.find({ q: "tidepool survey" });
+      expect(ids(off, "assignments")).toHaveLength(0);
+      expect(
+        await rejection(
+          author.search.find({ q: "tidepool survey", kind: "assignments" }),
+        ),
+      ).toMatchObject({ code: "FORBIDDEN" });
+    });
+    const on = await author.search.find({ q: "tidepool survey" });
+    expect(ids(on, "assignments").length).toBeGreaterThan(0);
   });
 
   test("classes of the same name at different times carry their dates, the one running today first", async () => {

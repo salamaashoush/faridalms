@@ -4,8 +4,8 @@ import {
   fileById,
   quarantineKey,
   sealedKey,
-  studentOfFile,
 } from "@faridalms/database/stores/files";
+import { studentOfHealthRecord } from "@faridalms/database/stores/records";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 
@@ -194,7 +194,9 @@ describe("medical reports at rest", () => {
       await seeded().cell.withWorker(unit, "read", (tx) =>
         withPurpose(tx, "health", async (inner) => {
           const held = await fileById(inner, tenantId, file.id);
-          return held ? studentOfFile(inner, tenantId, held) : null;
+          return held?.hostId
+            ? studentOfHealthRecord(inner, tenantId, held.hostId)
+            : null;
         }),
       ),
     ).toBe(studentId);

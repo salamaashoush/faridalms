@@ -4,7 +4,6 @@ import type { SavedSection } from "@faridalms/domain/saved-sections";
 
 import { changeOf } from "@faridalms/database/audit";
 import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
-import { retireModule } from "@faridalms/database/stores/learning";
 import { namesOf } from "@faridalms/database/stores/persons";
 import {
   insertTemplate,
@@ -27,7 +26,6 @@ import {
   saveSectionTemplateSchema,
   saveTemplateSchema,
   TEMPLATE_AUTHORS,
-  TEMPLATE_KINDS,
   templateKindSchema,
   templateRefSchema,
   updateTemplateSchema,
@@ -45,12 +43,14 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { templateHost, usableTemplate, writesKind } from "../core/templates";
 import {
-  placeMedia,
-  registerHostReader,
-  registerHostWriter,
-} from "../files/authorize";
+  kindsOn,
+  templateHost,
+  templateRemoved,
+  usableTemplate,
+  writesKind,
+} from "../core/templates";
+import { coreReader, coreWriter, placeMedia } from "../files/authorize";
 
 const listed = (context: UnitContext, row: TemplateRow) => ({
   id: row.id,
@@ -76,10 +76,10 @@ const mayChange = (context: UnitContext, row: TemplateRow) =>
     : writesKind(context, row.kind);
 
 // Whoever may start from a template may open the pictures and files in it.
-registerHostReader("document_template", async (context, id) =>
+coreReader("document_template", async (context, id) =>
   Boolean(await usableTemplate(context, id)),
 );
-registerHostWriter("document_template", async (context, id) => {
+coreWriter("document_template", async (context, id) => {
   const row = await usableTemplate(context, id);
   return row !== null && mayChange(context, row);
 });
@@ -89,6 +89,8 @@ export const list = readProcedure
   .input(templateKindSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, ...TEMPLATE_AUTHORS[input.kind]);
+    if (!(await kindsOn(context)).includes(input.kind))
+      throw new ORPCError("FORBIDDEN");
     const { rows } = await templatesOf(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -102,7 +104,9 @@ export const list = readProcedure
 export const browse = readProcedure
   .input(browseTemplatesSchema)
   .handler(async ({ input, context }) => {
-    const kinds = TEMPLATE_KINDS.filter((kind) => writesKind(context, kind));
+    const kinds = (await kindsOn(context)).filter((kind) =>
+      writesKind(context, kind),
+    );
     if (kinds.length === 0) throw new ORPCError("FORBIDDEN");
     const { rows, total } = await templatesOf(context.tx, {
       tenantId: context.tenantId,
@@ -130,7 +134,7 @@ export const queue = readProcedure.handler(async ({ context }) => {
     tenantId: context.tenantId,
     orgId: context.schoolId,
     viewerId: context.actor.userId,
-    kinds: TEMPLATE_KINDS,
+    kinds: await kindsOn(context),
     pending: true,
   });
   return rows.map((row) => listed(context, row));
@@ -367,12 +371,7 @@ export const remove = writeProcedure
       tenantId: context.tenantId,
       id: row.id,
     });
-    // A whole module's copy is the piece's alone, and goes with it.
-    if (row.moduleId)
-      await retireModule(context.tx, {
-        tenantId: context.tenantId,
-        id: row.moduleId,
-      });
+    await templateRemoved(context, row.id);
     await audit(context, {
       action: "template.remove",
       objectType: "document_template",

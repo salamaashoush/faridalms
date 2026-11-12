@@ -1,7 +1,6 @@
 import * as v from "valibot";
 
 import type { Capability } from "./capabilities";
-import type { ModuleId } from "./modules";
 
 import { MENTION_KINDS } from "./content";
 import { MAILBOXES } from "./messages";
@@ -18,20 +17,6 @@ export const SEARCH_KINDS = [
   "notes",
 ] as const;
 export type SearchKind = (typeof SEARCH_KINDS)[number];
-
-/** Kinds a module owns, found only where the school has it on. */
-const KIND_MODULE: Partial<Record<SearchKind, ModuleId>> = {
-  assignments: "coursework",
-  learning: "elearning",
-};
-
-export const kindOn = (
-  kind: SearchKind,
-  modules: Record<ModuleId, boolean>,
-): boolean => {
-  const module = KIND_MODULE[kind];
-  return module === undefined || modules[module];
-};
 
 /** Hits per kind when every kind is searched at once. */
 export const SEARCH_PREVIEW_SIZE = 5;

@@ -9,7 +9,6 @@ import {
   arrangementsOf,
   keepArrangements,
 } from "@faridalms/database/stores/arrangements";
-import { arrangeDue } from "@faridalms/database/stores/coursework";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import {
   filesByIds,
@@ -23,7 +22,6 @@ import { closeRequest, requestById } from "@faridalms/database/stores/privacy";
 import {
   askedHealthChanges,
   demographicsOf,
-  healthChangeById,
   healthChangeOf,
   healthChangeQueue,
   healthQueueStudents,
@@ -67,7 +65,6 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { changeCipher, healthCipher, openSealed, seal } from "../core/health";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -79,8 +76,15 @@ import {
 import { withPurposeFor } from "../core/purpose";
 import { reachesStudent, requireStudent, scopeFor } from "../core/reach";
 import { logLearnerRequest } from "../core/records-requests";
-import { registerHostReader } from "../files/authorize";
 import { decidingLearners } from "../people/acting";
+import { allowancesChanged } from "../people/allowances";
+import {
+  changeCipher,
+  healthCipher,
+  openSealed,
+  seal,
+} from "../student-records/ciphers";
+import { STUDENT_RECORDS_HOSTS } from "../student-records/hosts";
 import {
   contactKeeper,
   contactsOf,
@@ -593,8 +597,7 @@ export const saveArrangements = writeProcedure
     });
     if (version === null)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
-    await arrangeDue(context.tx, {
-      tenantId: context.tenantId,
+    await allowancesChanged(context, {
       studentIds: [input.studentId],
       from: context.now,
     });
@@ -1364,41 +1367,33 @@ export const decideHealthChange = writeProcedure
  * A record's report opens for the health staff who reach its student, and
  * for whoever reads the learner's medical summary once the school shares it.
  */
-registerHostReader("health_record", async (context, recordId, file) => {
-  const record = await withPurpose(context.tx, "health", (tx) =>
-    healthRecordOf(tx, context.tenantId, recordId),
-  );
-  if (!file || !record || record.fileId !== file.id) return false;
-  if (can(context, "health:read"))
-    return reachesStudent(context, "people", record.studentId);
-  const access = await summaryAccess(context, record.studentId).catch(
-    () => null,
-  );
-  if (!access) return false;
-  return withPurpose(context.tx, "health", async (tx) =>
-    (
-      await summaryRecordsOf(tx, {
-        tenantId: context.tenantId,
-        studentId: record.studentId,
-        reader: access.reader,
-        meanings: SUMMARY_KINDS,
-      })
-    ).some(
-      (row) =>
-        row.id === recordId && row.fileId === file.id && row.reportShared,
-    ),
-  );
+STUDENT_RECORDS_HOSTS.push({
+  hostType: "health_record",
+  read: async (context, recordId, file) => {
+    const record = await withPurpose(context.tx, "health", (tx) =>
+      healthRecordOf(tx, context.tenantId, recordId),
+    );
+    if (!file || !record || record.fileId !== file.id) return false;
+    if (can(context, "health:read"))
+      return reachesStudent(context, "people", record.studentId);
+    const access = await summaryAccess(context, record.studentId).catch(
+      () => null,
+    );
+    if (!access) return false;
+    return withPurpose(context.tx, "health", async (tx) =>
+      (
+        await summaryRecordsOf(tx, {
+          tenantId: context.tenantId,
+          studentId: record.studentId,
+          reader: access.reader,
+          meanings: SUMMARY_KINDS,
+        })
+      ).some(
+        (row) =>
+          row.id === recordId && row.fileId === file.id && row.reportShared,
+      ),
+    );
+  },
 });
 
 /** A report sent with a change opens for the health staff who answer it. */
-registerHostReader("health_change", (context, changeId, file) =>
-  withPurpose(context.tx, "health", async (tx) => {
-    if (!file || !can(context, "health:write")) return false;
-    const change = await healthChangeById(tx, {
-      ...scopeFor(context, "people"),
-      orgId: context.schoolId,
-      id: changeId,
-    });
-    return change?.fileId === file.id;
-  }),
-);

@@ -19,8 +19,6 @@ import type {
 import type { ContentLocale } from "@faridalms/domain/translations";
 
 import { changeOf } from "@faridalms/database/audit";
-import { arrangementsOf } from "@faridalms/database/stores/arrangements";
-import { machineTranslationUnchecked } from "@faridalms/database/stores/assistant";
 import { bankTagCounts } from "@faridalms/database/stores/bank";
 import {
   classById,
@@ -36,11 +34,9 @@ import {
   attemptFromVersion,
   attemptsOf,
   bankCommentById,
-  openedUntold,
   bankCommentsOf,
   commentById,
   commentsOf,
-  courseworkHost,
   discussionLikesOf,
   discussionPostById,
   discussionPostsOf,
@@ -233,9 +229,8 @@ import {
   schoolProcedure,
   writeProcedure,
 } from "../core/procedure";
-import { registerGoLive, tellLive, wordsIssues } from "../core/publication";
+import { wordsIssues } from "../core/publication";
 import {
-  reachesStudent,
   requireStudent,
   requireTaught,
   scopeFor,
@@ -246,8 +241,11 @@ import {
   learnerAssignment,
   ownSchedule,
   taughtAssignment,
+  translationUnchecked,
 } from "../coursework/access";
+import { dueByAllowances } from "../coursework/allowances";
 import { gradeReader } from "../coursework/grades";
+import { COURSEWORK_HOSTS } from "../coursework/hosts";
 import {
   teachingScope,
   tellAssigned,
@@ -259,18 +257,10 @@ import {
   partsFor,
   partsPublished,
   partsReused,
-  readsAttempt,
-  readsSubmissionFile,
   attemptHeld,
 } from "../coursework/points";
-import {
-  registerArea,
-  registerOpenWork,
-  registerHostReader,
-  registerHostWriter,
-  registerLiveRules,
-  placeMedia,
-} from "../files/authorize";
+import { placeMedia } from "../files/authorize";
+import { allowancesOf } from "../people/allowances";
 import {
   answersByAttempt,
   attemptQuizzes,
@@ -357,11 +347,7 @@ async function readersTranslation(
   // person has checked it against the original; until then, the original.
   if (
     reader !== "editor" &&
-    (await machineTranslationUnchecked(context.tx, {
-      tenantId: context.tenantId,
-      host: "assignment",
-      id: assignment.id,
-    }))
+    (await translationUnchecked(context, assignment.id))
   )
     return null;
   const written = translated.content as unknown as ContentDocument;
@@ -390,142 +376,6 @@ async function filesView(
     sizeBytes: row.sizeBytes,
   }));
 }
-
-async function readable(
-  context: UnitContext,
-  host: { type: string; id: string },
-): Promise<boolean> {
-  const owner = await courseworkHost(context.tx, context.tenantId, host);
-  if (!owner) return false;
-  const teacher =
-    (can(context, "assignments:author") || can(context, "submissions:grade")) &&
-    (await teaches(context, "teaching", owner.classId));
-  if (host.type === "submission")
-    return owner.studentId === context.actor.userId;
-  if (teacher) return true;
-  // A classmate reads handed-in work once it was given them to review, and
-  // anyone else only as a module lets them.
-  if (host.type === "submission_attempt")
-    return (
-      owner.studentId === context.actor.userId ||
-      (owner.studentId !== null &&
-        (await readsAttempt(context, {
-          attemptId: host.id,
-          studentId: owner.studentId,
-        })))
-    );
-  if (
-    await isRecipient(
-      context.tx,
-      context.tenantId,
-      owner.assignmentId,
-      context.actor.userId,
-    )
-  )
-    return true;
-  if (!can(context, "children:read")) return false;
-  const work = await studentWork(context.tx, {
-    tenantId: context.tenantId,
-    assignmentId: owner.assignmentId,
-  });
-  for (const row of work)
-    if (await reachesStudent(context, "teaching", row.studentId)) return true;
-  return false;
-}
-
-registerHostReader("assignment", (context, hostId) =>
-  readable(context, { type: "assignment", id: hostId }),
-);
-registerHostWriter("assignment", async (context, hostId) => {
-  if (!can(context, "assignments:author")) return false;
-  try {
-    await taughtAssignment(context, hostId);
-    return true;
-  } catch {
-    return false;
-  }
-});
-/**
- * A class's file area holds what its teachers put in its assignments'
- * documents, shown wherever the class uses it rather than copied each time.
- * Its teachers read all of it; students and families only what a document
- * they may read shows.
- */
-registerArea("class", {
-  reader: async (context, classId) =>
-    (can(context, "assignments:author") || can(context, "submissions:grade")) &&
-    (await teaches(context, "teaching", classId)),
-  writer: async (context, classId) =>
-    can(context, "assignments:author") &&
-    (await teaches(context, "teaching", classId)),
-  holders: {
-    assignment: async (context, assignmentId) => {
-      const owner = await courseworkHost(context.tx, context.tenantId, {
-        type: "assignment",
-        id: assignmentId,
-      });
-      return owner ? { type: "class", id: owner.classId } : null;
-    },
-  },
-});
-registerLiveRules("assignment", {
-  keyed: async (context, hostId) =>
-    (await assignmentById(context.tx, context.tenantId, hostId))
-      ?.submissionFormat === "quiz",
-});
-
-/**
- * Work assigned to open later goes live when it opens: its students and
- * their families are told as its teacher would have been heard on assigning
- * it, and so is anyone its brief mentions.
- */
-registerGoLive<AssignmentRow>("assignment", {
-  due: (tx, input) => openedUntold(tx, input),
-  schoolOf: (row) => row.orgId,
-  authorOf: (row) => row.authorUserId,
-  live: async (scope, row) => {
-    await tellAssigned(scope, row);
-    await tellLive(
-      scope,
-      { type: "assignment", id: row.id },
-      {
-        title: row.title,
-      },
-    );
-  },
-});
-registerHostReader(
-  "submission",
-  async (context, hostId, file) =>
-    (await readable(context, { type: "submission", id: hostId })) ||
-    (file !== undefined &&
-      (await readsSubmissionFile(context, {
-        submissionId: hostId,
-        fileId: file.id,
-      }))),
-);
-registerHostReader("submission_attempt", (context, hostId) =>
-  readable(context, { type: "submission_attempt", id: hostId }),
-);
-// A grader's voice feedback on an attempt: its graders hear it at once,
-// whoever reads the attempt hears it once the work is returned.
-registerHostReader("attempt_feedback", async (context, attemptId) => {
-  const host = { type: "submission_attempt", id: attemptId };
-  if (!(await readable(context, host))) return false;
-  const owner = await courseworkHost(context.tx, context.tenantId, host);
-  if (
-    owner &&
-    can(context, "submissions:grade") &&
-    (await teaches(context, "teaching", owner.classId))
-  )
-    return true;
-  const assessment = await assessmentOf(
-    context.tx,
-    context.tenantId,
-    attemptId,
-  );
-  return Boolean(assessment?.releasedAt ?? assessment?.commentsReleasedAt);
-});
 
 /**
  * The classes the viewer may set work for, those running or yet to start,
@@ -1036,7 +886,7 @@ export const save = writeProcedure
       input.audience === "selected"
         ? { groupIds: input.groupIds, studentIds: input.studentIds }
         : { groupIds: [], studentIds: [] };
-    if (published || input.audience === "selected")
+    if (published || input.audience === "selected") {
       await setRecipients(tx, {
         tenantId: context.tenantId,
         assignmentId,
@@ -1045,6 +895,8 @@ export const save = writeProcedure
         selection,
         on: dayWithin(classRow.runs, context.today),
       });
+      await dueByAllowances(context, { assignmentId });
+    }
     const saved = parts.filter((part) => part.key in input.parts);
     const written = saved.length
       ? await assignmentById(tx, context.tenantId, assignmentId)
@@ -1156,6 +1008,7 @@ export const publish = writeProcedure
       throw new ORPCError("BAD_REQUEST", {
         message: "coursework.audience_empty",
       });
+    await dueByAllowances(context, { assignmentId: assignment.id });
     const saved = await setAssignmentState(tx, {
       tenantId: context.tenantId,
       id: assignment.id,
@@ -1603,6 +1456,13 @@ export const extend = writeProcedure
       studentIds: input.studentIds,
       dueAt: input.dueAt || null,
     });
+    // A student given back the assignment's due time keeps what their
+    // allowances add to it.
+    if (!input.dueAt)
+      await dueByAllowances(context, {
+        assignmentId: assignment.id,
+        studentIds: input.studentIds,
+      });
     await audit(context, {
       action: "assignment.extend",
       objectType: "assignment",
@@ -2391,7 +2251,7 @@ async function learnerQuiz(
           submissionId: row.submissionId,
         })
       : new Map<number, SittingRow>(),
-    ownArrangements(context, assignment.orgId),
+    ownArrangements(context),
   ]);
   // A quiz whose brief has a translation is also asked in its words, the
   // original's answers kept, for the student to read in either language.
@@ -2542,15 +2402,6 @@ async function learnerQuiz(
     results,
   };
 }
-
-registerOpenWork(async (context, assignmentId) => {
-  try {
-    await learnerAssignment(context, assignmentId);
-    return true;
-  } catch {
-    return false;
-  }
-});
 
 /** Autosaves the student's draft: written work and attached files, nothing handed in. */
 export const saveDraft = writeProcedure
@@ -3071,12 +2922,15 @@ export const saveClassGroup = writeProcedure
       studentIds: input.studentIds,
       userId: context.actor.userId,
     });
-    await joinOpenWork(context.tx, {
-      tenantId: context.tenantId,
-      studentIds: input.studentIds,
-      classId: classRow.id,
-      groupId,
-    });
+    if (
+      (await joinOpenWork(context.tx, {
+        tenantId: context.tenantId,
+        studentIds: input.studentIds,
+        classId: classRow.id,
+        groupId,
+      })) > 0
+    )
+      await dueByAllowances(context, { studentIds: input.studentIds });
     return { id: groupId };
   });
 
@@ -3235,14 +3089,10 @@ export const saveQuizProgram = schoolProcedure
     );
   });
 
-/** The arrangements of the student taking a quiz, or none. */
-async function ownArrangements(context: UnitContext, orgId: string) {
-  const kept = await arrangementsOf(context.tx, {
-    tenantId: context.tenantId,
-    orgId,
-    studentId: context.actor.userId,
-  });
-  return kept?.arrangements ?? NO_ARRANGEMENTS;
+/** What the student taking a quiz is allowed beyond everyone else. */
+async function ownArrangements(context: UnitContext) {
+  const allowed = await allowancesOf(context, [context.actor.userId]);
+  return allowed.get(context.actor.userId) ?? NO_ARRANGEMENTS;
 }
 
 /**
@@ -3253,7 +3103,7 @@ async function quizMinutes(context: UnitContext, assignment: AssignmentRow) {
   if (assignment.quizTimeLimit === null) return null;
   return allowedMinutes(
     assignment.quizTimeLimit,
-    await ownArrangements(context, assignment.orgId),
+    await ownArrangements(context),
   );
 }
 
@@ -3341,7 +3191,7 @@ async function restBreak(
   const { assignment } = await learnerAssignment(context, assignmentId);
   if (assignment.submissionFormat !== "quiz")
     throw new ORPCError("BAD_REQUEST", { message: "coursework.not_quiz" });
-  if (!(await ownArrangements(context, assignment.orgId)).restBreaks)
+  if (!(await ownArrangements(context)).restBreaks)
     throw new ORPCError("FORBIDDEN");
   const [row] = await studentWork(context.tx, {
     tenantId: context.tenantId,
@@ -3898,20 +3748,29 @@ async function placedPost(
 }
 
 // A post's files open to whoever reads the post, and only those it still shows.
-registerHostReader("discussion_post", async (context, postId, file) => {
-  const found = await discussionPostById(context.tx, context.tenantId, postId);
-  if (!found) return false;
-  try {
-    const { assignment, viewer } = await discussionOf(
-      context,
-      found.assignmentId,
+COURSEWORK_HOSTS.push({
+  hostType: "discussion_post",
+  read: async (context, postId, file) => {
+    const found = await discussionPostById(
+      context.tx,
+      context.tenantId,
+      postId,
     );
-    const view = await discussionView(context, assignment, viewer);
-    const shown = view.posts.find((item) => item.id === postId)?.content;
-    return Boolean(shown && (!file || contentFileIds(shown).includes(file.id)));
-  } catch {
-    return false;
-  }
+    if (!found) return false;
+    try {
+      const { assignment, viewer } = await discussionOf(
+        context,
+        found.assignmentId,
+      );
+      const view = await discussionView(context, assignment, viewer);
+      const shown = view.posts.find((item) => item.id === postId)?.content;
+      return Boolean(
+        shown && (!file || contentFileIds(shown).includes(file.id)),
+      );
+    } catch {
+      return false;
+    }
+  },
 });
 
 /**

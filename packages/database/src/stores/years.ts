@@ -905,3 +905,18 @@ export const yearHolds = (
   year: { startsOn: string; endsBefore: string },
   span: OpenSpan,
 ) => spanHolds({ from: year.startsOn, to: year.endsBefore }, span);
+
+/** Whether the school has a current or coming year with its terms, the setup step the year makes. */
+export async function yearReady(
+  tx: CellTransaction,
+  input: { tenantId: string; orgId: string },
+): Promise<boolean> {
+  const [row] = await tx.execute<{ found: boolean }>(sql`
+    select exists (select 1 from core.academic_sessions y
+      join core.academic_sessions t on t.tenant_id = y.tenant_id and t.school_year_id = y.id
+        and t.type = 'term' and t.status = 'active'
+      where y.tenant_id = ${input.tenantId}::uuid and y.org_id = ${input.orgId}::uuid
+        and y.type = 'school_year' and y.status = 'active'
+        and y.lifecycle in ('current', 'upcoming')) as found`);
+  return row?.found ?? false;
+}

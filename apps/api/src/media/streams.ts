@@ -18,6 +18,7 @@ import type { RequestContext, SchoolContext } from "../core/context";
 import { openUnit, schoolOf } from "../core/procedure";
 import { refusalResponse } from "../core/refusal";
 import { canReadFile } from "../files/authorize";
+import { hasVideo } from "../files/limit";
 import { claimCaptions, reportCaptions } from "./captions";
 import { claimPreviews, previewKinds, reportPreviews } from "./previews";
 
@@ -331,6 +332,8 @@ async function stream(
     const file = await fileById(unit.tx, unit.tenantId, fileId);
     if (!file || file.state !== "ready") return null;
     if (!(await canReadFile({ ...context, ...unit }, file))) return null;
+    // Without the module a video plays as it was uploaded.
+    if (!hasVideo(context.school.entitlements)) return null;
     return {
       tenantId: unit.tenantId,
       stream: await streamOf(unit.tx, unit.tenantId, fileId),

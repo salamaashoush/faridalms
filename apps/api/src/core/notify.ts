@@ -15,7 +15,11 @@ import {
   insertNotifications,
   reachability,
 } from "@faridalms/database/stores/notifications";
-import { deliveryTime, preferencesOf } from "@faridalms/domain/notifications";
+import {
+  deliveryTime,
+  governingKind,
+  preferencesOf,
+} from "@faridalms/domain/notifications";
 
 import type { UnitContext } from "./context";
 import type { ModuleScope } from "./extension";
@@ -140,7 +144,7 @@ export async function notifyIn(
     return channels.map((channel): NewDelivery => {
       const address = channel === "email" ? person.email : person.phone;
       const plan = deliveryTime({
-        kind: notice.kind,
+        kind: governingKind(notice.kind, notice.params),
         channel,
         preferences,
         school,

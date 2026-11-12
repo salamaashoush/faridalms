@@ -104,6 +104,7 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "packages/database/src/stores/quizzes.ts",
     "packages/database/src/stores/bank.ts",
     "packages/database/src/stores/reading.ts",
+    "packages/database/src/stores/coursework-search.ts",
     "apps/api/src/coursework/",
     "apps/api/src/quizzes/",
     "apps/api/src/systems/coursework.ts",
@@ -129,6 +130,7 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
   elearning: [
     "packages/database/src/tables/learning.ts",
     "packages/database/src/stores/learning.ts",
+    "packages/database/src/stores/learning-search.ts",
     "apps/api/src/learning/",
     "apps/api/src/systems/learning.ts",
   ],
@@ -150,6 +152,34 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "apps/api/src/systems/applying.ts",
     "apps/api/src/systems/decisions.ts",
   ],
+  attendance: [
+    "packages/database/src/tables/attendance.ts",
+    "packages/database/src/stores/attendance.ts",
+    "packages/database/src/stores/absence-reports.ts",
+    "packages/database/src/stores/front-desk.ts",
+    "apps/api/src/attendance/",
+    "apps/api/src/systems/attendance.ts",
+    "apps/api/src/systems/absence-reports.ts",
+    "apps/api/src/systems/front-desk.ts",
+  ],
+  website: [
+    "packages/database/src/tables/site.ts",
+    "packages/database/src/stores/site.ts",
+    "apps/api/src/website/",
+    "apps/api/src/systems/site.ts",
+  ],
+  student_records: [
+    "packages/database/src/tables/student-records.ts",
+    "packages/database/src/stores/records.ts",
+    "packages/database/src/stores/arrangements.ts",
+    "apps/api/src/student-records/",
+    "apps/api/src/systems/records.ts",
+  ],
+  badges: [
+    "packages/database/src/stores/badges.ts",
+    "apps/api/src/badges/",
+    "apps/api/src/systems/badges.ts",
+  ],
   sso: ["packages/database/src/tables/sso.ts"],
   sms: ["apps/api/src/sms/"],
 };
@@ -165,6 +195,10 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
 export const LINK_FILES: Readonly<
   Record<string, { owner: ModuleId; needs: readonly ModuleId[] }>
 > = {
+  "apps/api/src/badges/attendance.ts": {
+    owner: "badges",
+    needs: ["attendance"],
+  },
   "apps/api/src/badges/years.ts": {
     owner: "badges",
     needs: ["school_years"],
@@ -177,9 +211,21 @@ export const LINK_FILES: Readonly<
     owner: "homerooms",
     needs: ["school_years"],
   },
+  "apps/api/src/homerooms/attendance.ts": {
+    owner: "homerooms",
+    needs: ["attendance"],
+  },
   "apps/api/src/homerooms/timetable.ts": {
     owner: "homerooms",
     needs: ["timetable"],
+  },
+  "apps/api/src/admissions/health.ts": {
+    owner: "admissions",
+    needs: ["student_records"],
+  },
+  "apps/api/src/admissions/website.ts": {
+    owner: "admissions",
+    needs: ["website"],
   },
   "apps/api/src/attendance/timetable.ts": {
     owner: "attendance",
@@ -427,20 +473,12 @@ function sameLink(from: string, to: string): boolean {
  */
 export const PENDING_IMPORTS: Readonly<Record<string, readonly string[]>> = {
   surfaces: [
-    "apps/api/src/calendar/lessons.ts -> timetable",
-    "apps/api/src/files/exports.ts -> coursework",
-    "apps/api/src/systems/calendar.ts -> admissions",
-    "apps/api/src/systems/consents.ts -> admissions",
+    "apps/api/src/systems/home.ts -> attendance",
     "apps/api/src/systems/home.ts -> coursework",
     "apps/api/src/systems/home.ts -> elearning",
     "apps/api/src/systems/home.ts -> timetable",
-    "apps/api/src/systems/privacy.ts -> admissions",
-    "apps/api/src/systems/records.ts -> coursework",
-    "apps/api/src/systems/site.ts -> admissions",
-    "apps/api/src/systems/templates.ts -> elearning",
     "apps/web/src/components/classes/ClassRecord.tsx -> timetable",
     "apps/web/src/components/people/StudentOverview.tsx -> timetable",
-    "packages/database/src/stores/search.ts -> elearning",
   ],
 };
 
@@ -562,7 +600,18 @@ export function moduleImportProblems(
  * need them and the composition roots name in SQL: where a reach rule lives,
  * a copy elsewhere would keep granting with the module off.
  */
-export const SQL_CARVED: readonly ModuleId[] = ["families"];
+export const SQL_CARVED: readonly ModuleId[] = [
+  "families",
+  "attendance",
+  "website",
+  "student_records",
+  "badges",
+  "coursework",
+  "elearning",
+  "school_years",
+  "timetable",
+  "admissions",
+];
 
 /**
  * Files that name a carved module's tables for every module at once, each

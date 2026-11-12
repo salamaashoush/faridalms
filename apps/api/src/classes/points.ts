@@ -37,6 +37,11 @@ export interface ClassGuard {
     context: UnitContext,
     enrolment: EnrolmentEnding,
   ): Promise<string | null>;
+  /** Why a student may not leave these classes from a day: a register that marks them after it, say. */
+  refusesLeaving?(
+    context: UnitContext,
+    input: { studentId: string; classIds: readonly string[]; from: string },
+  ): Promise<string | null>;
 }
 
 export const classGuards = point<ClassGuard>("class guards");
@@ -88,6 +93,16 @@ export const endingRefusal = (
   firstRefusal(
     context,
     (guard) => guard.refusesEnding?.(context, enrolment) ?? null,
+  );
+
+/** Why a student may not leave these classes from a day, or null. */
+export const leavingRefusal = (
+  context: UnitContext,
+  input: { studentId: string; classIds: readonly string[]; from: string },
+) =>
+  firstRefusal(
+    context,
+    (guard) => guard.refusesLeaving?.(context, input) ?? null,
   );
 
 /** Refuses a change to a class some module keeps from changing. */

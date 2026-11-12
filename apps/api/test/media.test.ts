@@ -25,6 +25,8 @@ import {
   sessionFor,
   setPlan,
   VIDEO_BYTES,
+  withoutModules,
+  workerModules,
 } from "./harness";
 
 /** An MP4's signature, which is all the upload check reads. */
@@ -172,6 +174,17 @@ describe("video streams", () => {
     expect(prefix).toBe(job.outputPrefix);
     expect(expires).toBeGreaterThan(Date.now() / 1000);
 
+    // Without video it plays as uploaded: no streams are offered, until
+    // video is back on.
+    await withoutModules("northwind", ["video"], async () => {
+      expect((await raw("northwind", teacher.token, streamPath)).status).toBe(
+        404,
+      );
+    });
+    expect((await raw("northwind", teacher.token, streamPath)).status).toBe(
+      200,
+    );
+
     // Someone the upload is not shared with cannot ask for it.
     const stranger = await sessionFor("northwind", login("student"));
     expect((await raw("northwind", stranger.token, streamPath)).status).toBe(
@@ -205,12 +218,20 @@ describe("video streams", () => {
       },
     };
     // While the video is kept, so are its streams.
-    await sweepTenantFiles(cell, store, tenantId, new Date());
+    await sweepTenantFiles(
+      { cell, store, extensions: workerModules().extensions },
+      tenantId,
+      new Date(),
+    );
     expect(removed).not.toContain(job.outputPrefix);
 
     // Nothing ever used it, so the sweep retires it a week on.
     const later = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000);
-    const swept = await sweepTenantFiles(cell, store, tenantId, later);
+    const swept = await sweepTenantFiles(
+      { cell, store, extensions: workerModules().extensions },
+      tenantId,
+      later,
+    );
     expect(swept.streams).toBeGreaterThanOrEqual(1);
     expect(removed).toContain(job.outputPrefix);
     expect(
@@ -220,7 +241,11 @@ describe("video streams", () => {
 
     // The folder is handed back once.
     removed.length = 0;
-    await sweepTenantFiles(cell, store, tenantId, later);
+    await sweepTenantFiles(
+      { cell, store, extensions: workerModules().extensions },
+      tenantId,
+      later,
+    );
     expect(removed).not.toContain(job.outputPrefix);
   });
 
@@ -279,12 +304,20 @@ describe("video streams", () => {
     ).toBe(204);
     expect(await used()).toBe(waiting);
     const tenantId = tenants[0]?.tenantId ?? "";
-    await sweepTenantFiles(cell, store, tenantId, new Date());
+    await sweepTenantFiles(
+      { cell, store, extensions: workerModules().extensions },
+      tenantId,
+      new Date(),
+    );
     expect(weighing).toContain(second.outputPrefix);
     expect(weighing).not.toContain(job.outputPrefix);
     expect((await used()) - waiting).toBe(708);
     weighing.length = 0;
-    await sweepTenantFiles(cell, store, tenantId, new Date());
+    await sweepTenantFiles(
+      { cell, store, extensions: workerModules().extensions },
+      tenantId,
+      new Date(),
+    );
     expect(weighing).not.toContain(second.outputPrefix);
   });
 
@@ -768,8 +801,7 @@ describe("a large upload sent in parts", () => {
     const tenantId = tenants[0]?.tenantId ?? "";
     expect(await files.open(partKey(tenantId, file.id, 1))).not.toBeNull();
     await sweepTenantFiles(
-      cell,
-      files,
+      { cell, store: files, extensions: workerModules().extensions },
       tenantId,
       new Date(Date.now() + 25 * 60 * 60 * 1000),
     );
@@ -784,6 +816,17 @@ describe("captions drafted from speech", () => {
     expect(await teacher.api.files.captionDraft({ fileId })).toEqual({
       available: true,
       draft: null,
+    });
+    await withoutModules("northwind", ["video"], async () => {
+      expect(await teacher.api.files.captionDraft({ fileId })).toEqual({
+        available: false,
+        draft: null,
+      });
+      expect(
+        await rejection(
+          teacher.api.files.draftCaptions({ fileId, language: "en" }),
+        ),
+      ).toMatchObject({ message: "files.no_captions" });
     });
     await teacher.api.files.draftCaptions({ fileId, language: "en" });
     expect(await teacher.api.files.captionDraft({ fileId })).toMatchObject({

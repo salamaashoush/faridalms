@@ -9,6 +9,7 @@ import {
   filledDraft,
   intakeFor,
   names,
+  NO_NEEDS,
   officer,
   principal,
   QUESTION,
@@ -16,6 +17,7 @@ import {
   routeForm,
   routeQuestion,
   registrationLink,
+  saveNeeds,
 } from "./admission-fixtures";
 import {
   client,
@@ -26,6 +28,7 @@ import {
   seeded,
   sessionFor,
   signedIn,
+  withoutModules,
 } from "./harness";
 
 describe("setting up admissions", () => {
@@ -276,6 +279,22 @@ describe("an application", () => {
     const read = await api.applying.draft({ id: draft.id });
     expect(read.child.document?.shown).toBe("••••••••");
     expect(read.needs.allergy).toBe("Peanuts");
+    expect(read.asksNeeds).toBe(true);
+    // Without student records nothing keeps health and needs: the
+    // application asks none, and needs sent anyway are refused, not dropped.
+    await withoutModules("northwind", ["student_records"], async () => {
+      const off = await api.applying.draft({ id: draft.id });
+      expect(off.asksNeeds).toBe(false);
+      expect(off.needs.allergy).toBe("");
+      expect(
+        await rejection(
+          saveNeeds(api, draft, { ...NO_NEEDS, allergy: "Peanuts" }),
+        ),
+      ).toMatchObject({ message: "applying.needs_off" });
+    });
+    expect((await api.applying.draft({ id: draft.id })).needs.allergy).toBe(
+      "Peanuts",
+    );
     expect(read.application.state).toBe("draft");
     expect(read.child.age).toBe("fits");
 
@@ -506,5 +525,12 @@ describe("an application", () => {
     const overview = await api.privacy.overview();
     const applicant = overview.review.find((row) => row.kind === "applicant");
     expect(applicant).toMatchObject({ dueOn: "2100-12-31" });
+    // The duty to erase outlives the module that kept them.
+    await withoutModules("northwind", ["admissions"], async () => {
+      const off = await api.privacy.overview();
+      expect(
+        off.review.find((row) => row.userId === applicant?.userId),
+      ).toMatchObject({ kind: "applicant", dueOn: "2100-12-31" });
+    });
   });
 });

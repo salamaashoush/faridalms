@@ -4,7 +4,6 @@ import { withPurpose } from "@faridalms/database/context";
 import {
   abandonUploads,
   retireStreams,
-  retireSupersededAnswers,
   retireTrashedFiles,
   retireTrashedMedia,
   retireUnlinkedFiles,
@@ -15,15 +14,29 @@ import { retirePreviews } from "@faridalms/database/stores/previews";
 import {
   ABANDONED_UPLOAD_MS,
   FILE_GATES,
-  SAVES_KEPT,
-  SUPERSEDED_SAVE_MS,
   TRASHED_MEDIA_MS,
   UNLINKED_FILE_MS,
 } from "@faridalms/domain/file";
 
+import type { ModuleContributions } from "../core/extension";
 import type { FileStore } from "./store";
 
+import { everyContribution, point } from "../core/extension";
 import { backfillPreviews } from "./previews";
+
+/**
+ * Files a module lets go of in the sweep: coding projects saved over
+ * since, say. Returns the keys of bytes no file holds any more.
+ */
+export interface FileSweep {
+  retire(
+    tx: CellTransaction,
+    tenantId: string,
+    input: { now: Date; limit: number },
+  ): Promise<string[]>;
+}
+
+export const fileSweeps = point<FileSweep>("file sweeps");
 
 /**
  * One pass over a tenant's files as the worker: uploads never finished are
@@ -41,12 +54,17 @@ import { backfillPreviews } from "./previews";
  * them weighed, so they count against the school's storage.
  */
 export async function sweepTenantFiles(
-  cell: Cell,
-  store: FileStore,
+  input: {
+    cell: Cell;
+    store: FileStore;
+    extensions: readonly ModuleContributions[];
+  },
   tenantId: string,
   now: Date,
   limit = 100,
 ) {
+  const { cell, store } = input;
+  const sweeps = everyContribution(input.extensions, fileSweeps);
   const unused = async (tx: CellTransaction) => ({
     abandoned: await abandonUploads(
       tx,
@@ -93,11 +111,11 @@ export async function sweepTenantFiles(
             limit,
           )),
         ],
-        superseded: await retireSupersededAnswers(tx, tenantId, {
-          kept: SAVES_KEPT,
-          savedBefore: new Date(now.getTime() - SUPERSEDED_SAVE_MS),
-          limit,
-        }),
+        superseded: (
+          await Promise.all(
+            sweeps.map((sweep) => sweep.retire(tx, tenantId, { now, limit })),
+          )
+        ).flat(),
         // Last, so a file retired in this pass loses what was made from it.
         streams: await retireStreams(tx, tenantId, limit),
         previews: await retirePreviews(tx, tenantId, limit),

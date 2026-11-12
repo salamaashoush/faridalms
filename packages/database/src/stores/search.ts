@@ -8,8 +8,6 @@ import type { Scope } from "./students";
 
 import { reaches } from "./audiences";
 import { publishedText } from "./broadcasts";
-import { taughtClasses } from "./classes";
-import { reachedBy } from "./learning";
 import { liveSql, scheduledSql } from "./publication";
 import { isoOf, textArray, uuidArray } from "./sql";
 
@@ -60,7 +58,7 @@ const HEADLINE = sql`concat('StartSel=', chr(2), ', StopSel=', chr(3),
   ', MaxWords=24, MinWords=10, ShortWord=2, MaxFragments=1, FragmentDelimiter=" … "')`;
 
 /** A few words around the match in `text`, the matched words marked; null when the text did not match. */
-function snippetOf(text: SQL, q: string): SQL {
+export function snippetOf(text: SQL, q: string): SQL {
   const body = sql`left(${text}, 20000)`;
   const language = (config: "english" | "arabic") =>
     sql`when to_tsvector(${config}::regconfig, ${body}) @@ websearch_to_tsquery(${config}::regconfig, ${q})
@@ -76,7 +74,7 @@ function name(ar: boolean, alias: string): SQL {
     : sql`coalesce(${u}.full_name_en, ${u}.full_name_ar, ${u}.preferred_given_name)`;
 }
 
-function titled(ar: boolean, alias: string): SQL {
+export function titled(ar: boolean, alias: string): SQL {
   const c = sql.identifier(alias);
   return ar
     ? sql`coalesce(${c}.title_ar, ${c}.title_en, ${c}.code)`
@@ -94,7 +92,7 @@ export interface FoundRow {
   type: string;
 }
 
-type Raw = {
+export type Raw = {
   id: string;
   title: string | null;
   snippet: string | null;
@@ -105,7 +103,7 @@ type Raw = {
   type: string;
 };
 
-const found = (rows: Raw[]): FoundRow[] =>
+export const found = (rows: Raw[]): FoundRow[] =>
   rows.map((row) => ({
     id: row.id,
     title: row.title ?? "",
@@ -117,7 +115,7 @@ const found = (rows: Raw[]): FoundRow[] =>
     type: row.type,
   }));
 
-interface Among {
+export interface Among {
   tenantId: string;
   schoolId: string;
   ids: readonly string[];
@@ -205,110 +203,6 @@ export async function classesAmong(
       from core.classes c
       where c.tenant_id = ${scope.tenantId}::uuid and c.id = any(${uuidArray(input.ids)}) and c.status = 'active'
         and c.id in ${classesReached(scope, input.besides)}`),
-  );
-}
-
-interface AssignmentAccess {
-  tenantId: string;
-  schoolId: string;
-  teaching: Scope | null;
-  learners: readonly string[];
-}
-
-const assignmentOpen = (input: AssignmentAccess) => sql`(
-  a.tenant_id = ${input.tenantId}::uuid and a.org_id = ${input.schoolId}::uuid and a.status = 'active'
-  and (${input.teaching ? sql`a.class_id in ${taughtClasses(input.teaching)}` : sql`false`}
-    or (a.state = 'published' and exists (select 1 from core.assignment_recipients r
-      where r.tenant_id = a.tenant_id and r.assignment_id = a.id and r.status = 'active'
-        and r.student_user_id = any(${uuidArray(input.learners)})))))`;
-
-/** The assignments the viewer may open: in a class they teach, or published to one of `learners`. */
-export const assignmentsReached = (input: AssignmentAccess) =>
-  sql`(select a.id from core.assignments a where ${assignmentOpen(input)})`;
-
-/**
- * Assignments among `ids` the viewer may open: in a class they teach, or
- * published to one of `learners` (the viewer, or the children they follow).
- */
-export async function assignmentsAmong(
-  tx: Tx,
-  input: Among & AssignmentAccess,
-) {
-  return found(
-    await tx.execute<Raw>(sql`
-      select a.id, 'assignment' as type, a.title, ${snippetOf(sql`d.plain_text`, input.q)} as snippet,
-        ${titled(input.ar, "c")} as context, ${isoOf(sql`a.due_at`)} as "when",
-        case when a.state = 'draft' then 'draft' when a.state = 'scheduled' then 'scheduled' end as flag,
-        null as roles
-      from core.assignments a
-      join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
-      left join core.documents d on d.tenant_id = a.tenant_id and d.host_type = 'assignment'
-        and d.host_id = a.id and d.status = 'active' and d.translation_of_id is null
-      where a.id = any(${uuidArray(input.ids)}) and ${assignmentOpen(input)}`),
-  );
-}
-
-interface LearningAccess {
-  tenantId: string;
-  schoolId: string;
-  viewerId: string;
-  /** Set for those who write modules: the classes they teach and themselves as author. */
-  teaching: Scope | null;
-  /** The classes whose published modules the viewer may study or follow. */
-  learnerClassIds: readonly string[];
-  /** The students they study or follow them for: themselves, or their children. */
-  learnerIds: readonly string[];
-}
-
-const moduleOpen = (access: LearningAccess, viewerId: string) => sql`(
-  ${
-    access.teaching
-      ? sql`(m.state <> 'archived' and (m.author_user_id = ${viewerId}::uuid or exists (
-          select 1 from core.module_classes x
-          where x.tenant_id = m.tenant_id and x.module_id = m.id and x.status = 'active'
-            and x.class_id in ${taughtClasses(access.teaching)})))`
-      : sql`false`
-  }
-  or (${liveSql(sql`m.state`, sql`m.publish_at`)} and exists (
-    select 1 from core.module_classes x
-    where x.tenant_id = m.tenant_id and x.module_id = m.id and x.status = 'active'
-      and x.class_id = any(${uuidArray(access.learnerClassIds)})
-      and ${reachedBy(sql`x`, access.learnerIds)})))`;
-
-/** The modules and lessons the viewer may open. */
-export function learningReached(input: LearningAccess) {
-  const open = moduleOpen(input, input.viewerId);
-  return sql`(select m.id from core.learning_modules m
-    where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
-      and m.status = 'active' and ${open}
-    union all
-    select l.id from core.lessons l
-    join core.learning_modules m on m.tenant_id = l.tenant_id and m.id = l.module_id
-      and m.status = 'active' and m.org_id = ${input.schoolId}::uuid
-    where l.tenant_id = ${input.tenantId}::uuid and l.status = 'active' and ${open})`;
-}
-
-/** Modules and lessons among `ids` the viewer may open. */
-export async function learningAmong(tx: Tx, input: Among & LearningAccess) {
-  const open = moduleOpen(input, input.viewerId);
-  return found(
-    await tx.execute<Raw>(sql`
-      select m.id, 'learning_module' as type, m.title,
-        ${snippetOf(sql`m.summary`, input.q)} as snippet, null as context, null as "when",
-        case when m.state = 'draft' then 'draft' end as flag, null as roles
-      from core.learning_modules m
-      where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
-        and m.id = any(${uuidArray(input.ids)}) and m.status = 'active' and ${open}
-      union all
-      select l.id, 'lesson' as type, l.title, ${snippetOf(sql`d.plain_text`, input.q)} as snippet,
-        m.title as context, null as "when", case when m.state = 'draft' then 'draft' end as flag, null as roles
-      from core.lessons l
-      join core.learning_modules m on m.tenant_id = l.tenant_id and m.id = l.module_id
-        and m.status = 'active' and m.org_id = ${input.schoolId}::uuid
-      left join core.documents d on d.tenant_id = l.tenant_id and d.host_type = 'lesson'
-        and d.host_id = l.id and d.status = 'active' and d.translation_of_id is null
-      where l.tenant_id = ${input.tenantId}::uuid and l.id = any(${uuidArray(input.ids)})
-        and l.status = 'active' and ${open}`),
   );
 }
 

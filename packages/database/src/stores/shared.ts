@@ -140,22 +140,15 @@ export type SharedUseHost =
   | "announcement"
   | "site_page";
 
+/** A record whose working document shows a shared block. */
 export interface SharedUse {
   hostType: SharedUseHost;
   hostId: string;
-  titleEn: string | null;
-  titleAr: string | null;
-  /** Where it sits: a lesson's module, an assignment's class. */
-  placeEn: string | null;
-  placeAr: string | null;
-  /** Whether visitors read it now: a published website page or post. */
-  live: boolean;
 }
 
 /**
- * The documents showing a shared block, as their working copies stand, by
- * the title of what each belongs to. Handed-in copies are left out, since
- * they keep the block as it was.
+ * The records whose working documents show a shared block. Handed-in
+ * copies are left out, since they keep the block as it was.
  */
 export async function sharedBlockUses(
   tx: Tx,
@@ -174,52 +167,28 @@ export async function sharedBlockUses(
   const rows = await tx.execute<{
     host_type: SharedUseHost;
     host_id: string;
-    title_en: string | null;
-    title_ar: string | null;
-    place_en: string | null;
-    place_ar: string | null;
-    live: boolean;
   }>(sql`
-    select d.host_type, d.host_id,
-      coalesce(sp.state = 'published', n.state = 'published' and exists (select 1
-        from core.site_posts p where p.tenant_id = n.tenant_id and p.broadcast_id = n.id
-          and p.status = 'active'), false)
-        as live,
-      coalesce(l.title, a.title, m.title, nullif(n.title_en, ''), nullif(sp.title_en, ''))
-        as title_en,
-      coalesce(l.title, a.title, m.title, nullif(n.title_ar, ''), nullif(sp.title_ar, ''))
-        as title_ar,
-      coalesce(lm.title, c.title_en) as place_en, coalesce(lm.title, c.title_ar) as place_ar
+    select distinct d.host_type, d.host_id
     from core.documents d
-    left join core.lessons l on l.tenant_id = d.tenant_id and l.id = d.host_id
-      and d.host_type = 'lesson' and l.status = 'active'
-    left join core.learning_modules lm on lm.tenant_id = l.tenant_id and lm.id = l.module_id
-    left join core.assignments a on a.tenant_id = d.tenant_id and a.id = d.host_id
-      and d.host_type = 'assignment' and a.status = 'active'
-    left join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
-    left join core.learning_modules m on m.tenant_id = d.tenant_id and m.id = d.host_id
-      and d.host_type = 'module_plan' and m.status = 'active'
-    left join core.broadcasts n on n.tenant_id = d.tenant_id and n.id = d.host_id
-      and d.host_type = 'announcement' and n.status = 'active'
-    left join core.site_pages sp on sp.tenant_id = d.tenant_id and sp.id = d.host_id
-      and d.host_type = 'site_page' and sp.status = 'active'
     where d.tenant_id = ${input.tenantId}::uuid and d.org_id = ${input.orgId}::uuid
       and d.status = 'active' and d.frozen_at is null and d.translation_of_id is null
       and d.host_type in ('lesson', 'assignment', 'module_plan', 'announcement',
         'site_page')
-      and coalesce(l.id, a.id, m.id, n.id, sp.id) is not null
       and ${named}
-    order by title_en, place_en, d.host_id
     limit 200`);
-  return rows.map((row) => ({
-    hostType: row.host_type,
-    hostId: row.host_id,
-    titleEn: row.title_en,
-    titleAr: row.title_ar,
-    placeEn: row.place_en,
-    placeAr: row.place_ar,
-    live: row.live,
-  }));
+  return rows.map((row) => ({ hostType: row.host_type, hostId: row.host_id }));
+}
+
+/** Shared blocks' titles, for the documents that show others. */
+export async function sharedBlockTitles(
+  tx: Tx,
+  tenantId: string,
+  ids: readonly string[],
+): Promise<Map<string, string>> {
+  const rows = await tx.execute<{ id: string; title: string }>(sql`
+    select id, title from core.shared_blocks
+    where tenant_id = ${tenantId}::uuid and id = any(${uuidArray(ids)}) and status = 'active'`);
+  return new Map(rows.map((row) => [row.id, row.title]));
 }
 
 export async function insertSharedBlock(

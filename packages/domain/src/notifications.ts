@@ -124,7 +124,6 @@ export const CHOOSABLE_KINDS = [
   "correction",
   "reenrolment",
   "admission_event",
-  "peer_review",
 ] as const;
 export type ChoosableKind = (typeof CHOOSABLE_KINDS)[number];
 
@@ -177,7 +176,6 @@ export const DEFAULT_PREFERENCES: Preferences = {
     correction: "instant",
     reenrolment: "instant",
     admission_event: "instant",
-    peer_review: "instant",
   },
   sms: {
     announcement: "off",
@@ -197,7 +195,6 @@ export const DEFAULT_PREFERENCES: Preferences = {
     correction: "off",
     reenrolment: "off",
     admission_event: "off",
-    peer_review: "off",
   },
   quietFrom: "21:00",
   quietTo: "07:00",
@@ -317,12 +314,26 @@ function wake(at: Date, preferences: Preferences, school: School): Date {
 }
 
 /**
+ * The choice a person makes that governs a notice. Most kinds are their own
+ * choice; peer review keeps the choices that governed its notices before it
+ * was a kind of its own: classmates' work handed out to review as new work,
+ * and a review date coming as a reminder.
+ */
+export function governingKind(
+  kind: NotificationKind,
+  params: NoticeParams,
+): Exclude<NotificationKind, "peer_review"> {
+  if (kind !== "peer_review") return kind;
+  return params.dueSoon ? "reminder" : "assignment";
+}
+
+/**
  * When a notification should leave on a channel, or null when it should not.
  * Urgent notices go at once whatever the person chose; the rest wait out
  * quiet hours, and digest items wait for the next digest.
  */
 export function deliveryTime(input: {
-  kind: NotificationKind;
+  kind: Exclude<NotificationKind, "peer_review">;
   channel: "email" | "sms";
   preferences: Preferences;
   school: School;

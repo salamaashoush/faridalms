@@ -1209,3 +1209,15 @@ export async function publicIntakes(
     fees: row.fees,
   }));
 }
+
+/** Whether the school has any intake, the setup step admissions makes. */
+export async function intakeOpened(
+  tx: Tx,
+  input: { tenantId: string; orgId: string },
+): Promise<boolean> {
+  const [row] = await tx.execute<{ found: boolean }>(sql`
+    select exists (select 1 from core.admission_intakes i
+      where i.tenant_id = ${input.tenantId}::uuid and i.org_id = ${input.orgId}::uuid
+        and i.status = 'active') as found`);
+  return row?.found ?? false;
+}

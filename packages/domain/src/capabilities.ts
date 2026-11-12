@@ -102,16 +102,9 @@ const ADMINISTRATION: readonly Capability[] = CAPABILITIES.filter(
 );
 
 /**
- * Capabilities and built-in access roles that mean something only where a
- * module is on, by that module: the access editor offers them only there.
+ * Built-in access roles that mean something only where a module is on, by
+ * that module: the access editor offers them only there.
  */
-export const CAPABILITY_MODULE: Partial<Record<Capability, ModuleId>> = {
-  "guardians:manage": "families",
-  "custody:read": "families",
-  "custody:write": "families",
-  "children:read": "families",
-};
-
 export const BUILTIN_ROLE_MODULE: Partial<Record<string, ModuleId>> = {
   family: "families",
   applicant_family: "families",

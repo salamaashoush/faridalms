@@ -124,6 +124,7 @@ create trigger row_meta before insert or update on core.messages for each row ex
 create trigger row_meta before insert or update on core.module_audiences for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.module_classes for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.module_discussions for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.module_templates for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.notification_deliveries
   for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.notifications for each row execute function app.row_meta();

@@ -37,6 +37,7 @@ export * from "./school-years";
 export * from "./site";
 export * from "./sso";
 export * from "./standards";
+export * from "./student-records";
 export * from "./teaching";
 export * from "./term-grades";
 export * from "./tenancy";

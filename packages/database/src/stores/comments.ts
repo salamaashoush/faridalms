@@ -199,25 +199,15 @@ export async function hostOfDocument(
   return row ? { type: row.host_type, id: row.host_id } : null;
 }
 
-/**
- * The record a document's editor is opened through, where it is not the
- * document's own: a lesson's module, a consent form's purpose.
- */
-export async function editorParentOf(
+/** The purpose a consent form belongs to, which its editor is opened through. */
+export async function purposeOfNotice(
   tx: Tx,
   tenantId: string,
-  host: { type: string; id: string },
+  noticeId: string,
 ): Promise<string | null> {
-  const parent =
-    host.type === "lesson"
-      ? sql`select module_id as id from core.lessons
-          where tenant_id = ${tenantId}::uuid and id = ${host.id}::uuid`
-      : host.type === "privacy_notice"
-        ? sql`select purpose_descriptor_id as id from core.privacy_notices
-            where tenant_id = ${tenantId}::uuid and id = ${host.id}::uuid`
-        : null;
-  if (!parent) return null;
-  const [row] = await tx.execute<{ id: string | null }>(parent);
+  const [row] = await tx.execute<{ id: string | null }>(sql`
+    select purpose_descriptor_id as id from core.privacy_notices
+    where tenant_id = ${tenantId}::uuid and id = ${noticeId}::uuid`);
   return row?.id ?? null;
 }
 

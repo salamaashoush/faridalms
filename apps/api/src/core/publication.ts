@@ -21,7 +21,7 @@ import {
   snapshotPublish,
   translationOf,
 } from "@faridalms/database/stores/documents";
-import { subjectsWithoutConsent } from "@faridalms/database/stores/site";
+import { subjectsWithoutConsent } from "@faridalms/database/stores/public-files";
 import { reviewTranslation } from "@faridalms/database/stores/translations";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { publishIssues } from "@faridalms/domain/content-checks";
@@ -34,7 +34,12 @@ import type { NoticeScope } from "./notify";
 
 import { placeMedia } from "../files/authorize";
 import { everyTenant } from "../files/upkeep";
-import { workerScope } from "./extension";
+import {
+  contributionsTo,
+  everyContribution,
+  point,
+  workerScope,
+} from "./extension";
 import { publishTelling, tellPublished } from "./mentions";
 import { schoolZone } from "./procedure";
 
@@ -300,10 +305,14 @@ export interface GoLive<T> {
   live: (scope: LiveScope, row: T) => Promise<void>;
 }
 
-const hosts = new Map<string, GoLive<unknown>>();
+/** What a module sets to go out later, told where the module is on. */
+export const goLives = point<readonly GoLive<unknown>[]>("go lives");
 
-export function registerGoLive<T>(hostType: string, host: GoLive<T>) {
-  hosts.set(hostType, host as GoLive<unknown>);
+const ownGoLives: GoLive<unknown>[] = [];
+
+/** A kind of core's own publication that can be set to go out later. */
+export function coreGoLive<T>(host: GoLive<T>) {
+  ownGoLives.push(host as GoLive<unknown>);
 }
 
 /** Tells the people words set for later newly mention, once they have gone live. */
@@ -342,7 +351,10 @@ export async function runGoLive(
     async (tx, now) => {
       let told = 0;
       const zones = new Map<string, string>();
-      for (const host of hosts.values()) {
+      for (const host of [
+        ...ownGoLives,
+        ...everyContribution(input.modules.extensions, goLives).flat(),
+      ]) {
         const due = await host.due(tx, {
           tenantId,
           now,
@@ -355,8 +367,14 @@ export async function runGoLive(
             tenantId,
             schoolId,
           });
-          // A school the directory no longer holds has nobody to tell.
-          if (!scope) continue;
+          // A school the directory no longer holds has nobody to tell, and
+          // one without the module tells nothing of it.
+          if (
+            !scope ||
+            (!ownGoLives.includes(host) &&
+              !(await contributionsTo(scope, goLives)).flat().includes(host))
+          )
+            continue;
           const zone = zones.get(schoolId) ?? (await schoolZone(tx, schoolId));
           zones.set(schoolId, zone);
           await host.live(

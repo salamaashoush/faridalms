@@ -411,6 +411,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errorSignInNoAddress();
       case "sign_in.not_sent":
         return m.errorSignInNotSent();
+      case "sign_in.way":
+        return m.errorSignInWay();
       case "leaving.not_enrolled":
         return m.errorLeavingNotEnrolled();
       case "leaving.none":
@@ -784,6 +786,8 @@ export function getMessageFromError(error: unknown): string {
         return m.siteErrTooMany();
       case "site.form":
         return m.siteErrForm();
+      case "site.no_receiver":
+        return m.siteErrNoReceiver();
       case "hosts.taken":
         return m.siteErrHostTaken();
       case "hosts.exists":
@@ -850,6 +854,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errTemplatesKept();
       case "application.sent":
         return m.errApplicationSent();
+      case "applying.needs_off":
+        return m.errApplyingNeedsOff();
       case "application.intake_closed":
         return m.errApplicationClosed();
       case "application.age_young":

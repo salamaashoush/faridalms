@@ -1,6 +1,7 @@
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { briefWithQuiz } from "@faridalms/domain/lesson-content";
 import { describe, expect, test } from "bun:test";
+import { sql } from "drizzle-orm";
 
 import { remindPeerReviews } from "../src/peer/clock";
 import {
@@ -399,6 +400,28 @@ describe("peer review", () => {
       ).length;
     expect(await reminded(second)).toBe(1);
     expect(await reminded(first)).toBe(0);
+    // Work handed out to review waits for the evening digest; the review
+    // date's reminder goes at once.
+    const me = await second.api.identity.currentUser();
+    const planned = await cell.withWorker(
+      { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
+      "read",
+      (tx) =>
+        tx.execute<{ due_soon: boolean; digest: boolean }>(sql`
+          select coalesce((n.params ->> 'dueSoon')::boolean, false) as due_soon,
+            coalesce((d.metadata ->> 'digest')::boolean, false) as digest
+          from core.notifications n
+          join core.notification_deliveries d on d.tenant_id = n.tenant_id
+            and d.notification_id = n.id and d.notification_created_at = n.created_at
+          where n.tenant_id = ${tenantId}::uuid and n.kind = 'peer_review'
+            and n.subject_id = ${saved.id}::uuid and n.user_id = ${me.id}::uuid
+            and d.channel = 'email'
+          order by due_soon`),
+    );
+    expect(planned).toEqual([
+      { due_soon: false, digest: true },
+      { due_soon: true, digest: false },
+    ]);
 
     await teacher.api.peer.release({ assignmentId: saved.id });
     expect(

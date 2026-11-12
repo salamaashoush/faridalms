@@ -1,10 +1,3 @@
-import type {
-  CloseReason,
-  EnquiryPurpose,
-  EnquirySource,
-  EnquiryState,
-} from "@faridalms/domain/enquiries";
-import type { FormAnswer } from "@faridalms/domain/questions";
 import type { SiteChrome, SiteTheme } from "@faridalms/domain/site-theme";
 import type { SocialLink } from "@faridalms/domain/website";
 import type { SQL } from "drizzle-orm";
@@ -29,15 +22,12 @@ import {
   core,
   entityColumns,
   entityProfile,
-  erase,
-  erasureListed,
   fk,
   instant,
   pk,
   roles,
   tenantColumns,
 } from "./conventions";
-import { messageThreads } from "./messaging";
 import { users } from "./people";
 import { orgs, tenants } from "./tenancy";
 
@@ -447,194 +437,5 @@ export const sitePublishedPosts = core.table.withRLS(
       .where(sql`status = 'active'`),
     ...entityProfile(),
     siteRead(visible),
-  ],
-);
-
-export type {
-  CloseReason,
-  EnquiryPurpose,
-  EnquirySource,
-  EnquiryState,
-} from "@faridalms/domain/enquiries";
-
-/**
- * An enquiry, from whichever door it came in: a form on the website, or a
- * call, a visit, an event or a referral that staff logged. It is worked
- * from open to converted or closed, and later links to the account of the
- * person who enquired and the applicant it became. The site role may only add rows from a form, unworked
- * and unassigned; it reads nothing back but the network key and time it
- * needs to slow down a flood from one place.
- */
-export const siteEnquiries = core.table.withRLS(
-  "site_enquiries",
-  {
-    ...tenantColumns(),
-    orgId: uuid("org_id").notNull(),
-    source: text("source").$type<EnquirySource>().notNull().default("website"),
-    pageId: uuid("page_id"),
-    sectionId: uuid("section_id"),
-    locale: text("locale").$type<SiteLocale>().notNull(),
-    purpose: text("purpose").$type<EnquiryPurpose>().notNull(),
-    name: text("name").notNull(),
-    email: text("email").notNull().default(""),
-    phone: text("phone").notNull().default(""),
-    // The phone in E.164 when it reads as a number of the school's country
-    // or an international one, so a family's other enquiries are found by it.
-    phoneNormalized: text("phone_normalized"),
-    childName: text("child_name").notNull().default(""),
-    childYear: text("child_year").notNull().default(""),
-    message: text("message").notNull().default(""),
-    answers: jsonb("answers")
-      .$type<FormAnswer[]>()
-      .notNull()
-      .default(sql`'[]'`),
-    networkKey: text("network_key").notNull().default(""),
-    state: text("state").$type<EnquiryState>().notNull().default("open"),
-    stateChangedAt: instant("state_changed_at")
-      .notNull()
-      .default(sql`statement_timestamp()`),
-    closedReason: text("closed_reason").$type<CloseReason>(),
-    assigneeUserId: uuid("assignee_user_id"),
-    firstRespondedAt: instant("first_responded_at"),
-    createdByUserId: uuid("created_by_user_id"),
-    enquirerUserId: uuid("enquirer_user_id"),
-    applicantUserId: uuid("applicant_user_id"),
-    // The enquiry's conversation in the admissions mailbox, where the family
-    // is written to and every note, contact and change is kept.
-    threadId: uuid("thread_id"),
-    // What the release before the enquiry's states reads and writes; nothing
-    // here does, and the columns go once no such release runs.
-    handledAt: instant("handled_at"),
-    handledBy: uuid("handled_by"),
-    ...entityColumns(),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("site_enquiries", t.tenantId, t.id),
-    ...baseConstraints("site_enquiries", t, tenants),
-    fk("site_enquiries", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
-    fk("site_enquiries", [t.tenantId, t.handledBy], [users.tenantId, users.id]),
-    fk(
-      "site_enquiries",
-      [t.tenantId, t.assigneeUserId],
-      [users.tenantId, users.id],
-    ),
-    fk(
-      "site_enquiries",
-      [t.tenantId, t.createdByUserId],
-      [users.tenantId, users.id],
-    ),
-    fk(
-      "site_enquiries",
-      [t.tenantId, t.enquirerUserId],
-      [users.tenantId, users.id],
-    ),
-    fk(
-      "site_enquiries",
-      [t.tenantId, t.applicantUserId],
-      [users.tenantId, users.id],
-    ),
-    fk(
-      "site_enquiries",
-      [t.tenantId, t.threadId],
-      [messageThreads.tenantId, messageThreads.id],
-    ),
-    ck(
-      "site_enquiries",
-      "source",
-      sql`source in ('website', 'phone', 'email', 'walk_in', 'event', 'referral', 'other')`,
-    ),
-    ck("site_enquiries", "locale", sql`locale in ('en', 'ar')`),
-    ck(
-      "site_enquiries",
-      "purpose",
-      sql`purpose in ('enquiry', 'visit', 'general')`,
-    ),
-    ck("site_enquiries", "name", sql`char_length(name) between 1 and 120`),
-    ck(
-      "site_enquiries",
-      "email",
-      sql`email = '' or (char_length(email) between 3 and 254 and email like '%_@_%')`,
-    ),
-    ck("site_enquiries", "phone", sql`char_length(phone) <= 40`),
-    ck(
-      "site_enquiries",
-      "phone_normalized",
-      sql`phone_normalized ~ '^\\+[1-9][0-9]{6,14}$'`,
-    ),
-    ck(
-      "site_enquiries",
-      "reach",
-      sql`status = 'tobedeleted' or email <> '' or phone <> ''`,
-    ),
-    ck("site_enquiries", "child_name", sql`char_length(child_name) <= 120`),
-    ck("site_enquiries", "child_year", sql`char_length(child_year) <= 60`),
-    ck("site_enquiries", "message", sql`char_length(message) <= 2000`),
-    ck(
-      "site_enquiries",
-      "answers",
-      sql`jsonb_typeof(answers) = 'array' and octet_length(answers::text) <= 131072`,
-    ),
-    ck("site_enquiries", "network_key", sql`char_length(network_key) <= 128`),
-    ck(
-      "site_enquiries",
-      "state",
-      sql`state in ('open', 'in_progress', 'converted', 'closed')`,
-    ),
-    ck(
-      "site_enquiries",
-      "closed_reason",
-      sql`closed_reason in ('answered', 'not_interested', 'another_school', 'not_eligible', 'no_places', 'no_response', 'duplicate', 'spam', 'other')`,
-    ),
-    ck(
-      "site_enquiries",
-      "closed",
-      sql`(state = 'closed') = (closed_reason is not null)`,
-    ),
-    ck(
-      "site_enquiries",
-      "website",
-      sql`(source = 'website') = (created_by_user_id is null)`,
-    ),
-    ck(
-      "site_enquiries",
-      "handled",
-      sql`(handled_at is null) = (handled_by is null)`,
-    ),
-    index("site_enquiries_org_idx")
-      .on(t.tenantId, t.orgId, t.createdAt)
-      .where(sql`status = 'active'`),
-    index("site_enquiries_state_idx")
-      .on(t.tenantId, t.orgId, t.state, t.createdAt)
-      .where(sql`status = 'active'`),
-    index("site_enquiries_assignee_idx")
-      .on(t.tenantId, t.assigneeUserId, t.state)
-      .where(sql`status = 'active' and assignee_user_id is not null`),
-    index("site_enquiries_email_idx")
-      .on(t.tenantId, t.orgId, sql`lower(email)`)
-      .where(sql`status = 'active' and email <> ''`),
-    index("site_enquiries_network_idx")
-      .on(t.tenantId, t.networkKey, t.createdAt)
-      .where(sql`status = 'active'`),
-    index("site_enquiries_phone_idx")
-      .on(t.tenantId, t.orgId, t.phoneNormalized)
-      .where(sql`status = 'active' and phone_normalized is not null`),
-    uniqueIndex("site_enquiries_thread_key")
-      .on(t.tenantId, t.threadId)
-      .where(sql`thread_id is not null`),
-    ...entityProfile(),
-    ...erase(erasureListed("site_enquiry", "id")),
-    pgPolicy("p_site_insert", {
-      for: "insert",
-      to: roles.site,
-      withCheck: sql`status = 'active' and source = 'website' and state = 'open'
-        and closed_reason is null and assignee_user_id is null and first_responded_at is null
-        and created_by_user_id is null and enquirer_user_id is null and applicant_user_id is null
-        and thread_id is null and handled_at is null`,
-    }),
-    pgPolicy("p_site_select", {
-      for: "select",
-      to: roles.site,
-      using: sql`status = 'active' and created_at > statement_timestamp() - interval '1 day'`,
-    }),
   ],
 );

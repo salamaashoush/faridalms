@@ -1744,32 +1744,3 @@ export async function contactOfSchool(
         and t.org_id = ${input.schoolId}::uuid) as ok`);
   return row?.ok ?? false;
 }
-
-/**
- * A family's conversation with a team: the one the enquiry it applied from
- * brought, or else the newest of the mailbox's they are in.
- */
-export async function mailboxConversationWith(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    schoolId: string;
-    mailbox: Mailbox;
-    userId: string;
-    enquiryId: string | null;
-  },
-): Promise<string | null> {
-  const [row] = await tx.execute<{ id: string }>(sql`
-    select coalesce(
-      (select e.thread_id from core.site_enquiries e
-        where e.tenant_id = ${input.tenantId}::uuid and e.id = ${input.enquiryId}::uuid
-          and e.status = 'active' and e.thread_id is not null),
-      (select t.id from core.message_threads t
-        join core.thread_members m on m.tenant_id = t.tenant_id and m.thread_id = t.id
-          and m.user_id = ${input.userId}::uuid and m.role = 'member' and m.status = 'active'
-          and m.left_at is null
-        where t.tenant_id = ${input.tenantId}::uuid and t.org_id = ${input.schoolId}::uuid
-          and t.mailbox = ${input.mailbox} and t.status = 'active'
-        order by t.last_message_at desc limit 1)) as id`);
-  return row?.id ?? null;
-}

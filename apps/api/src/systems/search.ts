@@ -7,12 +7,9 @@ import type {
   SearchResult,
   SearchTarget,
 } from "@faridalms/domain/search";
-import type { SQL } from "drizzle-orm";
 
 import { orgPath } from "@faridalms/database/stores/identity";
 import {
-  assignmentsAmong,
-  assignmentsReached,
   broadcastsAmong,
   broadcastsReached,
   candidates,
@@ -20,8 +17,6 @@ import {
   classesReached,
   eventsAmong,
   eventsReached,
-  learningAmong,
-  learningReached,
   peopleAmong,
   peopleReached,
   studentsAmong,
@@ -36,7 +31,6 @@ import {
   mentionNamesSchema,
   SEARCH_PAGE_SIZE,
   SEARCH_PREVIEW_SIZE,
-  kindOn,
   searchableKinds,
   searchFlagOf,
   searchQuerySchema,
@@ -44,70 +38,59 @@ import {
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
+import type { Resolver, SearchSource } from "../search/points";
 
 import { openedAnnouncements } from "../announcements/points";
-import { calendarReach, reachAt } from "../core/audiences";
-import { modulesOf } from "../core/modules";
+import { calendarReach } from "../core/audiences";
+import { contributionsTo } from "../core/extension";
 import { can, localeOf, readProcedure } from "../core/procedure";
-import {
-  classesReachedBesides,
-  peopleOpenedTo,
-  scopeFor,
-  studentsReached as reachedOf,
-} from "../core/reach";
+import { classesReachedBesides, peopleOpenedTo, scopeFor } from "../core/reach";
 import { placed } from "../people/points";
+import { searchSources } from "../search/points";
 
-const TYPES: Record<SearchKind, readonly string[]> = {
-  students: ["user"],
-  people: ["user"],
-  classes: ["class"],
-  assignments: ["assignment"],
-  learning: ["learning_module", "lesson"],
-  announcements: ["announcement"],
-  events: ["calendar_event"],
-  messages: ["message_thread"],
-  notes: ["team_thread"],
+/** Kinds core keeps, each with its index types and the page each opens. */
+const CORE_TARGETS: Partial<
+  Record<SearchKind, Readonly<Record<string, SearchTarget>>>
+> = {
+  students: { user: "student" },
+  people: { user: "person" },
+  classes: { class: "class" },
+  announcements: { announcement: "announcement" },
+  events: { calendar_event: "event" },
+  messages: { message_thread: "thread" },
+  notes: { team_thread: "thread" },
 };
 
-const TARGET: Record<string, SearchTarget> = {
-  class: "class",
-  assignment: "assignment",
-  learning_module: "module",
-  lesson: "lesson",
-  announcement: "announcement",
-  calendar_event: "event",
-  message_thread: "thread",
-  team_thread: "thread",
+/** Where each kind of mention is found by core, so its name is read by that kind's rule. */
+const CORE_MENTIONS: Partial<Record<MentionKind, readonly SearchKind[]>> = {
+  person: ["students", "people"],
+  class: ["classes"],
+  announcement: ["announcements"],
+  event: ["events"],
 };
 
-/** The students whose work the viewer follows: themselves, or those a module says they follow. */
-async function learnersOf(context: UnitContext) {
-  const own = can(context, "own-work:read") ? [context.actor.userId] : [];
-  if (!can(context, "children:read")) return own;
-  const reached = await reachedOf(context, "people", context.actor.follows);
-  return [...own, ...context.actor.follows.filter((id) => reached.has(id))];
-}
-
-async function learnerClasses(context: UnitContext, learners: string[]) {
-  const reaches = await Promise.all(
-    learners.map((userId) => reachAt(context, { userId, on: context.today })),
-  );
-  return [...new Set(reaches.flatMap((reach) => reach.classIds))];
-}
-
-interface Resolver {
-  /** The ids of the kind the viewer may open, which the index ranks among. */
-  within: SQL;
-  /** Reads candidates back through the same rule, for what the hit shows. */
-  resolve: (ids: string[]) => Promise<FoundRow[]>;
+/** The kinds the viewer may search, core's and those of the modules on, each with its source if a module keeps it. */
+async function kindsFor(
+  context: UnitContext,
+): Promise<Map<SearchKind, SearchSource | null>> {
+  const sources = await contributionsTo(context, searchSources);
+  const kinds = new Map<SearchKind, SearchSource | null>();
+  for (const kind of searchableKinds(context.actor.capabilities)) {
+    const source = sources.find((each) => each.kind === kind);
+    if (source) kinds.set(kind, source);
+    else if (CORE_TARGETS[kind]) kinds.set(kind, null);
+  }
+  return kinds;
 }
 
 /** How each kind reads its candidates back through the rule its own pages use. */
 async function resolverOf(
   context: UnitContext,
   kind: SearchKind,
+  source: SearchSource | null,
   q: string,
 ): Promise<Resolver> {
+  if (source) return source.resolver(context, q);
   const ar = localeOf(context) === "ar";
   const school = { tenantId: context.tenantId, schoolId: context.schoolId };
   const base = { ...school, q, ar };
@@ -141,39 +124,6 @@ async function resolverOf(
         within: classesReached(scope, besides),
         resolve: (ids) =>
           classesAmong(context.tx, scope, { ...base, ids, besides }),
-      };
-    }
-    case "assignments": {
-      const access = {
-        ...school,
-        teaching: can(context, "assignments:author")
-          ? scopeFor(context, "teaching")
-          : null,
-        learners: await learnersOf(context),
-      };
-      return {
-        within: assignmentsReached(access),
-        resolve: (ids) =>
-          assignmentsAmong(context.tx, { ...base, ...access, ids }),
-      };
-    }
-    case "learning": {
-      const learnerIds = can(context, "learning:read")
-        ? await learnersOf(context)
-        : [];
-      const access = {
-        ...school,
-        viewerId,
-        teaching: can(context, "learning:author")
-          ? scopeFor(context, "teaching")
-          : null,
-        learnerClassIds: await learnerClasses(context, learnerIds),
-        learnerIds,
-      };
-      return {
-        within: learningReached(access),
-        resolve: (ids) =>
-          learningAmong(context.tx, { ...base, ...access, ids }),
       };
     }
     case "announcements": {
@@ -218,22 +168,19 @@ async function resolverOf(
           teamThreadsAmong(context.tx, { ...base, ...access, ids }),
       };
     }
-    default: {
-      const unreachable: never = kind;
-      return unreachable;
-    }
+    default:
+      throw new ORPCError("FORBIDDEN");
   }
 }
 
-function hitOf(kind: SearchKind, row: FoundRow): SearchHit {
+function hitOf(
+  kind: SearchKind,
+  targets: Readonly<Record<string, SearchTarget>>,
+  row: FoundRow,
+): SearchHit {
   return {
     kind,
-    target:
-      kind === "students"
-        ? "student"
-        : kind === "people"
-          ? "person"
-          : (TARGET[row.type] ?? "class"),
+    target: targets[row.type] ?? "class",
     id: row.id,
     title: row.title,
     snippet: row.snippet,
@@ -261,17 +208,24 @@ async function pageOf(
   context: UnitContext,
   input: {
     kind: SearchKind;
+    source: SearchSource | null;
     q: string;
     orgScope: string[];
     size: number;
     after: { rank: number; id: string } | null;
   },
 ): Promise<{ group: SearchGroup; next: string | null }> {
-  const { within, resolve } = await resolverOf(context, input.kind, input.q);
+  const { within, resolve } = await resolverOf(
+    context,
+    input.kind,
+    input.source,
+    input.q,
+  );
+  const targets = input.source?.targets ?? CORE_TARGETS[input.kind] ?? {};
   const preferOn = input.kind === "classes" ? context.today : null;
   const found = await candidates(context.tx, {
     q: input.q,
-    types: TYPES[input.kind],
+    types: Object.keys(targets),
     orgScope: input.orgScope,
     after: input.after,
     max: input.size + 1,
@@ -287,7 +241,7 @@ async function pageOf(
   );
   const rows = page.flatMap((candidate) => {
     const row = visible.get(candidate.id);
-    return row ? [hitOf(input.kind, row)] : [];
+    return row ? [hitOf(input.kind, targets, row)] : [];
   });
   const more = found.length > input.size;
   const last = page.at(-1);
@@ -295,13 +249,6 @@ async function pageOf(
     group: { kind: input.kind, rows, more },
     next: more && last ? cursorOf(last) : null,
   };
-}
-
-async function kindsFor(context: UnitContext): Promise<SearchKind[]> {
-  const on = await modulesOf(context);
-  return searchableKinds(context.actor.capabilities).filter((kind) =>
-    kindOn(kind, on),
-  );
 }
 
 /** Everything the viewer may open that matches, grouped by kind, or one kind a page at a time. */
@@ -316,9 +263,10 @@ export const find = readProcedure
     );
     if (input.kind === "all") {
       const pages = await Promise.all(
-        kinds.map((kind) =>
+        [...kinds].map(([kind, source]) =>
           pageOf(context, {
             kind,
+            source,
             q: input.q,
             orgScope,
             size: SEARCH_PREVIEW_SIZE,
@@ -333,9 +281,11 @@ export const find = readProcedure
         next: null,
       };
     }
-    if (!kinds.includes(input.kind)) throw new ORPCError("FORBIDDEN");
+    const source = kinds.get(input.kind);
+    if (source === undefined) throw new ORPCError("FORBIDDEN");
     const page = await pageOf(context, {
       kind: input.kind,
+      source,
       q: input.q,
       orgScope,
       size: SEARCH_PAGE_SIZE,
@@ -343,17 +293,6 @@ export const find = readProcedure
     });
     return { groups: [page.group], next: page.next };
   });
-
-/** Where each kind of mention is found, so its name is read by that kind's rule. */
-const MENTIONED_IN: Record<MentionKind, readonly SearchKind[]> = {
-  person: ["students", "people"],
-  class: ["classes"],
-  module: ["learning"],
-  lesson: ["learning"],
-  assignment: ["assignments"],
-  announcement: ["announcements"],
-  event: ["events"],
-};
 
 /**
  * The names the things a document mentions bear now, in the reader's
@@ -364,15 +303,23 @@ const MENTIONED_IN: Record<MentionKind, readonly SearchKind[]> = {
 export const mentionNames = readProcedure
   .input(mentionNamesSchema)
   .handler(async ({ input, context }) => {
-    const kinds = new Set(await kindsFor(context));
+    const kinds = await kindsFor(context);
+    const mentionedIn = (mention: MentionKind) => [
+      ...(CORE_MENTIONS[mention] ?? []),
+      ...[...kinds]
+        .filter(([, source]) => source?.mentions.includes(mention))
+        .map(([kind]) => kind),
+    ];
     const wanted = new Map<SearchKind, Set<string>>();
     for (const mention of input.mentions)
-      for (const kind of MENTIONED_IN[mention.kind])
+      for (const kind of mentionedIn(mention.kind))
         if (kinds.has(kind))
           wanted.set(kind, (wanted.get(kind) ?? new Set()).add(mention.id));
     const found = await Promise.all(
       [...wanted].map(async ([kind, ids]) =>
-        (await resolverOf(context, kind, "")).resolve([...ids]),
+        (await resolverOf(context, kind, kinds.get(kind) ?? null, "")).resolve([
+          ...ids,
+        ]),
       ),
     );
     return [

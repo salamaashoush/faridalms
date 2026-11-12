@@ -70,7 +70,7 @@ import {
   saveTranslation,
   snapshotPublish,
 } from "./stores/documents";
-import { openEnquiryConversation } from "./stores/enquiries";
+import { insertEnquiry, openEnquiryConversation } from "./stores/enquiries";
 import { actorsOf, keepConsentLink, setToFamilies } from "./stores/families";
 import {
   addHomeroom,
@@ -91,7 +91,6 @@ import { postMessage } from "./stores/messages";
 import { insertDeliveries, insertNotifications } from "./stores/notifications";
 import { setOrgFeature } from "./stores/school";
 import {
-  insertEnquiry,
   insertPage,
   saveCategory,
   saveSiteSettings,

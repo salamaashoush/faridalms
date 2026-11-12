@@ -18,7 +18,7 @@ import {
 } from "@faridalms/database/stores/enquiries";
 import { membersOf, setOwner } from "@faridalms/database/stores/messages";
 import { namesOf } from "@faridalms/database/stores/persons";
-import { publicSchool } from "@faridalms/database/stores/site";
+import { publicSchool } from "@faridalms/database/stores/public-school";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import {
   assignEnquirySchema,
@@ -35,6 +35,8 @@ import { ORPCError } from "@orpc/server";
 import type { UnitContext } from "../core/context";
 import type { ConversationScope } from "../messages/conversations";
 
+import { ADMISSIONS_MAILBOXES } from "../admissions/hosts";
+import { withPageTitles } from "../admissions/points";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -43,11 +45,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import {
-  registerMailbox,
-  scopeOf,
-  writeEntry,
-} from "../messages/conversations";
+import { scopeOf, writeEntry } from "../messages/conversations";
 
 const conflict = () =>
   new ORPCError("CONFLICT", { message: "conflict.version" });
@@ -71,7 +69,7 @@ async function enquiryOf(context: UnitContext, id: string) {
     id,
   });
   if (!row) throw new ORPCError("NOT_FOUND");
-  return row;
+  return withPageTitles(context, row);
 }
 
 async function holderOf(context: UnitContext, userId: string) {
@@ -152,7 +150,8 @@ function recordEvent(
  * time, and an open enquiry is then in progress, which the conversation
  * records.
  */
-registerMailbox("admissions", {
+ADMISSIONS_MAILBOXES.push({
+  mailbox: "admissions",
   written: async (scope, entry) => {
     if (entry.fromOutside || !entry.authorUserId) return;
     if (

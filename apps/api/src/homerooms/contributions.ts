@@ -1,5 +1,4 @@
 import {
-  homeroomClassIds,
   homeroomsOfClasses,
   homeroomsOfStudents,
   reachedThroughHomerooms,
@@ -7,7 +6,6 @@ import {
 
 import type { ModuleContributions } from "../core/extension";
 
-import { dailyRegisters } from "../attendance/daily-registers";
 import { classGroups, classGuards } from "../classes/points";
 import { contribute } from "../core/extension";
 import { sharedClassReach } from "../core/reach";
@@ -20,14 +18,6 @@ export const HOMEROOMS: ModuleContributions = {
     contribute(sharedClassReach, {
       classesReached: (context, scope, on) =>
         reachedThroughHomerooms(context.tx, scope, on),
-    }),
-    contribute(dailyRegisters, {
-      classIds: (context, during) =>
-        homeroomClassIds(context.tx, {
-          tenantId: context.tenantId,
-          schoolId: context.schoolId,
-          during,
-        }),
     }),
     contribute(studentGroups, {
       groupsOf: (context, studentIds, on) =>

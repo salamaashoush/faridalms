@@ -38,13 +38,13 @@ export async function signedInAs(
 }
 
 /**
- * What the cell sees of a school's first steps, from its own data: who has
- * signed in, what has been set up and what has been used. A school's own
- * address is the directory's to know and is left to it.
+ * What the cell sees of a school's first steps in core's own data: who has
+ * signed in and what has been set up. Each module measures its own steps,
+ * and a school's own address is the directory's to know.
  */
 export async function onboardingSeen(
   tx: CellTransaction,
-  input: { tenantId: string; orgId: string; today: string },
+  input: { tenantId: string; orgId: string },
 ): Promise<OnboardingItem[]> {
   const tenant = sql`${input.tenantId}::uuid`;
   const org = sql`${input.orgId}::uuid`;
@@ -60,11 +60,6 @@ export async function onboardingSeen(
       exists (select 1 from core.orgs o where o.tenant_id = ${tenant} and o.id = ${org}
         and o.logo_file_id is not null
         and num_nonnulls(o.address, o.phone, o.email) > 0) as school_details,
-      exists (select 1 from core.academic_sessions y
-        join core.academic_sessions t on t.tenant_id = y.tenant_id and t.school_year_id = y.id
-          and t.type = 'term' and t.status = 'active'
-        where y.tenant_id = ${tenant} and y.org_id = ${org} and y.type = 'school_year'
-          and y.status = 'active' and y.lifecycle in ('current', 'upcoming')) as year_ready,
       exists (select 1 from core.classes c where c.tenant_id = ${tenant}
         and c.org_id = ${org} and c.status = 'active') as classes,
       exists (select 1 from core.user_roles r where r.tenant_id = ${tenant}
@@ -72,20 +67,7 @@ export async function onboardingSeen(
         and r.role = any(${textArray(STAFF_ROLES)})) as staff_invited,
       ${signedIn(STAFF_ROLES)} as staff_signed_in,
       exists (select 1 from core.enrollments s where s.tenant_id = ${tenant}
-        and s.org_id = ${org} and s.role = 'student' and s.status = 'active') as students_imported,
-      exists (select 1 from core.class_meetings c
-        where c.tenant_id = ${tenant} and c.org_id = ${org} and c.status = 'active'
-          and (upper_inf(c.valid_during) or upper(c.valid_during) > ${input.today}::date)) as timetable_ready,
-      exists (select 1 from core.assignments a where a.tenant_id = ${tenant}
-        and a.org_id = ${org} and a.status = 'active' and a.state <> 'draft') as first_assignment,
-      exists (select 1 from core.attendance_registers g where g.tenant_id = ${tenant}
-        and g.org_id = ${org} and g.status = 'active' and g.state = 'submitted') as first_register,
-      exists (select 1 from core.site_settings w
-        join core.site_published_pages p on p.tenant_id = w.tenant_id and p.org_id = w.org_id
-          and p.status = 'active'
-        where w.tenant_id = ${tenant} and w.org_id = ${org} and w.live) as website_published,
-      exists (select 1 from core.admission_intakes i where i.tenant_id = ${tenant}
-        and i.org_id = ${org} and i.status = 'active') as admissions_ready`);
+        and s.org_id = ${org} and s.role = 'student' and s.status = 'active') as students_imported`);
   if (!row) return [];
   return (Object.keys(row) as OnboardingItem[]).filter((item) => row[item]);
 }

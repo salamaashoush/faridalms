@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PREFERENCES,
   deliveryTime,
+  governingKind,
   preferencesOf,
   retryDelayMs,
 } from "./notifications";
@@ -132,5 +133,40 @@ describe("stored preferences", () => {
     const read = preferencesOf({ ...DEFAULT_PREFERENCES, email, sms });
     expect(read.email.announcement).toBe("off");
     expect(read.email.consent).toBe(DEFAULT_PREFERENCES.email.consent);
+  });
+});
+
+describe("peer review's notices", () => {
+  const now = new Date("2026-10-01T09:00:00Z");
+  const plan = (
+    params: { dueSoon?: boolean },
+    preferences = DEFAULT_PREFERENCES,
+  ) =>
+    deliveryTime({
+      kind: governingKind("peer_review", params),
+      channel: "email",
+      preferences,
+      school: cairo,
+      now,
+    });
+
+  it("hand reviews out in the evening digest and remind of a review date at once, as before they were a kind of their own", () => {
+    expect(governingKind("peer_review", {})).toBe("assignment");
+    expect(governingKind("peer_review", { dueSoon: true })).toBe("reminder");
+    expect(plan({})?.mode).toBe("digest");
+    expect(plan({ dueSoon: true })).toEqual({ mode: "instant", at: now });
+  });
+
+  it("follow a choice a person saved for new work", () => {
+    const saved = preferencesOf({
+      email: { ...DEFAULT_PREFERENCES.email, assignment: "off" },
+    });
+    expect(plan({}, saved)).toBeNull();
+    expect(plan({ dueSoon: true }, saved)?.mode).toBe("instant");
+  });
+
+  it("leave every other kind its own choice", () => {
+    expect(governingKind("assignment", {})).toBe("assignment");
+    expect(governingKind("reminder", { dueSoon: true })).toBe("reminder");
   });
 });

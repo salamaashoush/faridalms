@@ -5,7 +5,6 @@ import type {
 
 import {
   adoptApplicant,
-  adoptHealthRecords,
   closeApplicantRole,
 } from "@faridalms/database/stores/admission-decisions";
 import { descriptorId } from "@faridalms/database/stores/descriptors";
@@ -20,8 +19,8 @@ import { ORPCError } from "@orpc/server";
 import type { UnitContext } from "../core/context";
 
 import { audit } from "../core/procedure";
-import { withPurposeFor } from "../core/purpose";
 import { scopeFor } from "../core/reach";
+import { joinRecordsOf } from "../people/joins";
 import { admissionScope, moveApplication } from "./decisions";
 import { enrolParts, filingModule } from "./points";
 
@@ -53,22 +52,11 @@ async function joinRecords(
   studentId: string,
 ) {
   const tx = context.tx;
-  await withPurposeFor(
-    context,
-    {
-      purpose: "health",
-      subjectUserId: studentId,
-      reason: "Joined an applicant's health and needs to the student",
-      write: true,
-      capabilities: ["admissions:decide"],
-    },
-    (purposeTx) =>
-      adoptHealthRecords(purposeTx, {
-        tenantId: context.tenantId,
-        fromUserId: row.applicantUserId,
-        toUserId: studentId,
-      }),
-  );
+  await joinRecordsOf(context, {
+    fromUserId: row.applicantUserId,
+    toUserId: studentId,
+    by: ["admissions:decide"],
+  });
   const consentIds = await adoptApplicant(tx, {
     tenantId: context.tenantId,
     fromUserId: row.applicantUserId,

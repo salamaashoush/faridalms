@@ -75,7 +75,7 @@ export const roles = readProcedure.handler(async ({ context }) => {
       // where they were made.
       editable: row.builtinKey !== null || row.orgId === context.schoolId,
     })),
-    grantable: grantable(context),
+    grantable: await grantable(context),
   };
 });
 
@@ -83,7 +83,7 @@ export const saveRole = writeProcedure
   .input(saveAccessRoleSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "access:manage");
-    requireGrantable(context, input.capabilities);
+    await requireGrantable(context, input.capabilities);
     if (!input.nameEn && !input.nameAr)
       throw new ORPCError("BAD_REQUEST", {
         message: "validation.name_required",
@@ -184,7 +184,7 @@ export const assign = writeProcedure
     requireCapability(context, "access:manage");
     await requireReached(context, input.userId);
     const role = await visibleRole(context, input.accessRoleId);
-    requireGrantable(context, role.capabilities);
+    await requireGrantable(context, role.capabilities);
     const from = input.startsOn ?? context.today;
     if (input.endsOn && input.endsOn < from)
       throw new ORPCError("BAD_REQUEST", { message: "validation.end_date" });

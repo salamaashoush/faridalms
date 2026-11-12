@@ -25,7 +25,10 @@ import type { ModuleContributions } from "../core/extension";
 import { announcementCopies } from "../announcements/points";
 import { contribute } from "../core/extension";
 import { readProcedure, requireCapability } from "../core/procedure";
+import { liveRevisers } from "../core/shared";
 import { publishMedia, withdrawMedia } from "../core/site";
+import { fileHosts } from "../files/authorize";
+import { WEBSITE_HOSTS, WEBSITE_REVISERS } from "./hosts";
 
 const primaryOf = (row: BroadcastRow): ContentLocale =>
   row.primaryLocale ?? (row.titleAr && !row.titleEn ? "ar" : "en");
@@ -162,6 +165,8 @@ async function putOnWebsite(
 export const WEBSITE_ANNOUNCEMENTS: ModuleContributions = {
   module: "website",
   contributions: [
+    contribute(fileHosts, WEBSITE_HOSTS),
+    contribute(liveRevisers, WEBSITE_REVISERS),
     contribute(announcementCopies, {
       key: "website",
       async save(context, input) {

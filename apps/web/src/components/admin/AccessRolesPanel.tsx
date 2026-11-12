@@ -2,10 +2,8 @@ import type { Capability } from "@faridalms/domain/capabilities";
 import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 import type { ReactNode } from "react";
 
-import {
-  BUILTIN_ROLE_MODULE,
-  CAPABILITY_MODULE,
-} from "@faridalms/domain/capabilities";
+import { BUILTIN_ROLE_MODULE } from "@faridalms/domain/capabilities";
+import { wordOn } from "@faridalms/domain/modules";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { ChangeLog } from "@faridalms/ui/system/change-log";
 import { DataTable } from "@faridalms/ui/system/data-table";
@@ -271,10 +269,8 @@ export function RoleSheet({ open, role, copyOf, onClose }: RoleSheetProps) {
   });
   const held = new Set<Capability>(data.grantable);
   const { modules } = useCurrentUser();
-  const offered = (capability: Capability) => {
-    const module = CAPABILITY_MODULE[capability];
-    return module === undefined || modules[module];
-  };
+  const offered = (capability: Capability) =>
+    wordOn("capabilities", capability, modules);
   const groupId = useId();
   const set = <K extends keyof RoleDraft>(key: K, value: RoleDraft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));

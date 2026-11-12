@@ -372,17 +372,6 @@ export async function adoptApplicant(
   return consents.map((row) => row.id);
 }
 
-/** Hands an applicant's health records to the student they were found to be. Run with the health purpose set. */
-export async function adoptHealthRecords(
-  tx: Tx,
-  input: { tenantId: string; fromUserId: string; toUserId: string },
-) {
-  await tx.execute(sql`
-    update health.records set student_user_id = ${input.toUserId}::uuid
-    where tenant_id = ${input.tenantId}::uuid and student_user_id = ${input.fromUserId}::uuid
-      and status = 'active'`);
-}
-
 export interface LetterRow {
   id: string;
   applicationId: string;

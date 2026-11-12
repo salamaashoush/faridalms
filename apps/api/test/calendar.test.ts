@@ -4,7 +4,15 @@ import {
 } from "@faridalms/domain/content-conversion";
 import { describe, expect, setSystemTime, test } from "bun:test";
 
-import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
+import {
+  login,
+  raw,
+  rejection,
+  seeded,
+  sessionFor,
+  signedIn,
+  withoutModules,
+} from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 const mother = () =>
@@ -325,6 +333,17 @@ describe("calendar links", () => {
     expect(body).toMatch(
       /BEGIN:VEVENT\r\nUID:lesson-[^\r]+\r\nDTSTAMP:\d{8}T\d{6}Z\r\nSEQUENCE:\d+\r\nDTSTART:\d{8}T\d{6}Z/,
     );
+    // With the timetable off the link carries no lessons, and does again once it is back.
+    await withoutModules("northwind", ["timetable"], async () => {
+      const off = await seeded().handler(
+        new Request(`http://api.test/feeds/${made.school}/${made.token}.ics`),
+      );
+      expect(await off.text()).not.toContain("UID:lesson-");
+    });
+    const back = await seeded().handler(
+      new Request(`http://api.test/feeds/${made.school}/${made.token}.ics`),
+    );
+    expect(await back.text()).toContain("UID:lesson-");
   });
 });
 

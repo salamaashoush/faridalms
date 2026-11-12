@@ -19,6 +19,8 @@ import {
   setPlan,
   signedIn,
   testDirectory,
+  withoutModules,
+  workerModules,
 } from "./harness";
 
 const text = (value: string) => new Blob([value]);
@@ -207,7 +209,11 @@ describe("files", () => {
     const tenantId = tenants[0]?.tenantId;
     if (!tenantId) throw new Error("seed tenant");
     const later = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000);
-    const result = await sweepTenantFiles(cell, files, tenantId, later);
+    const result = await sweepTenantFiles(
+      { cell, store: files, extensions: workerModules().extensions },
+      tenantId,
+      later,
+    );
     expect(result.abandoned).toBeGreaterThanOrEqual(1);
     expect(result.retired).toBeGreaterThanOrEqual(1);
     const retry = await raw(
@@ -324,6 +330,12 @@ describe("files in documents", () => {
     await teacher.api.coursework.publish({
       id: saved.id,
       expectedVersion: saved.version,
+    });
+    expect((await read()).status).toBe(200);
+    // The same address, given before, opens nothing with coursework off,
+    // and opens again once it is back on.
+    await withoutModules("northwind", ["coursework"], async () => {
+      expect((await read()).status).toBe(404);
     });
     expect((await read()).status).toBe(200);
 
@@ -473,8 +485,7 @@ describe("files in documents", () => {
       );
     expect((await raw("northwind", teacher.token, path)).status).toBe(404);
     await sweepTenantFiles(
-      cell,
-      files,
+      { cell, store: files, extensions: workerModules().extensions },
       tenantId,
       new Date(Date.now() + 29 * day),
     );
@@ -483,8 +494,7 @@ describe("files in documents", () => {
     expect((await raw("northwind", teacher.token, path)).status).toBe(200);
     await teacher.api.files.trashInArea({ area, id: file.id, trashed: true });
     const swept = await sweepTenantFiles(
-      cell,
-      files,
+      { cell, store: files, extensions: workerModules().extensions },
       tenantId,
       new Date(Date.now() + 31 * day),
     );
@@ -588,8 +598,7 @@ describe("replacing a file in a class's files", () => {
 
     const { cell, files, tenants } = seeded();
     await sweepTenantFiles(
-      cell,
-      files,
+      { cell, store: files, extensions: workerModules().extensions },
       tenants[0]?.tenantId ?? "",
       new Date(Date.now() + 31 * 24 * 60 * 60 * 1000),
     );

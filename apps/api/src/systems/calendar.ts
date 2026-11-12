@@ -4,7 +4,6 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import type { ContentLocale } from "@faridalms/domain/translations";
 
 import { changeOf } from "@faridalms/database/audit";
-import { bookedBetween } from "@faridalms/database/stores/admission-decisions";
 import { classesTaughtBy } from "@faridalms/database/stores/classes";
 import {
   eventById,
@@ -39,6 +38,7 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 
 import { hashFeedToken, newFeedToken } from "../calendar/feed";
+import { calendarSources } from "../calendar/points";
 import {
   audienceChoices,
   audiencePeople,
@@ -47,6 +47,7 @@ import {
   reachAt,
   saveAudiences,
 } from "../core/audiences";
+import { contributionsTo } from "../core/extension";
 import { refuseIfHeld } from "../core/holds";
 import { notify } from "../core/notify";
 import {
@@ -65,7 +66,7 @@ import {
 } from "../core/publication";
 import { isStaff, studentsReached, teaches } from "../core/reach";
 import { checkTranslation } from "../core/translation-review";
-import { registerHostReader, registerHostWriter } from "../files/authorize";
+import { coreHost, passes } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -188,21 +189,10 @@ async function tell(
   });
 }
 
-registerHostReader("calendar_event", async (context, hostId) => {
-  try {
-    await readable(context, hostId);
-    return true;
-  } catch {
-    return false;
-  }
-});
-registerHostWriter("calendar_event", async (context, hostId) => {
-  try {
-    await editable(context, hostId);
-    return true;
-  } catch {
-    return false;
-  }
+coreHost({
+  hostType: "calendar_event",
+  read: passes(readable),
+  write: passes(editable),
 });
 
 /**
@@ -230,14 +220,22 @@ async function reachFor(context: UnitContext, childId: string) {
   };
 }
 
-/** The events and the school calendar's special days within a window. */
+/**
+ * The events and the school calendar's special days within a window, with
+ * what the modules on keep in the calendar under their own categories. A
+ * family's view of a child holds only the school's events.
+ */
 export const range = readProcedure
   .input(rangeQuerySchema)
   .handler(async ({ input, context }) => {
     const { reach, children } = await reachFor(context, input.child);
-    const admissions =
-      can(context, "admissions:read") || can(context, "admissions:manage");
-    const [events, days, booked] = await Promise.all([
+    const sources =
+      input.child || !isStaff(context)
+        ? []
+        : (await contributionsTo(context, calendarSources)).filter((source) =>
+            source.shows(context),
+          );
+    const [events, days, kept] = await Promise.all([
       eventsBetween(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
@@ -253,38 +251,36 @@ export const range = readProcedure
         from: input.from,
         to: input.to,
       }),
-      // A family's view of a child's calendar holds no admissions work.
-      input.child || !isStaff(context)
-        ? Promise.resolve([])
-        : bookedBetween(context.tx, {
-            tenantId: context.tenantId,
-            orgId: context.schoolId,
-            from: input.from,
-            to: input.to,
-            attendeeId: admissions ? null : context.actor.userId,
-          }),
+      Promise.all(
+        sources.map(async (source) =>
+          (await source.between(context, input)).map((entry) => ({
+            entry,
+            category: source.category,
+          })),
+        ),
+      ),
     ]);
     return {
       events: [
         ...events.map((row) => ({
           ...row,
           category: row.category as ShownCategory,
-          admission: null,
+          origin: null,
         })),
-        ...booked.map((row) => ({
-          id: row.id,
+        ...kept.flat().map(({ entry, category }) => ({
+          id: entry.id,
           version: 1,
           orgId: context.schoolId,
-          titleEn: row.applicantNameEn,
-          titleAr: row.applicantNameAr,
-          category: "admissions" as ShownCategory,
-          startsOn: row.startsOn,
-          endsOn: row.startsOn,
-          startTime: row.startTime,
-          endTime: row.endTime,
-          location: row.location || null,
+          titleEn: entry.titleEn,
+          titleAr: entry.titleAr,
+          category: category as ShownCategory,
+          startsOn: entry.startsOn,
+          endsOn: entry.endsOn,
+          startTime: entry.startTime,
+          endTime: entry.endTime,
+          location: entry.location,
           provisional: false,
-          cancelled: row.outcome === "cancelled",
+          cancelled: entry.cancelled,
           state: "published" as const,
           public: false,
           publishedAt: null,
@@ -292,7 +288,7 @@ export const range = readProcedure
           authorUserId: "",
           authorNameEn: null,
           authorNameAr: null,
-          admission: { applicationId: row.applicationId, kind: row.kind },
+          origin: entry.origin,
         })),
       ].toSorted(
         (a, b) =>
@@ -300,7 +296,8 @@ export const range = readProcedure
           (a.startTime ?? "").localeCompare(b.startTime ?? ""),
       ),
       days,
-      admissions: booked.length > 0 || admissions,
+      /** The categories the modules on add, offered whether or not any falls in the window. */
+      categories: sources.map((source) => source.category as ShownCategory),
       canManage: manages(context),
       canAuthor: manages(context) || can(context, "calendar:author"),
       children: children.map((child) => ({

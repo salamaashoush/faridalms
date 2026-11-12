@@ -1,10 +1,6 @@
 import type { OpenSpan } from "@faridalms/domain/school";
 
 import {
-  lastMarkInClass,
-  lastMarkInClasses,
-} from "@faridalms/database/stores/attendance";
-import {
   enrolledBefore,
   moveClassRuns,
 } from "@faridalms/database/stores/classes";
@@ -13,24 +9,15 @@ import { ORPCError } from "@orpc/server";
 import type { UnitContext } from "../core/context";
 
 import { contributionsTo } from "../core/extension";
-import { classJoins, runsRefusal } from "./points";
+import { classJoins, leavingRefusal, runsRefusal } from "./points";
 
-/**
- * Ending enrolments on a day before a register that already marks the
- * student would leave that register counting someone no longer in the class.
- */
+/** Refuses ending a student's enrolments from a day where a module keeps something of them after it. */
 export async function refuseOverRegisters(
   context: UnitContext,
   input: { studentId: string; classIds: readonly string[]; from: string },
 ) {
-  const last = await lastMarkInClasses(context.tx, {
-    tenantId: context.tenantId,
-    ...input,
-  });
-  if (last)
-    throw new ORPCError("CONFLICT", {
-      message: `enrollment.registers_after:${last}`,
-    });
+  const refusal = await leavingRefusal(context, input);
+  if (refusal) throw new ORPCError("CONFLICT", { message: refusal });
 }
 
 /**
@@ -63,17 +50,6 @@ export async function moveClass(
     (await enrolledBefore(context.tx, context.tenantId, classId, after.from))
   )
     throw new ORPCError("CONFLICT", { message: "class.runs_enrolments" });
-  if (after.to !== null && (before.to === null || after.to < before.to)) {
-    const last = await lastMarkInClass(context.tx, {
-      tenantId: context.tenantId,
-      classId,
-      from: after.to,
-    });
-    if (last)
-      throw new ORPCError("CONFLICT", {
-        message: `class.registers_after:${last}`,
-      });
-  }
   const refusal = await runsRefusal(context, classId, after);
   if (refusal) throw new ORPCError("CONFLICT", { message: refusal });
   await moveClassRuns(context.tx, {

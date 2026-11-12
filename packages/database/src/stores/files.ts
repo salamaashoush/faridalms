@@ -477,64 +477,6 @@ export async function retireTrashedMedia(
   return rows.map((row) => row.storage_key);
 }
 
-/**
- * Retires the projects and stage pictures of coding answers saved over
- * since: all but a student's last `kept` saves of each question in each
- * attempt, once older than `savedBefore`. A file a kept save still holds
- * stays, and so does one offered to or shown in a class gallery, which
- * holds a save as it stood however many came after. Keys come back only
- * when no active row still points at the same object.
- */
-export async function retireSupersededAnswers(
-  tx: Tx,
-  tenantId: string,
-  input: { kept: number; savedBefore: Date; limit: number },
-): Promise<string[]> {
-  const rows = await tx.execute<{ storage_key: string }>(sql`
-    with ranked as (
-      select r.response, r.created_at,
-        dense_rank() over (
-          partition by r.lesson_id, r.student_user_id, r.block_id, r.attempt
-          order by r.try desc) as recency
-      from core.lesson_responses r
-      where r.tenant_id = ${tenantId}::uuid and r.kind = 'scratch'
-    ),
-    held as (
-      select (response->'project'->>'fileId')::uuid as file_id, recency, created_at from ranked
-      union all
-      select (response->'thumbnail'->>'fileId')::uuid, recency, created_at from ranked
-      where response ? 'thumbnail'
-    ),
-    retired as (
-      update core.files set status = 'tobedeleted'
-      where tenant_id = ${tenantId}::uuid and id in (
-        select f.id from core.files f
-        where f.tenant_id = ${tenantId}::uuid and f.status = 'active'
-          and f.host_type = 'lesson_answer'
-          and f.id in (
-            select file_id from held
-            where recency > ${input.kept}
-              and created_at < ${input.savedBefore.toISOString()}::timestamptz)
-          and f.id not in (
-            select file_id from held
-            where file_id is not null and recency <= ${input.kept})
-          and not exists (
-            select 1 from core.lesson_shares s
-            where s.tenant_id = f.tenant_id and s.status = 'active'
-              and s.state <> 'declined'
-              and f.id::text in (
-                s.response->'project'->>'fileId',
-                s.response->'thumbnail'->>'fileId'))
-        order by f.created_at limit ${input.limit})
-      returning id, storage_key)
-    select distinct r.storage_key from retired r
-    where not exists (
-      select 1 from core.files f
-      where f.tenant_id = ${tenantId}::uuid and f.storage_key = r.storage_key
-        and f.status = 'active' and f.id not in (select id from retired))`);
-  return rows.map((row) => row.storage_key);
-}
-
 /** Moves a host's files onto another host, as handing in moves a draft's files onto its attempt. */
 export async function rehostFiles(
   tx: Tx,
@@ -668,8 +610,8 @@ export interface AreaFile {
   trashedAt: string | null;
   /** Earlier files replaced here, kept for the trash window. */
   versions: number;
-  /** The lessons and assignments whose documents show it. */
-  usedIn: { hostType: string; hostId: string; title: string }[];
+  /** The records whose documents show it. */
+  usedIn: { hostType: string; hostId: string }[];
 }
 
 /**
@@ -739,15 +681,10 @@ export async function areaFiles(
           and v.host_id = f.id and v.status = 'active') as versions,
       coalesce((
         select jsonb_agg(distinct jsonb_build_object(
-          'hostType', d.host_type, 'hostId', d.host_id,
-          'title', coalesce(a.title, l.title, '')))
+          'hostType', d.host_type, 'hostId', d.host_id))
         from core.document_files l2
         join core.documents d on d.tenant_id = l2.tenant_id and d.id = l2.document_id
           and d.status = 'active'
-        left join core.assignments a on a.tenant_id = d.tenant_id and a.id = d.host_id
-          and d.host_type = 'assignment'
-        left join core.lessons l on l.tenant_id = d.tenant_id and l.id = d.host_id
-          and d.host_type = 'lesson'
         where l2.tenant_id = f.tenant_id and l2.file_id = f.id and l2.status = 'active'
       ), '[]'::jsonb) as used_in
     from core.files f
@@ -1583,30 +1520,4 @@ export async function captionDraftReleased(
       and status = 'active' and state = 'working'
     returning id`);
   return rows.length > 0;
-}
-
-/**
- * The student a file is about, for the record of its opening to reach
- * their history: the one whose work or health record holds it. A health
- * record is read only inside its purpose, so call this within the file's
- * gate.
- */
-export async function studentOfFile(
-  tx: Tx,
-  tenantId: string,
-  file: { hostType: string | null; hostId: string | null },
-): Promise<string | null> {
-  const table =
-    file.hostType === "submission"
-      ? sql`core.submissions`
-      : file.hostType === "submission_attempt"
-        ? sql`core.submission_attempts`
-        : file.hostType === "health_record"
-          ? sql`health.records`
-          : null;
-  if (!table || !file.hostId) return null;
-  const [row] = await tx.execute<{ student_user_id: string }>(sql`
-    select student_user_id from ${table}
-    where tenant_id = ${tenantId}::uuid and id = ${file.hostId}::uuid`);
-  return row?.student_user_id ?? null;
 }

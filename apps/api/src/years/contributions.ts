@@ -22,6 +22,7 @@ import {
   workingYear,
   yearHolds,
   yearOfClass,
+  yearReady,
 } from "@faridalms/database/stores/years";
 import { addDays } from "@faridalms/domain/school";
 import {
@@ -45,6 +46,7 @@ import {
 import { contribute } from "../core/extension";
 import { audit } from "../core/procedure";
 import { scopeFor } from "../core/reach";
+import { setupMeasures } from "../core/setup";
 import { reportingSpans } from "../core/spans";
 import { leavingParts, studentViews } from "../people/points";
 import { openYear } from "./years";
@@ -170,6 +172,14 @@ async function yearSpans(
 export const SCHOOL_YEARS: ModuleContributions = {
   module: "school_years",
   contributions: [
+    contribute(setupMeasures, {
+      item: "year_ready",
+      seen: (scope) =>
+        yearReady(scope.tx, {
+          tenantId: scope.tenantId,
+          orgId: scope.schoolId,
+        }),
+    }),
     contribute(reportingSpans, { spansOn: yearSpans }),
     contribute(classViews, {
       key: "year",

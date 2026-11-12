@@ -175,7 +175,7 @@ export function startFileUpkeep(input: {
       cellId: input.cellId,
       intervalMs: input.sweepMs,
       run: async (tenantId) => {
-        await sweepTenantFiles(input.cell, input.store, tenantId, new Date());
+        await sweepTenantFiles(input, tenantId, new Date());
       },
     }),
   ];

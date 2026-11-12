@@ -1,6 +1,6 @@
 import { writeAudit } from "@faridalms/database/audit";
-import { mailboxConversationWith } from "@faridalms/database/stores/messages";
-import { publicSchool } from "@faridalms/database/stores/site";
+import { mailboxConversationWith } from "@faridalms/database/stores/enquiries";
+import { publicSchool } from "@faridalms/database/stores/public-school";
 import { applicationSubject } from "@faridalms/domain/enquiries";
 
 import type { ConversationScope } from "../messages/conversations";

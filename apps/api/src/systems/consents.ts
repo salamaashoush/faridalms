@@ -20,10 +20,9 @@ import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import { markActed } from "@faridalms/database/stores/notifications";
 import { namesOf } from "@faridalms/database/stores/persons";
-import { endPublicationsShowing } from "@faridalms/database/stores/site";
+import { endPublicationsShowing } from "@faridalms/database/stores/public-files";
 import { person } from "@faridalms/database/stores/students";
 import { translationReview } from "@faridalms/database/stores/translations";
-import { askedAtAdmission } from "@faridalms/domain/admissions";
 import {
   answerConsentSchema,
   consentFormRefSchema,
@@ -43,7 +42,8 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { consentWords } from "../admissions/access";
+import { askedElsewhere } from "../consents/points";
+import { consentWords } from "../consents/words";
 import { refuseIfHeld } from "../core/holds";
 import { notify } from "../core/notify";
 import {
@@ -56,7 +56,7 @@ import {
 import { publishWords, saveWords, wordsIssues } from "../core/publication";
 import { reachesStudent, requireStudent, studentsReached } from "../core/reach";
 import { checkTranslation } from "../core/translation-review";
-import { registerHostReader, registerHostWriter } from "../files/authorize";
+import { coreReader, coreWriter } from "../files/authorize";
 import { withFileGate } from "../files/gate";
 import {
   actorsFor,
@@ -91,22 +91,23 @@ const purposeView = (row: Descriptor) => ({
 
 /** The words a family is asked to agree to: the latest published form of each purpose. */
 async function publishedForms(context: UnitContext) {
-  const [purposes, { published }] = await Promise.all([
+  const [purposes, { published }, elsewhere] = await Promise.all([
     purposesOf(context),
     formsOf(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
     }),
+    askedElsewhere(context),
   ]);
   return purposes.flatMap((purpose) => {
     const notice = published.find((row) => row.purposeId === purpose.id);
-    return notice && !askedAtAdmission(purpose.meaning)
+    return notice && !elsewhere.has(purpose.meaning ?? "")
       ? [{ purpose, notice }]
       : [];
   });
 }
 
-registerHostWriter("privacy_notice", async (context, formId) => {
+coreWriter("privacy_notice", async (context, formId) => {
   if (!can(context, "privacy:manage")) return false;
   const row = await formById(context.tx, {
     tenantId: context.tenantId,
@@ -117,14 +118,14 @@ registerHostWriter("privacy_notice", async (context, formId) => {
 });
 
 /** Files a family or the office sent as proof of an answer, read by those who keep the register. */
-registerHostReader(
+coreReader(
   "consent_record",
   async (context) =>
     can(context, "people:manage") || can(context, "privacy:manage"),
 );
 
 /** A consent form's words are the school's privacy team's to write, and to comment on while writing. */
-registerHostWriter(
+coreWriter(
   "privacy_notice",
   async (context, formId) =>
     can(context, "privacy:manage") &&
@@ -166,7 +167,6 @@ export const forms = readProcedure.handler(async ({ context }) => {
             }
           : null,
         draftId: draft?.id ?? null,
-        atAdmission: askedAtAdmission(purpose.meaning),
         granted: count?.granted ?? 0,
         refused: count?.refused ?? 0,
       });
@@ -375,9 +375,7 @@ export const publishForm = writeProcedure
       title: purpose?.labelEn ?? purpose?.code ?? "",
       ...(purpose?.labelAr ? { titleAr: purpose.labelAr } : {}),
     });
-    // Words an application asks for are agreed when a family applies, so
-    // the families already at the school are not asked them.
-    const students = askedAtAdmission(purpose?.meaning ?? null)
+    const students = (await askedElsewhere(context)).has(purpose?.meaning ?? "")
       ? []
       : await enrolledStudents(context.tx, {
           tenantId: context.tenantId,

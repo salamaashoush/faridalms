@@ -636,7 +636,18 @@ describe("events", () => {
       category: "admissions",
       startsOn: "2027-03-01",
       startTime: "09:00",
-      admission: { applicationId: id, kind: "tour" },
+      origin: { key: "admission", id, kind: "tour" },
+    });
+    expect(week.categories).toContain("admissions");
+    // With admissions off the calendar holds none of its bookings.
+    await withoutModules("northwind", ["admissions"], async () => {
+      const off = await head.calendar.range({
+        from: "2027-02-28",
+        to: "2027-03-06",
+        child: "",
+      });
+      expect(off.events.some((row) => row.id === booked.id)).toBe(false);
+      expect(off.categories).toEqual([]);
     });
     const moved = await office.decisions.saveEvent({
       ...tour,
@@ -759,6 +770,16 @@ describe("letters", () => {
   });
 });
 
+/** How many intakes a visitor reads on the page of places. */
+const intakesShown = async () =>
+  (
+    await client("northwind").site.publicSitePage({
+      school: "northwind",
+      locale: "en",
+      slug: "places",
+    })
+  ).intakes.length;
+
 describe("the website's doors into admissions", () => {
   test("a published page lists the intakes from admissions and leads into applying, without their places", async () => {
     const api = await principal();
@@ -807,5 +828,9 @@ describe("the website's doors into admissions", () => {
     });
     expect(kg1?.fees.map((fee) => fee.kind)).toContain("tuition");
     expect(kg1).not.toHaveProperty("capacity");
+    await withoutModules("northwind", ["admissions"], async () => {
+      expect(await intakesShown()).toBe(0);
+    });
+    expect(await intakesShown()).toBeGreaterThan(0);
   });
 });

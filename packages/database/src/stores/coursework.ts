@@ -552,10 +552,6 @@ export async function setRecipients(
       insert into core.assignment_recipients (tenant_id, assignment_id, student_user_id, source, group_id)
       values (${input.tenantId}::uuid, ${input.assignmentId}::uuid, ${studentId}::uuid,
         ${next.source}, ${next.groupId}::uuid)`);
-  await arrangeDue(tx, {
-    tenantId: input.tenantId,
-    assignmentId: input.assignmentId,
-  });
   const [count] = await tx.execute<{ n: number }>(sql`
     select count(*)::int as n from core.assignment_recipients
     where tenant_id = ${input.tenantId}::uuid and assignment_id = ${input.assignmentId}::uuid
@@ -599,20 +595,16 @@ export async function joinOpenWork(
         where r.tenant_id = a.tenant_id and r.assignment_id = a.id
           and r.student_user_id = s.id and r.status = 'active')
     returning assignment_id`);
-  if (rows.length > 0)
-    await arrangeDue(tx, {
-      tenantId: input.tenantId,
-      studentIds: input.studentIds,
-    });
   return rows.length;
 }
 
 /**
- * Gives recipients whose access arrangements add days to every due date
- * their own due time, the assignment's plus those days, and takes back one
- * their arrangements no longer give; a due time a teacher set stands. For
- * one assignment, or for some students' work due from `from` on, as their
- * arrangements change. Returns how many recipients changed.
+ * Gives recipients who are allowed days added to every due date their own
+ * due time, the assignment's plus those days, and takes back one they are
+ * no longer allowed; a due time a teacher set stands. For one assignment,
+ * or for some students' work due from `from` on. `days` holds each
+ * student's added days; a student not in it is allowed none. Returns how
+ * many recipients changed.
  */
 export async function arrangeDue(
   tx: Tx,
@@ -621,17 +613,25 @@ export async function arrangeDue(
     assignmentId?: string;
     studentIds?: readonly string[];
     from?: Date;
+    days: ReadonlyMap<string, number>;
   },
 ): Promise<number> {
+  const added = [...input.days].filter(([, days]) => days > 0);
+  const counts = added.length
+    ? sql`array[${sql.join(
+        added.map(([, days]) => sql`${days}`),
+        sql`, `,
+      )}]::int[]`
+    : sql`array[]::int[]`;
   const rows = await tx.execute<{ id: string }>(sql`
     with wanted as (
       select r.id,
         case when a.due_at is not null and x.extension_days > 0
-          then a.due_at + make_interval(days => x.extension_days::int) end as due_at
+          then a.due_at + make_interval(days => x.extension_days) end as due_at
       from core.assignment_recipients r
       join core.assignments a on a.tenant_id = r.tenant_id and a.id = r.assignment_id
-      left join core.access_arrangements x on x.tenant_id = r.tenant_id and x.org_id = a.org_id
-        and x.student_user_id = r.student_user_id and x.status = 'active'
+      left join unnest(${uuidArray(added.map(([id]) => id))}, ${counts})
+        as x(student_user_id, extension_days) on x.student_user_id = r.student_user_id
       where r.tenant_id = ${input.tenantId}::uuid and r.status = 'active' and a.status = 'active'
         and (r.due_at is null or r.due_arranged)
         ${input.assignmentId ? sql`and r.assignment_id = ${input.assignmentId}::uuid` : sql``}
@@ -645,6 +645,18 @@ export async function arrangeDue(
       and r.due_at is distinct from w.due_at
     returning r.id`);
   return rows.length;
+}
+
+/** The students an assignment is set for. */
+export async function recipientStudents(
+  tx: Tx,
+  input: { tenantId: string; assignmentId: string },
+): Promise<string[]> {
+  const rows = await tx.execute<{ student_user_id: string }>(sql`
+    select student_user_id from core.assignment_recipients
+    where tenant_id = ${input.tenantId}::uuid and assignment_id = ${input.assignmentId}::uuid
+      and status = 'active'`);
+  return rows.map((row) => row.student_user_id);
 }
 
 /**
@@ -666,14 +678,6 @@ export async function setRecipientDue(
     where tenant_id = ${input.tenantId}::uuid and assignment_id = ${input.assignmentId}::uuid
       and student_user_id = any(${uuidArray(input.studentIds)}) and status = 'active'
     returning id`);
-  // A student given back the assignment's due time keeps what their
-  // arrangements add to it.
-  if (input.dueAt === null)
-    await arrangeDue(tx, {
-      tenantId: input.tenantId,
-      assignmentId: input.assignmentId,
-      studentIds: input.studentIds,
-    });
   return rows.length;
 }
 
@@ -1999,4 +2003,71 @@ export async function setDiscussionLike(
       update core.discussion_likes set status = 'tobedeleted'
       where tenant_id = ${input.tenantId}::uuid and post_id = ${input.postId}::uuid
         and user_id = ${input.userId}::uuid and status = 'active'`);
+}
+
+/** Whether a teacher has set any work beyond a draft, the first use of coursework. */
+export async function workSet(
+  tx: Tx,
+  input: { tenantId: string; orgId: string },
+): Promise<boolean> {
+  const [row] = await tx.execute<{ found: boolean }>(sql`
+    select exists (select 1 from core.assignments a
+      where a.tenant_id = ${input.tenantId}::uuid and a.org_id = ${input.orgId}::uuid
+        and a.status = 'active' and a.state <> 'draft') as found`);
+  return row?.found ?? false;
+}
+
+/** When a person last checked the translation against the original, or null. */
+export async function assignmentTranslationReviewedAt(
+  tx: Tx,
+  tenantId: string,
+  id: string,
+): Promise<string | null> {
+  const [row] = await tx.execute<{ reviewed_at: string | null }>(sql`
+    select translation_reviewed_at::text as reviewed_at from core.assignments
+    where tenant_id = ${tenantId}::uuid and id = ${id}::uuid`);
+  return row?.reviewed_at ?? null;
+}
+
+/** Assignments' titles with their class's, for the records that show their documents. */
+export async function assignmentTitles(
+  tx: Tx,
+  tenantId: string,
+  ids: readonly string[],
+): Promise<
+  Map<string, { title: string; classEn: string | null; classAr: string | null }>
+> {
+  const rows = await tx.execute<{
+    id: string;
+    title: string;
+    class_en: string | null;
+    class_ar: string | null;
+  }>(sql`
+    select a.id, a.title, c.title_en as class_en, c.title_ar as class_ar
+    from core.assignments a
+    join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
+    where a.tenant_id = ${tenantId}::uuid and a.id = any(${uuidArray(ids)})
+      and a.status = 'active'`);
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      { title: row.title, classEn: row.class_en, classAr: row.class_ar },
+    ]),
+  );
+}
+
+/** The student a submission or one of its attempts is theirs. */
+export async function studentOfWork(
+  tx: Tx,
+  tenantId: string,
+  host: { type: "submission" | "submission_attempt"; id: string },
+): Promise<string | null> {
+  const table =
+    host.type === "submission"
+      ? sql`core.submissions`
+      : sql`core.submission_attempts`;
+  const [row] = await tx.execute<{ student_user_id: string }>(sql`
+    select student_user_id from ${table}
+    where tenant_id = ${tenantId}::uuid and id = ${host.id}::uuid`);
+  return row?.student_user_id ?? null;
 }

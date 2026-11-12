@@ -4,6 +4,8 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
+import { uuidArray } from "./sql";
+
 type Tx = CellTransaction;
 
 type ArrangementRecord = {
@@ -40,6 +42,22 @@ export async function arrangementsOf(
   return row
     ? { arrangements: arrangementsOfRow(row), version: row.version }
     : null;
+}
+
+/** The arrangements kept for some students of a school; a student with none is not in the map. */
+export async function arrangementsOfStudents(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; studentIds: readonly string[] },
+): Promise<Map<string, Arrangements>> {
+  const rows = await tx.execute<ArrangementRecord>(sql`
+    select student_user_id, extra_time, unlimited_time, read_aloud, fewer_choices,
+      rest_breaks, extension_days, version
+    from core.access_arrangements
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+      and student_user_id = any(${uuidArray(input.studentIds)}) and status = 'active'`);
+  return new Map(
+    rows.map((row) => [row.student_user_id, arrangementsOfRow(row)]),
+  );
 }
 
 /**

@@ -25,8 +25,7 @@ import { ORPCError } from "@orpc/server";
 import type { UnitContext } from "../core/context";
 
 import { audit } from "../core/procedure";
-import { draftWords } from "../core/publication";
-import { registerHostReader } from "../files/authorize";
+import { ADMISSIONS_HOSTS } from "./hosts";
 
 const readsAdmissions = (context: UnitContext) =>
   context.actor.capabilities.has("admissions:read") ||
@@ -34,15 +33,18 @@ const readsAdmissions = (context: UnitContext) =>
 
 // A letter, and the pictures its words show, are the family's it was sent
 // to and the office's.
-registerHostReader("admission_letter", async (context, letterId) => {
-  const holder = await letterHolder(context.tx, {
-    tenantId: context.tenantId,
-    letterId,
-  });
-  if (holder?.orgId !== context.schoolId) return false;
-  return (
-    holder.filedByUserId === context.actor.userId || readsAdmissions(context)
-  );
+ADMISSIONS_HOSTS.push({
+  hostType: "admission_letter",
+  read: async (context, letterId) => {
+    const holder = await letterHolder(context.tx, {
+      tenantId: context.tenantId,
+      letterId,
+    });
+    if (holder?.orgId !== context.schoolId) return false;
+    return (
+      holder.filedByUserId === context.actor.userId || readsAdmissions(context)
+    );
+  },
 });
 
 /**
@@ -129,15 +131,6 @@ export async function admissionConsents(context: UnitContext) {
       },
     ];
   });
-}
-
-/** A consent form's words in both languages as they now stand. */
-export async function consentWords(context: UnitContext, formId: string) {
-  const words = await draftWords(context, {
-    type: "privacy_notice",
-    id: formId,
-  });
-  return { body: words.body, translation: words.other };
 }
 
 export async function documentStep(

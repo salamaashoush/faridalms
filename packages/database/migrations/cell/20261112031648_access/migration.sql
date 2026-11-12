@@ -576,6 +576,10 @@ alter table core.module_discussions force row level security;
 grant select, insert, update on core.module_discussions to app, worker, cell_io;
 grant select on core.module_discussions to retention;
 
+alter table core.module_templates force row level security;
+grant select, insert, update on core.module_templates to app, worker, cell_io;
+grant select on core.module_templates to retention;
+
 alter table core.notification_deliveries force row level security;
 grant select, insert, update on core.notification_deliveries to app, worker, cell_io;
 grant select on core.notification_deliveries to retention;

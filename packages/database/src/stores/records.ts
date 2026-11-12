@@ -565,3 +565,26 @@ export async function saveDemographicsRow(
     returning user_id`);
   return rows.length > 0;
 }
+
+/** Hands one person's health records to another, the same person kept once. Run with the health purpose set. */
+export async function moveHealthRecords(
+  tx: Tx,
+  input: { tenantId: string; fromUserId: string; toUserId: string },
+) {
+  await tx.execute(sql`
+    update health.records set student_user_id = ${input.toUserId}::uuid
+    where tenant_id = ${input.tenantId}::uuid and student_user_id = ${input.fromUserId}::uuid
+      and status = 'active'`);
+}
+
+/** The student a health record is about. Run with the health purpose set. */
+export async function studentOfHealthRecord(
+  tx: Tx,
+  tenantId: string,
+  id: string,
+): Promise<string | null> {
+  const [row] = await tx.execute<{ student_user_id: string }>(sql`
+    select student_user_id from health.records
+    where tenant_id = ${tenantId}::uuid and id = ${id}::uuid`);
+  return row?.student_user_id ?? null;
+}

@@ -1,6 +1,6 @@
 import type { Descriptor } from "@faridalms/database/stores/descriptors";
 import type { PersonReach } from "@faridalms/database/stores/persons";
-import type { SignInRefusal } from "@faridalms/domain/first-sign-in";
+import type { SignInSeed } from "@faridalms/database/stores/students";
 import type { ContactLabel } from "@faridalms/domain/people";
 
 import { lookupHmac } from "@faridalms/database/crypto";
@@ -13,8 +13,6 @@ import {
   takenLoginNames,
   updatePasswordSignIn,
 } from "@faridalms/database/stores/accounts";
-import { lastMarkFrom } from "@faridalms/database/stores/attendance";
-import { badgesOf, issueBadge } from "@faridalms/database/stores/badges";
 import {
   classesTaughtBy,
   endStudentEnrollmentsFrom,
@@ -107,10 +105,11 @@ import { randomInt } from "node:crypto";
 import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
+import type { Refused } from "../people/sign-in-ways";
 
-import { badgeTerm } from "../badges/term";
 import { classGroupsOf, classViewOf } from "../classes/points";
 import { guardingAccess, requireGrantable } from "../core/access";
+import { contributionsTo } from "../core/extension";
 import { refreshLoginsAfter } from "../core/login-index";
 import { modulesOf } from "../core/modules";
 import { welcomeLink } from "../core/portal";
@@ -134,7 +133,7 @@ import {
 import { issueBadgeSecret } from "../core/session";
 import { emailSignInLink } from "../core/sign-in-link";
 import { studentGroupsOf } from "../core/student-groups";
-import { registerHostReader } from "../files/authorize";
+import { coreReader } from "../files/authorize";
 import { unreachableFor } from "../messages/reach";
 import { adultInviteMessage, inviteMessage } from "../notifications/templates";
 import { decidersTold } from "../people/acting";
@@ -146,14 +145,14 @@ import {
   studentListColumns,
   studentsByPhone,
   studentViewOf,
-  youngStudentsOf,
 } from "../people/points";
+import { leavingGuards, signInWays, turnedOff } from "../people/sign-in-ways";
 
 const id = v.pipe(v.string(), v.uuid());
 const STAFF_ROLE_SET: ReadonlySet<string> = new Set(STAFF_ROLES);
 
 // A person's photo is seen by whoever may see the person.
-registerHostReader(
+coreReader(
   "person",
   async (context, personId) =>
     personId === context.actor.userId ||
@@ -912,7 +911,7 @@ async function requireRolesGrantable(
   ]);
   const current = new Set(held.map((row) => row.role));
   for (const added of roles.filter((role) => !current.has(role)))
-    requireGrantable(
+    await requireGrantable(
       context,
       builtins.find((row) => row.builtinKey === added)?.capabilities ?? [],
     );
@@ -1143,15 +1142,6 @@ export const sendSignInLink = writeProcedure
     return { sent: true, loginName: sent.loginName };
   });
 
-type SignInSeed = Awaited<ReturnType<typeof signInSeeds>>[number];
-type Refused = { studentId: string; reason: SignInRefusal };
-
-// An account opened by a link that nobody has used yet is not turned off.
-const turnedOff = (seed: SignInSeed) =>
-  seed.accountState !== null &&
-  seed.accountState !== "active" &&
-  seed.accountState !== "invited";
-
 /**
  * Who of the students picked gets a slip, under which sign-in name, and who
  * is left out: those who have a password already, and those nothing names.
@@ -1188,40 +1178,6 @@ async function slipsPlan(context: UnitContext, seeds: readonly SignInSeed[]) {
     ready,
     had: seeds.filter((row) => row.loginName).map((row) => row.userId),
     refused,
-  };
-}
-
-/**
- * Who of the students picked gets a badge: young children who hold none
- * that works. A working badge is kept, since a new one would stop the card
- * in the child's bag.
- */
-async function badgesPlan(context: UnitContext, seeds: readonly SignInSeed[]) {
-  const ids = seeds.map((row) => row.userId);
-  const [young, held] = await Promise.all([
-    youngStudentsOf(context, ids, context.today),
-    badgesOf(context.tx, context.tenantId, ids),
-  ]);
-  const now = context.now.toISOString();
-  const works = (seed: SignInSeed) =>
-    (held.get(seed.userId)?.expiresAt ?? "") > now;
-  const refusal = (seed: SignInSeed): SignInRefusal | null =>
-    young.has(seed.userId)
-      ? turnedOff(seed)
-        ? "disabled"
-        : null
-      : "not_young";
-  return {
-    ready: seeds
-      .filter((seed) => !refusal(seed) && !works(seed))
-      .map((seed) => ({ seed })),
-    had: seeds
-      .filter((seed) => !refusal(seed) && works(seed))
-      .map((seed) => seed.userId),
-    refused: seeds.flatMap((seed) => {
-      const reason = refusal(seed);
-      return reason ? [{ studentId: seed.userId, reason }] : [];
-    }),
   };
 }
 
@@ -1278,6 +1234,15 @@ async function emailPlan(context: UnitContext, seeds: readonly SignInSeed[]) {
   };
 }
 
+/** A way a module on opens sign-ins in; none for a module that is off. */
+async function moduleWay(context: UnitContext, way: string) {
+  const found = (await contributionsTo(context, signInWays)).find(
+    (each) => each.way === way,
+  );
+  if (!found) throw new ORPCError("BAD_REQUEST", { message: "sign_in.way" });
+  return found;
+}
+
 async function pickedSeeds(context: UnitContext, studentIds: string[]) {
   requireCapability(context, "people:manage");
   const wanted = [...new Set(studentIds)];
@@ -1299,11 +1264,11 @@ export const signInsPlan = readProcedure
   .handler(async ({ input, context }) => {
     const seeds = await pickedSeeds(context, input.studentIds);
     const plan =
-      input.way === "badges"
-        ? await badgesPlan(context, seeds)
-        : input.way === "email"
-          ? await emailPlan(context, seeds)
-          : await slipsPlan(context, seeds);
+      input.way === "email"
+        ? await emailPlan(context, seeds)
+        : input.way === "slips"
+          ? await slipsPlan(context, seeds)
+          : await (await moduleWay(context, input.way)).plan(context, seeds);
     return {
       ready: plan.ready.map((row) => row.seed.userId),
       had: plan.had,
@@ -1371,41 +1336,6 @@ async function openSlips(context: UnitContext, seeds: readonly SignInSeed[]) {
     had: plan.had,
     refused: plan.refused,
   };
-}
-
-/** A badge for each young student who holds none that works. */
-async function openBadges(context: UnitContext, seeds: readonly SignInSeed[]) {
-  const [plan, term] = await Promise.all([
-    badgesPlan(context, seeds),
-    badgeTerm(context),
-  ]);
-  const refused = [...plan.refused];
-  const badges: { studentId: string; secret: string }[] = [];
-  for (const { seed } of plan.ready) {
-    const studentId = seed.userId;
-    const { secret, secretHash } = issueBadgeSecret();
-    const account = await issueBadge(context.tx, {
-      tenantId: context.tenantId,
-      userId: studentId,
-      secretHash,
-      ...term,
-      linkedByUserId: context.actor.userId,
-    });
-    // Turned off between the plan and now.
-    if (!account) {
-      refused.push({ studentId, reason: "disabled" });
-      continue;
-    }
-    await audit(context, {
-      action: account.created ? "account.create" : "account.badge_issue",
-      objectType: "account",
-      objectId: account.accountId,
-      subjectUserId: studentId,
-      details: { method: "badge" },
-    });
-    badges.push({ studentId, secret });
-  }
-  return { slips: [], badges, invited: [], had: plan.had, refused };
 }
 
 /**
@@ -1515,10 +1445,9 @@ export const createSignIns = writeProcedure
   .input(createSignInsSchema)
   .handler(async ({ input, context }) => {
     const seeds = await pickedSeeds(context, input.studentIds);
-    if (input.way === "badges") return openBadges(context, seeds);
-    return input.way === "email"
-      ? openLinks(context, seeds)
-      : openSlips(context, seeds);
+    if (input.way === "email") return openLinks(context, seeds);
+    if (input.way === "slips") return openSlips(context, seeds);
+    return (await moduleWay(context, input.way)).open(context, seeds);
   });
 
 export const setSignInState = writeProcedure
@@ -1576,16 +1505,13 @@ export const recordLeaving = writeProcedure
       leftOn: left,
       parts: input.parts,
     });
-    const marked = await lastMarkFrom(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      studentId: input.studentId,
-      from: left,
-    });
-    if (marked)
-      throw new ORPCError("CONFLICT", {
-        message: `enrollment.registers_after:${marked}`,
+    for (const guard of await contributionsTo(context, leavingGuards)) {
+      const refusal = await guard.refuses(context, {
+        studentId: input.studentId,
+        leftOn: left,
       });
+      if (refusal) throw new ORPCError("CONFLICT", { message: refusal });
+    }
     const { ended, dropped } = await endStudentEnrollmentsFrom(
       context.tx,
       scope,

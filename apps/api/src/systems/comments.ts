@@ -2,7 +2,6 @@ import type { NoticeParams } from "@faridalms/domain/notifications";
 
 import {
   documentCommentById,
-  editorParentOf,
   hostOfDocument,
   insertDocumentComment,
   insertThread,
@@ -33,7 +32,7 @@ import type { UnitContext } from "../core/context";
 import { notifyIn } from "../core/notify";
 import { localeOf, readProcedure, writeProcedure } from "../core/procedure";
 import { isStaff } from "../core/reach";
-import { hostAccess } from "../files/authorize";
+import { editorParentOf, hostAccess } from "../files/authorize";
 
 type Host = { type: string; id: string };
 
@@ -114,7 +113,7 @@ async function tellMentioned(
   if (input.people.length === 0) return;
   const [[author], parentId] = await Promise.all([
     namesOf(context.tx, context.tenantId, [context.actor.userId]),
-    editorParentOf(context.tx, context.tenantId, input.host),
+    editorParentOf(context, input.host),
   ]);
   const params: NoticeParams = {
     comment: true,

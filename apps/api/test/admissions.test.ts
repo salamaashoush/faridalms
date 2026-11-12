@@ -18,6 +18,7 @@ import {
   rejection,
   seeded,
   sessionFor,
+  withoutModules,
   workerModules,
 } from "./harness";
 
@@ -218,6 +219,14 @@ describe("the website's form", () => {
         }),
       ),
     ).toEqual({ received: true });
+    // Without admissions nobody takes what the form sends, so it is refused.
+    await withoutModules("northwind", ["admissions"], async () => {
+      expect(
+        await rejection(
+          visitorFrom("192.0.2.12").submitEnquiry(sent("Nobody to answer")),
+        ),
+      ).toMatchObject({ message: "site.no_receiver" });
+    });
     await visitorFrom("192.0.2.11").submitEnquiry(
       sent("سلامة عشوش (نموذج)", {
         locale: "ar",

@@ -34,6 +34,7 @@ import { can } from "../core/procedure";
 import { peopleOpened } from "../core/reach";
 import { setupMeasures } from "../core/setup";
 import { usageFacts } from "../core/usage";
+import { fileHosts } from "../files/authorize";
 import { recipientSources } from "../messages/reach";
 import { contextOpeners } from "../people/access";
 import {
@@ -48,6 +49,7 @@ import {
   studentFormParts,
   studentPhones,
 } from "../people/points";
+import { FAMILIES_HOSTS } from "./hosts";
 import { linkGuardian } from "./links";
 
 const families = (context: { tenantId: string; schoolId: string }) => ({
@@ -65,6 +67,7 @@ const families = (context: { tenantId: string; schoolId: string }) => ({
 export const FAMILIES: ModuleContributions = {
   module: "families",
   contributions: [
+    contribute(fileHosts, FAMILIES_HOSTS),
     contribute(actingFor, {
       learnersOf: (scope, input) =>
         learnersOf(scope.tx, { tenantId: scope.tenantId, ...input }),

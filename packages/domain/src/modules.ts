@@ -1,3 +1,9 @@
+import type { Capability } from "./capabilities";
+import type { NotificationKind } from "./notifications";
+import type { OnboardingItem } from "./onboarding";
+import type { SearchKind } from "./search";
+import type { TemplateKind } from "./templates";
+
 /**
  * The parts of the product a school is entitled to, each a module with a
  * stable id. Core is what every school has and is no module: people and
@@ -38,7 +44,25 @@ export interface ModuleSpec {
   schoolSwitch: boolean;
   /** The API namespaces it owns, answered only where it is on; a nested one is `outer/inner`. */
   systems: readonly string[];
+  /** The product's words it owns, which mean something only where it is on. */
+  owns?: ModuleWords;
 }
+
+/**
+ * Words of the product's vocabulary a module owns. A capability it owns is
+ * kept on a role while it is off and grants nothing; a notice, a kind of
+ * search hit, of template or of calendar entry is not offered.
+ */
+export interface ModuleWords {
+  capabilities?: readonly Capability[];
+  notices?: readonly NotificationKind[];
+  searchKinds?: readonly SearchKind[];
+  templateKinds?: readonly TemplateKind[];
+  calendarCategories?: readonly string[];
+  /** The setup steps it measures, which a school without it never takes. */
+  setupItems?: readonly OnboardingItem[];
+}
+export type Vocabulary = keyof ModuleWords;
 
 export const MODULES: Record<ModuleId, ModuleSpec> = {
   school_years: {
@@ -46,6 +70,11 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     basic: true,
     schoolSwitch: false,
     systems: ["years", "rollover"],
+    owns: {
+      capabilities: ["years:manage", "years:reopen"],
+      notices: ["reenrolment"],
+      setupItems: ["year_ready"],
+    },
   },
   grade_levels: {
     requires: [],
@@ -64,6 +93,15 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     basic: true,
     schoolSwitch: false,
     systems: ["guardians"],
+    owns: {
+      setupItems: ["guardians_linked", "families_signed_in"],
+      capabilities: [
+        "guardians:manage",
+        "custody:read",
+        "custody:write",
+        "children:read",
+      ],
+    },
   },
   coursework: {
     requires: [],
@@ -72,12 +110,19 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     // Reading aloud is marked in quizzes and lessons alike; its record and
     // norms stand with the coursework every school has.
     systems: ["coursework", "grading", "bank", "reading"],
+    owns: {
+      setupItems: ["first_assignment"],
+      notices: ["assignment", "feedback", "grades", "reply"],
+      searchKinds: ["assignments"],
+      templateKinds: ["assignment"],
+    },
   },
   peer_review: {
     requires: [["coursework"]],
     basic: false,
     schoolSwitch: false,
     systems: ["peer"],
+    owns: { notices: ["peer_review"] },
   },
   gradebook: {
     requires: [["coursework"]],
@@ -90,36 +135,68 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     basic: true,
     schoolSwitch: false,
     systems: ["attendance", "absenceReports", "frontDesk"],
+    owns: {
+      setupItems: ["first_register"],
+      capabilities: [
+        "attendance:record",
+        "attendance:read",
+        "attendance:manage",
+      ],
+      notices: ["absence"],
+    },
   },
   timetable: {
     requires: [],
     basic: true,
     schoolSwitch: false,
     systems: ["timetable", "cover", "periods"],
+    owns: {
+      capabilities: ["timetable:read", "timetable:manage"],
+      setupItems: ["timetable_ready"],
+    },
   },
   website: {
     requires: [],
     basic: false,
     schoolSwitch: false,
     systems: ["site"],
+    owns: {
+      templateKinds: ["section"],
+      setupItems: ["website_published"],
+    },
   },
   custom_domains: {
     requires: [],
     basic: false,
     schoolSwitch: false,
     systems: ["hosts"],
+    owns: { setupItems: ["custom_domain"] },
   },
   admissions: {
     requires: [],
     basic: false,
     schoolSwitch: false,
     systems: ["admissions", "intakes", "applications", "applying", "decisions"],
+    owns: {
+      setupItems: ["admissions_ready"],
+      capabilities: [
+        "admissions:read",
+        "admissions:manage",
+        "admissions:decide",
+        "admissions:configure",
+        "applications:submit",
+      ],
+      notices: ["enquiry", "application", "admission_event"],
+      templateKinds: ["admission_letter"],
+      calendarCategories: ["admissions"],
+    },
   },
   student_records: {
     requires: [],
     basic: false,
     schoolSwitch: false,
     systems: ["records"],
+    owns: { capabilities: ["health:read", "health:write", "support:manage"] },
   },
   badges: {
     // Badges sign in young children, whom only their grade marks as young.
@@ -127,18 +204,25 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     basic: false,
     schoolSwitch: false,
     systems: ["badges"],
+    owns: { capabilities: ["badges:issue"] },
   },
   standards: {
     requires: [["coursework"], ["elearning"]],
     basic: false,
     schoolSwitch: false,
     systems: ["standards"],
+    owns: { capabilities: ["standards:manage"] },
   },
   elearning: {
     requires: [],
     basic: false,
     schoolSwitch: true,
     systems: ["learning"],
+    owns: {
+      capabilities: ["learning:author", "learning:read"],
+      searchKinds: ["learning"],
+      templateKinds: ["lesson", "unit_plan", "module"],
+    },
   },
   early_years: {
     requires: [["elearning"]],
@@ -249,4 +333,25 @@ export function modulesOn(input: {
         spec.requires.some((group) => group.every((need) => on[need])));
   }
   return on;
+}
+
+/** The module that owns a word of a vocabulary, or null for core's. */
+export function ownerOf(vocabulary: Vocabulary, word: string): ModuleId | null {
+  return (
+    MODULE_IDS.find((id) => {
+      const words: readonly string[] | undefined =
+        MODULES[id].owns?.[vocabulary];
+      return words?.includes(word) ?? false;
+    }) ?? null
+  );
+}
+
+/** Whether a word means something at a school: core's, or its owner's on. */
+export function wordOn(
+  vocabulary: Vocabulary,
+  word: string,
+  on: Readonly<Record<ModuleId, boolean>>,
+): boolean {
+  const owner = ownerOf(vocabulary, word);
+  return owner === null || on[owner];
 }

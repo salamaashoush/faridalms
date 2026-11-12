@@ -6,7 +6,6 @@ import {
   partKey,
   settleFile,
   shareStoredObject,
-  studentOfFile,
 } from "@faridalms/database/stores/files";
 import { previewsOf } from "@faridalms/database/stores/previews";
 import {
@@ -21,7 +20,7 @@ import type { Rejection } from "./ingest";
 
 import { openUnit, schoolOf } from "../core/procedure";
 import { refusalResponse } from "../core/refusal";
-import { canReadFile } from "./authorize";
+import { canReadFile, studentOfFile } from "./authorize";
 import { findFile, withFileGate } from "./gate";
 import { takeChecked } from "./ingest";
 import { hasVideo, streamsMore, uploadLimit } from "./limit";
@@ -386,11 +385,12 @@ async function send(
   const opened = await openUnit(context, "read", async (unit) => {
     const found = await findFile(unit.tx, unit.tenantId, fileId);
     if (!found || found.state !== "ready") return null;
-    const gated = await withFileGate(unit.tx, found.purpose, async (tx) =>
-      (await canReadFile({ ...context, ...unit, tx }, found))
-        ? { student: await studentOfFile(tx, unit.tenantId, found) }
-        : null,
-    );
+    const gated = await withFileGate(unit.tx, found.purpose, async (tx) => {
+      const gate = { ...context, ...unit, tx };
+      return (await canReadFile(gate, found))
+        ? { student: await studentOfFile(gate, found) }
+        : null;
+    });
     if (!gated) return null;
     const asked =
       !download && found.keyVersion === null

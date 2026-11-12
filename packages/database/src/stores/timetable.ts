@@ -735,3 +735,16 @@ export async function copyMeetings(
     returning id`);
   return rows.length;
 }
+
+/** Whether any class meets on the timetable from today on, the setup step the timetable makes. */
+export async function timetableReady(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; today: string },
+): Promise<boolean> {
+  const [row] = await tx.execute<{ found: boolean }>(sql`
+    select exists (select 1 from core.class_meetings c
+      where c.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.orgId}::uuid
+        and c.status = 'active'
+        and (upper_inf(c.valid_during) or upper(c.valid_during) > ${input.today}::date)) as found`);
+  return row?.found ?? false;
+}

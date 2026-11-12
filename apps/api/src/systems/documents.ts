@@ -27,7 +27,7 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 
 import { audit, readProcedure, writeProcedure } from "../core/procedure";
-import { hostAccess, liveRulesOf } from "../files/authorize";
+import { holdsAlone, hostAccess, liveRulesOf } from "../files/authorize";
 
 const hostSchema = v.object({
   hostType: v.pipe(v.string(), v.regex(/^[a-z][a-z0-9_]{1,62}$/)),
@@ -44,7 +44,7 @@ export const collaborate = writeProcedure
   .handler(async ({ input, context }) => {
     const host = { type: input.hostType, id: input.hostId };
     const access = await hostAccess(context, host);
-    const rules = liveRulesOf(host.type);
+    const rules = await liveRulesOf(context, host.type);
     // Records not written live are edited one person at a time instead.
     if (
       !rules ||
@@ -84,8 +84,7 @@ export const collaborate = writeProcedure
  * change it; live documents are shared instead and never held.
  */
 async function holdable(context: UnitContext, host: Host) {
-  if (liveRulesOf(host.type) || (await hostAccess(context, host)) !== "write")
-    throw new ORPCError("NOT_FOUND");
+  if (!(await holdsAlone(context, host))) throw new ORPCError("NOT_FOUND");
 }
 
 const holdView = (context: UnitContext, hold: DocumentHold) => ({

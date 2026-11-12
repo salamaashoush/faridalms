@@ -1,7 +1,7 @@
 import { addDays } from "@faridalms/domain/school";
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, signedIn } from "./harness";
+import { login, rejection, signedIn, withoutModules } from "./harness";
 
 const acmePrincipal = () => login("principal", 1);
 const acmeOffice = () => login("staff", 1);
@@ -53,6 +53,37 @@ describe("access roles", () => {
     );
     expect(elsewhere?.scope).toBe("tenant");
     expect(elsewhere?.capabilities).toContain("attendance:record");
+  });
+
+  test("a module's capability stays on a role while the module is off, and grants nothing until it is back", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const held = async () =>
+      (await api.identity.currentUser()).capabilities as readonly string[];
+    expect(await held()).toContain("attendance:manage");
+    await withoutModules("northwind", ["attendance"], async () => {
+      expect(await held()).not.toContain("attendance:manage");
+      expect(await held()).toContain("people:read");
+      expect(await rejection(api.attendance.day({ date: "" }))).toMatchObject({
+        code: "NOT_FOUND",
+      });
+      const { roles, grantable } = await api.access.roles();
+      const aide = roles.find((role) => role.builtinKey === "aide");
+      if (!aide) throw new Error("seed aide role");
+      expect(grantable).toContain("attendance:manage");
+      expect(
+        roles.find((role) => role.builtinKey === "principal")?.capabilities,
+      ).toContain("attendance:manage");
+      // Saving the role while the module is off keeps what it held.
+      const saved = await api.access.saveRole({
+        id: aide.id,
+        expectedVersion: aide.version,
+        nameEn: aide.nameEn ?? "",
+        nameAr: aide.nameAr ?? "",
+        capabilities: aide.capabilities,
+      });
+      expect(saved).toBeTruthy();
+    });
+    expect(await held()).toContain("attendance:manage");
   });
 
   test("a role cannot grant what its editor does not hold", async () => {

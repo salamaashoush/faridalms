@@ -8,7 +8,6 @@ import type {
 } from "@faridalms/domain/website";
 
 import { changeOf } from "@faridalms/database/audit";
-import { publicIntakes } from "@faridalms/database/stores/admissions";
 import {
   documentOf,
   dropTranslation,
@@ -20,9 +19,12 @@ import {
 } from "@faridalms/database/stores/documents";
 import { publicEvents } from "@faridalms/database/stores/events";
 import { schoolProfile } from "@faridalms/database/stores/identity";
+import {
+  publicSchool,
+  schoolToday,
+} from "@faridalms/database/stores/public-school";
 import { sharedBlockById } from "@faridalms/database/stores/shared";
 import {
-  insertEnquiry,
   insertPage,
   pageById,
   pagesShowingShared,
@@ -32,9 +34,7 @@ import {
   publicPage,
   publicPost,
   publicPosts,
-  publicSchool,
   publishedPageAddress,
-  recentEnquiries,
   redirectFrom,
   removeCategory,
   removePage,
@@ -44,7 +44,6 @@ import {
   saveRedirect,
   saveSiteSettings,
   sitemapEntries,
-  schoolToday,
   setPageInMenu,
   setPageState,
   siteCategories,
@@ -114,7 +113,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { announceEnquiry } from "../admissions/enquiries";
+import { contributionsAmong, contributionsTo } from "../core/extension";
 import { refuseIfHeld } from "../core/holds";
 import { forgetFace } from "../core/portal-face";
 import {
@@ -126,11 +125,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { attemptKey, ipPrefix } from "../core/session";
-import {
-  inlinePageShared,
-  registerLiveReviser,
-  withSharedSections,
-} from "../core/shared";
+import { inlinePageShared, withSharedSections } from "../core/shared";
 import {
   logoKey,
   publishMedia,
@@ -138,11 +133,9 @@ import {
   withdrawMedia,
 } from "../core/site";
 import { servesSchool } from "../core/turnstile";
-import {
-  placeMedia,
-  registerHostReader,
-  registerHostWriter,
-} from "../files/authorize";
+import { placeMedia } from "../files/authorize";
+import { WEBSITE_HOSTS, WEBSITE_REVISERS } from "../website/hosts";
+import { formReceivers, intakesFrom, siteIntakes } from "../website/points";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -260,12 +253,14 @@ const shownState = (
 const PREVIEW_POSTS = 6;
 // Pages are written by whoever manages the site, so each of them opens the
 // pictures and files the others put in.
-registerHostReader("site_page", (context) =>
-  Promise.resolve(can(context, "site:manage")),
-);
-registerHostWriter("site_page", (context) =>
-  Promise.resolve(can(context, "site:manage")),
-);
+WEBSITE_HOSTS.push({
+  hostType: "site_page",
+  read: (context) => Promise.resolve(can(context, "site:manage")),
+});
+WEBSITE_HOSTS.push({
+  hostType: "site_page",
+  write: (context) => Promise.resolve(can(context, "site:manage")),
+});
 
 /** The most events an events section lists. */
 const MAX_EVENTS = 12;
@@ -298,10 +293,9 @@ export const overview = readProcedure.handler(async ({ context }) => {
         from: context.today,
         limit: MAX_EVENTS,
       }),
-      publicIntakes(context.tx, {
-        orgId: context.schoolId,
-        today: context.today,
-      }),
+      contributionsTo(context, siteIntakes).then((sources) =>
+        intakesFrom(sources, context, context.today),
+      ),
     ]);
   const logo = school
     ? await logoKey(context.tx, context.tenantId, {
@@ -771,7 +765,7 @@ async function reviseLivePages(context: UnitContext, sharedId: string) {
   }
   return pageIds.length;
 }
-registerLiveReviser(reviseLivePages);
+WEBSITE_REVISERS.push({ revise: reviseLivePages });
 
 /** The files a page's own sections show; a shared section's stay its own. */
 const ownFileIds = (content: PageContent) =>
@@ -1274,7 +1268,11 @@ export const publicSitePage = publicProcedure
           (item.section.type === "admissions" &&
             item.section.data.source === "intakes"),
       )
-        ? await publicIntakes(tx, { orgId: schoolId, today })
+        ? await intakesFrom(
+            contributionsAmong(context.extensions, modules, siteIntakes),
+            { tx, schoolId },
+            today,
+          )
         : [];
       const picture = parsed(
         v.nullable(socialPictureSchema),
@@ -1479,9 +1477,6 @@ export const publicSitePost = publicProcedure
     }),
   );
 
-/** Five messages an hour from one network, sixty for a whole school. */
-const ENQUIRIES_PER_NETWORK = 5;
-const ENQUIRIES_PER_SCHOOL = 60;
 /** Faster than a person can type a name and an address. */
 const MIN_FILL_MS = 2500;
 
@@ -1518,87 +1513,76 @@ export const submitEnquiry = publicProcedure
       }))
     )
       throw new ORPCError("BAD_REQUEST", { message: "site.challenge" });
-    const received = await withWebsite(
-      context,
-      input.school,
-      async ({ tx, tenantId, schoolId, modules }) => {
-        const settings = await liveSettings(tx, tenantId, schoolId);
-        const locale = resolveLocale(settings, input.locale);
-        const published = await publicPage(tx, {
-          orgId: schoolId,
-          locale,
-          slug: input.page,
+    const received = await withWebsite(context, input.school, async (unit) => {
+      const { tx, tenantId, schoolId, modules } = unit;
+      const [receiver] = contributionsAmong(
+        context.extensions,
+        modules,
+        formReceivers,
+      );
+      if (!receiver)
+        throw new ORPCError("BAD_REQUEST", { message: "site.no_receiver" });
+      const settings = await liveSettings(tx, tenantId, schoolId);
+      const locale = resolveLocale(settings, input.locale);
+      const published = await publicPage(tx, {
+        orgId: schoolId,
+        locale,
+        slug: input.page,
+      });
+      const form = publishedSections(published?.content.sections, modules)
+        .map((item) => item.section)
+        .find((section) => section.id === input.sectionId);
+      if (!published || form?.type !== "form")
+        throw new ORPCError("BAD_REQUEST", { message: "site.form" });
+      const asks = form.data;
+      const email = asks.email === "hide" ? "" : input.email;
+      const phone = asks.phone === "hide" ? "" : input.phone;
+      if (
+        (asks.email === "require" && !email) ||
+        (asks.phone === "require" && !phone) ||
+        (!email && !phone)
+      )
+        throw new ORPCError("BAD_REQUEST", {
+          message: "validation.required",
         });
-        const form = publishedSections(published?.content.sections, modules)
-          .map((item) => item.section)
-          .find((section) => section.id === input.sectionId);
-        if (!published || form?.type !== "form")
-          throw new ORPCError("BAD_REQUEST", { message: "site.form" });
-        const asks = form.data;
-        const email = asks.email === "hide" ? "" : input.email;
-        const phone = asks.phone === "hide" ? "" : input.phone;
-        if (
-          (asks.email === "require" && !email) ||
-          (asks.phone === "require" && !phone) ||
-          (!email && !phone)
-        )
-          throw new ORPCError("BAD_REQUEST", {
-            message: "validation.required",
-          });
-        const answers = readFormAnswers(
-          formQuestions(asks.questions),
-          input.answers,
-        );
-        if (!answers.ok)
-          throw new ORPCError("BAD_REQUEST", {
-            message:
-              answers.code === "required"
-                ? "validation.required"
-                : "validation.invalid",
-            data: { questionId: answers.questionId },
-          });
-        const network = ipPrefix(context.headers, context.trustedProxyHops);
-        const networkKey = network
-          ? attemptKey(
-              context.cellSecret,
-              tenantId,
-              `enquiry:${network}`,
-            ).toString("hex")
-          : "";
-        const recent = await recentEnquiries(tx, {
-          orgId: schoolId,
-          networkKey,
+      const answers = readFormAnswers(
+        formQuestions(asks.questions),
+        input.answers,
+      );
+      if (!answers.ok)
+        throw new ORPCError("BAD_REQUEST", {
+          message:
+            answers.code === "required"
+              ? "validation.required"
+              : "validation.invalid",
+          data: { questionId: answers.questionId },
         });
-        if (
-          recent.fromNetwork >= ENQUIRIES_PER_NETWORK ||
-          recent.forSchool >= ENQUIRIES_PER_SCHOOL
-        )
-          throw new ORPCError("TOO_MANY_REQUESTS", {
-            message: "site.too_many",
-          });
-        const enquiryId = Bun.randomUUIDv7();
-        const message = asks.message === "hide" ? "" : input.message;
-        await insertEnquiry(tx, {
-          tenantId,
-          id: enquiryId,
-          orgId: schoolId,
-          pageId: published.pageId,
-          sectionId: form.id,
-          locale,
-          purpose: asks.purpose,
-          name: input.name,
-          email,
-          phone,
-          childName: asks.child === "hide" ? "" : input.childName,
-          childYear: asks.grade === "hide" ? "" : input.childYear,
-          message,
-          answers: answers.answers,
-          networkKey,
-        });
-        return { id: enquiryId, purpose: asks.purpose, message };
-      },
-    );
-    await announceEnquiry(context, school, {
+      const network = ipPrefix(context.headers, context.trustedProxyHops);
+      const networkKey = network
+        ? attemptKey(
+            context.cellSecret,
+            tenantId,
+            `enquiry:${network}`,
+          ).toString("hex")
+        : "";
+      const message = asks.message === "hide" ? "" : input.message;
+      const enquiryId = await receiver.keep(unit, {
+        pageId: published.pageId,
+        sectionId: form.id,
+        locale,
+        purpose: asks.purpose,
+        name: input.name,
+        email,
+        phone,
+        childName: asks.child === "hide" ? "" : input.childName,
+        childYear: asks.grade === "hide" ? "" : input.childYear,
+        message,
+        answers: answers.answers,
+        networkKey,
+      });
+      return { id: enquiryId, purpose: asks.purpose, message, receiver };
+    });
+    await received.receiver.announce(context, school, {
       id: received.id,
       name: input.name,
       purpose: received.purpose,

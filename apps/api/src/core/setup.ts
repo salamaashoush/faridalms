@@ -23,7 +23,6 @@ export async function setupSeen(
     onboardingSeen(scope.tx, {
       tenantId: scope.tenantId,
       orgId: scope.schoolId,
-      today,
     }),
     contributionsTo(scope, setupMeasures),
   ]);

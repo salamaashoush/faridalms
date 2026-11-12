@@ -7,7 +7,14 @@ import type { FileStore } from "../src/files/store";
 
 import { sweepTenantFiles } from "../src/files/sweep";
 import { mediaWorkerToken } from "../src/media/streams";
-import { client, login, raw, seeded, sessionFor } from "./harness";
+import {
+  client,
+  login,
+  raw,
+  seeded,
+  sessionFor,
+  workerModules,
+} from "./harness";
 
 const ascii = (text: string) => Array.from(text, (c) => c.charCodeAt(0));
 
@@ -560,7 +567,12 @@ describe("the sweep", () => {
         await files.removeFolder(folder);
       },
     };
-    await sweepTenantFiles(cell, store, tenantId(), new Date(), 1000);
+    const sweeping = {
+      cell,
+      store,
+      extensions: workerModules().extensions,
+    };
+    await sweepTenantFiles(sweeping, tenantId(), new Date(), 1000);
     const cleaned = await files.open(key);
     if (!cleaned) throw new Error("the picture is gone");
     expect(has(await new Response(cleaned).bytes(), "GPSLatitude")).toBe(false);
@@ -570,7 +582,7 @@ describe("the sweep", () => {
 
     // Nothing used it, so a week on it is retired, and its previews with it.
     const later = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000);
-    const swept = await sweepTenantFiles(cell, store, tenantId(), later, 1000);
+    const swept = await sweepTenantFiles(sweeping, tenantId(), later, 1000);
     expect(swept.previews).toBeGreaterThanOrEqual(1);
     expect(removed).toContain(job.outputPrefix);
   });

@@ -14,8 +14,8 @@ import { ListFilter } from "lucide-react";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
-import { CATEGORY_LABEL } from "./format";
 import { CategoryIcon } from "./views";
+import { useCalendarWords } from "./words";
 
 export interface KindFilterProps {
   categories: readonly ShownCategory[];
@@ -34,6 +34,7 @@ export function KindFilter({
   onToggle,
   onShowAll,
 }: KindFilterProps) {
+  const words = useCalendarWords();
   const total = categories.length;
   return (
     <DropdownMenu>
@@ -57,7 +58,7 @@ export function KindFilter({
             className="min-h-10"
           >
             <CategoryIcon category={category} className="size-4" />
-            {CATEGORY_LABEL[category]()}
+            {words.label(category)}
           </DropdownMenuCheckboxItem>
         ))}
         {hidden.size ? (

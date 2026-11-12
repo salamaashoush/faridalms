@@ -69,7 +69,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { isStaff, recordLinks, requireStudent } from "../core/reach";
-import { placeMedia, registerHostReader } from "../files/authorize";
+import { coreReader, placeMedia } from "../files/authorize";
 import { scopeOf, writeEntry } from "../messages/conversations";
 import {
   learnersToName,
@@ -123,7 +123,7 @@ async function openThread(context: UnitContext, threadId: string) {
   };
 }
 
-registerHostReader("message", (context, hostId) =>
+coreReader("message", (context, hostId) =>
   readsMessage(context.tx, {
     tenantId: context.tenantId,
     messageId: hostId,
@@ -133,7 +133,7 @@ registerHostReader("message", (context, hostId) =>
 );
 
 // A draft is its writer's alone, files included.
-registerHostReader("message_draft", async (context, hostId) =>
+coreReader("message_draft", async (context, hostId) =>
   Boolean(
     await draftOf(context.tx, {
       tenantId: context.tenantId,

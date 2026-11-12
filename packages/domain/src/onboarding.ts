@@ -2,6 +2,8 @@ import * as v from "valibot";
 
 import type { ModuleId } from "./modules";
 
+import { ownerOf } from "./modules";
+
 /**
  * A new school's first steps, in the order a school usually takes them:
  * most are seen in its own data by the cell's daily measure, the first
@@ -66,28 +68,16 @@ export type OperatorItem = (typeof OPERATOR_ITEMS)[number];
 export const isOperatorItem = (item: OnboardingItem): item is OperatorItem =>
   ONBOARDING_SOURCE[item] === "operator";
 
-/** The module a step needs before it counts; a school without it never takes the step. */
-const NEEDS: Partial<Record<OnboardingItem, ModuleId>> = {
-  guardians_linked: "families",
-  families_signed_in: "families",
-  timetable_ready: "timetable",
-  first_assignment: "coursework",
-  first_register: "attendance",
-  website_published: "website",
-  admissions_ready: "admissions",
-  custom_domain: "custom_domains",
-};
-
 /**
- * The steps that apply to a school: those its modules allow, and the first
- * invoice only once it is past a trial.
+ * The steps that apply to a school: core's and those of the modules it
+ * has, and the first invoice only once it is past a trial.
  */
 export function onboardingItems(school: {
   modules: readonly ModuleId[];
   onTrial: boolean;
 }): OnboardingItem[] {
   return ONBOARDING_ITEMS.filter((item) => {
-    const module = NEEDS[item];
+    const module = ownerOf("setupItems", item);
     if (module && !school.modules.includes(module)) return false;
     return item !== "first_invoice_paid" || !school.onTrial;
   });

@@ -11,8 +11,8 @@ import {
   pk,
   purposeGate,
 } from "./conventions";
-import { healthChanges } from "./documents";
 import { userRelationships } from "./families";
+import { healthChanges } from "./student-records";
 import { tenants } from "./tenancy";
 
 /** The emergency contact's link a requested change to a phone is about. */

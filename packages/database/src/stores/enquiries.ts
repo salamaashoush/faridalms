@@ -5,6 +5,7 @@ import type {
   EnquirySource,
   EnquiryState,
 } from "@faridalms/domain/enquiries";
+import type { Mailbox } from "@faridalms/domain/messages";
 import type { FormAnswer } from "@faridalms/domain/questions";
 
 import { contentPlainText } from "@faridalms/domain/content";
@@ -172,8 +173,7 @@ export interface EnquiryRecord extends EnquiryListRow {
   phoneNormalized: string | null;
   message: string;
   answers: FormAnswer[];
-  pageTitleEn: string | null;
-  pageTitleAr: string | null;
+  pageId: string | null;
   createdBy: PersonName | null;
   stateChangedAt: string;
   enquirerUserId: string | null;
@@ -200,8 +200,7 @@ export async function enquiryById(
     child_year: string;
     message: string;
     answers: FormAnswer[];
-    page_title_en: string | null;
-    page_title_ar: string | null;
+    page_id: string | null;
     assignee_id: string | null;
     assignee_en: string | null;
     assignee_ar: string | null;
@@ -219,7 +218,7 @@ export async function enquiryById(
     select e.id, e.version, e.source, e.purpose, e.state, e.closed_reason, e.locale, e.name, e.thread_id,
       e.phone_normalized,
       e.email, e.phone, e.child_name, e.child_year, e.message, e.answers,
-      nullif(p.title_en, '') as page_title_en, nullif(p.title_ar, '') as page_title_ar,
+      e.page_id,
       e.assignee_user_id as assignee_id, a.full_name_en as assignee_en, a.full_name_ar as assignee_ar,
       e.created_by_user_id as creator_id, c.full_name_en as creator_en, c.full_name_ar as creator_ar,
       ${isoOf(sql`e.created_at`)} as created_at,
@@ -228,7 +227,6 @@ export async function enquiryById(
       ${isoOf(sql`e.state_changed_at`)} as state_changed_at,
       e.enquirer_user_id, e.applicant_user_id
     from core.site_enquiries e
-    left join core.site_pages p on p.tenant_id = e.tenant_id and p.id = e.page_id
     left join core.users a on a.tenant_id = e.tenant_id and a.id = e.assignee_user_id
     left join core.users c on c.tenant_id = e.tenant_id and c.id = e.created_by_user_id
     where e.tenant_id = ${input.tenantId}::uuid and e.org_id = ${input.orgId}::uuid
@@ -250,8 +248,7 @@ export async function enquiryById(
     preview: row.message.slice(0, 200),
     message: row.message,
     answers: Array.isArray(row.answers) ? row.answers : [],
-    pageTitleEn: row.page_title_en,
-    pageTitleAr: row.page_title_ar,
+    pageId: row.page_id,
     assignee: person(row.assignee_id, row.assignee_en, row.assignee_ar),
     createdBy: person(row.creator_id, row.creator_en, row.creator_ar),
     createdAt: row.created_at,
@@ -528,4 +525,87 @@ export async function openEnquiryConversation(
       phone_normalized = ${phoneNormalized}
     where tenant_id = ${input.tenantId}::uuid and id = ${row.id}::uuid`);
   return threadId;
+}
+
+export interface NewEnquiry {
+  tenantId: string;
+  /** Chosen by the caller, since the site role may not read the row back. */
+  id: string;
+  orgId: string;
+  pageId: string | null;
+  sectionId: string | null;
+  locale: "en" | "ar";
+  purpose: EnquiryPurpose;
+  name: string;
+  email: string;
+  phone: string;
+  childName: string;
+  childYear: string;
+  message: string;
+  answers: FormAnswer[];
+  networkKey: string;
+}
+
+/**
+ * How many enquiries arrived from the website in the last hour, from one
+ * network and for the whole school, read as the site role, which sees no
+ * more than that. Those staff logged by hand are no flood.
+ */
+export async function recentEnquiries(
+  tx: Tx,
+  input: { orgId: string; networkKey: string },
+): Promise<{ fromNetwork: number; forSchool: number }> {
+  const [row] = await tx.execute<{
+    from_network: number;
+    for_school: number;
+  }>(sql`
+    select count(*) filter (where network_key = ${input.networkKey} and network_key <> '')::int as from_network,
+      count(*)::int as for_school
+    from core.site_enquiries
+    where org_id = ${input.orgId}::uuid and status = 'active' and source = 'website'
+      and created_at > statement_timestamp() - interval '1 hour'`);
+  return {
+    fromNetwork: row?.from_network ?? 0,
+    forSchool: row?.for_school ?? 0,
+  };
+}
+
+/** Records an enquiry. The site role may add it but not read it back. */
+export async function insertEnquiry(tx: Tx, input: NewEnquiry): Promise<void> {
+  await tx.execute(sql`
+    insert into core.site_enquiries (tenant_id, id, org_id, page_id, section_id, locale, purpose,
+      name, email, phone, child_name, child_year, message, answers, network_key)
+    values (${input.tenantId}::uuid, ${input.id}::uuid, ${input.orgId}::uuid, ${input.pageId}::uuid,
+      ${input.sectionId}::uuid, ${input.locale}, ${input.purpose}, ${input.name}, ${input.email},
+      ${input.phone}, ${input.childName}, ${input.childYear}, ${input.message},
+      ${JSON.stringify(input.answers)}::text::jsonb, ${input.networkKey})`);
+}
+
+/**
+ * A family's conversation with a team: the one the enquiry it applied from
+ * brought, or else the newest of the mailbox's they are in.
+ */
+export async function mailboxConversationWith(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    mailbox: Mailbox;
+    userId: string;
+    enquiryId: string | null;
+  },
+): Promise<string | null> {
+  const [row] = await tx.execute<{ id: string }>(sql`
+    select coalesce(
+      (select e.thread_id from core.site_enquiries e
+        where e.tenant_id = ${input.tenantId}::uuid and e.id = ${input.enquiryId}::uuid
+          and e.status = 'active' and e.thread_id is not null),
+      (select t.id from core.message_threads t
+        join core.thread_members m on m.tenant_id = t.tenant_id and m.thread_id = t.id
+          and m.user_id = ${input.userId}::uuid and m.role = 'member' and m.status = 'active'
+          and m.left_at is null
+        where t.tenant_id = ${input.tenantId}::uuid and t.org_id = ${input.schoolId}::uuid
+          and t.mailbox = ${input.mailbox} and t.status = 'active'
+        order by t.last_message_at desc limit 1)) as id`);
+  return row?.id ?? null;
 }

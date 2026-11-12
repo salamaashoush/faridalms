@@ -1,7 +1,6 @@
 import type { BreachRow, LeaverRow } from "@faridalms/database/stores/privacy";
 
 import { changeOf } from "@faridalms/database/audit";
-import { unsuccessfulApplicants } from "@faridalms/database/stores/admissions";
 import {
   approveErasure as approveErasureOf,
   contactApproval,
@@ -66,6 +65,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
+import { everyContribution } from "../core/extension";
 import {
   audit,
   can,
@@ -78,6 +78,7 @@ import {
 } from "../core/procedure";
 import { reachesStudent } from "../core/reach";
 import { dayKinds, logLearnerRequest } from "../core/records-requests";
+import { retentionSubjects } from "../core/retention";
 import { decidesFor } from "../people/acting";
 
 function scopeOf(context: UnitContext) {
@@ -118,24 +119,18 @@ async function breachClocks(context: UnitContext, rows: BreachRow[]) {
  */
 async function reviewOf(context: UnitContext, fulfilling: string | null) {
   const scope = scopeOf(context);
-  const [rules, people, applicants, holds, requests] = await Promise.all([
+  const [rules, people, others, holds, requests] = await Promise.all([
     retentionOf(context.tx, scope),
     leaversOf(context.tx, { ...scope, today: context.today }),
-    unsuccessfulApplicants(context.tx, scope),
+    Promise.all(
+      everyContribution(context.extensions, retentionSubjects).map((subjects) =>
+        subjects.leavers(context),
+      ),
+    ),
     holdsOf(context.tx, scope),
     requestsOf(context.tx, scope),
   ]);
-  const leavers: LeaverRow[] = [
-    ...people,
-    ...applicants.map((row) => ({
-      userId: row.userId,
-      kind: "applicant" as const,
-      fullNameEn: row.fullNameEn,
-      fullNameAr: row.fullNameAr,
-      birthDate: row.birthDate,
-      leftOn: row.closedOn,
-    })),
-  ];
+  const leavers: LeaverRow[] = [...people, ...others.flat()];
   const openRequest = new Map<string, string>();
   for (const row of requests) {
     if (row.outcome || row.id === fulfilling) continue;

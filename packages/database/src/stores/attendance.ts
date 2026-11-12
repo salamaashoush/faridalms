@@ -1264,3 +1264,15 @@ export async function markHistory(
     reason: row.reason,
   }));
 }
+
+/** Whether any register has been taken, the first use of attendance. */
+export async function registerTaken(
+  tx: Tx,
+  input: { tenantId: string; orgId: string },
+): Promise<boolean> {
+  const [row] = await tx.execute<{ found: boolean }>(sql`
+    select exists (select 1 from core.attendance_registers g
+      where g.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.orgId}::uuid
+        and g.status = 'active' and g.state = 'submitted') as found`);
+  return row?.found ?? false;
+}

@@ -1,10 +1,10 @@
+import type { SiteLocale } from "@faridalms/domain/site-sections";
 import type { SQL } from "drizzle-orm";
 
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 import type { PublicationState, Urgency } from "../tables/broadcasts";
-import type { SiteLocale } from "../tables/site";
 
 import { liveSql, scheduledSql } from "./publication";
 import { holds, isoOf, uuidArray } from "./sql";
@@ -550,4 +550,26 @@ export async function announcementFeed(
     })),
     total: rows[0]?.total ?? 0,
   };
+}
+
+/** Announcements' titles, for the records that show their documents. */
+export async function broadcastTitles(
+  tx: Tx,
+  tenantId: string,
+  ids: readonly string[],
+): Promise<Map<string, { titleEn: string | null; titleAr: string | null }>> {
+  const rows = await tx.execute<{
+    id: string;
+    title_en: string | null;
+    title_ar: string | null;
+  }>(sql`
+    select id, nullif(title_en, '') as title_en, nullif(title_ar, '') as title_ar
+    from core.broadcasts
+    where tenant_id = ${tenantId}::uuid and id = any(${uuidArray(ids)}) and status = 'active'`);
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      { titleEn: row.title_en, titleAr: row.title_ar },
+    ]),
+  );
 }

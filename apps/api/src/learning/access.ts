@@ -1,7 +1,9 @@
 import type { ModuleRow } from "@faridalms/database/stores/learning";
 
+import { machineTranslationUnchecked } from "@faridalms/database/stores/assistant";
 import {
   classesOfModule,
+  lessonTranslationReviewedAt,
   moduleById,
 } from "@faridalms/database/stores/learning";
 import { ORPCError } from "@orpc/server";
@@ -33,4 +35,18 @@ export async function editableModule(context: UnitContext, moduleId: string) {
   const row = await moduleOfSchool(context, moduleId);
   if (!(await mayEditModule(context, row))) throw new ORPCError("NOT_FOUND");
   return row;
+}
+
+/** Whether the model drafted the lesson's translation since a person last checked it. */
+export async function translationUnchecked(context: UnitContext, id: string) {
+  return machineTranslationUnchecked(context.tx, {
+    tenantId: context.tenantId,
+    host: "lesson",
+    id,
+    reviewedAt: await lessonTranslationReviewedAt(
+      context.tx,
+      context.tenantId,
+      id,
+    ),
+  });
 }

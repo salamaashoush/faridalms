@@ -91,14 +91,14 @@ import {
   draftWords,
   publishedWords,
   publishWords,
-  registerGoLive,
+  coreGoLive,
   saveWords,
   tellLive,
   wordsIssues,
 } from "../core/publication";
 import { sharedInliner } from "../core/shared";
 import { checkTranslation } from "../core/translation-review";
-import { registerHostReader, registerHostWriter } from "../files/authorize";
+import { coreHost, passes } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -184,18 +184,14 @@ async function readable(context: UnitContext, announcementId: string) {
   return { row, recipient };
 }
 
-registerHostReader("announcement", async (context, hostId) => {
-  try {
-    await readable(context, hostId);
-    return true;
-  } catch {
-    return false;
-  }
-});
-registerHostWriter("announcement", async (context, hostId) => {
-  if (!can(context, CAPABILITY)) return false;
-  const row = await broadcastById(context.tx, context.tenantId, hostId);
-  return row !== null && row.orgId === context.schoolId;
+coreHost({
+  hostType: "announcement",
+  read: passes(readable),
+  write: async (context, hostId) => {
+    if (!can(context, CAPABILITY)) return false;
+    const row = await broadcastById(context.tx, context.tenantId, hostId);
+    return row !== null && row.orgId === context.schoolId;
+  },
 });
 
 /** What a notice of it going out says: its summary, else the start of its words. */
@@ -825,7 +821,7 @@ export const seen = writeProcedure
     return { seen: true };
   });
 
-registerGoLive<BroadcastRow>("broadcast", {
+coreGoLive<BroadcastRow>({
   due: (tx, input) => liveUntold(tx, input),
   schoolOf: (row) => row.orgId,
   authorOf: (row) => row.authorUserId,

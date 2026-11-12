@@ -47,6 +47,7 @@ import { contribute } from "../core/extension";
 import { can, requireCapability } from "../core/procedure";
 import { requireStudent, teaches } from "../core/reach";
 import { ownSchedule, taughtAssignment } from "../coursework/access";
+import { dueByAllowances } from "../coursework/allowances";
 import { teachingScope, tellAssigned } from "../coursework/notices";
 import { assignmentParts, partsFollow } from "../coursework/points";
 import { placeMedia } from "../files/authorize";
@@ -94,7 +95,7 @@ async function reachPart(
     part.classId,
   );
   const found = await classById(context.tx, context, part.classId);
-  return setRecipients(context.tx, {
+  const reached = await setRecipients(context.tx, {
     tenantId: context.tenantId,
     assignmentId: part.id,
     classId: part.classId,
@@ -102,6 +103,8 @@ async function reachPart(
     selection,
     on: found ? dayWithin(found.runs, context.today) : context.today,
   });
+  await dueByAllowances(context, { assignmentId: part.id });
+  return reached;
 }
 
 /** The discussion's own fields as another class's part takes them. */

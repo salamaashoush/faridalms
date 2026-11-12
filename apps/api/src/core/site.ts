@@ -10,20 +10,21 @@ import {
 } from "@faridalms/database/stores/previews";
 import {
   endPublications,
-  keepPublishedPicture,
   publicationsOf,
   publishableFiles,
   publishedHolders,
   recordPublication,
   subjectsWithoutConsent,
-} from "@faridalms/database/stores/site";
+} from "@faridalms/database/stores/public-files";
 import { platformName } from "@faridalms/domain/hosts";
 import { availableModules } from "@faridalms/domain/plans";
 import { publicKeyFor } from "@faridalms/domain/website";
 import { ORPCError } from "@orpc/server";
 
 import type { ApiDependencies, RequestContext, UnitContext } from "./context";
+import type { ModuleContributions } from "./extension";
 
+import { everyContribution, point } from "./extension";
 import { portalHost } from "./portal";
 
 export interface PublicUnit {
@@ -256,11 +257,25 @@ export async function publishMedia(
   return { media, pictures };
 }
 
-/** The hosts whose published copies keep their pictures' sizes, by what each copy is. */
-const COPIES: Readonly<Record<string, "page" | "post">> = {
-  site_page: "page",
-  announcement: "post",
-};
+/**
+ * A copy visitors read of a host that shows pictures, which keeps each
+ * picture's sizes beside it: a published page, say.
+ */
+export interface PictureCopy {
+  hostType: string;
+  /** Adds a picture's sizes to the host's copies that show it; how many changed. */
+  keep(
+    tx: CellTransaction,
+    input: {
+      tenantId: string;
+      hostId: string;
+      fileId: string;
+      picture: PublishedPicture;
+    },
+  ): Promise<number>;
+}
+
+export const pictureCopies = point<PictureCopy>("picture copies");
 
 /**
  * Publishes a picture's sizes once they are made, beside every public copy
@@ -269,9 +284,13 @@ const COPIES: Readonly<Record<string, "page" | "post">> = {
  * from them without waiting to be published again.
  */
 export async function publishLateSizes(
-  publishing: Publishing & { tenantId: string },
+  publishing: Publishing & {
+    tenantId: string;
+    extensions: readonly ModuleContributions[];
+  },
   storageKey: string,
 ): Promise<number> {
+  const copies = everyContribution(publishing.extensions, pictureCopies);
   const { tx, tenantId } = publishing;
   const preview = (await previewsOf(tx, tenantId, [storageKey])).get(
     storageKey,
@@ -295,11 +314,10 @@ export async function publishLateSizes(
       new Set(holder.derivatives),
       focus.get(holder.fileId),
     );
-    const copy = COPIES[holder.hostType];
+    const copy = copies.find((each) => each.hostType === holder.hostType);
     if (picture && copy)
-      kept += await keepPublishedPicture(tx, {
+      kept += await copy.keep(tx, {
         tenantId,
-        host: copy,
         hostId: holder.hostId,
         fileId: holder.fileId,
         picture,

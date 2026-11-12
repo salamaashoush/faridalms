@@ -19,8 +19,6 @@ import type {
 import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
 import { changeOf } from "@faridalms/database/audit";
-import { arrangementsOf } from "@faridalms/database/stores/arrangements";
-import { machineTranslationUnchecked } from "@faridalms/database/stores/assistant";
 import { reachOf } from "@faridalms/database/stores/audiences";
 import {
   classById,
@@ -61,7 +59,9 @@ import {
   runningPacedOf,
   startPaced as beginPaced,
   touchProgress,
+  keepModuleTemplate,
   moduleById,
+  moduleOfTemplate,
   modulesForClasses,
   orderLessons,
   classUnitsOf,
@@ -268,19 +268,15 @@ import {
 import { signalPacing } from "../core/signals";
 import { templateHost, usableTemplate } from "../core/templates";
 import { checkTranslation } from "../core/translation-review";
-import {
-  registerArea,
-  registerHostReader,
-  registerHostWriter,
-  registerLiveRules,
-  placeMedia,
-} from "../files/authorize";
+import { placeMedia } from "../files/authorize";
 import {
   editableModule,
   mayEditModule,
   moduleOfSchool,
+  translationUnchecked,
 } from "../learning/access";
 import { moduleClasses } from "../learning/classes";
+import { ELEARNING_HOSTS } from "../learning/hosts";
 import { copyLesson, copyModule, planHost } from "../learning/module-copy";
 import {
   moduleParts,
@@ -289,6 +285,7 @@ import {
   unitFrames,
 } from "../learning/points";
 import { applyRemarks } from "../learning/remarks";
+import { allowancesOf } from "../people/allowances";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -496,14 +493,7 @@ async function publishLessons(context: UnitContext, lessonIds: string[]) {
     );
     // A translation the model drafted goes to students only once a person
     // has checked it against the original.
-    if (
-      translation &&
-      (await machineTranslationUnchecked(context.tx, {
-        tenantId: context.tenantId,
-        host: "lesson",
-        id: lessonId,
-      }))
-    )
+    if (translation && (await translationUnchecked(context, lessonId)))
       throw new ORPCError("CONFLICT", {
         message: "assistant.translation_unchecked",
       });
@@ -690,28 +680,29 @@ async function hostReadable(context: UnitContext, lessonId: string) {
   const row = await moduleById(context.tx, context.tenantId, lesson.moduleId);
   if (!row || row.orgId !== context.schoolId) return false;
   if (await mayEditModule(context, row)) return true;
-  try {
-    await openModule(context, row.id, context.actor.userId);
-    return true;
-  } catch {
-    return false;
-  }
+  return openModule(context, row.id, context.actor.userId).then(
+    () => true,
+    () => false,
+  );
 }
 
-registerHostReader("lesson", hostReadable);
+ELEARNING_HOSTS.push({ hostType: "lesson", read: hostReadable });
 
 // A student's spoken answers and coding projects in a lesson: whoever
 // teaches the lesson's module hears and opens them, as they read its
 // written answers; the student has their own. A project its teacher has
 // shown in a class gallery opens to the classmates the gallery is for.
-registerHostReader("lesson_answer", async (context, lessonId, file) => {
-  if (!(await isOn(context))) return false;
-  const lesson = await lessonById(context.tx, context.tenantId, lessonId);
-  if (!lesson) return false;
-  const row = await moduleById(context.tx, context.tenantId, lesson.moduleId);
-  if (!row || row.orgId !== context.schoolId) return false;
-  if (await mayEditModule(context, row)) return true;
-  return file ? shownToClassmate(context, lesson.id, file.id) : false;
+ELEARNING_HOSTS.push({
+  hostType: "lesson_answer",
+  read: async (context, lessonId, file) => {
+    if (!(await isOn(context))) return false;
+    const lesson = await lessonById(context.tx, context.tenantId, lessonId);
+    if (!lesson) return false;
+    const row = await moduleById(context.tx, context.tenantId, lesson.moduleId);
+    if (!row || row.orgId !== context.schoolId) return false;
+    if (await mayEditModule(context, row)) return true;
+    return file ? shownToClassmate(context, lesson.id, file.id) : false;
+  },
 });
 
 async function editsModule(context: UnitContext, moduleId: string) {
@@ -729,23 +720,29 @@ async function editsModule(context: UnitContext, moduleId: string) {
  * may edit the module reads all of it; students only what a lesson they may
  * open shows.
  */
-registerArea("module", {
-  reader: editsModule,
-  writer: editsModule,
-  holders: {
-    lesson: async (context, lessonId) => {
-      const lesson = await lessonById(context.tx, context.tenantId, lessonId);
-      return lesson ? { type: "module", id: lesson.moduleId } : null;
+ELEARNING_HOSTS.push({
+  hostType: "module",
+  area: {
+    reader: editsModule,
+    writer: editsModule,
+    holders: {
+      lesson: async (context, lessonId) => {
+        const lesson = await lessonById(context.tx, context.tenantId, lessonId);
+        return lesson ? { type: "module", id: lesson.moduleId } : null;
+      },
+      module_plan: (_, moduleId) =>
+        Promise.resolve({ type: "module", id: moduleId }),
     },
-    module_plan: (_, moduleId) =>
-      Promise.resolve({ type: "module", id: moduleId }),
   },
 });
 
 // A module's unit plan is for those who teach it, who write it together.
-registerHostReader("module_plan", editsModule);
-registerHostWriter("module_plan", editsModule);
-registerLiveRules("module_plan", { keyed: () => Promise.resolve(false) });
+ELEARNING_HOSTS.push({
+  hostType: "module_plan",
+  read: editsModule,
+  write: editsModule,
+  live: { keyed: () => Promise.resolve(false) },
+});
 
 /**
  * A module's unit plan, and the standards its lessons cover, each with how
@@ -812,19 +809,13 @@ export const savePlan = writeProcedure
     });
     return { version: saved.version };
   });
-registerLiveRules("lesson", {
-  keyed: () => Promise.resolve(true),
-});
-registerHostWriter("lesson", async (context, lessonId) => {
-  if (!(await isOn(context))) return false;
-  const lesson = await lessonById(context.tx, context.tenantId, lessonId);
-  if (!lesson) return false;
-  const row = await moduleById(context.tx, context.tenantId, lesson.moduleId);
-  return Boolean(
-    row &&
-    row.orgId === context.schoolId &&
-    (await mayEditModule(context, row)),
-  );
+ELEARNING_HOSTS.push({
+  hostType: "lesson",
+  live: { keyed: () => Promise.resolve(true) },
+  write: async (context, lessonId) => {
+    const lesson = await lessonById(context.tx, context.tenantId, lessonId);
+    return lesson !== null && (await editsModule(context, lesson.moduleId));
+  },
 });
 
 /** The classes and modules a module editor offers. */
@@ -1320,6 +1311,10 @@ export const shareModule = writeProcedure
       description: input.description,
       subjectId: input.subjectId || null,
       state,
+    });
+    await keepModuleTemplate(context.tx, {
+      tenantId: context.tenantId,
+      templateId: created.id,
       moduleId: kept.id,
     });
     const overview = moduleOverview(
@@ -1350,10 +1345,16 @@ export const moduleFromTemplate = writeProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "learning:author");
     const piece = await usableTemplate(context, input.id);
-    const kept =
-      piece?.kind === "module" && piece.moduleId
-        ? await moduleById(context.tx, context.tenantId, piece.moduleId)
+    const keptId =
+      piece?.kind === "module"
+        ? await moduleOfTemplate(context.tx, {
+            tenantId: context.tenantId,
+            templateId: piece.id,
+          })
         : null;
+    const kept = keptId
+      ? await moduleById(context.tx, context.tenantId, keptId)
+      : null;
     if (!kept) throw new ORPCError("NOT_FOUND");
     const { classes } = await authoringClasses(context);
     if (!classes.some((item) => item.id === input.classId))
@@ -3143,13 +3144,8 @@ export const playLesson = writeProcedure
       })),
       /** The student's arrangements give them a computer reader. */
       readAloud:
-        (
-          await arrangementsOf(context.tx, {
-            tenantId: context.tenantId,
-            orgId: context.schoolId,
-            studentId: played.studentId,
-          })
-        )?.arrangements.readAloud ?? false,
+        (await allowancesOf(context, [played.studentId])).get(played.studentId)
+          ?.readAloud ?? false,
     };
   });
 

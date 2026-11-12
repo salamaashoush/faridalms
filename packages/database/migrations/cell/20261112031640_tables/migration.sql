@@ -1755,7 +1755,6 @@ CREATE TABLE "core"."document_templates" (
 	"owner_user_id" uuid,
 	"kind" text NOT NULL,
 	"builtin_key" text,
-	"module_id" uuid,
 	"title" text NOT NULL,
 	"description" text DEFAULT '' NOT NULL,
 	"subject_descriptor_id" uuid,
@@ -1774,7 +1773,6 @@ CREATE TABLE "core"."document_templates" (
 	CONSTRAINT "document_templates_version_check" CHECK (version > 0),
 	CONSTRAINT "document_templates_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
 	CONSTRAINT "document_templates_kind_check" CHECK (kind in ('lesson', 'assignment', 'unit_plan', 'announcement', 'event', 'consent_form', 'module', 'message', 'admission_letter', 'section')),
-	CONSTRAINT "document_templates_module_check" CHECK ((kind = 'module') = (module_id is not null)),
 	CONSTRAINT "document_templates_title_check" CHECK (char_length(title) between 1 and 120),
 	CONSTRAINT "document_templates_description_check" CHECK (char_length(description) <= 500),
 	CONSTRAINT "document_templates_state_check" CHECK (state in ('pending', 'shared', 'declined')),
@@ -3280,6 +3278,23 @@ CREATE TABLE "core"."module_discussions" (
 );
 --> statement-breakpoint
 ALTER TABLE "core"."module_discussions" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "core"."module_templates" (
+	"tenant_id" uuid,
+	"id" uuid DEFAULT uuidv7(),
+	"template_id" uuid NOT NULL,
+	"module_id" uuid NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"date_last_modified" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL,
+	"metadata" jsonb DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	CONSTRAINT "module_templates_pkey" PRIMARY KEY("tenant_id","id"),
+	CONSTRAINT "module_templates_status_check" CHECK (status in ('active', 'tobedeleted')),
+	CONSTRAINT "module_templates_version_check" CHECK (version > 0),
+	CONSTRAINT "module_templates_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384)
+);
+--> statement-breakpoint
+ALTER TABLE "core"."module_templates" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "core"."org_features" (
 	"tenant_id" uuid,
 	"id" uuid DEFAULT uuidv7(),
@@ -5181,6 +5196,7 @@ CREATE UNIQUE INDEX "module_classes_key" ON "core"."module_classes" ("tenant_id"
 CREATE INDEX "module_classes_class_idx" ON "core"."module_classes" ("tenant_id","class_id") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "module_discussions_assignment_key" ON "core"."module_discussions" ("tenant_id","assignment_id") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "module_discussions_class_key" ON "core"."module_discussions" ("tenant_id","discussion_group","class_id") WHERE status = 'active';--> statement-breakpoint
+CREATE UNIQUE INDEX "module_templates_template_key" ON "core"."module_templates" ("tenant_id","template_id") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "org_features_key" ON "core"."org_features" ("tenant_id","org_id","feature") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "orgs_root_key" ON "core"."orgs" ("tenant_id") WHERE parent_id is null and status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "orgs_identifier_key" ON "core"."orgs" ("tenant_id","identifier") WHERE status = 'active' and identifier is not null;--> statement-breakpoint
@@ -5700,6 +5716,9 @@ ALTER TABLE "core"."module_classes" ADD CONSTRAINT "module_classes_tenant_id_cla
 ALTER TABLE "core"."module_discussions" ADD CONSTRAINT "module_discussions_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."module_discussions" ADD CONSTRAINT "module_discussions_tenant_id_assignment_id_class_id_status_fkey" FOREIGN KEY ("tenant_id","assignment_id","class_id","status") REFERENCES "core"."assignments"("tenant_id","id","class_id","status") ON UPDATE CASCADE;--> statement-breakpoint
 ALTER TABLE "core"."module_discussions" ADD CONSTRAINT "module_discussions_tenant_id_module_id_fkey" FOREIGN KEY ("tenant_id","module_id") REFERENCES "core"."learning_modules"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "core"."module_templates" ADD CONSTRAINT "module_templates_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
+ALTER TABLE "core"."module_templates" ADD CONSTRAINT "module_templates_tenant_id_template_id_fkey" FOREIGN KEY ("tenant_id","template_id") REFERENCES "core"."document_templates"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "core"."module_templates" ADD CONSTRAINT "module_templates_tenant_id_module_id_fkey" FOREIGN KEY ("tenant_id","module_id") REFERENCES "core"."learning_modules"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."org_features" ADD CONSTRAINT "org_features_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."org_features" ADD CONSTRAINT "org_features_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."orgs" ADD CONSTRAINT "orgs_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
@@ -6624,6 +6643,11 @@ CREATE POLICY "owner_all" ON "core"."module_discussions" AS PERMISSIVE FOR ALL T
 CREATE POLICY "p_select" ON "core"."module_discussions" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
 CREATE POLICY "p_insert" ON "core"."module_discussions" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_update" ON "core"."module_discussions" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "core"."module_templates" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
+CREATE POLICY "owner_all" ON "core"."module_templates" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_select" ON "core"."module_templates" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
+CREATE POLICY "p_insert" ON "core"."module_templates" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_update" ON "core"."module_templates" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "core"."org_features" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
 CREATE POLICY "owner_all" ON "core"."org_features" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_select" ON "core"."org_features" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint

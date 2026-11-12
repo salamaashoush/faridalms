@@ -54,8 +54,8 @@ import {
   requireStudent,
   scopeFor,
 } from "../core/reach";
+import { FAMILIES_HOSTS } from "../families/hosts";
 import { linkGuardian, relationMeaning } from "../families/links";
-import { registerHostReader } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -477,9 +477,9 @@ export const saveCustody = writeProcedure
 // A custody paper opens for the staff who read custody records of a
 // student they reach, and for nobody else; host readers answer whatever
 // the school has on, so a school without families opens none.
-registerHostReader(
-  "relationship_restriction",
-  async (context, relationshipId, file) => {
+FAMILIES_HOSTS.push({
+  hostType: "relationship_restriction",
+  read: async (context, relationshipId, file) => {
     if (!file || !can(context, "custody:read")) return false;
     if (!(await modulesOf(context)).families) return false;
     const link = await withPurpose(context.tx, "custody", (tx) =>
@@ -488,4 +488,4 @@ registerHostReader(
     if (!link || link.fileId !== file.id) return false;
     return reachesStudent(context, "people", link.studentId);
   },
-);
+});

@@ -13,7 +13,6 @@ import {
   deriveMediaItem,
   describeMediaItem,
   documentUploads,
-  fileUses,
   insertMediaFolder,
   mediaArea,
   mediaFacets,
@@ -79,7 +78,7 @@ import {
   schoolZone,
   writeProcedure,
 } from "../core/procedure";
-import { canReadFile, registerArea } from "../files/authorize";
+import { canReadFile, coreArea, fileUsesNamed } from "../files/authorize";
 import { fetchLink, LinkError } from "../files/fetch-link";
 import { replaceBytes, roomFor, versionsOf } from "../files/keeping";
 import { hasVideo, uploadLimit } from "../files/limit";
@@ -95,7 +94,7 @@ const keepsMedia = (context: UnitContext) =>
  * reads all of it, and a document anywhere shows its files where they are,
  * so its readers read those it shows and nothing else of the school's media.
  */
-registerArea(MEDIA_AREA, {
+coreArea(MEDIA_AREA, {
   reader: (context, schoolId) =>
     Promise.resolve(schoolId === context.schoolId && usesMedia(context)),
   writer: (context, schoolId) =>
@@ -225,7 +224,7 @@ export const uses = readProcedure
       [input.id],
     );
     if (!item) throw new ORPCError("NOT_FOUND");
-    return { uses: await fileUses(context.tx, context.tenantId, item.id) };
+    return { uses: await fileUsesNamed(context, item.id) };
   });
 
 export const createFolder = writeProcedure

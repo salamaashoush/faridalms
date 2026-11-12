@@ -1,6 +1,11 @@
-import type { ApplicationForm } from "@faridalms/domain/admissions";
+import type {
+  ApplicationForm,
+  Needs,
+  NeedsKind,
+} from "@faridalms/domain/admissions";
 import type { PartValue, Views } from "@faridalms/domain/classes";
 
+import { emptyNeeds, NEEDS_KINDS } from "@faridalms/domain/admissions";
 import { ORPCError } from "@orpc/server";
 
 import type { ViewValue } from "../classes/points";
@@ -196,4 +201,80 @@ export const filingForOthers = point<FilingForOthers>("filing for others");
 /** The module that lets someone apply for another person, where one is on. */
 export async function filingModule(context: UnitContext) {
   return (await contributionsTo(context, filingForOthers))[0] ?? null;
+}
+
+/** The page of the school's website an enquiry was sent from, by its title. */
+export interface EnquiryPages {
+  titlesOf(
+    context: UnitContext,
+    pageId: string,
+  ): Promise<{ titleEn: string | null; titleAr: string | null } | null>;
+}
+
+export const enquiryPages = point<EnquiryPages>("enquiry pages");
+
+/** An enquiry with the title of the page it came from, where that is known. */
+export async function withPageTitles<T extends { pageId: string | null }>(
+  context: UnitContext,
+  row: T,
+): Promise<T & { pageTitleEn: string | null; pageTitleAr: string | null }> {
+  let titles = null;
+  if (row.pageId)
+    for (const pages of await contributionsTo(context, enquiryPages))
+      titles ??= await pages.titlesOf(context, row.pageId);
+  return {
+    ...row,
+    pageTitleEn: titles?.titleEn ?? null,
+    pageTitleAr: titles?.titleAr ?? null,
+  };
+}
+
+/**
+ * Where an applicant's health and needs are kept, as the family wrote them.
+ * Without a keeper an application asks none.
+ */
+export interface ApplicantNeeds {
+  read(
+    context: UnitContext,
+    applicantId: string,
+  ): Promise<Needs & { ids: Partial<Record<NeedsKind, string>> }>;
+  write(
+    context: UnitContext,
+    applicantId: string,
+    needs: Needs,
+  ): Promise<NeedsKind[]>;
+}
+
+export const applicantNeeds = point<ApplicantNeeds>("applicant needs");
+
+/** The keeper of applicants' needs at the school, or null where none is on. */
+export async function needsKeeper(
+  context: UnitContext,
+): Promise<ApplicantNeeds | null> {
+  const [keeper] = await contributionsTo(context, applicantNeeds);
+  return keeper ?? null;
+}
+
+/** An applicant's needs as kept, empty where nothing keeps them. */
+export async function readNeeds(context: UnitContext, applicantId: string) {
+  const keeper = await needsKeeper(context);
+  return keeper
+    ? keeper.read(context, applicantId)
+    : { ...emptyNeeds(), ids: {} };
+}
+
+/**
+ * Keeps what the family wrote of an applicant's needs. Where nothing keeps
+ * them, needs written are refused rather than dropped.
+ */
+export async function writeNeeds(
+  context: UnitContext,
+  applicantId: string,
+  needs: Needs,
+): Promise<NeedsKind[]> {
+  const keeper = await needsKeeper(context);
+  if (keeper) return keeper.write(context, applicantId, needs);
+  if (NEEDS_KINDS.some((kind) => needs[kind].trim() !== ""))
+    throw new ORPCError("BAD_REQUEST", { message: "applying.needs_off" });
+  return [];
 }

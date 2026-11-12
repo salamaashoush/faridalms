@@ -20,7 +20,6 @@ import {
   insertApplication,
   insertApplicationEntry,
   intakesOf,
-  itemHolder,
   itemsOf,
   markSubmitted,
   nextReferenceCount,
@@ -102,15 +101,19 @@ import type { UnitContext } from "../core/context";
 
 import {
   admissionConsents,
-  consentWords,
   documentStep,
   fileDocument,
   intakeOf,
   letterView,
 } from "../admissions/access";
 import { admissionScope, moveApplication } from "../admissions/decisions";
-import { filingModule } from "../admissions/points";
-import { readNeeds, writeNeeds } from "../core/health";
+import {
+  filingModule,
+  needsKeeper,
+  readNeeds,
+  writeNeeds,
+} from "../admissions/points";
+import { consentWords } from "../consents/words";
 import { identifierValue } from "../core/identifiers";
 import { modulesOf } from "../core/modules";
 import { notify, notifyIn } from "../core/notify";
@@ -126,7 +129,6 @@ import { withPurposeFor } from "../core/purpose";
 import { scopeFor } from "../core/reach";
 import { attemptKey, ipPrefix, issueBadgeSecret } from "../core/session";
 import { servesSchool } from "../core/turnstile";
-import { registerHostReader } from "../files/authorize";
 import { scopeOf, writeEntry } from "../messages/conversations";
 import {
   alreadyRegisteredMessage,
@@ -156,21 +158,6 @@ const org = (context: UnitContext) => ({
 });
 
 const NEEDS_USE = ["applications:submit"] as const;
-
-// A document the filer uploaded for a checklist step is theirs and the
-// office's to open.
-registerHostReader("admission_item", async (context, itemId) => {
-  const holder = await itemHolder(context.tx, {
-    tenantId: context.tenantId,
-    itemId,
-  });
-  if (holder?.orgId !== context.schoolId) return false;
-  return (
-    holder.filedByUserId === context.actor.userId ||
-    context.actor.capabilities.has("admissions:read") ||
-    context.actor.capabilities.has("admissions:manage")
-  );
-});
 
 async function ownApplication(context: UnitContext, id: string) {
   const row = await applicationById(context.tx, {
@@ -927,6 +914,7 @@ export const draft = readProcedure
       needs: Object.fromEntries(
         NEEDS_KINDS.map((kind) => [kind, needs[kind]]),
       ) as Needs,
+      asksNeeds: (await needsKeeper(context)) !== null,
       items,
       consents: consents.map((consent, index) => ({
         meaning: consent.meaning,

@@ -7,7 +7,7 @@ import {
 import { openDirectory } from "@faridalms/database/directory/client";
 import { CAPABILITIES } from "@faridalms/domain/capabilities";
 import { plainContent } from "@faridalms/domain/content-conversion";
-import { MODULE_IDS } from "@faridalms/domain/modules";
+import { MODULE_IDS, wordOn } from "@faridalms/domain/modules";
 import { BASIC_ENTITLEMENTS, settableOf } from "@faridalms/domain/plans";
 import {
   newSchoolSchema,
@@ -198,7 +198,14 @@ describe("creating a school from the operator console", () => {
       roles: ["system_administrator"],
       school: { slug: "riverside", timeZone: "Africa/Cairo" },
     });
-    expect(me.capabilities.toSorted()).toEqual([...CAPABILITIES].toSorted());
+    // Every capability of core and of the modules the new school has; those
+    // of modules it has not are kept on the role and grant nothing.
+    expect(me.capabilities.toSorted()).toEqual(
+      CAPABILITIES.filter((capability) =>
+        wordOn("capabilities", capability, me.modules),
+      ).toSorted(),
+    );
+    expect(me.capabilities).not.toContain("admissions:manage");
   });
 
   test("a new school sets the usual day once, then places lessons and takes registers", async () => {

@@ -2,11 +2,13 @@ import type { CellTransaction } from "@faridalms/database/context";
 import type { SessionContext } from "@faridalms/domain/workspace";
 
 import { effectiveAccess } from "@faridalms/database/stores/identity";
+import { wordOn } from "@faridalms/domain/modules";
 
 import type { SchoolContext } from "../core/context";
 import type { ModuleScope } from "../core/extension";
 
 import { contributionsTo, point } from "../core/extension";
+import { modulesOf } from "../core/modules";
 import { youngStudentsOf } from "./points";
 
 /**
@@ -38,7 +40,8 @@ async function openedFor(
 /**
  * A person's access at a school on a day in a context, with a student's
  * profile young where a module knows them to be a young child, and the
- * contexts the modules open beside those the roles do.
+ * contexts the modules open beside those the roles do, holding only the
+ * capabilities of core and of the modules on.
  */
 export async function accessAt(
   scope: ModuleScope,
@@ -49,16 +52,29 @@ export async function accessAt(
     (await youngStudentsOf(scope, [input.userId], input.today)).has(
       input.userId,
     );
-  return effectiveAccess(scope.tx, {
-    tenantId: scope.tenantId,
-    userId: input.userId,
-    orgId: scope.schoolId,
-    today: input.today,
-    context: input.context,
-    young,
-    opens: (roles) =>
-      openedFor(scope, { userId: input.userId, roles, today: input.today }),
-  });
+  const [access, on] = await Promise.all([
+    effectiveAccess(scope.tx, {
+      tenantId: scope.tenantId,
+      userId: input.userId,
+      orgId: scope.schoolId,
+      today: input.today,
+      context: input.context,
+      young,
+      opens: (roles) =>
+        openedFor(scope, { userId: input.userId, roles, today: input.today }),
+    }),
+    modulesOf(scope),
+  ]);
+  // A capability of a module that is off stays on the role and grants
+  // nothing until the module is on again.
+  return {
+    ...access,
+    capabilities: new Set(
+      [...access.capabilities].filter((capability) =>
+        wordOn("capabilities", capability, on),
+      ),
+    ),
+  };
 }
 
 /** `accessAt` for a request at a school, before a unit of work knows its modules. */

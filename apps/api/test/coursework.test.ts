@@ -1482,6 +1482,18 @@ describe("handing in and returning work", () => {
         )
       ).status,
     ).toBe(404);
+
+    // Neither archive is there while coursework is off, and both are again
+    // once it is back on.
+    const archives = () =>
+      Promise.all([
+        raw("northwind", teacher.token, `/v1/assignments/${saved.id}/work.zip`),
+        raw("northwind", office.token, `/v1/students/${me.id}/portfolio.zip`),
+      ]).then((responses) => responses.map((response) => response.status));
+    await withoutModules("northwind", ["coursework"], async () => {
+      expect(await archives()).toEqual([404, 404]);
+    });
+    expect(await archives()).toEqual([200, 200]);
   });
 });
 
@@ -2398,6 +2410,22 @@ describe("quizzes", () => {
     const next = await student.api.coursework.work({ id: saved.id });
     expect(next.quiz?.timing).toBe(null);
     expect(next.quiz?.blocks.map((block) => block.id)).toEqual([choice.id]);
+
+    // Arrangements kept while student records are off allow nothing, and
+    // allow it all again once they are back on.
+    const kept = await principal.records.arrangements({ studentId: me.id });
+    await arrange(kept.version, { readAloud: true });
+    expect(
+      (await student.api.coursework.work({ id: saved.id })).quiz,
+    ).toMatchObject({ readAloud: true });
+    await withoutModules("northwind", ["student_records"], async () => {
+      expect(
+        (await student.api.coursework.work({ id: saved.id })).quiz,
+      ).toMatchObject({ readAloud: false });
+    });
+    expect(
+      (await student.api.coursework.work({ id: saved.id })).quiz,
+    ).toMatchObject({ readAloud: true });
   });
 
   test("a student with supervised rest breaks stops the clock, their questions hidden, and their teacher sees each break", async () => {

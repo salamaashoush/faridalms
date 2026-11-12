@@ -714,7 +714,10 @@ export function ApplicationSteps({
         agreed[consent.notice.id] === true,
     ),
   };
-  const index = APPLY_STEPS.indexOf(step);
+  const steps = APPLY_STEPS.filter(
+    (each) => each !== "needs" || data.asksNeeds,
+  );
+  const index = steps.indexOf(step);
 
   const persist = async () => {
     const saved = await save.mutateAsync();
@@ -748,7 +751,7 @@ export function ApplicationSteps({
     <div className="grid gap-8">
       <nav aria-label={m.applySteps()}>
         <ol className="flex flex-wrap gap-2 text-sm">
-          {APPLY_STEPS.map((each, at) => (
+          {steps.map((each, at) => (
             <li key={each}>
               <button
                 type="button"
@@ -870,7 +873,7 @@ export function ApplicationSteps({
             type="button"
             variant="outline"
             disabled={save.isPending}
-            onClick={() => void go(APPLY_STEPS[index - 1] ?? "child", false)}
+            onClick={() => void go(steps[index - 1] ?? "child", false)}
           >
             <ArrowLeft aria-hidden className="size-4 rtl:rotate-180" />
             {m.applyBack()}
@@ -902,7 +905,7 @@ export function ApplicationSteps({
           <Button
             type="button"
             disabled={save.isPending}
-            onClick={() => void go(APPLY_STEPS[index + 1] ?? "send", true)}
+            onClick={() => void go(steps[index + 1] ?? "send", true)}
           >
             {m.applySaveContinue()}
             <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />

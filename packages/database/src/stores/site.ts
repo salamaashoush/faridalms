@@ -1,5 +1,4 @@
 import type { PublishedPicture } from "@faridalms/domain/previews";
-import type { FormAnswer } from "@faridalms/domain/questions";
 import type { SiteChrome, SiteTheme } from "@faridalms/domain/site-theme";
 
 import { publishedPicture } from "@faridalms/domain/previews";
@@ -8,14 +7,12 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type {
   BannerTone,
-  EnquiryPurpose,
   SiteLocale,
   SiteState,
   SocialLink,
 } from "../tables/site";
-import type { PostalAddress } from "../tables/tenancy";
 
-import { isoOf, textArray, uuidArray } from "./sql";
+import { isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -656,95 +653,6 @@ export async function withdrawPost(
       and status = 'active'`);
 }
 
-export interface Publication {
-  fileId: string;
-  publicKey: string;
-  /** A size made of the file, published beside it; none for the file itself. */
-  derivative: string | null;
-}
-
-/** The files a page or post shows publicly now, by the key each is served under. */
-export async function publicationsOf(
-  tx: Tx,
-  input: { tenantId: string; hostType: string; hostId: string },
-): Promise<Publication[]> {
-  const rows = await tx.execute<{
-    file_id: string;
-    public_key: string;
-    derivative: string | null;
-  }>(sql`
-    select file_id, public_key, derivative from core.file_publications
-    where tenant_id = ${input.tenantId}::uuid and host_type = ${input.hostType}
-      and host_id = ${input.hostId}::uuid and status = 'active' and unpublished_at is null`);
-  return rows.map((row) => ({
-    fileId: row.file_id,
-    publicKey: row.public_key,
-    derivative: row.derivative,
-  }));
-}
-
-export async function recordPublication(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    fileId: string;
-    purpose: string;
-    publicKey: string;
-    hostType: string;
-    hostId: string;
-    derivative?: string | null;
-  },
-): Promise<void> {
-  await tx.execute(sql`
-    insert into core.file_publications (tenant_id, file_id, file_purpose, public_key, host_type,
-      host_id, derivative)
-    values (${input.tenantId}::uuid, ${input.fileId}::uuid, ${input.purpose}, ${input.publicKey},
-      ${input.hostType}, ${input.hostId}::uuid, ${input.derivative ?? null})`);
-}
-
-/** A public copy of a file, where it is published and the sizes already beside it. */
-export interface PublishedHolder {
-  fileId: string;
-  purpose: string;
-  publicKey: string;
-  hostType: string;
-  hostId: string;
-  derivatives: string[];
-}
-
-/** Every page or post showing a file with these bytes publicly now. */
-export async function publishedHolders(
-  tx: Tx,
-  input: { tenantId: string; storageKey: string },
-): Promise<PublishedHolder[]> {
-  const rows = await tx.execute<{
-    file_id: string;
-    file_purpose: string;
-    public_key: string;
-    host_type: string;
-    host_id: string;
-    derivatives: string[];
-  }>(sql`
-    select p.file_id, p.file_purpose, p.public_key, p.host_type, p.host_id,
-      coalesce((select array_agg(d.derivative) from core.file_publications d
-        where d.tenant_id = p.tenant_id and d.file_id = p.file_id
-          and d.host_type = p.host_type and d.host_id = p.host_id
-          and d.derivative is not null and d.status = 'active' and d.unpublished_at is null),
-        '{}')::text[] as derivatives
-    from core.file_publications p
-    join core.files f on f.tenant_id = p.tenant_id and f.id = p.file_id and f.status = 'active'
-    where p.tenant_id = ${input.tenantId}::uuid and f.storage_key = ${input.storageKey}
-      and p.derivative is null and p.status = 'active' and p.unpublished_at is null`);
-  return rows.map((row) => ({
-    fileId: row.file_id,
-    purpose: row.file_purpose,
-    publicKey: row.public_key,
-    hostType: row.host_type,
-    hostId: row.host_id,
-    derivatives: row.derivatives,
-  }));
-}
-
 /**
  * Adds what a picture published since adds to the copies visitors read of
  * a page or post that shows it, in every language, so their browsers pick
@@ -774,115 +682,6 @@ export async function keepPublishedPicture(
       and status = 'active' and media ? ${input.fileId}::text
     returning 1`);
   return rows.length;
-}
-
-/** Ends the publications of these files for a host; the keys come back so their objects go. */
-export async function endPublications(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    hostType: string;
-    hostId: string;
-    keepFileIds: readonly string[];
-  },
-): Promise<string[]> {
-  const rows = await tx.execute<{ public_key: string }>(sql`
-    update core.file_publications set unpublished_at = statement_timestamp()
-    where tenant_id = ${input.tenantId}::uuid and host_type = ${input.hostType}
-      and host_id = ${input.hostId}::uuid and status = 'active' and unpublished_at is null
-      and not (file_id = any(${uuidArray(input.keepFileIds)}))
-    returning public_key`);
-  return rows.map((row) => row.public_key);
-}
-
-export interface PublishableFile {
-  id: string;
-  purpose: string;
-  name: string;
-  storageKey: string;
-  mediaType: string;
-}
-
-/** The ready files of this school that may be published, by id. */
-export async function publishableFiles(
-  tx: Tx,
-  input: { tenantId: string; fileIds: readonly string[] },
-): Promise<PublishableFile[]> {
-  if (input.fileIds.length === 0) return [];
-  const rows = await tx.execute<{
-    id: string;
-    purpose: string;
-    name: string;
-    storage_key: string;
-    media_type: string;
-  }>(sql`
-    select id, purpose, name, storage_key, media_type from core.files
-    where tenant_id = ${input.tenantId}::uuid and id = any(${uuidArray(input.fileIds)})
-      and status = 'active' and state = 'ready'
-      and purpose = any(${textArray(["site_media", "logo", "document_media"])})`);
-  return rows.map((row) => ({
-    id: row.id,
-    purpose: row.purpose,
-    name: row.name,
-    storageKey: row.storage_key,
-    mediaType: row.media_type,
-  }));
-}
-
-/**
- * The people shown in these files whose families have not agreed to their
- * picture being shown in this way: the website, or school news. Anything
- * but a current yes counts, so a photo waits until a family has answered.
- */
-export async function subjectsWithoutConsent(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    fileIds: readonly string[];
-    meaning: "photo_website" | "photo_internal";
-    /** Today at the school, which an answer must cover. */
-    on: string;
-  },
-): Promise<string[]> {
-  if (input.fileIds.length === 0) return [];
-  const rows = await tx.execute<{ user_id: string }>(sql`
-    select distinct s.user_id from core.file_subjects s
-    where s.tenant_id = ${input.tenantId}::uuid and s.file_id = any(${uuidArray(input.fileIds)})
-      and s.status = 'active'
-      and not exists (
-        select 1 from core.current_consents c
-        join core.descriptors d on d.tenant_id = c.tenant_id and d.id = c.purpose_descriptor_id
-        where c.tenant_id = s.tenant_id and c.subject_user_id = s.user_id
-          and d.system_meaning = ${input.meaning} and c.decision = 'granted'
-          and c.valid_during @> ${input.on}::date)`);
-  return rows.map((row) => row.user_id);
-}
-
-/**
- * Takes down every public copy of a photo showing this person, wherever it
- * was published; the keys come back so the objects go.
- */
-export async function endPublicationsShowing(
-  tx: Tx,
-  input: { tenantId: string; userId: string },
-): Promise<{ publicKey: string; hostType: string; hostId: string }[]> {
-  const rows = await tx.execute<{
-    public_key: string;
-    host_type: string;
-    host_id: string;
-  }>(sql`
-    update core.file_publications p set unpublished_at = statement_timestamp()
-    where p.tenant_id = ${input.tenantId}::uuid and p.status = 'active' and p.unpublished_at is null
-      and exists (
-        select 1 from core.file_subjects s
-        where s.tenant_id = p.tenant_id and s.file_id = p.file_id
-          and s.user_id = ${input.userId}::uuid and s.status = 'active')
-    returning p.public_key, p.host_type, p.host_id`);
-  return rows.map((row) => ({
-    publicKey: row.public_key,
-    hostType: row.host_type,
-    hostId: row.host_id,
-  }));
 }
 
 export interface PublicPage {
@@ -1233,64 +1032,6 @@ export async function publicPost(
     : null;
 }
 
-export interface PublicSchool {
-  nameEn: string;
-  nameAr: string | null;
-  address: PostalAddress | null;
-  phone: string | null;
-  email: string | null;
-  /** The digits the school writes Arabic in, which its website follows. */
-  digits: "latn" | "arab";
-  /** The school's clock, which every time on its website is shown on. */
-  timeZone: string;
-  /** The school's language, the one its website is written in first. */
-  defaultLocale: SiteLocale;
-  logoFileId: string | null;
-}
-
-/** What a school's website may say about the school itself. */
-export async function publicSchool(
-  tx: Tx,
-  orgId: string,
-): Promise<PublicSchool | null> {
-  const [row] = await tx.execute<{
-    name_en: string;
-    name_ar: string | null;
-    address: PostalAddress | null;
-    phone: string | null;
-    email: string | null;
-    digits: "latn" | "arab";
-    time_zone: string | null;
-    default_locale: SiteLocale;
-    logo_file_id: string | null;
-  }>(sql`
-    select name_en, name_ar, address, phone, email, digits, time_zone,
-      default_locale, logo_file_id
-    from core.orgs
-    where id = ${orgId}::uuid and status = 'active'`);
-  return row
-    ? {
-        nameEn: row.name_en,
-        nameAr: row.name_ar,
-        address: row.address,
-        phone: row.phone,
-        email: row.email,
-        digits: row.digits,
-        timeZone: row.time_zone ?? "UTC",
-        defaultLocale: row.default_locale,
-        logoFileId: row.logo_file_id,
-      }
-    : null;
-}
-
-/** Today in the school's own time zone, for what counts as still to come. */
-export async function schoolToday(tx: Tx, orgId: string): Promise<string> {
-  const [row] = await tx.execute<{ today: string }>(sql`
-    select to_char((statement_timestamp() at time zone coalesce(time_zone, 'UTC'))::date, 'YYYY-MM-DD') as today
-    from core.orgs where id = ${orgId}::uuid`);
-  return row?.today ?? new Date().toISOString().slice(0, 10);
-}
-
 export async function publicCategories(
   tx: Tx,
   orgId: string,
@@ -1311,56 +1052,72 @@ export async function publicCategories(
   }));
 }
 
-export interface NewEnquiry {
-  tenantId: string;
-  /** Chosen by the caller, since the site role may not read the row back. */
-  id: string;
-  orgId: string;
-  pageId: string | null;
-  sectionId: string | null;
-  locale: SiteLocale;
-  purpose: EnquiryPurpose;
-  name: string;
-  email: string;
-  phone: string;
-  childName: string;
-  childYear: string;
-  message: string;
-  answers: FormAnswer[];
-  networkKey: string;
-}
-
-/**
- * How many enquiries arrived from the website in the last hour, from one
- * network and for the whole school, read as the site role, which sees no
- * more than that. Those staff logged by hand are no flood.
- */
-export async function recentEnquiries(
+/** A page's title in both languages, or null for a page the school does not have. */
+export async function pageTitlesOf(
   tx: Tx,
-  input: { orgId: string; networkKey: string },
-): Promise<{ fromNetwork: number; forSchool: number }> {
+  input: { tenantId: string; pageId: string },
+): Promise<{ titleEn: string | null; titleAr: string | null } | null> {
   const [row] = await tx.execute<{
-    from_network: number;
-    for_school: number;
+    title_en: string | null;
+    title_ar: string | null;
   }>(sql`
-    select count(*) filter (where network_key = ${input.networkKey} and network_key <> '')::int as from_network,
-      count(*)::int as for_school
-    from core.site_enquiries
-    where org_id = ${input.orgId}::uuid and status = 'active' and source = 'website'
-      and created_at > statement_timestamp() - interval '1 hour'`);
-  return {
-    fromNetwork: row?.from_network ?? 0,
-    forSchool: row?.for_school ?? 0,
-  };
+    select nullif(title_en, '') as title_en, nullif(title_ar, '') as title_ar
+    from core.site_pages
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.pageId}::uuid`);
+  return row ? { titleEn: row.title_en, titleAr: row.title_ar } : null;
 }
 
-/** Records an enquiry. The site role may add it but not read it back. */
-export async function insertEnquiry(tx: Tx, input: NewEnquiry): Promise<void> {
-  await tx.execute(sql`
-    insert into core.site_enquiries (tenant_id, id, org_id, page_id, section_id, locale, purpose,
-      name, email, phone, child_name, child_year, message, answers, network_key)
-    values (${input.tenantId}::uuid, ${input.id}::uuid, ${input.orgId}::uuid, ${input.pageId}::uuid,
-      ${input.sectionId}::uuid, ${input.locale}, ${input.purpose}, ${input.name}, ${input.email},
-      ${input.phone}, ${input.childName}, ${input.childYear}, ${input.message},
-      ${JSON.stringify(input.answers)}::text::jsonb, ${input.networkKey})`);
+/** Whether the school's site is live with a page published, the setup step the website makes. */
+export async function sitePublished(
+  tx: Tx,
+  input: { tenantId: string; orgId: string },
+): Promise<boolean> {
+  const [row] = await tx.execute<{ found: boolean }>(sql`
+    select exists (select 1 from core.site_settings w
+      join core.site_published_pages p on p.tenant_id = w.tenant_id and p.org_id = w.org_id
+        and p.status = 'active'
+      where w.tenant_id = ${input.tenantId}::uuid and w.org_id = ${input.orgId}::uuid
+        and w.live) as found`);
+  return row?.found ?? false;
+}
+
+/** Website pages' titles, and whether each is published for visitors now. */
+export async function pageTitles(
+  tx: Tx,
+  tenantId: string,
+  ids: readonly string[],
+): Promise<
+  Map<string, { titleEn: string | null; titleAr: string | null; live: boolean }>
+> {
+  const rows = await tx.execute<{
+    id: string;
+    title_en: string | null;
+    title_ar: string | null;
+    live: boolean;
+  }>(sql`
+    select id, nullif(title_en, '') as title_en, nullif(title_ar, '') as title_ar,
+      state = 'published' as live
+    from core.site_pages
+    where tenant_id = ${tenantId}::uuid and id = any(${uuidArray(ids)}) and status = 'active'`);
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      { titleEn: row.title_en, titleAr: row.title_ar, live: row.live },
+    ]),
+  );
+}
+
+/** The announcements among these that visitors read on the website now. */
+export async function postedLive(
+  tx: Tx,
+  tenantId: string,
+  ids: readonly string[],
+): Promise<Set<string>> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    select n.id from core.broadcasts n
+    join core.site_posts p on p.tenant_id = n.tenant_id and p.broadcast_id = n.id
+      and p.status = 'active'
+    where n.tenant_id = ${tenantId}::uuid and n.id = any(${uuidArray(ids)})
+      and n.status = 'active' and n.state = 'published'`);
+  return new Set(rows.map((row) => row.id));
 }

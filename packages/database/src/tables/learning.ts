@@ -31,7 +31,7 @@ import {
   redact,
   tenantColumns,
 } from "./conventions";
-import { documentVersions } from "./documents";
+import { documentTemplates, documentVersions } from "./documents";
 import { files } from "./files";
 import { users } from "./people";
 import { classes, classGroups } from "./teaching";
@@ -122,6 +122,39 @@ export const learningModules = core.table.withRLS(
 );
 
 export type ModuleAudience = "class" | "selected";
+
+/**
+ * A whole module offered as a school template: the template and the copy
+ * it keeps, archived and set for no class, that each teacher using the
+ * piece copies in turn.
+ */
+export const moduleTemplates = core.table.withRLS(
+  "module_templates",
+  {
+    ...tenantColumns(),
+    templateId: uuid("template_id").notNull(),
+    moduleId: uuid("module_id").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("module_templates", t.tenantId, t.id),
+    ...baseConstraints("module_templates", t, tenants),
+    fk(
+      "module_templates",
+      [t.tenantId, t.templateId],
+      [documentTemplates.tenantId, documentTemplates.id],
+    ),
+    fk(
+      "module_templates",
+      [t.tenantId, t.moduleId],
+      [learningModules.tenantId, learningModules.id],
+    ),
+    uniqueIndex("module_templates_template_key")
+      .on(t.tenantId, t.templateId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
 
 /**
  * The classes a module is set for, in the order each class sees its modules,

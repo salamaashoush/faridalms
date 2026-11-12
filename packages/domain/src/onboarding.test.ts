@@ -59,7 +59,10 @@ describe("a school's onboarding", () => {
 
 describe("a school's own setup", () => {
   it("lists its steps in order, leaving out those its modules do not have", () => {
-    const applies = onboardingItems({ modules: ["website"], onTrial: true });
+    const applies = onboardingItems({
+      modules: ["school_years", "website"],
+      onTrial: true,
+    });
     expect(setupProgress(applies, new Set()).map((step) => step.id)).toEqual([
       "details",
       "year",
@@ -89,6 +92,25 @@ describe("a school's own setup", () => {
         (step) => step.id === "students",
       )?.done,
     ).toBe(true);
+  });
+
+  it("finishes a school without school years, which has no year to set up", () => {
+    const applies = onboardingItems({ modules: [], onTrial: true });
+    expect(applies).not.toContain("year_ready");
+    const steps = setupProgress(
+      applies,
+      new Set<OnboardingItem>([
+        "school_details",
+        "classes",
+        "staff_invited",
+        "students_imported",
+      ]),
+    );
+    expect(steps.map((step) => step.id)).not.toContain("year");
+    expect(setupFinished(steps)).toBe(true);
+    expect(
+      onboardingItems({ modules: ["school_years"], onTrial: true }),
+    ).toContain("year_ready");
   });
 
   it("is finished without the optional website and admissions", () => {

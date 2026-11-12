@@ -203,10 +203,9 @@ export const NO_NEEDS = {
   additional_needs: "",
 };
 
-/** Starts a draft for a new child and fills in what sending it needs. */
-export async function filledDraft(
+/** The child and the form a filled draft holds, with the sex chosen for the child. */
+async function draftParts(
   api: Api,
-  intakeId: string,
   input: { birthDate?: string; childNames?: ReturnType<typeof names> } = {},
 ) {
   const { options } = await api.applying.mine();
@@ -225,6 +224,50 @@ export async function filledDraft(
       issuingCountry: "EG",
     },
   };
+  const form = {
+    relationId: fatherId,
+    responsible: true,
+    phone: "01005550199",
+    other: null,
+    schools: [
+      {
+        name: "Little Steps Nursery",
+        country: "EG",
+        city: "Cairo",
+        fromYear: 2024,
+        toYear: null,
+        grade: "Nursery",
+        leaving: "",
+      },
+    ],
+    answers: { [QUESTION.id]: { type: "choice" as const, optionIds: [MAADI] } },
+  };
+  return { kid, form, sexId };
+}
+
+/** Saves a filled draft again with these needs, the child and form as `filledDraft` wrote them. */
+export async function saveNeeds(
+  api: Api,
+  draft: { id: string; version: number },
+  needs: typeof NO_NEEDS,
+) {
+  const { kid, form } = await draftParts(api);
+  return api.applying.save({
+    id: draft.id,
+    expectedVersion: draft.version,
+    child: { ...kid, document: { ...kid.document, number: "" } },
+    form,
+    needs,
+  });
+}
+
+/** Starts a draft for a new child and fills in what sending it needs. */
+export async function filledDraft(
+  api: Api,
+  intakeId: string,
+  input: { birthDate?: string; childNames?: ReturnType<typeof names> } = {},
+) {
+  const { kid, form, sexId } = await draftParts(api, input);
   const started = await api.applying.start({
     intakeId,
     applicantId: "",
@@ -235,24 +278,7 @@ export async function filledDraft(
     id: started.id,
     expectedVersion: started.version,
     child: { ...kid, document: { ...kid.document, number: "" } },
-    form: {
-      relationId: fatherId,
-      responsible: true,
-      phone: "01005550199",
-      other: null,
-      schools: [
-        {
-          name: "Little Steps Nursery",
-          country: "EG",
-          city: "Cairo",
-          fromYear: 2024,
-          toYear: null,
-          grade: "Nursery",
-          leaving: "",
-        },
-      ],
-      answers: { [QUESTION.id]: { type: "choice", optionIds: [MAADI] } },
-    },
+    form,
     needs: {
       ...NO_NEEDS,
       allergy: "Peanuts",

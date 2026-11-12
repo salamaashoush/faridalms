@@ -31,6 +31,12 @@ export function uploadLimit(
 export const hasVideo = (entitlements: SchoolEntitlements) =>
   availableModules(entitlements).includes("video");
 
+/** Whether recordings' captions can be drafted here: a media service that drafts them, and video. */
+export const captioning = (context: {
+  mediaCaptions?: unknown;
+  school: { entitlements: SchoolEntitlements };
+}) => Boolean(context.mediaCaptions) && hasVideo(context.school.entitlements);
+
 /**
  * Whether a school streams one more video: it has video, and its streamed
  * videos have not reached the hours it is entitled to. Past them a video

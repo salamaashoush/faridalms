@@ -11,7 +11,6 @@ import {
   updateBankQuestion,
 } from "@faridalms/database/stores/bank";
 import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
-import { questionAskedOf } from "@faridalms/database/stores/quizzes";
 import {
   bankQuerySchema,
   bankQuestionOf,
@@ -24,8 +23,9 @@ import { ORPCError } from "@orpc/server";
 import type { UnitContext } from "../core/context";
 
 import { audit, can, readProcedure, writeProcedure } from "../core/procedure";
-import { teaches } from "../core/reach";
-import { placeMedia, registerHostReader } from "../files/authorize";
+import { askedOrTaught } from "../coursework/host-rules";
+import { COURSEWORK_HOSTS } from "../coursework/hosts";
+import { placeMedia } from "../files/authorize";
 
 const hostOf = (id: string) => ({ type: "bank_question", id });
 
@@ -46,29 +46,13 @@ async function usable(context: UnitContext, id: string) {
     : null;
 }
 
-/** Whether a quiz asked the viewer the question, or one in a class they teach. */
-async function askedOrTaught(context: UnitContext, id: string) {
-  const asked = await questionAskedOf(context.tx, {
-    tenantId: context.tenantId,
-    bankQuestionId: id,
-    orgId: context.schoolId,
-  });
-  if (asked.some((row) => row.studentId === context.actor.userId)) return true;
-  if (!can(context, "submissions:grade")) return false;
-  const classes = [...new Set(asked.map((row) => row.classId))];
-  const taught = await Promise.all(
-    classes.map((classId) => teaches(context, "teaching", classId)),
-  );
-  return taught.some(Boolean);
-}
-
 // Whoever may ask a question may open the pictures and recordings in it, as
 // may a student a quiz drew it for and the teachers who mark that quiz.
-registerHostReader(
-  "bank_question",
-  async (context, id) =>
+COURSEWORK_HOSTS.push({
+  hostType: "bank_question",
+  read: async (context, id) =>
     Boolean(await usable(context, id)) || askedOrTaught(context, id),
-);
+});
 
 /** The questions the viewer may ask, with every tag among them. */
 export const list = readProcedure

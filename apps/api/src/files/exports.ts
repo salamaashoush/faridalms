@@ -1,17 +1,6 @@
-import type { ContentDocument } from "@faridalms/domain/content";
-
-import { writeAudit } from "@faridalms/database/audit";
 import { TenantUnavailableError } from "@faridalms/database/context";
-import {
-  assignmentById,
-  handedInWork,
-  studentWork,
-} from "@faridalms/database/stores/coursework";
-import { documentOf } from "@faridalms/database/stores/documents";
 import { filesByIds } from "@faridalms/database/stores/files";
 import { mediaItemsByIds } from "@faridalms/database/stores/media";
-import { namesOf } from "@faridalms/database/stores/persons";
-import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { contentDisposition, safeFilename } from "@faridalms/domain/file";
 import { MAX_MEDIA_BATCH, usesMedia } from "@faridalms/domain/media";
 import { ORPCError } from "@orpc/server";
@@ -23,27 +12,39 @@ import type {
   UnitContext,
 } from "../core/context";
 
-import { can, openUnit, schoolOf } from "../core/procedure";
-import { reachesStudent, teaches } from "../core/reach";
+import { contributionsTo, point } from "../core/extension";
+import { openUnit, schoolOf } from "../core/procedure";
 import { refusalResponse } from "../core/refusal";
 
-const PATH = /^\/v1\/assignments\/([0-9a-f-]{36})\/work\.zip$/;
-const PORTFOLIO = /^\/v1\/students\/([0-9a-f-]{36})\/portfolio\.zip$/;
+const ZIP = /^\/v1\/.+\.zip$/;
 const MEDIA_ITEMS = /^\/v1\/media\/items\.zip$/;
 const ID = /^[0-9a-f-]{36}$/;
 
-interface Entry {
+/** One file of an archive: text written as it is, or a stored file's bytes. */
+export interface Entry {
   path: string;
   text?: string;
   storageKey?: string;
 }
+
+/** An archive a module builds of what it keeps, at a path of its own under `/v1/`. */
+export interface ZipExport {
+  path: RegExp;
+  /** The archive's name and entries for the path's first capture, or null for none the viewer may take. */
+  build(
+    unit: UnitContext,
+    id: string,
+  ): Promise<{ title: string; entries: Entry[] } | null>;
+}
+
+export const zipExports = point<ZipExport>("zip exports");
 
 function problem(status: number, code: string, requestId: string) {
   return Response.json({ code, requestId }, { status });
 }
 
 /** A folder or file name that cannot climb out of the archive or clash. */
-function unique(name: string, taken: Set<string>): string {
+export function unique(name: string, taken: Set<string>): string {
   const safe = safeFilename(name).replaceAll("/", "-") || "file";
   let candidate = safe;
   for (let n = 2; taken.has(candidate.toLowerCase()); n += 1) {
@@ -55,77 +56,6 @@ function unique(name: string, taken: Set<string>): string {
   }
   taken.add(candidate.toLowerCase());
   return candidate;
-}
-
-/** An attempt's answer as text and each file it holds, in one folder. */
-async function attemptEntries(
-  unit: UnitContext,
-  attemptId: string,
-  folder: string,
-): Promise<Entry[]> {
-  const answer = await documentOf(unit.tx, unit.tenantId, {
-    type: "submission_attempt",
-    id: attemptId,
-  });
-  const content = answer?.content as unknown as ContentDocument | undefined;
-  const names = new Set<string>();
-  const entries: Entry[] = [];
-  if (content && contentPlainText(content).trim())
-    entries.push({
-      path: `${folder}/${unique("answer.txt", names)}`,
-      text: contentPlainText(content),
-    });
-  const files = content
-    ? await filesByIds(unit.tx, unit.tenantId, contentFileIds(content))
-    : [];
-  for (const file of files.filter((item) => item.state === "ready"))
-    entries.push({
-      path: `${folder}/${unique(file.name, names)}`,
-      storageKey: file.storageKey,
-    });
-  return entries;
-}
-
-/**
- * What the archive holds: one folder per student with work handed in, their
- * latest attempt's answer as text and each file it holds. Only a teacher of
- * the class, who may grade, gets it, and the export is recorded.
- */
-async function entriesFor(
-  unit: UnitContext,
-  assignmentId: string,
-): Promise<{ title: string; entries: Entry[] } | null> {
-  if (!can(unit, "submissions:grade")) return null;
-  const assignment = await assignmentById(unit.tx, unit.tenantId, assignmentId);
-  if (
-    !assignment ||
-    assignment.orgId !== unit.schoolId ||
-    !(await teaches(unit, "teaching", assignment.classId))
-  )
-    return null;
-  const rows = await studentWork(unit.tx, {
-    tenantId: unit.tenantId,
-    assignmentId: assignment.id,
-  });
-  const entries: Entry[] = [];
-  const folders = new Set<string>();
-  for (const row of rows.filter((item) => item.attemptId)) {
-    const folder = unique(
-      [row.fullNameEn ?? row.fullNameAr ?? "student", row.isLate ? "late" : ""]
-        .filter(Boolean)
-        .join(" - "),
-      folders,
-    );
-    entries.push(...(await attemptEntries(unit, row.attemptId ?? "", folder)));
-  }
-  await writeAudit(unit.tx, unit.tenantId, {
-    action: "assignment.work_exported",
-    objectType: "assignment",
-    objectId: assignment.id,
-    orgId: unit.schoolId,
-    details: { students: folders.size, files: entries.length },
-  });
-  return { title: assignment.title, entries };
 }
 
 /** Entries streamed as a zip as they are read, so a large one never sits in memory. */
@@ -201,47 +131,6 @@ async function exported(
 }
 
 /**
- * A student's portfolio: every piece of work they have handed in, a folder
- * each with its latest attempt's answer and files. The student may take it,
- * and so may staff who reach their record; each export is recorded.
- */
-async function portfolioFor(
-  unit: UnitContext,
-  studentId: string,
-): Promise<{ title: string; entries: Entry[] } | null> {
-  const own = unit.actor.userId === studentId;
-  const staff =
-    can(unit, "people:read") &&
-    (await reachesStudent(unit, "teaching", studentId));
-  if (!own && !staff) return null;
-  const work = await handedInWork(unit.tx, {
-    tenantId: unit.tenantId,
-    orgId: unit.schoolId,
-    studentId,
-  });
-  const [person] = await namesOf(unit.tx, unit.tenantId, [studentId]);
-  const entries: Entry[] = [];
-  const folders = new Set<string>();
-  for (const row of work) {
-    const folder = unique(
-      `${row.submittedAt.slice(0, 10)} ${row.classCode} ${row.title}`,
-      folders,
-    );
-    entries.push(...(await attemptEntries(unit, row.attemptId, folder)));
-  }
-  await writeAudit(unit.tx, unit.tenantId, {
-    action: "student.portfolio_exported",
-    objectType: "user",
-    objectId: studentId,
-    subjectUserId: studentId,
-    orgId: unit.schoolId,
-    details: { pieces: folders.size, files: entries.length },
-  });
-  const name = person?.fullNameEn ?? person?.fullNameAr ?? "portfolio";
-  return { title: name, entries };
-}
-
-/**
  * Items of the school's media as one zip, for those who use it,
  * each under its name; items in the trash are left out.
  */
@@ -280,11 +169,7 @@ export async function handleWorkExport(
   url: URL,
   context: RequestContext,
 ): Promise<Response | null> {
-  if (request.method !== "GET") return null;
-  const work = PATH.exec(url.pathname)?.[1];
-  if (work) return exported(context, (unit) => entriesFor(unit, work));
-  const student = PORTFOLIO.exec(url.pathname)?.[1];
-  if (student) return exported(context, (unit) => portfolioFor(unit, student));
+  if (request.method !== "GET" || !ZIP.test(url.pathname)) return null;
   if (MEDIA_ITEMS.test(url.pathname)) {
     const ids = [
       ...new Set((url.searchParams.get("ids") ?? "").split(",")),
@@ -293,5 +178,11 @@ export async function handleWorkExport(
       return problem(400, "BAD_REQUEST", context.requestId);
     return exported(context, (unit) => mediaItemsZip(unit, ids));
   }
-  return null;
+  return exported(context, async (unit) => {
+    for (const each of await contributionsTo(unit, zipExports)) {
+      const id = each.path.exec(url.pathname)?.[1];
+      if (id) return each.build(unit, id);
+    }
+    return null;
+  });
 }

@@ -410,63 +410,27 @@ export async function mediaItemsByIds(
   return rows.map(itemOf);
 }
 
+/** A record whose document shows a file. */
 export interface MediaUse {
   hostType: string;
   hostId: string;
-  titleEn: string | null;
-  titleAr: string | null;
 }
 
-/**
- * The records whose documents show a file, in either language, by the
- * title of each: lessons, assignments, unit plans, announcements, events,
- * website pages and shared blocks. Others are named by their kind alone.
- */
+/** The records whose documents show a file, in either language. */
 export async function fileUses(
   tx: Tx,
   tenantId: string,
   fileId: string,
 ): Promise<MediaUse[]> {
-  const rows = await tx.execute<{
-    host_type: string;
-    host_id: string;
-    title_en: string | null;
-    title_ar: string | null;
-  }>(sql`
-    with hosts as (
-      select distinct d.host_type, d.host_id from core.document_files l
-      join core.documents d on d.tenant_id = l.tenant_id and d.id = l.document_id
-        and d.status = 'active'
-      where l.tenant_id = ${tenantId}::uuid and l.file_id = ${fileId}::uuid
-        and l.status = 'active')
-    select h.host_type, h.host_id,
-      coalesce(ls.title, a.title, m.title, nullif(n.title_en, ''), nullif(sp.title_en, ''),
-        e.title_en, sb.title) as title_en,
-      coalesce(ls.title, a.title, m.title, nullif(n.title_ar, ''), nullif(sp.title_ar, ''),
-        e.title_ar, sb.title) as title_ar
-    from hosts h
-    left join core.lessons ls on ls.tenant_id = ${tenantId}::uuid and ls.id = h.host_id
-      and h.host_type = 'lesson'
-    left join core.assignments a on a.tenant_id = ${tenantId}::uuid and a.id = h.host_id
-      and h.host_type = 'assignment'
-    left join core.learning_modules m on m.tenant_id = ${tenantId}::uuid and m.id = h.host_id
-      and h.host_type = 'module_plan'
-    left join core.broadcasts n on n.tenant_id = ${tenantId}::uuid and n.id = h.host_id
-      and h.host_type = 'announcement'
-    left join core.site_pages sp on sp.tenant_id = ${tenantId}::uuid and sp.id = h.host_id
-      and h.host_type = 'site_page'
-    left join core.calendar_events e on e.tenant_id = ${tenantId}::uuid and e.id = h.host_id
-      and h.host_type = 'calendar_event'
-    left join core.shared_blocks sb on sb.tenant_id = ${tenantId}::uuid and sb.id = h.host_id
-      and h.host_type = 'shared_block'
-    order by h.host_type, title_en nulls last, h.host_id
+  const rows = await tx.execute<{ host_type: string; host_id: string }>(sql`
+    select distinct d.host_type, d.host_id from core.document_files l
+    join core.documents d on d.tenant_id = l.tenant_id and d.id = l.document_id
+      and d.status = 'active'
+    where l.tenant_id = ${tenantId}::uuid and l.file_id = ${fileId}::uuid
+      and l.status = 'active'
+    order by d.host_type, d.host_id
     limit 200`);
-  return rows.map((row) => ({
-    hostType: row.host_type,
-    hostId: row.host_id,
-    titleEn: row.title_en,
-    titleAr: row.title_ar,
-  }));
+  return rows.map((row) => ({ hostType: row.host_type, hostId: row.host_id }));
 }
 
 export async function describeMediaItem(

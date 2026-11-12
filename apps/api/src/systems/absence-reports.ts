@@ -28,6 +28,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
+import { ATTENDANCE_HOSTS } from "../attendance/hosts";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -37,7 +38,6 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { requireStudent, studentsReached } from "../core/reach";
-import { registerHostReader } from "../files/authorize";
 import { withFileGate } from "../files/gate";
 import { decidesFor } from "../people/acting";
 
@@ -83,14 +83,20 @@ async function mayRead(context: UnitContext, report: AbsenceReport) {
   return (await reportedLearners(context)).includes(report.studentId);
 }
 
-// A note sent with a report is read by whoever may read the report.
-registerHostReader("absence_report", async (context, reportId) => {
-  const report = await reportById(context.tx, {
+const reportOf = (context: UnitContext, id: string) =>
+  reportById(context.tx, {
     tenantId: context.tenantId,
     schoolId: context.schoolId,
-    id: reportId,
+    id,
   });
-  return report !== null && (await mayRead(context, report));
+
+// A note sent with a report is read by whoever may read the report.
+ATTENDANCE_HOSTS.push({
+  hostType: "absence_report",
+  read: async (context, reportId) => {
+    const report = await reportOf(context, reportId);
+    return report !== null && (await mayRead(context, report));
+  },
 });
 
 function reportView(row: AbsenceReport) {
@@ -236,11 +242,7 @@ export const report = writeProcedure
 export const withdraw = writeProcedure
   .input(withdrawReportSchema)
   .handler(async ({ input, context }) => {
-    const found = await reportById(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      id: input.id,
-    });
+    const found = await reportOf(context, input.id);
     if (!found || !(await mayRead(context, found)))
       throw new ORPCError("NOT_FOUND");
     if (
@@ -284,11 +286,7 @@ export const decide = writeProcedure
   .input(decideReportSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:manage");
-    const found = await reportById(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      id: input.id,
-    });
+    const found = await reportOf(context, input.id);
     if (!found) throw new ORPCError("NOT_FOUND");
     if (
       !(await decideReport(context.tx, {

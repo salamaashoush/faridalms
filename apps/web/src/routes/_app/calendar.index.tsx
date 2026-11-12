@@ -22,7 +22,6 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import * as v from "valibot";
 
 import { EventSheet } from "~/components/calendar/EventSheet";
-import { CATEGORY_LABEL } from "~/components/calendar/format";
 import { KindFilter } from "~/components/calendar/KindFilter";
 import { useReschedule } from "~/components/calendar/Reschedule";
 import { Subscribe } from "~/components/calendar/Subscribe";
@@ -34,6 +33,7 @@ import {
   MoveHint,
   WeekGrid,
 } from "~/components/calendar/views";
+import { useCalendarWords } from "~/components/calendar/words";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { calendarEventQuery, calendarRangeQuery } from "~/queries/calendar";
@@ -143,6 +143,7 @@ function CalendarPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
+  const words = useCalendarWords();
   const view = search.view ?? defaultView(user.workspace);
   const month = search.month || user.today.slice(0, 7);
   const weekStart = user.school.weekStart as IsoWeekday;
@@ -159,7 +160,7 @@ function CalendarPage() {
     canAuthor,
     canManage,
     children,
-    admissions,
+    categories: added,
   } = useSuspenseQuery(
     calendarRangeQuery({
       from: window.from,
@@ -169,7 +170,7 @@ function CalendarPage() {
   ).data;
   const hidden = new Set(search.hide);
   const events = all.filter((event) => !hidden.has(event.category));
-  const categories = admissions ? SHOWN_CATEGORIES : CALENDAR_CATEGORIES;
+  const categories: ShownCategory[] = [...CALENDAR_CATEGORIES, ...added];
   const toggle = (category: ShownCategory) =>
     void navigate({
       search: (previous) => ({
@@ -187,7 +188,7 @@ function CalendarPage() {
   const actions = {
     canAdd: canAuthor,
     movable: (event: (typeof all)[number]) =>
-      event.admission === null &&
+      event.origin === null &&
       (canManage || (canAuthor && event.authorUserId === user.id)),
     reschedule: (
       event: (typeof all)[number],
@@ -361,7 +362,7 @@ function CalendarPage() {
                   hidden.has(category) && "text-muted-foreground",
                 )}
               />
-              {CATEGORY_LABEL[category]()}
+              {words.label(category)}
             </button>
           ))}
           {search.hide.length > 0 ? (

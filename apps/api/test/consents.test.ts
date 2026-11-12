@@ -6,7 +6,15 @@ import {
 } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 
-import { client, login, raw, rejection, sessionFor, signedIn } from "./harness";
+import {
+  client,
+  login,
+  raw,
+  rejection,
+  sessionFor,
+  signedIn,
+  withoutModules,
+} from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 const mother = () =>
@@ -117,6 +125,22 @@ describe("consent forms", () => {
 });
 
 describe("answering for a child", () => {
+  test("what an application asks is asked of families at the school only once admissions is off", async () => {
+    const office = await principal();
+    const family = await mother();
+    const processing = await purpose(office, "admission_processing");
+    expect(processing.published).not.toBeNull();
+    const asked = async () =>
+      (await family.consents.mine()).forms.some(
+        (form) => form.purposeId === processing.id,
+      );
+    expect(await asked()).toBe(false);
+    await withoutModules("northwind", ["admissions"], async () => {
+      expect(await asked()).toBe(true);
+    });
+    expect(await asked()).toBe(false);
+  });
+
   test("a legal guardian agrees in the app, then takes it back, and the register keeps both", async () => {
     const family = await mother();
     const { data, child } = await firstChild(family);

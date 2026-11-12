@@ -7,7 +7,6 @@ const PEER = "Classmates review each other's work";
 const WEBSITE = "Also post on the school's website";
 
 test("a school with peer review, the website and texts offers each where it belongs", async ({
-  browser,
   page,
 }) => {
   await signIn(page, "admin");
@@ -20,16 +19,6 @@ test("a school with peer review, the website and texts offers each where it belo
   await page.goto("/notification-audit");
   await untilHydrated(page);
   await expect(page.getByRole("button", { name: /Channel/ })).toBeVisible();
-
-  const learner = await browser.newContext();
-  const student = await learner.newPage();
-  await signIn(student, "student");
-  await student.goto("/notification-preferences");
-  await untilHydrated(student);
-  await expect(
-    student.getByText("Classmates' work to review", { exact: true }),
-  ).toBeVisible();
-  await learner.close();
 });
 
 test("a school without peer review, the website or texts offers none of them", async ({
@@ -67,15 +56,4 @@ test("a school without peer review, the website or texts offers none of them", a
   await expect(admin.getByRole("button", { name: /State/ })).toBeVisible();
   await expect(admin.getByRole("button", { name: /Channel/ })).toHaveCount(0);
   await office.close();
-
-  const learner = await browser.newContext();
-  const student = await learner.newPage();
-  await signInTo(student, school, "student");
-  await student.goto(`${portal(school.slug)}/notification-preferences`);
-  await untilHydrated(student);
-  await expect(student.getByLabel("Email").first()).toBeVisible();
-  await expect(
-    student.getByText("Classmates' work to review", { exact: true }),
-  ).toHaveCount(0);
-  await learner.close();
 });

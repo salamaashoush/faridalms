@@ -766,10 +766,6 @@ export const APPLICATION_CONSENTS = [
 ] as const;
 export type ApplicationConsent = (typeof APPLICATION_CONSENTS)[number];
 
-/** Purposes agreed to when a family applies, never asked of the families already at the school. */
-export const askedAtAdmission = (meaning: string | null) =>
-  (APPLICATION_CONSENTS as readonly string[]).includes(meaning ?? "");
-
 export const submitApplicationSchema = v.object({
   id,
   expectedVersion: version,

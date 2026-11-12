@@ -149,28 +149,27 @@ export async function finishAssistantRequest(
       and outcome = 'running'`);
 }
 
-const REVIEWED_IN = {
-  lesson: sql`core.lessons`,
-  assignment: sql`core.assignments`,
-} as const satisfies Record<AssistantHost, unknown>;
-
 /**
  * Whether the model drafted a translation for a record since a person last
- * checked its translation against the original. Until one does, readers
- * are not given it.
+ * checked its translation against the original, at `reviewedAt`. Until one
+ * does, readers are not given it.
  */
 export async function machineTranslationUnchecked(
   tx: Tx,
-  input: { tenantId: string; host: AssistantHost; id: string },
+  input: {
+    tenantId: string;
+    host: AssistantHost;
+    id: string;
+    reviewedAt: string | null;
+  },
 ): Promise<boolean> {
   const [row] = await tx.execute<{ unchecked: boolean }>(sql`
     select exists (
       select 1 from core.assistant_requests r
-      join ${REVIEWED_IN[input.host]} h on h.tenant_id = r.tenant_id and h.id = r.host_id
       where r.tenant_id = ${input.tenantId}::uuid and r.host_type = ${input.host}
         and r.host_id = ${input.id}::uuid and r.task = 'translate' and r.outcome = 'done'
         and r.status = 'active'
-        and r.finished_at > coalesce(h.translation_reviewed_at, '-infinity'::timestamptz)
+        and r.finished_at > coalesce(${input.reviewedAt}::timestamptz, '-infinity'::timestamptz)
     ) as unchecked`);
   return row?.unchecked ?? false;
 }

@@ -2892,6 +2892,23 @@ describe("templates", () => {
     expect(await listed()).toBe(before);
     const shelf = await stranger.templates.browse({ kind: "module", q: "" });
     expect(shelf.rows.map((row) => row.id)).toContain(shared.id);
+    // With e-learning off its kinds of template are not offered, and they
+    // are again once it is back on.
+    await withoutModules("northwind", ["elearning"], async () => {
+      expect(
+        (await stranger.templates.browse({ kind: "", q: "" })).rows.some(
+          (row) => row.id === shared.id,
+        ),
+      ).toBe(false);
+      expect(
+        await rejection(stranger.templates.open({ id: shared.id })),
+      ).toMatchObject({ code: "NOT_FOUND" });
+    });
+    expect(
+      (await stranger.templates.browse({ kind: "module", q: "" })).rows.some(
+        (row) => row.id === shared.id,
+      ),
+    ).toBe(true);
     const preview = await stranger.templates.open({ id: shared.id });
     expect(JSON.stringify(preview.content)).toContain(lessons[0]?.title ?? "");
     const { classes } = await stranger.learning.modules({});
@@ -3557,8 +3574,7 @@ describe("coding projects", () => {
     }
     const { cell, files, tenants } = seeded();
     const swept = await sweepTenantFiles(
-      cell,
-      files,
+      { cell, store: files, extensions: workerModules().extensions },
       tenants[0]?.tenantId ?? "",
       new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
     );
@@ -4442,7 +4458,11 @@ describe("the class gallery", () => {
     const { cell, files, tenants } = seeded();
     const later = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
     const tenantId = tenants[0]?.tenantId ?? "";
-    await sweepTenantFiles(cell, files, tenantId, later);
+    await sweepTenantFiles(
+      { cell, store: files, extensions: workerModules().extensions },
+      tenantId,
+      later,
+    );
     expect(await opens(second, mine)).toBe(200);
     expect(await opens(second, stage)).toBe(200);
 
@@ -4469,7 +4489,11 @@ describe("the class gallery", () => {
     await save(second);
     await save(second, me.id);
     expect(await creditOf(mate.id)).toBeNull();
-    await sweepTenantFiles(cell, files, tenantId, later);
+    await sweepTenantFiles(
+      { cell, store: files, extensions: workerModules().extensions },
+      tenantId,
+      later,
+    );
     expect(await opens(keeper, mine)).toBe(404);
   });
 });

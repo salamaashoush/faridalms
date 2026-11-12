@@ -13,7 +13,6 @@ import {
   removeSharedBlock,
   sharedBlockById,
   sharedBlocksOf,
-  sharedBlockUses,
   updateSharedBlock,
 } from "@faridalms/database/stores/shared";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
@@ -41,9 +40,10 @@ import {
 } from "../core/procedure";
 import { reviseLivePages } from "../core/shared";
 import {
+  coreReader,
+  coreWriter,
   placeMedia,
-  registerHostReader,
-  registerHostWriter,
+  blockUsesNamed,
 } from "../files/authorize";
 
 const hostOf = (id: string) => ({ type: "shared_block", id });
@@ -82,11 +82,11 @@ async function usable(context: UnitContext, id: string) {
 
 // A shared block is the school's teaching, shown in its lessons and briefs
 // to whoever reads them, so anyone at the school may open its pictures.
-registerHostReader("shared_block", async (context, id) =>
+coreReader("shared_block", async (context, id) =>
   Boolean(await ofSchool(context, id)),
 );
 // Its teacher alone changes it, and so alone reads and restores its history.
-registerHostWriter(
+coreWriter(
   "shared_block",
   async (context, id) =>
     (await ofSchool(context, id))?.ownerUserId === context.actor.userId,
@@ -320,12 +320,7 @@ export const uses = readProcedure
     if (!row) throw new ORPCError("NOT_FOUND");
     if (row.kind === "section") requireSectionAuthor(context);
     else requireAuthor(context);
-    return sharedBlockUses(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      id: row.id,
-      kind: row.kind,
-    });
+    return blockUsesNamed(context, row);
   });
 
 /** Takes a shared block out; documents that showed it say it is gone. Only its owner may. */

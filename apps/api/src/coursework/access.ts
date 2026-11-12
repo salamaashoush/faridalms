@@ -1,7 +1,9 @@
 import type { AssignmentRow } from "@faridalms/database/stores/coursework";
 
+import { machineTranslationUnchecked } from "@faridalms/database/stores/assistant";
 import {
   assignmentById,
+  assignmentTranslationReviewedAt,
   isRecipient,
 } from "@faridalms/database/stores/coursework";
 import { ORPCError } from "@orpc/server";
@@ -76,4 +78,18 @@ export function ownSchedule(
     assignment: { ...assignment, closesAt },
     dueAt: recipient.dueAt ?? assignment.dueAt,
   };
+}
+
+/** Whether the model drafted the assignment's translation since a person last checked it. */
+export async function translationUnchecked(context: UnitContext, id: string) {
+  return machineTranslationUnchecked(context.tx, {
+    tenantId: context.tenantId,
+    host: "assignment",
+    id,
+    reviewedAt: await assignmentTranslationReviewedAt(
+      context.tx,
+      context.tenantId,
+      id,
+    ),
+  });
 }

@@ -34,11 +34,11 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { publishLogo } from "../core/site";
-import { registerHostReader } from "../files/authorize";
+import { coreReader } from "../files/authorize";
 
 // The school's logo prints on its paper, so whoever belongs to it may see it;
 // strangers see its public copy on the website and the sign-in pages.
-registerHostReader("org", (context, hostId) =>
+coreReader("org", (context, hostId) =>
   Promise.resolve(hostId === context.schoolId),
 );
 

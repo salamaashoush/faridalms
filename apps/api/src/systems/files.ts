@@ -45,10 +45,10 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { studentsReached } from "../core/reach";
-import { canReadFile, mayKeepArea } from "../files/authorize";
+import { canReadFile, mayKeepArea, usesNamed } from "../files/authorize";
 import { withFileGate } from "../files/gate";
 import { replaceBytes, roomFor, versionsOf } from "../files/keeping";
-import { hasVideo, streamsMore, uploadLimit } from "../files/limit";
+import { captioning, hasVideo, streamsMore, uploadLimit } from "../files/limit";
 import { previewFacts } from "../files/previews";
 
 /** Who may upload for each purpose; none, anyone signed in, its use checked where it is put. */
@@ -174,7 +174,7 @@ export const area = readProcedure
       ),
     ]);
     return {
-      files: paged(rows, total, input.page),
+      files: paged(await usesNamed(context, rows), total, input.page),
       kinds,
       usage: {
         ...(await areaStorage(context.tx, context.tenantId, input.area)),
@@ -360,7 +360,7 @@ export const draftCaptions = writeProcedure
     }),
   )
   .handler(async ({ input, context }) => {
-    if (!context.mediaCaptions)
+    if (!captioning(context))
       throw new ORPCError("SERVICE_UNAVAILABLE", {
         message: "files.no_captions",
       });
@@ -378,7 +378,7 @@ export const draftCaptions = writeProcedure
 export const captionDraft = readProcedure
   .input(captionedSchema)
   .handler(async ({ input, context }) => {
-    if (!context.mediaCaptions) return { available: false, draft: null };
+    if (!captioning(context)) return { available: false, draft: null };
     const file = await captionable(context, input.fileId);
     return {
       available: true,

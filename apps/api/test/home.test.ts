@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
-import { login, raw, rejection, sessionFor, signedIn } from "./harness";
+import {
+  login,
+  raw,
+  rejection,
+  sessionFor,
+  signedIn,
+  withoutModules,
+} from "./harness";
 
 describe("home pages", () => {
   test("a teacher's day lists their classes and the lessons the timetable gives them", async () => {
@@ -78,6 +85,13 @@ describe("home pages", () => {
     expect(done("staff_signed_in")?.done).toBe(true);
     // An operator's step waits for the operator.
     expect(done("kickoff_call")).toEqual({ item: "kickoff_call", done: false });
+    expect(step("year")?.done).toBe(true);
+    // A school without years has no year to set up, so the step is gone
+    // rather than waiting for ever.
+    await withoutModules("northwind", ["school_years"], async () => {
+      const yearless = (await office.home.admin()).onboarding;
+      expect(yearless?.steps.map((row) => row.id)).not.toContain("year");
+    });
   });
 
   test("the office hides the school's setup once it is finished", async () => {
