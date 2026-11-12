@@ -165,6 +165,23 @@ authorisation, school isolation or database ownership.
   states what each module requires, and every table belongs to core or one
   module as well (see "The database"), so a module may own tables and no
   namespace.
+- **Core names no module in code.** Where core or a module needs what
+  another module knows, it declares a typed point next to itself
+  (`point` in `apps/api/src/core/extension.ts`, `slot` in
+  `apps/web/src/utils/extension.ts`) and the module contributes to it from
+  its own files; `apps/api/src/extensions.ts` and
+  `apps/web/src/extensions.ts` list every module's contributions, and a point
+  yields only those of modules on at the school. A carved module lists its
+  files in `scripts/module-files.ts`, and the source checks refuse an import
+  of them from anywhere but the module, a module that requires it and the
+  composition roots. Name a point for what its consumer needs, and add none
+  that nothing consumes.
+- **The database cannot tell whether a module is on.** A module's rule that
+  must stop when the module is off runs in its stores, called from its API;
+  a trigger or key holds only what is true either way. A module keeps what
+  it mirrors from core tied to it by a key where it can (a homeroom place is
+  a cascading key to its enrolment), and writes again what it derives into
+  core when it next acts.
 - Every store in `packages/database/src/stores/` receives its transaction
   explicitly. Never introduce a process-global current school or current user.
 - `apps/web/src/server/` contains HTTP bridges and cookie handling only. Web
@@ -360,7 +377,7 @@ Schema decisions worth not undoing:
   alternative, and what it needs (`mayReach` in
   `packages/domain/src/ownership.ts`); a core table reaches core only.
   A column that carries a module's concept without a key to its tables
-  (`school_year_id`, `class_type`, `class_period_id`, `family_user_id`)
+  (`school_year_id`, `homeroom_class_id`, `class_period_id`, `family_user_id`)
   is owned by name in the same file, and a table holding one is held to
   the same rule. `db:verify` refuses a table or namespace without an
   owner, a concept column no table has, and any other reach, except those `packages/database/src/ownership-violations.ts`

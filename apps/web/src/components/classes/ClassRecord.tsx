@@ -21,6 +21,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  useSuspenseQueries,
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -41,17 +42,21 @@ import {
   useCapability,
   useCurrentUser,
 } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
 import { classSoundsQuery } from "~/queries/learning";
 import { changeClassSounds } from "~/server/learning";
 import { formatDate } from "~/utils/datetime";
 
+import type { ClassRecordData, RosterKeeping } from "./slots";
+
 import { CheckboxRow } from "../people/fields";
 import { displayName, labelOf } from "../people/format";
 import { Deferred } from "../people/record-parts";
-import { AddStudentSheet, MoveClassSheet, WithdrawSheet } from "./Enrolment";
+import { AddStudentSheet, WithdrawSheet } from "./Enrolment";
 import { classTitle, subjectName } from "./format";
+import { classRecordParts } from "./slots";
 
 export const CLASS_TABS = [
   "overview",
@@ -74,9 +79,7 @@ const TAB_LABEL: Record<ClassTab, () => string> = {
   files: m.filesTab,
 };
 
-type ClassData = Awaited<
-  ReturnType<NonNullable<ReturnType<typeof classRecordQuery>["queryFn"]>>
->;
+type ClassData = ClassRecordData;
 type Student = ClassData["roster"][number];
 type Teacher = ClassData["teachers"][number];
 
@@ -121,9 +124,11 @@ function PersonName({ person, staff, student }: PersonNameProps) {
 
 interface TeachersSectionProps {
   data: ClassData;
+  /** How the primary teacher is named, where a module names it. */
+  primary?: string;
 }
 
-function TeachersSection({ data }: TeachersSectionProps) {
+function TeachersSection({ data, primary }: TeachersSectionProps) {
   return (
     <RecordSection title={m.classesTeachers()}>
       {data.teachers.length === 0 ? (
@@ -139,60 +144,14 @@ function TeachersSection({ data }: TeachersSectionProps) {
               />
               <span className="text-[13px] leading-[18px] text-muted-foreground">
                 {teacher.isPrimary
-                  ? data.classType === "homeroom"
-                    ? m.classesClassTeacher()
-                    : m.classesSubjectTeacher()
+                  ? (primary ??
+                    (data.subjectId
+                      ? m.classesSubjectTeacher()
+                      : m.classesTeacher()))
                   : m.classesCoTeacher()}
               </span>
             </li>
           ))}
-        </RecordList>
-      )}
-    </RecordSection>
-  );
-}
-
-interface SubjectsSectionProps {
-  data: ClassData;
-}
-
-function SubjectsSection({ data }: SubjectsSectionProps) {
-  const options = useSuspenseQuery(classOptionsQuery).data;
-  return (
-    <RecordSection title={m.classesSubjects()}>
-      {data.subjects.length === 0 ? (
-        <RecordEmpty>{m.classesNoSubjects()}</RecordEmpty>
-      ) : (
-        <RecordList>
-          {data.subjects.map((subject) => {
-            const teacher = subject.teachers[0];
-            return (
-              <li
-                key={subject.id}
-                className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 py-3"
-              >
-                <Link
-                  to="/classes/$classId"
-                  params={{ classId: subject.id }}
-                  search={{}}
-                  className={cn(
-                    "text-sm leading-5 font-medium hover:text-primary hover:underline",
-                    phoneLink,
-                  )}
-                >
-                  {subjectName(options.subjects, subject.subjectId) ||
-                    classTitle(subject)}
-                </Link>
-                <span className="text-[13px] leading-[18px] text-muted-foreground">
-                  {teacher ? (
-                    <bdi>{displayName(teacher)}</bdi>
-                  ) : (
-                    m.classesNoTeacherYet()
-                  )}
-                </span>
-              </li>
-            );
-          })}
         </RecordList>
       )}
     </RecordSection>
@@ -237,12 +196,15 @@ type Sheet =
 
 interface StudentsSectionProps {
   data: ClassData;
+  /** What the roster is, where a module says. */
+  note?: string;
+  /** The roster as a module keeps it; null keeps it closed to changes. */
+  keeping?: RosterKeeping | null;
 }
 
-function StudentsSection({ data }: StudentsSectionProps) {
+function StudentsSection({ data, note, keeping }: StudentsSectionProps) {
   const options = useSuspenseQuery(classOptionsQuery).data;
-  const ownRoster = data.classType === "homeroom" || !data.homeroomClassId;
-  const canEnrol = data.access.enrol && ownRoster;
+  const canEnrol = data.access.enrol && keeping !== null;
   const meaning = options.grades.find(
     (row) => row.id === data.gradeId,
   )?.meaning;
@@ -278,20 +240,24 @@ function StudentsSection({ data }: StudentsSectionProps) {
           today={data.on}
           open={sheet.open}
           onClose={close}
+          add={keeping?.add}
         />
       );
-    else if (sheet.sheet.kind === "move" && student)
-      sheetNode = (
-        <MoveClassSheet
-          key={sheet.key}
-          student={{ id: student.userId, name: displayName(student) }}
-          current={{ classId: data.id, from: student.from }}
-          year={year}
-          today={data.on}
-          open={sheet.open}
-          onClose={close}
-        />
-      );
+    else if (sheet.sheet.kind === "move" && student && keeping?.move)
+      sheetNode = sheet.open
+        ? keeping.move({
+            student: {
+              userId: student.userId,
+              name: displayName(student),
+              enrollmentId: student.enrollmentId,
+              version: student.version,
+              from: student.from,
+            },
+            year,
+            today: data.on,
+            onClose: close,
+          })
+        : null;
     else if (student)
       sheetNode = (
         <WithdrawSheet
@@ -307,6 +273,7 @@ function StudentsSection({ data }: StudentsSectionProps) {
           today={data.on}
           open={sheet.open}
           onClose={close}
+          withdraw={keeping?.withdraw}
         />
       );
   }
@@ -314,13 +281,7 @@ function StudentsSection({ data }: StudentsSectionProps) {
     <>
       <RecordSection
         title={m.classesStudents()}
-        description={
-          ownRoster
-            ? m.classesStudentsOn({ date: formatDate(data.on) })
-            : m.classesStudentsFollow({
-                class: data.homeroom ? classTitle(data.homeroom) : "",
-              })
-        }
+        description={note ?? m.classesStudentsOn({ date: formatDate(data.on) })}
         action={
           canEnrol || badges ? (
             <div className="flex flex-wrap gap-1">
@@ -384,7 +345,7 @@ function StudentsSection({ data }: StudentsSectionProps) {
                   <ActionMenu
                     label={m.enrolmentActions({ name: displayName(student) })}
                     actions={[
-                      ...(data.classType === "homeroom"
+                      ...(keeping?.move
                         ? [
                             {
                               label: m.enrolmentMove(),
@@ -429,6 +390,14 @@ export function ClassRecord({
   const data = useSuspenseQuery(classRecordQuery(classId)).data;
   const options = useSuspenseQuery(classOptionsQuery).data;
   const navigate = useNavigate();
+  const parts = useSlot(classRecordParts);
+  const read = useSuspenseQueries({
+    queries: parts.map((each) => each.query(classId)),
+  });
+  const part =
+    parts
+      .map((each, index) => each.partOf(read[index]?.data, data, navigate))
+      .find((found) => found !== null) ?? null;
   const modules = useCurrentUser().modules;
   const seesAttendance = useCapability("attendance:read") && modules.attendance;
   const seesTimetable = useCapability("timetable:read") && modules.timetable;
@@ -477,7 +446,15 @@ export function ClassRecord({
   }));
   const body =
     active === "students" ? (
-      <RecordColumns main={<StudentsSection data={data} />} />
+      <RecordColumns
+        main={
+          <StudentsSection
+            data={data}
+            note={part?.rosterNote}
+            keeping={part && "roster" in part ? part.roster : undefined}
+          />
+        }
+      />
     ) : active === "attendance" ? (
       <ClassAttendance classId={data.id} />
     ) : active === "timetable" ? (
@@ -499,32 +476,12 @@ export function ClassRecord({
       />
     ) : (
       <RecordColumns
-        main={
-          data.classType === "homeroom" ? (
-            <SubjectsSection data={data} />
-          ) : data.homeroom ? (
-            <RecordSection title={m.classesHomeroom()}>
-              <Link
-                to="/classes/$classId"
-                params={{ classId: data.homeroom.id }}
-                search={{}}
-                className={cn(
-                  "text-sm leading-5 font-medium hover:text-primary hover:underline",
-                  phoneLink,
-                )}
-              >
-                {classTitle(data.homeroom)}
-              </Link>
-            </RecordSection>
-          ) : (
-            <RecordSection title={m.classesHomeroom()}>
-              <RecordEmpty>{m.classesOwnRoster()}</RecordEmpty>
-            </RecordSection>
-          )
-        }
+        main={part?.overview ?? <TeachersSection data={data} />}
         aside={
           <>
-            <TeachersSection data={data} />
+            {part?.overview ? (
+              <TeachersSection data={data} primary={part.primaryTeacher} />
+            ) : null}
             {youngClass && (teaches || keepsClasses) && data.access.staff ? (
               <LessonSoundsSection classId={data.id} />
             ) : null}
@@ -550,17 +507,19 @@ export function ClassRecord({
             : undefined
         }
         action={
-          data.access.manage && data.classType === "homeroom"
-            ? {
-                label: m.classesEdit(),
-                icon: Pencil,
-                onClick: () =>
-                  void navigate({
-                    to: "/class-editor",
-                    search: { year: data.year.id, id: data.id },
-                  }),
-              }
-            : undefined
+          part && "edit" in part
+            ? (part.edit ?? undefined)
+            : data.access.manage
+              ? {
+                  label: m.classesEdit(),
+                  icon: Pencil,
+                  onClick: () =>
+                    void navigate({
+                      to: "/class-editor",
+                      search: { year: data.year.id, id: data.id },
+                    }),
+                }
+              : undefined
         }
       />
       <RecordTabs

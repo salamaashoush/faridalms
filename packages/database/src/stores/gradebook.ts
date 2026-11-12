@@ -115,7 +115,7 @@ export async function savePeriodGrade(
   input: {
     tenantId: string;
     orgId: string;
-    classRow: { id: string; classType: string; schoolYearId: string };
+    classRow: { id: string; schoolYearId: string };
     periodId: string;
     studentId: string;
     score: number | null;
@@ -143,11 +143,11 @@ export async function savePeriodGrade(
         and grading_period_id = ${input.periodId}::uuid
         and student_user_id = ${input.studentId}::uuid and status = 'active'
     ), saved as (
-    insert into core.period_grades (tenant_id, org_id, class_id, class_type, school_year_id,
+    insert into core.period_grades (tenant_id, org_id, class_id, school_year_id,
       grading_period_id, student_user_id, score, max_score, comment, recorded_by_user_id,
       grade_scale_version_id)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
-      ${input.classRow.classType}, ${input.classRow.schoolYearId}::uuid, ${input.periodId}::uuid,
+      ${input.classRow.schoolYearId}::uuid, ${input.periodId}::uuid,
       ${input.studentId}::uuid, ${input.score}, ${input.maxScore}, ${input.comment},
       ${input.userId}::uuid,
       case when ${input.score}::numeric is null then null

@@ -1,20 +1,13 @@
-import type { Column, RowAction } from "@faridalms/ui/system/data-table";
-import type { FieldOption } from "@faridalms/ui/system/form-field";
-import type { ReactNode } from "react";
-
 import { saveClassSchema } from "@faridalms/domain/classes";
 import { Button } from "@faridalms/ui/button";
-import { DataTable, RowButton } from "@faridalms/ui/system/data-table";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
-import { SheetForm } from "@faridalms/ui/system/sheet-form";
-import { Value } from "@faridalms/ui/system/value";
 import {
   useMutation,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { CircleAlert, Pencil, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -31,29 +24,22 @@ type ClassData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classRecordQuery>["queryFn"]>>
 >;
 
-interface SubjectDraft {
-  key: number;
-  subjectId: string;
-  teacherId: string;
-}
-
 interface Draft {
   code: string;
   titleEn: string;
   titleAr: string;
+  subjectId: string;
   gradeId: string;
   locationId: string;
-  homeroomTeacherId: string;
-  subjects: SubjectDraft[];
+  teacherIds: string[];
 }
 
-type Field = "code" | "titles" | "subjects";
+type Field = "code" | "titles";
 
 const FIELD_OF: Partial<Record<string, Field>> = {
   code: "code",
   titleEn: "titles",
   titleAr: "titles",
-  subjects: "subjects",
 };
 
 /** Refusals from the server that are about one field, shown on that field. */
@@ -62,257 +48,21 @@ const FIELD_ERRORS: Partial<Record<string, Field>> = {
   "validation.class_code": "code",
 };
 
+const NONE = "none";
+
 function initialDraft(record: ClassData | null): Draft {
-  if (!record)
-    return {
-      code: "",
-      titleEn: "",
-      titleAr: "",
-      gradeId: "",
-      locationId: "",
-      homeroomTeacherId: "",
-      subjects: [],
-    };
   return {
-    code: record.code,
-    titleEn: record.titleEn ?? "",
-    titleAr: record.titleAr ?? "",
-    gradeId: record.gradeId ?? "",
-    locationId: record.locationId ?? "",
-    homeroomTeacherId: record.teachers[0]?.userId ?? "",
-    subjects: record.subjects.map((subject, index) => ({
-      key: index + 1,
-      subjectId: subject.subjectId ?? "",
-      teacherId: subject.teachers[0]?.userId ?? "",
-    })),
+    code: record?.code ?? "",
+    titleEn: record?.titleEn ?? "",
+    titleAr: record?.titleAr ?? "",
+    subjectId: record?.subjectId ?? "",
+    gradeId: record?.gradeId ?? "",
+    locationId: record?.locationId ?? "",
+    teacherIds:
+      record?.teachers
+        .filter((row) => row.role === "teacher")
+        .map((row) => row.userId) ?? [],
   };
-}
-
-interface SubjectChoices {
-  subjects: FieldOption<string>[];
-  teachers: FieldOption<string>[];
-}
-
-type SubjectRow = SubjectDraft & { id: string };
-
-type SubjectOpener = (row: SubjectDraft) => ReactNode;
-
-const NO_TEACHER = "none";
-
-const optionLabel = (options: readonly FieldOption<string>[], value: string) =>
-  options.find((option) => option.value === value)?.label ?? "";
-
-// Built per render: headers read the request's locale.
-function subjectColumns(
-  choices: SubjectChoices,
-  opener: SubjectOpener,
-): Column<SubjectRow>[] {
-  return [
-    {
-      id: "subject",
-      header: m.classesSubject(),
-      primary: true,
-      cell: opener,
-    },
-    {
-      id: "teacher",
-      header: m.classesSubjectTeacher(),
-      cell: (row) =>
-        row.teacherId ? (
-          optionLabel(choices.teachers, row.teacherId)
-        ) : (
-          <Value absent={m.classesNoTeacherYet()} />
-        ),
-    },
-  ];
-}
-
-function subjectCard(choices: SubjectChoices, opener: SubjectOpener) {
-  return {
-    title: opener,
-    fact: (row: SubjectDraft) =>
-      row.teacherId
-        ? optionLabel(choices.teachers, row.teacherId)
-        : m.classesNoTeacherYet(),
-  };
-}
-
-interface SubjectSheetProps {
-  rows: SubjectDraft[];
-  /** The subject being changed; none to add one. */
-  row: SubjectDraft | null;
-  choices: SubjectChoices;
-  nextKey: () => number;
-  open: boolean;
-  onDone: (rows: SubjectDraft[]) => void;
-  onClose: () => void;
-}
-
-/**
- * One subject of the class and who teaches it, kept with the class when it
- * is saved. Only subjects the class lacks are offered.
- */
-function SubjectSheet({
-  rows,
-  row,
-  choices,
-  nextKey,
-  open,
-  onDone,
-  onClose,
-}: SubjectSheetProps) {
-  const offered = choices.subjects.filter(
-    (option) =>
-      option.value === row?.subjectId ||
-      !rows.some((other) => other.subjectId === option.value),
-  );
-  const [subjectId, setSubjectId] = useState(
-    () => row?.subjectId ?? offered[0]?.value ?? "",
-  );
-  const [teacherId, setTeacherId] = useState(row?.teacherId ?? "");
-  const [tried, setTried] = useState(false);
-  return (
-    <SheetForm
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) onClose();
-      }}
-      title={
-        row
-          ? m.classesSubjectEdit({
-              subject: optionLabel(choices.subjects, row.subjectId),
-            })
-          : m.classesAddSubject()
-      }
-      submitLabel={row ? m.classesSubjectSave() : m.classesAddSubject()}
-      onSubmit={() => {
-        setTried(true);
-        if (!subjectId) return;
-        const next = { key: row?.key ?? nextKey(), subjectId, teacherId };
-        onDone(
-          row
-            ? rows.map((other) => (other.key === row.key ? next : other))
-            : [...rows, next],
-        );
-        onClose();
-      }}
-    >
-      <SelectField
-        id="class-subject"
-        label={m.classesSubject()}
-        value={subjectId}
-        options={offered}
-        onChange={setSubjectId}
-        errors={tried && !subjectId ? [m.classesSubjectNeeded()] : undefined}
-        width="name"
-      />
-      <SelectField
-        id="class-subject-teacher"
-        label={m.classesSubjectTeacher()}
-        optional
-        value={teacherId || NO_TEACHER}
-        options={[
-          ...choices.teachers,
-          { value: NO_TEACHER, label: m.classesNoTeacherYet() },
-        ]}
-        onChange={(value) => setTeacherId(value === NO_TEACHER ? "" : value)}
-        width="name"
-      />
-    </SheetForm>
-  );
-}
-
-interface ClassSubjectsProps {
-  rows: SubjectDraft[];
-  choices: SubjectChoices;
-  error?: string;
-  nextKey: () => number;
-  onChange: (rows: SubjectDraft[]) => void;
-}
-
-/** The class's subjects as a table, each opened and changed on its own. */
-function ClassSubjects({
-  rows,
-  choices,
-  error,
-  nextKey,
-  onChange,
-}: ClassSubjectsProps) {
-  const [sheet, setSheet] = useState<{
-    row: SubjectDraft | null;
-    key: number;
-    open: boolean;
-  } | null>(null);
-  const open = (row: SubjectDraft | null) =>
-    setSheet((current) => ({ row, key: (current?.key ?? 0) + 1, open: true }));
-  const name = (row: SubjectDraft) =>
-    optionLabel(choices.subjects, row.subjectId);
-  const opener: SubjectOpener = (row) => (
-    <RowButton onClick={() => open(row)}>{name(row)}</RowButton>
-  );
-  const add = (variant: "default" | "outline") =>
-    rows.length < choices.subjects.length ? (
-      <Button
-        type="button"
-        variant={variant}
-        className="max-md:h-10"
-        onClick={() => open(null)}
-      >
-        <Plus aria-hidden />
-        {m.classesAddSubject()}
-      </Button>
-    ) : undefined;
-  const rowActions = (row: SubjectDraft): RowAction[] => [
-    { label: m.recordEdit(), icon: Pencil, onSelect: () => open(row) },
-    {
-      label: m.classesSubjectRemove(),
-      icon: Trash2,
-      destructive: true,
-      confirm: {
-        title: m.classesSubjectRemoveTitle({ subject: name(row) }),
-        body: m.classesSubjectRemoveBody(),
-        label: m.classesSubjectRemove(),
-      },
-      onSelect: () => onChange(rows.filter((other) => other.key !== row.key)),
-    },
-  ];
-  return (
-    <>
-      <DataTable
-        caption={m.classesSubjects()}
-        rows={rows.map((row) => Object.assign({ id: String(row.key) }, row))}
-        columns={subjectColumns(choices, opener)}
-        rowLabel={name}
-        rowActions={rowActions}
-        actions={add("outline")}
-        card={subjectCard(choices, opener)}
-        empty={{ title: m.classesSubjectsNone(), action: add("outline") }}
-      />
-      {error ? (
-        <p
-          role="alert"
-          className="flex items-start gap-1.5 text-[13px] leading-[18px] text-destructive"
-        >
-          <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
-          {error}
-        </p>
-      ) : null}
-      {sheet ? (
-        <SubjectSheet
-          key={sheet.key}
-          rows={rows}
-          row={sheet.row}
-          choices={choices}
-          nextKey={nextKey}
-          open={sheet.open}
-          onDone={onChange}
-          onClose={() =>
-            setSheet((current) => current && { ...current, open: false })
-          }
-        />
-      ) : null}
-    </>
-  );
 }
 
 export interface ExistingClassEditorProps {
@@ -333,6 +83,7 @@ export interface ClassEditorProps {
   onClose: () => void;
 }
 
+/** A class: its names and code, what it teaches if anything, its room and teachers. */
 export function ClassEditor({
   yearId,
   record = null,
@@ -342,7 +93,6 @@ export function ClassEditor({
   const queryClient = useQueryClient();
   const year = options.years.find((row) => row.id === yearId);
   const leaving = useRef(false);
-  const nextKey = useRef((record?.subjects.length ?? 0) + 1);
   const [initial] = useState(() => initialDraft(record));
   const [draft, setDraft] = useState(initial);
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
@@ -351,38 +101,22 @@ export function ClassEditor({
       ...current,
       ...(key === "code" ? { code: undefined } : {}),
       ...(key === "titleEn" || key === "titleAr" ? { titles: undefined } : {}),
-      ...(key === "subjects" ? { subjects: undefined } : {}),
     }));
     setDraft((current) => ({ ...current, [key]: value }));
   };
   const teachers = options.teachers
     .toSorted((a, b) => Number(b.teaches) - Number(a.teaches))
     .map((row) => ({ value: row.id, label: displayName(row) }));
-  const noTeacher = { value: "none", label: m.classesNoTeacherYet() };
-  const subjectOptions = options.subjects.map((subject) => ({
-    value: subject.id,
-    label: labelOf(subject) ?? subject.code,
-  }));
-  const takeKey = () => {
-    const key = nextKey.current;
-    nextKey.current += 1;
-    return key;
-  };
   const payload = {
     ...(record ? { id: record.id, expectedVersion: record.version } : {}),
     yearId,
     code: draft.code.trim(),
     titleEn: draft.titleEn,
     titleAr: draft.titleAr,
+    subjectId: draft.subjectId,
     gradeId: draft.gradeId,
     locationId: draft.locationId,
-    homeroomTeacherId: draft.homeroomTeacherId,
-    subjects: draft.subjects
-      .filter((row) => row.subjectId)
-      .map((row) => ({
-        subjectId: row.subjectId,
-        teacherIds: row.teacherId ? [row.teacherId] : [],
-      })),
+    teacherIds: draft.teacherIds.filter(Boolean),
   };
   const mutation = useMutation({
     mutationFn: () => saveClass({ data: payload }),
@@ -392,6 +126,12 @@ export function ClassEditor({
     schemaErrors(saveClassSchema, payload, (key) => FIELD_OF[key]);
   const refusal = refusalOf(mutation.error, FIELD_ERRORS);
   const failure = refusal && !refusal.field ? refusal.message : null;
+  const offered = (index: number) =>
+    teachers.filter(
+      (option) =>
+        option.value === draft.teacherIds[index] ||
+        !draft.teacherIds.includes(option.value),
+    );
   return (
     <RecordForm
       title={record ? m.classesEdit() : m.classesAdd()}
@@ -458,59 +198,114 @@ export function ClassEditor({
           errors={errors.code ? [errors.code] : undefined}
         />
         <SelectField
+          id="class-subject"
+          label={m.classesSubject()}
+          optional
+          value={draft.subjectId || NONE}
+          options={[
+            ...options.subjects.map((row) => ({
+              value: row.id,
+              label: labelOf(row) ?? row.code,
+            })),
+            { value: NONE, label: m.commonNotRecorded() },
+          ]}
+          onChange={(value) => set("subjectId", value === NONE ? "" : value)}
+          width="name"
+        />
+        <SelectField
           id="class-grade"
           label={m.studentGrade()}
           optional
-          value={draft.gradeId || "none"}
+          value={draft.gradeId || NONE}
           options={[
             ...options.grades.map((row) => ({
               value: row.id,
               label: labelOf(row) ?? row.code,
             })),
-            { value: "none", label: m.commonNotRecorded() },
+            { value: NONE, label: m.commonNotRecorded() },
           ]}
-          onChange={(value) => set("gradeId", value === "none" ? "" : value)}
+          onChange={(value) => set("gradeId", value === NONE ? "" : value)}
           width="name"
         />
         <SelectField
           id="class-room"
           label={m.classesRoom()}
           optional
-          value={draft.locationId || "none"}
+          value={draft.locationId || NONE}
           options={[
             ...options.rooms.map((row) => ({
               value: row.id,
               label: inLocale(row.nameEn, row.nameAr) || row.code || "",
             })),
-            { value: "none", label: m.commonNotRecorded() },
+            { value: NONE, label: m.commonNotRecorded() },
           ]}
-          onChange={(value) => set("locationId", value === "none" ? "" : value)}
-          width="name"
-        />
-        <SelectField
-          id="class-teacher"
-          label={m.classesClassTeacher()}
-          hint={m.classesClassTeacherHint()}
-          optional
-          value={draft.homeroomTeacherId || "none"}
-          options={[...teachers, noTeacher]}
-          onChange={(value) =>
-            set("homeroomTeacherId", value === "none" ? "" : value)
-          }
+          onChange={(value) => set("locationId", value === NONE ? "" : value)}
           width="name"
         />
       </FormSection>
       <FormSection
-        title={m.classesSubjects()}
-        description={m.classesSubjectsHint()}
+        title={m.classesTeachers()}
+        description={m.classesTeachersHint()}
       >
-        <ClassSubjects
-          rows={draft.subjects}
-          choices={{ subjects: subjectOptions, teachers }}
-          error={errors.subjects}
-          nextKey={takeKey}
-          onChange={(subjects) => set("subjects", subjects)}
-        />
+        {draft.teacherIds.map((teacherId, index) => (
+          <div key={index} className="flex items-end gap-2">
+            <SelectField
+              id={`class-teacher-${index}`}
+              label={
+                index === 0
+                  ? m.classesTeacher()
+                  : m.classesCoTeacherNumbered({ number: index })
+              }
+              value={teacherId}
+              options={offered(index)}
+              onChange={(value) =>
+                set(
+                  "teacherIds",
+                  draft.teacherIds.map((other, at) =>
+                    at === index ? value : other,
+                  ),
+                )
+              }
+              width="name"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="max-md:size-10"
+              aria-label={m.classesTeacherRemove({
+                name:
+                  teachers.find((option) => option.value === teacherId)
+                    ?.label ?? "",
+              })}
+              onClick={() =>
+                set(
+                  "teacherIds",
+                  draft.teacherIds.filter((_, at) => at !== index),
+                )
+              }
+            >
+              <Trash2 aria-hidden />
+            </Button>
+          </div>
+        ))}
+        {draft.teacherIds.length < 4 &&
+        draft.teacherIds.length < teachers.length ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="justify-self-start max-md:h-10"
+            onClick={() =>
+              set("teacherIds", [
+                ...draft.teacherIds,
+                offered(draft.teacherIds.length)[0]?.value ?? "",
+              ])
+            }
+          >
+            <Plus aria-hidden />
+            {m.classesTeacherAdd()}
+          </Button>
+        ) : null}
       </FormSection>
     </RecordForm>
   );

@@ -6,6 +6,7 @@ import {
 } from "@faridalms/database/directory/admin";
 import { openDirectory } from "@faridalms/database/directory/client";
 import { CAPABILITIES } from "@faridalms/domain/capabilities";
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import { BASIC_ENTITLEMENTS, settableOf } from "@faridalms/domain/plans";
 import {
@@ -206,7 +207,7 @@ describe("creating a school from the operator console", () => {
     const [grade] = options.grades;
     const [subject] = options.subjects;
     if (!grade || !subject) throw new Error("the catalogue has no grades");
-    const homeroom = await api.classes.save({
+    const homeroom = await api.homerooms.save({
       yearId: year.id,
       code: "1A",
       titleEn: "1A",
@@ -246,7 +247,7 @@ describe("creating a school from the operator console", () => {
         },
       ],
     });
-    await api.classes.enrol({
+    await api.homerooms.place({
       studentId: student.id,
       classId: homeroom.id,
       from: addDays(today, -40),
@@ -289,6 +290,158 @@ describe("creating a school from the operator console", () => {
       expectedVersion: 0,
       marks: [{ studentId: student.id, meaning: "present" }],
     });
+  });
+
+  test("a school without homerooms teaches a class of its own, and the module answers nothing", async () => {
+    const email = "salama@plainfield.example.com";
+    const { body } = await begin({
+      ...standalone("plainfield", email),
+      entitlements: {
+        ...settableOf(BASIC_ENTITLEMENTS),
+        modules: MODULE_IDS.filter((id) => id !== "homerooms"),
+      },
+    });
+    expect((await call("/v1/tenants", body)).status).toBe(200);
+    const { api } = await choosePassword(
+      "plainfield",
+      linkTo(email, "plainfield").secret,
+    );
+    const { today, modules } = await api.identity.currentUser();
+    expect(modules.homerooms).toBe(false);
+    const year = await api.years.save({
+      titleEn: "Plainfield year",
+      titleAr: "",
+      startsOn: addDays(today, -40),
+      endsOn: addDays(today, 200),
+      terms: [],
+    });
+    const teacher = await api.people.saveStaff({
+      names: {
+        en: { given: "Salama", middle: "", family: "Ashoush" },
+        ar: { given: "سلامة", middle: "", family: "عشوش" },
+      },
+      email: "teacher@plainfield.example.com",
+      roles: ["teacher"],
+    });
+    const course = await api.classes.save({
+      yearId: year.id,
+      code: "PY-101",
+      titleEn: "Python from scratch",
+      titleAr: "",
+      teacherIds: [teacher.id],
+    });
+    const people = await api.people.options();
+    const mother = people.relations.find((row) => row.code === "mother");
+    if (!mother) throw new Error("the catalogue has no mother");
+    const learner = await api.people.saveStudent({
+      names: {
+        en: { given: "Omar", middle: "", family: "Ashoush" },
+        ar: { given: "عمر", middle: "", family: "عشوش" },
+      },
+      reference: "PF-0001",
+      guardians: [
+        {
+          person: {
+            names: {
+              en: { given: "Mona", middle: "", family: "Ashoush" },
+              ar: { given: "منى", middle: "", family: "عشوش" },
+            },
+            phone: "01012345679",
+          },
+          flags: {
+            relationId: mother.id,
+            legalGuardian: true,
+            portalAccess: false,
+            receivesNotifications: false,
+            primaryContact: true,
+            emergencyContact: true,
+            residence: "primary",
+            pickup: "allowed",
+          },
+        },
+      ],
+    });
+    await api.classes.enrol({
+      studentId: learner.id,
+      classId: course.id,
+      from: addDays(today, -40),
+    });
+
+    const record = await api.classes.record({ id: course.id });
+    expect(record).toMatchObject({ subjectId: null, courseId: null });
+    expect(record.roster.map((row) => row.userId)).toEqual([learner.id]);
+    expect((await api.classes.directory({})).rows.map((row) => row.id)).toEqual(
+      [course.id],
+    );
+    expect((await api.people.student({ id: learner.id })).group).toBeNull();
+    const listed = await api.people.students({ q: "PF-0001" });
+    expect(listed.rows[0]?.group).toBeNull();
+
+    for (const ask of [
+      () => api.homerooms.directory({}),
+      () => api.homerooms.ofClass({ classId: course.id }),
+      () => api.homerooms.history({ studentId: learner.id }),
+      () => api.homerooms.unstaffed(),
+      () => api.homerooms.place({ studentId: learner.id, classId: course.id }),
+    ])
+      expect(await rejection(ask())).toMatchObject({ code: "NOT_FOUND" });
+
+    const { days } = await api.years.days({ id: year.id });
+    const taught = days
+      .filter((row) => row.day <= today && row.meaning === "instructional_day")
+      .at(-1)?.day;
+    if (!taught) throw new Error("the year has no school day yet");
+    const grid = await api.timetable.grid({ classId: course.id, on: taught });
+    expect(grid.classes.map((row) => row.id)).toEqual([course.id]);
+    const official = new Set((await api.years.periods({ id: year.id, on: "" })).periods
+      .filter((period) => period.official)
+      .map((period) => period.id));
+    const lesson = grid.periods.find((period) => !official.has(period.id));
+    if (!lesson) throw new Error("no lesson period");
+    await api.timetable.place({
+      classId: course.id,
+      weekday: isoWeekday(taught),
+      periodId: lesson.id,
+      from: taught,
+      meetingClassId: course.id,
+      teacherId: teacher.id,
+      roomId: "",
+    });
+    const register = await api.attendance.register({
+      classId: course.id,
+      date: taught,
+    });
+    expect(register.period.id).toBe(lesson.id);
+    expect(register.students.map((row) => row.id)).toEqual([learner.id]);
+    await api.attendance.save({
+      classId: course.id,
+      date: taught,
+      periodId: register.period.id,
+      expectedVersion: 0,
+      marks: [{ studentId: learner.id, meaning: "present" }],
+    });
+    const board = await api.attendance.board({ date: taught });
+    expect(board.rows.every((row) => !row.daily)).toBe(true);
+
+    const work = await api.coursework.save({
+      classId: course.id,
+      title: "First program",
+      brief: plainContent("Write a program that says hello."),
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "both",
+      points: 10,
+      rubric: null,
+    });
+    await api.coursework.publish({
+      id: work.id,
+      expectedVersion: work.version,
+    });
+    expect(
+      (await api.coursework.record({ id: work.id })).work.map(
+        (row) => row.studentId,
+      ),
+    ).toEqual([learner.id]);
   });
 
   test("a new school with no year yet answers the pages that read one with nothing, and refuses what needs one", async () => {

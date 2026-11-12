@@ -53,7 +53,7 @@ describe("absences families report", () => {
     const { rows } = await office.attendance.board({ date });
     const registers = await Promise.all(
       rows
-        .filter((row) => row.classType === "homeroom")
+        .filter((row) => row.daily)
         .map((row) =>
           office.attendance.register({
             classId: row.classId,
@@ -125,7 +125,7 @@ describe("absences families report", () => {
     const office = await principal();
     const day = thirdSchoolDay(today);
     const { rows } = await office.attendance.board({ date: day });
-    const homeroom = rows.find((row) => row.classType === "homeroom");
+    const homeroom = rows.find((row) => row.daily);
     if (!homeroom) throw new Error("no homeroom");
     const register = await office.attendance.register({
       classId: homeroom.classId,

@@ -217,12 +217,8 @@ function SignSheet({ direction: way, reasons, onClose }: SignSheetProps) {
     ...hits,
   ].map((hit) => ({
     value: hit.id,
-    label: hit.homeroomCode
-      ? `${nameOf(hit)} · ${classTitle({
-          code: hit.homeroomCode,
-          titleEn: hit.homeroomTitleEn,
-          titleAr: hit.homeroomTitleAr,
-        })}`
+    label: hit.group
+      ? `${nameOf(hit)} · ${classTitle(hit.group)}`
       : nameOf(hit),
   }));
   const someoneElse = collector === OTHER;

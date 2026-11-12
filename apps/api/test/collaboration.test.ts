@@ -126,7 +126,7 @@ describe("editing an assignment brief together", () => {
   test("two teachers' edits meet, and the brief keeps what they wrote", async () => {
     const teacher = await arabicTeacher();
     const { classes } = await teacher.api.coursework.options();
-    const target = classes.find((row) => row.classType === "scheduled");
+    const target = classes.find((row) => row.subjectId !== null);
     if (!target) throw new Error("the teacher has no scheduled class");
     const saved = await teacher.api.coursework.save({
       classId: target.id,
@@ -177,7 +177,7 @@ describe("editing an assignment brief together", () => {
   test("a room opened again from its stored state keeps the brief as it was", async () => {
     const teacher = await arabicTeacher();
     const { classes } = await teacher.api.coursework.options();
-    const target = classes.find((row) => row.classType === "scheduled");
+    const target = classes.find((row) => row.subjectId !== null);
     if (!target) throw new Error("the teacher has no scheduled class");
     const saved = await teacher.api.coursework.save({
       classId: target.id,
@@ -226,9 +226,7 @@ describe("editing an assignment brief together", () => {
     const me = await student.api.identity.currentUser();
     const { classes } = await teacher.api.coursework.options();
     let target: (typeof classes)[number] | undefined;
-    for (const row of classes.filter(
-      (item) => item.classType === "scheduled",
-    )) {
+    for (const row of classes.filter((item) => item.subjectId !== null)) {
       const { roster } = await teacher.api.coursework.groups({
         classId: row.id,
       });
@@ -300,7 +298,7 @@ describe("editing an assignment brief together", () => {
   test("a teacher without the class gets no ticket, and a forged one is refused", async () => {
     const teacher = await arabicTeacher();
     const { classes } = await teacher.api.coursework.options();
-    const target = classes.find((row) => row.classType === "scheduled");
+    const target = classes.find((row) => row.subjectId !== null);
     if (!target) throw new Error("the teacher has no scheduled class");
     const saved = await teacher.api.coursework.save({
       classId: target.id,

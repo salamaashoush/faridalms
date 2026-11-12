@@ -26,7 +26,7 @@ describe("year rollover", () => {
 
     const first = await api.rollover.preview(query);
     expect(first).toMatchObject({ state: "new", version: 0, issue: null });
-    expect(first.plan.classes).toHaveLength(first.homerooms.length);
+    expect(first.plan.classes).toHaveLength(first.sources.length);
     const rosterOf = (classId: string) =>
       first.students.filter((row) => row.classId === classId);
     const kept = first.plan.classes.find(
@@ -36,7 +36,7 @@ describe("year rollover", () => {
       (row) => row.key !== kept?.key && rosterOf(row.sourceClassId).length > 0,
     );
     if (!kept || !dropped) throw new Error("seed homerooms");
-    const keptSource = first.homerooms.find(
+    const keptSource = first.sources.find(
       (row) => row.id === kept.sourceClassId,
     );
     expect(kept.code).toBe(keptSource?.code ?? "");
@@ -111,12 +111,12 @@ describe("year rollover", () => {
       ),
     ).toMatchObject({ code: "CONFLICT", message: "rollover.applied" });
 
-    const target = await api.classes.directory({ year: targetId });
+    const target = await api.homerooms.directory({ year: targetId });
     expect(target.rows).toHaveLength(first.plan.classes.length - 1);
     const carried = target.rows.find((row) => row.code === `${kept.code}-N`);
     if (!carried) throw new Error("carried class");
     expect(carried.subjects).toHaveLength(kept.subjects.length);
-    expect(carried.teachers[0]?.userId).toBe(kept.homeroomTeacherId);
+    expect(carried.teachers[0]?.userId).toBe(kept.teacherId);
     const record = await api.classes.record({
       id: carried.id,
       on: "2031-09-07",

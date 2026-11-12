@@ -337,7 +337,7 @@ as $$
     where r.tenant_id = app.tenant_id() and r.org_id = school.id and r.role = 'student' and r.status = 'active'
       and (upper_inf(r.valid_during) or upper(r.valid_during) > p_on)
   ), taught as (
-    select coalesce(c.homeroom_class_id, c.id) as class_id
+    select c.id as class_id
     from core.enrollments t
     join core.classes c on c.tenant_id = t.tenant_id and c.id = t.class_id and c.status = 'active'
     join school on c.org_id = school.id
@@ -424,18 +424,10 @@ as $$
     where e.tenant_id = app.tenant_id() and e.org_id = school.id and e.status = 'active'
       and e.valid_during @> p_on
       and (e.user_id = p_viewer or (e.role = 'student' and e.user_id in (select student_user_id from children)))
-  ), linked as (
-    select c.id from core.classes c
-    where c.tenant_id = app.tenant_id() and c.status = 'active'
-      and (c.id in (select class_id from joined) or c.homeroom_class_id in (select class_id from joined))
-    union
-    select c.homeroom_class_id from core.classes c
-    where c.tenant_id = app.tenant_id() and c.status = 'active' and c.homeroom_class_id is not null
-      and c.id in (select class_id from joined)
   )
   select c.id from core.classes c, school
   where c.tenant_id = app.tenant_id() and c.org_id = school.id and c.status = 'active'
-    and (p_school_wide or c.id in (select id from linked))
+    and (p_school_wide or c.id in (select class_id from joined))
 $$;
 revoke all on function app.visible_classes(uuid, uuid, date, boolean) from public;
 grant execute on function app.visible_classes(uuid, uuid, date, boolean) to app;

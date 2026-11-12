@@ -148,13 +148,7 @@ function CallRow({ call, onLog }: CallRowProps) {
         <StudentLink row={call} />
         <span className="text-[13px] leading-[18px] text-muted-foreground">
           {[
-            call.homeroomCode
-              ? classTitle({
-                  code: call.homeroomCode,
-                  titleEn: call.homeroomTitleEn,
-                  titleAr: call.homeroomTitleAr,
-                })
-              : null,
+            call.group ? classTitle(call.group) : null,
             m.fupAwayFrom({
               period: inLocale(call.periodNameEn, call.periodNameAr),
             }),

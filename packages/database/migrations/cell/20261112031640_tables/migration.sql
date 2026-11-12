@@ -531,7 +531,6 @@ CREATE TABLE "core"."assignments" (
 	"id" uuid DEFAULT uuidv7(),
 	"org_id" uuid NOT NULL,
 	"class_id" uuid NOT NULL,
-	"class_type" text NOT NULL,
 	"school_year_id" uuid NOT NULL,
 	"grading_period_id" uuid,
 	"category_id" uuid,
@@ -671,7 +670,6 @@ CREATE TABLE "core"."attendance_registers" (
 	"id" uuid DEFAULT uuidv7(),
 	"org_id" uuid NOT NULL,
 	"class_id" uuid NOT NULL,
-	"class_type" text NOT NULL,
 	"school_year_id" uuid NOT NULL,
 	"school_year_type" text DEFAULT 'school_year' NOT NULL,
 	"class_period_id" uuid NOT NULL,
@@ -1164,7 +1162,6 @@ CREATE TABLE "core"."class_groups" (
 	"id" uuid DEFAULT uuidv7(),
 	"org_id" uuid NOT NULL,
 	"class_id" uuid NOT NULL,
-	"class_type" text NOT NULL,
 	"school_year_id" uuid NOT NULL,
 	"title_en" text,
 	"title_ar" text,
@@ -1189,10 +1186,8 @@ CREATE TABLE "core"."class_meetings" (
 	"id" uuid DEFAULT uuidv7(),
 	"org_id" uuid NOT NULL,
 	"class_id" uuid NOT NULL,
-	"class_type" text NOT NULL,
 	"school_year_id" uuid NOT NULL,
 	"school_year_type" text DEFAULT 'school_year' NOT NULL,
-	"group_class_id" uuid NOT NULL,
 	"timetable_id" uuid NOT NULL,
 	"weekday" smallint NOT NULL,
 	"class_period_id" uuid NOT NULL,
@@ -1265,13 +1260,10 @@ CREATE TABLE "core"."classes" (
 	"org_type" text DEFAULT 'school' NOT NULL,
 	"school_year_id" uuid NOT NULL,
 	"school_year_type" text DEFAULT 'school_year' NOT NULL,
-	"class_type" text NOT NULL,
 	"code" text NOT NULL,
 	"title_en" text,
 	"title_ar" text,
 	"course_id" uuid,
-	"homeroom_class_id" uuid,
-	"homeroom_class_type" text GENERATED ALWAYS AS ('homeroom') STORED NOT NULL,
 	"subject_descriptor_id" uuid,
 	"subject_ns" text GENERATED ALWAYS AS ('subject') STORED NOT NULL,
 	"grade_level_descriptor_id" uuid,
@@ -1286,19 +1278,17 @@ CREATE TABLE "core"."classes" (
 	"metadata" jsonb DEFAULT '{}' NOT NULL,
 	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
 	CONSTRAINT "classes_pkey" PRIMARY KEY("tenant_id","id"),
-	CONSTRAINT "classes_tenant_id_id_class_type_school_year_id_org_id_key" UNIQUE("tenant_id","id","class_type","school_year_id","org_id"),
-	CONSTRAINT "classes_tenant_id_id_class_type_school_year_id_key" UNIQUE("tenant_id","id","class_type","school_year_id"),
+	CONSTRAINT "classes_tenant_id_id_school_year_id_org_id_key" UNIQUE("tenant_id","id","school_year_id","org_id"),
+	CONSTRAINT "classes_tenant_id_id_org_id_key" UNIQUE("tenant_id","id","org_id"),
 	CONSTRAINT "classes_status_check" CHECK (status in ('active', 'tobedeleted')),
 	CONSTRAINT "classes_version_check" CHECK (version > 0),
 	CONSTRAINT "classes_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
 	CONSTRAINT "classes_org_type_check" CHECK (org_type = 'school'),
 	CONSTRAINT "classes_school_year_type_check" CHECK (school_year_type = 'school_year'),
-	CONSTRAINT "classes_class_type_check" CHECK (class_type in ('homeroom', 'scheduled')),
 	CONSTRAINT "classes_code_check" CHECK (code ~ '^[A-Za-z0-9_.-]{1,40}$'),
 	CONSTRAINT "classes_title_en_check" CHECK (char_length(title_en) between 1 and 120),
 	CONSTRAINT "classes_title_ar_check" CHECK (char_length(title_ar) between 1 and 120),
-	CONSTRAINT "classes_title_check" CHECK (num_nonnulls(title_en, title_ar) >= 1),
-	CONSTRAINT "classes_shape_check" CHECK ((class_type = 'homeroom' and homeroom_class_id is null and subject_descriptor_id is null) or (class_type = 'scheduled' and course_id is not null and subject_descriptor_id is not null))
+	CONSTRAINT "classes_title_check" CHECK (num_nonnulls(title_en, title_ar) >= 1)
 );
 --> statement-breakpoint
 ALTER TABLE "core"."classes" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
@@ -1833,7 +1823,6 @@ CREATE TABLE "core"."enrollments" (
 	"tenant_id" uuid,
 	"id" uuid DEFAULT uuidv7(),
 	"class_id" uuid NOT NULL,
-	"class_type" text NOT NULL,
 	"school_year_id" uuid NOT NULL,
 	"school_year_type" text DEFAULT 'school_year' NOT NULL,
 	"org_id" uuid NOT NULL,
@@ -1851,6 +1840,7 @@ CREATE TABLE "core"."enrollments" (
 	"metadata" jsonb DEFAULT '{}' NOT NULL,
 	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
 	CONSTRAINT "enrollments_pkey" PRIMARY KEY("tenant_id","id"),
+	CONSTRAINT "enrollments_tenant_id_id_class_id_user_id_org_id_valid_duri_key" UNIQUE("tenant_id","id","class_id","user_id","org_id","valid_during","status"),
 	CONSTRAINT "enrollments_status_check" CHECK (status in ('active', 'tobedeleted')),
 	CONSTRAINT "enrollments_version_check" CHECK (version > 0),
 	CONSTRAINT "enrollments_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
@@ -1858,7 +1848,7 @@ CREATE TABLE "core"."enrollments" (
 	CONSTRAINT "enrollments_role_check" CHECK (role in ('student', 'teacher', 'aide', 'proctor', 'administrator')),
 	CONSTRAINT "enrollments_primary_check" CHECK (not is_primary or role = 'teacher'),
 	CONSTRAINT "enrollments_position_check" CHECK (classroom_position_descriptor_id is null or role in ('teacher', 'aide')),
-	CONSTRAINT "enrollments_source_check" CHECK (source in ('manual', 'import', 'sis', 'oneroster', 'rollover')),
+	CONSTRAINT "enrollments_source_check" CHECK (source in ('manual', 'import', 'sis', 'oneroster', 'rollover', 'homeroom')),
 	CONSTRAINT "enrollments_valid_during_check" CHECK (not isempty("valid_during") and not lower_inf("valid_during") and not upper_inf("valid_during") and lower_inc("valid_during") and not upper_inc("valid_during"))
 );
 --> statement-breakpoint
@@ -2281,6 +2271,69 @@ CREATE TABLE "health"."records" (
 );
 --> statement-breakpoint
 ALTER TABLE "health"."records" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "core"."homeroom_classes" (
+	"tenant_id" uuid,
+	"id" uuid DEFAULT uuidv7(),
+	"org_id" uuid NOT NULL,
+	"homeroom_class_id" uuid NOT NULL,
+	"class_id" uuid NOT NULL,
+	"linked_on" date NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"date_last_modified" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL,
+	"metadata" jsonb DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	CONSTRAINT "homeroom_classes_pkey" PRIMARY KEY("tenant_id","id"),
+	CONSTRAINT "homeroom_classes_status_check" CHECK (status in ('active', 'tobedeleted')),
+	CONSTRAINT "homeroom_classes_version_check" CHECK (version > 0),
+	CONSTRAINT "homeroom_classes_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
+	CONSTRAINT "homeroom_classes_class_id_check" CHECK (class_id <> homeroom_class_id)
+);
+--> statement-breakpoint
+ALTER TABLE "core"."homeroom_classes" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "core"."homeroom_members" (
+	"tenant_id" uuid,
+	"id" uuid DEFAULT uuidv7(),
+	"org_id" uuid NOT NULL,
+	"homeroom_class_id" uuid NOT NULL,
+	"enrollment_id" uuid NOT NULL,
+	"student_user_id" uuid NOT NULL,
+	"valid_during" daterange NOT NULL,
+	"source" text NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"date_last_modified" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL,
+	"metadata" jsonb DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	CONSTRAINT "homeroom_members_pkey" PRIMARY KEY("tenant_id","id"),
+	CONSTRAINT "homeroom_members_tenant_id_enrollment_id_key" UNIQUE("tenant_id","enrollment_id"),
+	CONSTRAINT "homeroom_members_status_check" CHECK (status in ('active', 'tobedeleted')),
+	CONSTRAINT "homeroom_members_version_check" CHECK (version > 0),
+	CONSTRAINT "homeroom_members_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
+	CONSTRAINT "homeroom_members_source_check" CHECK (source in ('manual', 'rollover')),
+	CONSTRAINT "homeroom_members_valid_during_check" CHECK (not isempty("valid_during") and not lower_inf("valid_during") and not upper_inf("valid_during") and lower_inc("valid_during") and not upper_inc("valid_during"))
+);
+--> statement-breakpoint
+ALTER TABLE "core"."homeroom_members" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "core"."homerooms" (
+	"tenant_id" uuid,
+	"id" uuid DEFAULT uuidv7(),
+	"org_id" uuid NOT NULL,
+	"class_id" uuid NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"date_last_modified" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL,
+	"metadata" jsonb DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	CONSTRAINT "homerooms_pkey" PRIMARY KEY("tenant_id","id"),
+	CONSTRAINT "homerooms_tenant_id_class_id_key" UNIQUE("tenant_id","class_id"),
+	CONSTRAINT "homerooms_tenant_id_class_id_org_id_key" UNIQUE("tenant_id","class_id","org_id"),
+	CONSTRAINT "homerooms_status_check" CHECK (status in ('active', 'tobedeleted')),
+	CONSTRAINT "homerooms_version_check" CHECK (version > 0),
+	CONSTRAINT "homerooms_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384)
+);
+--> statement-breakpoint
+ALTER TABLE "core"."homerooms" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "core"."identity_provider_orgs" (
 	"tenant_id" uuid,
 	"id" uuid DEFAULT uuidv7(),
@@ -3266,7 +3319,6 @@ CREATE TABLE "core"."period_grades" (
 	"id" uuid DEFAULT uuidv7(),
 	"org_id" uuid NOT NULL,
 	"class_id" uuid NOT NULL,
-	"class_type" text NOT NULL,
 	"school_year_id" uuid NOT NULL,
 	"grading_period_id" uuid NOT NULL,
 	"student_user_id" uuid NOT NULL,
@@ -4668,12 +4720,11 @@ CREATE UNIQUE INDEX "caption_drafts_key" ON "core"."caption_drafts" ("tenant_id"
 CREATE INDEX "caption_drafts_queue_idx" ON "core"."caption_drafts" ("tenant_id","created_at") WHERE status = 'active' and state in ('queued', 'working');--> statement-breakpoint
 CREATE UNIQUE INDEX "class_group_members_key" ON "core"."class_group_members" ("tenant_id","group_id","student_user_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "class_groups_class_idx" ON "core"."class_groups" ("tenant_id","class_id") WHERE status = 'active';--> statement-breakpoint
-CREATE INDEX "class_meetings_group_idx" ON "core"."class_meetings" ("tenant_id","group_class_id") WHERE status = 'active';--> statement-breakpoint
+CREATE INDEX "class_meetings_class_idx" ON "core"."class_meetings" ("tenant_id","class_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "class_meetings_teacher_idx" ON "core"."class_meetings" ("tenant_id","teacher_user_id") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "class_periods_extra_code_key" ON "core"."class_periods" ("tenant_id","bell_schedule_id","code") WHERE status = 'active' and bell_schedule_id is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX "classes_code_key" ON "core"."classes" ("tenant_id","org_id","school_year_id","code") WHERE status = 'active';--> statement-breakpoint
-CREATE INDEX "classes_year_idx" ON "core"."classes" ("tenant_id","org_id","school_year_id","class_type") WHERE status = 'active';--> statement-breakpoint
-CREATE INDEX "classes_homeroom_idx" ON "core"."classes" ("tenant_id","homeroom_class_id") WHERE status = 'active' and homeroom_class_id is not null;--> statement-breakpoint
+CREATE INDEX "classes_year_idx" ON "core"."classes" ("tenant_id","org_id","school_year_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "classes_delta_idx" ON "core"."classes" ("tenant_id","date_last_modified");--> statement-breakpoint
 CREATE INDEX "consent_records_subject_idx" ON "core"."consent_records" ("tenant_id","subject_user_id","purpose_descriptor_id","created_at" DESC NULLS LAST,"id" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "contact_points_lookup_idx" ON "core"."contact_points" ("tenant_id","kind","normalized") WHERE status = 'active' and normalized is not null;--> statement-breakpoint
@@ -4732,6 +4783,10 @@ CREATE INDEX "grade_scale_versions_scale_idx" ON "core"."grade_scale_versions" (
 CREATE INDEX "grade_scales_org_idx" ON "core"."grade_scales" ("tenant_id","org_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "requested_changes_student_idx" ON "health"."requested_changes" ("tenant_id","student_user_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "records_student_idx" ON "health"."records" ("tenant_id","student_user_id") WHERE status = 'active';--> statement-breakpoint
+CREATE UNIQUE INDEX "homeroom_classes_class_key" ON "core"."homeroom_classes" ("tenant_id","class_id") WHERE status = 'active';--> statement-breakpoint
+CREATE INDEX "homeroom_classes_homeroom_idx" ON "core"."homeroom_classes" ("tenant_id","homeroom_class_id") WHERE status = 'active';--> statement-breakpoint
+CREATE INDEX "homeroom_members_homeroom_idx" ON "core"."homeroom_members" ("tenant_id","homeroom_class_id") WHERE status = 'active';--> statement-breakpoint
+CREATE INDEX "homeroom_members_student_idx" ON "core"."homeroom_members" ("tenant_id","student_user_id") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "identity_provider_orgs_key" ON "core"."identity_provider_orgs" ("tenant_id","identity_provider_id","org_id") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "identity_providers_issuer_key" ON "core"."identity_providers" ("tenant_id","protocol","issuer") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "learning_modules_year_idx" ON "core"."learning_modules" ("tenant_id","org_id","school_year_id") WHERE status = 'active';--> statement-breakpoint
@@ -4938,7 +4993,7 @@ ALTER TABLE "core"."assignment_recipients" ADD CONSTRAINT "assignment_recipients
 ALTER TABLE "core"."assignment_recipients" ADD CONSTRAINT "assignment_recipients_tenant_id_student_user_id_fkey" FOREIGN KEY ("tenant_id","student_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."assignment_recipients" ADD CONSTRAINT "assignment_recipients_tenant_id_group_id_fkey" FOREIGN KEY ("tenant_id","group_id") REFERENCES "core"."class_groups"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."assignments" ADD CONSTRAINT "assignments_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
-ALTER TABLE "core"."assignments" ADD CONSTRAINT "assignments_tenant_id_class_id_class_type_school_year_id_o_fkey" FOREIGN KEY ("tenant_id","class_id","class_type","school_year_id","org_id") REFERENCES "core"."classes"("tenant_id","id","class_type","school_year_id","org_id");--> statement-breakpoint
+ALTER TABLE "core"."assignments" ADD CONSTRAINT "assignments_tenant_id_class_id_school_year_id_org_id_fkey" FOREIGN KEY ("tenant_id","class_id","school_year_id","org_id") REFERENCES "core"."classes"("tenant_id","id","school_year_id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."assignments" ADD CONSTRAINT "assignments_tenant_id_grading_period_id_fkey" FOREIGN KEY ("tenant_id","grading_period_id") REFERENCES "core"."academic_sessions"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."assignments" ADD CONSTRAINT "assignments_tenant_id_author_user_id_fkey" FOREIGN KEY ("tenant_id","author_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."assignments" ADD CONSTRAINT "assignments_tenant_id_module_id_fkey" FOREIGN KEY ("tenant_id","module_id") REFERENCES "core"."learning_modules"("tenant_id","id");--> statement-breakpoint
@@ -4950,7 +5005,7 @@ ALTER TABLE "core"."assistant_requests" ADD CONSTRAINT "assistant_requests_tenan
 ALTER TABLE "core"."assistant_settings" ADD CONSTRAINT "assistant_settings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."assistant_settings" ADD CONSTRAINT "assistant_settings_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."attendance_registers" ADD CONSTRAINT "attendance_registers_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
-ALTER TABLE "core"."attendance_registers" ADD CONSTRAINT "attendance_registers_tenant_id_class_id_class_type_school__fkey" FOREIGN KEY ("tenant_id","class_id","class_type","school_year_id","org_id") REFERENCES "core"."classes"("tenant_id","id","class_type","school_year_id","org_id");--> statement-breakpoint
+ALTER TABLE "core"."attendance_registers" ADD CONSTRAINT "attendance_registers_tenant_id_class_id_school_year_id_org_fkey" FOREIGN KEY ("tenant_id","class_id","school_year_id","org_id") REFERENCES "core"."classes"("tenant_id","id","school_year_id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."attendance_registers" ADD CONSTRAINT "attendance_registers_tenant_id_class_period_id_school_year_fkey" FOREIGN KEY ("tenant_id","class_period_id","school_year_id","org_id") REFERENCES "core"."class_periods"("tenant_id","id","school_year_id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."attendance_registers" ADD CONSTRAINT "attendance_registers_tenant_id_recorded_by_user_id_fkey" FOREIGN KEY ("tenant_id","recorded_by_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."attendance_settings" ADD CONSTRAINT "attendance_settings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
@@ -5007,11 +5062,10 @@ ALTER TABLE "core"."class_group_members" ADD CONSTRAINT "class_group_members_ten
 ALTER TABLE "core"."class_group_members" ADD CONSTRAINT "class_group_members_tenant_id_group_id_fkey" FOREIGN KEY ("tenant_id","group_id") REFERENCES "core"."class_groups"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."class_group_members" ADD CONSTRAINT "class_group_members_tenant_id_student_user_id_fkey" FOREIGN KEY ("tenant_id","student_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."class_groups" ADD CONSTRAINT "class_groups_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
-ALTER TABLE "core"."class_groups" ADD CONSTRAINT "class_groups_tenant_id_class_id_class_type_school_year_id__fkey" FOREIGN KEY ("tenant_id","class_id","class_type","school_year_id","org_id") REFERENCES "core"."classes"("tenant_id","id","class_type","school_year_id","org_id");--> statement-breakpoint
+ALTER TABLE "core"."class_groups" ADD CONSTRAINT "class_groups_tenant_id_class_id_school_year_id_org_id_fkey" FOREIGN KEY ("tenant_id","class_id","school_year_id","org_id") REFERENCES "core"."classes"("tenant_id","id","school_year_id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."class_groups" ADD CONSTRAINT "class_groups_tenant_id_created_by_user_id_fkey" FOREIGN KEY ("tenant_id","created_by_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."class_meetings" ADD CONSTRAINT "class_meetings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
-ALTER TABLE "core"."class_meetings" ADD CONSTRAINT "class_meetings_tenant_id_class_id_class_type_school_year_i_fkey" FOREIGN KEY ("tenant_id","class_id","class_type","school_year_id","org_id") REFERENCES "core"."classes"("tenant_id","id","class_type","school_year_id","org_id");--> statement-breakpoint
-ALTER TABLE "core"."class_meetings" ADD CONSTRAINT "class_meetings_tenant_id_group_class_id_fkey" FOREIGN KEY ("tenant_id","group_class_id") REFERENCES "core"."classes"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "core"."class_meetings" ADD CONSTRAINT "class_meetings_tenant_id_class_id_school_year_id_org_id_fkey" FOREIGN KEY ("tenant_id","class_id","school_year_id","org_id") REFERENCES "core"."classes"("tenant_id","id","school_year_id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."class_meetings" ADD CONSTRAINT "class_meetings_tenant_id_timetable_id_school_year_id_org_i_fkey" FOREIGN KEY ("tenant_id","timetable_id","school_year_id","org_id") REFERENCES "core"."timetables"("tenant_id","id","school_year_id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."class_meetings" ADD CONSTRAINT "class_meetings_tenant_id_class_period_id_school_year_id_or_fkey" FOREIGN KEY ("tenant_id","class_period_id","school_year_id","org_id") REFERENCES "core"."class_periods"("tenant_id","id","school_year_id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."class_meetings" ADD CONSTRAINT "class_meetings_tenant_id_teacher_user_id_fkey" FOREIGN KEY ("tenant_id","teacher_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
@@ -5023,7 +5077,6 @@ ALTER TABLE "core"."classes" ADD CONSTRAINT "classes_tenant_id_fkey" FOREIGN KEY
 ALTER TABLE "core"."classes" ADD CONSTRAINT "classes_tenant_id_org_id_org_type_fkey" FOREIGN KEY ("tenant_id","org_id","org_type") REFERENCES "core"."orgs"("tenant_id","id","type");--> statement-breakpoint
 ALTER TABLE "core"."classes" ADD CONSTRAINT "classes_tenant_id_school_year_id_school_year_type_school_y_fkey" FOREIGN KEY ("tenant_id","school_year_id","school_year_type","school_year_id","org_id") REFERENCES "core"."academic_sessions"("tenant_id","id","type","school_year_id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."classes" ADD CONSTRAINT "classes_tenant_id_course_id_org_id_fkey" FOREIGN KEY ("tenant_id","course_id","org_id") REFERENCES "core"."courses"("tenant_id","id","org_id");--> statement-breakpoint
-ALTER TABLE "core"."classes" ADD CONSTRAINT "classes_tenant_id_homeroom_class_id_homeroom_class_type_sc_fkey" FOREIGN KEY ("tenant_id","homeroom_class_id","homeroom_class_type","school_year_id") REFERENCES "core"."classes"("tenant_id","id","class_type","school_year_id");--> statement-breakpoint
 ALTER TABLE "core"."classes" ADD CONSTRAINT "classes_tenant_id_subject_descriptor_id_subject_ns_fkey" FOREIGN KEY ("tenant_id","subject_descriptor_id","subject_ns") REFERENCES "core"."descriptors"("tenant_id","id","namespace");--> statement-breakpoint
 ALTER TABLE "core"."classes" ADD CONSTRAINT "classes_tenant_id_grade_level_descriptor_id_grade_level_ns_fkey" FOREIGN KEY ("tenant_id","grade_level_descriptor_id","grade_level_ns") REFERENCES "core"."descriptors"("tenant_id","id","namespace");--> statement-breakpoint
 ALTER TABLE "core"."classes" ADD CONSTRAINT "classes_tenant_id_location_id_fkey" FOREIGN KEY ("tenant_id","location_id") REFERENCES "core"."locations"("tenant_id","id");--> statement-breakpoint
@@ -5093,7 +5146,7 @@ ALTER TABLE "core"."documents" ADD CONSTRAINT "documents_tenant_id_org_id_fkey" 
 ALTER TABLE "core"."documents" ADD CONSTRAINT "documents_tenant_id_translation_of_id_fkey" FOREIGN KEY ("tenant_id","translation_of_id") REFERENCES "core"."documents"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."documents" ADD CONSTRAINT "documents_tenant_id_last_edited_by_user_id_fkey" FOREIGN KEY ("tenant_id","last_edited_by_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."enrollments" ADD CONSTRAINT "enrollments_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
-ALTER TABLE "core"."enrollments" ADD CONSTRAINT "enrollments_tenant_id_class_id_class_type_school_year_id_o_fkey" FOREIGN KEY ("tenant_id","class_id","class_type","school_year_id","org_id") REFERENCES "core"."classes"("tenant_id","id","class_type","school_year_id","org_id");--> statement-breakpoint
+ALTER TABLE "core"."enrollments" ADD CONSTRAINT "enrollments_tenant_id_class_id_school_year_id_org_id_fkey" FOREIGN KEY ("tenant_id","class_id","school_year_id","org_id") REFERENCES "core"."classes"("tenant_id","id","school_year_id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."enrollments" ADD CONSTRAINT "enrollments_tenant_id_user_id_fkey" FOREIGN KEY ("tenant_id","user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."enrollments" ADD CONSTRAINT "enrollments_tenant_id_classroom_position_descriptor_id_cla_fkey" FOREIGN KEY ("tenant_id","classroom_position_descriptor_id","classroom_position_ns") REFERENCES "core"."descriptors"("tenant_id","id","namespace");--> statement-breakpoint
 ALTER TABLE "core"."enrollments" ADD CONSTRAINT "enrollments_tenant_id_import_run_id_fkey" FOREIGN KEY ("tenant_id","import_run_id") REFERENCES "core"."import_runs"("tenant_id","id");--> statement-breakpoint
@@ -5154,6 +5207,14 @@ ALTER TABLE "health"."records" ADD CONSTRAINT "records_tenant_id_student_user_id
 ALTER TABLE "health"."records" ADD CONSTRAINT "records_tenant_id_kind_descriptor_id_kind_ns_fkey" FOREIGN KEY ("tenant_id","kind_descriptor_id","kind_ns") REFERENCES "core"."descriptors"("tenant_id","id","namespace");--> statement-breakpoint
 ALTER TABLE "health"."records" ADD CONSTRAINT "records_tenant_id_key_purpose_key_version_fkey" FOREIGN KEY ("tenant_id","key_purpose","key_version") REFERENCES "core"."tenant_keys"("tenant_id","purpose","key_version");--> statement-breakpoint
 ALTER TABLE "health"."records" ADD CONSTRAINT "records_tenant_id_file_id_file_purpose_fkey" FOREIGN KEY ("tenant_id","file_id","file_purpose") REFERENCES "core"."files"("tenant_id","id","purpose");--> statement-breakpoint
+ALTER TABLE "core"."homeroom_classes" ADD CONSTRAINT "homeroom_classes_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
+ALTER TABLE "core"."homeroom_classes" ADD CONSTRAINT "homeroom_classes_tenant_id_homeroom_class_id_org_id_fkey" FOREIGN KEY ("tenant_id","homeroom_class_id","org_id") REFERENCES "core"."homerooms"("tenant_id","class_id","org_id");--> statement-breakpoint
+ALTER TABLE "core"."homeroom_classes" ADD CONSTRAINT "homeroom_classes_tenant_id_class_id_org_id_fkey" FOREIGN KEY ("tenant_id","class_id","org_id") REFERENCES "core"."classes"("tenant_id","id","org_id");--> statement-breakpoint
+ALTER TABLE "core"."homeroom_members" ADD CONSTRAINT "homeroom_members_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
+ALTER TABLE "core"."homeroom_members" ADD CONSTRAINT "homeroom_members_tenant_id_homeroom_class_id_org_id_fkey" FOREIGN KEY ("tenant_id","homeroom_class_id","org_id") REFERENCES "core"."homerooms"("tenant_id","class_id","org_id");--> statement-breakpoint
+ALTER TABLE "core"."homeroom_members" ADD CONSTRAINT "homeroom_members_tenant_id_enrollment_id_homeroom_class_id_fkey" FOREIGN KEY ("tenant_id","enrollment_id","homeroom_class_id","student_user_id","org_id","valid_during","status") REFERENCES "core"."enrollments"("tenant_id","id","class_id","user_id","org_id","valid_during","status") ON UPDATE CASCADE;--> statement-breakpoint
+ALTER TABLE "core"."homerooms" ADD CONSTRAINT "homerooms_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
+ALTER TABLE "core"."homerooms" ADD CONSTRAINT "homerooms_tenant_id_class_id_org_id_fkey" FOREIGN KEY ("tenant_id","class_id","org_id") REFERENCES "core"."classes"("tenant_id","id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."identity_provider_orgs" ADD CONSTRAINT "identity_provider_orgs_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."identity_provider_orgs" ADD CONSTRAINT "identity_provider_orgs_tenant_id_identity_provider_id_fkey" FOREIGN KEY ("tenant_id","identity_provider_id") REFERENCES "core"."identity_providers"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."identity_provider_orgs" ADD CONSTRAINT "identity_provider_orgs_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
@@ -5280,7 +5341,7 @@ ALTER TABLE "core"."peer_reviews" ADD CONSTRAINT "peer_reviews_tenant_id_author_
 ALTER TABLE "core"."peer_reviews" ADD CONSTRAINT "peer_reviews_tenant_id_reviewer_user_id_fkey" FOREIGN KEY ("tenant_id","reviewer_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."peer_reviews" ADD CONSTRAINT "peer_reviews_tenant_id_hidden_by_user_id_fkey" FOREIGN KEY ("tenant_id","hidden_by_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."period_grades" ADD CONSTRAINT "period_grades_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
-ALTER TABLE "core"."period_grades" ADD CONSTRAINT "period_grades_tenant_id_class_id_class_type_school_year_id_fkey" FOREIGN KEY ("tenant_id","class_id","class_type","school_year_id","org_id") REFERENCES "core"."classes"("tenant_id","id","class_type","school_year_id","org_id");--> statement-breakpoint
+ALTER TABLE "core"."period_grades" ADD CONSTRAINT "period_grades_tenant_id_class_id_school_year_id_org_id_fkey" FOREIGN KEY ("tenant_id","class_id","school_year_id","org_id") REFERENCES "core"."classes"("tenant_id","id","school_year_id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."period_grades" ADD CONSTRAINT "period_grades_tenant_id_grading_period_id_fkey" FOREIGN KEY ("tenant_id","grading_period_id") REFERENCES "core"."academic_sessions"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."period_grades" ADD CONSTRAINT "period_grades_tenant_id_student_user_id_fkey" FOREIGN KEY ("tenant_id","student_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."period_grades" ADD CONSTRAINT "period_grades_tenant_id_recorded_by_user_id_fkey" FOREIGN KEY ("tenant_id","recorded_by_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
@@ -5901,6 +5962,21 @@ CREATE POLICY "p_update" ON "health"."records" AS PERMISSIVE FOR UPDATE TO "app"
 CREATE POLICY "purpose_gate" ON "health"."records" AS RESTRICTIVE FOR ALL TO public USING ((select current_setting('app.purpose', true)) = 'health') WITH CHECK ((select current_setting('app.purpose', true)) = 'health');--> statement-breakpoint
 CREATE POLICY "p_erase_update" ON "health"."records" AS PERMISSIVE FOR UPDATE TO "retention" USING (app.erasure_approved(tenant_id, "student_user_id")) WITH CHECK (status = 'tobedeleted');--> statement-breakpoint
 CREATE POLICY "p_erase_delete" ON "health"."records" AS PERMISSIVE FOR DELETE TO "retention" USING (status = 'tobedeleted' and (app.erasure_approved(tenant_id, "student_user_id")));--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "core"."homeroom_classes" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
+CREATE POLICY "owner_all" ON "core"."homeroom_classes" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_select" ON "core"."homeroom_classes" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
+CREATE POLICY "p_insert" ON "core"."homeroom_classes" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_update" ON "core"."homeroom_classes" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "core"."homeroom_members" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
+CREATE POLICY "owner_all" ON "core"."homeroom_members" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_select" ON "core"."homeroom_members" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
+CREATE POLICY "p_insert" ON "core"."homeroom_members" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_update" ON "core"."homeroom_members" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "core"."homerooms" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
+CREATE POLICY "owner_all" ON "core"."homerooms" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_select" ON "core"."homerooms" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
+CREATE POLICY "p_insert" ON "core"."homerooms" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_update" ON "core"."homerooms" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "core"."identity_provider_orgs" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
 CREATE POLICY "owner_all" ON "core"."identity_provider_orgs" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_select" ON "core"."identity_provider_orgs" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint

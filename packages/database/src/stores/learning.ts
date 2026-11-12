@@ -2054,8 +2054,7 @@ export async function setLessonSounds(
 
 /**
  * Whether a student plays a module's lessons without sound effects: one of
- * the module's classes they sit in has them off. A subject class follows
- * its homeroom's roster, as everywhere else.
+ * the module's classes they sit in has them off.
  */
 export async function quietLessons(
   tx: Tx,
@@ -2066,7 +2065,7 @@ export async function quietLessons(
       select 1 from core.module_classes x
       join core.classes c on c.tenant_id = x.tenant_id and c.id = x.class_id and c.status = 'active'
       join core.enrollments e on e.tenant_id = c.tenant_id
-        and e.class_id = coalesce(c.homeroom_class_id, c.id)
+        and e.class_id = c.id
         and e.user_id = ${input.studentId}::uuid and e.role = 'student' and e.status = 'active'
         and e.valid_during @> ${input.on}::date
       where x.tenant_id = ${input.tenantId}::uuid and x.module_id = ${input.moduleId}::uuid

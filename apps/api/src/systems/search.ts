@@ -51,7 +51,7 @@ import type { UnitContext } from "../core/context";
 import { calendarReach } from "../core/audiences";
 import { modulesOf } from "../core/modules";
 import { can, localeOf, readProcedure } from "../core/procedure";
-import { scopeFor } from "../core/reach";
+import { classesReachedBesides, scopeFor } from "../core/reach";
 
 const TYPES: Record<SearchKind, readonly string[]> = {
   students: ["user"],
@@ -136,9 +136,11 @@ async function resolverOf(
     }
     case "classes": {
       const scope = scopeFor(context, "teaching");
+      const besides = await classesReachedBesides(context, "teaching");
       return {
-        within: classesReached(scope),
-        resolve: (ids) => classesAmong(context.tx, scope, { ...base, ids }),
+        within: classesReached(scope, besides),
+        resolve: (ids) =>
+          classesAmong(context.tx, scope, { ...base, ids, besides }),
       };
     }
     case "assignments": {

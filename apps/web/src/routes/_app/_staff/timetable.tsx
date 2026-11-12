@@ -204,12 +204,12 @@ function ClashGrid({ row }: ClashGridProps) {
   return (
     <RowLink
       to="/timetable"
-      search={{ view: "classes", classId: row.groupClassId }}
+      search={{ view: "classes", classId: row.gridClassId }}
     >
       {classTitle({
-        code: row.groupCode,
-        titleEn: row.groupTitleEn,
-        titleAr: row.groupTitleAr,
+        code: row.gridCode,
+        titleEn: row.gridTitleEn,
+        titleAr: row.gridTitleAr,
       })}
     </RowLink>
   );

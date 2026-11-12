@@ -18,7 +18,6 @@ import { badgesOf, issueBadge } from "@faridalms/database/stores/badges";
 import {
   classesTaughtBy,
   endStudentEnrollmentsFrom,
-  homeroomsOn,
   reopenStudentEnrollments,
   teachersOf,
 } from "@faridalms/database/stores/classes";
@@ -140,6 +139,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { classGroupsOf } from "../classes/points";
 import { guardingAccess, requireGrantable } from "../core/access";
 import { badgeTerm } from "../core/badges";
 import { refreshLoginsAfter } from "../core/login-index";
@@ -163,6 +163,7 @@ import {
 } from "../core/reach";
 import { issueBadgeSecret } from "../core/session";
 import { emailSignInLink } from "../core/sign-in-link";
+import { studentGroupsOf } from "../core/student-groups";
 import { yearOf } from "../core/years";
 import { registerHostReader } from "../files/authorize";
 import { inviteMessage } from "../notifications/templates";
@@ -340,8 +341,7 @@ export const students = readProcedure
       },
     );
     const byId = new Map(grades.map((grade) => [grade.id, grade]));
-    const homerooms = await homeroomsOn(
-      context.tx,
+    const groups = await studentGroupsOf(
       context,
       rows.map((row) => row.id),
       dayIn(year, context.today),
@@ -366,7 +366,7 @@ export const students = readProcedure
                   labelAr: grade.labelAr,
                 }
               : null,
-            homeroom: homerooms.get(row.id) ?? null,
+            group: groups.get(row.id) ?? null,
           };
         }),
         total,
@@ -376,23 +376,23 @@ export const students = readProcedure
     };
   });
 
-/** The class a student is in today and the teachers who keep it. */
-async function homeroomOf(context: UnitContext, studentId: string) {
-  const homeroom = (
-    await homeroomsOn(context.tx, context, [studentId], context.today)
+/** The class a student belongs to today and the teachers who keep it. */
+async function groupOf(context: UnitContext, studentId: string) {
+  const group = (
+    await studentGroupsOf(context, [studentId], context.today)
   ).get(studentId);
-  if (!homeroom) return null;
+  if (!group) return null;
   const teachers =
     (
       await teachersOf(
         context.tx,
         context.tenantId,
-        [homeroom.classId],
+        [group.classId],
         context.today,
       )
-    ).get(homeroom.classId) ?? [];
+    ).get(group.classId) ?? [];
   return {
-    ...homeroom,
+    ...group,
     teachers: teachers
       .filter((teacher) => teacher.role === "teacher")
       .map((teacher) => ({
@@ -423,14 +423,14 @@ export const student = readProcedure
     const current = history.find(
       (row) => row.from <= context.today && context.today < row.to,
     );
-    const [account, refusals, accessUntil, homeroom] = await Promise.all([
+    const [account, refusals, accessUntil, group] = await Promise.all([
       accountOf(context.tx, context.tenantId, input.id),
       photoRefusals(context.tx, {
         tenantId: context.tenantId,
         studentIds: [input.id],
       }),
       studentRoleEnd(context.tx, scope, input.id),
-      homeroomOf(context, input.id),
+      groupOf(context, input.id),
     ]);
     const status: StudentStatus = studentStatus(
       history.map((row) => ({
@@ -447,7 +447,7 @@ export const student = readProcedure
       status,
       placement: current ?? null,
       placements: history,
-      homeroom,
+      group,
       /** For a leaver, the day they and their family stop reading the record. */
       accessUntil,
       guardians,
@@ -941,11 +941,22 @@ async function teachingOf(
     yearId: year.id,
     on,
   });
-  const reached = await Promise.all(
-    taught.map((row) =>
-      reachesClass(context, view === "record" ? "classes" : "own", row.id, on),
+  const [reached, groups] = await Promise.all([
+    Promise.all(
+      taught.map((row) =>
+        reachesClass(
+          context,
+          view === "record" ? "classes" : "own",
+          row.id,
+          on,
+        ),
+      ),
     ),
-  );
+    classGroupsOf(
+      context,
+      taught.map((row) => row.id),
+    ),
+  ]);
   return {
     year: { id: year.id, titleEn: year.titleEn, titleAr: year.titleAr },
     classes: taught.flatMap((row, index) =>
@@ -956,10 +967,8 @@ async function teachingOf(
               code: row.code,
               titleEn: row.titleEn,
               titleAr: row.titleAr,
-              classType: row.classType,
               role: row.role,
-              homeroomTitleEn: row.homeroomTitleEn,
-              homeroomTitleAr: row.homeroomTitleAr,
+              group: groups.get(row.id) ?? null,
               subject: labelFrom(subjects, row.subjectId),
               canOpen: view === "record" && (reached[index] ?? false),
             },

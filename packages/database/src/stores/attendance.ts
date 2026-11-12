@@ -12,7 +12,6 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 import type { RegisterState } from "../tables/attendance";
-import type { ClassType } from "../tables/teaching";
 
 import { dayPlan, heldOn } from "./day-plan";
 import { holds, isoOf, uuidArray } from "./sql";
@@ -361,7 +360,6 @@ export async function writeRegister(
     tenantId: string;
     schoolId: string;
     classId: string;
-    classType: ClassType;
     yearId: string;
     periodId: string;
     day: string;
@@ -380,10 +378,10 @@ export async function writeRegister(
       throw new AttendanceConflict("conflict.version");
     const rows = await tx.execute<{ id: string; version: number }>(sql`
       insert into core.attendance_registers
-        (tenant_id, org_id, class_id, class_type, school_year_id, class_period_id, taken_on,
+        (tenant_id, org_id, class_id, school_year_id, class_period_id, taken_on,
          state, recorded_by_user_id, submitted_at)
       values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.classId}::uuid,
-              ${input.classType}, ${input.yearId}::uuid, ${input.periodId}::uuid, ${input.day}::date,
+              ${input.yearId}::uuid, ${input.periodId}::uuid, ${input.day}::date,
               ${input.state}, ${input.actorId}::uuid,
               case when ${input.state} = 'submitted' then statement_timestamp() end)
       on conflict do nothing
@@ -496,7 +494,8 @@ export interface BoardRow {
   classCode: string;
   classTitleEn: string | null;
   classTitleAr: string | null;
-  classType: ClassType;
+  /** The class is owed a register in the official period every school day. */
+  daily: boolean;
   periodId: string;
   periodNameEn: string | null;
   periodNameAr: string | null;
@@ -511,10 +510,10 @@ export interface BoardRow {
 }
 
 /**
- * A school day's registers: every homeroom's daily register, every class
- * the timetable has meeting that day unless cancelled for it, and every
- * one-day lesson in a period its bell schedule adds, taken or not, and any
- * other register taken that day, in the order of the day.
+ * A school day's registers: the daily register of every class owed one,
+ * every class the timetable has meeting that day unless cancelled for it,
+ * and every one-day lesson in a period its bell schedule adds, taken or not,
+ * and any other register taken that day, in the order of the day.
  */
 export async function dayBoard(
   tx: Tx,
@@ -524,6 +523,8 @@ export async function dayBoard(
     yearId: string;
     day: string;
     officialPeriodId: string | null;
+    /** The classes owed a register in the official period every school day. */
+    dailyClassIds: readonly string[];
   },
 ): Promise<BoardRow[]> {
   const plan = await dayPlan(tx, input);
@@ -539,7 +540,7 @@ export async function dayBoard(
     code: string;
     title_en: string | null;
     title_ar: string | null;
-    class_type: ClassType;
+    daily: boolean;
     period_id: string;
     period_name_en: string | null;
     period_name_ar: string | null;
@@ -561,8 +562,7 @@ export async function dayBoard(
       from core.classes c
       where ${input.officialPeriodId}::uuid is not null
         and c.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.schoolId}::uuid
-        and c.school_year_id = ${input.yearId}::uuid and c.class_type = 'homeroom'
-        and c.status = 'active'
+        and c.id = any(${uuidArray(input.dailyClassIds)}) and c.status = 'active'
       union
       select m.class_id, m.class_period_id from core.class_meetings m
       where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
@@ -582,13 +582,14 @@ export async function dayBoard(
       where g.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.schoolId}::uuid
         and g.taken_on = ${input.day}::date and g.status = 'active'
     )
-    select c.id as class_id, c.code, c.title_en, c.title_ar, c.class_type,
+    select c.id as class_id, c.code, c.title_en, c.title_ar,
+           c.id = any(${uuidArray(input.dailyClassIds)}) as daily,
            p.id as period_id, p.name_en as period_name_en, p.name_ar as period_name_ar,
            p.sequence as period_sequence, g.id as register_id, g.state,
            u.full_name_en, u.full_name_ar,
            to_char(g.submitted_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as submitted_at,
            (select count(distinct s.user_id)::int from core.enrollments s
-              where s.tenant_id = c.tenant_id and s.class_id = coalesce(c.homeroom_class_id, c.id)
+              where s.tenant_id = c.tenant_id and s.class_id = c.id
                 and s.role = 'student' and s.status = 'active'
                 and s.valid_during @> ${input.day}::date) as students,
            count(e.id) filter (where e.category_meaning = 'present')::int as present,
@@ -604,18 +605,18 @@ export async function dayBoard(
     left join core.users u on u.tenant_id = g.tenant_id and u.id = g.recorded_by_user_id
     left join core.attendance_events e on e.tenant_id = g.tenant_id and e.taken_on = ${input.day}::date
       and e.register_id = g.id and e.status = 'active'
-    group by c.id, c.code, c.title_en, c.title_ar, c.class_type, c.tenant_id, c.homeroom_class_id,
+    group by c.id, c.code, c.title_en, c.title_ar, c.tenant_id,
              p.id, p.name_en, p.name_ar, p.sequence, g.id, g.state, u.full_name_en, u.full_name_ar,
              g.submitted_at
     order by array_position(${uuidArray(plan.periods.map((row) => row.id))}, p.id), p.sequence,
-             c.class_type, c.code`);
+             c.code`);
 
   return rows.map((row) => ({
     classId: row.class_id,
     classCode: row.code,
     classTitleEn: row.title_en,
     classTitleAr: row.title_ar,
-    classType: row.class_type,
+    daily: row.daily,
     periodId: row.period_id,
     periodNameEn: row.period_name_en,
     periodNameAr: row.period_name_ar,
@@ -898,8 +899,9 @@ export interface CountedRow {
 }
 
 /**
- * Daily attendance between two dates, per student or per homeroom, from the
- * registers that count as daily attendance.
+ * Daily attendance between two dates, per student or per class, from the
+ * registers that count as daily attendance. By class it lists the classes
+ * owed a daily register and those that took one.
  */
 export async function attendanceReport(
   tx: Tx,
@@ -911,6 +913,7 @@ export async function attendanceReport(
     to: string;
     by: "student" | "class";
     q: string;
+    dailyClassIds: readonly string[];
   },
 ): Promise<CountedRow[]> {
   const rows = await tx.execute<{
@@ -967,10 +970,10 @@ export async function attendanceReport(
     left join core.attendance_events e on e.tenant_id = g.tenant_id and e.taken_on = g.taken_on
       and e.register_id = g.id and e.status = 'active'
     where c.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.schoolId}::uuid
-      and c.school_year_id = ${input.yearId}::uuid and c.class_type = 'homeroom'
-      and c.status = 'active'
+      and c.school_year_id = ${input.yearId}::uuid and c.status = 'active'
       and (${holds(input.q, [sql`c.title_en`, sql`c.title_ar`, sql`c.code`])})
     group by c.id, c.code, c.title_en, c.title_ar
+    having c.id = any(${uuidArray(input.dailyClassIds)}) or count(g.id) > 0
     order by c.code`,
   );
   return rows.map((row) => ({
@@ -1045,22 +1048,26 @@ export async function classAttendance(
 }
 
 /**
- * The last day on or after `from` a student was marked in a class or the
- * subject classes it homes, so an enrolment cannot end under a register
- * that already counts them.
+ * The last day on or after `from` a student was marked in any of these
+ * classes, so an enrolment cannot end under a register that already counts
+ * them.
  */
-export async function lastMarkInClass(
+export async function lastMarkInClasses(
   tx: Tx,
-  input: { tenantId: string; studentId: string; classId: string; from: string },
+  input: {
+    tenantId: string;
+    studentId: string;
+    classIds: readonly string[];
+    from: string;
+  },
 ): Promise<string | null> {
   const [row] = await tx.execute<{ last: string | null }>(sql`
     select to_char(max(e.taken_on), 'YYYY-MM-DD') as last
     from core.attendance_events e
     join core.attendance_registers g on g.tenant_id = e.tenant_id and g.id = e.register_id
-    join core.classes c on c.tenant_id = g.tenant_id and c.id = g.class_id
     where e.tenant_id = ${input.tenantId}::uuid and e.student_user_id = ${input.studentId}::uuid
       and e.taken_on >= ${input.from}::date and e.status = 'active' and g.status = 'active'
-      and (c.id = ${input.classId}::uuid or c.homeroom_class_id = ${input.classId}::uuid)`);
+      and g.class_id = any(${uuidArray(input.classIds)})`);
   return row?.last ?? null;
 }
 
@@ -1110,7 +1117,6 @@ export async function checkInMark(
     tenantId: string;
     schoolId: string;
     classId: string;
-    classType: ClassType;
     yearId: string;
     periodId: string;
     day: string;
@@ -1127,10 +1133,10 @@ export async function checkInMark(
   if (!registerId) {
     const [made] = await tx.execute<{ id: string }>(sql`
       insert into core.attendance_registers
-        (tenant_id, org_id, class_id, class_type, school_year_id, class_period_id, taken_on,
+        (tenant_id, org_id, class_id, school_year_id, class_period_id, taken_on,
          state, recorded_by_user_id)
       values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.classId}::uuid,
-              ${input.classType}, ${input.yearId}::uuid, ${input.periodId}::uuid,
+              ${input.yearId}::uuid, ${input.periodId}::uuid,
               ${input.day}::date, 'in_progress', ${input.actorId}::uuid)
       on conflict do nothing
       returning id`);
@@ -1225,7 +1231,7 @@ export async function studentRegistersOn(
       and exists (select 1 from core.enrollments n
         where n.tenant_id = g.tenant_id and n.user_id = ${input.studentId}::uuid
           and n.role = 'student' and n.status = 'active' and n.valid_during @> ${input.day}::date
-          and n.class_id = coalesce(c.homeroom_class_id, c.id))
+          and n.class_id = c.id)
     order by p.sequence`);
   return rows.map((row) => ({
     registerId: row.register_id,

@@ -24,7 +24,7 @@ import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classDirectoryQuery, classOptionsQuery } from "~/queries/classes";
-import { formatList, formatNumber } from "~/utils/datetime";
+import { formatNumber } from "~/utils/datetime";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classDirectoryQuery>["queryFn"]>>
@@ -55,7 +55,7 @@ function Teacher({ row }: TeacherProps) {
   return teacher ? (
     <bdi>{displayName(teacher)}</bdi>
   ) : (
-    <StatusText tone="warning">{m.classesNoTeacher()}</StatusText>
+    <StatusText tone="warning">{m.classesNoTeacherYet()}</StatusText>
   );
 }
 
@@ -91,8 +91,15 @@ function classColumns(options: Options): Column<ClassRow>[] {
       cell: (row) => <Value>{grade(row.gradeId)}</Value>,
     },
     {
+      id: "subject",
+      header: m.classesSubject(),
+      cell: (row) => (
+        <Value>{subjectName(options.subjects, row.subjectId) || null}</Value>
+      ),
+    },
+    {
       id: "teacher",
-      header: m.classesClassTeacher(),
+      header: m.classesTeacher(),
       cell: (row) => <Teacher row={row} />,
     },
     {
@@ -102,22 +109,6 @@ function classColumns(options: Options): Column<ClassRow>[] {
       cell: (row) => (
         <span className="tabular-nums">{formatNumber(row.students)}</span>
       ),
-    },
-    {
-      id: "subjects",
-      header: m.classesSubjects(),
-      cell: (row) =>
-        row.subjects.length ? (
-          <span className="line-clamp-2">
-            {formatList(
-              row.subjects.map((subject) =>
-                subjectName(options.subjects, subject.subjectId),
-              ),
-            )}
-          </span>
-        ) : (
-          <Value>{null}</Value>
-        ),
     },
     {
       id: "room",
@@ -236,7 +227,7 @@ export function ClassDirectory({
       />
       {frame(
         <DataTable
-          caption={m.classesCaption()}
+          caption={m.classesAllCaption()}
           rows={data.rows}
           columns={classColumns(options)}
           rowLabel={(row) => classTitle(row)}

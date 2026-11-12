@@ -91,7 +91,7 @@ async function placement(api: Api, year: string, name: string) {
     year: listed.year?.id,
     classes: listed.rows
       .filter((row) => row.fullNameEn === name)
-      .map((row) => row.homeroom?.classId ?? null),
+      .map((row) => row.group?.classId ?? null),
   };
 }
 
@@ -115,7 +115,7 @@ test("directories answer for the year asked, refuse an unknown one and place stu
       { student: promoted, classId: first.id },
       { student: other, classId: second.id },
     ].map(({ student, classId }) =>
-      admin.classes.enrol({
+      admin.homerooms.place({
         studentId: student.id,
         classId,
         from: years.from.startsOn,
@@ -210,7 +210,7 @@ test("administrators switch the school year in the class directory and keep it i
     page.getByRole("heading", { level: 1, name: "Classes" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Add class", exact: true }),
+    page.getByRole("link", { name: "Add homeroom", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: /^School year/ }).click();
   await page
@@ -221,7 +221,7 @@ test("administrators switch the school year in the class directory and keep it i
     page.getByRole("table").getByRole("link", { name: kept.title }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Add class", exact: true }),
+    page.getByRole("link", { name: "Add homeroom", exact: true }),
   ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: `Actions for ${kept.title}` }),
@@ -237,8 +237,8 @@ test("administrators switch the school year in the class directory and keep it i
   await expect(page.getByText(year.title).first()).toBeVisible();
   await expect(
     page
-      .getByRole("button", { name: "Edit class", exact: true })
-      .or(page.getByRole("link", { name: "Edit class", exact: true })),
+      .getByRole("button", { name: "Edit homeroom", exact: true })
+      .or(page.getByRole("link", { name: "Edit homeroom", exact: true })),
   ).toHaveCount(0);
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`year=${created.id}`));
@@ -307,11 +307,11 @@ test("a new year gets teaching weeks covering its dates and the home page counts
     yearId: id,
     title: `Salama unstaffed ${crypto.randomUUID().slice(0, 6)}`,
   });
-  const [home, directory] = await Promise.all([
-    admin.home.admin(),
-    admin.classes.directory({}),
+  const [unstaffed, directory] = await Promise.all([
+    admin.homerooms.unstaffed(),
+    admin.homerooms.directory({}),
   ]);
-  expect(home.homerooms).toBe(
+  expect(unstaffed.count).toBe(
     directory.rows.filter((row) => row.teachers.length === 0).length,
   );
 });

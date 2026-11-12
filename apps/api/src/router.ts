@@ -34,6 +34,7 @@ import * as frontDeskSystem from "./systems/front-desk";
 import * as gradebookSystem from "./systems/gradebook";
 import * as gradingSystem from "./systems/grading";
 import * as homeSystem from "./systems/home";
+import * as homeroomsSystem from "./systems/homerooms";
 import * as hostsSystem from "./systems/hosts";
 import * as identifiersSystem from "./systems/identifiers";
 import * as identity from "./systems/identity";
@@ -118,6 +119,7 @@ export const router = {
   billing: owned("billing", billingSystem),
   records: owned("records", recordsSystem),
   classes: owned("classes", classesSystem),
+  homerooms: owned("homerooms", homeroomsSystem),
   consents: owned("consents", consentsSystem),
   years: owned("years", yearsSystem),
   files: owned("files", filesSystem),

@@ -4,6 +4,22 @@ import { apiAs, signedInApi } from "./fixtures/api";
 import { newStudent, refusal } from "./fixtures/school";
 import { ACCOUNTS, openWith, signIn, untilHydrated } from "./fixtures/sign-in";
 
+type Api = Awaited<ReturnType<typeof apiAs>>;
+
+/** Who teaches a homeroom and its subject classes. */
+async function teachersOf(admin: Api, homeroomId: string) {
+  const [keeping, of] = await Promise.all([
+    admin.classes.record({ id: homeroomId }),
+    admin.homerooms.ofClass({ classId: homeroomId }),
+  ]);
+  return new Set([
+    ...keeping.teachers.map((row) => row.userId),
+    ...(of.kind === "homeroom"
+      ? of.subjects.flatMap((row) => row.teachers.map((one) => one.userId))
+      : []),
+  ]);
+}
+
 const NOBODY = "00000000-0000-4000-8000-000000000000";
 
 test("people are reachable through the students a viewer teaches or is linked to, and only those", async () => {
@@ -25,7 +41,7 @@ test("people are reachable through the students a viewer teaches or is linked to
   ];
 
   const homeroom = (await teacher.classes.mine({})).rows.find(
-    (row) => row.classType === "homeroom",
+    (row) => row.group?.own,
   );
   if (!homeroom) throw new Error("the seeded teacher keeps no homeroom");
   const taught = (await teacher.classes.record({ id: homeroom.id })).roster[0];
@@ -54,14 +70,10 @@ test("people are reachable through the students a viewer teaches or is linked to
     await refusal(teacher.people.person({ id: strangerGuardian.userId })),
   ).toMatchObject({ code: "NOT_FOUND" });
 
-  const ownClass = (await admin.people.students({ q: "NO1007" })).rows[0]
-    ?.homeroom?.classId;
+  const ownClass = (await admin.people.students({ q: "NO1007" })).rows[0]?.group
+    ?.classId;
   if (!ownClass) throw new Error("the seeded student has no homeroom");
-  const keeping = await admin.classes.record({ id: ownClass });
-  const theirTeachers = new Set([
-    ...keeping.teachers.map((row) => row.userId),
-    ...keeping.subjects.flatMap((row) => row.teachers.map((one) => one.userId)),
-  ]);
+  const theirTeachers = await teachersOf(admin, ownClass);
   const notTheirs = (await admin.people.staff({ role: ["teacher"] })).rows.find(
     (row) => !theirTeachers.has(row.id),
   );
@@ -269,7 +281,7 @@ test("a teacher's record lists what they teach, and their students' records name
   ]);
   const me = await teacher.identity.currentUser();
   const homeroom = (await teacher.classes.mine({})).rows.find(
-    (row) => row.classType === "homeroom",
+    (row) => row.group?.own,
   );
   if (!homeroom) throw new Error("the seeded teacher keeps no homeroom");
   const pupil = (await admin.classes.record({ id: homeroom.id })).roster[0];
@@ -301,7 +313,9 @@ async function childsTeacher() {
   const me = await parent.identity.currentUser();
   const [child] = (await parent.people.person({ id: me.id })).children;
   if (!child) throw new Error("the seeded parent has no child");
-  const { homeroom } = await admin.people.student({ id: child.studentId });
+  const { group: homeroom } = await admin.people.student({
+    id: child.studentId,
+  });
   const teacher = homeroom?.teachers[0];
   if (!homeroom || !teacher)
     throw new Error("the child's homeroom has no teacher");
@@ -357,15 +371,11 @@ test("a student opens their own teacher's profile, and no other teacher's", asyn
     apiAs("student"),
   ]);
   const me = await learner.identity.currentUser();
-  const { homeroom } = await admin.people.student({ id: me.id });
+  const { group: homeroom } = await admin.people.student({ id: me.id });
   const teacher = homeroom?.teachers[0];
   if (!homeroom || !teacher)
     throw new Error("the student's homeroom has no teacher");
-  const keeping = await admin.classes.record({ id: homeroom.classId });
-  const theirTeachers = new Set([
-    ...keeping.teachers.map((row) => row.userId),
-    ...keeping.subjects.flatMap((row) => row.teachers.map((one) => one.userId)),
-  ]);
+  const theirTeachers = await teachersOf(admin, homeroom.classId);
   const other = (await admin.people.staff({ role: ["teacher"] })).rows.find(
     (row) => !theirTeachers.has(row.id),
   );

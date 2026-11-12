@@ -10,7 +10,7 @@ async function studentClass(api: Awaited<ReturnType<typeof arabicTeacher>>) {
   const student = await signedIn("northwind", login("student"));
   const me = await student.identity.currentUser();
   const { classes } = await api.coursework.options();
-  for (const row of classes.filter((item) => item.classType === "scheduled")) {
+  for (const row of classes.filter((item) => item.subjectId !== null)) {
     const book = await api.gradebook.classBook({ classId: row.id });
     if (book.students.some((pupil) => pupil.id === me.id))
       return { student, me, book };

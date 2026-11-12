@@ -96,10 +96,25 @@ grants, functions, triggers, partitioned tables, exclusion constraints)
 lives in custom migrations beside the generated ones. Every table of
 `core`, `health` and `audit` belongs to core or to one module of
 `packages/domain/src/modules.ts`, as every API namespace does, and its keys
-and the columns that carry a module's concept without a key (a year or a
-homeroom inside a composite key to `core.classes`) reach only what that
-owner may (`packages/database/src/ownership.ts`), so a module's data points
-at core and at the modules it requires, never the reverse.
+and the columns that carry a module's concept without a key (a year inside
+a composite key to `core.classes`, a homeroom named by its class) reach only
+what that owner may (`packages/database/src/ownership.ts`), so a module's
+data points at core and at the modules it requires, never the reverse.
+
+The code follows the same rule. Where core, or one module, needs what
+another module knows, it declares a typed extension point next to itself
+(`apps/api/src/core/extension.ts` in the API, `apps/web/src/utils/extension.ts`
+for the web's slots) and the module that knows contributes to it. Each app has
+one composition root that lists every module's contributions
+(`apps/api/src/extensions.ts`, `apps/web/src/extensions.ts`), and asking a
+point yields only those of the modules on at the school: the API asks
+`modulesOf` once there, the web reads the viewer's modules. No other file
+imports a module's own files but the module itself and a module that requires
+it; `scripts/module-files.ts` lists each carved module's files and the
+source checks refuse any other import. The database cannot tell whether a
+module is on, since entitlements live in the directory, so a module's rule
+that must stop when it is off runs in its stores, called from its API, and
+the database holds only keys true either way.
 
 ## Tenants, units of work and row level security
 
@@ -389,7 +404,11 @@ The delivery worker runs in the API process as the `worker` role every 30 second
 
 ## Teaching records
 
-Records are reachable through relationships rather than roles. The database functions `app.visible_students`, `app.visible_classes` and `app.visible_people` decide who a viewer reaches on a date. School-wide staff reach every student of the school; a guardian the link lets follow the child reaches the children they are linked to; a student reaches themselves; a teacher or aide reaches the students of the classes they currently teach. Staff are the people holding one of the roles `app.staff_roles` names at the school or a group above it (`app.is_staff`), and the API asks the same of a session signed in as staff. Staff reach their colleagues, and school-wide staff everyone who holds a role at the school or is linked to one of its students. A capability lets a procedure run but grants no record, so a submitted student or class id is checked against these rules. Every procedure checks them through `apps/api/src/core/reach.ts`: `scopeFor(context, "teaching" | "people" | "classes" | …)` turns a named kind of work into the viewer's scope, `SCHOOL_WIDE` beside it lists which capabilities open the whole school for each, and `requireStudent`, `reachesClass`, `teaches` and `reachesPerson` are the checks; the source checks refuse a scope built anywhere else. The API answers `NOT_FOUND` for a record outside the caller's reach so that URLs do not reveal existence, and the web's `record()` turns that, and a `FORBIDDEN` on a record read, into the router's not-found page with a 404 status. Restricted fields (contact details, medical data, other people's children) are left out of the payload rather than hidden in the page.
+Records are reachable through relationships rather than roles. The database functions `app.visible_students`, `app.visible_classes` and `app.visible_people` decide who a viewer reaches on a date. School-wide staff reach every student of the school; a guardian the link lets follow the child reaches the children they are linked to; a student reaches themselves; a teacher or aide reaches the students of the classes they currently teach. These functions read
+enrolments alone, whatever modules a school has; `reachesClass` adds the
+classes a module opens through those (the homerooms module opens a
+homeroom's subject classes to its teacher, and the homeroom to its subject
+teachers). Staff are the people holding one of the roles `app.staff_roles` names at the school or a group above it (`app.is_staff`), and the API asks the same of a session signed in as staff. Staff reach their colleagues, and school-wide staff everyone who holds a role at the school or is linked to one of its students. A capability lets a procedure run but grants no record, so a submitted student or class id is checked against these rules. Every procedure checks them through `apps/api/src/core/reach.ts`: `scopeFor(context, "teaching" | "people" | "classes" | …)` turns a named kind of work into the viewer's scope, `SCHOOL_WIDE` beside it lists which capabilities open the whole school for each, and `requireStudent`, `reachesClass`, `teaches` and `reachesPerson` are the checks; the source checks refuse a scope built anywhere else. The API answers `NOT_FOUND` for a record outside the caller's reach so that URLs do not reveal existence, and the web's `record()` turns that, and a `FORBIDDEN` on a record read, into the router's not-found page with a 404 status. Restricted fields (contact details, medical data, other people's children) are left out of the payload rather than hidden in the page.
 
 How far a viewer reaches a person is `app.reached_people`: their whole record, as `app.visible_people` decides, or a limited profile. A family or a student reaches the teachers and aides of the classes they or a child they follow are in as a profile, and anyone reaches the grown-ups they share a conversation with the same way (in a mailbox conversation its contacts and its owner, never the team reading along; never a student). The profile (`people.profile`, `/profiles/:id`) shows the name, photo and role, the classes that teacher takes with the viewer or their children, none of them opened, and a message action where the viewer may write to them; `people.person` and the staff record still answer not found. Families and students keep to their own pages: they never get `/students/:id` or `/classes/:id`.
 
@@ -423,14 +442,16 @@ in the text, keeping the ids answers are recorded against. Learners answer
 in `lesson_responses`, and the feedback a question holds back is released
 when the question's own setting says.
 
-The timetable is drawn as a grid per homeroom, or per class no homeroom
-holds. Placing a class in a cell takes effect from a day on, so earlier days
-keep their lessons; the API checks the teacher and the room against every
+The timetable is drawn as a grid per class: the class alone, unless a
+module plans classes together, as homerooms plan a homeroom's subject classes
+in one grid. One lesson goes to a cell of a grid, which placing keeps by
+holding the grid's owning class while it writes. Placing a class in a cell
+takes effect from a day on, so earlier days keep their lessons; the API checks the teacher and the room against every
 other booking at that time and, when one clashes, asks, moves the other
 booking, or keeps the clash on a list so it is not forgotten. Cover records
 a member of staff away for days or periods and changes, moves or cancels
 single lessons, telling the cover teacher. A class's register is taken per
-period by its teachers, or by whoever covers that lesson, for those periods
+period by its teachers, its students being its enrolments on the date, or by whoever covers that lesson, for those periods
 only; a date outside the school year is refused and a correction needs a
 reason. Calendar events carry a document of the shared editor, with plain
 text derived from it on every save, and share their audiences with

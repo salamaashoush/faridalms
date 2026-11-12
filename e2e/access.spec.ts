@@ -134,7 +134,13 @@ test("every tab of a Basic school's records opens", async ({ page }) => {
   for (const list of ["/students", "/classes", "/staff"]) {
     await page.goto(new URL(list, portal("fernhill")).href);
     await untilHydrated(page);
-    await page.getByRole("table").getByRole("link").first().click();
+    const link = page.getByRole("table").getByRole("link").first();
+    const record = ((await link.textContent()) ?? "").trim();
+    await link.click();
+    // The Classes page has tabs of its own; the record's are read once it opens.
+    await expect(
+      page.getByRole("heading", { level: 1, name: record, exact: true }),
+    ).toBeVisible();
     const tabs = page.getByRole("tab");
     await expect(tabs.first()).toBeVisible();
     for (const name of await tabs.allTextContents()) {

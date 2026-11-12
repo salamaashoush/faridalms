@@ -115,7 +115,7 @@ describe("planning the timetable", () => {
     const { rows } = await api.timetable.clashes({ on: FROM });
     expect(
       rows.some(
-        (row) => row.groupClassId === seven.class.id && row.clashAccepted,
+        (row) => row.gridClassId === seven.class.id && row.clashAccepted,
       ),
     ).toBe(true);
 

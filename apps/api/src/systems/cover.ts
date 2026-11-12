@@ -44,6 +44,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { gridOwnerOf, gridsOf, plannedElsewhere } from "../timetable/grids";
 
 async function yearOn(context: UnitContext, day: string) {
   const years = await schoolYears(
@@ -86,7 +87,7 @@ async function lessonAt(
     schoolId: context.schoolId,
     on: input.on,
     days: [input.on],
-    filter: { groupIds: [], classIds: [input.classId] },
+    filter: { classIds: [input.classId] },
   });
   return (
     meetings.find(
@@ -184,6 +185,7 @@ export const day = readProcedure
           tenantId: context.tenantId,
           schoolId: context.schoolId,
           yearId: year.id,
+          except: await plannedElsewhere(context, year.id),
         }),
       ]);
     const [away, changed] = await Promise.all([
@@ -204,7 +206,6 @@ export const day = readProcedure
             on,
             days: [on],
             filter: {
-              groupIds: [],
               classIds: [...new Set(changes.map((row) => row.classId))],
             },
           }),
@@ -217,6 +218,9 @@ export const day = readProcedure
     for (const row of changed)
       if (changeOf.has(lessonKey(row))) lessons.set(lessonKey(row), row);
     const order = new Map(periods.map((row) => [row.id, row.sequence]));
+    const grids = await gridsOf(context, [
+      ...new Set([...lessons.values()].map((row) => row.classId)),
+    ]);
     return {
       cover: {
         on,
@@ -252,7 +256,9 @@ export const day = readProcedure
           .toSorted(
             (a, b) =>
               (order.get(a.periodId) ?? 0) - (order.get(b.periodId) ?? 0) ||
-              a.groupCode.localeCompare(b.groupCode),
+              (grids.get(a.classId)?.code ?? a.classCode).localeCompare(
+                grids.get(b.classId)?.code ?? b.classCode,
+              ),
           )
           .map((row) => {
             const change = changeOf.get(lessonKey(row)) ?? null;
@@ -261,9 +267,9 @@ export const day = readProcedure
               classCode: row.classCode,
               classTitleEn: row.classTitleEn,
               classTitleAr: row.classTitleAr,
-              groupCode: row.groupCode,
-              groupTitleEn: row.groupTitleEn,
-              groupTitleAr: row.groupTitleAr,
+              gridCode: grids.get(row.classId)?.code ?? row.classCode,
+              gridTitleEn: grids.get(row.classId)?.titleEn ?? row.classTitleEn,
+              gridTitleAr: grids.get(row.classId)?.titleAr ?? row.classTitleAr,
               periodId: row.periodId,
               teacherId: row.teacherId,
               teacherNameEn: row.teacherNameEn,
@@ -315,6 +321,12 @@ export const options = readProcedure
         schoolId: context.schoolId,
         yearId: year.id,
         classId: input.classId,
+        knownClassIds: [
+          ...new Set([
+            input.classId,
+            await gridOwnerOf(context, input.classId),
+          ]),
+        ],
         periodId: input.periodId,
         day: input.on,
       }),
@@ -476,6 +488,12 @@ export const changeLesson = writeProcedure
           schoolId: context.schoolId,
           yearId: year.id,
           classId: input.classId,
+          knownClassIds: [
+            ...new Set([
+              input.classId,
+              await gridOwnerOf(context, input.classId),
+            ]),
+          ],
           periodId: input.periodId,
           day: input.on,
         }),

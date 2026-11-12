@@ -34,7 +34,7 @@ interface KeptClass {
   code: string;
   titleEn: string | null;
   titleAr: string | null;
-  classType: string;
+  subjectId: string | null;
   /** The viewer teaches it, rather than overseeing it. */
   mine: boolean;
 }
@@ -57,11 +57,11 @@ export function classChoices(classes: readonly KeptClass[]) {
   }));
 }
 
-/** The class a picker starts on: the viewer's own scheduled class, else any of theirs, else the first. */
+/** The class a picker starts on: the viewer's own class of a subject, else any of theirs, else the first. */
 export function defaultClass<T extends KeptClass>(
   classes: readonly T[],
 ): T | undefined {
   const own = classes.filter((row) => row.mine);
   const from = own.length > 0 ? own : classes;
-  return from.find((row) => row.classType === "scheduled") ?? from[0];
+  return from.find((row) => row.subjectId !== null) ?? from[0];
 }

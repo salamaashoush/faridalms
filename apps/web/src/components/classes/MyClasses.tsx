@@ -5,6 +5,7 @@ import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
+import { Value } from "@faridalms/ui/system/value";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { School } from "lucide-react";
 
@@ -36,9 +37,8 @@ function ClassName({ row }: ClassNameProps) {
 
 function role(row: Taught) {
   if (row.role === "aide") return m.classesAssisting();
-  return row.classType === "homeroom"
-    ? m.classesClassTeacher()
-    : m.classesSubjectTeacher();
+  if (row.group?.own) return m.classesClassTeacher();
+  return row.subjectId ? m.classesSubjectTeacher() : m.classesTeacher();
 }
 
 // Built per render: headers read the request's locale, which a module-level
@@ -55,9 +55,11 @@ function taughtColumns(options: Options): Column<Taught>[] {
       id: "subject",
       header: m.classesSubject(),
       cell: (row) =>
-        row.subjectId
-          ? subjectName(options.subjects, row.subjectId)
-          : m.classesWholeClass(),
+        row.subjectId ? (
+          subjectName(options.subjects, row.subjectId)
+        ) : (
+          <Value>{null}</Value>
+        ),
     },
     { id: "role", header: m.classesYourRole(), cell: (row) => role(row) },
     {

@@ -301,9 +301,7 @@ describe("files in documents", () => {
 
     const { classes } = await teacher.api.coursework.options();
     let classId = "";
-    for (const row of classes.filter(
-      (item) => item.classType === "scheduled",
-    )) {
+    for (const row of classes.filter((item) => item.subjectId !== null)) {
       const { roster } = await teacher.api.coursework.groups({
         classId: row.id,
       });
@@ -334,7 +332,7 @@ describe("files in documents", () => {
         .status,
     ).toBe(404);
     const theirs = await english.api.coursework.options();
-    const other = theirs.classes.find((row) => row.classType === "scheduled");
+    const other = theirs.classes.find((row) => row.subjectId !== null);
     if (!other) throw new Error("the English teacher has no class");
     expect(
       await rejection(
@@ -365,9 +363,7 @@ describe("files in documents", () => {
       body: text("worksheet"),
     });
     const { classes } = await teacher.api.coursework.options();
-    const [target, other] = classes.filter(
-      (row) => row.classType === "scheduled",
-    );
+    const [target, other] = classes.filter((row) => row.subjectId !== null);
     if (!target || !other)
       throw new Error("the teacher has fewer than two scheduled classes");
     const brief = (title: string, classId = target.id) => ({
@@ -423,7 +419,7 @@ describe("files in documents", () => {
       body: text("binned it"),
     });
     const { classes } = await teacher.api.coursework.options();
-    const target = classes.find((row) => row.classType === "scheduled");
+    const target = classes.find((row) => row.subjectId !== null);
     if (!target) throw new Error("the teacher has no scheduled class");
     const fields = {
       classId: target.id,
@@ -527,7 +523,7 @@ describe("replacing a file in a class's files", () => {
     };
     const { classes } = await teacher.api.coursework.options();
     let classId = "";
-    for (const row of classes.filter((item) => item.classType === "scheduled"))
+    for (const row of classes.filter((item) => item.subjectId !== null))
       if (
         (await teacher.api.coursework.groups({ classId: row.id })).roster.some(
           (pupil) => pupil.id === me.id,
@@ -630,7 +626,7 @@ describe("storage caps", () => {
     const me = await student.api.identity.currentUser();
     const { classes } = await teacher.api.coursework.options();
     let target: (typeof classes)[number] | undefined;
-    for (const row of classes.filter((item) => item.classType === "scheduled"))
+    for (const row of classes.filter((item) => item.subjectId !== null))
       if (
         (await teacher.api.coursework.groups({ classId: row.id })).roster.some(
           (pupil) => pupil.id === me.id,

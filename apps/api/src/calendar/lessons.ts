@@ -6,7 +6,7 @@ import { changesOn } from "@faridalms/database/stores/cover";
 import { dayPlans } from "@faridalms/database/stores/day-plan";
 import {
   meetingsOn,
-  studentGroups,
+  studentClasses,
 } from "@faridalms/database/stores/timetable";
 import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import { addDays } from "@faridalms/domain/school";
@@ -62,13 +62,13 @@ export async function feedLessons(
   const to = addDays(input.today, AHEAD_DAYS);
   const span: string[] = [];
   for (let day = from; day <= to; day = addDays(day, 1)) span.push(day);
-  const [plans, groups] = await Promise.all([
+  const [plans, classIds] = await Promise.all([
     dayPlans(tx, {
       tenantId: input.tenantId,
       schoolId: input.schoolId,
       days: span,
     }),
-    studentGroups(tx, {
+    studentClasses(tx, {
       tenantId: input.tenantId,
       studentId: input.userId,
       on: input.today,
@@ -78,7 +78,7 @@ export async function feedLessons(
     (day) => plans.get(day)?.open && plans.get(day)?.yearId === year.id,
   );
   if (days.length === 0) return [];
-  const learner = groups.groupIds.length > 0 || groups.classIds.length > 0;
+  const learner = classIds.length > 0;
   const [taught, learnt, covers] = await Promise.all([
     meetingsOn(tx, {
       tenantId: input.tenantId,
@@ -93,7 +93,7 @@ export async function feedLessons(
           schoolId: input.schoolId,
           on: input.today,
           days,
-          filter: groups,
+          filter: { classIds },
         })
       : Promise.resolve([]),
     changesOn(tx, {
@@ -109,7 +109,6 @@ export async function feedLessons(
         on: input.today,
         days,
         filter: {
-          groupIds: [],
           classIds: [...new Set(covers.map((row) => row.classId))],
         },
       })

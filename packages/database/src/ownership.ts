@@ -88,6 +88,9 @@ export const TABLE_OWNERS: Record<string, Ownership> = {
   "core.goal_reports": { owner: "standards" },
   "core.grade_scale_versions": { owner: "coursework" },
   "core.grade_scales": { owner: "coursework" },
+  "core.homeroom_classes": { owner: "homerooms" },
+  "core.homeroom_members": { owner: "homerooms" },
+  "core.homerooms": { owner: "homerooms" },
   "core.identity_provider_orgs": { owner: "sso" },
   "core.identity_providers": { owner: "sso" },
   "core.import_rows": { owner: "core" },
@@ -202,20 +205,18 @@ export const NAMESPACE_OWNERS: Record<string, Owner> = {
 
 /**
  * Columns that carry a module's concept without a key to its tables, by
- * name: a year or a homeroom travelling inside a composite key to
- * `core.classes`, a period in an array, a guardian named as a user. Whatever
+ * name: a year travelling inside a composite key to `core.classes`, a
+ * homeroom named by its class, a period in an array, a guardian named as a
+ * user. Whatever
  * table holds one is held to the same rule as a key to that module.
  */
 export const COLUMN_OWNERS: Record<string, ModuleId> = {
   bell_schedule_id: "timetable",
   class_period_id: "timetable",
-  class_type: "homerooms",
   custody_alert: "families",
   family_user_id: "families",
   grading_period_id: "school_years",
-  group_class_id: "homerooms",
   homeroom_class_id: "homerooms",
-  homeroom_class_type: "homerooms",
   next_year_intention: "school_years",
   next_year_outcome: "school_years",
   period_ids: "timetable",

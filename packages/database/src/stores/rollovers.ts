@@ -21,14 +21,13 @@ export interface YearEndStudent {
   outcome: NextYearOutcome | null;
   /** What the family, or the office for them, said of next year. */
   intention: NextYearIntention | null;
-  classId: string | null;
   fullNameEn: string | null;
   fullNameAr: string | null;
 }
 
 /**
- * Students placed at the school on the year's last day, with the homeroom
- * they are in that day and the outcome already chosen for them.
+ * Students placed at the school on the year's last day, with the outcome
+ * already chosen for them.
  */
 export async function studentsAtYearEnd(
   tx: Tx,
@@ -45,20 +44,13 @@ export async function studentsAtYearEnd(
     grade_id: string | null;
     outcome: NextYearOutcome | null;
     intention: NextYearIntention | null;
-    class_id: string | null;
     full_name_en: string | null;
     full_name_ar: string | null;
   }>(sql`
     select p.student_user_id as student_id, p.id as placement_id,
            p.grade_level_descriptor_id as grade_id, p.next_year_outcome as outcome,
            p.next_year_intention as intention,
-           u.full_name_en, u.full_name_ar,
-           (select e.class_id from core.enrollments e
-             where e.tenant_id = p.tenant_id and e.user_id = p.student_user_id
-               and e.school_year_id = p.school_year_id and e.role = 'student'
-               and e.class_type = 'homeroom' and e.status = 'active'
-               and e.valid_during @> ${last}::date
-             limit 1) as class_id
+           u.full_name_en, u.full_name_ar
     from core.student_school_years p
     join core.users u on u.tenant_id = p.tenant_id and u.id = p.student_user_id
     where p.tenant_id = ${input.tenantId}::uuid and p.org_id = ${input.schoolId}::uuid
@@ -71,7 +63,6 @@ export async function studentsAtYearEnd(
     gradeId: row.grade_id,
     outcome: row.outcome,
     intention: row.intention,
-    classId: row.class_id,
     fullNameEn: row.full_name_en,
     fullNameAr: row.full_name_ar,
   }));

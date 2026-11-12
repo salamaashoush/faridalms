@@ -18,7 +18,7 @@ const passage = {
 async function brief(title: string) {
   const teacher = await author();
   const { classes } = await teacher.coursework.options();
-  const target = classes.find((row) => row.classType === "scheduled");
+  const target = classes.find((row) => row.subjectId !== null);
   if (!target) throw new Error("the teacher has no scheduled class");
   const saved = await teacher.coursework.save({
     classId: target.id,

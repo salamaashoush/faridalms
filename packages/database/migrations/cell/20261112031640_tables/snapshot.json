@@ -2,9 +2,9 @@
   "type": "diff",
   "version": "9",
   "dialect": "postgres",
-  "id": "f00279e4-e3dc-41cb-9086-6832dcf2cc2e",
+  "id": "0fa8ebd4-0f92-42da-9464-ecb374be7358",
   "prevIds": [
-    "7f9b3af9-97bc-4253-87c3-c3cf7e935144"
+    "6e837fe3-6d37-4e67-a815-95a32120617e"
   ],
   "footprints": [
     {
@@ -827,8 +827,8 @@
         "n|rel|core.classes",
         "n|type|core.classes",
         "n|rel|core.classes_pkey",
-        "n|rel|core.classes_tenant_id_id_class_type_school_year_id_org_id_key",
-        "n|rel|core.classes_tenant_id_id_class_type_school_year_id_key"
+        "n|rel|core.classes_tenant_id_id_school_year_id_org_id_key",
+        "n|rel|core.classes_tenant_id_id_org_id_key"
       ],
       "reads": [
         "n|sch|core"
@@ -1193,7 +1193,8 @@
         "e|tbl|core.enrollments",
         "n|rel|core.enrollments",
         "n|type|core.enrollments",
-        "n|rel|core.enrollments_pkey"
+        "n|rel|core.enrollments_pkey",
+        "n|rel|core.enrollments_tenant_id_id_class_id_user_id_org_id_valid_duri_key"
       ],
       "reads": [
         "n|sch|core"
@@ -1466,6 +1467,66 @@
       ],
       "reads": [
         "n|sch|health"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_classes"
+      ],
+      "writes": [
+        "s|tbl|core.homeroom_classes",
+        "n|tbl|core.homeroom_classes",
+        "e|tbl|core.homeroom_classes",
+        "n|rel|core.homeroom_classes",
+        "n|type|core.homeroom_classes",
+        "n|rel|core.homeroom_classes_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_members"
+      ],
+      "writes": [
+        "s|tbl|core.homeroom_members",
+        "n|tbl|core.homeroom_members",
+        "e|tbl|core.homeroom_members",
+        "n|rel|core.homeroom_members",
+        "n|type|core.homeroom_members",
+        "n|rel|core.homeroom_members_pkey",
+        "n|rel|core.homeroom_members_tenant_id_enrollment_id_key"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "homerooms"
+      ],
+      "writes": [
+        "s|tbl|core.homerooms",
+        "n|tbl|core.homerooms",
+        "e|tbl|core.homerooms",
+        "n|rel|core.homerooms",
+        "n|type|core.homerooms",
+        "n|rel|core.homerooms_pkey",
+        "n|rel|core.homerooms_tenant_id_class_id_key",
+        "n|rel|core.homerooms_tenant_id_class_id_org_id_key"
+      ],
+      "reads": [
+        "n|sch|core"
       ]
     },
     {
@@ -4392,19 +4453,19 @@
         "index",
         "core",
         "class_meetings",
-        "class_meetings_group_idx"
+        "class_meetings_class_idx"
       ],
       "writes": [
-        "s|idx|core.class_meetings_group_idx",
-        "n|idx|core.class_meetings_group_idx",
-        "e|idx|core.class_meetings_group_idx",
-        "n|rel|core.class_meetings_group_idx"
+        "s|idx|core.class_meetings_class_idx",
+        "n|idx|core.class_meetings_class_idx",
+        "e|idx|core.class_meetings_class_idx",
+        "n|rel|core.class_meetings_class_idx"
       ],
       "reads": [
         "n|tbl|core.class_meetings",
         "n|sch|core",
         "n|col|core.class_meetings.tenant_id",
-        "n|col|core.class_meetings.group_class_id"
+        "n|col|core.class_meetings.class_id"
       ]
     },
     {
@@ -4492,29 +4553,7 @@
         "n|sch|core",
         "n|col|core.classes.tenant_id",
         "n|col|core.classes.org_id",
-        "n|col|core.classes.school_year_id",
-        "n|col|core.classes.class_type"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "core",
-        "classes",
-        "classes_homeroom_idx"
-      ],
-      "writes": [
-        "s|idx|core.classes_homeroom_idx",
-        "n|idx|core.classes_homeroom_idx",
-        "e|idx|core.classes_homeroom_idx",
-        "n|rel|core.classes_homeroom_idx"
-      ],
-      "reads": [
-        "n|tbl|core.classes",
-        "n|sch|core",
-        "n|col|core.classes.tenant_id",
-        "n|col|core.classes.homeroom_class_id"
+        "n|col|core.classes.school_year_id"
       ]
     },
     {
@@ -5760,6 +5799,90 @@
         "n|sch|health",
         "n|col|health.records.tenant_id",
         "n|col|health.records.student_user_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "homeroom_classes",
+        "homeroom_classes_class_key"
+      ],
+      "writes": [
+        "s|idx|core.homeroom_classes_class_key",
+        "n|idx|core.homeroom_classes_class_key",
+        "e|idx|core.homeroom_classes_class_key",
+        "n|rel|core.homeroom_classes_class_key"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_classes",
+        "n|sch|core",
+        "n|col|core.homeroom_classes.tenant_id",
+        "n|col|core.homeroom_classes.class_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "homeroom_classes",
+        "homeroom_classes_homeroom_idx"
+      ],
+      "writes": [
+        "s|idx|core.homeroom_classes_homeroom_idx",
+        "n|idx|core.homeroom_classes_homeroom_idx",
+        "e|idx|core.homeroom_classes_homeroom_idx",
+        "n|rel|core.homeroom_classes_homeroom_idx"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_classes",
+        "n|sch|core",
+        "n|col|core.homeroom_classes.tenant_id",
+        "n|col|core.homeroom_classes.homeroom_class_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "homeroom_members",
+        "homeroom_members_homeroom_idx"
+      ],
+      "writes": [
+        "s|idx|core.homeroom_members_homeroom_idx",
+        "n|idx|core.homeroom_members_homeroom_idx",
+        "e|idx|core.homeroom_members_homeroom_idx",
+        "n|rel|core.homeroom_members_homeroom_idx"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_members",
+        "n|sch|core",
+        "n|col|core.homeroom_members.tenant_id",
+        "n|col|core.homeroom_members.homeroom_class_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "homeroom_members",
+        "homeroom_members_student_idx"
+      ],
+      "writes": [
+        "s|idx|core.homeroom_members_student_idx",
+        "n|idx|core.homeroom_members_student_idx",
+        "e|idx|core.homeroom_members_student_idx",
+        "n|rel|core.homeroom_members_student_idx"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_members",
+        "n|sch|core",
+        "n|col|core.homeroom_members.tenant_id",
+        "n|col|core.homeroom_members.student_user_id"
       ]
     },
     {
@@ -10468,10 +10591,10 @@
         "assignments"
       ],
       "writes": [
-        "s|fk|core.assignments.assignments_tenant_id_class_id_class_type_school_year_id_o_fkey",
-        "n|fk|core.assignments.assignments_tenant_id_class_id_class_type_school_year_id_o_fkey",
-        "e|fk|core.assignments.assignments_tenant_id_class_id_class_type_school_year_id_o_fkey",
-        "n|con|core.assignments.assignments_tenant_id_class_id_class_type_school_year_id_o_fkey"
+        "s|fk|core.assignments.assignments_tenant_id_class_id_school_year_id_org_id_fkey",
+        "n|fk|core.assignments.assignments_tenant_id_class_id_school_year_id_org_id_fkey",
+        "e|fk|core.assignments.assignments_tenant_id_class_id_school_year_id_org_id_fkey",
+        "n|con|core.assignments.assignments_tenant_id_class_id_school_year_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.assignments",
@@ -10480,15 +10603,13 @@
         "n|sch|core",
         "n|col|core.assignments.tenant_id",
         "n|col|core.assignments.class_id",
-        "n|col|core.assignments.class_type",
         "n|col|core.assignments.school_year_id",
         "n|col|core.assignments.org_id",
         "n|col|core.classes.tenant_id",
         "n|col|core.classes.id",
-        "n|col|core.classes.class_type",
         "n|col|core.classes.school_year_id",
         "n|col|core.classes.org_id",
-        "e|uniqueness|core.classes.class_type.id.org_id.school_year_id.tenant_id"
+        "e|uniqueness|core.classes.id.org_id.school_year_id.tenant_id"
       ]
     },
     {
@@ -10768,10 +10889,10 @@
         "attendance_registers"
       ],
       "writes": [
-        "s|fk|core.attendance_registers.attendance_registers_tenant_id_class_id_class_type_school__fkey",
-        "n|fk|core.attendance_registers.attendance_registers_tenant_id_class_id_class_type_school__fkey",
-        "e|fk|core.attendance_registers.attendance_registers_tenant_id_class_id_class_type_school__fkey",
-        "n|con|core.attendance_registers.attendance_registers_tenant_id_class_id_class_type_school__fkey"
+        "s|fk|core.attendance_registers.attendance_registers_tenant_id_class_id_school_year_id_org_fkey",
+        "n|fk|core.attendance_registers.attendance_registers_tenant_id_class_id_school_year_id_org_fkey",
+        "e|fk|core.attendance_registers.attendance_registers_tenant_id_class_id_school_year_id_org_fkey",
+        "n|con|core.attendance_registers.attendance_registers_tenant_id_class_id_school_year_id_org_fkey"
       ],
       "reads": [
         "n|tbl|core.attendance_registers",
@@ -10780,15 +10901,13 @@
         "n|sch|core",
         "n|col|core.attendance_registers.tenant_id",
         "n|col|core.attendance_registers.class_id",
-        "n|col|core.attendance_registers.class_type",
         "n|col|core.attendance_registers.school_year_id",
         "n|col|core.attendance_registers.org_id",
         "n|col|core.classes.tenant_id",
         "n|col|core.classes.id",
-        "n|col|core.classes.class_type",
         "n|col|core.classes.school_year_id",
         "n|col|core.classes.org_id",
-        "e|uniqueness|core.classes.class_type.id.org_id.school_year_id.tenant_id"
+        "e|uniqueness|core.classes.id.org_id.school_year_id.tenant_id"
       ]
     },
     {
@@ -12191,10 +12310,10 @@
         "class_groups"
       ],
       "writes": [
-        "s|fk|core.class_groups.class_groups_tenant_id_class_id_class_type_school_year_id__fkey",
-        "n|fk|core.class_groups.class_groups_tenant_id_class_id_class_type_school_year_id__fkey",
-        "e|fk|core.class_groups.class_groups_tenant_id_class_id_class_type_school_year_id__fkey",
-        "n|con|core.class_groups.class_groups_tenant_id_class_id_class_type_school_year_id__fkey"
+        "s|fk|core.class_groups.class_groups_tenant_id_class_id_school_year_id_org_id_fkey",
+        "n|fk|core.class_groups.class_groups_tenant_id_class_id_school_year_id_org_id_fkey",
+        "e|fk|core.class_groups.class_groups_tenant_id_class_id_school_year_id_org_id_fkey",
+        "n|con|core.class_groups.class_groups_tenant_id_class_id_school_year_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.class_groups",
@@ -12203,15 +12322,13 @@
         "n|sch|core",
         "n|col|core.class_groups.tenant_id",
         "n|col|core.class_groups.class_id",
-        "n|col|core.class_groups.class_type",
         "n|col|core.class_groups.school_year_id",
         "n|col|core.class_groups.org_id",
         "n|col|core.classes.tenant_id",
         "n|col|core.classes.id",
-        "n|col|core.classes.class_type",
         "n|col|core.classes.school_year_id",
         "n|col|core.classes.org_id",
-        "e|uniqueness|core.classes.class_type.id.org_id.school_year_id.tenant_id"
+        "e|uniqueness|core.classes.id.org_id.school_year_id.tenant_id"
       ]
     },
     {
@@ -12270,10 +12387,10 @@
         "class_meetings"
       ],
       "writes": [
-        "s|fk|core.class_meetings.class_meetings_tenant_id_class_id_class_type_school_year_i_fkey",
-        "n|fk|core.class_meetings.class_meetings_tenant_id_class_id_class_type_school_year_i_fkey",
-        "e|fk|core.class_meetings.class_meetings_tenant_id_class_id_class_type_school_year_i_fkey",
-        "n|con|core.class_meetings.class_meetings_tenant_id_class_id_class_type_school_year_i_fkey"
+        "s|fk|core.class_meetings.class_meetings_tenant_id_class_id_school_year_id_org_id_fkey",
+        "n|fk|core.class_meetings.class_meetings_tenant_id_class_id_school_year_id_org_id_fkey",
+        "e|fk|core.class_meetings.class_meetings_tenant_id_class_id_school_year_id_org_id_fkey",
+        "n|con|core.class_meetings.class_meetings_tenant_id_class_id_school_year_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.class_meetings",
@@ -12282,40 +12399,13 @@
         "n|sch|core",
         "n|col|core.class_meetings.tenant_id",
         "n|col|core.class_meetings.class_id",
-        "n|col|core.class_meetings.class_type",
         "n|col|core.class_meetings.school_year_id",
         "n|col|core.class_meetings.org_id",
         "n|col|core.classes.tenant_id",
         "n|col|core.classes.id",
-        "n|col|core.classes.class_type",
         "n|col|core.classes.school_year_id",
         "n|col|core.classes.org_id",
-        "e|uniqueness|core.classes.class_type.id.org_id.school_year_id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "class_meetings"
-      ],
-      "writes": [
-        "s|fk|core.class_meetings.class_meetings_tenant_id_group_class_id_fkey",
-        "n|fk|core.class_meetings.class_meetings_tenant_id_group_class_id_fkey",
-        "e|fk|core.class_meetings.class_meetings_tenant_id_group_class_id_fkey",
-        "n|con|core.class_meetings.class_meetings_tenant_id_group_class_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.class_meetings",
-        "n|sch|core",
-        "n|tbl|core.classes",
-        "n|sch|core",
-        "n|col|core.class_meetings.tenant_id",
-        "n|col|core.class_meetings.group_class_id",
-        "n|col|core.classes.tenant_id",
-        "n|col|core.classes.id",
-        "e|uniqueness|core.classes.id.tenant_id"
+        "e|uniqueness|core.classes.id.org_id.school_year_id.tenant_id"
       ]
     },
     {
@@ -12613,35 +12703,6 @@
         "n|col|core.courses.id",
         "n|col|core.courses.org_id",
         "e|uniqueness|core.courses.id.org_id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "classes"
-      ],
-      "writes": [
-        "s|fk|core.classes.classes_tenant_id_homeroom_class_id_homeroom_class_type_sc_fkey",
-        "n|fk|core.classes.classes_tenant_id_homeroom_class_id_homeroom_class_type_sc_fkey",
-        "e|fk|core.classes.classes_tenant_id_homeroom_class_id_homeroom_class_type_sc_fkey",
-        "n|con|core.classes.classes_tenant_id_homeroom_class_id_homeroom_class_type_sc_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.classes",
-        "n|sch|core",
-        "n|tbl|core.classes",
-        "n|sch|core",
-        "n|col|core.classes.tenant_id",
-        "n|col|core.classes.homeroom_class_id",
-        "n|col|core.classes.homeroom_class_type",
-        "n|col|core.classes.school_year_id",
-        "n|col|core.classes.tenant_id",
-        "n|col|core.classes.id",
-        "n|col|core.classes.class_type",
-        "n|col|core.classes.school_year_id",
-        "e|uniqueness|core.classes.class_type.id.school_year_id.tenant_id"
       ]
     },
     {
@@ -14361,10 +14422,10 @@
         "enrollments"
       ],
       "writes": [
-        "s|fk|core.enrollments.enrollments_tenant_id_class_id_class_type_school_year_id_o_fkey",
-        "n|fk|core.enrollments.enrollments_tenant_id_class_id_class_type_school_year_id_o_fkey",
-        "e|fk|core.enrollments.enrollments_tenant_id_class_id_class_type_school_year_id_o_fkey",
-        "n|con|core.enrollments.enrollments_tenant_id_class_id_class_type_school_year_id_o_fkey"
+        "s|fk|core.enrollments.enrollments_tenant_id_class_id_school_year_id_org_id_fkey",
+        "n|fk|core.enrollments.enrollments_tenant_id_class_id_school_year_id_org_id_fkey",
+        "e|fk|core.enrollments.enrollments_tenant_id_class_id_school_year_id_org_id_fkey",
+        "n|con|core.enrollments.enrollments_tenant_id_class_id_school_year_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.enrollments",
@@ -14373,15 +14434,13 @@
         "n|sch|core",
         "n|col|core.enrollments.tenant_id",
         "n|col|core.enrollments.class_id",
-        "n|col|core.enrollments.class_type",
         "n|col|core.enrollments.school_year_id",
         "n|col|core.enrollments.org_id",
         "n|col|core.classes.tenant_id",
         "n|col|core.classes.id",
-        "n|col|core.classes.class_type",
         "n|col|core.classes.school_year_id",
         "n|col|core.classes.org_id",
-        "e|uniqueness|core.classes.class_type.id.org_id.school_year_id.tenant_id"
+        "e|uniqueness|core.classes.id.org_id.school_year_id.tenant_id"
       ]
     },
     {
@@ -15880,6 +15939,218 @@
         "n|col|core.files.id",
         "n|col|core.files.purpose",
         "e|uniqueness|core.files.id.purpose.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_classes"
+      ],
+      "writes": [
+        "s|fk|core.homeroom_classes.homeroom_classes_tenant_id_fkey",
+        "n|fk|core.homeroom_classes.homeroom_classes_tenant_id_fkey",
+        "e|fk|core.homeroom_classes.homeroom_classes_tenant_id_fkey",
+        "n|con|core.homeroom_classes.homeroom_classes_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_classes",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.homeroom_classes.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_classes"
+      ],
+      "writes": [
+        "s|fk|core.homeroom_classes.homeroom_classes_tenant_id_homeroom_class_id_org_id_fkey",
+        "n|fk|core.homeroom_classes.homeroom_classes_tenant_id_homeroom_class_id_org_id_fkey",
+        "e|fk|core.homeroom_classes.homeroom_classes_tenant_id_homeroom_class_id_org_id_fkey",
+        "n|con|core.homeroom_classes.homeroom_classes_tenant_id_homeroom_class_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_classes",
+        "n|sch|core",
+        "n|tbl|core.homerooms",
+        "n|sch|core",
+        "n|col|core.homeroom_classes.tenant_id",
+        "n|col|core.homeroom_classes.homeroom_class_id",
+        "n|col|core.homeroom_classes.org_id",
+        "n|col|core.homerooms.tenant_id",
+        "n|col|core.homerooms.class_id",
+        "n|col|core.homerooms.org_id",
+        "e|uniqueness|core.homerooms.class_id.org_id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_classes"
+      ],
+      "writes": [
+        "s|fk|core.homeroom_classes.homeroom_classes_tenant_id_class_id_org_id_fkey",
+        "n|fk|core.homeroom_classes.homeroom_classes_tenant_id_class_id_org_id_fkey",
+        "e|fk|core.homeroom_classes.homeroom_classes_tenant_id_class_id_org_id_fkey",
+        "n|con|core.homeroom_classes.homeroom_classes_tenant_id_class_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_classes",
+        "n|sch|core",
+        "n|tbl|core.classes",
+        "n|sch|core",
+        "n|col|core.homeroom_classes.tenant_id",
+        "n|col|core.homeroom_classes.class_id",
+        "n|col|core.homeroom_classes.org_id",
+        "n|col|core.classes.tenant_id",
+        "n|col|core.classes.id",
+        "n|col|core.classes.org_id",
+        "e|uniqueness|core.classes.id.org_id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_members"
+      ],
+      "writes": [
+        "s|fk|core.homeroom_members.homeroom_members_tenant_id_fkey",
+        "n|fk|core.homeroom_members.homeroom_members_tenant_id_fkey",
+        "e|fk|core.homeroom_members.homeroom_members_tenant_id_fkey",
+        "n|con|core.homeroom_members.homeroom_members_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_members",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.homeroom_members.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_members"
+      ],
+      "writes": [
+        "s|fk|core.homeroom_members.homeroom_members_tenant_id_homeroom_class_id_org_id_fkey",
+        "n|fk|core.homeroom_members.homeroom_members_tenant_id_homeroom_class_id_org_id_fkey",
+        "e|fk|core.homeroom_members.homeroom_members_tenant_id_homeroom_class_id_org_id_fkey",
+        "n|con|core.homeroom_members.homeroom_members_tenant_id_homeroom_class_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_members",
+        "n|sch|core",
+        "n|tbl|core.homerooms",
+        "n|sch|core",
+        "n|col|core.homeroom_members.tenant_id",
+        "n|col|core.homeroom_members.homeroom_class_id",
+        "n|col|core.homeroom_members.org_id",
+        "n|col|core.homerooms.tenant_id",
+        "n|col|core.homerooms.class_id",
+        "n|col|core.homerooms.org_id",
+        "e|uniqueness|core.homerooms.class_id.org_id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_members"
+      ],
+      "writes": [
+        "s|fk|core.homeroom_members.homeroom_members_tenant_id_enrollment_id_homeroom_class_id_fkey",
+        "n|fk|core.homeroom_members.homeroom_members_tenant_id_enrollment_id_homeroom_class_id_fkey",
+        "e|fk|core.homeroom_members.homeroom_members_tenant_id_enrollment_id_homeroom_class_id_fkey",
+        "n|con|core.homeroom_members.homeroom_members_tenant_id_enrollment_id_homeroom_class_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_members",
+        "n|sch|core",
+        "n|tbl|core.enrollments",
+        "n|sch|core",
+        "n|col|core.homeroom_members.tenant_id",
+        "n|col|core.homeroom_members.enrollment_id",
+        "n|col|core.homeroom_members.homeroom_class_id",
+        "n|col|core.homeroom_members.student_user_id",
+        "n|col|core.homeroom_members.org_id",
+        "n|col|core.homeroom_members.valid_during",
+        "n|col|core.homeroom_members.status",
+        "n|col|core.enrollments.tenant_id",
+        "n|col|core.enrollments.id",
+        "n|col|core.enrollments.class_id",
+        "n|col|core.enrollments.user_id",
+        "n|col|core.enrollments.org_id",
+        "n|col|core.enrollments.valid_during",
+        "n|col|core.enrollments.status",
+        "e|uniqueness|core.enrollments.class_id.id.org_id.status.tenant_id.user_id.valid_during"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "homerooms"
+      ],
+      "writes": [
+        "s|fk|core.homerooms.homerooms_tenant_id_fkey",
+        "n|fk|core.homerooms.homerooms_tenant_id_fkey",
+        "e|fk|core.homerooms.homerooms_tenant_id_fkey",
+        "n|con|core.homerooms.homerooms_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.homerooms",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.homerooms.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "homerooms"
+      ],
+      "writes": [
+        "s|fk|core.homerooms.homerooms_tenant_id_class_id_org_id_fkey",
+        "n|fk|core.homerooms.homerooms_tenant_id_class_id_org_id_fkey",
+        "e|fk|core.homerooms.homerooms_tenant_id_class_id_org_id_fkey",
+        "n|con|core.homerooms.homerooms_tenant_id_class_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.homerooms",
+        "n|sch|core",
+        "n|tbl|core.classes",
+        "n|sch|core",
+        "n|col|core.homerooms.tenant_id",
+        "n|col|core.homerooms.class_id",
+        "n|col|core.homerooms.org_id",
+        "n|col|core.classes.tenant_id",
+        "n|col|core.classes.id",
+        "n|col|core.classes.org_id",
+        "e|uniqueness|core.classes.id.org_id.tenant_id"
       ]
     },
     {
@@ -18978,10 +19249,10 @@
         "period_grades"
       ],
       "writes": [
-        "s|fk|core.period_grades.period_grades_tenant_id_class_id_class_type_school_year_id_fkey",
-        "n|fk|core.period_grades.period_grades_tenant_id_class_id_class_type_school_year_id_fkey",
-        "e|fk|core.period_grades.period_grades_tenant_id_class_id_class_type_school_year_id_fkey",
-        "n|con|core.period_grades.period_grades_tenant_id_class_id_class_type_school_year_id_fkey"
+        "s|fk|core.period_grades.period_grades_tenant_id_class_id_school_year_id_org_id_fkey",
+        "n|fk|core.period_grades.period_grades_tenant_id_class_id_school_year_id_org_id_fkey",
+        "e|fk|core.period_grades.period_grades_tenant_id_class_id_school_year_id_org_id_fkey",
+        "n|con|core.period_grades.period_grades_tenant_id_class_id_school_year_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.period_grades",
@@ -18990,15 +19261,13 @@
         "n|sch|core",
         "n|col|core.period_grades.tenant_id",
         "n|col|core.period_grades.class_id",
-        "n|col|core.period_grades.class_type",
         "n|col|core.period_grades.school_year_id",
         "n|col|core.period_grades.org_id",
         "n|col|core.classes.tenant_id",
         "n|col|core.classes.id",
-        "n|col|core.classes.class_type",
         "n|col|core.classes.school_year_id",
         "n|col|core.classes.org_id",
-        "e|uniqueness|core.classes.class_type.id.org_id.school_year_id.tenant_id"
+        "e|uniqueness|core.classes.id.org_id.school_year_id.tenant_id"
       ]
     },
     {
@@ -32141,6 +32410,309 @@
       "statementTarget": [
         "table",
         "core",
+        "homeroom_classes"
+      ],
+      "writes": [
+        "s|pol|core.homeroom_classes.tenant_isolation",
+        "n|pol|core.homeroom_classes.tenant_isolation",
+        "e|pol|core.homeroom_classes.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_classes",
+        "n|sch|core",
+        "e|rls|core.homeroom_classes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_classes"
+      ],
+      "writes": [
+        "s|pol|core.homeroom_classes.owner_all",
+        "n|pol|core.homeroom_classes.owner_all",
+        "e|pol|core.homeroom_classes.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_classes",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.homeroom_classes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_classes"
+      ],
+      "writes": [
+        "s|pol|core.homeroom_classes.p_select",
+        "n|pol|core.homeroom_classes.p_select",
+        "e|pol|core.homeroom_classes.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_classes",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.homeroom_classes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_classes"
+      ],
+      "writes": [
+        "s|pol|core.homeroom_classes.p_insert",
+        "n|pol|core.homeroom_classes.p_insert",
+        "e|pol|core.homeroom_classes.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_classes",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.homeroom_classes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_classes"
+      ],
+      "writes": [
+        "s|pol|core.homeroom_classes.p_update",
+        "n|pol|core.homeroom_classes.p_update",
+        "e|pol|core.homeroom_classes.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_classes",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.homeroom_classes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_members"
+      ],
+      "writes": [
+        "s|pol|core.homeroom_members.tenant_isolation",
+        "n|pol|core.homeroom_members.tenant_isolation",
+        "e|pol|core.homeroom_members.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_members",
+        "n|sch|core",
+        "e|rls|core.homeroom_members"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_members"
+      ],
+      "writes": [
+        "s|pol|core.homeroom_members.owner_all",
+        "n|pol|core.homeroom_members.owner_all",
+        "e|pol|core.homeroom_members.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_members",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.homeroom_members"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_members"
+      ],
+      "writes": [
+        "s|pol|core.homeroom_members.p_select",
+        "n|pol|core.homeroom_members.p_select",
+        "e|pol|core.homeroom_members.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_members",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.homeroom_members"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_members"
+      ],
+      "writes": [
+        "s|pol|core.homeroom_members.p_insert",
+        "n|pol|core.homeroom_members.p_insert",
+        "e|pol|core.homeroom_members.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_members",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.homeroom_members"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "homeroom_members"
+      ],
+      "writes": [
+        "s|pol|core.homeroom_members.p_update",
+        "n|pol|core.homeroom_members.p_update",
+        "e|pol|core.homeroom_members.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.homeroom_members",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.homeroom_members"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "homerooms"
+      ],
+      "writes": [
+        "s|pol|core.homerooms.tenant_isolation",
+        "n|pol|core.homerooms.tenant_isolation",
+        "e|pol|core.homerooms.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.homerooms",
+        "n|sch|core",
+        "e|rls|core.homerooms"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "homerooms"
+      ],
+      "writes": [
+        "s|pol|core.homerooms.owner_all",
+        "n|pol|core.homerooms.owner_all",
+        "e|pol|core.homerooms.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.homerooms",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.homerooms"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "homerooms"
+      ],
+      "writes": [
+        "s|pol|core.homerooms.p_select",
+        "n|pol|core.homerooms.p_select",
+        "e|pol|core.homerooms.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.homerooms",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.homerooms"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "homerooms"
+      ],
+      "writes": [
+        "s|pol|core.homerooms.p_insert",
+        "n|pol|core.homerooms.p_insert",
+        "e|pol|core.homerooms.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.homerooms",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.homerooms"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "homerooms"
+      ],
+      "writes": [
+        "s|pol|core.homerooms.p_update",
+        "n|pol|core.homerooms.p_update",
+        "e|pol|core.homerooms.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.homerooms",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.homerooms"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "identity_provider_orgs"
       ],
       "writes": [
@@ -42397,6 +42969,33 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "name": "homeroom_classes",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "homeroom_members",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "homerooms",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "name": "identity_provider_orgs",
         "isRlsEnabled": true,
         "entityType": "tables"
@@ -47873,22 +48472,6 @@
       "row": {
         "schema": "core",
         "table": "assignments",
-        "name": "class_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "assignments",
         "name": "school_year_id",
         "type": "uuid",
         "typeSchema": null,
@@ -49203,22 +49786,6 @@
         "table": "attendance_registers",
         "name": "class_id",
         "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "attendance_registers",
-        "name": "class_type",
-        "type": "text",
         "typeSchema": null,
         "notNull": true,
         "dimensions": 0,
@@ -53565,22 +54132,6 @@
       "row": {
         "schema": "core",
         "table": "class_groups",
-        "name": "class_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "class_groups",
         "name": "school_year_id",
         "type": "uuid",
         "typeSchema": null,
@@ -53789,22 +54340,6 @@
       "row": {
         "schema": "core",
         "table": "class_meetings",
-        "name": "class_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "class_meetings",
         "name": "school_year_id",
         "type": "uuid",
         "typeSchema": null,
@@ -53827,22 +54362,6 @@
         "notNull": true,
         "dimensions": 0,
         "default": "'school_year'",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "class_meetings",
-        "name": "group_class_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
         "generated": null,
         "identity": null,
         "entityType": "columns"
@@ -54493,22 +55012,6 @@
       "row": {
         "schema": "core",
         "table": "classes",
-        "name": "class_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
         "name": "code",
         "type": "text",
         "typeSchema": null,
@@ -54564,41 +55067,6 @@
         "dimensions": 0,
         "default": null,
         "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
-        "name": "homeroom_class_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
-        "name": "homeroom_class_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": {
-          "as": "'homeroom'",
-          "type": "stored"
-        },
         "identity": null,
         "entityType": "columns"
       }
@@ -59368,22 +59836,6 @@
       "row": {
         "schema": "core",
         "table": "enrollments",
-        "name": "class_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "enrollments",
         "name": "school_year_id",
         "type": "uuid",
         "typeSchema": null,
@@ -63184,6 +63636,534 @@
       "row": {
         "schema": "health",
         "table": "records",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "homeroom_class_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "class_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "linked_on",
+        "type": "date",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "homeroom_class_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "enrollment_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "student_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "valid_during",
+        "type": "daterange",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "source",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "class_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
         "name": "created_at",
         "type": "timestamp with time zone",
         "typeSchema": null,
@@ -71605,22 +72585,6 @@
         "table": "period_grades",
         "name": "class_id",
         "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "period_grades",
-        "name": "class_type",
-        "type": "text",
         "typeSchema": null,
         "notNull": true,
         "dimensions": 0,
@@ -85585,7 +86549,7 @@
       "row": {
         "schema": "core",
         "table": "class_meetings",
-        "name": "class_meetings_group_idx",
+        "name": "class_meetings_class_idx",
         "nameExplicit": true,
         "columns": [
           {
@@ -85596,7 +86560,7 @@
             "opclass": null
           },
           {
-            "value": "group_class_id",
+            "value": "class_id",
             "isExpression": false,
             "asc": true,
             "nullsFirst": false,
@@ -85753,48 +86717,10 @@
             "asc": true,
             "nullsFirst": false,
             "opclass": null
-          },
-          {
-            "value": "class_type",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
           }
         ],
         "isUnique": false,
         "where": "status = 'active'",
-        "with": "",
-        "method": "btree",
-        "concurrently": false,
-        "entityType": "indexes"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
-        "name": "classes_homeroom_idx",
-        "nameExplicit": true,
-        "columns": [
-          {
-            "value": "tenant_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "homeroom_class_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          }
-        ],
-        "isUnique": false,
-        "where": "status = 'active' and homeroom_class_id is not null",
         "with": "",
         "method": "btree",
         "concurrently": false,
@@ -87763,6 +88689,130 @@
         "schema": "health",
         "table": "records",
         "name": "records_student_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "student_user_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "homeroom_classes_class_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "class_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "homeroom_classes_homeroom_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "homeroom_class_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "homeroom_members_homeroom_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "homeroom_class_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "homeroom_members_student_idx",
         "nameExplicit": true,
         "columns": [
           {
@@ -94278,12 +95328,11 @@
       "row": {
         "schema": "core",
         "table": "assignments",
-        "name": "assignments_tenant_id_class_id_class_type_school_year_id_o_fkey",
+        "name": "assignments_tenant_id_class_id_school_year_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "class_id",
-          "class_type",
           "school_year_id",
           "org_id"
         ],
@@ -94292,7 +95341,6 @@
         "columnsTo": [
           "tenant_id",
           "id",
-          "class_type",
           "school_year_id",
           "org_id"
         ],
@@ -94542,12 +95590,11 @@
       "row": {
         "schema": "core",
         "table": "attendance_registers",
-        "name": "attendance_registers_tenant_id_class_id_class_type_school__fkey",
+        "name": "attendance_registers_tenant_id_class_id_school_year_id_org_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "class_id",
-          "class_type",
           "school_year_id",
           "org_id"
         ],
@@ -94556,7 +95603,6 @@
         "columnsTo": [
           "tenant_id",
           "id",
-          "class_type",
           "school_year_id",
           "org_id"
         ],
@@ -95794,12 +96840,11 @@
       "row": {
         "schema": "core",
         "table": "class_groups",
-        "name": "class_groups_tenant_id_class_id_class_type_school_year_id__fkey",
+        "name": "class_groups_tenant_id_class_id_school_year_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "class_id",
-          "class_type",
           "school_year_id",
           "org_id"
         ],
@@ -95808,7 +96853,6 @@
         "columnsTo": [
           "tenant_id",
           "id",
-          "class_type",
           "school_year_id",
           "org_id"
         ],
@@ -95864,12 +96908,11 @@
       "row": {
         "schema": "core",
         "table": "class_meetings",
-        "name": "class_meetings_tenant_id_class_id_class_type_school_year_i_fkey",
+        "name": "class_meetings_tenant_id_class_id_school_year_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "class_id",
-          "class_type",
           "school_year_id",
           "org_id"
         ],
@@ -95878,31 +96921,8 @@
         "columnsTo": [
           "tenant_id",
           "id",
-          "class_type",
           "school_year_id",
           "org_id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "class_meetings",
-        "name": "class_meetings_tenant_id_group_class_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "group_class_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "classes",
-        "columnsTo": [
-          "tenant_id",
-          "id"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -96167,32 +97187,6 @@
           "tenant_id",
           "id",
           "org_id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
-        "name": "classes_tenant_id_homeroom_class_id_homeroom_class_type_sc_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "homeroom_class_id",
-          "homeroom_class_type",
-          "school_year_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "classes",
-        "columnsTo": [
-          "tenant_id",
-          "id",
-          "class_type",
-          "school_year_id"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -97706,12 +98700,11 @@
       "row": {
         "schema": "core",
         "table": "enrollments",
-        "name": "enrollments_tenant_id_class_id_class_type_school_year_id_o_fkey",
+        "name": "enrollments_tenant_id_class_id_school_year_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "class_id",
-          "class_type",
           "school_year_id",
           "org_id"
         ],
@@ -97720,7 +98713,6 @@
         "columnsTo": [
           "tenant_id",
           "id",
-          "class_type",
           "school_year_id",
           "org_id"
         ],
@@ -99041,6 +100033,194 @@
           "tenant_id",
           "id",
           "purpose"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "homeroom_classes_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "homeroom_classes_tenant_id_homeroom_class_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "homeroom_class_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "homerooms",
+        "columnsTo": [
+          "tenant_id",
+          "class_id",
+          "org_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "homeroom_classes_tenant_id_class_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "class_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "classes",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "org_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "homeroom_members_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "homeroom_members_tenant_id_homeroom_class_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "homeroom_class_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "homerooms",
+        "columnsTo": [
+          "tenant_id",
+          "class_id",
+          "org_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "homeroom_members_tenant_id_enrollment_id_homeroom_class_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "enrollment_id",
+          "homeroom_class_id",
+          "student_user_id",
+          "org_id",
+          "valid_during",
+          "status"
+        ],
+        "schemaTo": "core",
+        "tableTo": "enrollments",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "class_id",
+          "user_id",
+          "org_id",
+          "valid_during",
+          "status"
+        ],
+        "onUpdate": "CASCADE",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "homerooms_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "homerooms_tenant_id_class_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "class_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "classes",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "org_id"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -101762,12 +102942,11 @@
       "row": {
         "schema": "core",
         "table": "period_grades",
-        "name": "period_grades_tenant_id_class_id_class_type_school_year_id_fkey",
+        "name": "period_grades_tenant_id_class_id_school_year_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "class_id",
-          "class_type",
           "school_year_id",
           "org_id"
         ],
@@ -101776,7 +102955,6 @@
         "columnsTo": [
           "tenant_id",
           "id",
-          "class_type",
           "school_year_id",
           "org_id"
         ],
@@ -106444,6 +107622,48 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "homeroom_classes",
+        "name": "homeroom_classes_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "homeroom_members_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "homerooms_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "identity_provider_orgs",
         "name": "identity_provider_orgs_pkey",
         "columns": [
@@ -107768,12 +108988,11 @@
       "row": {
         "schema": "core",
         "table": "classes",
-        "name": "classes_tenant_id_id_class_type_school_year_id_org_id_key",
+        "name": "classes_tenant_id_id_school_year_id_org_id_key",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "id",
-          "class_type",
           "school_year_id",
           "org_id"
         ],
@@ -107786,13 +109005,12 @@
       "row": {
         "schema": "core",
         "table": "classes",
-        "name": "classes_tenant_id_id_class_type_school_year_id_key",
+        "name": "classes_tenant_id_id_org_id_key",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "id",
-          "class_type",
-          "school_year_id"
+          "org_id"
         ],
         "nullsNotDistinct": false,
         "entityType": "uniques"
@@ -107868,6 +109086,26 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "enrollments",
+        "name": "enrollments_tenant_id_id_class_id_user_id_org_id_valid_duri_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "id",
+          "class_id",
+          "user_id",
+          "org_id",
+          "valid_during",
+          "status"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "file_publications",
         "name": "file_publications_tenant_id_public_key_key",
         "nameExplicit": true,
@@ -107905,6 +109143,52 @@
         "columns": [
           "tenant_id",
           "request_id"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "homeroom_members_tenant_id_enrollment_id_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "enrollment_id"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "homerooms_tenant_id_class_id_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "class_id"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "homerooms_tenant_id_class_id_org_id_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "class_id",
+          "org_id"
         ],
         "nullsNotDistinct": false,
         "entityType": "uniques"
@@ -111376,16 +112660,6 @@
       "row": {
         "schema": "core",
         "table": "classes",
-        "name": "classes_class_type_check",
-        "value": "class_type in ('homeroom', 'scheduled')",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
         "name": "classes_code_check",
         "value": "code ~ '^[A-Za-z0-9_.-]{1,40}$'",
         "entityType": "checks"
@@ -111418,16 +112692,6 @@
         "table": "classes",
         "name": "classes_title_check",
         "value": "num_nonnulls(title_en, title_ar) >= 1",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
-        "name": "classes_shape_check",
-        "value": "(class_type = 'homeroom' and homeroom_class_id is null and subject_descriptor_id is null) or (class_type = 'scheduled' and course_id is not null and subject_descriptor_id is not null)",
         "entityType": "checks"
       }
     },
@@ -113037,7 +114301,7 @@
         "schema": "core",
         "table": "enrollments",
         "name": "enrollments_source_check",
-        "value": "source in ('manual', 'import', 'sis', 'oneroster', 'rollover')",
+        "value": "source in ('manual', 'import', 'sis', 'oneroster', 'rollover', 'homeroom')",
         "entityType": "checks"
       }
     },
@@ -114288,6 +115552,126 @@
         "table": "records",
         "name": "records_metadata_empty_check",
         "value": "metadata = '{}'",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "homeroom_classes_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "homeroom_classes_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "homeroom_classes_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "homeroom_classes_class_id_check",
+        "value": "class_id <> homeroom_class_id",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "homeroom_members_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "homeroom_members_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "homeroom_members_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "homeroom_members_source_check",
+        "value": "source in ('manual', 'rollover')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "homeroom_members_valid_during_check",
+        "value": "not isempty(\"valid_during\") and not lower_inf(\"valid_during\") and not upper_inf(\"valid_during\") and lower_inc(\"valid_during\") and not upper_inc(\"valid_during\")",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "homerooms_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "homerooms_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "homerooms_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
         "entityType": "checks"
       }
     },
@@ -128311,6 +129695,267 @@
         ],
         "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\"))",
         "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_classes",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homeroom_members",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "homerooms",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
         "entityType": "policies"
       }
     },

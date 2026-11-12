@@ -477,7 +477,7 @@ describe("early learning goals", () => {
 
     const staff = await signedIn(YOUNG, name);
     const homeroom = (await staff.classes.mine({})).rows.find(
-      (row) => row.classType === "homeroom",
+      (row) => row.group?.own,
     );
     if (!homeroom) throw new Error("the young teacher keeps no homeroom");
     const { students } = await staff.badges.classBadges({
@@ -625,7 +625,7 @@ describe("early learning goals", () => {
 
     const staff = await signedIn(YOUNG, name);
     const homeroom = (await staff.classes.mine({})).rows.find(
-      (row) => row.classType === "homeroom",
+      (row) => row.group?.own,
     );
     if (!homeroom) throw new Error("the young teacher keeps no homeroom");
     const { students } = await staff.badges.classBadges({

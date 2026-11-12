@@ -1,4 +1,4 @@
-import { saveClassSchema } from "@faridalms/domain/classes";
+import { saveHomeroomSchema } from "@faridalms/domain/homerooms";
 import { saveSignInSchema } from "@faridalms/domain/people";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
@@ -9,7 +9,7 @@ import { validationMessage } from "./validation";
 
 describe("localized form validation", () => {
   it("explains missing class details and subject selections", () => {
-    const result = v.safeParse(saveClassSchema, {
+    const result = v.safeParse(saveHomeroomSchema, {
       yearId: "",
       code: " ",
       subjects: [{ subjectId: "", teacherIds: [""] }],

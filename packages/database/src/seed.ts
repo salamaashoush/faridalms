@@ -62,6 +62,12 @@ import {
 } from "./stores/documents";
 import { openEnquiryConversation } from "./stores/enquiries";
 import {
+  addHomeroom,
+  followHomeroom,
+  linkClass,
+  placeMember,
+} from "./stores/homerooms";
+import {
   insertLesson,
   insertModule,
   recordProgress,
@@ -700,39 +706,38 @@ async function seedClasses(
         id: homeroomId,
         orgId: schoolId,
         schoolYearId: yearId,
-        classType: "homeroom",
         code: `${short}-${letter}`,
         titleEn: `${short}${letter}`,
         titleAr: `${gradeShortAr(grade)} ${letterAr}`,
         gradeLevelDescriptorId: need(gradeIds, grade),
       });
-      const homeroom = {
+      await addHomeroom(tx, { tenantId, orgId: schoolId, classId: homeroomId });
+      await tx.insert(enrollments).values({
         tenantId,
         classId: homeroomId,
-        classType: "homeroom" as const,
         schoolYearId: yearId,
         orgId: schoolId,
         validDuring: span,
-        source: "manual" as const,
-      };
-      await tx.insert(enrollments).values([
-        {
-          ...homeroom,
-          userId: teacherOf(
-            classTeacherTeaches
-              ? (homeroomIndex % BLOCK) + 1 + block * BLOCK
-              : homeroomIndex,
-          ).id,
-          role: "teacher",
-          isPrimary: true,
-          classroomPositionDescriptorId: need(positions, "teacher_of_record"),
-        },
-        ...students.map((userId) => ({
-          ...homeroom,
-          userId,
-          role: "student" as const,
-        })),
-      ]);
+        source: "manual",
+        userId: teacherOf(
+          classTeacherTeaches
+            ? (homeroomIndex % BLOCK) + 1 + block * BLOCK
+            : homeroomIndex,
+        ).id,
+        role: "teacher",
+        isPrimary: true,
+        classroomPositionDescriptorId: need(positions, "teacher_of_record"),
+      });
+      for (const studentId of students)
+        await placeMember(tx, {
+          tenantId,
+          orgId: schoolId,
+          homeroom: { id: homeroomId, schoolYearId: yearId },
+          studentId,
+          from: YEAR.start,
+          endsBefore: YEAR.end,
+          source: "manual",
+        });
       for (const [subjectIndex, subject] of TAUGHT_SUBJECTS.entries()) {
         const names = subjectNames.get(subject);
         let courseId = courseIds.get(subject);
@@ -756,19 +761,23 @@ async function seedClasses(
           id: classId,
           orgId: schoolId,
           schoolYearId: yearId,
-          classType: "scheduled",
           code: `${short}-${letter}-${subject.toUpperCase().slice(0, 4)}`,
           titleEn: `${short}${letter} ${names?.en ?? subject}`,
           titleAr: `${gradeShortAr(grade)} ${letterAr} ${names?.ar ?? subject}`,
           courseId,
-          homeroomClassId: homeroomId,
           subjectDescriptorId: need(subjectIds, subject),
           gradeLevelDescriptorId: need(gradeIds, grade),
+        });
+        await linkClass(tx, {
+          tenantId,
+          orgId: schoolId,
+          homeroomClassId: homeroomId,
+          classId,
+          linkedOn: YEAR.start,
         });
         await tx.insert(enrollments).values({
           tenantId,
           classId,
-          classType: "scheduled",
           schoolYearId: yearId,
           orgId: schoolId,
           userId: teacherOf(subjectIndex + 1 + block * BLOCK).id,
@@ -779,6 +788,7 @@ async function seedClasses(
           source: "manual",
         });
       }
+      await followHomeroom(tx, { tenantId, homeroomClassId: homeroomId });
       homeroomIndex += 1;
     }
   }
@@ -797,15 +807,14 @@ async function seedCoursework(
 ) {
   const offerings = await tx.execute<{
     id: string;
-    homeroom_class_id: string;
     teacher_id: string;
     title_en: string | null;
   }>(sql`
-    select c.id, c.homeroom_class_id, e.user_id as teacher_id, c.title_en
+    select c.id, e.user_id as teacher_id, c.title_en
     from core.classes c
     join core.enrollments e on e.tenant_id = c.tenant_id and e.class_id = c.id and e.role = 'teacher'
     where c.tenant_id = ${tenantId}::uuid and c.school_year_id = ${yearId}::uuid
-      and c.class_type = 'scheduled'
+      and c.subject_descriptor_id is not null
     order by c.code`);
   const [term] = await tx
     .select({ id: academicSessions.id })
@@ -853,7 +862,7 @@ async function seedCoursework(
   for (const [index, offering] of offerings.entries()) {
     const roster = await tx.execute<{ user_id: string }>(sql`
       select user_id from core.enrollments
-      where tenant_id = ${tenantId}::uuid and class_id = ${offering.homeroom_class_id}::uuid
+      where tenant_id = ${tenantId}::uuid and class_id = ${offering.id}::uuid
         and role = 'student'
       order by user_id`);
     const students = roster.map((row) => row.user_id);
@@ -861,7 +870,6 @@ async function seedCoursework(
       tenantId,
       orgId: schoolId,
       classId: offering.id,
-      classType: "scheduled" as const,
       schoolYearId: yearId,
       gradingPeriodId: term?.id ?? null,
       authorUserId: offering.teacher_id,
@@ -977,7 +985,6 @@ async function seedCoursework(
       id: groupId,
       orgId: schoolId,
       classId: offering.id,
-      classType: "scheduled",
       schoolYearId: yearId,
       titleEn: "Reading group",
       titleAr: "مجموعة القراءة",
@@ -1004,7 +1011,6 @@ async function seedCoursework(
           tenantId,
           orgId: schoolId,
           classId: offering.id,
-          classType: "scheduled" as const,
           schoolYearId: yearId,
           gradingPeriodId: term.id,
           studentUserId,
@@ -1505,13 +1511,14 @@ async function seedTimetable(
     homeroom_class_id: string;
     teacher_id: string;
   }>(sql`
-    select c.id, c.homeroom_class_id, e.user_id as teacher_id
-    from core.classes c
+    select c.id, k.homeroom_class_id, e.user_id as teacher_id
+    from core.homeroom_classes k
+    join core.classes c on c.tenant_id = k.tenant_id and c.id = k.class_id
     join core.enrollments e on e.tenant_id = c.tenant_id and e.class_id = c.id
       and e.role = 'teacher' and e.is_primary
-    join core.classes h on h.tenant_id = c.tenant_id and h.id = c.homeroom_class_id
-    where c.tenant_id = ${tenantId}::uuid and c.org_id = ${schoolId}::uuid
-      and c.school_year_id = ${yearId}::uuid and c.class_type = 'scheduled'
+    join core.classes h on h.tenant_id = k.tenant_id and h.id = k.homeroom_class_id
+    where k.tenant_id = ${tenantId}::uuid and k.org_id = ${schoolId}::uuid
+      and c.school_year_id = ${yearId}::uuid and k.status = 'active'
     order by h.code, c.code`);
   const homerooms = [...new Set(offered.map((row) => row.homeroom_class_id))];
   const [timetable] = await tx
@@ -1541,10 +1548,8 @@ async function seedTimetable(
           tenantId,
           orgId: schoolId,
           classId: taught.id,
-          classType: "scheduled",
           schoolYearId: yearId,
           timetableId: timetable.id,
-          groupClassId: homeroomId,
           weekday,
           classPeriodId: period.id,
           teacherUserId: taught.teacher_id,
@@ -2065,9 +2070,10 @@ async function seedEvents(
       and r.role in ('principal', 'site_administrator') and r.status = 'active'
     order by r.role, r.user_id limit 1`);
   const [eight] = await tx.execute<{ id: string }>(sql`
-    select id from core.classes
-    where tenant_id = ${tenantId}::uuid and school_year_id = ${yearId}::uuid
-      and class_type = 'homeroom' and title_en = '8A' and status = 'active'`);
+    select c.id from core.homerooms h
+    join core.classes c on c.tenant_id = h.tenant_id and c.id = h.class_id
+    where h.tenant_id = ${tenantId}::uuid and c.school_year_id = ${yearId}::uuid
+      and c.title_en = '8A' and c.status = 'active'`);
   if (!principal) return;
   const school: Audience = { scope: "school", classId: null, gradeId: null };
   const families: Audience = {
@@ -2284,11 +2290,12 @@ async function seedLearning(
       enabled: true,
     });
   const [homeroom] = await tx.execute<{ id: string; teacher_id: string }>(sql`
-    select c.id, e.user_id as teacher_id from core.classes c
+    select c.id, e.user_id as teacher_id from core.homerooms h
+    join core.classes c on c.tenant_id = h.tenant_id and c.id = h.class_id
     join core.enrollments e on e.tenant_id = c.tenant_id and e.class_id = c.id
       and e.role = 'teacher' and e.status = 'active'
-    where c.tenant_id = ${tenantId}::uuid and c.school_year_id = ${yearId}::uuid
-      and c.class_type = 'homeroom' and c.status = 'active'
+    where h.tenant_id = ${tenantId}::uuid and c.school_year_id = ${yearId}::uuid
+      and c.status = 'active'
     order by (c.title_en = '8A') desc, c.code, e.user_id limit 1`);
   if (!homeroom) return;
   const [student] = await tx.execute<{ user_id: string }>(sql`
@@ -2540,12 +2547,13 @@ async function seedMessages(
              from core.user_relationships l
              where l.tenant_id = s.tenant_id and l.student_user_id = s.user_id
                and app.guardian_permits(l, ${YEAR.start}::date, 'contact'))::text[], '{}')::text as guardians
-    from core.classes c
+    from core.homerooms h
+    join core.classes c on c.tenant_id = h.tenant_id and c.id = h.class_id
     join core.enrollments t on t.tenant_id = c.tenant_id and t.class_id = c.id
       and t.role = 'teacher' and t.is_primary
     join core.enrollments s on s.tenant_id = c.tenant_id and s.class_id = c.id and s.role = 'student'
-    where c.tenant_id = ${tenantId}::uuid and c.org_id = ${schoolId}::uuid
-      and c.school_year_id = ${yearId}::uuid and c.class_type = 'homeroom'
+    where h.tenant_id = ${tenantId}::uuid and h.org_id = ${schoolId}::uuid
+      and c.school_year_id = ${yearId}::uuid
     order by c.code, s.user_id`);
   const threads: (typeof messageThreads.$inferInsert)[] = [];
   const members: (typeof threadMembers.$inferInsert)[] = [];
@@ -2711,11 +2719,12 @@ async function seedAttendance(
            coalesce((select array_agg(s.user_id order by s.user_id) from core.enrollments s
              where s.tenant_id = c.tenant_id and s.class_id = c.id and s.role = 'student'
                and s.status = 'active')::text[], '{}')::text as students
-    from core.classes c
+    from core.homerooms h
+    join core.classes c on c.tenant_id = h.tenant_id and c.id = h.class_id
     join core.enrollments t on t.tenant_id = c.tenant_id and t.class_id = c.id
       and t.role = 'teacher' and t.is_primary
-    where c.tenant_id = ${tenantId}::uuid and c.org_id = ${schoolId}::uuid
-      and c.school_year_id = ${yearId}::uuid and c.class_type = 'homeroom'
+    where h.tenant_id = ${tenantId}::uuid and h.org_id = ${schoolId}::uuid
+      and c.school_year_id = ${yearId}::uuid
     order by c.code`);
   const registers: (typeof attendanceRegisters.$inferInsert)[] = [];
   const events: (typeof attendanceEvents.$inferInsert)[] = [];
@@ -2731,7 +2740,6 @@ async function seedAttendance(
         id: registerId,
         orgId: schoolId,
         classId: homeroom.id,
-        classType: "homeroom",
         schoolYearId: yearId,
         classPeriodId: period.id,
         takenOn: day,

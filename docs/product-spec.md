@@ -54,12 +54,20 @@ and notifications sit in the sidebar header.
 - **Student Home:** due soon (7 days, at most 5, missing flagged); today's
   timetable; continue lesson; class announcements; classes.
 - **Admin Today:** needs action (registers not taken with Remind all,
-  unexplained absences, students without a class or guardian, classes without a
-  homeroom teacher, failed notifications), today's and this week's attendance,
+  unexplained absences, students without a class or guardian, homerooms without
+  a teacher where the school has homerooms, failed notifications), today's and
+  this week's attendance,
   the next 7 days of events, recent communications with read rates, and a
   year-setup checklist eight weeks before year end.
 
 ## Classes
+
+A class is a group that is taught: a name and code, an optional subject,
+grade and room, and its teachers, the first of them its primary teacher.
+Whoever is in a class is its enrolments; no class takes its students from
+another. A school with every module off creates classes and enrols people in
+them directly, and coursework, attendance, the timetable, the gradebook and
+e-learning all work on such a class.
 
 The class is the hub for everything taught in it.
 
@@ -123,12 +131,25 @@ by term; families see returned results only.
 
 ## Attendance
 
+- **Homerooms** (a module): a homeroom is a class a student belongs to, one at
+  a time, with subject classes taught to it. Placing a student in a homeroom
+  enrols them in the homeroom class and in each of its subject classes from
+  that day; moving or withdrawing them ends those enrolments on the day; a
+  subject added later takes the homeroom's students from the day it is added.
+  The homeroom teacher is the homeroom class's primary teacher. Where the
+  module is on, the Classes page opens on a Homerooms tab, a homeroom's page
+  lists its subjects and a subject class names its homeroom, a student's
+  record shows their homeroom with Move and Remove, the student list has a
+  homeroom column and a bulk move, homerooms are owed a daily register in the
+  official period, and the timetable plans a homeroom's subject classes in one
+  grid. Where it is off, none of that shows.
+
 - Teacher register (phone first): rows start unmarked; Mark rest present fills
   them in one tap; exceptions are Present, Absent, Late (minutes), Excused, Left
   early, each with an optional note; a sticky footer summarises and saves.
   Teachers may edit within a configurable window.
-- A register takes marks only for the students in the class, or its
-  homeroom, on that date. It cannot be saved for a closed year, a future
+- A register takes marks only for the students enrolled in the class on that
+  date. It cannot be saved for a closed year, a future
   date or a day that is not a school day, nor, for a teacher without
   `attendance:manage`, outside the edit window; a save made from an
   out-of-date register is refused rather than overwriting someone else's.
@@ -171,7 +192,8 @@ is a separate, explicit step; the old year becomes read-only.
 
 ## People
 
-- **Students:** list with photo, both names, reference, class, homeroom teacher,
+- **Students:** list with photo, both names, reference, homeroom (where the
+  school has homerooms),
   primary guardian phone, status and account; chips for grade, class, status,
   missing guardian, no account; search across scripts, reference and guardian
   phone; saved views; bulk Move class, Message guardians, Create accounts,
@@ -210,7 +232,8 @@ is a separate, explicit step; the old year becomes read-only.
   agreed to that place.
   Publishing refuses a picture of a student without a yes, and a family's
   later no to the website takes their child's pictures off it at once.
-- **Staff:** roles, classes taught, homeroom, timetable, effective access,
+- **Staff:** roles, classes taught (and whose homeroom teacher they are, where
+  the school has homerooms), timetable, effective access,
   sign-in activity, history.
 - **Adding a student:** names, date of birth and class; a matching name and
   birth date offers Open existing; guardians are found by phone or email before

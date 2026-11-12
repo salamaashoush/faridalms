@@ -20,11 +20,7 @@ import {
   announcementFeed,
   managedBroadcasts,
 } from "@faridalms/database/stores/broadcasts";
-import {
-  classesTaughtBy,
-  homeroomDirectory,
-  homeroomsOn,
-} from "@faridalms/database/stores/classes";
+import { classesTaughtBy } from "@faridalms/database/stores/classes";
 import {
   learnerAssignments,
   teacherAssignments,
@@ -53,7 +49,7 @@ import {
 } from "@faridalms/database/stores/students";
 import {
   meetingsOn,
-  studentGroups,
+  studentClasses,
 } from "@faridalms/database/stores/timetable";
 import {
   schoolYears,
@@ -81,6 +77,7 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 import type { RecordLink } from "../core/reach";
 
+import { dailyClassIds } from "../attendance/daily-registers";
 import { modulesOf } from "../core/modules";
 import {
   can,
@@ -91,6 +88,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { recordLinks, scopeFor } from "../core/reach";
+import { studentGroupsOf } from "../core/student-groups";
 import { yearAfter } from "../core/years";
 
 async function yearOf(context: UnitContext) {
@@ -190,7 +188,6 @@ async function asHeld(
     on: day,
     days: [day],
     filter: {
-      groupIds: [],
       classIds: [...new Set(covers.map((row) => row.classId))],
     },
   });
@@ -340,6 +337,7 @@ export const teacher = readProcedure.handler(async ({ context }) => {
     yearId: year.id,
     day: context.today,
     officialPeriodId: periods.find((period) => period.official)?.id ?? null,
+    dailyClassIds: await dailyClassIds(context, year.id),
   });
   const registers = new Map(
     board.map((row) => [`${row.classId}:${row.periodId}`, row.state]),
@@ -348,7 +346,7 @@ export const teacher = readProcedure.handler(async ({ context }) => {
   const covered = new Set(
     meetings.map((meeting) => `${meeting.classId}:${meeting.periodId}`),
   );
-  // A homeroom's daily register is expected without a timetabled lesson.
+  // A daily register is expected without a timetabled lesson.
   const daily: MeetingRow[] = board
     .filter(
       (row) =>
@@ -361,11 +359,6 @@ export const teacher = readProcedure.handler(async ({ context }) => {
       classCode: row.classCode,
       classTitleEn: row.classTitleEn,
       classTitleAr: row.classTitleAr,
-      classType: row.classType,
-      groupClassId: row.classId,
-      groupCode: row.classCode,
-      groupTitleEn: row.classTitleEn,
-      groupTitleAr: row.classTitleAr,
       timetableId: "",
       weekday: isoWeekday(context.today),
       periodId: row.periodId,
@@ -431,7 +424,6 @@ export const teacher = readProcedure.handler(async ({ context }) => {
       code: row.code,
       titleEn: row.titleEn,
       titleAr: row.titleAr,
-      classType: row.classType,
       students: row.students,
       role: row.role,
     })),
@@ -483,7 +475,7 @@ async function studentDay(context: UnitContext, studentId: string) {
   const weekEnd = addDays(context.today, 7);
   if (!year)
     return { presence: "none" as const, slots: [], work: [], year: null };
-  const [attendance, unexplained, groups, periods, rows, clock] =
+  const [attendance, unexplained, classIds, periods, rows, clock] =
     await Promise.all([
       attendanceCounts(context.tx, {
         tenantId: context.tenantId,
@@ -496,7 +488,7 @@ async function studentDay(context: UnitContext, studentId: string) {
         studentId,
         day: context.today,
       }),
-      studentGroups(context.tx, {
+      studentClasses(context.tx, {
         tenantId: context.tenantId,
         studentId,
         on: context.today,
@@ -515,7 +507,7 @@ async function studentDay(context: UnitContext, studentId: string) {
       clockOf(context),
     ]);
   const meetings =
-    groups.groupIds.length || groups.classIds.length
+    classIds.length > 0
       ? await asHeld(
           context,
           await meetingsOn(context.tx, {
@@ -523,7 +515,7 @@ async function studentDay(context: UnitContext, studentId: string) {
             schoolId: context.schoolId,
             on: context.today,
             days: [context.today],
-            filter: { groupIds: groups.groupIds, classIds: groups.classIds },
+            filter: { classIds },
           }),
           context.today,
         )
@@ -620,25 +612,24 @@ export const child = readProcedure
       await childrenOf(context.tx, scope, context.actor.userId)
     ).find((row) => row.visible && row.studentId === input.studentId);
     if (!link) throw new ORPCError("NOT_FOUND");
-    const [record, reference, held, homerooms, grades, sexes] =
-      await Promise.all([
-        readPerson(context.tx, input.studentId),
-        referenceOf(context.tx, scope, input.studentId),
-        placements(context.tx, scope, input.studentId),
-        homeroomsOn(context.tx, scope, [input.studentId], context.today),
-        descriptorsFor(context.tx, {
-          tenantId: context.tenantId,
-          schoolId: context.schoolId,
-          namespace: "grade_level",
-          today: context.today,
-        }),
-        descriptorsFor(context.tx, {
-          tenantId: context.tenantId,
-          schoolId: context.schoolId,
-          namespace: "sex",
-          today: context.today,
-        }),
-      ]);
+    const [record, reference, held, groups, grades, sexes] = await Promise.all([
+      readPerson(context.tx, input.studentId),
+      referenceOf(context.tx, scope, input.studentId),
+      placements(context.tx, scope, input.studentId),
+      studentGroupsOf(context, [input.studentId], context.today),
+      descriptorsFor(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        namespace: "grade_level",
+        today: context.today,
+      }),
+      descriptorsFor(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        namespace: "sex",
+        today: context.today,
+      }),
+    ]);
     if (!record) throw new ORPCError("NOT_FOUND");
     const current = held.find(
       (row) => row.from <= context.today && context.today < row.to,
@@ -652,7 +643,7 @@ export const child = readProcedure
       sex: labelIn(sexes, record.sexId),
       reference: reference?.identifier ?? null,
       grade: labelIn(grades, current?.gradeId),
-      homeroom: homerooms.get(input.studentId) ?? null,
+      group: groups.get(input.studentId) ?? null,
       decides: link.educationalRights === "full",
     };
   });
@@ -959,6 +950,7 @@ export const admin = readProcedure.handler(async ({ context }) => {
       yearId: year.id,
       day: context.today,
       officialPeriodId: periods.find((period) => period.official)?.id ?? null,
+      dailyClassIds: await dailyClassIds(context, year.id),
     });
     const missing = board.filter((row) => row.state === "not_started");
     registers = {
@@ -985,6 +977,7 @@ export const admin = readProcedure.handler(async ({ context }) => {
       to: context.today,
       by: "class",
       q: "",
+      dailyClassIds: await dailyClassIds(context, year.id),
     });
     attendance = { today: rateOf(board), week: rateOf(week) };
     absences = (
@@ -1000,7 +993,6 @@ export const admin = readProcedure.handler(async ({ context }) => {
     ).length;
   }
   let guardians: number | null = null;
-  let homerooms: number | null = null;
   if (year && can(context, "people:read")) {
     guardians = (
       await studentDirectory(context.tx, scopeFor(context, "school"), {
@@ -1022,16 +1014,6 @@ export const admin = readProcedure.handler(async ({ context }) => {
       })
     ).total;
   }
-  if (year && can(context, "classes:read"))
-    homerooms = (
-      await homeroomDirectory(context.tx, scopeFor(context, "school"), {
-        yearId: year.id,
-        on: context.today,
-        q: "",
-        gradeIds: [],
-        locale: "en",
-      })
-    ).filter((row) => row.teachers.length === 0).length;
   const failed = can(context, "school:manage")
     ? (
         await deliveryLog(context.tx, {
@@ -1104,7 +1086,6 @@ export const admin = readProcedure.handler(async ({ context }) => {
     registers,
     absences,
     guardians,
-    homerooms,
     failed,
     documents,
     attendance,

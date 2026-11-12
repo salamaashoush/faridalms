@@ -145,7 +145,7 @@ test("an unsaved register asks before it is left, and a register saved meanwhile
   if (!day || !joined) throw new Error("too few school days so far");
   await Promise.all(
     [first, second].map((student) =>
-      admin.classes.enrol({
+      admin.homerooms.place({
         studentId: student.id,
         classId: klass.id,
         from: joined,

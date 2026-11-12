@@ -1229,21 +1229,35 @@ describe("teaching", () => {
     const school = await schoolOf(a.tenantId);
     const second = await probe("app", a.tenantId, [
       {
-        text: `insert into core.classes (tenant_id, org_id, school_year_id, class_type, code, title_en)
-               values ($1, $2, $3, 'homeroom', 'X-B', 'XB') returning id`,
+        text: `insert into core.classes (tenant_id, org_id, school_year_id, code, title_en)
+               values ($1, $2, $3, 'X-B', 'XB') returning id`,
         params: [a.tenantId, school.id, school.year],
       },
       {
-        text: `insert into core.enrollments (tenant_id, class_id, class_type, school_year_id, org_id, user_id, role,
+        text: `insert into core.homerooms (tenant_id, org_id, class_id)
+               select $1, $2, id from core.classes where tenant_id = $1 and code = 'X-B'`,
+        params: [a.tenantId, school.id],
+      },
+      {
+        text: `insert into core.enrollments (tenant_id, id, class_id, school_year_id, org_id, user_id, role,
                  valid_during, source)
-               select e.tenant_id, (select id from core.classes where tenant_id = $1 and code = 'X-B'), 'homeroom',
-                 e.school_year_id, e.org_id, e.user_id, 'student', '[2026-10-01,2027-06-18)', 'manual'
+               select m.tenant_id, '00000000-0000-4000-8000-0000000000b1',
+                 (select id from core.classes where tenant_id = $1 and code = 'X-B'),
+                 $2, m.org_id, m.student_user_id, 'student', '[2026-10-01,2027-06-18)', 'homeroom'
+               from core.homeroom_members m where m.tenant_id = $1 order by m.id limit 1`,
+        params: [a.tenantId, school.year],
+      },
+      {
+        text: `insert into core.homeroom_members (tenant_id, org_id, homeroom_class_id, enrollment_id,
+                 student_user_id, valid_during, source)
+               select e.tenant_id, e.org_id, e.class_id, e.id, e.user_id, e.valid_during, 'manual'
                from core.enrollments e
-               where e.tenant_id = $1 and e.role = 'student' and e.class_type = 'homeroom' limit 1`,
+               where e.tenant_id = $1 and e.id = '00000000-0000-4000-8000-0000000000b1'`,
         params: [a.tenantId],
       },
     ]);
     expect(second.error?.code).toBe("23P01");
+    expect(second.error?.message).toContain("homeroom_members_excl");
     const outlast = await probe("app", a.tenantId, [
       {
         text: `update core.enrollments set valid_during = '[2026-09-13,2027-07-01)'
@@ -1268,8 +1282,8 @@ describe("teaching", () => {
               (select count(*)::int from core.student_school_years p
                  where p.tenant_id = t.tenant_id and p.org_id = $2) as placed
        from core.enrollments t
-       join core.classes c on c.tenant_id = t.tenant_id and c.id = t.class_id and c.class_type = 'homeroom'
-       where t.tenant_id = $1 and t.role = 'teacher' and c.org_id = $2 limit 1`,
+       join core.homerooms h on h.tenant_id = t.tenant_id and h.class_id = t.class_id
+       where t.tenant_id = $1 and t.role = 'teacher' and h.org_id = $2 limit 1`,
       [a.tenantId, school.id],
     );
     const seen = await probe<{ reached: number }>("app", a.tenantId, [

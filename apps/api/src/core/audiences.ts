@@ -2,7 +2,7 @@ import type { Audience } from "@faridalms/database/stores/audiences";
 import type { AudienceInput } from "@faridalms/domain/announcements";
 
 import { gradesInYear, reachOf } from "@faridalms/database/stores/audiences";
-import { gridOwners } from "@faridalms/database/stores/timetable";
+import { classesOfYear } from "@faridalms/database/stores/classes";
 import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 
 import type { UnitContext } from "./context";
@@ -30,7 +30,7 @@ export async function audienceChoices(context: UnitContext) {
     yearId: year.id,
   };
   const [classes, grades] = await Promise.all([
-    gridOwners(context.tx, scope),
+    classesOfYear(context.tx, scope),
     gradesInYear(context.tx, scope),
   ]);
   return { classes, grades };

@@ -12,7 +12,7 @@ async function classmates(teacher: Session) {
   const first = await sessionFor("northwind", login("student"));
   const me = await first.api.identity.currentUser();
   const { classes } = await teacher.api.coursework.options();
-  for (const row of classes.filter((item) => item.classType === "scheduled")) {
+  for (const row of classes.filter((item) => item.subjectId !== null)) {
     const { roster } = await teacher.api.coursework.groups({ classId: row.id });
     if (!roster.some((pupil) => pupil.id === me.id)) continue;
     for (let index = 1; index < 40; index++) {

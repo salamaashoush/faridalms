@@ -50,6 +50,7 @@ import { Route as AppStaffClassEditorRouteImport } from './routes/_app/_staff/cl
 import { Route as AppStaffClassesRouteImport } from './routes/_app/_staff/classes'
 import { Route as AppStaffGradebookRouteImport } from './routes/_app/_staff/gradebook'
 import { Route as AppStaffGradingRouteImport } from './routes/_app/_staff/grading'
+import { Route as AppStaffHomeroomEditorRouteImport } from './routes/_app/_staff/homeroom-editor'
 import { Route as AppStaffLessonEditorRouteImport } from './routes/_app/_staff/lesson-editor'
 import { Route as AppStaffMediaRouteImport } from './routes/_app/_staff/media'
 import { Route as AppStaffMessagesRouteImport } from './routes/_app/_staff/messages'
@@ -338,6 +339,11 @@ const AppStaffGradebookRoute = AppStaffGradebookRouteImport.update({
 const AppStaffGradingRoute = AppStaffGradingRouteImport.update({
   id: '/grading',
   path: '/grading',
+  getParentRoute: () => AppStaffRoute,
+} as any)
+const AppStaffHomeroomEditorRoute = AppStaffHomeroomEditorRouteImport.update({
+  id: '/homeroom-editor',
+  path: '/homeroom-editor',
   getParentRoute: () => AppStaffRoute,
 } as any)
 const AppStaffLessonEditorRoute = AppStaffLessonEditorRouteImport.update({
@@ -808,6 +814,7 @@ export interface FileRoutesByFullPath {
   '/classes': typeof AppStaffClassesRoute
   '/gradebook': typeof AppStaffGradebookRoute
   '/grading': typeof AppStaffGradingRoute
+  '/homeroom-editor': typeof AppStaffHomeroomEditorRoute
   '/lesson-editor': typeof AppStaffLessonEditorRoute
   '/media': typeof AppStaffMediaRoute
   '/messages': typeof AppStaffMessagesRoute
@@ -928,6 +935,7 @@ export interface FileRoutesByTo {
   '/classes': typeof AppStaffClassesRoute
   '/gradebook': typeof AppStaffGradebookRoute
   '/grading': typeof AppStaffGradingRoute
+  '/homeroom-editor': typeof AppStaffHomeroomEditorRoute
   '/lesson-editor': typeof AppStaffLessonEditorRoute
   '/media': typeof AppStaffMediaRoute
   '/messages': typeof AppStaffMessagesRoute
@@ -1055,6 +1063,7 @@ export interface FileRoutesById {
   '/_app/_staff/classes': typeof AppStaffClassesRoute
   '/_app/_staff/gradebook': typeof AppStaffGradebookRoute
   '/_app/_staff/grading': typeof AppStaffGradingRoute
+  '/_app/_staff/homeroom-editor': typeof AppStaffHomeroomEditorRoute
   '/_app/_staff/lesson-editor': typeof AppStaffLessonEditorRoute
   '/_app/_staff/media': typeof AppStaffMediaRoute
   '/_app/_staff/messages': typeof AppStaffMessagesRoute
@@ -1180,6 +1189,7 @@ export interface FileRouteTypes {
     | '/classes'
     | '/gradebook'
     | '/grading'
+    | '/homeroom-editor'
     | '/lesson-editor'
     | '/media'
     | '/messages'
@@ -1300,6 +1310,7 @@ export interface FileRouteTypes {
     | '/classes'
     | '/gradebook'
     | '/grading'
+    | '/homeroom-editor'
     | '/lesson-editor'
     | '/media'
     | '/messages'
@@ -1426,6 +1437,7 @@ export interface FileRouteTypes {
     | '/_app/_staff/classes'
     | '/_app/_staff/gradebook'
     | '/_app/_staff/grading'
+    | '/_app/_staff/homeroom-editor'
     | '/_app/_staff/lesson-editor'
     | '/_app/_staff/media'
     | '/_app/_staff/messages'
@@ -1819,6 +1831,13 @@ declare module '@tanstack/react-router' {
       path: '/grading'
       fullPath: '/grading'
       preLoaderRoute: typeof AppStaffGradingRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/homeroom-editor': {
+      id: '/_app/_staff/homeroom-editor'
+      path: '/homeroom-editor'
+      fullPath: '/homeroom-editor'
+      preLoaderRoute: typeof AppStaffHomeroomEditorRouteImport
       parentRoute: typeof AppStaffRoute
     }
     '/_app/_staff/lesson-editor': {
@@ -2417,6 +2436,7 @@ interface AppStaffRouteChildren {
   AppStaffClassesRoute: typeof AppStaffClassesRoute
   AppStaffGradebookRoute: typeof AppStaffGradebookRoute
   AppStaffGradingRoute: typeof AppStaffGradingRoute
+  AppStaffHomeroomEditorRoute: typeof AppStaffHomeroomEditorRoute
   AppStaffLessonEditorRoute: typeof AppStaffLessonEditorRoute
   AppStaffMediaRoute: typeof AppStaffMediaRoute
   AppStaffMessagesRoute: typeof AppStaffMessagesRoute
@@ -2449,6 +2469,7 @@ const AppStaffRouteChildren: AppStaffRouteChildren = {
   AppStaffClassesRoute: AppStaffClassesRoute,
   AppStaffGradebookRoute: AppStaffGradebookRoute,
   AppStaffGradingRoute: AppStaffGradingRoute,
+  AppStaffHomeroomEditorRoute: AppStaffHomeroomEditorRoute,
   AppStaffLessonEditorRoute: AppStaffLessonEditorRoute,
   AppStaffMediaRoute: AppStaffMediaRoute,
   AppStaffMessagesRoute: AppStaffMessagesRoute,

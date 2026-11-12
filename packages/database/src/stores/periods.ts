@@ -377,15 +377,15 @@ export async function replacePeriodsFrom(
         set valid_during = daterange(lower(m.valid_during), ${input.from}::date, '[)')
         from spanning s
         where m.tenant_id = ${input.tenantId}::uuid and m.id = s.id
-        returning m.tenant_id, m.org_id, m.class_id, m.class_type, m.school_year_id,
-          m.timetable_id, m.group_class_id, m.weekday, m.teacher_user_id, m.location_id,
+        returning m.tenant_id, m.org_id, m.class_id, m.school_year_id,
+          m.timetable_id, m.weekday, m.teacher_user_id, m.location_id,
           m.clash_accepted, s.until
       )
-      insert into core.class_meetings (tenant_id, org_id, class_id, class_type, school_year_id,
-        timetable_id, group_class_id, weekday, class_period_id, teacher_user_id, location_id,
+      insert into core.class_meetings (tenant_id, org_id, class_id, school_year_id,
+        timetable_id, weekday, class_period_id, teacher_user_id, location_id,
         valid_during, clash_accepted)
-      select e.tenant_id, e.org_id, e.class_id, e.class_type, e.school_year_id, e.timetable_id,
-        e.group_class_id, e.weekday, ${id}::uuid, e.teacher_user_id, e.location_id,
+      select e.tenant_id, e.org_id, e.class_id, e.school_year_id, e.timetable_id,
+        e.weekday, ${id}::uuid, e.teacher_user_id, e.location_id,
         daterange(${input.from}::date, e.until, '[)'), e.clash_accepted
       from ended e
       join core.timetables t on t.tenant_id = e.tenant_id and t.id = e.timetable_id

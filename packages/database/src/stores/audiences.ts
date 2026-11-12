@@ -68,15 +68,12 @@ function audienceSql(
     case "school":
       return sql`${staff} union ${enrolled(sql`true`)} union ${guardiansOf(enrolled(sql`true`))}`;
     case "class": {
-      const inClass = sql`c.id = coalesce((select k.homeroom_class_id from core.classes k
-        where k.tenant_id = ${input.tenantId}::uuid and k.id = ${audience.classId}::uuid),
-        ${audience.classId}::uuid)`;
+      const inClass = sql`c.id = ${audience.classId}::uuid`;
       return sql`${enrolled(inClass)} union ${guardiansOf(enrolled(inClass))}
         union ${teachersOf(sql`c.id = ${audience.classId}::uuid`)}`;
     }
     default: {
-      const inGrade = sql`c.class_type = 'homeroom'
-        and c.grade_level_descriptor_id = ${audience.gradeId}::uuid`;
+      const inGrade = sql`c.grade_level_descriptor_id = ${audience.gradeId}::uuid`;
       return sql`${enrolled(inGrade)} union ${guardiansOf(enrolled(inGrade))}
         union ${teachersOf(sql`c.org_id = ${input.schoolId}::uuid and ${inGrade}`)}`;
     }
@@ -119,7 +116,7 @@ export async function reachedAmong(
   return rows.map((row) => row.user_id);
 }
 
-/** The grades a year's homerooms teach, for choosing an audience. */
+/** The grades a year's classes teach, for choosing an audience. */
 export async function gradesInYear(
   tx: Tx,
   input: { tenantId: string; schoolId: string; yearId: string },
@@ -132,7 +129,7 @@ export async function gradesInYear(
     select distinct d.id, d.label_en, d.label_ar, d.sort_order from core.classes c
     join core.descriptors d on d.tenant_id = c.tenant_id and d.id = c.grade_level_descriptor_id
     where c.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.schoolId}::uuid
-      and c.school_year_id = ${input.yearId}::uuid and c.class_type = 'homeroom' and c.status = 'active'
+      and c.school_year_id = ${input.yearId}::uuid and c.status = 'active'
     order by d.sort_order`);
   return rows.map((row) => ({
     id: row.id,
@@ -221,9 +218,8 @@ export interface Reach {
 
 /**
  * The same membership `audienceUsers` resolves, turned around: whether the
- * scopes name this person. A class covers its students (through the homeroom
- * a subject class is taught to), their families and its teachers; a grade
- * covers its homerooms the same way.
+ * scopes name this person. A class covers its students, their families and
+ * its teachers; a grade covers its classes the same way.
  */
 export async function reachOf(
   tx: Tx,
@@ -256,9 +252,6 @@ export async function reachOf(
         and c.status = 'active'
     ), member as (
       select class_id from enrolled
-      union select k.id from core.classes k
-        where k.tenant_id = ${input.tenantId}::uuid
-          and k.homeroom_class_id in (select class_id from enrolled)
       union select class_id from taught
     )
     select
@@ -270,7 +263,7 @@ export async function reachOf(
       exists (select 1 from enrolled where user_id <> ${input.userId}::uuid) as guardian,
       coalesce((select json_agg(distinct class_id) from member), '[]'::json) as class_ids,
       coalesce((select json_agg(distinct c.grade_level_descriptor_id) from core.classes c
-        where c.tenant_id = ${input.tenantId}::uuid and c.class_type = 'homeroom'
+        where c.tenant_id = ${input.tenantId}::uuid
           and c.grade_level_descriptor_id is not null
           and c.id in (select class_id from enrolled union select class_id from taught)), '[]'::json)
         as grade_ids`);

@@ -375,6 +375,18 @@ alter table core.grade_scales force row level security;
 grant select, insert, update on core.grade_scales to app, worker, cell_io;
 grant select on core.grade_scales to retention;
 
+alter table core.homeroom_classes force row level security;
+grant select, insert, update on core.homeroom_classes to app, worker, cell_io;
+grant select on core.homeroom_classes to retention;
+
+alter table core.homeroom_members force row level security;
+grant select, insert, update on core.homeroom_members to app, worker, cell_io;
+grant select on core.homeroom_members to retention;
+
+alter table core.homerooms force row level security;
+grant select, insert, update on core.homerooms to app, worker, cell_io;
+grant select on core.homerooms to retention;
+
 alter table core.identity_provider_orgs force row level security;
 grant select, insert, update on core.identity_provider_orgs to app, worker, cell_io;
 grant select on core.identity_provider_orgs to retention;

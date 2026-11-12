@@ -22,7 +22,9 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
 import { useState } from "react";
 
+import { groupWords } from "~/components/classes/slots";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { personHistoryQuery, personRecordQuery } from "~/queries/students";
 import { formatDate, formatList } from "~/utils/datetime";
@@ -208,6 +210,7 @@ export function TeachingSection({
   title = m.personTeaching(),
   empty = m.personNoTeaching(),
 }: TeachingSectionProps) {
+  const words = useSlot(groupWords);
   return (
     <RecordSection
       title={title}
@@ -220,16 +223,18 @@ export function TeachingSection({
       ) : (
         <RecordList>
           {teaching.classes.map((row) => {
-            const homeroom = inLocale(row.homeroomTitleEn, row.homeroomTitleAr);
-            const detail =
-              row.classType === "homeroom"
-                ? m.studentHomeroomTeacher()
-                : formatList(
-                    [
-                      labelOf(row.subject),
-                      homeroom ? m.personTeachingIn({ class: homeroom }) : null,
-                    ].filter((part): part is string => Boolean(part)),
-                  );
+            const group =
+              row.group && !row.group.own
+                ? inLocale(row.group.titleEn, row.group.titleAr)
+                : "";
+            const detail = row.group?.own
+              ? (words[0]?.teacher() ?? m.classesClassTeacher())
+              : formatList(
+                  [
+                    labelOf(row.subject),
+                    group ? m.personTeachingIn({ class: group }) : null,
+                  ].filter((part): part is string => Boolean(part)),
+                );
             return (
               <li
                 key={row.id}

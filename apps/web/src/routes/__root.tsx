@@ -14,6 +14,7 @@ import {
 import { ThemeProvider } from "next-themes";
 
 import type { AuthState } from "~/server/auth";
+import type { ModuleFillings } from "~/utils/extension";
 
 import { portalDesignSystem } from "~/components/app/design-system";
 import * as m from "~/i18n/messages";
@@ -31,6 +32,8 @@ import { seo } from "../utils/seo";
 interface AppRouterContext {
   auth: AuthState;
   queryClient: QueryClient;
+  /** Every module's fillings for the slots pages declare. */
+  extensions: readonly ModuleFillings[];
 }
 
 export const Route = createRootRouteWithContext<AppRouterContext>()({

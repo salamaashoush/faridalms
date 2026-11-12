@@ -68,9 +68,7 @@ function reachable(reach: Scope): SQL {
       select user_id from children
     ), their_classes as (
       select c.id from core.enrollments e
-      join core.classes k on k.tenant_id = e.tenant_id and k.id = e.class_id
-      join core.classes c on c.tenant_id = k.tenant_id
-        and (c.id = k.id or c.homeroom_class_id = k.id) and c.status = 'active'
+      join core.classes c on c.tenant_id = e.tenant_id and c.id = e.class_id and c.status = 'active'
       where e.tenant_id = ${reach.tenantId}::uuid and e.role = 'student' and e.status = 'active'
         and e.valid_during @> ${reach.today}::date and e.user_id in (select user_id from learners)
     ), candidates(user_id, kind) as (

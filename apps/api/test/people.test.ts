@@ -1027,9 +1027,7 @@ describe("leaving the school", () => {
     const options = await api.people.options();
     const mother = options.relations.find((row) => row.code === "mother");
     const year = options.years.find((row) => row.id === options.workingYearId);
-    const room = (await api.classes.directory({})).rows.find(
-      (row) => row.classType === "homeroom",
-    );
+    const room = (await api.homerooms.directory({})).rows[0];
     if (!mother || !year || !room) throw new Error("seed");
     const { id: studentId } = await api.people.saveStudent({
       names: names("Salama Ashoush", "سلامة عشوش"),
@@ -1572,7 +1570,7 @@ describe("a link for an adult's own password", () => {
 describe("who teaches what", () => {
   test("a student's record names their homeroom's teachers", async () => {
     const api = await signedIn("northwind", login("principal"));
-    const homeroom = (await api.classes.directory({})).rows.find(
+    const homeroom = (await api.homerooms.directory({})).rows.find(
       (row) => row.students > 0 && row.teachers.length > 0,
     );
     if (!homeroom) throw new Error("seed homeroom with a teacher");
@@ -1580,13 +1578,13 @@ describe("who teaches what", () => {
     const student = record.roster[0];
     if (!student) throw new Error("seed student");
     const seen = await api.people.student({ id: student.userId });
-    expect(seen.homeroom).toMatchObject({ classId: homeroom.id });
-    expect(seen.homeroom?.teachers.map((row) => row.userId)).toEqual(
+    expect(seen.group).toMatchObject({ classId: homeroom.id });
+    expect(seen.group?.teachers.map((row) => row.userId)).toEqual(
       record.teachers
         .filter((row) => row.role === "teacher")
         .map((row) => row.userId),
     );
-    expect(seen.homeroom?.teachers.length).toBeGreaterThan(0);
+    expect(seen.group?.teachers.length).toBeGreaterThan(0);
   });
 
   test("a member of staff's record lists the classes they teach this year, open where the viewer may", async () => {
@@ -1609,10 +1607,9 @@ describe("who teaches what", () => {
     );
     const subjects = staff
       .flatMap((row) => row.teaching?.classes ?? [])
-      .filter((row) => row.classType === "scheduled");
+      .filter((row) => row.group !== null && !row.group.own);
     expect(subjects.length).toBeGreaterThan(0);
     expect(subjects.every((row) => row.subject !== null)).toBe(true);
-    expect(subjects.every((row) => row.homeroomTitleEn !== null)).toBe(true);
 
     const colleague = staff.find(
       (row) => row.id !== me.id && (row.teaching?.classes.length ?? 0) > 0,
@@ -1644,10 +1641,9 @@ async function familyAndTeacher() {
   const [child] = (await parent.people.person({ id: me.id })).children;
   if (!child) throw new Error("seed parent with a child");
   const seen = await office.people.student({ id: child.studentId });
-  const teacher = seen.homeroom?.teachers[0];
-  if (!seen.homeroom || !teacher)
-    throw new Error("seed homeroom with a teacher");
-  return { office, parent, me, child, homeroom: seen.homeroom, teacher };
+  const teacher = seen.group?.teachers[0];
+  if (!seen.group || !teacher) throw new Error("seed homeroom with a teacher");
+  return { office, parent, me, child, homeroom: seen.group, teacher };
 }
 
 describe("teacher profiles", () => {
@@ -1699,11 +1695,11 @@ describe("teacher profiles", () => {
     const office = await signedIn("northwind", login("principal"));
     const me = await student.identity.currentUser();
     const seen = await office.people.student({ id: me.id });
-    const teacher = seen.homeroom?.teachers[0];
+    const teacher = seen.group?.teachers[0];
     if (!teacher) throw new Error("seed homeroom with a teacher");
     const profile = await student.people.profile({ id: teacher.userId });
     expect(profile.teaching?.classes.map((row) => row.id)).toContain(
-      seen.homeroom?.classId,
+      seen.group?.classId,
     );
     expect(
       await rejection(student.people.person({ id: teacher.userId })),

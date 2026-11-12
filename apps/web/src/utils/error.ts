@@ -412,6 +412,10 @@ export function getMessageFromError(error: unknown): string {
         return m.errorAlreadyEnrolled();
       case "enrollment.homeroom_overlapping":
         return m.errorConflictVersion();
+      case "enrollment.derived":
+        return m.errorEnrollmentDerived();
+      case "homeroom.class_linked":
+        return m.errorHomeroomClassLinked();
       case "content.invalid":
         return m.contentInvalid();
       case "bank.prompt_needed":
@@ -566,7 +570,6 @@ export function getMessageFromError(error: unknown): string {
       case "timetable.room":
         return m.ttChoiceGone();
       case "timetable.class_busy":
-      case "timetable.group_busy":
         return m.ttGroupBusy();
       case "timetable.teacher_busy":
       case "timetable.room_busy":

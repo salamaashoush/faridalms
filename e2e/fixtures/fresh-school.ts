@@ -1,3 +1,4 @@
+import type { ModuleId } from "@faridalms/domain/modules";
 import type { Browser, Page } from "@playwright/test";
 
 import { SWITCHED_MODULES } from "@faridalms/domain/modules";
@@ -61,6 +62,35 @@ function createSchool(slug: string) {
   const secret = /\/welcome#(\S+)/.exec(printed)?.[1];
   if (!secret) throw new Error(`no welcome link in:\n${printed}`);
   return secret;
+}
+
+const WITHOUT = `
+const { SQL } = await import("bun");
+const sql = new SQL(process.env.DIRECTORY_ADMIN_URL);
+const rows = await sql\`update school_entitlements e
+  set modules = array(select unnest(e.modules) except select unnest(\${process.env.WITHOUT.split(",")}::text[])),
+    revision = e.revision + 1
+  from schools s where s.id = e.school_id and s.slug = \${process.env.SLUG}
+  returning e.school_id\`;
+await sql.close();
+if (rows.length !== 1) throw new Error("no such school");
+`;
+
+/**
+ * Takes modules out of a new school's plan before anyone has opened it, as
+ * the operator console would, in a child process since Playwright runs on
+ * Node and the directory is reached with Bun's SQL client.
+ */
+function takeModules(slug: string, modules: readonly ModuleId[]) {
+  execFileSync("bun", ["--eval", WITHOUT], {
+    env: {
+      ...process.env,
+      DIRECTORY_ADMIN_URL: process.env.OPS_DIRECTORY_URL,
+      SLUG: slug,
+      WITHOUT: modules.join(","),
+    },
+    stdio: "inherit",
+  });
 }
 
 /** Chooses a password from the welcome link, as the first administrator does. */
@@ -141,11 +171,16 @@ async function firstPeople(admin: Api, slug: string) {
 
 /**
  * A newly created school with no school year, its first administrator
- * signed up, and one teacher, student and guardian who can sign in.
+ * signed up, and one teacher, student and guardian who can sign in. Every
+ * module is on but those named in `without`.
  */
-export async function freshSchool(browser: Browser): Promise<FreshSchool> {
+export async function freshSchool(
+  browser: Browser,
+  options: { without?: readonly ModuleId[] } = {},
+): Promise<FreshSchool> {
   const slug = `fresh-${crypto.randomUUID().slice(0, 8)}`;
   const secret = createSchool(slug);
+  if (options.without?.length) takeModules(slug, options.without);
   await welcome(browser, slug, secret);
   const admin = `salama@${slug}.example.com`;
   const { api } = await signedInApi(admin, PASSWORD, slug);

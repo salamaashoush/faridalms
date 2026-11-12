@@ -325,7 +325,7 @@ test("shared student records protect medical fields and family class rosters", a
   expect(opened).toBeGreaterThan(0);
 
   const homeroom = (await teacher.classes.mine({})).rows.find(
-    (row) => row.classType === "homeroom",
+    (row) => row.group?.own,
   );
   if (!homeroom) throw new Error("the seed gives the teacher no homeroom");
   const learner = (await teacher.classes.record({ id: homeroom.id })).roster[0];

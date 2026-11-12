@@ -32,11 +32,13 @@ test("a notice about an assignment still opens it after the student moves to ano
   const loginName = `pupil-${unique}@northwind.example.com`;
   const password = "pupil-passphrase-2026";
   await admin.people.saveSignIn({ userId: pupil.id, loginName, password });
-  await admin.classes.enrol({ studentId: pupil.id, classId: first.id });
+  await admin.homerooms.place({ studentId: pupil.id, classId: first.id });
 
-  const lessons = (await admin.classes.record({ id: first.id })).subjects.find(
-    (row) => row.subjectId === arabic.id,
-  );
+  const of = await admin.homerooms.ofClass({ classId: first.id });
+  const lessons =
+    of.kind === "homeroom"
+      ? of.subjects.find((row) => row.subjectId === arabic.id)
+      : undefined;
   if (!lessons) throw new Error("the class has no Arabic lessons");
   const title = `Salama pupil task ${unique}`;
   const saved = await teacher.coursework.save({
@@ -55,7 +57,7 @@ test("a notice about an assignment still opens it after the student moves to ano
   });
 
   expect(
-    await admin.classes.enrol({ studentId: pupil.id, classId: second.id }),
+    await admin.homerooms.place({ studentId: pupil.id, classId: second.id }),
   ).toMatchObject({ moved: true });
 
   // Publishing the work is what told the student about it.

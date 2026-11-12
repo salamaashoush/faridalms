@@ -10,9 +10,6 @@ export interface DeskStudent {
   id: string;
   fullNameEn: string | null;
   fullNameAr: string | null;
-  homeroomCode: string | null;
-  homeroomTitleEn: string | null;
-  homeroomTitleAr: string | null;
   photoFileId: string | null;
 }
 
@@ -25,17 +22,11 @@ export async function findStudents(
     id: string;
     full_name_en: string | null;
     full_name_ar: string | null;
-    homeroom_code: string | null;
-    homeroom_en: string | null;
-    homeroom_ar: string | null;
     photo_file_id: string | null;
   }>(sql`
     select distinct on (u.full_name_en, u.id) u.id, u.full_name_en, u.full_name_ar,
-           c.code as homeroom_code, c.title_en as homeroom_en, c.title_ar as homeroom_ar,
            u.photo_file_id
     from core.enrollments n
-    join core.classes c on c.tenant_id = n.tenant_id and c.id = n.class_id
-      and c.class_type = 'homeroom'
     join core.users u on u.tenant_id = n.tenant_id and u.id = n.user_id
     where n.tenant_id = ${input.tenantId}::uuid and n.org_id = ${input.schoolId}::uuid
       and n.role = 'student' and n.status = 'active' and n.valid_during @> ${input.day}::date
@@ -46,9 +37,6 @@ export async function findStudents(
     id: row.id,
     fullNameEn: row.full_name_en,
     fullNameAr: row.full_name_ar,
-    homeroomCode: row.homeroom_code,
-    homeroomTitleEn: row.homeroom_en,
-    homeroomTitleAr: row.homeroom_ar,
     photoFileId: row.photo_file_id,
   }));
 }

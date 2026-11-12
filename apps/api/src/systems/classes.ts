@@ -1,20 +1,20 @@
 import type { SchoolYear } from "@faridalms/database/stores/years";
 
 import { changeOf } from "@faridalms/database/audit";
-import { lastMarkInClass } from "@faridalms/database/stores/attendance";
 import {
   classById,
   classDetail,
+  classDirectory,
   classesTaughtBy,
   classRoster,
   endStudentEnrollment,
   enrollmentHistory,
   enrolStudent,
-  homeroomDirectory,
-  homeroomEnrollments,
+  insertClass,
   roomsOf,
+  setClassTeachers,
+  updateClass,
 } from "@faridalms/database/stores/classes";
-import { joinOpenWork } from "@faridalms/database/stores/coursework";
 import {
   addSchoolDescriptor,
   descriptorsFor,
@@ -43,7 +43,8 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { writeHomeroom } from "../classes/homerooms";
+import { joinedClasses, refuseOverRegisters } from "../classes/enrolment";
+import { classGroupsOf, endingRefusal } from "../classes/points";
 import {
   audit,
   can,
@@ -57,24 +58,6 @@ import { yearOf } from "../core/years";
 import { mayKeepArea } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
-
-/**
- * Ending an enrolment on a day before a register that already marks the
- * student would leave that register counting someone no longer in the class.
- */
-async function refuseOverRegisters(
-  context: UnitContext,
-  input: { studentId: string; classId: string; from: string },
-) {
-  const last = await lastMarkInClass(context.tx, {
-    tenantId: context.tenantId,
-    ...input,
-  });
-  if (last)
-    throw new ORPCError("CONFLICT", {
-      message: `enrollment.registers_after:${last}`,
-    });
-}
 
 async function requireOpen(context: UnitContext, year: SchoolYear) {
   const lifecycle = await holdYear(context.tx, context.tenantId, year.id);
@@ -135,14 +118,14 @@ export const options = readProcedure.handler(async ({ context }) => {
   };
 });
 
-/** The homerooms of a year, each with its teachers, size and subject classes. */
+/** The classes of a year, each with its teachers and size. */
 export const directory = readProcedure
   .input(classDirectorySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "classes:read", "classes:manage");
     const { year } = await yearOf(context, input.year);
     if (!year) return { year: null, rows: [], manage: false };
-    const rows = await homeroomDirectory(
+    const rows = await classDirectory(
       context.tx,
       scopeFor(context, "classes"),
       {
@@ -171,12 +154,19 @@ export const mine = readProcedure
       yearId: year.id,
       on: dayIn(year, context.today),
     });
-    return { year: yearView(year), rows };
+    const groups = await classGroupsOf(
+      context,
+      rows.map((row) => row.id),
+    );
+    return {
+      year: yearView(year),
+      rows: rows.map((row) => ({ ...row, group: groups.get(row.id) ?? null })),
+    };
   });
 
 /**
- * A class as the viewer may see it: its teachers, its homeroom or subject
- * classes, and its students on the date. Families see only their own child.
+ * A class as the viewer may see it: its teachers and its students on the
+ * date. Families see only their own child.
  */
 export const record = readProcedure
   .input(classRecordSchema)
@@ -195,7 +185,7 @@ export const record = readProcedure
     const roster = await classRoster(
       context.tx,
       scope,
-      detail,
+      detail.id,
       on,
       !staffViewer,
     );
@@ -234,41 +224,91 @@ export const save = writeProcedure
     const before = input.id
       ? await classById(context.tx, context, input.id)
       : null;
-    const homeroomId = await writeHomeroom(context, year, input);
+    if (input.id && before?.schoolYearId !== year.id)
+      throw new ORPCError("NOT_FOUND");
+    if (input.subjectId) {
+      const subjects = await descriptorsFor(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        namespace: "subject",
+        today: context.today,
+      });
+      if (!subjects.some((row) => row.id === input.subjectId))
+        throw new ORPCError("BAD_REQUEST", {
+          message: "class.subject_invalid",
+        });
+    }
+    const fields = {
+      tenantId: context.tenantId,
+      code: input.code,
+      titleEn: input.titleEn,
+      titleAr: input.titleAr,
+      subjectId: input.subjectId || null,
+      gradeId: input.gradeId || null,
+      locationId: input.locationId || null,
+    };
+    let classId: string;
+    if (input.id) {
+      const saved = await updateClass(context.tx, {
+        ...fields,
+        id: input.id,
+        expectedVersion: input.expectedVersion ?? 0,
+      });
+      if (!saved)
+        throw new ORPCError("CONFLICT", { message: "conflict.version" });
+      classId = input.id;
+    } else
+      classId = (
+        await insertClass(context.tx, {
+          ...fields,
+          orgId: context.schoolId,
+          schoolYearId: year.id,
+          courseId: null,
+        })
+      ).id;
+    const positions = await descriptorsFor(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      namespace: "classroom_position",
+      today: context.today,
+    });
+    await setClassTeachers(context.tx, {
+      tenantId: context.tenantId,
+      classRow: { id: classId, schoolYearId: year.id },
+      orgId: context.schoolId,
+      teacherIds: input.teacherIds,
+      from: dayIn(year, context.today),
+      endsBefore: year.endsBefore,
+      positionId:
+        positions.find((row) => row.meaning === "teacher_of_record")?.id ??
+        null,
+    });
     await audit(context, {
       action: input.id ? "class.update" : "class.create",
       objectType: "class",
-      objectId: homeroomId,
-      details: {
-        code: input.code,
-        subjects: input.subjects.map((row) => row.subjectId),
-        homeroomTeacherId: input.homeroomTeacherId || null,
-      },
+      objectId: classId,
+      details: { code: input.code, teacherIds: input.teacherIds },
       change: changeOf("core.classes", before, {
         code: input.code,
         titleEn: input.titleEn || null,
         titleAr: input.titleAr || null,
+        subjectId: input.subjectId || null,
         gradeId: input.gradeId || null,
         locationId: input.locationId || null,
       }),
     });
-    const saved = await classById(context.tx, context, homeroomId);
-    return { id: homeroomId, version: saved?.version ?? 1 };
+    const saved = await classById(context.tx, context, classId);
+    return { id: classId, version: saved?.version ?? 1 };
   });
 
-/**
- * Puts a student in a class from a date. A current homeroom ends that day, so
- * a move leaves both episodes on record; a placement already scheduled after
- * the date must be dealt with first.
- */
+/** Puts a student in a class from a date to the end of its year. */
 export const enrol = writeProcedure
   .input(enrolStudentSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "classes:manage", "people:manage");
     await requireStudent(context, "classes", input.studentId);
     const target = await classById(context.tx, context, input.classId);
-    if (!target || (target.classType === "scheduled" && target.homeroomClassId))
-      throw new ORPCError("NOT_FOUND");
+    if (!target) throw new ORPCError("NOT_FOUND");
     const { year } = await yearOf(context, target.schoolYearId);
     if (!year) throw new ORPCError("NOT_FOUND");
     await requireOpen(context, year);
@@ -277,37 +317,6 @@ export const enrol = writeProcedure
       throw new ORPCError("BAD_REQUEST", {
         message: "enrollment.outside_year",
       });
-    const endedId: string[] = [];
-    let movedFrom: string | null = null;
-    if (target.classType === "homeroom") {
-      const held = await homeroomEnrollments(context.tx, context, {
-        studentId: input.studentId,
-        yearId: year.id,
-        on: from,
-      });
-      if (held.some((row) => row.from > from))
-        throw new ORPCError("CONFLICT", {
-          message: "enrollment.future_placement",
-        });
-      const current = held.find((row) => row.from <= from && from < row.to);
-      if (current?.classId === target.id)
-        return { id: current.id, moved: false };
-      if (current) {
-        await refuseOverRegisters(context, {
-          studentId: input.studentId,
-          classId: current.classId,
-          from,
-        });
-        await endStudentEnrollment(context.tx, {
-          tenantId: context.tenantId,
-          id: current.id,
-          expectedVersion: current.version,
-          on: from,
-        });
-        endedId.push(current.id);
-        movedFrom = current.classId;
-      }
-    }
     const enrollmentId = await enrolStudent(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -316,11 +325,7 @@ export const enrol = writeProcedure
       from,
       endsBefore: year.endsBefore,
     });
-    await joinOpenWork(context.tx, {
-      tenantId: context.tenantId,
-      studentIds: [input.studentId],
-      classId: target.id,
-    });
+    await joinedClasses(context, new Map([[target.id, [input.studentId]]]));
     if (target.gradeId)
       await place(context.tx, scopeFor(context, "classes"), {
         studentId: input.studentId,
@@ -330,19 +335,15 @@ export const enrol = writeProcedure
         from,
       });
     await audit(context, {
-      action: endedId.length ? "enrollment.move" : "enrollment.create",
+      action: "enrollment.create",
       objectType: "enrollment",
       objectId: enrollmentId,
       subjectUserId: input.studentId,
       studentUserId: input.studentId,
-      details: { classId: target.id, from, ended: endedId },
-      change: changeOf(
-        "core.enrollments",
-        movedFrom === null ? null : { classId: movedFrom },
-        { classId: target.id },
-      ),
+      details: { classId: target.id, from },
+      change: changeOf("core.enrollments", null, { classId: target.id }),
     });
-    return { id: enrollmentId, moved: endedId.length > 0 };
+    return { id: enrollmentId, moved: false };
   });
 
 /** Takes a student out of a class from a date; the enrollment keeps its past days. */
@@ -361,6 +362,13 @@ export const withdraw = writeProcedure
     const { year } = await yearOf(context, episode.schoolYearId);
     if (!year) throw new ORPCError("NOT_FOUND");
     await requireOpen(context, year);
+    const refusal = await endingRefusal(context, {
+      id: episode.id,
+      classId: episode.classId,
+      userId: input.studentId,
+      source: episode.source,
+    });
+    if (refusal) throw new ORPCError("CONFLICT", { message: refusal });
     const on = input.on || dayIn(year, context.today);
     if (on < episode.from || on >= episode.to)
       throw new ORPCError("BAD_REQUEST", {
@@ -368,7 +376,7 @@ export const withdraw = writeProcedure
       });
     await refuseOverRegisters(context, {
       studentId: input.studentId,
-      classId: episode.classId,
+      classIds: [episode.classId],
       from: on,
     });
     const ended = await endStudentEnrollment(context.tx, {

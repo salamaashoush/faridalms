@@ -31,7 +31,8 @@ async function family(tenantId: string): Promise<Family> {
     `with placed as (
        select c.org_id as school, s.user_id as student, c.id as homeroom, t.user_id as teacher
        from core.enrollments s
-       join core.classes c on c.tenant_id = s.tenant_id and c.id = s.class_id and c.class_type = 'homeroom'
+       join core.homerooms h on h.tenant_id = s.tenant_id and h.class_id = s.class_id
+       join core.classes c on c.tenant_id = h.tenant_id and c.id = h.class_id
        join core.enrollments t on t.tenant_id = s.tenant_id and t.class_id = c.id and t.role = 'teacher'
          and t.status = 'active' and t.valid_during @> $2::date
        where s.tenant_id = $1 and s.role = 'student' and s.status = 'active' and s.valid_during @> $2::date
@@ -55,8 +56,9 @@ const apart = (tenantId: string, seen: Family) => [
   {
     text: `update core.enrollments set status = 'tobedeleted'
            where tenant_id = $1 and user_id = $2 and class_id in (
-             select c.id from core.classes c
-             where c.tenant_id = $1 and (c.id = $3 or c.homeroom_class_id = $3))`,
+             select $3::uuid
+             union select k.class_id from core.homeroom_classes k
+             where k.tenant_id = $1 and k.homeroom_class_id = $3)`,
     params: [tenantId, seen.stranger, seen.homeroom],
   },
   {

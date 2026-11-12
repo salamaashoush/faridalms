@@ -83,6 +83,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { dailyClassIds } from "../attendance/daily-registers";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -173,10 +174,13 @@ async function yearOfClass(
   return year;
 }
 
-/** Which period a register opens in when none is named. */
-function defaultPeriod(periods: PeriodRow[], classType: string) {
+/**
+ * Which period a register opens in when none is named: the official one for
+ * a class owed a daily register, else the first lesson.
+ */
+function defaultPeriod(periods: PeriodRow[], daily: boolean) {
   return (
-    (classType === "homeroom"
+    (daily
       ? periods.find((period) => period.official)
       : periods.find((period) => period.kind === "lesson")) ?? periods[0]
   );
@@ -259,6 +263,7 @@ export const day = readProcedure
         yearId: year.id,
         day: on,
         officialPeriodId: periods.find((period) => period.official)?.id ?? null,
+        dailyClassIds: await dailyClassIds(context, year.id),
       }),
       changesOn(context.tx, {
         tenantId: context.tenantId,
@@ -296,7 +301,6 @@ export const day = readProcedure
           code: row.code,
           titleEn: row.titleEn,
           titleAr: row.titleAr,
-          classType: row.classType,
           students: row.students,
         })),
         ...coverClasses.map((row) => ({
@@ -304,7 +308,6 @@ export const day = readProcedure
           code: row.classCode,
           titleEn: row.classTitleEn,
           titleAr: row.classTitleAr,
-          classType: row.classType,
           students: row.students,
         })),
       ],
@@ -352,14 +355,18 @@ export const register = readProcedure
           schoolId: context.schoolId,
           on: input.date,
           days: [input.date],
-          filter: { groupIds: [], classIds: [classRow.id] },
+          filter: { classIds: [classRow.id] },
         });
     const period = input.periodId
       ? periods.find((row) => row.id === input.periodId)
       : taking.periods === "all"
         ? (periods.find((row) =>
             meets.some((meeting) => meeting.periodId === row.id),
-          ) ?? defaultPeriod(periods, classRow.classType))
+          ) ??
+          defaultPeriod(
+            periods,
+            (await dailyClassIds(context, year.id)).includes(classRow.id),
+          ))
         : periods.find((row) => allows(taking, row.id));
     if (!period)
       throw new ORPCError("BAD_REQUEST", { message: "attendance.no_period" });
@@ -418,7 +425,6 @@ export const register = readProcedure
         code: classRow.code,
         titleEn: classRow.titleEn,
         titleAr: classRow.titleAr,
-        classType: classRow.classType,
       },
       date: input.date,
       today: context.today,
@@ -582,7 +588,6 @@ export const checkIn = writeProcedure
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       classId: classRow.id,
-      classType: classRow.classType,
       yearId: year.id,
       periodId: input.periodId,
       day: input.date,
@@ -824,7 +829,6 @@ export const save = writeProcedure
         tenantId: context.tenantId,
         schoolId: context.schoolId,
         classId: classRow.id,
-        classType: classRow.classType,
         yearId: year.id,
         periodId: input.periodId,
         day: input.date,
@@ -927,6 +931,7 @@ export const board = readProcedure
       yearId: year.id,
       day: date,
       officialPeriodId: periods.find((period) => period.official)?.id ?? null,
+      dailyClassIds: await dailyClassIds(context, year.id),
     });
     return {
       date,
@@ -1050,7 +1055,7 @@ export const excuse = writeProcedure
     return { excused: changed.length };
   });
 
-/** Daily attendance by student or by homeroom over a term or the year. */
+/** Daily attendance by student or by class over a term or the year. */
 export const report = readProcedure
   .input(reportQuerySchema)
   .handler(async ({ input, context }) => {
@@ -1084,6 +1089,7 @@ export const report = readProcedure
       to,
       by: input.by,
       q: input.q,
+      dailyClassIds: await dailyClassIds(context, year.id),
     });
     return {
       terms: terms.map((row) => ({

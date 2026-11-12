@@ -13,8 +13,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import type { ClassType } from "./teaching";
-
 import { academicSessions } from "./calendar";
 import {
   baseConstraints,
@@ -46,7 +44,6 @@ export const classGroups = core.table.withRLS(
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
     classId: uuid("class_id").notNull(),
-    classType: text("class_type").$type<ClassType>().notNull(),
     schoolYearId: uuid("school_year_id").notNull(),
     titleEn: text("title_en"),
     titleAr: text("title_ar"),
@@ -58,14 +55,8 @@ export const classGroups = core.table.withRLS(
     ...baseConstraints("class_groups", t, tenants),
     fk(
       "class_groups",
-      [t.tenantId, t.classId, t.classType, t.schoolYearId, t.orgId],
-      [
-        classes.tenantId,
-        classes.id,
-        classes.classType,
-        classes.schoolYearId,
-        classes.orgId,
-      ],
+      [t.tenantId, t.classId, t.schoolYearId, t.orgId],
+      [classes.tenantId, classes.id, classes.schoolYearId, classes.orgId],
     ),
     fk(
       "class_groups",
@@ -137,7 +128,6 @@ export const assignments = core.table.withRLS(
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
     classId: uuid("class_id").notNull(),
-    classType: text("class_type").$type<ClassType>().notNull(),
     schoolYearId: uuid("school_year_id").notNull(),
     gradingPeriodId: uuid("grading_period_id"),
     /** Where the work counts in its class programme's term grade. */
@@ -224,14 +214,8 @@ export const assignments = core.table.withRLS(
     ...baseConstraints("assignments", t, tenants),
     fk(
       "assignments",
-      [t.tenantId, t.classId, t.classType, t.schoolYearId, t.orgId],
-      [
-        classes.tenantId,
-        classes.id,
-        classes.classType,
-        classes.schoolYearId,
-        classes.orgId,
-      ],
+      [t.tenantId, t.classId, t.schoolYearId, t.orgId],
+      [classes.tenantId, classes.id, classes.schoolYearId, classes.orgId],
     ),
     fk(
       "assignments",
@@ -1255,7 +1239,6 @@ export const periodGrades = core.table.withRLS(
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
     classId: uuid("class_id").notNull(),
-    classType: text("class_type").$type<ClassType>().notNull(),
     schoolYearId: uuid("school_year_id").notNull(),
     gradingPeriodId: uuid("grading_period_id").notNull(),
     studentUserId: uuid("student_user_id").notNull(),
@@ -1274,14 +1257,8 @@ export const periodGrades = core.table.withRLS(
     ...baseConstraints("period_grades", t, tenants),
     fk(
       "period_grades",
-      [t.tenantId, t.classId, t.classType, t.schoolYearId, t.orgId],
-      [
-        classes.tenantId,
-        classes.id,
-        classes.classType,
-        classes.schoolYearId,
-        classes.orgId,
-      ],
+      [t.tenantId, t.classId, t.schoolYearId, t.orgId],
+      [classes.tenantId, classes.id, classes.schoolYearId, classes.orgId],
     ),
     fk(
       "period_grades",

@@ -13,6 +13,7 @@ export * from "./events";
 export * from "./programmes";
 export * from "./files";
 export * from "./grading";
+export * from "./homerooms";
 export * from "./learning";
 export * from "./media";
 export * from "./membership";

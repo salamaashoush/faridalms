@@ -54,6 +54,7 @@ import { StudentCoursework } from "~/components/coursework/StudentCoursework";
 import { NewMessage } from "~/components/messages/NewMessage";
 import { StudentSkills } from "~/components/standards/Progress";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import {
   peopleOptionsQuery,
@@ -66,11 +67,8 @@ import { formatDate } from "~/utils/datetime";
 
 import type { StudentSheet } from "./StudentSheets";
 
-import {
-  HomeroomTeachers,
-  MoveStudent,
-  StudentClasses,
-} from "../classes/StudentClasses";
+import { groupWords } from "../classes/slots";
+import { GroupTeachers, StudentClasses } from "../classes/StudentClasses";
 import { ContactsSheet } from "./ContactsSheet";
 import {
   displayName,
@@ -91,6 +89,7 @@ import {
   HealthSection,
 } from "./RecordSections";
 import { SignInSection } from "./SignInSection";
+import { studentClassesParts } from "./slots";
 import {
   StudentAttendanceSummary,
   StudentNotices,
@@ -557,6 +556,8 @@ export function StudentRecord({
   const [photoOpen, setPhotoOpen] = useState(false);
   const [writing, setWriting] = useState(false);
   const [moving, setMoving] = useState(false);
+  const words = useSlot(groupWords);
+  const mover = useSlot(studentClassesParts)[0]?.move;
   const [leaving, setLeaving] = useState(false);
   const [contacts, setContacts] = useState<{
     guardian: Guardian | null;
@@ -602,13 +603,14 @@ export function StudentRecord({
       label: m.studentGrade(),
       value: labels.grade(data.placement.gradeId),
     });
-  if (data.homeroom && data.homeroom.teachers.length > 0)
+  const groupTeacher = words[0]?.teacher() ?? m.classesClassTeacher();
+  if (data.group && data.group.teachers.length > 0)
     facts.push({
-      label: m.studentHomeroomTeacher(),
+      label: groupTeacher,
       value: (
         <>
-          <span aria-hidden>{m.studentHomeroomTeacher()}: </span>
-          <HomeroomTeachers homeroom={data.homeroom} />
+          <span aria-hidden>{groupTeacher}: </span>
+          <GroupTeachers teachers={data.group.teachers} />
         </>
       ),
     });
@@ -648,9 +650,9 @@ export function StudentRecord({
     labels.options.years.some(
       (year) => year.id === data.workingYearId && year.lifecycle !== "closed",
     );
-  if (movable)
+  if (movable && mover)
     menu.push({
-      label: m.enrolmentMove(),
+      label: mover.label(),
       icon: ArrowRightLeft,
       onSelect: () => setMoving(true),
     });
@@ -825,7 +827,6 @@ export function StudentRecord({
                   student={{ id: studentId, name }}
                   today={data.today}
                   manage={access.manage}
-                  homeroom={data.homeroom}
                 />
               </Deferred>
               <EnrollmentHistory data={data} />
@@ -966,9 +967,9 @@ export function StudentRecord({
       >
         {body}
       </RecordTabs>
-      {moving ? (
+      {moving && mover ? (
         <Suspense fallback={null}>
-          <MoveStudent
+          <mover.One
             student={{ id: studentId, name }}
             today={data.today}
             onClose={() => setMoving(false)}

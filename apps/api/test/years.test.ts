@@ -107,7 +107,7 @@ describe("the school day", () => {
     const registration = before.periods.find((period) => period.official);
     if (!first || !last || !registration) throw new Error("seeded periods");
     const { grids } = await api.timetable.options();
-    const homeroom = grids.find((row) => row.classType === "homeroom");
+    const homeroom = grids[0];
     if (!homeroom) throw new Error("seeded homeroom");
     const placed = (
       await api.timetable.grid({ classId: homeroom.id, on: BEFORE_CHANGE })

@@ -2,9 +2,12 @@ import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import * as v from "valibot";
 
 import { CLASS_TABS, ClassRecord } from "~/components/classes/ClassRecord";
+import { classRecordParts } from "~/components/classes/slots";
 import { areaViewSearch } from "~/components/files/AreaFiles";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
+import { currentUserQuery } from "~/queries/user";
+import { filled } from "~/utils/extension";
 
 const searchSchema = v.object({
   // Old links named tabs that moved to other systems; they open the overview.
@@ -20,9 +23,14 @@ export const Route = createFileRoute("/_app/classes/$classId")({
   validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(v.parse(searchSchema, {}))] },
   loader: async ({ context, params }) => {
+    const user = await context.queryClient.ensureQueryData(currentUserQuery);
     await Promise.all([
       context.queryClient.ensureQueryData(classRecordQuery(params.classId)),
       context.queryClient.ensureQueryData(classOptionsQuery),
+      ...filled(context.extensions, user.modules, classRecordParts).map(
+        (part) =>
+          context.queryClient.ensureQueryData(part.query(params.classId)),
+      ),
     ]);
   },
   component: ClassPage,

@@ -16,7 +16,6 @@ import type {
   SubmissionFormat,
   SubmissionState,
 } from "../tables/coursework";
-import type { ClassType } from "../tables/teaching";
 import type { Scope } from "./students";
 
 import { rosterOf, taughtClasses } from "./classes";
@@ -29,7 +28,6 @@ export interface AssignmentRow {
   version: number;
   orgId: string;
   classId: string;
-  classType: ClassType;
   schoolYearId: string;
   gradingPeriodId: string | null;
   categoryId: string | null;
@@ -76,7 +74,6 @@ type AssignmentRecord = {
   version: number;
   org_id: string;
   class_id: string;
-  class_type: ClassType;
   school_year_id: string;
   grading_period_id: string | null;
   category_id: string | null;
@@ -117,7 +114,7 @@ type AssignmentRecord = {
   published_at: string | null;
 };
 
-const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id, a.class_type, a.school_year_id,
+const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id, a.school_year_id,
   a.grading_period_id, a.category_id, a.author_user_id, a.title, a.state, a.audience,
   to_char(a.available_from at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as available_from,
   to_char(a.due_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as due_at,
@@ -139,7 +136,6 @@ function assignmentOf(row: AssignmentRecord): AssignmentRow {
     version: row.version,
     orgId: row.org_id,
     classId: row.class_id,
-    classType: row.class_type,
     schoolYearId: row.school_year_id,
     gradingPeriodId: row.grading_period_id,
     categoryId: row.category_id,
@@ -253,19 +249,19 @@ export async function insertAssignment(
   input: AssignmentFields & {
     tenantId: string;
     orgId: string;
-    classRow: { id: string; classType: ClassType; schoolYearId: string };
+    classRow: { id: string; schoolYearId: string };
     authorUserId: string;
   },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.assignments (tenant_id, org_id, class_id, class_type, school_year_id,
+    insert into core.assignments (tenant_id, org_id, class_id, school_year_id,
       grading_period_id, author_user_id, title, audience, available_from, due_at, closes_at,
       late_policy, late_deduction_percent, submission_format, max_files, resubmission, points, rubric,
       quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle, quiz_time_limit, quiz_practice, quiz_bands, category_id,
       grade_after_answers, discussion_post_first, discussion_replies, module_id, peer_reviews,
       peer_anonymous, peer_due_at, language, translation_title)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
-      ${input.classRow.classType}, ${input.classRow.schoolYearId}::uuid,
+      ${input.classRow.schoolYearId}::uuid,
       ${input.gradingPeriodId}::uuid, ${input.authorUserId}::uuid, ${input.title},
       ${input.audience}, ${input.availableFrom}::timestamptz, ${input.dueAt}::timestamptz,
       ${input.closesAt}::timestamptz, ${input.latePolicy}, ${input.lateDeductionPercent},
@@ -288,12 +284,12 @@ export async function updateAssignment(
     tenantId: string;
     id: string;
     expectedVersion: number;
-    classRow: { id: string; classType: ClassType; schoolYearId: string };
+    classRow: { id: string; schoolYearId: string };
   },
 ): Promise<{ version: number } | null> {
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.assignments
-    set class_id = ${input.classRow.id}::uuid, class_type = ${input.classRow.classType},
+    set class_id = ${input.classRow.id}::uuid,
         school_year_id = ${input.classRow.schoolYearId}::uuid,
         title = ${input.title}, audience = ${input.audience},
         available_from = ${input.availableFrom}::timestamptz, due_at = ${input.dueAt}::timestamptz,
@@ -538,7 +534,6 @@ export async function selectionOf(
   };
 }
 
-/** Students on a class's roster on the date, through its homeroom if it follows one. */
 /**
  * Records who the work is for. The class goes to its roster on the date;
  * a selection goes to the current members of its groups and to the students
@@ -631,7 +626,6 @@ export async function joinOpenWork(
   input: {
     tenantId: string;
     studentIds: readonly string[];
-    /** A homeroom reaches the subject classes that follow it. */
     classId: string;
     groupId?: string;
   },
@@ -647,10 +641,9 @@ export async function joinOpenWork(
     select a.tenant_id, a.id, s.id, ${input.groupId ? "group" : "class"},
       ${input.groupId ?? null}::uuid
     from core.assignments a
-    join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
     cross join unnest(${uuidArray(input.studentIds)}) as s(id)
     where a.tenant_id = ${input.tenantId}::uuid and a.status = 'active' and a.state = 'published'
-      and (a.class_id = ${input.classId}::uuid or c.homeroom_class_id = ${input.classId}::uuid)
+      and a.class_id = ${input.classId}::uuid
       and (a.due_at is null or a.due_at > now())
       and (a.closes_at is null or a.closes_at > now())
       and ${reached}
@@ -1794,7 +1787,7 @@ export async function saveGroup(
     tenantId: string;
     orgId: string;
     id?: string;
-    classRow: { id: string; classType: ClassType; schoolYearId: string };
+    classRow: { id: string; schoolYearId: string };
     titleEn: string | null;
     titleAr: string | null;
     studentIds: readonly string[];
@@ -1808,10 +1801,10 @@ export async function saveGroup(
       where tenant_id = ${input.tenantId}::uuid and id = ${groupId}::uuid`);
   else {
     const [row] = await tx.execute<{ id: string }>(sql`
-      insert into core.class_groups (tenant_id, org_id, class_id, class_type, school_year_id,
+      insert into core.class_groups (tenant_id, org_id, class_id, school_year_id,
         title_en, title_ar, created_by_user_id)
       values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
-        ${input.classRow.classType}, ${input.classRow.schoolYearId}::uuid, ${input.titleEn},
+        ${input.classRow.schoolYearId}::uuid, ${input.titleEn},
         ${input.titleAr}, ${input.userId}::uuid)
       returning id`);
     if (!row) throw new Error("group was not created");

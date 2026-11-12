@@ -9,7 +9,9 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Download, FileBarChart } from "lucide-react";
 
 import { classTitle } from "~/components/classes/format";
+import { groupWords } from "~/components/classes/slots";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { attendanceReportQuery } from "~/queries/attendance";
 import { formatDate, formatNumber } from "~/utils/datetime";
@@ -78,7 +80,7 @@ const count = (value: number) => (
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function columns(by: ReportQuery["by"]): Column<Row>[] {
+function columns(by: ReportQuery["by"], group: string): Column<Row>[] {
   return [
     {
       id: "name",
@@ -90,7 +92,7 @@ function columns(by: ReportQuery["by"]): Column<Row>[] {
       ? [
           {
             id: "class",
-            header: m.attHomeroom(),
+            header: group,
             cell: (row: Row) => inLocale(row.classTitleEn, row.classTitleAr),
           },
         ]
@@ -179,6 +181,7 @@ export interface ReportProps {
 }
 
 export function Report({ query, onChange }: ReportProps) {
+  const group = useSlot(groupWords)[0]?.group() ?? m.attClass();
   const data = useSuspenseQuery(attendanceReportQuery(query)).data;
   const termFacet: Facet = {
     id: "term",
@@ -201,7 +204,7 @@ export function Report({ query, onChange }: ReportProps) {
     single: true,
     options: [
       { value: "student", label: m.attByStudent() },
-      { value: "class", label: m.attByClass() },
+      { value: "class", label: group },
     ],
     selected: [query.by],
     defaultSelected: ["student"],
@@ -232,7 +235,7 @@ export function Report({ query, onChange }: ReportProps) {
       <DataTable
         caption={m.attReportCaption()}
         rows={data.rows}
-        columns={columns(query.by)}
+        columns={columns(query.by, group)}
         rowLabel={(row) => nameOf(row, query.by)}
         toolbar={{
           search: {

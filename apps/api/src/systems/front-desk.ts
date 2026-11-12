@@ -34,6 +34,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { requireStudent } from "../core/reach";
+import { studentGroupsOf } from "../core/student-groups";
 
 const minutesOf = (clock: string) => {
   const [hours, minutes] = clock.split(":").map(Number);
@@ -103,12 +104,18 @@ export const find = readProcedure
   .input(findStudentSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:manage");
-    return findStudents(context.tx, {
+    const found = await findStudents(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       day: context.today,
       q: input.q,
     });
+    const groups = await studentGroupsOf(
+      context,
+      found.map((row) => row.id),
+      context.today,
+    );
+    return found.map((row) => ({ ...row, group: groups.get(row.id) ?? null }));
   });
 
 /** Who may collect a child, and who must not. */

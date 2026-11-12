@@ -41,6 +41,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { requireStudent } from "../core/reach";
+import { studentGroupsOf } from "../core/student-groups";
 import {
   openMailboxConversation,
   scopeOf as conversationScope,
@@ -114,7 +115,7 @@ export const day = readProcedure
       settingsOf(context.tx, context.tenantId, context.schoolId),
       schoolDaysBefore(context, year.id, date, REASON_DUE_DAYS),
     ]);
-    const [guardians, overdue, rates] = await Promise.all([
+    const [guardians, overdue, rates, groups] = await Promise.all([
       guardiansToCall(context.tx, {
         tenantId: context.tenantId,
         studentIds: calls.map((row) => row.studentId),
@@ -135,7 +136,13 @@ export const day = readProcedure
         to: last < context.today ? last : context.today,
         by: "student",
         q: "",
+        dailyClassIds: [],
       }),
+      studentGroupsOf(
+        context,
+        calls.map((row) => row.studentId),
+        date,
+      ),
     ]);
     const chronic = rates
       .map((row) => ({ row, summary: summarise(row.counts) }))
@@ -162,30 +169,37 @@ export const day = readProcedure
         year: { startsOn: year.startsOn, lastDay: last },
         dueBefore: due,
         chronicPercent: rules.chronicPercent,
-        calls: calls.map((row) => ({
-          ...row,
-          guardians: guardians
-            .filter((guardian) => guardian.studentId === row.studentId)
-            .map((guardian) => ({
-              userId: guardian.userId,
-              fullNameEn: guardian.fullNameEn,
-              fullNameAr: guardian.fullNameAr,
-              relationEn: guardian.relationEn,
-              relationAr: guardian.relationAr,
-              phone: guardian.phone,
-              emergency: guardian.emergency,
-            })),
-          contacts: contacts
-            .filter((contact) => contact.studentId === row.studentId)
-            .map((contact) => ({
-              id: contact.id,
-              outcome: contact.outcome,
-              note: contact.note,
-              byNameEn: contact.byNameEn,
-              byNameAr: contact.byNameAr,
-              at: contact.at,
-            })),
-        })),
+        calls: calls
+          .map((row) => ({ ...row, group: groups.get(row.studentId) ?? null }))
+          .toSorted((a, b) =>
+            (a.group?.code ?? "\uffff").localeCompare(
+              b.group?.code ?? "\uffff",
+            ),
+          )
+          .map((row) => ({
+            ...row,
+            guardians: guardians
+              .filter((guardian) => guardian.studentId === row.studentId)
+              .map((guardian) => ({
+                userId: guardian.userId,
+                fullNameEn: guardian.fullNameEn,
+                fullNameAr: guardian.fullNameAr,
+                relationEn: guardian.relationEn,
+                relationAr: guardian.relationAr,
+                phone: guardian.phone,
+                emergency: guardian.emergency,
+              })),
+            contacts: contacts
+              .filter((contact) => contact.studentId === row.studentId)
+              .map((contact) => ({
+                id: contact.id,
+                outcome: contact.outcome,
+                note: contact.note,
+                byNameEn: contact.byNameEn,
+                byNameAr: contact.byNameAr,
+                at: contact.at,
+              })),
+          })),
         overdue: paged(overdue.rows, overdue.total, input.overduePage),
         support: paged(support, chronic.length, input.supportPage),
       },

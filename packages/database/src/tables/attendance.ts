@@ -16,8 +16,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import type { ClassType } from "./teaching";
-
 import { academicSessions, classPeriods } from "./calendar";
 import {
   baseConstraints,
@@ -109,7 +107,6 @@ export const attendanceRegisters = core.table.withRLS(
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
     classId: uuid("class_id").notNull(),
-    classType: text("class_type").$type<ClassType>().notNull(),
     schoolYearId: uuid("school_year_id").notNull(),
     schoolYearType: text("school_year_type").notNull().default("school_year"),
     classPeriodId: uuid("class_period_id").notNull(),
@@ -128,14 +125,8 @@ export const attendanceRegisters = core.table.withRLS(
     ...baseConstraints("attendance_registers", t, tenants),
     fk(
       "attendance_registers",
-      [t.tenantId, t.classId, t.classType, t.schoolYearId, t.orgId],
-      [
-        classes.tenantId,
-        classes.id,
-        classes.classType,
-        classes.schoolYearId,
-        classes.orgId,
-      ],
+      [t.tenantId, t.classId, t.schoolYearId, t.orgId],
+      [classes.tenantId, classes.id, classes.schoolYearId, classes.orgId],
     ),
     fk(
       "attendance_registers",

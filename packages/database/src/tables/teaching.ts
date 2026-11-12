@@ -27,7 +27,13 @@ import { programmes } from "./programmes";
 import { importRuns } from "./records";
 import { orgs, tenants } from "./tenancy";
 
-export type ClassType = "homeroom" | "scheduled";
+export type EnrollmentSource =
+  | "manual"
+  | "import"
+  | "sis"
+  | "oneroster"
+  | "rollover"
+  | "homeroom";
 export type EnrollmentRole =
   | "student"
   | "teacher"
@@ -88,9 +94,8 @@ export const courses = core.table.withRLS(
 );
 
 /**
- * OneRoster classes. A homeroom is the class a student belongs to for the
- * year; a scheduled class is a subject taught to one (Ed-Fi's section), whose
- * roster is its homeroom's, or its own when it has no homeroom.
+ * OneRoster classes: a group that is taught. A course and a subject are
+ * both optional; whoever is in the class is its enrollments.
  */
 export const classes = core.table.withRLS(
   "classes",
@@ -100,15 +105,10 @@ export const classes = core.table.withRLS(
     orgType: text("org_type").notNull().default("school"),
     schoolYearId: uuid("school_year_id").notNull(),
     schoolYearType: text("school_year_type").notNull().default("school_year"),
-    classType: text("class_type").$type<ClassType>().notNull(),
     code: text("code").notNull(),
     titleEn: text("title_en"),
     titleAr: text("title_ar"),
     courseId: uuid("course_id"),
-    homeroomClassId: uuid("homeroom_class_id"),
-    homeroomClassType: text("homeroom_class_type")
-      .notNull()
-      .generatedAlwaysAs(sql`'homeroom'`),
     subjectDescriptorId: uuid("subject_descriptor_id"),
     subjectNs: text("subject_ns")
       .notNull()
@@ -131,8 +131,8 @@ export const classes = core.table.withRLS(
   },
   (t): PgTableExtraConfigValue[] => [
     pk("classes", t.tenantId, t.id),
-    uq("classes", t.tenantId, t.id, t.classType, t.schoolYearId, t.orgId),
-    uq("classes", t.tenantId, t.id, t.classType, t.schoolYearId),
+    uq("classes", t.tenantId, t.id, t.schoolYearId, t.orgId),
+    uq("classes", t.tenantId, t.id, t.orgId),
     ...baseConstraints("classes", t, tenants),
     fk(
       "classes",
@@ -154,11 +154,6 @@ export const classes = core.table.withRLS(
       "classes",
       [t.tenantId, t.courseId, t.orgId],
       [courses.tenantId, courses.id, courses.orgId],
-    ),
-    fk(
-      "classes",
-      [t.tenantId, t.homeroomClassId, t.homeroomClassType, t.schoolYearId],
-      [t.tenantId, t.id, t.classType, t.schoolYearId],
     ),
     fk(
       "classes",
@@ -187,25 +182,16 @@ export const classes = core.table.withRLS(
     ),
     ck("classes", "org_type", sql`org_type = 'school'`),
     ck("classes", "school_year_type", sql`school_year_type = 'school_year'`),
-    ck("classes", "class_type", sql`class_type in ('homeroom', 'scheduled')`),
     ck("classes", "code", sql`code ~ '^[A-Za-z0-9_.-]{1,40}$'`),
     ck("classes", "title_en", sql`char_length(title_en) between 1 and 120`),
     ck("classes", "title_ar", sql`char_length(title_ar) between 1 and 120`),
     ck("classes", "title", sql`num_nonnulls(title_en, title_ar) >= 1`),
-    ck(
-      "classes",
-      "shape",
-      sql`(class_type = 'homeroom' and homeroom_class_id is null and subject_descriptor_id is null) or (class_type = 'scheduled' and course_id is not null and subject_descriptor_id is not null)`,
-    ),
     uniqueIndex("classes_code_key")
       .on(t.tenantId, t.orgId, t.schoolYearId, t.code)
       .where(sql`status = 'active'`),
     index("classes_year_idx")
-      .on(t.tenantId, t.orgId, t.schoolYearId, t.classType)
+      .on(t.tenantId, t.orgId, t.schoolYearId)
       .where(sql`status = 'active'`),
-    index("classes_homeroom_idx")
-      .on(t.tenantId, t.homeroomClassId)
-      .where(sql`status = 'active' and homeroom_class_id is not null`),
     index("classes_delta_idx").on(t.tenantId, t.dateLastModified),
     ...entityProfile({ integration: true }),
   ],
@@ -221,7 +207,6 @@ export const enrollments = core.table.withRLS(
   {
     ...tenantColumns(),
     classId: uuid("class_id").notNull(),
-    classType: text("class_type").$type<ClassType>().notNull(),
     schoolYearId: uuid("school_year_id").notNull(),
     schoolYearType: text("school_year_type").notNull().default("school_year"),
     orgId: uuid("org_id").notNull(),
@@ -233,25 +218,27 @@ export const enrollments = core.table.withRLS(
       .notNull()
       .generatedAlwaysAs(sql`'classroom_position'`),
     validDuring: daterange("valid_during").notNull(),
-    source: text("source")
-      .$type<"manual" | "import" | "sis" | "oneroster" | "rollover">()
-      .notNull(),
+    source: text("source").$type<EnrollmentSource>().notNull(),
     importRunId: uuid("import_run_id"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
     pk("enrollments", t.tenantId, t.id),
+    uq(
+      "enrollments",
+      t.tenantId,
+      t.id,
+      t.classId,
+      t.userId,
+      t.orgId,
+      t.validDuring,
+      t.status,
+    ),
     ...baseConstraints("enrollments", t, tenants),
     fk(
       "enrollments",
-      [t.tenantId, t.classId, t.classType, t.schoolYearId, t.orgId],
-      [
-        classes.tenantId,
-        classes.id,
-        classes.classType,
-        classes.schoolYearId,
-        classes.orgId,
-      ],
+      [t.tenantId, t.classId, t.schoolYearId, t.orgId],
+      [classes.tenantId, classes.id, classes.schoolYearId, classes.orgId],
     ),
     fk("enrollments", [t.tenantId, t.userId], [users.tenantId, users.id]),
     fk(
@@ -283,7 +270,7 @@ export const enrollments = core.table.withRLS(
     ck(
       "enrollments",
       "source",
-      sql`source in ('manual', 'import', 'sis', 'oneroster', 'rollover')`,
+      sql`source in ('manual', 'import', 'sis', 'oneroster', 'rollover', 'homeroom')`,
     ),
     ck("enrollments", "valid_during", range.bounded("valid_during")),
     index("enrollments_class_idx")

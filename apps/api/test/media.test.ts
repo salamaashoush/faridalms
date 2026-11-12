@@ -519,9 +519,7 @@ describe("a recording its maker cut", () => {
     // The recording goes out to a class in an assignment's brief.
     const { classes } = await teacher.api.coursework.options();
     let classId = "";
-    for (const row of classes.filter(
-      (item) => item.classType === "scheduled",
-    )) {
+    for (const row of classes.filter((item) => item.subjectId !== null)) {
       const { roster } = await teacher.api.coursework.groups({
         classId: row.id,
       });

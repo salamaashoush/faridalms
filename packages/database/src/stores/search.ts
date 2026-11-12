@@ -139,10 +139,11 @@ export const peopleReached = (scope: Scope) =>
         and r.user_id = v.user_id and r.role = 'student' and r.status = 'active'
         and r.valid_during @> ${scope.today}::date))`;
 
-/** The classes the viewer reaches. */
-export const classesReached = (scope: Scope) =>
+/** The classes the viewer reaches, with those a module opens to them besides. */
+export const classesReached = (scope: Scope, besides: readonly string[]) =>
   sql`(select class_id from app.visible_classes(${scope.viewerId}::uuid,
-    ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}))`;
+    ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide})
+    union select unnest(${uuidArray(besides)}))`;
 
 /** Students among `ids` the viewer reaches, with their grade this year. */
 export async function studentsAmong(tx: Tx, scope: Scope, input: Among) {
@@ -184,7 +185,11 @@ export async function peopleAmong(tx: Tx, scope: Scope, input: Among) {
 }
 
 /** Classes among `ids` the viewer reaches, each with its code and school year. */
-export async function classesAmong(tx: Tx, scope: Scope, input: Among) {
+export async function classesAmong(
+  tx: Tx,
+  scope: Scope,
+  input: Among & { besides: readonly string[] },
+) {
   return found(
     await tx.execute<Raw>(sql`
       select c.id, 'class' as type, ${titled(input.ar, "c")} as title, null as snippet,
@@ -198,7 +203,7 @@ export async function classesAmong(tx: Tx, scope: Scope, input: Among) {
       from core.classes c
       join core.academic_sessions y on y.tenant_id = c.tenant_id and y.id = c.school_year_id
       where c.tenant_id = ${scope.tenantId}::uuid and c.id = any(${uuidArray(input.ids)}) and c.status = 'active'
-        and c.id in ${classesReached(scope)}`),
+        and c.id in ${classesReached(scope, input.besides)}`),
   );
 }
 

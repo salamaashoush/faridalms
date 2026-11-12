@@ -398,7 +398,7 @@ export interface PlannerProps {
   onFrom: (from: string) => void;
 }
 
-/** One homeroom's week, each cell edited from the day changes apply. */
+/** One grid's week, each cell edited from the day changes apply. */
 export function Planner({ classId, from, onFrom }: PlannerProps) {
   const options = useSuspenseQuery(timetableOptionsQuery).data;
   const grid = useSuspenseQuery(timetableGridQuery(classId, from)).data;

@@ -189,7 +189,7 @@ describe("absence notices", () => {
     const { rows } = await office.attendance.board({ date });
     const registers = await Promise.all(
       rows
-        .filter((row) => row.classType === "homeroom")
+        .filter((row) => row.daily)
         .map((row) =>
           office.attendance.register({
             classId: row.classId,
@@ -271,7 +271,7 @@ describe("absence notices", () => {
     const { rows } = await office.attendance.board({ date });
     const registers = await Promise.all(
       rows
-        .filter((row) => row.classType === "homeroom")
+        .filter((row) => row.daily)
         .map((row) =>
           office.attendance.register({
             classId: row.classId,

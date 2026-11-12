@@ -377,7 +377,7 @@ export interface GradebookProps {
     code: string;
     titleEn: string | null;
     titleAr: string | null;
-    classType: string;
+    subjectId: string | null;
     mine: boolean;
   }[];
   onScope: (change: GradebookScope) => void;

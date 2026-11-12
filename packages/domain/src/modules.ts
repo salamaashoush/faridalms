@@ -43,7 +43,12 @@ export interface ModuleSpec {
 export const MODULES: Record<ModuleId, ModuleSpec> = {
   school_years: { requires: [], basic: true, schoolSwitch: false, systems: [] },
   grade_levels: { requires: [], basic: true, schoolSwitch: false, systems: [] },
-  homerooms: { requires: [], basic: true, schoolSwitch: false, systems: [] },
+  homerooms: {
+    requires: [],
+    basic: true,
+    schoolSwitch: false,
+    systems: ["homerooms"],
+  },
   families: { requires: [], basic: true, schoolSwitch: false, systems: [] },
   coursework: {
     requires: [],

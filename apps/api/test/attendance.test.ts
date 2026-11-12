@@ -20,7 +20,7 @@ async function homeroomOf(api: Api, studentId: string, date: string) {
   const { rows } = await api.attendance.board({ date });
   const registers = await Promise.all(
     rows
-      .filter((entry) => entry.classType === "homeroom")
+      .filter((entry) => entry.daily)
       .map((row) =>
         api.attendance.register({
           classId: row.classId,
@@ -258,16 +258,14 @@ describe("registers and enrolment", () => {
     const office = await principal();
     const student = await sessionFor("northwind", login("student"));
     const me = await student.api.identity.currentUser();
-    const episodes = await office.classes.history({ studentId: me.id });
-    const homeroom = episodes.find(
-      (row) => row.classType === "homeroom" && row.from <= "2026-09-14",
-    );
+    const { rows } = await office.homerooms.history({ studentId: me.id });
+    const homeroom = rows.find((row) => row.from <= "2026-09-14");
     if (!homeroom) throw new Error("the seeded student has no homeroom");
     expect(
       await rejection(
-        office.classes.withdraw({
+        office.homerooms.leave({
           studentId: me.id,
-          enrollmentId: homeroom.id,
+          enrollmentId: homeroom.enrollmentId,
           expectedVersion: homeroom.version,
           on: "2026-09-15",
         }),

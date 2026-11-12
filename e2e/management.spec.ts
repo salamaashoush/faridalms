@@ -19,14 +19,14 @@ async function fillNames(
   await en.getByRole("textbox", { name: "Family name" }).fill(english[1]);
 }
 
-test("class forms explain invalid fields, recover on correction and protect unsaved work", async ({
+test("homeroom forms explain invalid fields, recover on correction and protect unsaved work", async ({
   page,
 }) => {
   await signIn(page, "admin");
   await page.goto("/classes");
   await untilHydrated(page);
-  await page.getByRole("link", { name: "Add class", exact: true }).click();
-  await expect(page).toHaveURL(/\/class-editor/);
+  await page.getByRole("link", { name: "Add homeroom", exact: true }).click();
+  await expect(page).toHaveURL(/\/homeroom-editor/);
   const arabicName = page.getByRole("textbox", {
     name: "Class name in Arabic",
   });
@@ -79,7 +79,7 @@ test("class forms explain invalid fields, recover on correction and protect unsa
   await expect(
     page.getByRole("textbox", { name: "Class name in English" }),
   ).toHaveValue("Salama class");
-  await expect(page).toHaveURL(/\/class-editor/);
+  await expect(page).toHaveURL(/\/homeroom-editor/);
 });
 
 test("administrators add a staff member through the shared editor and turn their sign-in off", async ({
@@ -224,7 +224,7 @@ test("administrators edit a student record in side sheets and confirm a class mo
   const year = options.years.find((row) => row.id === options.workingYearId);
   if (!year) throw new Error("no working year");
   const classOf = async (label: string) =>
-    admin.classes.save({
+    admin.homerooms.save({
       yearId: year.id,
       code: `S-${unique}-${label}`,
       titleEn: `Salama ${unique} ${label}`,
@@ -235,14 +235,14 @@ test("administrators edit a student record in side sheets and confirm a class mo
   const second = `Salama ${unique} two`;
   const { id: firstId } = await classOf("one");
   await classOf("two");
-  await admin.classes.enrol({
+  await admin.homerooms.place({
     studentId,
     classId: firstId,
     from: year.startsOn,
   });
   await page.reload();
   await page.getByRole("tab", { name: "Enrollment", exact: true }).click();
-  const classes = page.getByRole("region", { name: "Classes" });
+  const classes = page.getByRole("region", { name: "Homeroom" });
   await expect(classes.getByRole("link", { name: first })).toBeVisible();
 
   await classes

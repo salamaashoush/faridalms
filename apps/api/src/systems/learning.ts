@@ -276,6 +276,7 @@ import {
   placeMedia,
 } from "../files/authorize";
 import { copyLesson, copyModule, planHost } from "../learning/module-copy";
+import { plannedElsewhere } from "../timetable/grids";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -314,8 +315,8 @@ async function currentYear(context: UnitContext) {
 /**
  * The classes the viewer may set modules for this year: those they teach,
  * marked as theirs and listed first, then for school-wide staff every other
- * class that owns a timetable grid. A school-wide teacher keeps their own
- * subject classes, which own no grid.
+ * class that owns its timetable grid. A school-wide teacher keeps their own
+ * classes, even one planned in another's grid.
  */
 async function authoringClasses(context: UnitContext) {
   const year = await yearOf(context);
@@ -330,7 +331,7 @@ async function authoringClasses(context: UnitContext) {
     code: row.code,
     titleEn: row.titleEn,
     titleAr: row.titleAr,
-    classType: row.classType,
+    subjectId: row.subjectId,
     mine: true,
   }));
   if (!can(context, "classes:manage")) return { year, classes: own };
@@ -338,6 +339,7 @@ async function authoringClasses(context: UnitContext) {
     tenantId: context.tenantId,
     schoolId: context.schoolId,
     yearId: year.id,
+    except: await plannedElsewhere(context, year.id),
   });
   const mine = new Set(own.map((row) => row.id));
   return {
@@ -346,7 +348,7 @@ async function authoringClasses(context: UnitContext) {
       ...own,
       ...rows
         .filter((row) => !mine.has(row.id))
-        .map((row) => ({ ...row, mine: false })),
+        .map((row) => ({ ...row, subjectId: null, mine: false })),
     ],
   };
 }

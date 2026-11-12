@@ -62,7 +62,7 @@ test("class moves keep other school years and return to a class as a new episode
     newStudent(admin, `Ashoush later ${unique}`),
   ]);
 
-  await admin.classes.enrol({
+  await admin.homerooms.place({
     studentId: student.id,
     classId: before.id,
     from: EARLIER[browserName].startsOn,
@@ -74,7 +74,7 @@ test("class moves keep other school years and return to a class as a new episode
   const joined = days.at(-9);
   if (!day || !left || !joined) throw new Error("too few school days so far");
 
-  await admin.classes.enrol({
+  await admin.homerooms.place({
     studentId: student.id,
     classId: first.id,
     from: joined,
@@ -98,7 +98,7 @@ test("class moves keep other school years and return to a class as a new episode
     await admin.classes.record({ id: first.id, on: joined })
   ).roster.find((row) => row.userId === student.id);
   if (!placed) throw new Error("the student is not in the class");
-  await admin.classes.withdraw({
+  await admin.homerooms.leave({
     studentId: student.id,
     enrollmentId: placed.enrollmentId,
     expectedVersion: placed.version,
@@ -120,7 +120,7 @@ test("class moves keep other school years and return to a class as a new episode
     await refusal(mark(first.id, "1900-01-01", register.period.id)),
   ).toMatchObject({ code: "BAD_REQUEST", message: "attendance.outside_year" });
 
-  await admin.classes.enrol({
+  await admin.homerooms.place({
     studentId: student.id,
     classId: first.id,
     from: day,
@@ -129,7 +129,7 @@ test("class moves keep other school years and return to a class as a new episode
   // A day already counted in one class cannot be counted again in another.
   expect(
     await refusal(
-      admin.classes.enrol({
+      admin.homerooms.place({
         studentId: student.id,
         classId: second.id,
         from: day,
@@ -137,14 +137,16 @@ test("class moves keep other school years and return to a class as a new episode
     ),
   ).toMatchObject({ code: "CONFLICT" });
   expect(
-    await admin.classes.enrol({
+    await admin.homerooms.place({
       studentId: student.id,
       classId: first.id,
       from: day,
     }),
   ).toMatchObject({ moved: false });
 
-  const history = await admin.classes.history({ studentId: student.id });
+  const { rows: history } = await admin.homerooms.history({
+    studentId: student.id,
+  });
   expect(history.find((row) => row.classId === before.id)).toMatchObject({
     from: EARLIER[browserName].startsOn,
     to: addDays(EARLIER[browserName].endsOn, 1),
@@ -158,27 +160,29 @@ test("class moves keep other school years and return to a class as a new episode
   expect(history.some((row) => row.classId === second.id)).toBe(false);
   const listed = (await admin.people.students({ q: student.reference }))
     .rows[0];
-  expect(listed?.homeroom?.classId).toBe(first.id);
+  expect(listed?.group?.classId).toBe(first.id);
 
   const teacher = await apiAs("teacher");
   expect(
     await refusal(teacher.people.student({ id: student.id })),
   ).toMatchObject({ code: "NOT_FOUND" });
 
-  await admin.classes.enrol({
+  await admin.homerooms.place({
     studentId: scheduled.id,
     classId: first.id,
     from: addDays(today, 3),
   });
   expect(
     await refusal(
-      admin.classes.enrol({ studentId: scheduled.id, classId: second.id }),
+      admin.homerooms.place({ studentId: scheduled.id, classId: second.id }),
     ),
   ).toMatchObject({
     code: "CONFLICT",
     message: "enrollment.future_placement",
   });
-  const waiting = await admin.classes.history({ studentId: scheduled.id });
+  const { rows: waiting } = await admin.homerooms.history({
+    studentId: scheduled.id,
+  });
   expect(waiting.map((row) => [row.classId, row.from])).toEqual([
     [first.id, addDays(today, 3)],
   ]);
@@ -202,7 +206,7 @@ test("a backdated move cannot reach over a register already taken, and each day 
   const [placedOn, takenOn, movedOn] = days.slice(-3);
   if (!placedOn || !takenOn || !movedOn)
     throw new Error("too few school days so far");
-  await admin.classes.enrol({
+  await admin.homerooms.place({
     studentId: student.id,
     classId: registered.id,
     from: placedOn,
@@ -231,7 +235,7 @@ test("a backdated move cannot reach over a register already taken, and each day 
     await Promise.all(
       [placedOn, takenOn].map((from) =>
         refusal(
-          admin.classes.enrol({
+          admin.homerooms.place({
             studentId: student.id,
             classId: moved.id,
             from,
@@ -250,7 +254,7 @@ test("a backdated move cannot reach over a register already taken, and each day 
   );
 
   expect(
-    await admin.classes.enrol({
+    await admin.homerooms.place({
       studentId: student.id,
       classId: moved.id,
       from: movedOn,

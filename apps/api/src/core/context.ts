@@ -16,6 +16,7 @@ import type { FileStore } from "../files/store";
 import type { HostChecks } from "../hosts/checks";
 import type { InboundMail } from "../messages/inbound";
 import type { CommonsSearch } from "../pictures/commons";
+import type { ModuleContributions } from "./extension";
 import type { Intake } from "./intake";
 import type { KeyRing } from "./keys";
 import type { LoginIndex } from "./login-index";
@@ -116,6 +117,8 @@ export interface ApiDependencies {
 export interface RequestContext extends ApiDependencies {
   headers: Headers;
   requestId: string;
+  /** Every module's contributions to the points core and the modules declare. */
+  extensions: readonly ModuleContributions[];
 }
 
 export interface SchoolContext extends RequestContext {

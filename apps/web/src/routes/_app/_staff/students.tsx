@@ -32,8 +32,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
+import type { GroupWords } from "~/components/classes/slots";
+
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
-import { MoveManySheet } from "~/components/classes/Enrolment";
+import { groupWords } from "~/components/classes/slots";
 import { NewMessage } from "~/components/messages/NewMessage";
 import { CreateSignIns } from "~/components/people/CreateSignIns";
 import {
@@ -45,8 +47,10 @@ import {
   STATUS_TONE,
 } from "~/components/people/format";
 import { LeaveSchool } from "~/components/people/LeaveSchool";
+import { studentClassesParts } from "~/components/people/slots";
 import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale, useCapability } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { peopleOptionsQuery, studentsQuery } from "~/queries/students";
 import { currentUserQuery } from "~/queries/user";
@@ -123,7 +127,9 @@ function Status({ row }: StatusProps) {
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function studentColumns(): Column<StudentRow, Sort>[] {
+function studentColumns(
+  words: GroupWords | undefined,
+): Column<StudentRow, Sort>[] {
   return [
     {
       id: "name",
@@ -161,22 +167,26 @@ function studentColumns(): Column<StudentRow, Sort>[] {
         <Value notApplicable={!row.grade}>{labelOf(row.grade)}</Value>
       ),
     },
-    {
-      id: "class",
-      header: m.studentsClass(),
-      cell: (row) =>
-        row.homeroom ? (
-          <RowLink
-            to="/classes/$classId"
-            params={{ classId: row.homeroom.classId }}
-            search={{}}
-          >
-            {inLocale(row.homeroom.titleEn, row.homeroom.titleAr)}
-          </RowLink>
-        ) : (
-          <StatusText tone="warning">{m.studentsNoClass()}</StatusText>
-        ),
-    },
+    ...(words
+      ? [
+          {
+            id: "class",
+            header: words.group(),
+            cell: (row: StudentRow) =>
+              row.group ? (
+                <RowLink
+                  to="/classes/$classId"
+                  params={{ classId: row.group.classId }}
+                  search={{}}
+                >
+                  {inLocale(row.group.titleEn, row.group.titleAr)}
+                </RowLink>
+              ) : (
+                <StatusText tone="warning">{m.studentsNoClass()}</StatusText>
+              ),
+          },
+        ]
+      : []),
     {
       id: "status",
       header: m.studentStatus(),
@@ -214,8 +224,8 @@ const card = {
     <span className="flex flex-wrap items-center gap-x-3">
       <Status row={row} />
       {row.grade ? <span>{labelOf(row.grade)}</span> : null}
-      {row.homeroom ? (
-        <span>{inLocale(row.homeroom.titleEn, row.homeroom.titleAr)}</span>
+      {row.group ? (
+        <span>{inLocale(row.group.titleEn, row.group.titleAr)}</span>
       ) : null}
     </span>
   ),
@@ -258,6 +268,8 @@ function StudentsPage() {
   const [moving, setMoving] = useState<{ id: string; name: string }[] | null>(
     null,
   );
+  const words = useSlot(groupWords)[0];
+  const mover = useSlot(studentClassesParts)[0]?.move;
   const [leaving, setLeaving] = useState<{ id: string; name: string }[] | null>(
     null,
   );
@@ -376,7 +388,7 @@ function StudentsPage() {
       <DataTable
         caption={m.adminStudentsCaption()}
         rows={data.rows}
-        columns={studentColumns()}
+        columns={studentColumns(words)}
         rowLabel={(row) => displayName(row)}
         toolbar={toolbar}
         sort={{
@@ -386,10 +398,10 @@ function StudentsPage() {
         }}
         rowActions={rowActions}
         batchActions={[
-          ...(bounds
+          ...(bounds && mover
             ? [
                 {
-                  label: m.enrolmentMove(),
+                  label: mover.label(),
                   icon: ArrowRightLeft,
                   onSelect: (rows: StudentRow[]) =>
                     setMoving(
@@ -441,8 +453,8 @@ function StudentsPage() {
                       rows.map((row) => ({
                         id: row.id,
                         name: displayName(row),
-                        className: row.homeroom
-                          ? inLocale(row.homeroom.titleEn, row.homeroom.titleAr)
+                        className: row.group
+                          ? inLocale(row.group.titleEn, row.group.titleAr)
                           : null,
                       })),
                     ),
@@ -479,8 +491,8 @@ function StudentsPage() {
           ) : undefined,
         }}
       />
-      {moving && bounds ? (
-        <MoveManySheet
+      {moving && bounds && mover ? (
+        <mover.Many
           students={moving}
           year={bounds}
           today={data.today}

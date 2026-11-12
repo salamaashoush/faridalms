@@ -43,7 +43,7 @@ export const setIntentionSchema = v.object({
   intention: v.picklist(NEXT_YEAR_INTENTIONS),
 });
 
-/** A class of the target year, proposed from a homeroom of the source year. */
+/** A class of the target year, proposed from a class of the source year. */
 export const rolloverClassSchema = v.object({
   key: id,
   sourceClassId: id,
@@ -57,7 +57,7 @@ export const rolloverClassSchema = v.object({
   titleAr: title,
   gradeId: optionalId,
   locationId: optionalId,
-  homeroomTeacherId: optionalId,
+  teacherId: optionalId,
   subjects: v.pipe(
     v.array(v.object({ subjectId: id, teacherId: optionalId })),
     v.maxLength(30),

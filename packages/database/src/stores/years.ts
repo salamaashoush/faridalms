@@ -142,7 +142,7 @@ export async function yearDirectory(
         where t.tenant_id = y.tenant_id and t.school_year_id = y.id and t.type = 'term'
           and t.status = 'active') as terms,
       (select count(*)::int from core.classes c
-        where c.tenant_id = y.tenant_id and c.school_year_id = y.id and c.class_type = 'homeroom'
+        where c.tenant_id = y.tenant_id and c.school_year_id = y.id
           and c.status = 'active') as classes,
       (select count(distinct r.student_user_id)::int from core.student_school_years r
         where r.tenant_id = y.tenant_id and r.school_year_id = y.id and r.status = 'active'

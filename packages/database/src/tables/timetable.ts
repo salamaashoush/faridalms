@@ -15,8 +15,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import type { ClassType } from "./teaching";
-
 import { academicSessions, classPeriods } from "./calendar";
 import {
   baseConstraints,
@@ -102,11 +100,8 @@ export const classMeetings = core.table.withRLS(
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
     classId: uuid("class_id").notNull(),
-    classType: text("class_type").$type<ClassType>().notNull(),
     schoolYearId: uuid("school_year_id").notNull(),
     schoolYearType: text("school_year_type").notNull().default("school_year"),
-    /** The homeroom whose students the class takes, or the class itself. */
-    groupClassId: uuid("group_class_id").notNull(),
     /** The timetable it belongs to, which is followed only on its own days. */
     timetableId: uuid("timetable_id").notNull(),
     /** The day of its timetable's cycle: the ISO weekday in an ordinary week. */
@@ -124,19 +119,8 @@ export const classMeetings = core.table.withRLS(
     ...baseConstraints("class_meetings", t, tenants),
     fk(
       "class_meetings",
-      [t.tenantId, t.classId, t.classType, t.schoolYearId, t.orgId],
-      [
-        classes.tenantId,
-        classes.id,
-        classes.classType,
-        classes.schoolYearId,
-        classes.orgId,
-      ],
-    ),
-    fk(
-      "class_meetings",
-      [t.tenantId, t.groupClassId],
-      [classes.tenantId, classes.id],
+      [t.tenantId, t.classId, t.schoolYearId, t.orgId],
+      [classes.tenantId, classes.id, classes.schoolYearId, classes.orgId],
     ),
     fk(
       "class_meetings",
@@ -175,8 +159,8 @@ export const classMeetings = core.table.withRLS(
     ),
     ck("class_meetings", "weekday", sql`weekday between 1 and 28`),
     ck("class_meetings", "valid_during", range.bounded("valid_during")),
-    index("class_meetings_group_idx")
-      .on(t.tenantId, t.groupClassId)
+    index("class_meetings_class_idx")
+      .on(t.tenantId, t.classId)
       .where(sql`status = 'active'`),
     index("class_meetings_teacher_idx")
       .on(t.tenantId, t.teacherUserId)

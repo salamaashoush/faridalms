@@ -1,11 +1,10 @@
-import type { LinkProps } from "@tanstack/react-router";
-
 import { Button } from "@faridalms/ui/button";
 import { Fact, Facts } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
 import {
   useMutation,
   useQueryClient,
+  useSuspenseQueries,
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -13,6 +12,7 @@ import { BellRing } from "lucide-react";
 import { toast } from "sonner";
 
 import type { DayCards } from "~/components/home/parts";
+import type { OfficeNeed } from "~/components/home/slots";
 
 import { eventTitle } from "~/components/calendar/format";
 import {
@@ -22,19 +22,17 @@ import {
   itemLink,
 } from "~/components/home/parts";
 import { SchoolSetup } from "~/components/home/SchoolSetup";
+import { officeNeeds } from "~/components/home/slots";
 import { displayName } from "~/components/people/format";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { adminHomeQuery } from "~/queries/home";
 import { remindTeachers } from "~/server/attendance";
 import { formatDate, formatNumber, formatPercent } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-interface Need {
-  key: string;
-  label: string;
-  link: LinkProps;
-}
+type Need = OfficeNeed;
 
 /**
  * The office's day: the school's setup first while it is under way, then
@@ -44,6 +42,15 @@ interface Need {
  */
 export function useOfficeDay(): DayCards {
   const data = useSuspenseQuery(adminHomeQuery).data;
+  const { capabilities } = useCurrentUser();
+  const asked = useSlot(officeNeeds).flatMap((part) => {
+    const query = part.query(capabilities);
+    return query ? [{ part, query }] : [];
+  });
+  const read = useSuspenseQueries({
+    queries: asked.map((row) => row.query),
+  });
+  const extra = asked.map((row, index) => row.part.needOf(read[index]?.data));
   const queryClient = useQueryClient();
   const remind = useMutation({
     mutationFn: () =>
@@ -87,15 +94,7 @@ export function useOfficeDay(): DayCards {
           },
         ]
       : []),
-    ...(data.homerooms
-      ? [
-          {
-            key: "homerooms",
-            label: m.homeWithoutHomeroomTeacher({ count: data.homerooms }),
-            link: { to: "/classes", search: {} },
-          },
-        ]
-      : []),
+    ...extra.filter((need) => need !== null),
     ...(data.failed
       ? [
           {

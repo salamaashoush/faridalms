@@ -17,6 +17,7 @@ import { Glob, SQL } from "bun";
 
 import { errorCodeProblems } from "./error-codes";
 import { migrationProblems } from "./migration-checks";
+import { moduleImportProblems } from "./module-files";
 
 const problems: string[] = [];
 
@@ -77,6 +78,7 @@ const REACH_STORE =
   /\b(?:isVisibleStudent|reachedStudents|personReach|reachesClass|teachesClass)\b[^;]*from\s+["']@faridalms\/database\/stores\//;
 
 const files = await sources();
+problems.push(...moduleImportProblems(files));
 for (const { path, text } of files) {
   if (path === "scripts/check-sources.ts") continue;
   const context = path === "packages/database/src/context.ts";

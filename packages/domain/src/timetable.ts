@@ -122,7 +122,7 @@ export const classWeekSchema = v.object({
 });
 
 const cell = {
-  /** The class whose grid is edited: a homeroom, or a class of its own. */
+  /** A class of the grid edited, which is planned in its owner's grid. */
   classId: id,
   /** The day of the timetable's cycle: a weekday in an ordinary week. */
   weekday: cycleDay,
@@ -133,7 +133,7 @@ const cell = {
 
 export const placeSchema = v.object({
   ...cell,
-  /** The class that meets in the cell: one of the homeroom's subject classes. */
+  /** The class that meets in the cell: one the grid places. */
   meetingClassId: id,
   teacherId: optionalId,
   roomId: optionalId,
@@ -235,7 +235,7 @@ export interface PeriodPattern {
   kind: PeriodKind;
   startTime: string;
   endTime: string;
-  /** Its register is the day's attendance for a homeroom. */
+  /** A daily register taken in it is the day's attendance. */
   official: boolean;
   /** The days of the week it runs on; the school's weekend never has it. */
   weekdays: readonly number[];

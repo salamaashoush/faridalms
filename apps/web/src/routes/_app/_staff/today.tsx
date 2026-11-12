@@ -11,6 +11,7 @@ import { isValidElement } from "react";
 import type { DayCards } from "~/components/home/parts";
 
 import { useOfficeDay } from "~/components/home/OfficeDay";
+import { officeNeeds } from "~/components/home/slots";
 import { useTeachingDay } from "~/components/home/TeachingDay";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { loadTeaches, useTeaches } from "~/hooks/useTeaches";
@@ -18,6 +19,7 @@ import * as m from "~/i18n/messages";
 import { adminHomeQuery, teacherHomeQuery } from "~/queries/home";
 import { currentUserQuery } from "~/queries/user";
 import { formatDate } from "~/utils/datetime";
+import { filled } from "~/utils/extension";
 
 interface Sides {
   teaching: boolean;
@@ -51,6 +53,14 @@ export const Route = createFileRoute("/_app/_staff/today")({
     await Promise.all([
       sides.teaching ? queryClient.ensureQueryData(teacherHomeQuery) : null,
       sides.office ? queryClient.ensureQueryData(adminHomeQuery) : null,
+      ...(sides.office
+        ? filled(context.extensions, user.modules, officeNeeds).flatMap(
+            (need) => {
+              const query = need.query(user.capabilities);
+              return query ? [queryClient.ensureQueryData(query)] : [];
+            },
+          )
+        : []),
     ]);
   },
   component: TodayPage,

@@ -61,18 +61,6 @@ export const OWNERSHIP_VIOLATIONS: OwnershipViolations = {
     "core.courses: grade_level_ns -> grade_level",
     "core.student_school_years: grade_level_ns -> grade_level",
   ],
-  homerooms: [
-    "core.assignments: class_type -> homerooms",
-    "core.attendance_registers: class_type -> homerooms",
-    "core.class_groups: class_type -> homerooms",
-    "core.class_meetings: class_type -> homerooms",
-    "core.class_meetings: group_class_id -> homerooms",
-    "core.classes: class_type -> homerooms",
-    "core.classes: homeroom_class_id -> homerooms",
-    "core.classes: homeroom_class_type -> homerooms",
-    "core.enrollments: class_type -> homerooms",
-    "core.period_grades: class_type -> homerooms",
-  ],
   families: [
     "core.admission_applications: family_user_id -> families",
     "core.consent_records: consent_records_tenant_id_relationship_id_fkey -> core.user_relationships",

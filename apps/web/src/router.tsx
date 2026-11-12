@@ -5,6 +5,7 @@ import { notifyManager } from "@tanstack/react-query";
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 
+import { MODULE_FILLINGS } from "./extensions";
 import { createQueryClient } from "./queryClient";
 import { routeTree } from "./routeTree.gen";
 import { adoptHostView, hostView, sitePathIn, sitePathOut } from "./utils/host";
@@ -29,6 +30,7 @@ export function getRouter() {
         childMode: false,
       },
       queryClient,
+      extensions: MODULE_FILLINGS,
     },
     // A school's website host serves the website's pages from its root, so
     // the router reads `/news` there as `/site/<school>/news` and writes

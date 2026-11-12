@@ -17,13 +17,14 @@ import {
   endCell,
   endMeetings,
   ensureTimetable,
+  gridClasses,
   gridOwners,
-  groupClasses,
   insertMeeting,
+  lockGrid,
   insertTimetable,
   meetingsOn,
   tombstoneTimetable,
-  studentGroups,
+  studentClasses,
   TimetableConflict,
   timetableLessons,
   updateTimetable,
@@ -79,6 +80,13 @@ import {
   recordLinks,
   teaches,
 } from "../core/reach";
+import {
+  gridClassIds,
+  gridLessonClassIds,
+  gridOwnerOf,
+  gridsOf,
+  plannedElsewhere,
+} from "../timetable/grids";
 
 async function currentYear(context: UnitContext) {
   return workingYear(
@@ -271,10 +279,6 @@ function meetingView(row: MeetingRow) {
     classCode: row.classCode,
     classTitleEn: row.classTitleEn,
     classTitleAr: row.classTitleAr,
-    groupClassId: row.groupClassId,
-    groupCode: row.groupCode,
-    groupTitleEn: row.groupTitleEn,
-    groupTitleAr: row.groupTitleAr,
     timetableId: row.timetableId,
     weekday: row.weekday,
     periodId: row.periodId,
@@ -371,7 +375,6 @@ async function lessonsOfWeek(
     on: days[0] ?? context.today,
     days,
     filter: {
-      groupIds: [],
       classIds: [...new Set(covers.map((row) => row.classId))],
     },
   });
@@ -387,19 +390,19 @@ async function lessonsOfWeek(
   ];
 }
 
-/** A grid's owner: a homeroom, or a class no homeroom holds. */
+/** The class whose grid a class is planned in, and the classes that grid places. */
 async function gridClass(context: UnitContext, classId: string) {
-  const row = await classById(context.tx, context, classId);
+  const ownerId = await gridOwnerOf(context, classId);
+  const row = await classById(context.tx, context, ownerId);
   if (!row) throw new ORPCError("NOT_FOUND");
-  if (row.classType === "scheduled" && row.homeroomClassId) {
-    const homeroom = await classById(context.tx, context, row.homeroomClassId);
-    if (!homeroom) throw new ORPCError("NOT_FOUND");
-    return homeroom;
-  }
-  return row;
+  const [placed, shown] = await Promise.all([
+    gridClassIds(context, row.id),
+    gridLessonClassIds(context, row.id),
+  ]);
+  return { owner: row, classIds: placed, lessonClassIds: shown };
 }
 
-/** Where the grids start: the school's homerooms and its classes of their own. */
+/** Where the grids start: every class of the year that owns its grid. */
 export const options = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "timetable:manage");
   const year = await currentYear(context);
@@ -416,6 +419,7 @@ export const options = readProcedure.handler(async ({ context }) => {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       yearId: year.id,
+      except: await plannedElsewhere(context, year.id),
     }),
     roomsOf(context.tx, context.tenantId, context.schoolId),
     yearTeachers(context.tx, {
@@ -438,27 +442,27 @@ export const options = readProcedure.handler(async ({ context }) => {
   };
 });
 
-/** One homeroom's week as of a day, with the classes it can place. */
+/** One grid's week as of a day, with the classes it can place. */
 export const grid = readProcedure
   .input(gridQuerySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
-    const owner = await gridClass(context, input.classId);
+    const { owner, classIds } = await gridClass(context, input.classId);
     const year = await yearById(context, owner.schoolYearId);
     if (!year) throw new ORPCError("NOT_FOUND");
     const on = dayIn(year, input.on || context.today);
     const [shape, classes, meetings] = await Promise.all([
       cycleFrame(context, year, on),
-      groupClasses(context.tx, {
+      gridClasses(context.tx, {
         tenantId: context.tenantId,
-        groupId: owner.id,
+        classIds,
         on,
       }),
       meetingsOn(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
         on,
-        filter: { groupIds: [owner.id] },
+        filter: { classIds },
       }),
     ]);
     return {
@@ -468,7 +472,6 @@ export const grid = readProcedure
         code: owner.code,
         titleEn: owner.titleEn,
         titleAr: owner.titleAr,
-        classType: owner.classType,
       },
       classes,
       meetings: meetings.map(meetingView),
@@ -480,7 +483,7 @@ export const check = readProcedure
   .input(clashCheckSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
-    const owner = await gridClass(context, input.classId);
+    const { lessonClassIds } = await gridClass(context, input.classId);
     const plan = await dayPlan(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
@@ -491,7 +494,7 @@ export const check = readProcedure
       bookings: await bookingsAt(context.tx, {
         tenantId: context.tenantId,
         timetableId: plan.timetable.id,
-        groupId: owner.id,
+        gridClassIds: lessonClassIds,
         weekday: input.weekday,
         periodId: input.periodId,
         from: input.from,
@@ -541,14 +544,15 @@ export const place = writeProcedure
   .input(placeSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
-    const owner = await gridClass(context, input.classId);
+    const { owner, classIds, lessonClassIds } = await gridClass(
+      context,
+      input.classId,
+    );
     const { year, timetableId } = await placementYear(context, owner, input);
-    const classes = await groupClasses(context.tx, {
-      tenantId: context.tenantId,
-      groupId: owner.id,
-      on: input.from,
-    });
-    const placed = classes.find((row) => row.id === input.meetingClassId);
+    await lockGrid(context.tx, context.tenantId, owner.id);
+    const placed = classIds.includes(input.meetingClassId)
+      ? await classById(context.tx, context, input.meetingClassId)
+      : null;
     if (!placed)
       throw new ORPCError("BAD_REQUEST", { message: "timetable.not_in_group" });
     if (input.teacherId) {
@@ -572,7 +576,7 @@ export const place = writeProcedure
     const bookings = await bookingsAt(context.tx, {
       tenantId: context.tenantId,
       timetableId,
-      groupId: owner.id,
+      gridClassIds: lessonClassIds,
       weekday: input.weekday,
       periodId: input.periodId,
       from: input.from,
@@ -590,7 +594,7 @@ export const place = writeProcedure
     await endCell(context.tx, {
       tenantId: context.tenantId,
       timetableId,
-      groupId: owner.id,
+      gridClassIds: lessonClassIds,
       weekday: input.weekday,
       periodId: input.periodId,
       from: input.from,
@@ -599,10 +603,8 @@ export const place = writeProcedure
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       classId: placed.id,
-      classType: "scheduled",
       yearId: year.id,
       timetableId,
-      groupId: owner.id,
       weekday: input.weekday,
       periodId: input.periodId,
       teacherId: input.teacherId || null,
@@ -617,7 +619,7 @@ export const place = writeProcedure
       objectId: meetingId,
       details: {
         timetableId,
-        groupClassId: owner.id,
+        gridClassId: owner.id,
         classId: placed.id,
         weekday: input.weekday,
         periodId: input.periodId,
@@ -634,12 +636,13 @@ export const clear = writeProcedure
   .input(clearSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
-    const owner = await gridClass(context, input.classId);
+    const { owner, lessonClassIds } = await gridClass(context, input.classId);
     const { timetableId } = await placementYear(context, owner, input);
+    await lockGrid(context.tx, context.tenantId, owner.id);
     const ended = await endCell(context.tx, {
       tenantId: context.tenantId,
       timetableId,
-      groupId: owner.id,
+      gridClassIds: lessonClassIds,
       weekday: input.weekday,
       periodId: input.periodId,
       from: input.from,
@@ -683,11 +686,25 @@ export const clashes = readProcedure
         filter: { schoolId: context.schoolId, clashesOnly: true },
       }),
     ]);
+    const clashing = rows.filter((row) => row.clashing);
+    const grids = await gridsOf(
+      context,
+      clashing.map((row) => row.classId),
+    );
     return {
       on,
       timetable: shape.timetable,
       periods: shape.periods,
-      rows: rows.filter((row) => row.clashing).map(meetingView),
+      rows: clashing.map((row) => {
+        const owner = grids.get(row.classId);
+        return {
+          ...meetingView(row),
+          gridClassId: owner?.id ?? row.classId,
+          gridCode: owner?.code ?? row.classCode,
+          gridTitleEn: owner?.titleEn ?? row.classTitleEn,
+          gridTitleAr: owner?.titleAr ?? row.classTitleAr,
+        };
+      }),
     };
   });
 
@@ -764,9 +781,9 @@ export const studentWeek = readProcedure
     const year = await currentYear(context);
     if (!year) return { week: null };
     const on = dayIn(year, input.on || context.today);
-    const [shape, groups] = await Promise.all([
+    const [shape, classIds] = await Promise.all([
       frame(context, year, on),
-      studentGroups(context.tx, {
+      studentClasses(context.tx, {
         tenantId: context.tenantId,
         studentId,
         on,
@@ -777,7 +794,7 @@ export const studentWeek = readProcedure
       schoolId: context.schoolId,
       on,
       days: shape.dates.map((row) => row.date),
-      filter: groups,
+      filter: { classIds },
     });
     return {
       week: {
@@ -791,7 +808,7 @@ export const studentWeek = readProcedure
     };
   });
 
-/** A class's week for its record: a homeroom's lessons, or one class's. */
+/** A class's week for its record: the lessons its grid places. */
 export const classWeek = readProcedure
   .input(classWeekSchema)
   .handler(async ({ input, context }) => {
@@ -812,10 +829,7 @@ export const classWeek = readProcedure
       schoolId: context.schoolId,
       on,
       days: shape.dates.map((day) => day.date),
-      filter:
-        row.classType === "homeroom"
-          ? { groupIds: [row.id] }
-          : { groupIds: [], classIds: [row.id] },
+      filter: { classIds: await gridLessonClassIds(context, row.id) },
     });
     return {
       week: {
@@ -827,7 +841,7 @@ export const classWeek = readProcedure
         ),
       },
       canPlan: can(context, "timetable:manage") && year.lifecycle !== "closed",
-      gridClassId: row.homeroomClassId ?? row.id,
+      gridClassId: await gridOwnerOf(context, row.id),
     };
   });
 

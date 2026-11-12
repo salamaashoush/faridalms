@@ -45,18 +45,11 @@ export const saveClassSchema = v.pipe(
     code,
     titleEn: optionalText(120),
     titleAr: optionalText(120),
+    subjectId: v.optional(v.union([v.literal(""), id]), ""),
     gradeId: v.optional(v.union([v.literal(""), id]), ""),
     locationId: v.optional(v.union([v.literal(""), id]), ""),
-    homeroomTeacherId: v.optional(v.union([v.literal(""), id]), ""),
-    subjects: v.pipe(
-      v.array(
-        v.object({
-          subjectId: id,
-          teacherIds: v.pipe(v.array(id), v.maxLength(4)),
-        }),
-      ),
-      v.maxLength(30),
-    ),
+    /** The first is the class's primary teacher. */
+    teacherIds: v.pipe(v.array(id), v.maxLength(4)),
   }),
   v.forward(
     v.check(
@@ -64,15 +57,6 @@ export const saveClassSchema = v.pipe(
       "validation.name_required",
     ),
     ["titleEn"],
-  ),
-  v.forward(
-    v.check(
-      (value) =>
-        new Set(value.subjects.map((row) => row.subjectId)).size ===
-        value.subjects.length,
-      "validation.subject_twice",
-    ),
-    ["subjects"],
   ),
 );
 export type SaveClassInput = v.InferInput<typeof saveClassSchema>;

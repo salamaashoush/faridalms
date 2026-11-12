@@ -27,7 +27,7 @@ async function youngTeacher() {
   if (!name) throw new Error("the seed lacks a teacher of the young school");
   const api = await signedIn(YOUNG, name);
   const homeroom = (await api.classes.mine({})).rows.find(
-    (row) => row.classType === "homeroom",
+    (row) => row.group?.own,
   );
   if (!homeroom) throw new Error("the young teacher keeps no homeroom");
   return { api, classId: homeroom.id };
@@ -120,7 +120,7 @@ describe("sign-in badges", () => {
   test("older students get no badge, and no one prints for a class they do not teach", async () => {
     const teacher = await signedIn("northwind", login("teacher"));
     const homeroom = (await teacher.classes.mine({})).rows.find(
-      (row) => row.classType === "homeroom",
+      (row) => row.group?.own,
     );
     if (!homeroom) throw new Error("seed homeroom teacher");
     const listed = await teacher.badges.classBadges({ classId: homeroom.id });

@@ -12,6 +12,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "./context";
 
+import { contributionsTo, point } from "./extension";
 import { can } from "./procedure";
 
 /**
@@ -86,14 +87,49 @@ export async function requireStudent(
   if (!(await reachesStudent(context, reach, studentId))) throw notFound();
 }
 
-/** Whether the viewer may open the class on a day: one they or a child they follow is in, or any with school-wide reach. */
-export function reachesClass(
+/** Classes a module opens to whoever reaches a class it ties them to. */
+export interface SharedClassReach {
+  /** The classes the viewer reaches on the date through those they reach already. */
+  classesReached(
+    context: UnitContext,
+    scope: Scope,
+    on: string,
+  ): Promise<string[]>;
+}
+
+export const sharedClassReach = point<SharedClassReach>("shared class reach");
+
+/** The classes modules open to the viewer besides those they reach themselves. */
+export async function classesReachedBesides(
+  context: UnitContext,
+  reach: ReachScope,
+  on: string = context.today,
+): Promise<string[]> {
+  const scope = scopeFor(context, reach);
+  const found = await Promise.all(
+    (await contributionsTo(context, sharedClassReach)).map((contribution) =>
+      contribution.classesReached(context, scope, on),
+    ),
+  );
+  return [...new Set(found.flat())];
+}
+
+/**
+ * Whether the viewer may open the class on a day: one they or a child they
+ * follow is in, one a module opens to them through those, or any with
+ * school-wide reach.
+ */
+export async function reachesClass(
   context: UnitContext,
   reach: ReachScope,
   classId: string,
   on: string = context.today,
 ): Promise<boolean> {
-  return storeReachesClass(context.tx, scopeFor(context, reach), classId, on);
+  if (
+    await storeReachesClass(context.tx, scopeFor(context, reach), classId, on)
+  )
+    return true;
+  return (await classesReachedBesides(context, reach, on)).includes(classId);
 }
 
 /** Whether the viewer teaches or assists in the class, or has school-wide reach over teaching. */

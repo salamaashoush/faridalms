@@ -126,8 +126,7 @@ describe("search", () => {
           titleEn: name,
           titleAr: "",
           gradeId: grade.id,
-          homeroomTeacherId: "",
-          subjects: [],
+          teacherIds: [],
         })
       ).id;
     // The later year's class is made last, so its id alone would rank it first.

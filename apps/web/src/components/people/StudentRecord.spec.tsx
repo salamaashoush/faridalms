@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
-  createRootRoute,
+  createRootRouteWithContext,
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
@@ -9,6 +9,8 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { ModuleFillings } from "~/utils/extension";
 
 import {
   endRelationship,
@@ -20,6 +22,22 @@ import { render } from "~/testUtils";
 import type { StudentData } from "./StudentRecord";
 
 import { StudentRecord } from "./StudentRecord";
+
+// The record asks which modules are on for the slots it shows; none is.
+vi.mock("~/server/auth", () => ({
+  getCurrentUser: vi.fn(() =>
+    Promise.resolve({
+      nameEn: "Salama Ashoush",
+      nameAr: null,
+      preferredName: null,
+      loginName: null,
+      photoFileId: null,
+      capabilities: [],
+      modules: {},
+      school: { nameEn: "Acme School", nameAr: null },
+    }),
+  ),
+}));
 
 vi.mock("~/server/students", () => ({
   getPeopleOptions: vi.fn(),
@@ -95,7 +113,7 @@ const RECORD: StudentData = {
   status: "enrolled",
   placement: null,
   placements: [],
-  homeroom: null,
+  group: null,
   accessUntil: null,
   guardians: [
     guardian(
@@ -136,7 +154,10 @@ function renderRecord() {
     defaultOptions: { queries: { retry: false } },
   });
   const router = createRouter({
-    routeTree: createRootRoute({
+    context: { extensions: [] },
+    routeTree: createRootRouteWithContext<{
+      extensions: readonly ModuleFillings[];
+    }>()({
       component: () => (
         <QueryClientProvider client={queryClient}>
           <Suspense fallback={null}>

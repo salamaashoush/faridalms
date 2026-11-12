@@ -576,7 +576,6 @@ export const options = readProcedure.handler(async ({ context }) => {
         code: row.code,
         titleEn: row.titleEn,
         titleAr: row.titleAr,
-        classType: row.classType,
         subjectId: row.subjectId,
         students: row.students,
         mine: row.role === "teacher",

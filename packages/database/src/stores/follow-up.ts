@@ -20,9 +20,6 @@ export interface CallRow {
   studentId: string;
   fullNameEn: string | null;
   fullNameAr: string | null;
-  homeroomCode: string | null;
-  homeroomTitleEn: string | null;
-  homeroomTitleAr: string | null;
   /** The first period the child was marked away in. */
   periodNameEn: string | null;
   periodNameAr: string | null;
@@ -40,9 +37,6 @@ export async function callList(
     student_user_id: string;
     full_name_en: string | null;
     full_name_ar: string | null;
-    homeroom_code: string | null;
-    homeroom_en: string | null;
-    homeroom_ar: string | null;
     period_en: string | null;
     period_ar: string | null;
   }>(sql`
@@ -58,25 +52,14 @@ export async function callList(
       order by e.student_user_id, p.sequence
     )
     select a.student_user_id, u.full_name_en, u.full_name_ar,
-           h.code as homeroom_code, h.title_en as homeroom_en, h.title_ar as homeroom_ar,
            a.name_en as period_en, a.name_ar as period_ar
     from away a
     join core.users u on u.tenant_id = ${input.tenantId}::uuid and u.id = a.student_user_id
-    left join lateral (
-      select c.code, c.title_en, c.title_ar from core.enrollments n
-      join core.classes c on c.tenant_id = n.tenant_id and c.id = n.class_id
-        and c.class_type = 'homeroom'
-      where n.tenant_id = u.tenant_id and n.user_id = u.id and n.role = 'student'
-        and n.status = 'active' and n.valid_during @> ${input.day}::date
-      limit 1) h on true
-    order by h.code nulls last, u.full_name_en`);
+    order by u.full_name_en, u.id`);
   return rows.map((row) => ({
     studentId: row.student_user_id,
     fullNameEn: row.full_name_en,
     fullNameAr: row.full_name_ar,
-    homeroomCode: row.homeroom_code,
-    homeroomTitleEn: row.homeroom_en,
-    homeroomTitleAr: row.homeroom_ar,
     periodNameEn: row.period_en,
     periodNameAr: row.period_ar,
   }));

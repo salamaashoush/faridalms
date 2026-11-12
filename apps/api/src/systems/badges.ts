@@ -37,7 +37,7 @@ async function badgeClass(context: UnitContext, classId: string) {
   const roster = await classRoster(
     context.tx,
     scope,
-    found,
+    found.id,
     context.today,
     false,
   );

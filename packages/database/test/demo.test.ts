@@ -200,10 +200,10 @@ describe("filling a demonstration school", () => {
 
       const [counts] = await su`
         select
-          (select count(*)::int from core.classes
-            where tenant_id = ${tenantId}::uuid and class_type = 'homeroom') as homerooms,
-          (select count(*)::int from core.enrollments
-            where tenant_id = ${tenantId}::uuid and role = 'student' and class_type = 'homeroom') as students,
+          (select count(*)::int from core.homerooms
+            where tenant_id = ${tenantId}::uuid) as homerooms,
+          (select count(*)::int from core.homeroom_members
+            where tenant_id = ${tenantId}::uuid) as students,
           (select count(*)::int from core.contact_points
             where tenant_id = ${tenantId}::uuid and kind = 'email') as emails,
           (select count(*)::int from core.contact_points

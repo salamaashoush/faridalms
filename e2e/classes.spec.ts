@@ -30,7 +30,7 @@ async function openClass(page: Page, name: string) {
   ).toBeVisible();
 }
 
-test("an administrator adds a class and a student from another class joins it", async ({
+test("an administrator adds a homeroom and a student from another homeroom joins it", async ({
   page,
   browserName,
 }) => {
@@ -40,8 +40,11 @@ test("an administrator adds a class and a student from another class joins it", 
   await signIn(page, "admin");
   await page.goto("/classes");
   await untilHydrated(page);
-  await page.getByRole("link", { name: "Add class", exact: true }).click();
-  await expect(page).toHaveURL(/\/class-editor/);
+  await expect(
+    page.getByRole("tab", { name: "Homerooms", selected: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Add homeroom", exact: true }).click();
+  await expect(page).toHaveURL(/\/homeroom-editor/);
 
   await page
     .getByRole("textbox", { name: "Class name in Arabic" })
@@ -152,7 +155,7 @@ test("a class code already used this year is refused with its reason", async ({
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/classes");
+  await page.goto("/classes?scope=all");
   await untilHydrated(page);
   await page.getByRole("link", { name: "Add class", exact: true }).click();
   await page
@@ -182,6 +185,9 @@ test("a teacher opens their class without enrolment or editing controls", async 
     page.getByRole("heading", { level: 1, name: "7A", exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Edit class" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Edit homeroom" })).toHaveCount(
+    0,
+  );
   await page.getByRole("tab", { name: "Students", exact: true }).click();
   const roster = page.getByRole("region", { name: "Students" });
   await expect(roster.getByRole("listitem")).toHaveCount(6);

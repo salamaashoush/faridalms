@@ -8,6 +8,7 @@ import type { ApiDependencies, RequestContext } from "./core/context";
 
 import { handleAssistantRequest } from "./assistant/routes";
 import { handleCalendarFeed } from "./calendar/feed";
+import { MODULE_EXTENSIONS } from "./extensions";
 import { handleWorkExport } from "./files/exports";
 import { handlePublicFileRequest } from "./files/public";
 import { handleFileRequest } from "./files/routes";
@@ -84,6 +85,7 @@ export function createApp(dependencies: ApiDependencies) {
           ...dependencies,
           headers: request.headers,
           requestId,
+          extensions: MODULE_EXTENSIONS,
         };
         const file =
           (await handleEdgeAsk(request, url, context, askAllowed)) ??

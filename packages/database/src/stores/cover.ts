@@ -267,7 +267,7 @@ export interface CoverCandidate {
   userId: string;
   fullNameEn: string | null;
   fullNameAr: string | null;
-  /** Teaches or assists the class on that day. */
+  /** Teaches or assists the class, or a class it is planned with, on that day. */
   knowsClass: boolean;
   /** Teaches another class of the same subject this year. */
   sameSubject: boolean;
@@ -290,6 +290,8 @@ export async function coverCandidates(
     schoolId: string;
     yearId: string;
     classId: string;
+    /** The class and those it is planned with. */
+    knownClassIds: readonly string[];
     periodId: string;
     day: string;
   },
@@ -333,9 +335,7 @@ export async function coverCandidates(
       exists (select 1 from core.enrollments e
         where e.tenant_id = u.tenant_id and e.user_id = u.id and e.status = 'active'
           and e.role in ('teacher', 'aide') and e.valid_during @> ${input.day}::date
-          and e.class_id in (${input.classId}::uuid, coalesce((select c.homeroom_class_id
-            from core.classes c where c.tenant_id = u.tenant_id and c.id = ${input.classId}::uuid),
-            ${input.classId}::uuid))) as knows_class,
+          and e.class_id = any(${uuidArray(input.knownClassIds)})) as knows_class,
       exists (select 1 from core.enrollments e
         join core.classes c on c.tenant_id = e.tenant_id and c.id = e.class_id
         where e.tenant_id = u.tenant_id and e.user_id = u.id and e.status = 'active'

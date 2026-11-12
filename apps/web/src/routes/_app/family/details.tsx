@@ -12,9 +12,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
+import { groupWords } from "~/components/classes/slots";
 import { displayName, labelOf } from "~/components/people/format";
 import { ContactList } from "~/components/people/record-parts";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { childDetailsQuery } from "~/queries/home";
 import { personRecordQuery } from "~/queries/students";
@@ -120,6 +122,7 @@ interface ChildDetailsProps {
 function ChildDetails({ studentId }: ChildDetailsProps) {
   const user = useCurrentUser();
   const child = useSuspenseQuery(childDetailsQuery(studentId)).data;
+  const words = useSlot(groupWords)[0];
   const me = useSuspenseQuery(personRecordQuery(user.id)).data;
   const [asking, setAsking] = useState(false);
   const name = displayName(child);
@@ -176,11 +179,13 @@ function ChildDetails({ studentId }: ChildDetailsProps) {
             <Fact label={m.studentGrade()} notApplicable={!child.grade}>
               {labelOf(child.grade)}
             </Fact>
-            <Fact label={m.studentsClass()} notApplicable={!child.homeroom}>
-              {child.homeroom
-                ? inLocale(child.homeroom.titleEn, child.homeroom.titleAr)
-                : null}
-            </Fact>
+            {words ? (
+              <Fact label={words.group()} notApplicable={!child.group}>
+                {child.group
+                  ? inLocale(child.group.titleEn, child.group.titleAr)
+                  : null}
+              </Fact>
+            ) : null}
           </Facts>
         </RecordSection>
         <RecordSection

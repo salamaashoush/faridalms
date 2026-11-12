@@ -44,7 +44,7 @@ async function classOfStudent(
   studentId: string,
 ) {
   const { classes } = await api.coursework.options();
-  for (const row of classes.filter((item) => item.classType === "scheduled")) {
+  for (const row of classes.filter((item) => item.subjectId !== null)) {
     const { roster } = await api.coursework.groups({ classId: row.id });
     if (roster.some((pupil) => pupil.id === studentId)) return row;
   }
@@ -113,7 +113,7 @@ describe("coursework for a teacher", () => {
   test("a draft never set is put away as it is", async () => {
     const { api } = await arabicTeacher();
     const { classes } = await api.coursework.options();
-    const target = classes.find((row) => row.classType === "scheduled");
+    const target = classes.find((row) => row.subjectId !== null);
     if (!target) throw new Error("seed class");
     const saved = await api.coursework.save(draft(target.id, "Unused draft"));
     await api.coursework.archive({
@@ -128,7 +128,7 @@ describe("coursework for a teacher", () => {
   test("a draft for part of a class goes only to the group chosen", async () => {
     const { api } = await arabicTeacher();
     const { classes } = await api.coursework.options();
-    const target = classes.find((row) => row.classType === "scheduled");
+    const target = classes.find((row) => row.subjectId !== null);
     if (!target) throw new Error("seed class");
     const { groups } = await api.coursework.groups({ classId: target.id });
     const group = groups[0];
@@ -155,11 +155,12 @@ describe("coursework for a teacher", () => {
     const { api: teacher } = await arabicTeacher();
     const principal = await signedIn("northwind", login("principal"));
     const { classes } = await teacher.coursework.options();
-    const target = classes.find((row) => row.classType === "scheduled");
+    const target = classes.find((row) => row.subjectId !== null);
     if (!target) throw new Error("seed class");
-    const { homeroom } = await principal.classes.record({ id: target.id });
-    if (!homeroom) throw new Error("the class follows no homeroom");
-    const from = (await principal.classes.directory({})).rows.findLast(
+    const of = await principal.homerooms.ofClass({ classId: target.id });
+    if (of.kind !== "subject") throw new Error("the class follows no homeroom");
+    const { homeroom } = of;
+    const from = (await principal.homerooms.directory({})).rows.findLast(
       (row) => row.students > 0 && row.id !== homeroom.id,
     );
     if (!from) throw new Error("seed homerooms");
@@ -191,7 +192,7 @@ describe("coursework for a teacher", () => {
       );
     expect(await takes(open)).toBe(false);
 
-    await principal.classes.enrol({
+    await principal.homerooms.place({
       studentId: newcomer.userId,
       classId: homeroom.id,
     });
@@ -209,7 +210,7 @@ describe("coursework for a teacher", () => {
   test("a student added to a group is given the group's open work", async () => {
     const { api } = await arabicTeacher();
     const { classes } = await api.coursework.options();
-    const target = classes.find((row) => row.classType === "scheduled");
+    const target = classes.find((row) => row.subjectId !== null);
     if (!target) throw new Error("seed class");
     const { roster, groups } = await api.coursework.groups({
       classId: target.id,
@@ -267,9 +268,7 @@ describe("coursework for a teacher", () => {
   test("a draft may move to another class, work already out may not", async () => {
     const { api } = await arabicTeacher();
     const { classes } = await api.coursework.options();
-    const [first, second] = classes.filter(
-      (row) => row.classType === "scheduled",
-    );
+    const [first, second] = classes.filter((row) => row.subjectId !== null);
     if (!first || !second) throw new Error("two seed classes");
     const saved = await api.coursework.save(draft(first.id, "Moving draft"));
     const moved = await api.coursework.save({
@@ -1510,7 +1509,7 @@ describe("a class's file area", () => {
     const me = await student.api.identity.currentUser();
     const target = await classOfStudent(teacher.api, me.id);
     const other = (await teacher.api.coursework.options()).classes.find(
-      (row) => row.classType === "scheduled" && row.id !== target.id,
+      (row) => row.subjectId !== null && row.id !== target.id,
     );
     if (!other) throw new Error("the Arabic teacher teaches one class only");
     const map = await upload(teacher, "document_media", "map.txt");
@@ -3395,7 +3394,7 @@ describe("discussions", () => {
     const target = await classOfStudent(teacher.api, me.id);
     const { classes } = await teacher.api.coursework.options();
     const elsewhere = classes.find(
-      (row) => row.id !== target.id && row.classType === "scheduled",
+      (row) => row.id !== target.id && row.subjectId !== null,
     );
     if (!elsewhere) throw new Error("the teacher teaches one class");
     const module = await teacher.api.learning.saveModule({
@@ -3510,7 +3509,7 @@ describe("a module's discussion", () => {
     const target = await classOfStudent(teacher.api, me.id);
     const { classes } = await teacher.api.coursework.options();
     const elsewhere = classes.find(
-      (row) => row.id !== target.id && row.classType === "scheduled",
+      (row) => row.id !== target.id && row.subjectId !== null,
     );
     if (!elsewhere) throw new Error("the teacher teaches one class");
     const module = await teacher.api.learning.saveModule({

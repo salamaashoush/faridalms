@@ -296,16 +296,17 @@ async function taughtClasses(
       coalesce((select array_agg(e.user_id order by e.user_id) from core.enrollments e
         where e.tenant_id = h.tenant_id and e.class_id = h.id and e.role = 'student'
           and e.status = 'active')::text[], '{}')::text as students
-    from core.classes c
-    join core.classes h on h.tenant_id = c.tenant_id and h.id = c.homeroom_class_id
+    from core.homeroom_classes k
+    join core.classes c on c.tenant_id = k.tenant_id and c.id = k.class_id
+    join core.classes h on h.tenant_id = k.tenant_id and h.id = k.homeroom_class_id
     join core.descriptors g on g.tenant_id = c.tenant_id and g.id = c.grade_level_descriptor_id
     join core.descriptors s on s.tenant_id = c.tenant_id and s.id = c.subject_descriptor_id
     join core.enrollments t on t.tenant_id = c.tenant_id and t.class_id = c.id
       and t.role = 'teacher' and t.is_primary
     join core.enrollments ht on ht.tenant_id = h.tenant_id and ht.class_id = h.id
       and ht.role = 'teacher' and ht.is_primary
-    where c.tenant_id = ${school.tenantId}::uuid and c.school_year_id = ${school.yearId}::uuid
-      and c.class_type = 'scheduled'
+    where k.tenant_id = ${school.tenantId}::uuid and c.school_year_id = ${school.yearId}::uuid
+      and k.status = 'active'
     order by h.code, c.code`);
   return rows.map((row) => ({
     id: row.id,
@@ -369,11 +370,10 @@ async function lessonsTaken(tx: Tx, school: FilledSchool, today: string) {
     class_id: string;
     period_id: string;
     teacher_id: string;
-    homeroom_id: string;
     starts: string;
   }>(sql`
     select m.class_id, m.class_period_id as period_id, m.teacher_user_id as teacher_id,
-      m.group_class_id as homeroom_id, to_char(p.start_time, 'HH24:MI') as starts
+      to_char(p.start_time, 'HH24:MI') as starts
     from core.class_meetings m
     join core.class_periods p on p.tenant_id = m.tenant_id and p.id = m.class_period_id
     where m.tenant_id = ${school.tenantId}::uuid and m.school_year_id = ${school.yearId}::uuid
@@ -389,12 +389,12 @@ async function lessonsTaken(tx: Tx, school: FilledSchool, today: string) {
     ).map((row) => row.student),
   );
   const rosters = new Map<string, string[]>();
-  for (const row of await tx.execute<{ homeroom: string; student: string }>(sql`
-    select class_id as homeroom, user_id as student from core.enrollments
+  for (const row of await tx.execute<{ class_id: string; student: string }>(sql`
+    select class_id, user_id as student from core.enrollments
     where tenant_id = ${school.tenantId}::uuid and school_year_id = ${school.yearId}::uuid
-      and class_type = 'homeroom' and role = 'student' and status = 'active'`))
-    rosters.set(row.homeroom, [
-      ...(rosters.get(row.homeroom) ?? []),
+      and role = 'student' and status = 'active' and valid_during @> ${today}::date`))
+    rosters.set(row.class_id, [
+      ...(rosters.get(row.class_id) ?? []),
       row.student,
     ]);
   const categories = await descriptorIds(
@@ -411,7 +411,6 @@ async function lessonsTaken(tx: Tx, school: FilledSchool, today: string) {
       id: registerId,
       orgId: school.schoolId,
       classId: lesson.class_id,
-      classType: "scheduled",
       schoolYearId: school.yearId,
       classPeriodId: lesson.period_id,
       takenOn: today,
@@ -419,7 +418,7 @@ async function lessonsTaken(tx: Tx, school: FilledSchool, today: string) {
       recordedByUserId: lesson.teacher_id,
       submittedAt: at(today, lesson.starts),
     });
-    for (const studentUserId of rosters.get(lesson.homeroom_id) ?? []) {
+    for (const studentUserId of rosters.get(lesson.class_id) ?? []) {
       const meaning = away.has(studentUserId) ? "absent" : "present";
       events.push({
         tenantId: school.tenantId,
@@ -1049,7 +1048,6 @@ async function coursework(
       tenantId: school.tenantId,
       orgId: school.schoolId,
       classId: taught.id,
-      classType: "scheduled" as const,
       schoolYearId: school.yearId,
       gradingPeriodId: term?.id ?? null,
       authorUserId: taught.teacherId,
@@ -1229,7 +1227,6 @@ async function coursework(
       tenantId: school.tenantId,
       orgId: school.schoolId,
       classId: taught.id,
-      classType: "scheduled",
       schoolYearId: school.yearId,
       gradingPeriodId: term.id,
       studentUserId,

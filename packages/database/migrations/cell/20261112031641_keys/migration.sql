@@ -77,10 +77,12 @@ alter table core.enrollments
 alter table core.enrollments add constraint enrollments_excl exclude using gist
   (tenant_id with =, class_id with =, user_id with =, role with =, valid_during with &&)
   where (status = 'active');
--- One homeroom at a time for a student within a school's year.
-alter table core.enrollments add constraint enrollments_homeroom_excl exclude using gist
-  (tenant_id with =, org_id with =, school_year_id with =, user_id with =, valid_during with &&)
-  where (status = 'active' and role = 'student' and class_type = 'homeroom');
+
+-- A student holds one place in a homeroom at a time. A school's years never
+-- overlap, so this holds within each year as well.
+alter table core.homeroom_members add constraint homeroom_members_excl exclude using gist
+  (tenant_id with =, org_id with =, student_user_id with =, valid_during with &&)
+  where (status = 'active');
 
 alter table core.attendance_registers add foreign key (tenant_id, school_year_id, school_year_type, period span)
   references core.academic_sessions (tenant_id, id, type, period span);
@@ -92,10 +94,6 @@ alter table core.class_meetings
   references core.academic_sessions (tenant_id, id, type, period span);
 alter table core.class_meetings add constraint class_meetings_class_excl exclude using gist
   (tenant_id with =, timetable_id with =, class_id with =, weekday with =, class_period_id with =,
-   valid_during with &&)
-  where (status = 'active');
-alter table core.class_meetings add constraint class_meetings_group_excl exclude using gist
-  (tenant_id with =, timetable_id with =, group_class_id with =, weekday with =, class_period_id with =,
    valid_during with &&)
   where (status = 'active');
 alter table core.class_meetings add constraint class_meetings_teacher_excl exclude using gist

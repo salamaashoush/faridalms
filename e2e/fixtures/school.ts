@@ -61,7 +61,7 @@ export async function newClass(
   const options = await api.classes.options();
   const grade = options.grades[0];
   if (!grade) throw new Error("the school has no grades");
-  const saved = await api.classes.save({
+  const saved = await api.homerooms.save({
     yearId: input.yearId,
     code: `SA-${crypto.randomUUID().slice(0, 6)}`,
     titleEn: input.title,

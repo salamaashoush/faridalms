@@ -19,7 +19,7 @@ const cls = {
   titleAr: "",
   gradeId: "",
   locationId: "",
-  homeroomTeacherId: "",
+  teacherId: "",
   subjects: [],
 };
 

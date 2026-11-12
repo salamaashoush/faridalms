@@ -155,7 +155,7 @@ function RolloverApplied({ data }: RolloverAppliedProps) {
 
 interface ClassRowProps {
   row: RolloverClass;
-  source: Data["homerooms"][number] | undefined;
+  source: Data["sources"][number] | undefined;
   data: Data;
   onChange: (change: Partial<RolloverClass>) => void;
 }
@@ -230,7 +230,7 @@ function ClassRow({ row, source, data, onChange }: ClassRowProps) {
               id={`roll-teacher-${row.key}`}
               label={m.classesClassTeacher()}
               optional
-              value={row.homeroomTeacherId || "none"}
+              value={row.teacherId || "none"}
               options={[
                 ...options.teachers.map((teacher) => ({
                   value: teacher.id,
@@ -239,7 +239,7 @@ function ClassRow({ row, source, data, onChange }: ClassRowProps) {
                 { value: "none", label: m.classesNoTeacherYet() },
               ]}
               onChange={(value) =>
-                onChange({ homeroomTeacherId: value === "none" ? "" : value })
+                onChange({ teacherId: value === "none" ? "" : value })
               }
             />
           </div>
@@ -464,7 +464,7 @@ function RolloverDraft({
       applyRollover({ data: { ...query, expectedVersion: version } }),
     meta: { inlineError: true },
   });
-  const source = new Map(data.homerooms.map((row) => [row.id, row]));
+  const source = new Map(data.sources.map((row) => [row.id, row]));
   const followerOf = (classId: string | null) =>
     plan.classes.find((row) => row.include && row.sourceClassId === classId)
       ?.key ?? "";
@@ -507,7 +507,7 @@ function RolloverDraft({
       label: inLocale(row.titleEn || null, row.titleAr || null) || row.code,
     }));
   const groups = [
-    ...data.homerooms.map((row) => ({ id: row.id, title: classTitle(row) })),
+    ...data.sources.map((row) => ({ id: row.id, title: classTitle(row) })),
     { id: null, title: m.rolloverNotInClass() },
   ]
     .map((group) => ({
@@ -579,20 +579,22 @@ function RolloverDraft({
           </p>
         ) : null}
         {data.state === "applied" ? null : <FamilyPlans data={data} />}
-        <FormSection
-          title={m.rolloverClasses()}
-          description={m.rolloverClassesHint()}
-        >
-          {plan.classes.map((row) => (
-            <ClassRow
-              key={row.key}
-              row={row}
-              source={source.get(row.sourceClassId)}
-              data={data}
-              onChange={(change) => setClass(row.key, change)}
-            />
-          ))}
-        </FormSection>
+        {plan.classes.length > 0 ? (
+          <FormSection
+            title={m.rolloverClasses()}
+            description={m.rolloverClassesHint()}
+          >
+            {plan.classes.map((row) => (
+              <ClassRow
+                key={row.key}
+                row={row}
+                source={source.get(row.sourceClassId)}
+                data={data}
+                onChange={(change) => setClass(row.key, change)}
+              />
+            ))}
+          </FormSection>
+        ) : null}
         <FormSection
           title={m.rolloverStudents()}
           description={m.rolloverStudentsHint({

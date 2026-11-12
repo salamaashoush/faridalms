@@ -675,7 +675,7 @@ test("a module's discussion is set once and taken by every class of the module",
   const { classes } = await api.coursework.options();
   const arabic = classes.find((row) => row.titleEn === "8A Arabic");
   const other = classes.find(
-    (row) => row.id !== arabic?.id && row.classType === "scheduled",
+    (row) => row.id !== arabic?.id && row.subjectId !== null,
   );
   if (!arabic || !other) throw new Error("the teacher needs two classes");
   const module = await api.learning.saveModule({
@@ -1098,7 +1098,7 @@ async function returnedAndWaiting(unique: string) {
   const { classes } = await teacher.coursework.options();
   const rosters = await Promise.all(
     classes
-      .filter((row) => row.classType === "scheduled")
+      .filter((row) => row.subjectId !== null)
       .map(async (row) => ({
         id: row.id,
         roster: (await teacher.coursework.groups({ classId: row.id })).roster,

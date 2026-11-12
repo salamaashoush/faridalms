@@ -53,8 +53,9 @@ in `decisions.md`; a choice below changes only with new evidence.
 
 **Out of scope**, each in its own system spec, built on this one:
 
-- Teaching: courses, classes (homeroom and scheduled), enrollments, class
-  meetings, groups, the timetable (bell schedules, cycle days, clashes).
+- Teaching: courses, classes, enrollments, class meetings, groups, the
+  timetable (bell schedules, cycle days, clashes); homerooms, their subject
+  classes and their students' places, as the homerooms module.
 - Gradebook and coursework: assignments, submissions, attempts, rubrics,
   categories, line items, score scales, results, period grades.
 - Attendance: attendance events, attendance taken, registers.
@@ -749,8 +750,9 @@ or a namespace column may reach what core owns, what its own table's owner
 owns, what that owner requires in every alternative of its `requires` and
 what those require in turn, and what a module it needs owns; a core table
 reaches core alone. A column that carries a module's concept without a key
-to its tables, such as `school_year_id` or `class_type` travelling inside a
-composite key to `core.classes`, is a concept column owned by that module
+to its tables, such as `school_year_id` travelling inside a composite key to
+`core.classes` or `homeroom_class_id` naming a homeroom by its class, is a
+concept column owned by that module
 wherever it appears, and a table holding one is held to the same rule. The
 owners are `packages/database/src/ownership.ts`, the
 rule is `mayReach` in `packages/domain/src/ownership.ts`, and the catalogue
