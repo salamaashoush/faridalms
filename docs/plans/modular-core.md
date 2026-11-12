@@ -33,18 +33,35 @@ courses from a start date, for adults, with no year, cannot be represented.
    people, create a class, enrol learners, write content, message and keep a
    calendar. Each teaching module (coursework, attendance, e-learning) works
    on core alone.
-5. **A reader that gathers from several modules asks which are on**
-   (`modulesOf`), as home and search do today. Nothing else branches on a
-   module; the router and the page guard do the gating.
-6. **No shims.** No hidden default row, placeholder year or "always present"
+5. **Core names no module in code either.** Where core, or one module,
+   needs what another module knows (the classes that share a class's reach,
+   the label of a student's homeroom, a card on Today, a section of the
+   class page), it declares a typed extension point and the module that
+   knows contributes to it. One composition root per app lists every
+   module's contributions, and a point yields only those of the modules on
+   at the school. No system, store or component imports a module's files
+   except that module's own, a module that requires or needs it, and the
+   composition root; a source check refuses anything else. A contribution
+   made by one module to another's point is the code's link table: it lives
+   with its provider and runs only where both are on.
+6. **The database cannot tell whether a module is on**, since entitlements
+   live in the directory. So a module's rule that must stop when the module
+   is off runs in its stores, called from its API; the database holds only
+   keys that are true whether the module is on or off.
+7. **A module that is off is dormant.** Its rows stay, core acts freely on
+   what is core's, and nothing of the module refuses or changes it. What a
+   module keeps in step with core is tied to core by keys where it can be,
+   so it cannot disagree; what it derives into core it writes again when it
+   next acts.
+8. **No shims.** No hidden default row, placeholder year or "always present"
    record that keeps a wrong constraint alive. No compatibility layer; an old
    shape is removed in the change that lands its replacement.
-7. **Fixed vocabularies may name a module's concept** (a role called
+9. **Fixed vocabularies may name a module's concept** (a role called
    `guardian`, an enrolment source called `rollover`): a word in a `CHECK`
    is not a dependency. Structure is.
-8. **Tests come with the change**: domain unit tests, store tests against a
-   throwaway database, API tests, and a browser spec for anything a person
-   sees. A failing test is a bug in the code.
+10. **Tests come with the change**: domain unit tests, store tests against a
+    throwaway database, API tests, and a browser spec for anything a person
+    sees. A failing test is a bug in the code.
 
 ## Core
 
@@ -74,10 +91,13 @@ courses from a start date, for adults, with no year, cannot be represented.
 - **`grade_levels`**: the school's grades or levels, a class's grade, a
   student's grade, calendars and audiences by grade. Requires nothing, so a
   coding school may use levels without years.
-- **`homerooms`**: a homeroom with its subject classes. It owns the link
-  between them and keeps each subject class's enrolments equal to its
-  homeroom's; the homeroom teacher is the primary teacher enrolment of the
-  homeroom. Requires nothing.
+- **`homerooms`**: a homeroom with its subject classes. It owns what makes
+  a class a homeroom, the link to each subject class, and a student's
+  place in a homeroom, one at a time; from that place it writes the
+  student's enrolment in the homeroom class and in each subject class. The
+  homeroom teacher is the primary teacher enrolment of the homeroom. It
+  contributes the classes that share a homeroom's reach, the timetable's
+  grid of a homeroom, and the homeroom's daily register. Requires nothing.
 - **`families`**: guardians and relationships, custody restrictions, the
   family workspace, what a guardian may see, sign and be told. Requires
   nothing. A learner without the module, or without a guardian, acts for
@@ -88,7 +108,9 @@ courses from a start date, for adults, with no year, cannot be represented.
 ## Modules that change
 
 - **`timetable`** takes periods and bell schedules from core. Timetables,
-  meetings, cover as today, by date instead of by year.
+  meetings, cover as today, by date instead of by year. A grid is the
+  classes planned together, one lesson to a cell: a class alone, unless a
+  module contributes a wider one.
 - **`attendance`**: a register is one class on one date, with an optional
   period where the timetable is on (a link table it owns, needing
   `timetable`). Absence reports from families and follow-up calls need
