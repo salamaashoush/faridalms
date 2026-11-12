@@ -7,6 +7,7 @@ import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { currentUserQuery } from "~/queries/user";
 import { filled } from "~/utils/extension";
+import { useWords } from "~/utils/words";
 
 const own = <T extends { followersOnly?: boolean; place: number }>(
   sections: readonly T[],
@@ -29,9 +30,13 @@ export const Route = createFileRoute("/_app/me/grades")({
 
 function MyGradesPage() {
   const sections = own(useSlot(gradesSections));
+  const words = useWords();
   return (
     <Page width="list">
-      <PageHeader title={m.gradesTitle()} description={m.gradesHint()} />
+      <PageHeader
+        title={m.gradesTitle()}
+        description={words(m.gradesHintCore)()}
+      />
       <div className="grid gap-10">
         {sections.map(({ key, Section }) => (
           <Section key={key} studentId="" />

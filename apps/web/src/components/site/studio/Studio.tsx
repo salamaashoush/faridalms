@@ -85,6 +85,7 @@ import {
 } from "~/components/system/DocumentPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { saveSharedSection } from "~/server/shared";
 import {
@@ -106,6 +107,7 @@ import type { Inserted, SharedInfo } from "./SavedSections";
 import { STATE_LABEL, STATE_TONE } from "../format";
 import { withNews } from "../render/frame-model";
 import { PageSections } from "../render/page";
+import { siteWords } from "../slots";
 import { Canvas, DEVICES, Viewport } from "./Canvas";
 import {
   canonicalValid,
@@ -245,6 +247,7 @@ export function SiteStudio({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const documentMedia = useDocumentMedia();
+  const lent = useSlot(siteWords).map((each) => each.word);
   const pictured = usePicturePeople("website");
   const media = useMemo(
     () => ({ ...documentMedia, people: pictured.open }),
@@ -453,6 +456,7 @@ export function SiteStudio({
     applyHref: () => "/apply",
     contact: overview.school.contact,
     editing: true,
+    words: lent,
   };
   const sections = canvasSections(page, languages, locale);
   const selectedSection =

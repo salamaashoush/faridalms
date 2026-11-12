@@ -1,9 +1,17 @@
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import { addDays } from "@faridalms/domain/school";
+import { SQL } from "bun";
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, seeded, setPlan, signedIn } from "./harness";
+import {
+  login,
+  rejection,
+  seeded,
+  setPlan,
+  signedIn,
+  testCell,
+} from "./harness";
 
 async function principal() {
   return signedIn("northwind", login("principal"));
@@ -132,6 +140,50 @@ describe("a class of its own", () => {
       on: record.on,
     });
     expect((await api.classes.record({ id: saved.id })).roster).toEqual([]);
+  });
+
+  test("a class made with an earlier first day has its teachers from that day, and one named later starts on the day", async () => {
+    const api = await principal();
+    const options = await api.classes.options();
+    const { today } = await api.identity.currentUser();
+    const [first, second] = options.teachers.filter((row) => row.teaches);
+    if (!first || !second) throw new Error("seed teachers");
+    const startsOn = addDays(today, -30);
+    const saved = await api.classes.save({
+      startsOn,
+      code: "CLUB-EARLY",
+      titleEn: "Robotics club",
+      titleAr: "",
+      teacherIds: [first.id],
+    });
+    const sql = new SQL(testCell().adminUrl);
+    const startsOf = async () =>
+      Object.fromEntries(
+        (
+          await sql<{ user_id: string; starts: string }[]>`
+            select user_id, lower(valid_during)::text as starts from core.enrollments
+            where class_id = ${saved.id}::uuid and role = 'teacher' and status = 'active'`
+        ).map((row) => [row.user_id, row.starts]),
+      );
+    try {
+      expect(await startsOf()).toEqual({ [first.id]: startsOn });
+      const made = await api.classes.record({ id: saved.id });
+      await api.classes.save({
+        id: saved.id,
+        expectedVersion: made.version,
+        startsOn,
+        code: "CLUB-EARLY",
+        titleEn: "Robotics club",
+        titleAr: "",
+        teacherIds: [first.id, second.id],
+      });
+      expect(await startsOf()).toEqual({
+        [first.id]: startsOn,
+        [second.id]: today,
+      });
+    } finally {
+      await sql.close();
+    }
   });
 
   test("a teacher cannot save classes", async () => {

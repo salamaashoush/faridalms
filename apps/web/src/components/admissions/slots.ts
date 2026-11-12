@@ -1,3 +1,4 @@
+import type { LetterField } from "@faridalms/domain/admissions";
 import type { Facet } from "@faridalms/ui/system/index-toolbar";
 import type { ComponentType } from "react";
 
@@ -109,3 +110,9 @@ export const enrolNotes = slot<() => string>("enrol notes");
 
 /** Present where a module places learners by grade, so the form asks each earlier school's grade. */
 export const previousSchoolGrades = slot<true>("previous school grades");
+
+/**
+ * The field a letter names the person who applied by, where a module knows
+ * them as more than the applicant: the family, say.
+ */
+export const appliedField = slot<LetterField>("applied field");

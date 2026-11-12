@@ -48,6 +48,7 @@ import {
   schoolClockAt,
 } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import { CheckInScreen } from "./CheckInScreen";
 import { DayNav } from "./DayNav";
@@ -204,9 +205,9 @@ const REPORTED: Record<
   Data["reports"][number]["kind"],
   (input: { time: string; reason: string }) => string
 > = {
-  absent: ({ reason }) => m.attReportedAway({ reason }),
-  late: m.attReportedLate,
-  early: m.attReportedEarly,
+  absent: m.attReportedAwayCore,
+  late: m.attReportedLateCore,
+  early: m.attReportedEarlyCore,
 };
 
 interface StudentRowProps {
@@ -244,6 +245,7 @@ function StudentRow({
   onChange,
 }: StudentRowProps) {
   const id = useId();
+  const words = useWords();
   const [open, setOpen] = useState(Boolean(draft.note || draft.reasonId));
   const timed =
     draft.meaning !== null && TIMED_MEANINGS.includes(draft.meaning);
@@ -269,7 +271,7 @@ function StudentRow({
             ) : null}
             {report ? (
               <span className="text-[13px] leading-[18px] text-info">
-                {REPORTED[report.kind]({
+                {words(REPORTED[report.kind])({
                   time: report.at ?? "",
                   reason: labelOf(
                     reasons.find((row) => row.id === report.reasonId) ?? {

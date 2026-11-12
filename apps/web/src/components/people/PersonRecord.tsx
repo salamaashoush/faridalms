@@ -28,6 +28,7 @@ import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { personHistoryQuery, personRecordQuery } from "~/queries/students";
 import { formatDate, formatList } from "~/utils/datetime";
+import { useWords } from "~/utils/words";
 
 import { classTitle } from "../classes/format";
 import { AccessSection } from "./AccessSection";
@@ -140,9 +141,10 @@ export interface TeachingSectionProps {
 export function TeachingSection({
   teaching,
   title = m.personTeaching(),
-  empty = m.personNoTeaching(),
+  empty,
 }: TeachingSectionProps) {
   const words = useSlot(groupWords);
+  const inWords = useWords();
   return (
     <RecordSection
       title={title}
@@ -155,7 +157,7 @@ export function TeachingSection({
       }
     >
       {teaching.classes.length === 0 ? (
-        <RecordEmpty>{empty}</RecordEmpty>
+        <RecordEmpty>{empty ?? inWords(m.personNoTeachingCore)()}</RecordEmpty>
       ) : (
         <RecordList>
           {teaching.classes.map((row) => {

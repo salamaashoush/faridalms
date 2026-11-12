@@ -416,6 +416,14 @@ export const LINK_FILES: Readonly<
     owner: "grade_levels",
     needs: ["website"],
   },
+  "apps/api/src/years/website.ts": {
+    owner: "school_years",
+    needs: ["website"],
+  },
+  "apps/web/src/components/years/website.tsx": {
+    owner: "school_years",
+    needs: ["website"],
+  },
   "apps/api/src/homerooms/grades.ts": {
     owner: "homerooms",
     needs: ["grade_levels"],
@@ -463,6 +471,14 @@ export const LINK_FILES: Readonly<
   "apps/api/src/families/attendance.ts": {
     owner: "families",
     needs: ["attendance"],
+  },
+  "apps/web/src/components/families/website.tsx": {
+    owner: "families",
+    needs: ["website"],
+  },
+  "apps/web/src/components/families/years.tsx": {
+    owner: "families",
+    needs: ["school_years"],
   },
   "packages/database/src/stores/follow-up.ts": {
     owner: "attendance",

@@ -76,8 +76,8 @@ export const SECTION_HINT: Record<SectionType, () => string> = {
   divisions: m.siteTypeHintDivisions,
   stats: m.siteTypeHintStats,
   pillars: m.siteTypeHintPillars,
-  quote: m.siteTypeHintQuote,
-  voices: m.siteTypeHintVoices,
+  quote: m.siteTypeHintQuoteCore,
+  voices: m.siteTypeHintVoicesCore,
   people: m.siteTypeHintPeople,
   video: m.siteTypeHintVideo,
   gallery: m.siteTypeHintGallery,
@@ -90,8 +90,8 @@ export const SECTION_HINT: Record<SectionType, () => string> = {
   steps: m.siteTypeHintSteps,
   fees: m.siteTypeHintFees,
   contact: m.siteTypeHintContact,
-  form: m.siteTypeHintForm,
-  quickLinks: m.siteTypeHintQuickLinks,
+  form: m.siteTypeHintFormCore,
+  quickLinks: m.siteTypeHintQuickLinksCore,
   embed: m.siteTypeHintEmbed,
   registerApply: m.siteTypeHintRegisterApply,
 };
@@ -425,8 +425,8 @@ export const TEMPLATE_LABEL: Record<SiteTemplate, () => string> = {
   visitEarlyYears: m.siteTemplateVisitEarlyYears,
   visitLaunch: m.siteTemplateVisitLaunch,
   academics: m.siteTemplateAcademics,
-  parents: m.siteTemplateParents,
-  parentsEarlyYears: m.siteTemplateParentsEarlyYears,
+  parents: m.siteTemplateParentsCore,
+  parentsEarlyYears: m.siteTemplateParentsEarlyYearsCore,
   contact: m.siteTemplateContact,
 };
 
@@ -435,19 +435,19 @@ export const TEMPLATE_HINT: Record<SiteTemplate, () => string> = {
   homeClassic: m.siteTemplateHintHomeClassic,
   homeStory: m.siteTemplateHintHomeStory,
   homeAdmissions: m.siteTemplateHintHomeAdmissions,
-  homeCommunity: m.siteTemplateHintHomeCommunity,
+  homeCommunity: m.siteTemplateHintHomeCommunityCore,
   homeStatement: m.siteTemplateHintHomeStatement,
   homeWelcome: m.siteTemplateHintHomeWelcome,
   about: m.siteTemplateHintAbout,
   aboutHeritage: m.siteTemplateHintAboutHeritage,
   aboutEarlyYears: m.siteTemplateHintAboutEarlyYears,
   admissions: m.siteTemplateHintAdmissions,
-  admissionsEarlyYears: m.siteTemplateHintAdmissionsEarlyYears,
+  admissionsEarlyYears: m.siteTemplateHintAdmissionsEarlyYearsCore,
   visit: m.siteTemplateHintVisit,
   visitEarlyYears: m.siteTemplateHintVisitEarlyYears,
   visitLaunch: m.siteTemplateHintVisitLaunch,
   academics: m.siteTemplateHintAcademics,
-  parents: m.siteTemplateHintParents,
+  parents: m.siteTemplateHintParentsCore,
   parentsEarlyYears: m.siteTemplateHintParentsEarlyYears,
   contact: m.siteTemplateHintContact,
 };
@@ -510,7 +510,7 @@ export const ISSUE_LABEL: Record<SiteIssueCode, () => string> = {
 /** A line under a field's label, where its declaration alone would not say enough. */
 export const FIELD_HINT: Record<string, () => string> = {
   intake: m.siteFieldIntakeHint,
-  closed: m.siteFieldClosedHint,
+  closed: m.siteFieldClosedHintCore,
   questions: m.siteFieldQuestionsHint,
 };
 

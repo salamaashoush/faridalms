@@ -18,6 +18,7 @@ import * as m from "~/i18n/messages";
 import { childCourseworkQuery } from "~/queries/coursework";
 import { childrenQuery } from "~/queries/families";
 import { currentUserQuery } from "~/queries/user";
+import { useWords } from "~/utils/words";
 
 const WEEK_MS = 7 * 86_400_000;
 const RECENT_MS = 14 * 86_400_000;
@@ -53,6 +54,7 @@ interface ChildWorkProps {
 }
 
 function ChildWork({ studentId, ended, open, onOpen }: ChildWorkProps) {
+  const words = useWords();
   const { rows, now } = useSuspenseQuery(
     childCourseworkQuery(studentId, ended),
   ).data;
@@ -107,7 +109,7 @@ function ChildWork({ studentId, ended, open, onOpen }: ChildWorkProps) {
       />
       {earlier.length > 0 ? (
         <WorkSection
-          title={m.courseworkFamilyEarlier()}
+          title={words(m.courseworkFamilyEarlierCore)()}
           items={earlier}
           empty={m.courseworkNothingReturned()}
           {...props}

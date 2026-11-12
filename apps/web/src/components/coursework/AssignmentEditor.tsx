@@ -91,6 +91,7 @@ import {
   localInput,
 } from "~/utils/datetime";
 import { getMessageFromError, refusalOf } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import type { AssignmentEditorPart } from "./slots";
 
@@ -468,6 +469,7 @@ export function AssignmentEditor({
   onCreated,
 }: AssignmentEditorProps) {
   const options = useSuspenseQuery(courseworkOptionsQuery).data;
+  const words = useWords();
   const parts = useSlot(assignmentEditorParts);
   const kept = useSuspenseQueries({
     queries: existing
@@ -1298,7 +1300,7 @@ export function AssignmentEditor({
                     <SelectField
                       id="work-category"
                       label={m.courseworkCategory()}
-                      hint={m.courseworkCategoryHint()}
+                      hint={words(m.courseworkCategoryHintCore)()}
                       optional
                       value={draft.categoryId || "none"}
                       options={[

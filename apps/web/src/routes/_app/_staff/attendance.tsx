@@ -32,6 +32,7 @@ import {
 } from "~/queries/attendance";
 import { currentUserQuery } from "~/queries/user";
 import { requirePage } from "~/utils/page-access";
+import { useWords } from "~/utils/words";
 
 const TABS = [
   "mine",
@@ -168,6 +169,7 @@ function AttendancePage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
+  const words = useWords();
   const tabs = tabsOf(user, useTeaches());
   const tab = tabOf(search, tabs);
   const manages = user.capabilities.includes("attendance:manage");
@@ -177,7 +179,9 @@ function AttendancePage() {
     <Page width="list">
       <PageHeader
         title={m.attendanceTitle()}
-        description={tab === "mine" ? m.attTeacherHint() : m.attAdminHint()}
+        description={
+          tab === "mine" ? m.attTeacherHint() : words(m.attAdminHintCore)()
+        }
         menu={
           manages
             ? [

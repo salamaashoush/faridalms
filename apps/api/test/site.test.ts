@@ -19,6 +19,7 @@ import {
   seeded,
   sessionFor,
   signedIn,
+  withoutModules,
 } from "./harness";
 
 const visitor = () => client("northwind").site;
@@ -99,6 +100,17 @@ describe("the public website", () => {
     expect(
       await rejection(site.publicSite({ school: "no-such-school" })),
     ).toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  test("a visitor's page learns which words the school's modules lend it, never the modules", async () => {
+    expect((await visitor().publicSite({ school: "northwind" })).words).toEqual(
+      ["year"],
+    );
+    await withoutModules("northwind", ["school_years"], async () => {
+      expect(
+        (await visitor().publicSite({ school: "northwind" })).words,
+      ).toEqual([]);
+    });
   });
 
   test("a teacher cannot manage the website", async () => {

@@ -33,6 +33,7 @@ import { useMedia } from "~/hooks/useMedia";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";
+import { useWords } from "~/utils/words";
 
 import type { PaperFacts } from "./PaperBlock";
 
@@ -208,6 +209,7 @@ interface ReplySlipProps {
  * the name left to write.
  */
 function ReplySlip({ title, names, locale }: ReplySlipProps) {
+  const words = useWords();
   return (
     <>
       {(names.length > 0 ? names : [undefined]).map((name, index) => (
@@ -234,7 +236,7 @@ function ReplySlip({ title, names, locale }: ReplySlipProps) {
             ))}
           </p>
           <div className="grid grid-cols-[2fr_2fr_1fr] gap-x-[1.5em]">
-            <SlipLine label={m.printSlipGuardian({}, { locale })} />
+            <SlipLine label={words(m.printSlipGuardianCore)({}, { locale })} />
             <SlipLine label={m.printSlipSignature({}, { locale })} />
             <SlipLine label={m.printDate({}, { locale })} />
           </div>

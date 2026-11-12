@@ -21,6 +21,7 @@ import type {
 import type { FamilyChild } from "~/components/home/slots";
 import type { LeavingFieldsProps } from "~/components/people/slots";
 import type { yearEndQuery } from "~/queries/years";
+import type { InWords } from "~/utils/words";
 
 import { HomeCard, HomeItem, HomeList } from "~/components/home/parts";
 import { displayName, labelOf, lastDay } from "~/components/people/format";
@@ -30,6 +31,7 @@ import { yearOptionsQuery } from "~/queries/years";
 import { setIntention } from "~/server/rollover";
 import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 type Options = Awaited<
   ReturnType<NonNullable<(typeof yearOptionsQuery)["queryFn"]>>
@@ -136,6 +138,7 @@ export function LeavingYearFields({
   problem,
 }: LeavingFieldsProps) {
   const options = read as Options;
+  const words = useWords();
   const current = (value ?? { exitTypeId: "", destination: "" }) as {
     exitTypeId: string;
     destination: string;
@@ -157,7 +160,7 @@ export function LeavingYearFields({
       <TextField
         id="leave-destination"
         label={m.leaveDestination()}
-        hint={m.leaveDestinationHint()}
+        hint={words(m.leaveDestinationHintCore)()}
         optional
         width="name"
         maxLength={160}
@@ -171,7 +174,11 @@ export function LeavingYearFields({
 }
 
 /** The leaver's reading of the record kept to the next year, from the year their last day falls in. */
-export function yearEndAccess(options: Options, lastDayAt: string) {
+export function yearEndAccess(
+  options: Options,
+  lastDayAt: string,
+  words: InWords,
+) {
   const year = options.years.find(
     (row) => row.startsOn <= lastDayAt && lastDayAt < row.endsBefore,
   );
@@ -181,7 +188,7 @@ export function yearEndAccess(options: Options, lastDayAt: string) {
     {
       value: "year_end",
       label: m.leaveAccessYearEnd(),
-      hint: m.leaveAccessYearEndHint({ date: formatDate(until) }),
+      hint: words(m.leaveAccessYearEndHintCore)({ date: formatDate(until) }),
       until,
     },
   ];

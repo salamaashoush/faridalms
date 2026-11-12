@@ -285,7 +285,7 @@ export const save = writeProcedure
       classId,
       orgId: context.schoolId,
       teacherIds: input.teacherIds,
-      from: dayWithin(runs, context.today),
+      from: before ? dayWithin(runs, context.today) : runs.from,
       endsBefore: runs.to,
       positionId:
         positions.find((row) => row.meaning === "teacher_of_record")?.id ??

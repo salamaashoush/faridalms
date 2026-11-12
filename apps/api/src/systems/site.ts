@@ -135,7 +135,12 @@ import {
 import { servesSchool } from "../core/turnstile";
 import { placeMedia } from "../files/authorize";
 import { WEBSITE_HOSTS, WEBSITE_REVISERS } from "../website/hosts";
-import { formReceivers, intakesFrom, siteIntakes } from "../website/points";
+import {
+  formReceivers,
+  intakesFrom,
+  siteIntakes,
+  siteWords,
+} from "../website/points";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -1128,7 +1133,15 @@ export const publicSite = publicProcedure
     withWebsite(
       context,
       input.school,
-      async ({ tx, tenantId, schoolId, portalHost, siteHost, now }) => {
+      async ({
+        tx,
+        tenantId,
+        schoolId,
+        portalHost,
+        siteHost,
+        now,
+        modules,
+      }) => {
         const settings = await liveSettings(tx, tenantId, schoolId);
         const locale = resolveLocale(settings, input.locale);
         const [school, menu, categories] = await Promise.all([
@@ -1199,6 +1212,10 @@ export const publicSite = publicProcedure
           },
           /** The public key a form's challenge renders with; null where forms take none. */
           turnstileKey: context.turnstile?.siteKey ?? null,
+          /** The words the school's modules lend its pages, by name. */
+          words: contributionsAmong(context.extensions, modules, siteWords).map(
+            (each) => each.word,
+          ),
           menu,
           categories: categories.map((category) => ({
             slug: category.slug,

@@ -37,6 +37,7 @@ import {
 } from "~/queries/years";
 import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
+import { replaceWords } from "~/utils/words";
 
 import type { ClassYearRead } from "./YearParts";
 
@@ -220,7 +221,8 @@ export const SCHOOL_YEARS: ModuleFillings = {
           ? null
           : m.validationSelection(),
       Fields: LeavingYearFields,
-      access: (read, lastDay) => yearEndAccess(read as Options, lastDay),
+      access: (read, lastDay, words) =>
+        yearEndAccess(read as Options, lastDay, words),
     }),
     fill(officeCards, {
       query: (capabilities) =>
@@ -245,5 +247,28 @@ export const SCHOOL_YEARS: ModuleFillings = {
       query: () => yearOptionsQuery,
       Section: WorkingYearSection,
     }),
+    replaceWords(m.leaveUndoBodyCore, m.leaveUndoBody),
+    replaceWords(m.personNoTeachingCore, m.personNoTeaching),
+    replaceWords(m.profileTeachesYouNoneCore, m.profileTeachesYouNone),
+    replaceWords(m.profileTeachesChildNoneCore, m.profileTeachesChildNone),
+    replaceWords(m.attStudentHintCore, m.attStudentHint),
+    replaceWords(m.attFamilyHintCore, m.attFamilyHint),
+    replaceWords(m.fupSupportHintCore, m.fupSupportHint),
+    replaceWords(m.fupNoSupportCore, m.fupNoSupport),
+    replaceWords(m.gradebookCaptionCore, m.gradebookCaption),
+    replaceWords(m.gradesFamilyHintCore, m.gradesFamilyHint),
+    replaceWords(m.gradesHintCore, m.gradesHint),
+    replaceWords(m.gradingCategoriesHintCore, m.gradingCategoriesHint),
+    replaceWords(m.courseworkCategoryHintCore, m.courseworkCategoryHint),
+    replaceWords(m.readingCaptionCore, m.readingCaption),
+    replaceWords(m.courseworkFamilyEarlierCore, m.courseworkFamilyEarlier),
+    replaceWords(m.curriculumMapHintCore, m.curriculumMapHint),
+    replaceWords(m.curriculumMapSummaryCore, m.curriculumMapSummary),
+    replaceWords(
+      m.curriculumMapNoFrameworksBodyCore,
+      m.curriculumMapNoFrameworksBody,
+    ),
+    replaceWords(m.curriculumMapNoUnitsCore, m.curriculumMapNoUnits),
+    replaceWords(m.curriculumMapNoUnitsBodyCore, m.curriculumMapNoUnitsBody),
   ],
 };

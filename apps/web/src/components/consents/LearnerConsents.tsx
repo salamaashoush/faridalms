@@ -23,6 +23,7 @@ import { myConsentsQuery } from "~/queries/consents";
 import { answerConsent } from "~/server/consents";
 import { formatInstant, formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import { DECISION_LABEL, DECISION_TONE } from "./format";
 
@@ -51,6 +52,7 @@ interface LearnerAnswerProps {
 
 function LearnerAnswer({ learner, form }: LearnerAnswerProps) {
   const queryClient = useQueryClient();
+  const words = useWords();
   const answer = answerTo(learner, form);
   const [changing, setChanging] = useState(false);
   const mutation = useMutation({
@@ -100,7 +102,7 @@ function LearnerAnswer({ learner, form }: LearnerAnswerProps) {
         {learner.mayAnswer ? null : (
           <span className="text-[13px] leading-[18px] text-muted-foreground">
             {learner.self
-              ? m.consentAnsweredForYou()
+              ? words(m.consentAnsweredForYouCore)()
               : m.consentGuardianAnswers()}
           </span>
         )}

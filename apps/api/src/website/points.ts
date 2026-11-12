@@ -33,6 +33,17 @@ export interface SiteIntakes {
 
 export const siteIntakes = point<SiteIntakes>("site intakes");
 
+/**
+ * A word a module lends the school's website, by the name the website's
+ * pages know it by: the year an intake's tuition runs for, say. A visitor
+ * learns only which words the pages may use, never the school's modules.
+ */
+export interface SiteWord {
+  word: string;
+}
+
+export const siteWords = point<SiteWord>("site words");
+
 /** Every intake the given sources hold, open from today. */
 export async function intakesFrom(
   sources: readonly SiteIntakes[],

@@ -32,6 +32,7 @@ import { followUpQuery } from "~/queries/attendance";
 import { logAttendanceContact } from "~/server/attendance";
 import { formatDate, formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import { DayNav } from "./DayNav";
 import { formatRate, OUTCOME_LABEL } from "./format";
@@ -141,9 +142,11 @@ function CallRow({ call, onLog }: CallRowProps) {
         <span className="text-[13px] leading-[18px] text-muted-foreground">
           {[
             call.group ? classTitle(call.group) : null,
-            m.fupAwayFrom({
-              period: inLocale(call.periodNameEn, call.periodNameAr),
-            }),
+            call.periodNameEn || call.periodNameAr
+              ? m.fupAwayFrom({
+                  period: inLocale(call.periodNameEn, call.periodNameAr),
+                })
+              : null,
           ]
             .filter(Boolean)
             .join(" · ")}
@@ -258,6 +261,7 @@ export function FollowUp({ date, onDate }: FollowUpProps) {
     followUpQuery({ date, overduePage, supportPage }),
   ).data.followUp;
   const navigate = useNavigate();
+  const words = useWords();
   const [logging, setLogging] = useState<Call | null>(null);
   const giveReason = (row: Overdue): RowAction[] => [
     {
@@ -346,7 +350,7 @@ export function FollowUp({ date, onDate }: FollowUpProps) {
       <RecordSection
         variant="page"
         title={m.fupSupport()}
-        description={m.fupSupportHint({
+        description={words(m.fupSupportHintCore)({
           percent: formatNumber(data.chronicPercent),
         })}
       >
@@ -378,7 +382,10 @@ export function FollowUp({ date, onDate }: FollowUpProps) {
                 }
               : undefined
           }
-          empty={{ icon: ShieldAlert, title: m.fupNoSupport() }}
+          empty={{
+            icon: ShieldAlert,
+            title: words(m.fupNoSupportCore)(),
+          }}
         />
       </RecordSection>
       {logging ? (

@@ -65,6 +65,7 @@ import { currentUserQuery } from "~/queries/user";
 import { downloadCsv } from "~/utils/csv";
 import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
+import { useWords } from "~/utils/words";
 
 /** Where a student stands by their role, whatever modules the school has. */
 const CORE_STATUSES: readonly StudentStatus[] = [
@@ -278,6 +279,7 @@ function StudentsPage() {
     null,
   );
   const words = useSlot(groupWords)[0];
+  const inWords = useWords();
   const family = useSlot(studentFamilyParts)[0];
   const mover = useSlot(studentClassesParts)[0]?.move;
   const [leaving, setLeaving] = useState<{ id: string; name: string }[] | null>(
@@ -385,7 +387,7 @@ function StudentsPage() {
     search: {
       value: search.q,
       onChange: (q) => patch({ q, page: 1 }),
-      label: m.studentsSearchHint(),
+      label: inWords(m.studentsSearchHintCore)(),
       placeholder: m.studentsSearchPlaceholder(),
     },
     facets: [...moduleFacets, statusFacet, attentionFacet],
@@ -407,7 +409,7 @@ function StudentsPage() {
         action={firstRun ? undefined : create}
       />
       <DataTable
-        caption={m.adminStudentsCaption()}
+        caption={inWords(m.adminStudentsCaptionCore)()}
         rows={data.rows}
         columns={studentColumns(words, moduleColumns)}
         rowLabel={(row) => displayName(row)}
@@ -503,7 +505,7 @@ function StudentsPage() {
         empty={{
           icon: UsersRound,
           title: m.studentsEmptyTitle(),
-          description: m.studentsEmptyBody(),
+          description: inWords(m.studentsEmptyBodyCore)(),
           action: canManage ? (
             <ButtonLink to="/student-editor" search={{ from: "list" }}>
               <Plus aria-hidden />

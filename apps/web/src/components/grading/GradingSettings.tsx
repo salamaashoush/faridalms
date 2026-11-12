@@ -10,6 +10,7 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { gradingHistoryQuery, gradingOverviewQuery } from "~/queries/grading";
+import { useWords } from "~/utils/words";
 
 import type { ProgrammeRow } from "./Programmes";
 import type { GradingOverview, ScaleRow } from "./Scales";
@@ -130,6 +131,7 @@ function GradingChanges({ overview }: GradingChangesProps) {
  */
 export function GradingSettings() {
   const grading = useSuspenseQuery(gradingOverviewQuery).data;
+  const words = useWords();
   const sheet = useSheet();
   const shown = sheet.shown;
   const actions = useSlot(gradingScaleActions);
@@ -165,7 +167,7 @@ export function GradingSettings() {
       </RecordSection>
       <RecordSection
         title={m.gradingProgrammesTab()}
-        description={m.gradingProgrammesHint()}
+        description={words(m.gradingProgrammesHintCore)()}
         action={
           <Button
             type="button"

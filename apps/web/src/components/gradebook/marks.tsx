@@ -7,9 +7,12 @@ import { StatusText } from "@faridalms/ui/system/status";
 import { Link } from "@tanstack/react-router";
 import { Clock, EyeOff } from "lucide-react";
 
+import type { InWords } from "~/utils/words";
+
 import { resultText } from "~/components/grading/format";
 import { displayName } from "~/components/people/format";
 import * as m from "~/i18n/messages";
+import { useWords } from "~/utils/words";
 
 import type { Book, Student, Work } from "./book";
 
@@ -47,6 +50,7 @@ export interface ResultMarkProps {
  * that was handed in opens where it is graded.
  */
 export function ResultMark({ book, work, student }: ResultMarkProps) {
+  const words = useWords();
   const result = resultOf(book, work.id, student.id);
   if (!result)
     return (
@@ -94,7 +98,7 @@ export function ResultMark({ book, work, student }: ResultMarkProps) {
         <span className="sr-only">{m.gradebookLate()}</span>
       ) : null}
       {result.released ? null : (
-        <span className="sr-only">{m.gradebookHidden()}</span>
+        <span className="sr-only">{words(m.gradebookHiddenCore)()}</span>
       )}
     </span>,
   );
@@ -129,6 +133,7 @@ export interface MarksShown {
 export function gradebookMarks(
   book: Book,
   shown: MarksShown,
+  words: InWords,
 ): GridLegendMark[] {
   const scored = book.results.filter(
     (row) => (row.effectiveScore ?? row.score) !== null && !row.excused,
@@ -140,7 +145,10 @@ export function gradebookMarks(
     ],
     [
       shown.hidden || scored.some((row) => !row.released),
-      { mark: <EyeOff className={MARK} />, label: m.gradebookHidden() },
+      {
+        mark: <EyeOff className={MARK} />,
+        label: words(m.gradebookHiddenCore)(),
+      },
     ],
     [
       scored.some((row) => row.isLate),

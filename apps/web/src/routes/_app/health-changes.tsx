@@ -34,6 +34,7 @@ import { formatDate, formatRelativeDays } from "~/utils/datetime";
 import { refusalOf } from "~/utils/error";
 import { requirePage } from "~/utils/page-access";
 import { schemaErrors } from "~/utils/validation";
+import { useWords } from "~/utils/words";
 
 const SHOWN = ["open", "all"] as const;
 
@@ -159,6 +160,7 @@ interface ReviewSheetProps {
  */
 function ReviewSheet({ row, onClose }: ReviewSheetProps) {
   const queryClient = useQueryClient();
+  const words = useWords();
   const [answer, setAnswer] = useState<Answer>("accepted");
   const [reason, setReason] = useState("");
   const [keepReport, setKeepReport] = useState(true);
@@ -268,8 +270,8 @@ function ReviewSheet({ row, onClose }: ReviewSheetProps) {
             });
             toast.success(
               answer === "accepted"
-                ? m.healthChangesAccepted()
-                : m.healthChangesDeclined(),
+                ? words(m.healthChangesAcceptedCore)()
+                : words(m.healthChangesDeclinedCore)(),
             );
             onClose();
           },
@@ -293,12 +295,12 @@ function ReviewSheet({ row, onClose }: ReviewSheetProps) {
               {
                 value: "accepted",
                 label: m.healthChangesAcceptOption(),
-                hint: m.healthChangesAcceptHint(),
+                hint: words(m.healthChangesAcceptHintCore)(),
               },
               {
                 value: "declined",
                 label: m.healthChangesDeclineOption(),
-                hint: m.healthChangesDeclineHint(),
+                hint: words(m.healthChangesDeclineHintCore)(),
               },
             ]}
             onChange={setAnswer}
@@ -313,7 +315,7 @@ function ReviewSheet({ row, onClose }: ReviewSheetProps) {
               />
               {keepReport ? (
                 <CheckboxRow
-                  label={m.healthChangesShareReport()}
+                  label={words(m.healthChangesShareReportCore)()}
                   checked={shareReport}
                   onChange={setShareReport}
                 />
@@ -324,7 +326,7 @@ function ReviewSheet({ row, onClose }: ReviewSheetProps) {
             <FormField
               id="health-change-reason"
               label={m.healthChangesReason()}
-              hint={m.healthChangesReasonHint()}
+              hint={words(m.healthChangesReasonHintCore)()}
               errors={errors.reason ? [errors.reason] : undefined}
             >
               {(control) => (
@@ -350,6 +352,7 @@ function ReviewSheet({ row, onClose }: ReviewSheetProps) {
 
 function HealthChangesPage() {
   const search = Route.useSearch();
+  const words = useWords();
   const navigate = useNavigate({ from: Route.fullPath });
   const queue = useSuspenseQuery(
     healthChangesQuery(search.show === "open"),
@@ -360,10 +363,10 @@ function HealthChangesPage() {
       <PageHeader
         title={m.healthChangesTitle()}
         count={queue.changes.length}
-        description={m.healthChangesHint()}
+        description={words(m.healthChangesHintCore)()}
       />
       <DataTable
-        caption={m.healthChangesCaption()}
+        caption={words(m.healthChangesCaptionCore)()}
         rows={queue.changes}
         columns={columns(queue.today)}
         rowLabel={(row) =>
@@ -411,8 +414,8 @@ function HealthChangesPage() {
           title:
             search.show === "open"
               ? m.healthChangesEmpty()
-              : m.healthChangesEmptyAll(),
-          description: m.healthChangesEmptyBody(),
+              : words(m.healthChangesEmptyAllCore)(),
+          description: words(m.healthChangesEmptyBodyCore)(),
         }}
       />
       {reviewing ? (

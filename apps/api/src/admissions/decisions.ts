@@ -146,6 +146,7 @@ async function letterFields(
   };
   return {
     family: pick(locale, row.filer.nameEn, row.filer.nameAr),
+    applicant: pick(locale, row.filer.nameEn, row.filer.nameAr),
     child: pick(locale, row.applicant.nameEn, row.applicant.nameAr),
     intake: pick(locale, intake.titleEn, intake.titleAr),
     grade: fact("grade"),

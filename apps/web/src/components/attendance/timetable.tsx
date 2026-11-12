@@ -3,6 +3,7 @@ import type { ModuleFillings } from "~/utils/extension";
 import { lessonRegisters } from "~/components/timetable/slots";
 import * as m from "~/i18n/messages";
 import { fill } from "~/utils/extension";
+import { replaceWords } from "~/utils/words";
 
 import { DAY_REGISTER } from "./format";
 
@@ -27,5 +28,6 @@ export const ATTENDANCE_WITH_TIMETABLE: ModuleFillings = {
       openLabel: (lesson) => m.ttOpenRegister({ lesson }),
       states: DAY_REGISTER,
     }),
+    replaceWords(m.attRuleLateAfterHintCore, m.attRuleLateAfterHint),
   ],
 };

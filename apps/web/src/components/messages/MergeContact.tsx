@@ -8,6 +8,7 @@ import * as m from "~/i18n/messages";
 import { messageContactsQuery } from "~/queries/messages";
 import { mergeMessageContacts } from "~/server/messages";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 export interface MergeContactProps {
   /** The contact kept, as this conversation names it. */
@@ -22,6 +23,7 @@ export interface MergeContactProps {
  */
 export function MergeContact({ contactId, name }: MergeContactProps) {
   const queryClient = useQueryClient();
+  const words = useWords();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -46,7 +48,7 @@ export function MergeContact({ contactId, name }: MergeContactProps) {
           onClick={() => setOpen(true)}
         >
           <Merge aria-hidden />
-          {m.msgMergeOpen()}
+          {words(m.msgMergeOpenCore)()}
         </Button>
         {merge.isSuccess ? (
           <p
@@ -70,8 +72,8 @@ export function MergeContact({ contactId, name }: MergeContactProps) {
   return (
     <div className="grid gap-2 rounded-lg border p-3">
       <ComboboxField
-        label={m.msgMergeLabel()}
-        hint={m.msgMergeHint({ name })}
+        label={words(m.msgMergeLabelCore)()}
+        hint={words(m.msgMergeHintCore)({ name })}
         options={options}
         value={picked}
         onChange={setPicked}

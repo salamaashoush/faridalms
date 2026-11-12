@@ -13,6 +13,7 @@ import * as m from "~/i18n/messages";
 import { observeStandard, searchStandards } from "~/server/standards";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 const LEVELS: readonly { value: MasteryLevel; label: () => string }[] = [
   { value: "secure", label: m.skillsSecure },
@@ -43,6 +44,7 @@ export function ObserveSheet({
   onOpenChange,
 }: ObserveSheetProps) {
   const queryClient = useQueryClient();
+  const words = useWords();
   const [search, setSearch] = useState("");
   const [standard, setStandard] = useState<{
     id: string;
@@ -92,7 +94,7 @@ export function ObserveSheet({
       }}
     >
       <p className="text-sm leading-5 text-muted-foreground">
-        {m.skillsObserveHint()}
+        {words(m.skillsObserveHintCore)()}
       </p>
       <ComboboxField
         label={m.skillsStandard()}

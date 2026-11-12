@@ -15,6 +15,7 @@ import type { ModuleFillings } from "~/utils/extension";
 import { audienceKinds } from "~/components/announcements/slots";
 import { navItems } from "~/components/app/navigation";
 import { portalSentence } from "~/components/auth/portal-words";
+import { eventShapes } from "~/components/calendar/slots";
 import {
   officeNeeds,
   setupItemWords,
@@ -39,6 +40,7 @@ import { fill, NOTHING_READ } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 import { replaceWords } from "~/utils/words";
 
+import { PARENTS_EVENING } from "./event-shapes";
 import { PersonChildren } from "./PersonChildren";
 import { StudentFamily, StudentFamilyOverview } from "./StudentFamily";
 import {
@@ -239,5 +241,61 @@ export const FAMILIES: ModuleFillings = {
       label: m.annScopeFamilies,
     }),
     fill(personRecordParts, { Overview: PersonChildren }),
+    replaceWords(m.studentsEmptyBodyCore, m.studentsEmptyBody),
+    replaceWords(m.studentsSearchHintCore, m.studentsSearchHint),
+    replaceWords(m.leaveAccessLastDayHintCore, m.leaveAccessLastDayHint),
+    replaceWords(m.leaveAccessUntilDayHintCore, m.leaveAccessUntilDayHint),
+    replaceWords(m.leaveDestinationHintCore, m.leaveDestinationHint),
+    replaceWords(m.leaveAccessYearEndHintCore, m.leaveAccessYearEndHint),
+    replaceWords(m.printSlipGuardianCore, m.printSlipGuardian),
+    replaceWords(m.msgGoesByEmailCore, m.msgGoesByEmail),
+    replaceWords(m.msgHeldSenderCore, m.msgHeldSender),
+    replaceWords(m.msgMergeOpenCore, m.msgMergeOpen),
+    replaceWords(m.msgMergeLabelCore, m.msgMergeLabel),
+    replaceWords(m.msgMergeHintCore, m.msgMergeHint),
+    replaceWords(m.consentFormDiscardBodyCore, m.consentFormDiscardBody),
+    replaceWords(
+      m.consentFormDiscardBodyLiveCore,
+      m.consentFormDiscardBodyLive,
+    ),
+    replaceWords(m.consentFormEditStartsCore, m.consentFormEditStarts),
+    replaceWords(m.consentFormLiveNoteCore, m.consentFormLiveNote),
+    replaceWords(m.consentFormPublishBodyCore, m.consentFormPublishBody),
+    replaceWords(
+      m.consentFormPublishBodyNextCore,
+      m.consentFormPublishBodyNext,
+    ),
+    replaceWords(m.consentFormPublishedCore, m.consentFormPublished),
+    replaceWords(m.consentsHintCore, m.consentsHint),
+    replaceWords(m.consentAnsweredForYouCore, m.consentAnsweredForYou),
+    replaceWords(m.consentAnsweredByHintCore, m.consentAnsweredByHint),
+    replaceWords(m.picturedHintCore, m.picturedHint),
+    replaceWords(m.picturedRefusedCore, m.picturedRefused),
+    replaceWords(m.picturedUnansweredCore, m.picturedUnanswered),
+    replaceWords(m.picturedStudentsHintCore, m.picturedStudentsHint),
+    replaceWords(m.annAudienceHintCore, m.annAudienceHint, ["grade_levels"]),
+    replaceWords(m.eventShapeSportHintCore, m.eventShapeSportHint),
+    replaceWords(m.plannerExpectedHintCore, m.plannerExpectedHint),
+    fill(eventShapes, PARENTS_EVENING),
+    replaceWords(m.attRuleNoticeDelayCore, m.attRuleNoticeDelay),
+    replaceWords(m.attAdminHintCore, m.attAdminHint),
+    replaceWords(m.repDeclineBodyCore, m.repDeclineBody),
+    replaceWords(m.repDeclineNoteCore, m.repDeclineNote),
+    replaceWords(m.repNoneWaitingBodyCore, m.repNoneWaitingBody),
+    replaceWords(m.attReportedAwayCore, m.attReportedAway),
+    replaceWords(m.attReportedLateCore, m.attReportedLate),
+    replaceWords(m.attReportedEarlyCore, m.attReportedEarly),
+    replaceWords(m.attLearnersReportHintCore, m.attLearnersReportHint),
+    replaceWords(m.gradebookHintCore, m.gradebookHint),
+    replaceWords(m.gradebookHiddenCore, m.gradebookHidden),
+    replaceWords(m.gradebookReleaseBodyCore, m.gradebookReleaseBody),
+    replaceWords(m.gradebookCommentHintCore, m.gradebookCommentHint),
+    replaceWords(m.gradingDisplayCore, m.gradingDisplay),
+    replaceWords(m.skillsObserveHintCore, m.skillsObserveHint),
+    replaceWords(m.goalsReportShareCore, m.goalsReportShare),
+    replaceWords(m.goalsReportSharedWithCore, m.goalsReportSharedWith),
+    replaceWords(m.goalsReportSharedDoneCore, m.goalsReportSharedDone),
+    replaceWords(m.goalsReportWithdrawnCore, m.goalsReportWithdrawn),
+    replaceWords(m.standardsStatementArHintCore, m.standardsStatementArHint),
   ],
 };

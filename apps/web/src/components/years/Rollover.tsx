@@ -58,7 +58,11 @@ import { getMessageFromError } from "~/utils/error";
 import { classTitle } from "../classes/format";
 import { displayName } from "../people/format";
 import { yearTitle } from "./format";
-import { rolloverCarrierWords, rolloverClassParts } from "./slots";
+import {
+  reenrolmentAnswerers,
+  rolloverCarrierWords,
+  rolloverClassParts,
+} from "./slots";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof rolloverQuery>["queryFn"]>>
@@ -464,6 +468,7 @@ function RolloverDraft({
   setConfirming,
 }: RolloverDraftProps) {
   const queryClient = useQueryClient();
+  const asks = useSlot(reenrolmentAnswerers).length > 0;
   const leaving = useRef(false);
   const [baseline, setBaseline] = useState(data.plan);
   const [plan, setPlan] = useState(data.plan);
@@ -600,7 +605,7 @@ function RolloverDraft({
             {m.rolloverReconciled()}
           </p>
         ) : null}
-        {data.state === "applied" ? null : <FamilyPlans data={data} />}
+        {data.state === "applied" || !asks ? null : <FamilyPlans data={data} />}
         {plan.classes.length > 0 ? (
           <FormSection
             title={m.rolloverClasses()}
@@ -644,7 +649,9 @@ function RolloverDraft({
                     const row = planned.get(student.id);
                     return row ? (
                       <StudentRow
-                        asking={Boolean(data.source.reenrolmentOpenedAt)}
+                        asking={
+                          asks && Boolean(data.source.reenrolmentOpenedAt)
+                        }
                         key={student.id}
                         student={student}
                         row={row}

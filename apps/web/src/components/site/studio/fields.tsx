@@ -45,6 +45,7 @@ import {
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { Segmented } from "@faridalms/ui/system/panel";
 import { Textarea } from "@faridalms/ui/textarea";
+import { useRouteContext } from "@tanstack/react-router";
 import {
   ArrowDown,
   ArrowUp,
@@ -66,9 +67,11 @@ import { CheckboxRow } from "~/components/people/fields";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
+import { everyFilling } from "~/utils/extension";
+import { useWords } from "~/utils/words";
 
 import { SiteIcon } from "../render/parts";
-import { siteChoiceFields } from "../slots";
+import { siteAudiences, siteChoiceFields } from "../slots";
 import { Disclosure, StudioField } from "./controls";
 import {
   AUDIENCE_LABEL,
@@ -888,19 +891,31 @@ function ChoiceControl({
   value,
   onChange,
 }: ChoiceControlProps) {
+  const { extensions } = useRouteContext({ from: "__root__" });
+  const lent = useSlot(siteAudiences);
+  const lendable = everyFilling(extensions, siteAudiences);
+  const offered =
+    name === "audience"
+      ? options.filter(
+          (option) =>
+            option === value ||
+            !lendable.includes(option) ||
+            lent.includes(option),
+        )
+      : options;
   const text = (option: string) =>
     name === "badge"
       ? BADGE_NAME[option as (typeof BADGES)[number]] || m.siteBadgeNone()
       : (CHOICE_LABEL[name]?.[option]?.() ??
         AUDIENCE_LABEL[option]?.() ??
         (/^\d+$/.test(option) ? formatNumber(Number(option)) : option));
-  if (options.length <= 4)
+  if (offered.length <= 4)
     return (
       <StudioField label={label}>
         <Segmented
           label={label}
           value={value}
-          options={[...options].map((option) => ({
+          options={[...offered].map((option) => ({
             value: option,
             label: text(option),
           }))}
@@ -915,7 +930,7 @@ function ChoiceControl({
           <SelectValue>{text(value)}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {options.map((option) => (
+          {offered.map((option) => (
             <SelectItem key={option} value={option}>
               {text(option)}
             </SelectItem>
@@ -1053,6 +1068,9 @@ export function FieldControl({
   prefix,
 }: FieldControlProps) {
   const choices = useSlot(siteChoiceFields);
+  const words = useWords();
+  const hint = FIELD_HINT[name];
+  const fieldHint = hint ? words(hint)() : undefined;
   const id = `${prefix}-${name}`;
   const label = labelOf(name);
   if (context.wordsOnly && !hasWords(field)) return null;
@@ -1069,17 +1087,13 @@ export function FieldControl({
           max={field.max}
           multiline={field.multiline}
           locale={context.locale}
-          hint={
-            EMPHASISABLE.has(name)
-              ? m.siteHeadingFieldHint()
-              : FIELD_HINT[name]?.()
-          }
+          hint={EMPHASISABLE.has(name) ? m.siteHeadingFieldHint() : fieldHint}
           onChange={onChange}
         />
       );
     case "rich":
       return (
-        <StudioField label={label} hint={FIELD_HINT[name]?.()}>
+        <StudioField label={label} hint={fieldHint}>
           <div
             lang={context.locale}
             dir={dirOf(context.locale)}
@@ -1192,7 +1206,7 @@ export function FieldControl({
         <IntakeControl
           id={id}
           label={label}
-          hint={FIELD_HINT[name]?.()}
+          hint={fieldHint}
           value={value as string}
           intakes={context.intakes}
           onChange={onChange}
@@ -1212,7 +1226,7 @@ export function FieldControl({
         <ItemsControl
           id={id}
           label={label}
-          hint={FIELD_HINT[name]?.()}
+          hint={fieldHint}
           field={field}
           value={value as Record<string, unknown>[]}
           context={context}

@@ -32,6 +32,7 @@ import { useMedia } from "~/hooks/useMedia";
 import * as m from "~/i18n/messages";
 import { classBookQuery } from "~/queries/gradebook";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import type { Book, Student } from "./book";
 import type { TermGrades } from "./useTermGrades";
@@ -57,11 +58,12 @@ interface UnreleasedMarkProps {
 }
 
 function UnreleasedMark({ shown }: UnreleasedMarkProps) {
+  const words = useWords();
   if (!shown) return null;
   return (
     <>
       <EyeOff className={MARK} aria-hidden />
-      <span className="sr-only">{m.gradebookHidden()}</span>
+      <span className="sr-only">{words(m.gradebookHiddenCore)()}</span>
     </>
   );
 }
@@ -156,10 +158,11 @@ interface PhoneListProps {
 
 /** Below 768px each student is a row that opens their work, and term, in the panel. */
 function PhoneList({ book, grades, onOpen }: PhoneListProps) {
+  const words = useWords();
   const termed = termOf(book) !== null;
   return (
     <ul
-      aria-label={m.gradebookCaption()}
+      aria-label={words(m.gradebookCaptionCore)()}
       className="divide-y overflow-hidden rounded-lg border bg-card md:hidden"
     >
       {book.students.map((student) => {
@@ -228,6 +231,7 @@ interface SheetProps {
  * term it is the class's running book, to read.
  */
 function Sheet({ book, toolbar, studentId, onStudent }: SheetProps) {
+  const words = useWords();
   const term = termOf(book);
   const editable = term !== null && !term.closed;
   const grades = useTermGrades(book, editable);
@@ -261,7 +265,7 @@ function Sheet({ book, toolbar, studentId, onStudent }: SheetProps) {
             !term
               ? m.gradebookRunningHint()
               : editable
-                ? m.gradebookHint()
+                ? words(m.gradebookHintCore)()
                 : m.gradebookClosedHint()
           }
           status={editable ? <SaveState grades={grades} /> : undefined}
@@ -298,7 +302,7 @@ function Sheet({ book, toolbar, studentId, onStudent }: SheetProps) {
           <IndexToolbar {...toolbar} />
           <div className="max-md:hidden">
             <DataGrid<Student>
-              caption={m.gradebookCaption()}
+              caption={words(m.gradebookCaptionCore)()}
               editing={editable}
               frame="table"
               fit="content"
@@ -308,18 +312,22 @@ function Sheet({ book, toolbar, studentId, onStudent }: SheetProps) {
               rowKey={(student) => student.id}
               issues={grades.issues}
               legend={{
-                marks: gradebookMarks(book, {
-                  overridden: book.students.some((student) => {
-                    const score = grades.rowOf(student.id).score;
-                    const calculated = calculatedScore(book, student.id);
-                    return (
-                      score !== null &&
-                      calculated !== null &&
-                      score !== calculated
-                    );
-                  }),
-                  hidden: unreleased > 0,
-                }),
+                marks: gradebookMarks(
+                  book,
+                  {
+                    overridden: book.students.some((student) => {
+                      const score = grades.rowOf(student.id).score;
+                      const calculated = calculatedScore(book, student.id);
+                      return (
+                        score !== null &&
+                        calculated !== null &&
+                        score !== calculated
+                      );
+                    }),
+                    hidden: unreleased > 0,
+                  },
+                  words,
+                ),
                 empty: m.gradebookNothingYetLegend(),
               }}
             />
@@ -351,7 +359,7 @@ function Sheet({ book, toolbar, studentId, onStudent }: SheetProps) {
       <ConfirmDialog
         open={releasing}
         title={m.gradebookReleaseTitle({ count: unreleased })}
-        body={m.gradebookReleaseBody()}
+        body={words(m.gradebookReleaseBodyCore)()}
         confirmLabel={m.gradebookRelease()}
         destructive={false}
         pending={releasePending}
@@ -405,6 +413,7 @@ export function Gradebook({
   onScope,
 }: GradebookProps) {
   const book = useSuspenseQuery(classBookQuery(classId, periodId)).data;
+  const words = useWords();
   const fallback = defaultClass(classes)?.id;
   const facets: Facet[] = [
     {
@@ -447,7 +456,9 @@ export function Gradebook({
       <Page width="list">
         <PageHeader
           title={m.gradebookTitle()}
-          description={m.gradebookHint()}
+          description={
+            book.term ? words(m.gradebookHintCore)() : m.gradebookRunningHint()
+          }
         />
         <div className="grid gap-4">
           <IndexToolbar {...toolbar} />

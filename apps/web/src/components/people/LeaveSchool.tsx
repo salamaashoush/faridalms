@@ -14,6 +14,7 @@ import * as m from "~/i18n/messages";
 import { recordLeaving } from "~/server/students";
 import { formatDate, formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import { leavingParts } from "./slots";
 
@@ -39,6 +40,7 @@ export function LeaveSchool({
 }: LeaveSchoolProps) {
   const queryClient = useQueryClient();
   const parts = useSlot(leavingParts);
+  const words = useWords();
   const reads = useSuspenseQueries({
     queries: parts.map((part) => part.query()),
   });
@@ -49,7 +51,7 @@ export function LeaveSchool({
   );
   const [tried, setTried] = useState(false);
   const offered = parts.flatMap((part, index) =>
-    part.access(reads[index]?.data, last || today),
+    part.access(reads[index]?.data, last || today, words),
   );
   const [access, setAccess] = useState(offered[0]?.value ?? "last_day");
   const [until, setUntil] = useState("");
@@ -168,12 +170,12 @@ export function LeaveSchool({
           {
             value: "until",
             label: m.leaveAccessUntilDay(),
-            hint: m.leaveAccessUntilDayHint(),
+            hint: words(m.leaveAccessUntilDayHintCore)(),
           },
           {
             value: "last_day",
             label: m.leaveAccessLastDay(),
-            hint: m.leaveAccessLastDayHint(),
+            hint: words(m.leaveAccessLastDayHintCore)(),
           },
         ]}
         onChange={setAccess}

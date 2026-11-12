@@ -71,7 +71,7 @@ export function entryTitle(
     const from = typeof details.from === "string" ? details.from : "";
     return details.reason === "unauthenticated"
       ? m.msgHeldUnchecked({ from })
-      : m.msgHeldSender({ from });
+      : words(m.msgHeldSenderCore)({ from });
   }
   return ENTRY_LABEL[kind]();
 }

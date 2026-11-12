@@ -42,6 +42,7 @@ import {
 } from "~/server/standards";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 type FrameworkData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof frameworkQuery>["queryFn"]>>
@@ -163,6 +164,7 @@ export function StandardSheet({
   parentId,
   onSaved,
 }: StandardSheetProps) {
+  const inWords = useWords();
   const [code, setCode] = useState(standard?.code ?? "");
   const [statement, setStatement] = useState(standard?.statement ?? "");
   const [statementAr, setStatementAr] = useState(standard?.statementAr ?? "");
@@ -261,7 +263,7 @@ export function StandardSheet({
       <FormField
         id="standard-statement-ar"
         label={m.standardsStatementAr()}
-        hint={m.standardsStatementArHint()}
+        hint={inWords(m.standardsStatementArHintCore)()}
         optional
       >
         {(control) => (

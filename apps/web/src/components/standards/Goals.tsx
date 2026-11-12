@@ -58,6 +58,7 @@ import {
 } from "~/server/standards";
 import { formatAgo, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 type GoalsData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classGoalsQuery>["queryFn"]>>
@@ -525,6 +526,7 @@ function ShareReport({
   total,
 }: ShareReportProps) {
   const queryClient = useQueryClient();
+  const words = useWords();
   const share = useServerFn(shareGoalsReport);
   const sharing = useMutation({
     mutationFn: (shared: boolean) =>
@@ -534,7 +536,9 @@ function ShareReport({
         queryKey: ["standards", "goals", classId],
       });
       toast.success(
-        shared ? m.goalsReportSharedDone() : m.goalsReportWithdrawn(),
+        shared
+          ? words(m.goalsReportSharedDoneCore)()
+          : words(m.goalsReportWithdrawnCore)(),
       );
     },
     onError: (error) => toast.error(getMessageFromError(error)),
@@ -550,13 +554,13 @@ function ShareReport({
         onClick={() => sharing.mutate(true)}
       >
         <Share2 aria-hidden />
-        {m.goalsReportShare()}
+        {words(m.goalsReportShareCore)()}
       </Button>
     );
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-[13px] leading-[18px] text-muted-foreground">
-        {m.goalsReportSharedWith({
+        {words(m.goalsReportSharedWithCore)({
           count: formatNumber(report.shared),
           total: formatNumber(total),
           when: formatAgo(report.sharedAt),

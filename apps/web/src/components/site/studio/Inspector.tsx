@@ -31,6 +31,7 @@ import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
+import { useWords } from "~/utils/words";
 
 import type { RenderContext } from "../render/parts";
 import type { Languages } from "./draft";
@@ -184,6 +185,7 @@ export function Inspector({
   onKeep,
 }: InspectorProps) {
   const uploading = useUpload(fieldContext.media);
+  const inWords = useWords();
   const wordsOnly = fieldContext.wordsOnly;
   const otherLocale = languages.other;
   const target = wordsOnly ? shown : section;
@@ -246,7 +248,7 @@ export function Inspector({
             {SECTION_LABEL[section.type]()}
           </h2>
           <p className="text-[13px] leading-[18px] text-muted-foreground">
-            {SECTION_HINT[section.type]()}
+            {inWords(SECTION_HINT[section.type])()}
           </p>
         </div>
         {onKeep ? (

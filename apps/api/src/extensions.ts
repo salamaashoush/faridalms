@@ -45,6 +45,7 @@ import { TIMETABLE_FEED } from "./timetable/feed";
 import { WEBSITE_ANNOUNCEMENTS } from "./website/announcements";
 import { WEBSITE } from "./website/contributions";
 import { SCHOOL_YEARS } from "./years/contributions";
+import { SCHOOL_YEARS_ON_WEBSITE } from "./years/website";
 
 /**
  * Every module's contributions to the points core and the modules declare.
@@ -81,6 +82,7 @@ export const MODULE_EXTENSIONS: readonly ModuleContributions[] = [
   HOMEROOMS_IN_YEARS,
   PEER_REVIEW,
   SCHOOL_YEARS,
+  SCHOOL_YEARS_ON_WEBSITE,
   SMS,
   STANDARDS,
   STANDARDS_FROM_LESSONS,

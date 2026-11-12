@@ -1044,6 +1044,7 @@ export const LETTER_FOR: Partial<Record<ApplicationState, LetterKind>> = {
 /** What a letter's template may say in braces, filled in from the application when it is sent. */
 export const LETTER_FIELDS = [
   "family",
+  "applicant",
   "child",
   "intake",
   "grade",
@@ -1081,6 +1082,26 @@ export function fillLetter(
     ...(node.children ? { children: node.children.map(fill) } : {}),
   });
   return { ...document, root: fill(document.root) };
+}
+
+/**
+ * A letter's document with one field written under another name wherever
+ * it appears: the person who applied is `{applicant}` to a school without
+ * families, and `{family}` to one with them.
+ */
+export function renameLetterField(
+  document: ContentDocument,
+  from: LetterField,
+  to: LetterField,
+): ContentDocument {
+  const rename = (node: ContentNode): ContentNode => ({
+    ...node,
+    ...(typeof node.text === "string"
+      ? { text: node.text.replaceAll(`{${from}}`, `{${to}}`) }
+      : {}),
+    ...(node.children ? { children: node.children.map(rename) } : {}),
+  });
+  return { ...document, root: rename(document.root) };
 }
 
 /** The builtin key a school's starting letter of a kind and language is given under. */

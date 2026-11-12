@@ -48,6 +48,7 @@ import {
 } from "~/queries/students";
 import { cancelLeaving } from "~/server/students";
 import { formatDate } from "~/utils/datetime";
+import { useWords } from "~/utils/words";
 
 import type { StudentRecordTab } from "./slots";
 
@@ -250,6 +251,7 @@ export function StudentRecord({
   const [writing, setWriting] = useState(false);
   const [moving, setMoving] = useState(false);
   const words = useSlot(groupWords);
+  const inWords = useWords();
   const mover = useSlot(studentClassesParts)[0]?.move;
   const [leaving, setLeaving] = useState(false);
   const family = useSlot(studentFamilyParts)[0];
@@ -364,7 +366,7 @@ export function StudentRecord({
       icon: Undo2,
       confirm: {
         title: m.leaveUndoTitle({ name }),
-        body: m.leaveUndoBody(),
+        body: inWords(m.leaveUndoBodyCore)(),
         label: m.leaveUndo(),
       },
       onSelect: async () => {

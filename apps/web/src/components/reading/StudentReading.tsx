@@ -14,6 +14,7 @@ import { useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { studentReadingQuery } from "~/queries/reading";
 import { formatInstant, formatNumber, formatPercent } from "~/utils/datetime";
+import { useWords } from "~/utils/words";
 
 type Reading = NonNullable<
   Awaited<
@@ -119,6 +120,7 @@ export interface StudentReadingProps {
  */
 export function StudentReading({ studentId }: StudentReadingProps) {
   const reads = useCapability("people:read");
+  const words = useWords();
   const data = useQuery({
     ...studentReadingQuery(studentId),
     enabled: reads,
@@ -156,7 +158,7 @@ export function StudentReading({ studentId }: StudentReadingProps) {
           );
         })}
         <DataTable
-          caption={m.readingCaption()}
+          caption={words(m.readingCaptionCore)()}
           rows={rows}
           columns={columns()}
           rowLabel={(row) => row.title}

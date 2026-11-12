@@ -80,6 +80,7 @@ import {
 } from "~/server/announcements";
 import { instantFromLocal, localInput } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import type { AnnouncementCopyPart } from "./slots";
 
@@ -279,6 +280,7 @@ export function AnnouncementEditor({
   const options: Options = useSuspenseQuery(announcementOptionsQuery).data;
   const kinds = useSlot(audienceKinds);
   const copies = useSlot(announcementCopyParts);
+  const words = useWords();
   const storedParts = useSuspenseQueries({
     queries: existing ? copies.map((copy) => copy.initial(existing.id)) : [],
   });
@@ -852,7 +854,11 @@ export function AnnouncementEditor({
             ) : null}
             <DetailsSection
               title={m.annSectionAudience()}
-              hint={isPublic ? m.annAudienceOptional() : m.annAudienceHint()}
+              hint={
+                isPublic
+                  ? m.annAudienceOptional()
+                  : words(m.annAudienceHintCore)()
+              }
             >
               {isPublic ? (
                 <CheckboxRow

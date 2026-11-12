@@ -1,6 +1,6 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 
-import { LETTER_FIELDS } from "@faridalms/domain/admissions";
+import { LETTER_FIELDS, renameLetterField } from "@faridalms/domain/admissions";
 import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
 import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -8,7 +8,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import * as v from "valibot";
 
-import { intakeParts } from "~/components/admissions/slots";
+import { appliedField, intakeParts } from "~/components/admissions/slots";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import {
   DocumentVersion,
@@ -53,9 +53,8 @@ export const Route = createFileRoute("/_app/admissions/letter-editor")({
   component: LetterEditorPage,
 });
 
-/** The fields every letter may say; a module's own follow under its key. */
+/** The fields every letter may say besides the person who applied; a module's own follow under its key. */
 const FIELD_HINT: [string, () => string][] = [
-  ["family", m.ltrFieldFamilyCore],
   ["child", m.ltrFieldChildCore],
   ["intake", m.ltrFieldIntake],
   ["school", m.ltrFieldSchool],
@@ -74,6 +73,13 @@ function LetterEditorPage() {
   const words = useWords();
   const queryClient = useQueryClient();
   const parts = useSlot(intakeParts);
+  const applied = useSlot(appliedField)[0] ?? "applicant";
+  // Every school is given letters greeting {family}; a school without
+  // families reads the same person as {applicant}.
+  const named = (content: ContentDocument) =>
+    applied === "family"
+      ? content
+      : renameLetterField(content, "family", applied);
   const template = useSuspenseQuery(templateQuery(id)).data;
   const listed = useSuspenseQuery(lettersQuery).data.find(
     (row) => row.id === id,
@@ -82,7 +88,7 @@ function LetterEditorPage() {
   const media = useDocumentMedia();
   const [draft, setDraft] = useState({
     title: template.title,
-    content: template.content,
+    content: named(template.content),
   });
   const [valid, setValid] = useState(true);
   const [editorKey, setEditorKey] = useState(0);
@@ -99,7 +105,7 @@ function LetterEditorPage() {
       const row = letters.find((letter) => letter.id === id);
       if (!row) throw new Error("conflict.version");
       return {
-        value: { title: piece.title, content: piece.content },
+        value: { title: piece.title, content: named(piece.content) },
         version: row.version,
       };
     },
@@ -169,6 +175,7 @@ function LetterEditorPage() {
             >
               <dl className="grid gap-2 text-sm">
                 {[
+                  [applied, m.ltrFieldFamilyCore] as [string, () => string],
                   ...FIELD_HINT,
                   ...parts
                     .filter((part) =>

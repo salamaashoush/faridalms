@@ -52,6 +52,7 @@ import { arabicDigits, numberLocale } from "~/utils/digits";
 import type { ArtSet } from "./art";
 import type { RenderContext, SiteIntake } from "./parts";
 
+import { useSiteWords } from "../slots";
 import { SiteArt } from "./art";
 import { useCountUp } from "./motion";
 import {
@@ -2302,7 +2303,7 @@ const FEE_WORDS: Record<
   application: m.itkFeeApplication,
   assessment: m.itkFeeAssessment,
   registration: m.itkFeeRegistration,
-  tuition: m.itkFeeTuition,
+  tuition: m.itkFeeTuitionCore,
   other: m.itkFeeOther,
 };
 
@@ -2347,6 +2348,7 @@ interface IntakeCardsProps {
 /** Each intake still to close: its name, when learners start and families apply, its fees and the way in. */
 function IntakeCards({ intakes, context, compact }: IntakeCardsProps) {
   const t = { locale: context.locale };
+  const say = useSiteWords(context);
   const money = (currency: string, amount: number) =>
     new Intl.NumberFormat(numberLocale(context.locale), {
       style: "currency",
@@ -2394,7 +2396,7 @@ function IntakeCards({ intakes, context, compact }: IntakeCardsProps) {
                       className="flex flex-wrap items-baseline justify-between gap-x-4 [&>*]:whitespace-nowrap"
                     >
                       <dt className="site-muted">
-                        {(FEE_WORDS[fee.kind] ?? m.itkFeeOther)({}, t)}
+                        {say(FEE_WORDS[fee.kind] ?? m.itkFeeOther)({}, t)}
                       </dt>
                       <dd className="font-semibold tabular-nums">
                         {money(intake.currency, fee.amount)}

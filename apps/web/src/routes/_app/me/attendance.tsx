@@ -12,6 +12,7 @@ import {
   studentAttendanceQuery,
 } from "~/queries/attendance";
 import { currentUserQuery } from "~/queries/user";
+import { useWords } from "~/utils/words";
 
 export const Route = createFileRoute("/_app/me/attendance")({
   loader: async ({ context }) => {
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/_app/me/attendance")({
 
 function MyAttendancePage() {
   const user = useCurrentUser();
+  const words = useWords();
   // A learner tells the school of their own absences only where they decide
   // for themself and the school lets learners report.
   const reports = useSuspenseQuery(myAbsenceReportsQuery(user.id)).data;
@@ -33,7 +35,7 @@ function MyAttendancePage() {
     <Page width="list">
       <PageHeader
         title={m.attendanceTitle()}
-        description={m.attStudentHint()}
+        description={words(m.attStudentHintCore)()}
       />
       <div className="grid gap-6">
         {reports.mayReport ? (

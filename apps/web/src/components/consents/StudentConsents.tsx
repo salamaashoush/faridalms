@@ -31,6 +31,7 @@ import { studentConsentsQuery } from "~/queries/consents";
 import { recordConsent } from "~/server/consents";
 import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import { DECISION_LABEL, DECISION_TONE } from "./format";
 
@@ -108,6 +109,7 @@ export interface StudentConsentsProps {
  */
 export function StudentConsents({ studentId }: StudentConsentsProps) {
   const data = useSuspenseQuery(studentConsentsQuery(studentId)).data;
+  const words = useWords();
   const [sheet, setSheet] = useState<{
     purpose: Purpose | null;
     open: boolean;
@@ -122,7 +124,7 @@ export function StudentConsents({ studentId }: StudentConsentsProps) {
         description={
           data.canRecord && !answerable
             ? m.consentsNoAnswerer()
-            : m.consentsHint()
+            : words(m.consentsHintCore)()
         }
       >
         {data.purposes.length === 0 ? (
@@ -245,6 +247,7 @@ function RecordSheet({
   onClose,
 }: RecordSheetProps) {
   const queryClient = useQueryClient();
+  const words = useWords();
   const [answeredBy, setAnsweredBy] = useState(
     data.answerers[0]?.answeredBy ?? (data.office ? "office" : ""),
   );
@@ -298,7 +301,7 @@ function RecordSheet({
       <SelectField
         id="consent-guardian"
         label={m.consentAnsweredBy()}
-        hint={m.consentAnsweredByHint()}
+        hint={words(m.consentAnsweredByHintCore)()}
         value={answeredBy}
         options={[
           ...data.answerers.map((row) => ({

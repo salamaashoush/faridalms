@@ -13,6 +13,7 @@ import {
   canMove,
   familyState,
   fillLetter,
+  renameLetterField,
   intakeWindow,
   LETTER_FIELDS,
   moveDecides,
@@ -336,6 +337,7 @@ describe("places and offers", () => {
 describe("letters", () => {
   const fields = {
     family: "Salama Ashoush",
+    applicant: "Salama Ashoush",
     child: "Omar",
     intake: "KG1, 2027–2028",
     grade: "KG1",
@@ -356,6 +358,21 @@ describe("letters", () => {
     expect(text).toContain("Dear Salama Ashoush,");
     expect(text).toContain("Omar joins KG1 in 2027–2028.");
     expect(text).toContain("{unknown}");
+  });
+
+  it("writes the person who applied under the name the school knows them by, leaving the rest", () => {
+    const letter = renameLetterField(
+      plainContent("Dear {family},\n{child} joins {intake}."),
+      "family",
+      "applicant",
+    );
+    const text = JSON.stringify(letter);
+    expect(text).toContain("Dear {applicant},");
+    expect(text).not.toContain("{family}");
+    expect(text).toContain("{child} joins {intake}.");
+    expect(JSON.stringify(fillLetter(letter, fields))).toContain(
+      "Dear Salama Ashoush,",
+    );
   });
 
   it("starts every school with each phase's letter in both languages, using only known fields", () => {

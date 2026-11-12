@@ -4,6 +4,7 @@ import * as m from "~/i18n/messages";
 
 export interface EventShape {
   key: string;
+  place: number;
   title: () => string;
   hint: () => string;
   sections: Section[];
@@ -25,6 +26,7 @@ const QUESTIONS: Section = {
 export const EVENT_SHAPES: EventShape[] = [
   {
     key: "trip",
+    place: 10,
     title: m.eventShapeTrip,
     hint: m.eventShapeTripHint,
     sections: [
@@ -80,51 +82,10 @@ export const EVENT_SHAPES: EventShape[] = [
     ],
   },
   {
-    key: "meeting",
-    title: m.eventShapeMeeting,
-    hint: m.eventShapeMeetingHint,
-    sections: [
-      {
-        heading: { en: "What it is for", ar: "الهدف من اللقاء" },
-        prompt: {
-          en: "What teachers will share, and what families can ask about.",
-          ar: "ما سيعرضه المعلمون، وما يمكن للأسر السؤال عنه.",
-        },
-      },
-      {
-        heading: { en: "Booking a time", ar: "حجز موعد" },
-        prompt: {
-          en: "How to book, how long each meeting lasts, and when booking closes.",
-          ar: "طريقة الحجز، ومدة كل لقاء، وآخر موعد للحجز.",
-        },
-      },
-      {
-        heading: { en: "On the day", ar: "يوم اللقاء" },
-        points: [
-          {
-            en: "Please arrive a few minutes before your time",
-            ar: "يُرجى الحضور قبل الموعد ببضع دقائق",
-          },
-          { en: "Meetings are held in …", ar: "تُعقد اللقاءات في …" },
-          {
-            en: "Your child is welcome to come with you",
-            ar: "يمكنكم اصطحاب أبنائكم",
-          },
-        ],
-      },
-      {
-        heading: { en: "If you cannot come", ar: "إذا تعذّر الحضور" },
-        prompt: {
-          en: "How to ask for a call or another time.",
-          ar: "كيف تطلبون اتصالًا هاتفيًا أو موعدًا آخر.",
-        },
-      },
-    ],
-  },
-  {
     key: "sport",
+    place: 30,
     title: m.eventShapeSport,
-    hint: m.eventShapeSportHint,
+    hint: m.eventShapeSportHintCore,
     sections: [
       {
         heading: { en: "The day", ar: "برنامج اليوم" },
@@ -162,6 +123,7 @@ export const EVENT_SHAPES: EventShape[] = [
   },
   {
     key: "performance",
+    place: 40,
     title: m.eventShapePerformance,
     hint: m.eventShapePerformanceHint,
     sections: [
@@ -197,6 +159,7 @@ export const EVENT_SHAPES: EventShape[] = [
   },
   {
     key: "exam",
+    place: 50,
     title: m.eventShapeExam,
     hint: m.eventShapeExamHint,
     sections: [

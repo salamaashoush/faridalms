@@ -13,6 +13,7 @@ import { picturedQuery } from "~/queries/files";
 import { studentsQuery } from "~/queries/students";
 import { tagPictured } from "~/server/files";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof picturedQuery>["queryFn"]>>
@@ -28,14 +29,15 @@ interface AnswerProps {
 }
 
 function Answer({ person, channel }: AnswerProps) {
+  const words = useWords();
   const answer = person[channel];
   return (
     <StatusText tone={answer === "granted" ? "success" : "warning"}>
       {(answer === "granted"
         ? m.picturedMayAppear
         : answer === "refused"
-          ? m.picturedRefused
-          : m.picturedUnanswered)({ name: displayName(person) })}
+          ? words(m.picturedRefusedCore)
+          : words(m.picturedUnansweredCore))({ name: displayName(person) })}
     </StatusText>
   );
 }
@@ -49,6 +51,7 @@ interface PeopleSheetProps {
 
 function PeopleSheet({ fileId, channel, open, onClose }: PeopleSheetProps) {
   const queryClient = useQueryClient();
+  const words = useWords();
   const picture = useQuery(picturedQuery([fileId])).data?.files[0] ?? null;
   const [picked, setPicked] = useState<string[] | null>(null);
   const [search, setSearch] = useState("");
@@ -105,11 +108,11 @@ function PeopleSheet({ fileId, channel, open, onClose }: PeopleSheetProps) {
         className="max-h-64 w-full rounded-md border object-contain"
       />
       <p className="text-sm leading-5 text-muted-foreground">
-        {m.picturedHint()}
+        {words(m.picturedHintCore)()}
       </p>
       <ComboboxField
         label={m.picturedStudents()}
-        hint={m.picturedStudentsHint()}
+        hint={words(m.picturedStudentsHintCore)()}
         multiple
         clearable
         options={[...known].map(([value, label]) => ({ value, label }))}

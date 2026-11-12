@@ -31,6 +31,7 @@ import { useMemo, useState } from "react";
 
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { useWords } from "~/utils/words";
 
 import type { RenderContext } from "../render/parts";
 import type { Inserted } from "./SavedSections";
@@ -59,6 +60,7 @@ interface TypeCardProps {
 }
 
 function TypeCard({ type, context, primary, onPick }: TypeCardProps) {
+  const words = useWords();
   const variants = SECTION_SPECS[type].variants as readonly string[];
   const [variant, setVariant] = useState(variants[0] ?? "");
   const sample = useMemo(
@@ -88,7 +90,7 @@ function TypeCard({ type, context, primary, onPick }: TypeCardProps) {
         <span className="grid gap-0.5 px-3 pt-3">
           <span className="text-sm font-semibold">{SECTION_LABEL[type]()}</span>
           <span className="text-[13px] leading-[18px] text-muted-foreground">
-            {SECTION_HINT[type]()}
+            {words(SECTION_HINT[type])()}
           </span>
         </span>
       </div>
@@ -136,6 +138,7 @@ export function SectionGallery({
     "all",
   );
   const [query, setQuery] = useState("");
+  const words = useWords();
   const needle = query.trim().toLocaleLowerCase();
   const { modules } = useCurrentUser();
   const offered = (type: SectionType) => {
@@ -148,7 +151,7 @@ export function SectionGallery({
       offered(type) &&
       (category === "all" || SECTION_SPECS[type].category === category) &&
       (!needle ||
-        `${SECTION_LABEL[type]()} ${SECTION_HINT[type]()}`
+        `${SECTION_LABEL[type]()} ${words(SECTION_HINT[type])()}`
           .toLocaleLowerCase()
           .includes(needle)),
   );
@@ -235,6 +238,7 @@ export interface TemplateGalleryProps {
 
 /** The page templates, each drawn in the site's theme, for starting a new page. */
 export function TemplateGallery({ context, onPick }: TemplateGalleryProps) {
+  const words = useWords();
   const built = useMemo(
     () =>
       Object.fromEntries(
@@ -253,7 +257,7 @@ export function TemplateGallery({ context, onPick }: TemplateGalleryProps) {
             <button
               type="button"
               onClick={() => onPick(template)}
-              aria-label={`${TEMPLATE_LABEL[template]()}: ${TEMPLATE_HINT[template]()}`}
+              aria-label={`${words(TEMPLATE_LABEL[template])()}: ${words(TEMPLATE_HINT[template])()}`}
               className="absolute inset-0 z-10 rounded-xl focus-visible:outline-2 focus-visible:outline-primary"
             />
             <div
@@ -287,10 +291,10 @@ export function TemplateGallery({ context, onPick }: TemplateGalleryProps) {
             </div>
             <span className="grid gap-0.5 p-4">
               <span className="font-semibold">
-                {TEMPLATE_LABEL[template]()}
+                {words(TEMPLATE_LABEL[template])()}
               </span>
               <span className="text-[13px] leading-[18px] text-muted-foreground">
-                {TEMPLATE_HINT[template]()}
+                {words(TEMPLATE_HINT[template])()}
               </span>
             </span>
           </div>

@@ -15,6 +15,7 @@ import {
 } from "~/queries/homerooms";
 import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
+import { replaceWords } from "~/utils/words";
 
 import type { Of } from "./ClassParts";
 
@@ -60,5 +61,8 @@ export const HOMEROOMS: ModuleFillings = {
             }
           : null,
     }),
+    replaceWords(m.adminStudentsCaptionCore, m.adminStudentsCaption, [
+      "grade_levels",
+    ]),
   ],
 };

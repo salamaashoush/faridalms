@@ -20,6 +20,7 @@ import {
 } from "~/queries/attendance";
 import { childrenQuery } from "~/queries/families";
 import { currentUserQuery } from "~/queries/user";
+import { useWords } from "~/utils/words";
 
 export const Route = createFileRoute("/_app/family/attendance")({
   validateSearch: v.object({
@@ -45,6 +46,7 @@ function FamilyAttendancePage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
+  const words = useWords();
   const children = useSuspenseQuery(childrenQuery(user.id)).data;
   const current = search.studentId ?? children[0]?.studentId;
   const childFacet: Facet = {
@@ -63,7 +65,10 @@ function FamilyAttendancePage() {
   };
   return (
     <Page width="list">
-      <PageHeader title={m.attendanceTitle()} description={m.attFamilyHint()} />
+      <PageHeader
+        title={m.attendanceTitle()}
+        description={words(m.attFamilyHintCore)()}
+      />
       {current ? (
         <div className="grid gap-6">
           {children.length > 1 ? <IndexToolbar facets={[childFacet]} /> : null}

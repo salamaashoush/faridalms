@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { displayName } from "~/components/people/format";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
+import { useWords } from "~/utils/words";
 
 import type { Book, Student } from "./book";
 import type { TermGrades } from "./useTermGrades";
@@ -126,6 +127,7 @@ export function StudentPanel({
   phone,
   onGo,
 }: StudentPanelProps) {
+  const words = useWords();
   // A docked panel sits beside the grid rather than over it, so nothing
   // moves focus into it; opening it from a name takes the keyboard there.
   // Moving to the next student keeps focus on the button that moved it.
@@ -188,7 +190,7 @@ export function StudentPanel({
           <FormField
             id={`panel-term-comment-${student.id}`}
             label={m.gradebookComment()}
-            hint={m.gradebookCommentHint()}
+            hint={words(m.gradebookCommentHintCore)()}
           >
             {(control) => (
               <Textarea

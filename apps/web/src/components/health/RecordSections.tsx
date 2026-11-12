@@ -60,6 +60,7 @@ import {
 import { formatDate, formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError, refusalOf } from "~/utils/error";
 import { schemaErrors } from "~/utils/validation";
+import { useWords } from "~/utils/words";
 
 import { SEVERITY_LABEL } from "./labels";
 
@@ -243,6 +244,7 @@ interface ReportSheetProps {
  */
 function ReportSheet({ studentId, record, open, onClose }: ReportSheetProps) {
   const refresh = useRefresh(studentId);
+  const words = useWords();
   const [files, setFiles] = useState<FileSummary[]>([]);
   const [shared, setShared] = useState(record.report?.shared ?? false);
   const [errors, setErrors] = useState<{ report?: string }>({});
@@ -283,7 +285,7 @@ function ReportSheet({ studentId, record, open, onClose }: ReportSheetProps) {
       }}
     >
       <p className="text-sm text-muted-foreground">
-        {m.healthReportIntro({ record: record.text })}
+        {words(m.healthReportIntroCore)({ record: record.text })}
       </p>
       <FileField
         id="health-report-file"
@@ -300,8 +302,8 @@ function ReportSheet({ studentId, record, open, onClose }: ReportSheetProps) {
         errors={errors.report ? [errors.report] : undefined}
       />
       <CheckboxRow
-        label={m.healthReportShare()}
-        hint={m.healthReportShareHint()}
+        label={words(m.healthReportShareCore)()}
+        hint={words(m.healthReportShareHintCore)()}
         checked={shared}
         onChange={setShared}
       />
@@ -315,6 +317,7 @@ interface RecordReportProps {
 
 /** A record's report as its card, and whether the family may open it. */
 function RecordReport({ report }: RecordReportProps) {
+  const words = useWords();
   return (
     <div className="mt-2 grid gap-1.5">
       <FileList
@@ -328,7 +331,9 @@ function RecordReport({ report }: RecordReportProps) {
         ]}
       />
       <StatusText tone={report.shared ? "success" : "neutral"}>
-        {report.shared ? m.healthReportShared() : m.healthReportNotShared()}
+        {report.shared
+          ? words(m.healthReportSharedCore)()
+          : words(m.healthReportNotSharedCore)()}
       </StatusText>
     </div>
   );
@@ -341,6 +346,7 @@ export interface HealthSectionProps {
 export function HealthSection({ studentId }: HealthSectionProps) {
   const data = useSuspenseQuery(healthQuery(studentId)).data;
   const refresh = useRefresh(studentId);
+  const words = useWords();
   const [sheet, setSheet] = useState<{
     value: HealthRecord | null;
     open: boolean;
@@ -370,7 +376,9 @@ export function HealthSection({ studentId }: HealthSectionProps) {
     }
     await refresh();
     toast.success(
-      shared ? m.healthReportSharedDone() : m.healthReportUnsharedDone(),
+      shared
+        ? words(m.healthReportSharedDoneCore)()
+        : words(m.healthReportUnsharedDoneCore)(),
     );
   };
   const removeReport = (record: HealthRecord) => async () => {
@@ -484,8 +492,8 @@ export function HealthSection({ studentId }: HealthSectionProps) {
                         ? [
                             {
                               label: record.report.shared
-                                ? m.healthReportUnshare()
-                                : m.healthReportShare(),
+                                ? words(m.healthReportUnshareCore)()
+                                : words(m.healthReportShareCore)(),
                               icon: record.report.shared ? Users : Share2,
                               onSelect: share(record, !record.report.shared),
                             },

@@ -510,7 +510,7 @@ function Composer({ thread, fields }: ComposerProps) {
       ) : null}
       {mode === "message" && thread.emailsOutside ? (
         <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {m.msgGoesByEmail()}
+          {words(m.msgGoesByEmailCore)()}
         </p>
       ) : null}
       {mode === "message"

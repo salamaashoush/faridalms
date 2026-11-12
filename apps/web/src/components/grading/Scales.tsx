@@ -20,6 +20,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import type { getGradingOverview } from "~/server/grading";
+import type { InWords } from "~/utils/words";
 
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -30,6 +31,7 @@ import {
 } from "~/server/grading";
 import { formatDate, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import { bandsLine } from "./format";
 
@@ -54,7 +56,7 @@ const MOST_BANDS = 20;
 
 type ScaleOpener = (row: ScaleRow, text: ReactNode) => ReactNode;
 
-function scaleColumns(opener: ScaleOpener): Column<ScaleRow>[] {
+function scaleColumns(opener: ScaleOpener, words: InWords): Column<ScaleRow>[] {
   return [
     {
       id: "name",
@@ -71,7 +73,7 @@ function scaleColumns(opener: ScaleOpener): Column<ScaleRow>[] {
     },
     {
       id: "display",
-      header: m.gradingDisplay(),
+      header: words(m.gradingDisplayCore)(),
       cell: (row) => DISPLAY_LABEL[row.display](),
     },
     {
@@ -106,6 +108,7 @@ export function ScalesTable({
   onBands,
   onRetire,
 }: ScalesTableProps) {
+  const words = useWords();
   const rowActions = (row: ScaleRow): RowAction[] => [
     {
       label: m.gradingChangeBands(),
@@ -130,7 +133,7 @@ export function ScalesTable({
     <DataTable
       caption={m.gradingScalesCaption()}
       rows={overview.scales}
-      columns={scaleColumns(opener)}
+      columns={scaleColumns(opener, words)}
       rowLabel={scaleTitle}
       rowActions={rowActions}
       card={scaleCard(opener)}
@@ -689,10 +692,11 @@ interface DisplayFieldProps {
 }
 
 function DisplayField({ value, onChange }: DisplayFieldProps) {
+  const words = useWords();
   return (
     <fieldset className="grid gap-3">
       <legend className="mb-2 text-sm leading-5 font-medium">
-        {m.gradingDisplay()}
+        {words(m.gradingDisplayCore)()}
       </legend>
       <RadioGroup
         value={value}

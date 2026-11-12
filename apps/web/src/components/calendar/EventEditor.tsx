@@ -42,6 +42,7 @@ import type {
   BuiltInPiece,
   StartingPiece,
 } from "~/components/content/Templates";
+import type { InWords } from "~/utils/words";
 
 import {
   AudienceList,
@@ -84,9 +85,13 @@ import {
 } from "~/server/calendar";
 import { formatSpan } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
+
+import type { EventShape } from "./eventShapes";
 
 import { EVENT_SHAPES } from "./eventShapes";
 import { CATEGORY_LABEL } from "./format";
+import { eventShapes } from "./slots";
 
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof calendarEventQuery>["queryFn"]>>
@@ -199,14 +204,17 @@ function draftWhen(draft: Draft) {
   );
 }
 
-function shapeGroup(): BuiltInGroup {
+function shapeGroup(
+  shapes: readonly EventShape[],
+  words: InWords,
+): BuiltInGroup {
   const say = sayIn(getLocale() === "ar" ? "ar" : "en");
   return {
     label: m.eventShapeGroup(),
-    items: EVENT_SHAPES.map((shape) => ({
+    items: shapes.map((shape) => ({
       key: shape.key,
       title: shape.title(),
-      hint: shape.hint(),
+      hint: words(shape.hint)(),
       content: () => sectionsContent(shape.sections, say),
     })),
   };
@@ -240,6 +248,10 @@ export function EventEditor({
 }: EventEditorProps) {
   const options = useSuspenseQuery(calendarOptionsQuery).data;
   const kinds = useSlot(audienceKinds);
+  const words = useWords();
+  const shapes = [...EVENT_SHAPES, ...useSlot(eventShapes)].toSorted(
+    (a, b) => a.place - b.place,
+  );
   const { texts } = useCurrentUser();
   const queryClient = useQueryClient();
   const media = useDocumentMedia();
@@ -495,7 +507,7 @@ export function EventEditor({
           content: draft.description,
           title: inLocale(draft.titleEn, draft.titleAr),
           onApply: applyDescription,
-          builtIn: shapeGroup(),
+          builtIn: shapeGroup(shapes, words),
         }}
         print={{
           title: inLocale(draft.titleEn, draft.titleAr),
@@ -805,7 +817,7 @@ export function EventEditor({
             ) : null}
             <DetailsSection
               title={m.calSectionFor()}
-              hint={m.annAudienceHint()}
+              hint={words(m.annAudienceHintCore)()}
             >
               <AudienceList
                 value={draft.audiences}

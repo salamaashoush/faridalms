@@ -63,6 +63,7 @@ import {
 } from "~/server/consents";
 import { formatInstant } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import type { ConsentWording } from "./consentWordings";
 
@@ -152,6 +153,7 @@ export function ConsentFormEditor({
   onClose,
 }: ConsentFormEditorProps) {
   const queryClient = useQueryClient();
+  const words = useWords();
   const id = useRef(data.draft?.id ?? "");
   const version = useRef(data.draft?.version ?? 0);
   const [stored, setStored] = useState(data.draft !== null);
@@ -307,7 +309,7 @@ export function ConsentFormEditor({
         data: { id: id.current, expectedVersion: version.current },
       });
       await queryClient.invalidateQueries({ queryKey: ["consents"] });
-      toast.success(m.consentFormPublished({ count: out.asked }));
+      toast.success(words(m.consentFormPublishedCore)({ count: out.asked }));
       onClose();
     } catch (error) {
       failed(error);
@@ -399,8 +401,8 @@ export function ConsentFormEditor({
                   confirm: {
                     title: m.consentFormDiscardTitle(),
                     body: data.published
-                      ? m.consentFormDiscardBodyLive()
-                      : m.consentFormDiscardBody(),
+                      ? words(m.consentFormDiscardBodyLiveCore)()
+                      : words(m.consentFormDiscardBodyCore)(),
                     label: m.consentFormDiscard(),
                   },
                 },
@@ -420,13 +422,13 @@ export function ConsentFormEditor({
             {data.published ? (
               <p className="text-sm leading-5 text-muted-foreground">
                 {stored
-                  ? m.consentFormLiveNote({
+                  ? words(m.consentFormLiveNoteCore)({
                       version: data.published.versionLabel,
                       date: data.published.publishedAt
                         ? formatInstant(data.published.publishedAt, "date")
                         : "",
                     })
-                  : m.consentFormEditStarts()}
+                  : words(m.consentFormEditStartsCore)()}
               </p>
             ) : null}
             {draft.bilingual ? (
@@ -556,8 +558,8 @@ export function ConsentFormEditor({
             <DialogTitle>{m.consentFormPublishTitle()}</DialogTitle>
             <DialogDescription>
               {data.published
-                ? m.consentFormPublishBodyNext()
-                : m.consentFormPublishBody()}
+                ? words(m.consentFormPublishBodyNextCore)()
+                : words(m.consentFormPublishBodyCore)()}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

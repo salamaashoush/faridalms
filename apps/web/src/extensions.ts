@@ -14,6 +14,8 @@ import { COURSEWORK_WITH_FAMILIES } from "./components/coursework/family-shares"
 import { CUSTOM_DOMAINS } from "./components/custom-domains/contributions";
 import { EARLY_YEARS } from "./components/early-years/contributions";
 import { FAMILIES } from "./components/families/contributions";
+import { FAMILIES_ON_WEBSITE } from "./components/families/website";
+import { FAMILIES_IN_YEARS } from "./components/families/years";
 import { GRADE_LEVELS } from "./components/grade-levels/contributions";
 import { GRADE_LEVELS_WITH_COURSEWORK } from "./components/grade-levels/coursework";
 import { GRADE_LEVELS_IN_SETUP } from "./components/grade-levels/setup";
@@ -36,6 +38,7 @@ import { STANDARDS_IN_LESSONS } from "./components/standards/lessons";
 import { STANDARDS_IN_WORK } from "./components/standards/work";
 import { TIMETABLE } from "./components/timetable/contributions";
 import { SCHOOL_YEARS } from "./components/years/contributions";
+import { SCHOOL_YEARS_ON_WEBSITE } from "./components/years/website";
 
 /**
  * Every module's fillings for the slots pages declare. A slot shows only
@@ -59,6 +62,8 @@ export const MODULE_FILLINGS: readonly ModuleFillings[] = [
   ELEARNING_IN_YEARS,
   ELEARNING_WITH_COURSEWORK,
   FAMILIES,
+  FAMILIES_IN_YEARS,
+  FAMILIES_ON_WEBSITE,
   GRADEBOOK,
   GRADEBOOK_IN_YEARS,
   GRADEBOOK_WITH_STANDARDS,
@@ -71,6 +76,7 @@ export const MODULE_FILLINGS: readonly ModuleFillings[] = [
   HOMEROOMS_IN_YEARS,
   PEER_REVIEW,
   SCHOOL_YEARS,
+  SCHOOL_YEARS_ON_WEBSITE,
   STANDARDS,
   STANDARDS_IN_LESSONS,
   STANDARDS_IN_WORK,

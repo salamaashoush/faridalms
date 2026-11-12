@@ -12,6 +12,7 @@ import * as m from "~/i18n/messages";
 import { attendanceSettingsQuery } from "~/queries/attendance";
 import { saveAttendanceSettings } from "~/server/attendance";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 interface Draft {
   teacherEditDays: string;
@@ -43,6 +44,7 @@ function issueOf(key: keyof Draft, value: string): string | null {
 /** The school's attendance rules: the teachers' edit window and thresholds. */
 export function AttendanceRules() {
   const queryClient = useQueryClient();
+  const words = useWords();
   const settings = useSuspenseQuery(attendanceSettingsQuery).data;
   const [initial, setInitial] = useState<Draft>(() => ({
     teacherEditDays: String(settings.teacherEditDays),
@@ -134,7 +136,7 @@ export function AttendanceRules() {
       />
       <TextField
         id="attendance-notice-delay"
-        label={m.attRuleNoticeDelay()}
+        label={words(m.attRuleNoticeDelayCore)()}
         hint={m.attRuleNoticeDelayHint()}
         inputMode="numeric"
         width="score"
@@ -155,7 +157,7 @@ export function AttendanceRules() {
       <TextField
         id="attendance-late-after"
         label={m.attRuleLateAfter()}
-        hint={m.attRuleLateAfterHint()}
+        hint={words(m.attRuleLateAfterHintCore)()}
         inputMode="numeric"
         width="score"
         value={draft.lateAfterMinutes}
@@ -200,7 +202,7 @@ export function AttendanceRules() {
       </fieldset>
       <CheckboxRow
         label={m.attLearnersReport()}
-        hint={m.attLearnersReportHint()}
+        hint={words(m.attLearnersReportHintCore)()}
         checked={ways.learnersReport}
         onChange={(on) => turn("learnersReport", on)}
       />

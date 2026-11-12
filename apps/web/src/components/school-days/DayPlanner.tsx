@@ -32,6 +32,7 @@ import {
   formatNumber,
 } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import type { DayPlannerPart, PlannerDay, PlannerDayPart } from "./slots";
 
@@ -268,6 +269,7 @@ interface MarkFormProps {
 
 function MarkForm({ range, onDone }: MarkFormProps) {
   const queryClient = useQueryClient();
+  const words = useWords();
   const [kind, setKind] = useState<DayKind>("school_holiday");
   const [noteEn, setNoteEn] = useState("");
   const [noteAr, setNoteAr] = useState("");
@@ -344,7 +346,7 @@ function MarkForm({ range, onDone }: MarkFormProps) {
           />
           <CheckboxRow
             label={m.plannerExpectedLabel()}
-            hint={m.plannerExpectedHint()}
+            hint={words(m.plannerExpectedHintCore)()}
             checked={provisional}
             onChange={setProvisional}
           />

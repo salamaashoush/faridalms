@@ -16,6 +16,7 @@ import { gradeOptionsQuery } from "~/queries/grade-levels";
 import { getReadingNorms } from "~/server/reading";
 import { formatList } from "~/utils/datetime";
 import { fill } from "~/utils/extension";
+import { replaceWords } from "~/utils/words";
 
 import { gradeChoices } from "./fields";
 
@@ -107,5 +108,16 @@ export const GRADE_LEVELS_WITH_COURSEWORK: ModuleFillings = {
       ],
       Tab: ReadingTab,
     }),
+    replaceWords(
+      m.gradingProgrammesEmptyHintCore,
+      m.gradingProgrammesEmptyHint,
+    ),
+    replaceWords(
+      m.gradingRetireProgrammeBodyCore,
+      m.gradingRetireProgrammeBody,
+    ),
+    replaceWords(m.gradingProgrammesHintCore, m.gradingProgrammesHint, [
+      "school_years",
+    ]),
   ],
 };

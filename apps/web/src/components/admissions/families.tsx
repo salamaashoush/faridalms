@@ -17,7 +17,12 @@ import type { ApplicationContactProps, ApplicationStepProps } from "./slots";
 
 import { ContactFacts } from "./ApplicationContact";
 import { hasName, NamesFields, noNames } from "./apply-parts";
-import { applicationContacts, applicationSteps, enrolNotes } from "./slots";
+import {
+  applicationContacts,
+  applicationSteps,
+  appliedField,
+  enrolNotes,
+} from "./slots";
 
 const label = (
   value: { labelEn: string | null; labelAr: string | null } | null,
@@ -267,6 +272,7 @@ export const ADMISSIONS_WITH_FAMILIES: ModuleFillings = {
     }),
     fill(applicationContacts, FamilySection),
     fill(enrolNotes, m.decEnrolFamily),
+    fill(appliedField, "family"),
     portalSentence("families", m.portalRegisterLeadCore, m.portalRegisterLead),
     portalSentence("families", m.applyGateBodyCore, m.applyGateBody),
     replaceWords(m.admHintCore, m.admHint),

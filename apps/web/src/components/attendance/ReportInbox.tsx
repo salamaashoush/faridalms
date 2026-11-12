@@ -23,6 +23,7 @@ import { absenceReportInboxQuery } from "~/queries/attendance";
 import { decideAbsenceReport } from "~/server/attendance";
 import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import {
   DECISION_LABEL,
@@ -132,6 +133,7 @@ export function ReportInbox({ view, onView }: ReportInboxProps) {
     absenceReportInboxQuery(view === "waiting"),
   ).data;
   const queryClient = useQueryClient();
+  const words = useWords();
   const decide = useServerFn(decideAbsenceReport);
   const [declining, setDeclining] = useState<Report | null>(null);
   const refresh = () =>
@@ -182,7 +184,7 @@ export function ReportInbox({ view, onView }: ReportInboxProps) {
         empty={{
           icon: Inbox,
           title: view === "waiting" ? m.repNoneWaiting() : m.repNoneAtAll(),
-          description: m.repNoneWaitingBody(),
+          description: words(m.repNoneWaitingBodyCore)(),
           action:
             view === "waiting" ? (
               <Button
@@ -214,6 +216,7 @@ interface DeclineSheetProps {
 }
 
 function DeclineSheet({ report, onClose, onDone }: DeclineSheetProps) {
+  const words = useWords();
   const decide = useServerFn(decideAbsenceReport);
   const [note, setNote] = useState("");
   const save = useMutation({
@@ -241,10 +244,10 @@ function DeclineSheet({ report, onClose, onDone }: DeclineSheetProps) {
       <p className="text-sm leading-5 text-muted-foreground">
         {reportWhat(report)} · {reasonOf(report)}
       </p>
-      <p className="text-sm leading-5">{m.repDeclineBody()}</p>
+      <p className="text-sm leading-5">{words(m.repDeclineBodyCore)()}</p>
       <FormField
         id="decline-note"
-        label={m.repDeclineNote()}
+        label={words(m.repDeclineNoteCore)()}
         hint={m.repDeclineHint()}
         optional
       >

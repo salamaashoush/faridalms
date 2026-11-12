@@ -127,6 +127,8 @@ export interface RenderContext {
   editing?: boolean;
   /** The public key a form's Cloudflare challenge renders with; none where forms take no challenge. */
   turnstileKey?: string | null;
+  /** The words the school's modules lend its pages, by name. */
+  words?: readonly string[];
 }
 
 /**

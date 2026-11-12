@@ -37,6 +37,7 @@ import { currentUserQuery } from "~/queries/user";
 import { formatNumber } from "~/utils/datetime";
 import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
+import { useWords } from "~/utils/words";
 
 const TABS = [
   "published",
@@ -156,6 +157,7 @@ const card = {
 function ModulesPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const words = useWords();
   const opens = usePageOn();
   const views = viewsOf(useSlot(classFilters), search);
   const data = useSuspenseQuery(
@@ -278,7 +280,7 @@ function ModulesPage() {
             description:
               data.classes.length > 0
                 ? m.lrnNoModulesBody()
-                : m.lrnNoClassesBody(),
+                : words(m.lrnNoClassesBodyCore)(),
             action: create ? (
               <ButtonLink to="/module-editor" search={{}}>
                 <Plus aria-hidden />

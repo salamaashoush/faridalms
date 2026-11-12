@@ -6,6 +6,7 @@ import type { curriculumMapQuery } from "~/queries/standards";
 import { classTitle } from "~/components/classes/format";
 import * as m from "~/i18n/messages";
 import { formatDate, formatNumber } from "~/utils/datetime";
+import { useWords } from "~/utils/words";
 
 type MapData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof curriculumMapQuery>["queryFn"]>>
@@ -210,12 +211,13 @@ export interface MapSummaryProps {
 
 /** How much of the framework the year's units take up, as a line above the lists. */
 export function MapSummary({ map }: MapSummaryProps) {
+  const words = useWords();
   const leaves = inOrder(map.items).filter(({ heads }) => !heads);
   const taken = new Set(map.units.flatMap((unit) => unit.items));
   const covered = leaves.filter(({ item }) => taken.has(item.id)).length;
   return (
     <p className="text-sm leading-5 text-muted-foreground">
-      {m.curriculumMapSummary({
+      {words(m.curriculumMapSummaryCore)({
         covered: formatNumber(covered),
         total: formatNumber(leaves.length),
         units: formatNumber(map.units.length),

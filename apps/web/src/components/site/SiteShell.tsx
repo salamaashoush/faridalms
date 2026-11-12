@@ -77,6 +77,7 @@ export function publicContext(
     query: langQuery(site),
     page: input.page,
     turnstileKey: site.turnstileKey,
+    words: site.words,
   };
 }
 

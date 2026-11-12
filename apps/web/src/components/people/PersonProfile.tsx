@@ -14,6 +14,7 @@ import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { personProfileQuery } from "~/queries/students";
 import { formatList } from "~/utils/datetime";
+import { useWords } from "~/utils/words";
 
 import { displayName, labelOf, otherName, roleLabel } from "./format";
 import { TeachingSection } from "./PersonRecord";
@@ -30,6 +31,7 @@ export interface PersonProfileProps {
 export function PersonProfile({ userId }: PersonProfileProps) {
   const data = useSuspenseQuery(personProfileQuery(userId)).data;
   const { workspace } = useCurrentUser();
+  const words = useWords();
   const navigate = useNavigate();
   const [writing, setWriting] = useState(false);
   const name = displayName(data);
@@ -81,12 +83,12 @@ export function PersonProfile({ userId }: PersonProfileProps) {
               {...(workspace === "me"
                 ? {
                     title: m.profileTeachesYou(),
-                    empty: m.profileTeachesYouNone(),
+                    empty: words(m.profileTeachesYouNoneCore)(),
                   }
                 : workspace === "family"
                   ? {
                       title: m.profileTeachesChild(),
-                      empty: m.profileTeachesChildNone(),
+                      empty: words(m.profileTeachesChildNoneCore)(),
                     }
                   : {})}
             />

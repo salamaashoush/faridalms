@@ -18,6 +18,7 @@ import {
 } from "~/components/standards/CurriculumMap";
 import * as m from "~/i18n/messages";
 import { curriculumMapQuery } from "~/queries/standards";
+import { useWords } from "~/utils/words";
 
 const VIEWS = ["items", "units"] as const;
 
@@ -44,10 +45,11 @@ function CurriculumMapPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const map = useSuspenseQuery(curriculumMapQuery(search.frameworkId)).data;
+  const words = useWords();
   const header = (
     <PageHeader
       title={m.curriculumMapTitle()}
-      description={m.curriculumMapHint()}
+      description={words(m.curriculumMapHintCore)()}
     />
   );
   if (!map.frameworkId)
@@ -57,7 +59,7 @@ function CurriculumMapPage() {
         <EmptyState
           icon={Grid3x3}
           title={m.curriculumMapNoFrameworks()}
-          description={m.curriculumMapNoFrameworksBody()}
+          description={words(m.curriculumMapNoFrameworksBodyCore)()}
           action={
             <ButtonLink to="/standards" search={{}}>
               {m.standardsTitle()}
@@ -86,8 +88,8 @@ function CurriculumMapPage() {
         {map.units.length === 0 ? (
           <EmptyState
             icon={Grid3x3}
-            title={m.curriculumMapNoUnits()}
-            description={m.curriculumMapNoUnitsBody()}
+            title={words(m.curriculumMapNoUnitsCore)()}
+            description={words(m.curriculumMapNoUnitsBodyCore)()}
           />
         ) : (
           <>

@@ -8,6 +8,7 @@ import type { ComponentType, ReactNode } from "react";
 import type { ViewValue } from "~/components/classes/slots";
 import type { createSignIns } from "~/server/students";
 import type { SlotQuery } from "~/utils/extension";
+import type { InWords } from "~/utils/words";
 
 import { slot } from "~/utils/extension";
 
@@ -172,7 +173,7 @@ export interface LeavingPart {
   problem(value: unknown): string | null;
   Fields: ComponentType<LeavingFieldsProps>;
   /** The reading the module offers after a last day; the first is offered first. */
-  access(read: unknown, lastDay: string): LeavingAccess[];
+  access(read: unknown, lastDay: string, words: InWords): LeavingAccess[];
 }
 
 export const leavingParts = slot<LeavingPart>("leaving parts");

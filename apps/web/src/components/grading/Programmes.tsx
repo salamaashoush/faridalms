@@ -29,6 +29,7 @@ import { getLocale } from "~/i18n/runtime";
 import { retireProgramme, saveProgramme } from "~/server/grading";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import type { GradingOverview } from "./Scales";
 
@@ -117,6 +118,7 @@ export function ProgrammesTable({
   onRetire,
 }: ProgrammesTableProps) {
   const names = useNames(overview);
+  const words = useWords();
   const rowActions = (row: ProgrammeRow): RowAction[] => [
     {
       label: m.gradingEditProgramme(),
@@ -140,7 +142,7 @@ export function ProgrammesTable({
       empty={{
         icon: GraduationCap,
         title: m.gradingProgrammesEmpty(),
-        description: m.gradingProgrammesEmptyHint(),
+        description: words(m.gradingProgrammesEmptyHintCore)(),
         action: (
           <Button type="button" className="max-md:h-10" onClick={onAdd}>
             <Plus aria-hidden />
@@ -328,6 +330,7 @@ interface CategoriesEditorProps {
  * with none, every piece of work counts by its points.
  */
 function CategoriesEditor({ value, onChange, problem }: CategoriesEditorProps) {
+  const words = useWords();
   const [editing, setEditing] = useState<{
     category: CategoryDraft | null;
     key: number;
@@ -361,7 +364,7 @@ function CategoriesEditor({ value, onChange, problem }: CategoriesEditorProps) {
         {m.gradingCategories()}
       </h3>
       <p className="text-[13px] leading-[18px] text-muted-foreground">
-        {m.gradingCategoriesHint()}
+        {words(m.gradingCategoriesHintCore)()}
       </p>
       <DataTable
         caption={m.gradingCategoriesTable()}
@@ -569,6 +572,7 @@ export function RetireProgrammeDialog({
   onClose,
 }: RetireProgrammeDialogProps) {
   const queryClient = useQueryClient();
+  const words = useWords();
   const mutation = useMutation({
     mutationFn: () => retireProgramme({ data: { id: programme.id } }),
     meta: { inlineError: true },
@@ -577,7 +581,7 @@ export function RetireProgrammeDialog({
     <ConfirmDialog
       open={open}
       title={m.gradingRetireProgrammeTitle({ name: title(programme) })}
-      body={m.gradingRetireProgrammeBody()}
+      body={words(m.gradingRetireProgrammeBodyCore)()}
       confirmLabel={m.gradingRetire()}
       pending={mutation.isPending}
       error={mutation.error ? getMessageFromError(mutation.error) : undefined}
