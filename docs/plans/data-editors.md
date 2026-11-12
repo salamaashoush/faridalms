@@ -275,8 +275,8 @@ Every editor below is now the portal's standard `DataTable`:
 
 ### Grade bands
 
-`apps/web/src/components/grading/ScalesTab.tsx`, Exams and grading,
-Grade scales.
+`apps/web/src/components/grading/Scales.tsx`, Settings, Grading, Grade
+scales.
 
 - **Sources.** Canvas's grading scheme editor is one row per band: a name,
   an editable lower bound, and an upper bound worked out from the band

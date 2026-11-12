@@ -107,10 +107,13 @@ area and the page (Admissions › Reports).
 ### 2. What is opened now and then folds under its section's More
 
 An item is marked `more` when it is set up once or opened now and then:
-Grading, Standards, Website, School year, Billing, Data
-protection, Delivery log. They fold under a More row at the end of their
-section, which opens in place (not a popover) and is remembered in a
-cookie, as the sidebar's own open state is.
+Standards, Website, School year, Billing, Data protection, Delivery log.
+Grade scales and programmes are set up once a year, so they are a Grading
+tab in Settings rather than a page of their own. Marked items fold under a
+More row at the end of their section, which opens in place (not a popover)
+and is remembered in a cookie, as the sidebar's own open state is. A
+section folds only where two or more items would go under More; a single
+one stays in view.
 
 Folding is a per-person default rather than a fixed list: a section folds
 only when the person sees more than five links in it and at least two
