@@ -285,14 +285,6 @@ From [../research/early-years.md](../research/early-years.md).
   Matters' areas and bands read in Arabic, its statements in the guidance's
   English unless the school has worded them in Arabic. Sharing again
   reaches children who joined since.
-- On the EYFS goals the Goals tab makes the end-of-year return: the
-  partial Common Transfer File (data type FSP, CTF 25 for 2026, 26 from 2027) a school gives its local authority, each child's goals as
-  stage assessments (stage EYF, method FA, qualifier FD, result 1, 2 or A,
-  components E01 to E17 as the A_comp file gives them). The teacher enters
-  the authority and establishment numbers; the UPN is the child's ministry
-  number, names, date of birth and sex come from their record, and what a
-  child still lacks for the authority to accept it is listed. Each export
-  is audited.
 - Judgements, the reports shared and their links are erased with the
   child.
 

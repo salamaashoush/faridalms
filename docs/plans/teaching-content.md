@@ -361,10 +361,10 @@ Sources: [../research/course-design.md](../research/course-design.md),
 1. **Objectives and standards per school**, as configuration (IB, Cambridge,
    Common Core and AERO, a school's own), tagged on questions and lessons.
    Done: a school keeps frameworks of standards in a tree (`/standards`,
-   capability `standards:manage`), writes its own or imports a CASE
-   package, the 1EdTech format CASE editors and the CASE Network export.
-   Importing again updates items in place by their CASE identifiers, so
-   tags hold. A question carries up to six standards (`standards` on the
+   capability `standards:manage`), writes its own or adds a ready-made one
+   (the EYFS goals, Development Matters), which adding again brings back
+   to the ready-made items by their identifiers, so tags hold. CASE import
+   was withdrawn. A question carries up to six standards (`standards` on the
    node), tagged from the question bar's Standards panel, which searches
    every framework by code or words; its label counts them, and a question
    kept in the bank keeps them. A lesson sets out its own standards in a
@@ -411,12 +411,11 @@ Sources: [../research/course-design.md](../research/course-design.md),
    inside the year; a unit without dates is suggested the days after the
    last one placed. The curriculum map (`/standards/map`) reads one
    framework across the year's unit plans, by item (the units taking each
-   up, and those none does) or by unit. The IB's MYP key concepts and
-   global contexts and PYP key concepts and themes are added in one step,
-   as frameworks that frame units rather than being assessed
-   (`standard_frameworks.assessed`), so a plan names them without being
-   told no question assesses them; the IB planners choose them in
-   Standards blocks.
+   up, and those none does) or by unit. A school writes the ideas that
+   frame its units, such as key concepts, as frameworks that are not
+   assessed (`standard_frameworks.assessed`), so a plan names them without
+   being told no question assesses them; the planners choose them in
+   Standards blocks. The ready-made IB concepts were withdrawn.
 
 ## 5. Reuse and course structure
 
