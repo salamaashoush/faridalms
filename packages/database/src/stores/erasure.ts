@@ -638,6 +638,12 @@ export async function eraseSubject(
     "goal_reports",
     "module_audiences",
     "lesson_openings",
+    "lesson_progress",
+    "lesson_releases",
+    "lesson_watches",
+    "assignment_recipients",
+    "class_group_members",
+    "work_comment_answers",
     "lti_scores",
     "xapi_statements",
     "cmi5_states",
@@ -649,6 +655,39 @@ export async function eraseSubject(
       sql`core.${sql.identifier(table)}`,
       sql`student_user_id = ${s}::uuid`,
     );
+  // What was only about them as a person: notices they were sent, roles
+  // they held, what they wrote in comments, and what their family shared
+  // or reported of them.
+  await remove(
+    "broadcast_recipients",
+    sql`core.broadcast_recipients`,
+    sql`user_id = ${s}::uuid`,
+  );
+  await remove(
+    "access_role_assignments",
+    sql`core.access_role_assignments`,
+    sql`user_id = ${s}::uuid`,
+  );
+  await remove(
+    "document_comments",
+    sql`core.document_comments`,
+    sql`author_user_id = ${s}::uuid`,
+  );
+  await remove(
+    "work_comment_replies",
+    sql`core.work_comment_replies`,
+    sql`author_user_id = ${s}::uuid`,
+  );
+  await remove(
+    "family_shares",
+    sql`core.family_shares`,
+    sql`(student_user_id = ${s}::uuid or shared_by_user_id = ${s}::uuid)`,
+  );
+  await remove(
+    "absence_reports",
+    sql`core.absence_reports`,
+    sql`(student_user_id = ${s}::uuid or reported_by_user_id = ${s}::uuid)`,
+  );
   // The reviews they wrote, and the ones written of their work, with the
   // passages each review comments on.
   await remove(

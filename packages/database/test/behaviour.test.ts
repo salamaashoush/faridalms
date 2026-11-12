@@ -728,6 +728,12 @@ describe("erasing a student's work", () => {
           join core.learning_modules m on m.tenant_id = l.tenant_id and m.id = l.module_id
           where l.tenant_id = ${t}::uuid and l.id = ${lesson.id}::uuid
           on conflict do nothing`);
+        // A notice the school sent them.
+        await tx.execute(sql`
+          insert into core.broadcast_recipients (tenant_id, broadcast_id, user_id)
+          select ${t}::uuid, id, ${work.student}::uuid from core.broadcasts
+          where tenant_id = ${t}::uuid and status = 'active' limit 1
+          on conflict do nothing`);
 
         const plan = await erasurePlan(tx, {
           tenantId: t,
@@ -760,6 +766,27 @@ describe("erasing a student's work", () => {
 
         expect(result.counts.users).toBe(1);
         expect(result.counts.files).toBeGreaterThanOrEqual(1);
+        expect(result.counts.broadcast_recipients).toBeGreaterThanOrEqual(1);
+        // Nothing that was only about them still names them.
+        const [remaining] = await tx.execute<{ rows: number }>(sql`
+          select (
+            (select count(*) from core.broadcast_recipients where tenant_id = ${t}::uuid and user_id = ${work.student}::uuid)
+            + (select count(*) from core.access_role_assignments where tenant_id = ${t}::uuid and user_id = ${work.student}::uuid)
+            + (select count(*) from core.assignment_recipients where tenant_id = ${t}::uuid and student_user_id = ${work.student}::uuid)
+            + (select count(*) from core.class_group_members where tenant_id = ${t}::uuid and student_user_id = ${work.student}::uuid)
+            + (select count(*) from core.lesson_openings where tenant_id = ${t}::uuid and student_user_id = ${work.student}::uuid)
+            + (select count(*) from core.lesson_progress where tenant_id = ${t}::uuid and student_user_id = ${work.student}::uuid)
+            + (select count(*) from core.lesson_releases where tenant_id = ${t}::uuid and student_user_id = ${work.student}::uuid)
+            + (select count(*) from core.lesson_watches where tenant_id = ${t}::uuid and student_user_id = ${work.student}::uuid)
+            + (select count(*) from core.work_comment_answers where tenant_id = ${t}::uuid and student_user_id = ${work.student}::uuid)
+            + (select count(*) from core.work_comment_replies where tenant_id = ${t}::uuid and author_user_id = ${work.student}::uuid)
+            + (select count(*) from core.document_comments where tenant_id = ${t}::uuid and author_user_id = ${work.student}::uuid)
+            + (select count(*) from core.family_shares where tenant_id = ${t}::uuid
+                and (student_user_id = ${work.student}::uuid or shared_by_user_id = ${work.student}::uuid))
+            + (select count(*) from core.absence_reports where tenant_id = ${t}::uuid
+                and (student_user_id = ${work.student}::uuid or reported_by_user_id = ${work.student}::uuid))
+          )::int as rows`);
+        expect(remaining?.rows).toBe(0);
         expect(result.storageKeys).toContain(`t/${t}/erasure-test`);
         const [after] = await tx.execute<{
           plain: string;

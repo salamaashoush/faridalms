@@ -9,6 +9,8 @@ import {
   core,
   entityColumns,
   entityProfile,
+  eraseAndDelete,
+  erasureOf,
   fk,
   instant,
   pk,
@@ -113,6 +115,7 @@ export const documentComments = core.table.withRLS(
     index("document_comments_thread_idx")
       .on(t.tenantId, t.threadId)
       .where(sql`status = 'active'`),
+    ...eraseAndDelete(erasureOf("author_user_id")),
     ...entityProfile(),
   ],
 );

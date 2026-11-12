@@ -22,6 +22,8 @@ import {
   core,
   entityColumns,
   entityProfile,
+  eraseAndDelete,
+  erasureOf,
   fk,
   instant,
   pk,
@@ -233,6 +235,7 @@ export const broadcastRecipients = core.table.withRLS(
     index("broadcast_recipients_user_idx")
       .on(t.tenantId, t.userId)
       .where(sql`status = 'active'`),
+    ...eraseAndDelete(erasureOf("user_id")),
     ...entityProfile(),
   ],
 );

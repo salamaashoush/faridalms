@@ -26,6 +26,8 @@ import {
   daterange,
   entityColumns,
   entityProfile,
+  eraseAndDelete,
+  erasureOf,
   fk,
   instant,
   pk,
@@ -275,6 +277,9 @@ export const absenceReports = core.table.withRLS(
     index("absence_reports_open_idx")
       .on(t.tenantId, t.orgId)
       .where(sql`status = 'active' and decision = 'pending'`),
+    ...eraseAndDelete(
+      sql`${erasureOf("student_user_id")} or ${erasureOf("reported_by_user_id")}`,
+    ),
     ...entityProfile(),
   ],
 );

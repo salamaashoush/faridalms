@@ -11,17 +11,9 @@ export type ErasureRule =
 
 /** Every table with a key to core.users; `bun run db:verify` refuses one missing here. */
 export const ERASURE_RULES: Record<string, ErasureRule> = {
-  "core.absence_reports": {
-    rule: "to_erase",
-    why: "A family's note and file about an absence; the attendance mark it explains stays in attendance_events.",
-    reviewed: false,
-  },
+  "core.absence_reports": { rule: "erased" },
   "core.access_arrangements": { rule: "erased" },
-  "core.access_role_assignments": {
-    rule: "to_erase",
-    why: "The roles a person held; nothing outside the person's own access needs them.",
-    reviewed: false,
-  },
+  "core.access_role_assignments": { rule: "erased" },
   "core.accounts": { rule: "erased" },
   "core.admission_applications": { rule: "erased" },
   "core.admission_entries": {
@@ -44,11 +36,7 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     why: "Names the member of staff who did it; the record belongs to the school.",
     reviewed: false,
   },
-  "core.assignment_recipients": {
-    rule: "to_erase",
-    why: "Who was set a piece of work: the student's learning activity.",
-    reviewed: false,
-  },
+  "core.assignment_recipients": { rule: "erased" },
   "core.assignments": {
     rule: "kept",
     why: "Names the member of staff who did it; the record belongs to the school.",
@@ -94,11 +82,7 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     why: "The breach register the law requires; names the staff who logged and closed it.",
     reviewed: false,
   },
-  "core.broadcast_recipients": {
-    rule: "to_erase",
-    why: "Who was sent a notice and whether they read it.",
-    reviewed: false,
-  },
+  "core.broadcast_recipients": { rule: "erased" },
   "core.broadcasts": {
     rule: "kept",
     why: "Names the member of staff who did it; the record belongs to the school.",
@@ -115,11 +99,7 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     why: "Names the member of staff who did it; the record belongs to the school.",
     reviewed: false,
   },
-  "core.class_group_members": {
-    rule: "to_erase",
-    why: "A student's place in a working group.",
-    reviewed: false,
-  },
+  "core.class_group_members": { rule: "erased" },
   "core.class_groups": {
     rule: "kept",
     why: "Names the member of staff who did it; the record belongs to the school.",
@@ -145,11 +125,7 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
   "core.discussion_likes": { rule: "erased" },
   "core.discussion_posts": { rule: "erased" },
   "core.document_holds": { rule: "erased" },
-  "core.document_comments": {
-    rule: "to_erase",
-    why: "Words a member of staff wrote to colleagues while writing a document.",
-    reviewed: false,
-  },
+  "core.document_comments": { rule: "erased" },
   "core.document_templates": {
     rule: "kept",
     why: "Names the member of staff who did it; the record belongs to the school.",
@@ -170,11 +146,7 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     reviewed: false,
   },
   "core.external_ids": { rule: "erased" },
-  "core.family_shares": {
-    rule: "to_erase",
-    why: "What a family shared from a child's work.",
-    reviewed: false,
-  },
+  "core.family_shares": { rule: "erased" },
   "core.file_subjects": { rule: "erased" },
   "core.files": { rule: "erased" },
   "core.goal_judgements": { rule: "erased" },
@@ -205,30 +177,14 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     reviewed: false,
   },
   "core.lesson_code": { rule: "erased" },
-  "core.lesson_openings": {
-    rule: "to_erase",
-    why: "A student's learning activity.",
-    reviewed: false,
-  },
-  "core.lesson_progress": {
-    rule: "to_erase",
-    why: "A student's learning activity.",
-    reviewed: false,
-  },
+  "core.lesson_openings": { rule: "erased" },
+  "core.lesson_progress": { rule: "erased" },
   "core.lesson_projects": { rule: "erased" },
-  "core.lesson_releases": {
-    rule: "to_erase",
-    why: "A student's learning activity.",
-    reviewed: false,
-  },
+  "core.lesson_releases": { rule: "erased" },
   "core.lesson_responses": { rule: "erased" },
   "core.lesson_runs": { rule: "erased" },
   "core.lesson_shares": { rule: "erased" },
-  "core.lesson_watches": {
-    rule: "to_erase",
-    why: "A student's learning activity.",
-    reviewed: false,
-  },
+  "core.lesson_watches": { rule: "erased" },
   "core.lessons": {
     rule: "kept",
     why: "Names the member of staff who did it; the record belongs to the school.",
@@ -332,16 +288,8 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
   "core.user_preferences": { rule: "erased" },
   "core.user_relationships": { rule: "erased" },
   "core.user_roles": { rule: "erased" },
-  "core.work_comment_answers": {
-    rule: "to_erase",
-    why: "Words a student wrote.",
-    reviewed: false,
-  },
-  "core.work_comment_replies": {
-    rule: "to_erase",
-    why: "Words someone wrote.",
-    reviewed: false,
-  },
+  "core.work_comment_answers": { rule: "erased" },
+  "core.work_comment_replies": { rule: "erased" },
   "core.work_comments": {
     rule: "to_erase",
     why: "Words someone wrote.",

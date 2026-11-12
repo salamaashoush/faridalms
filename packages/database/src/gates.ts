@@ -34,6 +34,12 @@ delete_allowed(name, role) as (values
   ('core.xapi_statements', 'retention'), ('core.cmi5_registrations', 'retention'),
   ('core.cmi5_sessions', 'retention'), ('core.cmi5_states', 'retention'),
   ('core.module_audiences', 'retention'), ('core.lesson_openings', 'retention'),
+  ('core.lesson_progress', 'retention'), ('core.lesson_releases', 'retention'),
+  ('core.lesson_watches', 'retention'), ('core.assignment_recipients', 'retention'),
+  ('core.class_group_members', 'retention'), ('core.work_comment_answers', 'retention'),
+  ('core.work_comment_replies', 'retention'), ('core.broadcast_recipients', 'retention'),
+  ('core.access_role_assignments', 'retention'), ('core.document_comments', 'retention'),
+  ('core.family_shares', 'retention'), ('core.absence_reports', 'retention'),
   ('core.document_holds', 'retention')),
 unversioned_update_allowed(name, role) as (values
   ('core.sessions', 'app'), ('core.sessions', 'worker'), ('core.auth_attempts', 'app'), ('core.auth_attempts', 'worker'),

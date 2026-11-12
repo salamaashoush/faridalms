@@ -10,6 +10,8 @@ import {
   daterange,
   entityColumns,
   entityProfile,
+  eraseAndDelete,
+  erasureOf,
   fk,
   pk,
   range,
@@ -131,6 +133,7 @@ export const accessRoleAssignments = core.table.withRLS(
     index("access_role_assignments_role_idx")
       .on(t.tenantId, t.accessRoleId)
       .where(sql`status = 'active'`),
+    ...eraseAndDelete(erasureOf("user_id")),
     ...entityProfile(),
   ],
 );

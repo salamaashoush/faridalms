@@ -1,0 +1,923 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "9c427808-5bee-47d1-88ab-014c98cbac8c",
+  "prevIds": [
+    "5c1473e9-70da-4721-95fa-d2dc58a5bd41"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "absence_reports"
+      ],
+      "writes": [
+        "s|pol|core.absence_reports.p_erase_update",
+        "n|pol|core.absence_reports.p_erase_update",
+        "e|pol|core.absence_reports.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.absence_reports",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.absence_reports"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "absence_reports"
+      ],
+      "writes": [
+        "s|pol|core.absence_reports.p_erase_delete",
+        "n|pol|core.absence_reports.p_erase_delete",
+        "e|pol|core.absence_reports.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.absence_reports",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.absence_reports"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "access_role_assignments"
+      ],
+      "writes": [
+        "s|pol|core.access_role_assignments.p_erase_update",
+        "n|pol|core.access_role_assignments.p_erase_update",
+        "e|pol|core.access_role_assignments.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.access_role_assignments",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.access_role_assignments"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "access_role_assignments"
+      ],
+      "writes": [
+        "s|pol|core.access_role_assignments.p_erase_delete",
+        "n|pol|core.access_role_assignments.p_erase_delete",
+        "e|pol|core.access_role_assignments.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.access_role_assignments",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.access_role_assignments"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assignment_recipients"
+      ],
+      "writes": [
+        "s|pol|core.assignment_recipients.p_erase_update",
+        "n|pol|core.assignment_recipients.p_erase_update",
+        "e|pol|core.assignment_recipients.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.assignment_recipients",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.assignment_recipients"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assignment_recipients"
+      ],
+      "writes": [
+        "s|pol|core.assignment_recipients.p_erase_delete",
+        "n|pol|core.assignment_recipients.p_erase_delete",
+        "e|pol|core.assignment_recipients.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.assignment_recipients",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.assignment_recipients"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcast_recipients"
+      ],
+      "writes": [
+        "s|pol|core.broadcast_recipients.p_erase_update",
+        "n|pol|core.broadcast_recipients.p_erase_update",
+        "e|pol|core.broadcast_recipients.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_recipients",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.broadcast_recipients"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcast_recipients"
+      ],
+      "writes": [
+        "s|pol|core.broadcast_recipients.p_erase_delete",
+        "n|pol|core.broadcast_recipients.p_erase_delete",
+        "e|pol|core.broadcast_recipients.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_recipients",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.broadcast_recipients"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_group_members"
+      ],
+      "writes": [
+        "s|pol|core.class_group_members.p_erase_update",
+        "n|pol|core.class_group_members.p_erase_update",
+        "e|pol|core.class_group_members.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.class_group_members",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.class_group_members"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_group_members"
+      ],
+      "writes": [
+        "s|pol|core.class_group_members.p_erase_delete",
+        "n|pol|core.class_group_members.p_erase_delete",
+        "e|pol|core.class_group_members.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.class_group_members",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.class_group_members"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "document_comments"
+      ],
+      "writes": [
+        "s|pol|core.document_comments.p_erase_update",
+        "n|pol|core.document_comments.p_erase_update",
+        "e|pol|core.document_comments.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.document_comments",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.document_comments"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "document_comments"
+      ],
+      "writes": [
+        "s|pol|core.document_comments.p_erase_delete",
+        "n|pol|core.document_comments.p_erase_delete",
+        "e|pol|core.document_comments.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.document_comments",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.document_comments"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "family_shares"
+      ],
+      "writes": [
+        "s|pol|core.family_shares.p_erase_update",
+        "n|pol|core.family_shares.p_erase_update",
+        "e|pol|core.family_shares.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.family_shares",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.family_shares"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "family_shares"
+      ],
+      "writes": [
+        "s|pol|core.family_shares.p_erase_delete",
+        "n|pol|core.family_shares.p_erase_delete",
+        "e|pol|core.family_shares.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.family_shares",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.family_shares"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_openings"
+      ],
+      "writes": [
+        "s|pol|core.lesson_openings.p_erase_update",
+        "n|pol|core.lesson_openings.p_erase_update",
+        "e|pol|core.lesson_openings.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_openings",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.lesson_openings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_openings"
+      ],
+      "writes": [
+        "s|pol|core.lesson_openings.p_erase_delete",
+        "n|pol|core.lesson_openings.p_erase_delete",
+        "e|pol|core.lesson_openings.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_openings",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.lesson_openings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_progress"
+      ],
+      "writes": [
+        "s|pol|core.lesson_progress.p_erase_update",
+        "n|pol|core.lesson_progress.p_erase_update",
+        "e|pol|core.lesson_progress.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_progress",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.lesson_progress"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_progress"
+      ],
+      "writes": [
+        "s|pol|core.lesson_progress.p_erase_delete",
+        "n|pol|core.lesson_progress.p_erase_delete",
+        "e|pol|core.lesson_progress.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_progress",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.lesson_progress"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_releases"
+      ],
+      "writes": [
+        "s|pol|core.lesson_releases.p_erase_update",
+        "n|pol|core.lesson_releases.p_erase_update",
+        "e|pol|core.lesson_releases.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_releases",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.lesson_releases"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_releases"
+      ],
+      "writes": [
+        "s|pol|core.lesson_releases.p_erase_delete",
+        "n|pol|core.lesson_releases.p_erase_delete",
+        "e|pol|core.lesson_releases.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_releases",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.lesson_releases"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_watches"
+      ],
+      "writes": [
+        "s|pol|core.lesson_watches.p_erase_update",
+        "n|pol|core.lesson_watches.p_erase_update",
+        "e|pol|core.lesson_watches.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_watches",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.lesson_watches"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_watches"
+      ],
+      "writes": [
+        "s|pol|core.lesson_watches.p_erase_delete",
+        "n|pol|core.lesson_watches.p_erase_delete",
+        "e|pol|core.lesson_watches.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_watches",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.lesson_watches"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "work_comment_answers"
+      ],
+      "writes": [
+        "s|pol|core.work_comment_answers.p_erase_update",
+        "n|pol|core.work_comment_answers.p_erase_update",
+        "e|pol|core.work_comment_answers.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.work_comment_answers",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.work_comment_answers"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "work_comment_answers"
+      ],
+      "writes": [
+        "s|pol|core.work_comment_answers.p_erase_delete",
+        "n|pol|core.work_comment_answers.p_erase_delete",
+        "e|pol|core.work_comment_answers.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.work_comment_answers",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.work_comment_answers"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "work_comment_replies"
+      ],
+      "writes": [
+        "s|pol|core.work_comment_replies.p_erase_update",
+        "n|pol|core.work_comment_replies.p_erase_update",
+        "e|pol|core.work_comment_replies.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.work_comment_replies",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.work_comment_replies"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "work_comment_replies"
+      ],
+      "writes": [
+        "s|pol|core.work_comment_replies.p_erase_delete",
+        "n|pol|core.work_comment_replies.p_erase_delete",
+        "e|pol|core.work_comment_replies.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.work_comment_replies",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.work_comment_replies"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "absence_reports",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\") or app.erasure_approved(tenant_id, \"reported_by_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "absence_reports",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\") or app.erasure_approved(tenant_id, \"reported_by_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "access_role_assignments",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "access_role_assignments",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_recipients",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_recipients",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_recipients",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_recipients",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_group_members",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_group_members",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "document_comments",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"author_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "document_comments",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"author_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "family_shares",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\") or app.erasure_approved(tenant_id, \"shared_by_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "family_shares",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\") or app.erasure_approved(tenant_id, \"shared_by_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_openings",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_openings",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_progress",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_progress",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_releases",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_releases",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_watches",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_watches",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_comment_answers",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_comment_answers",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_comment_replies",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"author_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_comment_replies",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"author_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

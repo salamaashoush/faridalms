@@ -465,6 +465,7 @@ export const lessonReleases = core.table.withRLS(
     uniqueIndex("lesson_releases_student_key")
       .on(t.tenantId, t.lessonId, t.classId, t.studentUserId)
       .where(sql`status = 'active' and student_user_id is not null`),
+    ...eraseAndDelete(erasureOf("student_user_id")),
     ...entityProfile(),
   ],
 );
@@ -558,6 +559,7 @@ export const lessonOpenings = core.table.withRLS(
     uniqueIndex("lesson_openings_key")
       .on(t.tenantId, t.lessonId, t.studentUserId)
       .where(sql`status = 'active'`),
+    ...eraseAndDelete(erasureOf("student_user_id")),
     ...entityProfile(),
   ],
 );
@@ -636,6 +638,7 @@ export const lessonProgress = core.table.withRLS(
     index("lesson_progress_student_idx")
       .on(t.tenantId, t.studentUserId)
       .where(sql`status = 'active'`),
+    ...eraseAndDelete(erasureOf("student_user_id")),
     ...entityProfile(),
   ],
 );
@@ -702,6 +705,7 @@ export const lessonWatches = core.table.withRLS(
     uniqueIndex("lesson_watches_key")
       .on(t.tenantId, t.lessonId, t.studentUserId, t.video)
       .where(sql`status = 'active'`),
+    ...eraseAndDelete(erasureOf("student_user_id")),
     ...entityProfile(),
   ],
 );

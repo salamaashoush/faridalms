@@ -106,6 +106,7 @@ export const classGroupMembers = core.table.withRLS(
     uniqueIndex("class_group_members_key")
       .on(t.tenantId, t.groupId, t.studentUserId)
       .where(sql`status = 'active'`),
+    ...eraseAndDelete(erasureOf("student_user_id")),
     ...entityProfile(),
   ],
 );
@@ -423,6 +424,7 @@ export const assignmentRecipients = core.table.withRLS(
     index("assignment_recipients_student_idx")
       .on(t.tenantId, t.studentUserId)
       .where(sql`status = 'active'`),
+    ...eraseAndDelete(erasureOf("student_user_id")),
     ...entityProfile(),
   ],
 );
@@ -553,6 +555,9 @@ export const familyShares = core.table.withRLS(
     index("family_shares_student_idx")
       .on(t.tenantId, t.studentUserId)
       .where(sql`status = 'active'`),
+    ...eraseAndDelete(
+      sql`${erasureOf("student_user_id")} or ${erasureOf("shared_by_user_id")}`,
+    ),
     ...entityProfile(),
   ],
 );
@@ -764,6 +769,7 @@ export const workCommentAnswers = core.table.withRLS(
     uniqueIndex("work_comment_answers_key")
       .on(t.tenantId, t.commentId)
       .where(sql`status = 'active'`),
+    ...eraseAndDelete(erasureOf("student_user_id")),
     ...entityProfile(),
   ],
 );
@@ -799,6 +805,7 @@ export const workCommentReplies = core.table.withRLS(
     index("work_comment_replies_comment_idx")
       .on(t.tenantId, t.commentId)
       .where(sql`status = 'active'`),
+    ...eraseAndDelete(erasureOf("author_user_id")),
     ...entityProfile(),
   ],
 );
