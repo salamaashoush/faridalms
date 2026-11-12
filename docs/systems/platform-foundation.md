@@ -739,6 +739,28 @@ the row-metadata trigger.
   `core.auth_attempts`, `core.document_holds`). Own columns, hard-deleted by
   `retention` after expiry, or earlier on an approved erasure.
 
+Every table also has an **owner**: core, or one module of
+`packages/domain/src/modules.ts`. A link between two modules neither of
+which requires the other is owned by one of them and names the other as a
+module it needs, and has rows only where both are on. Each descriptor
+namespace has an owner too, because a column pinned to it by a generated
+`*_ns` column names its owner's concept without a key to its tables. A key
+or a namespace column may reach what core owns, what its own table's owner
+owns, what that owner requires in every alternative of its `requires` and
+what those require in turn, and what a module it needs owns; a core table
+reaches core alone. A column that carries a module's concept without a key
+to its tables, such as `school_year_id` or `class_type` travelling inside a
+composite key to `core.classes`, is a concept column owned by that module
+wherever it appears, and a table holding one is held to the same rule. The
+owners are `packages/database/src/ownership.ts`, the
+rule is `mayReach` in `packages/domain/src/ownership.ts`, and the catalogue
+check (section 8) refuses a table or namespace without an owner, an owner
+naming a table, namespace or concept column that does not exist, and every
+other reach except those
+`packages/database/src/ownership-violations.ts` lists by the module they
+reach. An entry that no longer occurs fails the check as well, so that list
+only shrinks.
+
 ### 4.4 Base columns
 
 Every entity table has these columns, written exactly like this; the CI check
@@ -5266,7 +5288,8 @@ their grants, and then runs three gates.
 **Gate 1: the catalogue check** must return no rows ([P] ran it: no rows for
 this schema, and one row per planted defect). The lists at its top are part of
 the contract: adding a definer function, a `DELETE` grant, a column-granted
-table or a purpose gate means changing them in the same review.
+table or a purpose gate means changing them in the same review. The same
+check reads every table's erasure rule and its owner (section 4.3).
 
 ```postgresql
 with runtime(role) as (values ('app'), ('site'), ('integration'), ('worker'), ('collab'), ('cell_io'), ('retention')),

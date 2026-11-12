@@ -277,7 +277,7 @@ export const schoolPlans = pgTable(
       "school_plans_modules_check",
       // The registry's ids, written out because a check is fixed DDL;
       // a test saves a plan naming every module in packages/domain/src/modules.ts.
-      sql`modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[]`,
+      sql`modules <@ array['school_years', 'grade_levels', 'homerooms', 'families', 'coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[]`,
     ),
   ],
 );
@@ -321,7 +321,7 @@ export const schoolEntitlements = pgTable(
       "school_entitlements_modules_check",
       // The registry's ids, written out because a check is fixed DDL;
       // a test saves entitlements naming every module in packages/domain/src/modules.ts.
-      sql`modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[]`,
+      sql`modules <@ array['school_years', 'grade_levels', 'homerooms', 'families', 'coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[]`,
     ),
     check(
       "school_entitlements_bytes_check",

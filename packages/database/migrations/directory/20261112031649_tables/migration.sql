@@ -79,7 +79,7 @@ CREATE TABLE "school_entitlements" (
 	"notice" text,
 	"revision" integer DEFAULT 1 NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
-	CONSTRAINT "school_entitlements_modules_check" CHECK (modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[]),
+	CONSTRAINT "school_entitlements_modules_check" CHECK (modules <@ array['school_years', 'grade_levels', 'homerooms', 'families', 'coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[]),
 	CONSTRAINT "school_entitlements_bytes_check" CHECK (pool_bytes > 0 and class_bytes > 0 and module_bytes > 0 and person_bytes > 0),
 	CONSTRAINT "school_entitlements_limits_check" CHECK (coalesce(students, 0) >= 0 and coalesce(staff_accounts, 0) >= 0
         and coalesce(video_hours, 0) >= 0 and coalesce(custom_domains, 0) >= 0
@@ -110,7 +110,7 @@ CREATE TABLE "school_plans" (
 	CONSTRAINT "school_plans_class_bytes_check" CHECK (class_bytes > 0),
 	CONSTRAINT "school_plans_module_bytes_check" CHECK (module_bytes > 0),
 	CONSTRAINT "school_plans_person_bytes_check" CHECK (person_bytes > 0),
-	CONSTRAINT "school_plans_modules_check" CHECK (modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[])
+	CONSTRAINT "school_plans_modules_check" CHECK (modules <@ array['school_years', 'grade_levels', 'homerooms', 'families', 'coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[])
 );
 --> statement-breakpoint
 CREATE TABLE "school_usage" (

@@ -1,5 +1,9 @@
 import { ERASURE_RULES } from "@faridalms/database/erasure-rules";
 import { CATALOGUE_CHECK } from "@faridalms/database/gates";
+import {
+  ownershipProblems,
+  readOwnership,
+} from "@faridalms/database/ownership-gate";
 import { SQL } from "bun";
 
 const url = process.argv[2] ?? process.env.CELL_CHECK_URL;
@@ -36,6 +40,8 @@ try {
         name,
         problem: "has an erasure rule but names no person",
       });
+  // Every table belongs to core or one module, and reaches only what that allows.
+  problems.push(...ownershipProblems(await readOwnership(client)));
   if (problems.length > 0) {
     for (const row of problems) console.error(`${row.name}: ${row.problem}`);
     console.error(`Catalogue check: ${problems.length} problems.`);

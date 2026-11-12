@@ -1,10 +1,14 @@
 /**
  * The parts of the product a school is entitled to, each a module with a
  * stable id. Core is what every school has and is no module: people and
- * access, school structure, communication, privacy and consent, files,
- * documents and search.
+ * access, courses, classes and enrolments, communication, privacy and
+ * consent, files, documents and search.
  */
 export const MODULE_IDS = [
+  "school_years",
+  "grade_levels",
+  "homerooms",
+  "families",
   "coursework",
   "peer_review",
   "gradebook",
@@ -37,6 +41,10 @@ export interface ModuleSpec {
 }
 
 export const MODULES: Record<ModuleId, ModuleSpec> = {
+  school_years: { requires: [], basic: true, schoolSwitch: false, systems: [] },
+  grade_levels: { requires: [], basic: true, schoolSwitch: false, systems: [] },
+  homerooms: { requires: [], basic: true, schoolSwitch: false, systems: [] },
+  families: { requires: [], basic: true, schoolSwitch: false, systems: [] },
   coursework: {
     requires: [],
     basic: true,

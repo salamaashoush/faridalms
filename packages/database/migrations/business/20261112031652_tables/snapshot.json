@@ -2,7 +2,7 @@
   "type": "base",
   "version": "9",
   "dialect": "postgres",
-  "id": "197f86bd-46c7-421f-9d03-18fa1a35bafe",
+  "id": "645fa2d7-9970-456c-bf4c-40115fdfc34d",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -8207,7 +8207,7 @@
       "schema": "public",
       "table": "add_on_versions",
       "name": "add_on_versions_module_check",
-      "value": "module is null or module = any (array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[])",
+      "value": "module is null or module = any (array['school_years', 'grade_levels', 'homerooms', 'families', 'coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[])",
       "entityType": "checks"
     },
     {
@@ -8508,7 +8508,7 @@
       "schema": "public",
       "table": "plan_versions",
       "name": "plan_versions_modules_check",
-      "value": "modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[]",
+      "value": "modules <@ array['school_years', 'grade_levels', 'homerooms', 'families', 'coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[]",
       "entityType": "checks"
     },
     {
@@ -8655,7 +8655,7 @@
       "schema": "public",
       "table": "subscription_overrides",
       "name": "subscription_overrides_module_check",
-      "value": "module is null or module = any (array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[])",
+      "value": "module is null or module = any (array['school_years', 'grade_levels', 'homerooms', 'families', 'coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[])",
       "entityType": "checks"
     },
     {

@@ -11,7 +11,7 @@ CREATE TABLE "add_on_versions" (
 	"retired_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
 	"created_by" text NOT NULL,
-	CONSTRAINT "add_on_versions_module_check" CHECK (module is null or module = any (array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[])),
+	CONSTRAINT "add_on_versions_module_check" CHECK (module is null or module = any (array['school_years', 'grade_levels', 'homerooms', 'families', 'coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[])),
 	CONSTRAINT "add_on_versions_limit_key_check" CHECK (limit_key is null or limit_key = any (array['poolBytes', 'classBytes', 'moduleBytes', 'personBytes', 'students', 'staffAccounts', 'videoHours', 'customDomains', 'emailPerMonth', 'captionMinutes']::text[])),
 	CONSTRAINT "add_on_versions_shape_check" CHECK ((module is not null and limit_key is null and amount is null)
         or (module is null and limit_key is not null and amount is not null)
@@ -314,7 +314,7 @@ CREATE TABLE "plan_versions" (
 	"retired_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
 	"created_by" text NOT NULL,
-	CONSTRAINT "plan_versions_modules_check" CHECK (modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[]),
+	CONSTRAINT "plan_versions_modules_check" CHECK (modules <@ array['school_years', 'grade_levels', 'homerooms', 'families', 'coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[]),
 	CONSTRAINT "plan_versions_limits_check" CHECK (pool_bytes > 0 and class_bytes > 0 and module_bytes > 0 and person_bytes > 0
         and coalesce(students, 0) >= 0 and coalesce(staff_accounts, 0) >= 0
         and coalesce(video_hours, 0) >= 0 and coalesce(custom_domains, 0) >= 0
@@ -425,7 +425,7 @@ CREATE TABLE "subscription_overrides" (
 	"reason" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
 	"created_by" text NOT NULL,
-	CONSTRAINT "subscription_overrides_module_check" CHECK (module is null or module = any (array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[])),
+	CONSTRAINT "subscription_overrides_module_check" CHECK (module is null or module = any (array['school_years', 'grade_levels', 'homerooms', 'families', 'coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms']::text[])),
 	CONSTRAINT "subscription_overrides_limit_key_check" CHECK (limit_key is null or limit_key = any (array['poolBytes', 'classBytes', 'moduleBytes', 'personBytes', 'students', 'staffAccounts', 'videoHours', 'customDomains', 'emailPerMonth', 'captionMinutes']::text[])),
 	CONSTRAINT "subscription_overrides_shape_check" CHECK ((module is not null and granted is not null and limit_key is null and value is null)
         or (module is null and granted is null and limit_key is not null)),

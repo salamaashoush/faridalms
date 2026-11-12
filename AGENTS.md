@@ -161,7 +161,10 @@ authorisation, school isolation or database ownership.
   a new procedure is gated without being told; a reader that gathers from
   several modules (home pages, search) asks `modulesOf` itself. The web's
   pages of a module are listed once in `apps/web/src/utils/modules.ts`,
-  which both the navigation and the route guard read.
+  which both the navigation and the route guard read. `MODULES` also
+  states what each module requires, and every table belongs to core or one
+  module as well (see "The database"), so a module may own tables and no
+  namespace.
 - Every store in `packages/database/src/stores/` receives its transaction
   explicitly. Never introduce a process-global current school or current user.
 - `apps/web/src/server/` contains HTTP bridges and cookie handling only. Web
@@ -349,6 +352,21 @@ Schema decisions worth not undoing:
   `packages/database/src/erasure-rules.ts`: erased by a retention policy,
   kept as a school record, or erasure still to build. `db:verify` refuses a
   table with a key to `core.users` that has none.
+- **Every table belongs to core or one module** in
+  `packages/database/src/ownership.ts`, and so does every descriptor
+  namespace. A link table between two modules neither of which requires
+  the other is owned by one and `needs` the other. A key or a `*_ns`
+  column may reach core, its owner, what its owner requires in every
+  alternative, and what it needs (`mayReach` in
+  `packages/domain/src/ownership.ts`); a core table reaches core only.
+  A column that carries a module's concept without a key to its tables
+  (`school_year_id`, `class_type`, `class_period_id`, `family_user_id`)
+  is owned by name in the same file, and a table holding one is held to
+  the same rule. `db:verify` refuses a table or namespace without an
+  owner, a concept column no table has, and any other reach, except those `packages/database/src/ownership-violations.ts`
+  lists by the module reached. A listed one that no longer occurs fails
+  too: remove the entry in the change that removes the reach, and never
+  add one.
 
 ---
 

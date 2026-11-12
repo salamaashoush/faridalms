@@ -59,6 +59,10 @@ export function formatWhen(when: string | Date): string {
 }
 
 export const MODULE_NAMES: Record<ModuleId, string> = {
+  school_years: "School years",
+  grade_levels: "Grade levels",
+  homerooms: "Homerooms",
+  families: "Families",
   coursework: "Coursework",
   peer_review: "Peer review",
   gradebook: "Gradebook",
@@ -80,6 +84,12 @@ export const MODULE_NAMES: Record<ModuleId, string> = {
 
 /** What each module gives a school, in a line, for an operator deciding what to sell. */
 export const MODULE_HINTS: Record<ModuleId, string> = {
+  school_years:
+    "Years, terms and grading periods, rollover, and each student's year",
+  grade_levels:
+    "The school's grades or levels, for classes, students and audiences",
+  homerooms: "Homerooms whose subject classes share their students",
+  families: "Guardians, custody and the family's view of their children",
   coursework: "Assignments handed in, marked and returned",
   peer_review: "Students review each other's work against a rubric",
   gradebook: "Marks and grades by class, term and subject",
@@ -614,8 +624,18 @@ export const MODULE_GROUPS: readonly ModuleGroup[] = [
     ],
   },
   {
+    title: "School structure",
+    modules: ["school_years", "grade_levels", "homerooms"],
+  },
+  {
     title: "School office",
-    modules: ["attendance", "timetable", "student_records", "admissions"],
+    modules: [
+      "families",
+      "attendance",
+      "timetable",
+      "student_records",
+      "admissions",
+    ],
   },
   {
     title: "Communication and website",

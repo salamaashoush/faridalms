@@ -93,7 +93,13 @@ and `ops` schemas plus the `search` index. Migrations are SQL, one folder
 per database, applied by `scripts/db.ts` in one transaction as the schema
 owner; whatever drizzle-kit cannot express (forced row level security,
 grants, functions, triggers, partitioned tables, exclusion constraints)
-lives in custom migrations beside the generated ones.
+lives in custom migrations beside the generated ones. Every table of
+`core`, `health` and `audit` belongs to core or to one module of
+`packages/domain/src/modules.ts`, as every API namespace does, and its keys
+and the columns that carry a module's concept without a key (a year or a
+homeroom inside a composite key to `core.classes`) reach only what that
+owner may (`packages/database/src/ownership.ts`), so a module's data points
+at core and at the modules it requires, never the reverse.
 
 ## Tenants, units of work and row level security
 

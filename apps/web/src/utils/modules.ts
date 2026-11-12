@@ -66,6 +66,10 @@ export const pageOn = (
 };
 
 export const MODULE_LABEL: Record<ModuleId, () => string> = {
+  school_years: m.moduleSchoolYears,
+  grade_levels: m.moduleGradeLevels,
+  homerooms: m.moduleHomerooms,
+  families: m.moduleFamilies,
   coursework: m.moduleCoursework,
   peer_review: m.modulePeerReview,
   gradebook: m.moduleGradebook,
