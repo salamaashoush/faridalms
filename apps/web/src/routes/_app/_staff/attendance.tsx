@@ -56,7 +56,9 @@ const searchSchema = v.object({
     [],
   ),
   ...absencesQuerySchema.entries,
-  periodId: reportQuerySchema.entries.periodId,
+  span: reportQuerySchema.entries.span,
+  reportFrom: reportQuerySchema.entries.from,
+  reportTo: reportQuerySchema.entries.to,
   by: reportQuerySchema.entries.by,
   inbox: v.fallback(
     v.optional(v.picklist(["waiting", "all"]), "waiting"),
@@ -130,7 +132,26 @@ function absencesOf(search: Search) {
 }
 
 function reportOf(search: Search) {
-  return { periodId: search.periodId, by: search.by, q: search.q };
+  return {
+    span: search.span,
+    from: search.reportFrom,
+    to: search.reportTo,
+    by: search.by,
+    q: search.q,
+  };
+}
+
+/** A report's change as the address keeps it, apart from the absences' own dates. */
+function reportChange({
+  from,
+  to,
+  ...change
+}: Partial<ReturnType<typeof reportOf>>): Partial<Search> {
+  return {
+    ...change,
+    ...(from === undefined ? {} : { reportFrom: from }),
+    ...(to === undefined ? {} : { reportTo: to }),
+  };
 }
 
 const TAB_LABEL: Record<Tab, () => string> = {
@@ -219,6 +240,9 @@ function AttendanceTab({ tab, search, patch }: AttendanceTabProps) {
   ) : tab === "reported" ? (
     <ReportInbox view={search.inbox} onView={(inbox) => patch({ inbox })} />
   ) : (
-    <Report query={reportOf(search)} onChange={patch} />
+    <Report
+      query={reportOf(search)}
+      onChange={(change) => patch(reportChange(change))}
+    />
   );
 }

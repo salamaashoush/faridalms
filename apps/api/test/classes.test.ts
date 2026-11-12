@@ -275,12 +275,14 @@ describe("a class of its own", () => {
         }),
       ),
     ).toMatchObject({ code: "CONFLICT", message: "class.no_school_year" });
-    expect(
-      await api.timetable.classWeek({ classId: yearless.id }),
-    ).toMatchObject({ week: null, canPlan: false });
+    // Lessons and registers belong to no year: a class in none is planned
+    // and registered like any other.
+    const week = await api.timetable.classWeek({ classId: yearless.id });
+    expect(week).toMatchObject({ canPlan: true, gridClassId: yearless.id });
+    expect(week.week.meetings).toEqual([]);
     expect(
       await api.attendance.classSummary({ classId: yearless.id }),
-    ).toMatchObject({ registers: 0, canRecord: false });
+    ).toMatchObject({ registers: 0, canRecord: true });
     expect(
       (await api.classes.directory({ views: { year: created.id } })).manage,
     ).toBe(false);

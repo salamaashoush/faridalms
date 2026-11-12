@@ -1,7 +1,6 @@
 import type { StaffAbsence } from "@faridalms/database/stores/cover";
 import type { MeetingRow } from "@faridalms/database/stores/timetable";
 
-import { isSchoolDay, periodsOn } from "@faridalms/database/stores/attendance";
 import { classById, roomsOf } from "@faridalms/database/stores/classes";
 import {
   absencesBetween,
@@ -15,16 +14,15 @@ import {
   setChange,
 } from "@faridalms/database/stores/cover";
 import {
+  dayPlan,
+  teachingPeriodsOn,
+} from "@faridalms/database/stores/day-plan";
+import {
   gridOwners,
   meetingsOn,
-  yearTeachers,
+  teachingStaff,
 } from "@faridalms/database/stores/timetable";
-import {
-  dayIn,
-  schoolYears,
-  workingYear,
-} from "@faridalms/database/stores/years";
-import { addDays } from "@faridalms/domain/school";
+import { addDays, spanHolds } from "@faridalms/domain/school";
 import {
   changeLessonSchema,
   clearChangeSchema,
@@ -37,6 +35,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
+import { settlementOf } from "../classes/points";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -44,21 +43,34 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { defaultSpan } from "../core/spans";
 import { gridOwnerOf, gridsOf, plannedElsewhere } from "../timetable/grids";
-import { classYear, daysOf } from "../years/years";
 
-async function yearOn(context: UnitContext, day: string) {
-  const years = await schoolYears(
-    context.tx,
-    context.tenantId,
-    context.schoolId,
-  );
-  const year = years.find((row) => row.startsOn <= day && day < row.endsBefore);
-  if (!year)
-    throw new ORPCError("BAD_REQUEST", { message: "timetable.outside_year" });
-  if (year.lifecycle === "closed")
-    throw new ORPCError("BAD_REQUEST", { message: "academic_year.closed" });
-  return year;
+/** The staff who teach over the span the school reports on around a day, for cover. */
+async function staffAround(context: UnitContext, day: string) {
+  const span = await defaultSpan(context, day);
+  return { from: span.from, to: span.endsBefore };
+}
+
+/**
+ * A class whose lessons may change: one that no module has settled, and to
+ * be given a change, one that runs that day.
+ */
+async function changeableClass(
+  context: UnitContext,
+  classId: string,
+  day: string | null,
+) {
+  const classRow = await classById(context.tx, context, classId);
+  if (
+    !classRow ||
+    (day !== null &&
+      !spanHolds(classRow.runs, { from: day, to: addDays(day, 1) }))
+  )
+    throw new ORPCError("NOT_FOUND");
+  const settled = await settlementOf(context, classRow.id);
+  if (settled) throw new ORPCError("CONFLICT", { message: settled });
+  return classRow;
 }
 
 const lessonKey = (row: { classId: string; periodId: string }) =>
@@ -103,12 +115,11 @@ async function lessonAt(
  */
 async function oneDaySlot(
   context: UnitContext,
-  input: { yearId: string; periodId: string; on: string },
+  input: { periodId: string; on: string },
 ) {
-  const periods = await periodsOn(context.tx, {
+  const periods = await teachingPeriodsOn(context.tx, {
     tenantId: context.tenantId,
     schoolId: context.schoolId,
-    yearId: input.yearId,
     day: input.on,
   });
   return periods.some(
@@ -116,16 +127,10 @@ async function oneDaySlot(
   );
 }
 
-async function periodName(
-  context: UnitContext,
-  yearId: string,
-  on: string,
-  periodId: string,
-) {
-  const periods = await periodsOn(context.tx, {
+async function periodName(context: UnitContext, on: string, periodId: string) {
+  const periods = await teachingPeriodsOn(context.tx, {
     tenantId: context.tenantId,
     schoolId: context.schoolId,
-    yearId,
     day: on,
   });
   const period = periods.find((row) => row.id === periodId);
@@ -144,20 +149,13 @@ export const day = readProcedure
   .input(coverDaySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
-    const years = await schoolYears(
-      context.tx,
-      context.tenantId,
-      context.schoolId,
-    );
-    const year = workingYear(years, context.today);
-    if (!year) return { cover: null };
-    const on = dayIn(year, input.on || context.today);
-    const [periods, absences, changes, teachers, rooms, open, classes] =
+    const on = input.on || context.today;
+    const today = { from: on, to: addDays(on, 1) };
+    const [plan, absences, changes, teachers, rooms, classes] =
       await Promise.all([
-        periodsOn(context.tx, {
+        dayPlan(context.tx, {
           tenantId: context.tenantId,
           schoolId: context.schoolId,
-          yearId: year.id,
           day: on,
         }),
         absencesBetween(context.tx, {
@@ -171,24 +169,22 @@ export const day = readProcedure
           days: [on],
           filter: { schoolId: context.schoolId },
         }),
-        yearTeachers(context.tx, {
+        teachingStaff(context.tx, {
           tenantId: context.tenantId,
           schoolId: context.schoolId,
-          during: daysOf(year),
+          during: await staffAround(context, on),
         }),
         roomsOf(context.tx, context.tenantId, context.schoolId),
-        isSchoolDay(context.tx, {
-          tenantId: context.tenantId,
-          yearId: year.id,
-          day: on,
-        }),
         gridOwners(context.tx, {
           tenantId: context.tenantId,
           schoolId: context.schoolId,
-          during: daysOf(year),
-          except: await plannedElsewhere(context, daysOf(year)),
+          during: today,
+          except: await plannedElsewhere(context, today),
         }),
       ]);
+    const periods = plan.periods.filter(
+      (row) => row.kind === "lesson" || row.kind === "registration",
+    );
     const [away, changed] = await Promise.all([
       absences.length === 0
         ? Promise.resolve([])
@@ -226,13 +222,7 @@ export const day = readProcedure
       cover: {
         on,
         today: context.today,
-        year: {
-          id: year.id,
-          startsOn: year.startsOn,
-          lastDay: addDays(year.endsBefore, -1),
-          closed: year.lifecycle === "closed",
-        },
-        open: open !== false,
+        open: plan.open,
         periods: periods
           .filter((row) => row.kind === "lesson" || row.scheduleId !== null)
           .map((row) => ({
@@ -312,16 +302,14 @@ export const options = readProcedure
   .input(coverOptionsSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
-    const year = await yearOn(context, input.on);
     const lesson = await lessonAt(context, input);
-    if (!lesson && !(await oneDaySlot(context, { ...input, yearId: year.id })))
+    if (!lesson && !(await oneDaySlot(context, input)))
       throw new ORPCError("NOT_FOUND");
     const [candidates, absences, rooms, meetings, changes] = await Promise.all([
       coverCandidates(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
-        yearId: year.id,
-        during: daysOf(year),
+        during: await staffAround(context, input.on),
         classId: input.classId,
         knownClassIds: [
           ...new Set([
@@ -384,19 +372,15 @@ export const setAbsence = writeProcedure
   .input(staffAbsenceSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
-    const year = await yearOn(context, input.from);
-    if (input.to >= year.endsBefore)
-      throw new ORPCError("BAD_REQUEST", { message: "timetable.outside_year" });
     const [teachers, periods] = await Promise.all([
-      yearTeachers(context.tx, {
+      teachingStaff(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
-        during: daysOf(year),
+        during: await staffAround(context, input.from),
       }),
-      periodsOn(context.tx, {
+      teachingPeriodsOn(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
-        yearId: year.id,
         day: input.from,
       }),
     ]);
@@ -408,7 +392,6 @@ export const setAbsence = writeProcedure
     const id = await insertAbsence(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
-      yearId: year.id,
       userId: input.userId,
       from: input.from,
       to: input.to,
@@ -459,14 +442,11 @@ export const changeLesson = writeProcedure
   .input(changeLessonSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
-    const year = await yearOn(context, input.on);
     const [classRow, lesson] = await Promise.all([
-      classById(context.tx, context, input.classId),
+      changeableClass(context, input.classId, input.on),
       lessonAt(context, input),
     ]);
-    if (!classRow || (await classYear(context, classRow.id)).id !== year.id)
-      throw new ORPCError("NOT_FOUND");
-    if (!lesson && !(await oneDaySlot(context, { ...input, yearId: year.id })))
+    if (!lesson && !(await oneDaySlot(context, input)))
       throw new ORPCError("NOT_FOUND");
     if ((!lesson || lesson.oneDay) && input.cancelled)
       throw new ORPCError("BAD_REQUEST", {
@@ -488,8 +468,7 @@ export const changeLesson = writeProcedure
         coverCandidates(context.tx, {
           tenantId: context.tenantId,
           schoolId: context.schoolId,
-          yearId: year.id,
-          during: daysOf(year),
+          during: await staffAround(context, input.on),
           classId: input.classId,
           knownClassIds: [
             ...new Set([
@@ -525,7 +504,6 @@ export const changeLesson = writeProcedure
     await setChange(context.tx, {
       ...key,
       schoolId: context.schoolId,
-      yearId: year.id,
       coverId: input.coverId || null,
       roomId: input.roomId || null,
       cancelled: input.cancelled,
@@ -536,7 +514,7 @@ export const changeLesson = writeProcedure
       className: classRow.titleEn ?? classRow.code,
       classNameAr: classRow.titleAr ?? classRow.titleEn ?? classRow.code,
       date: input.on,
-      ...(await periodName(context, year.id, input.on, input.periodId)),
+      ...(await periodName(context, input.on, input.periodId)),
     };
     if (input.coverId && input.coverId !== previousCoverId)
       await notify(context, [input.coverId], {
@@ -570,9 +548,7 @@ export const clearLessonChange = writeProcedure
   .input(clearChangeSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
-    const year = await yearOn(context, input.on);
-    const classRow = await classById(context.tx, context, input.classId);
-    if (!classRow) throw new ORPCError("NOT_FOUND");
+    const classRow = await changeableClass(context, input.classId, null);
     const key = {
       tenantId: context.tenantId,
       classId: input.classId,
@@ -591,7 +567,7 @@ export const clearLessonChange = writeProcedure
           className: classRow.titleEn ?? classRow.code,
           classNameAr: classRow.titleAr ?? classRow.titleEn ?? classRow.code,
           date: input.on,
-          ...(await periodName(context, year.id, input.on, input.periodId)),
+          ...(await periodName(context, input.on, input.periodId)),
           cover: true,
           cancelled: true,
         },

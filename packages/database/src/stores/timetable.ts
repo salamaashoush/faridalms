@@ -21,16 +21,23 @@ export interface GridOwner {
   titleAr: string | null;
 }
 
-/** The classes running over some of the days a timetable is planned by, but those planned in another's grid. */
+/**
+ * The classes that own their grid, but those planned in another's: those
+ * running over some of the days, or those a view names.
+ */
 export async function gridOwners(
   tx: Tx,
   input: {
     tenantId: string;
     schoolId: string;
-    during: OpenSpan;
+    during: OpenSpan | { only: readonly string[] };
     except: readonly string[];
   },
 ): Promise<GridOwner[]> {
+  const among =
+    "only" in input.during
+      ? sql`c.id = any(${uuidArray(input.during.only)})`
+      : sql`c.runs && ${rangeOf(input.during)}::daterange`;
   const rows = await tx.execute<{
     id: string;
     code: string;
@@ -39,7 +46,7 @@ export async function gridOwners(
   }>(sql`
     select c.id, c.code, c.title_en, c.title_ar from core.classes c
     where c.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.schoolId}::uuid
-      and c.runs && ${rangeOf(input.during)}::daterange and c.status = 'active'
+      and ${among} and c.status = 'active'
       and c.id <> all(${uuidArray(input.except)})
     order by c.code`);
   return rows.map((row) => ({
@@ -205,6 +212,7 @@ async function oneDayLessons(
         ${uuidArray(slots.map((slot) => slot.periodId))}) as w(d, p)
       on x.day_on = w.d and x.class_period_id = w.p
     join core.classes c on c.tenant_id = x.tenant_id and c.id = x.class_id
+      and c.runs @> x.day_on
     where x.tenant_id = ${input.tenantId}::uuid and x.org_id = ${input.schoolId}::uuid
       and x.status = 'active' and not x.cancelled and ${oneDayFilterOf(input.filter)}
     order by x.day_on, c.code`);
@@ -244,6 +252,7 @@ const smallints = (values: readonly number[]) => `{${values.join(",")}}`;
  * of the timetable followed on `on` and in force then, or with `days`, those
  * held on each of them, on its day of the cycle and in a period it keeps,
  * with the one-day lessons of the periods only their bell schedule holds.
+ * A meeting is held only on a day its class runs.
  */
 export async function meetingsOn(
   tx: Tx,
@@ -330,7 +339,7 @@ export async function meetingsOn(
                     or (m.location_id is not null and o.location_id = m.location_id))) as clashing
     from core.class_meetings m
     ${day}
-    join core.classes c on c.tenant_id = m.tenant_id and c.id = m.class_id
+    join core.classes c on c.tenant_id = m.tenant_id and c.id = m.class_id and c.runs @> w.d
     left join core.users u on u.tenant_id = m.tenant_id and u.id = m.teacher_user_id
     left join core.locations l on l.tenant_id = m.tenant_id and l.id = m.location_id
     where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
@@ -375,7 +384,7 @@ export interface Booking {
 
 /**
  * Meetings of other grids that already hold a teacher or room at this time
- * on some day from `from` to the end of the year.
+ * on some day from `from` on that their classes run.
  */
 export async function bookingsAt(
   tx: Tx,
@@ -408,7 +417,7 @@ export async function bookingsAt(
     where m.tenant_id = ${input.tenantId}::uuid and m.status = 'active'
       and m.class_id <> all(${uuidArray(input.gridClassIds)})
       and m.timetable_id = ${input.timetableId}::uuid and m.weekday = ${input.weekday} and m.class_period_id = ${input.periodId}::uuid
-      and upper(m.valid_during) > ${input.from}::date
+      and (m.valid_during * c.runs) && daterange(${input.from}::date, null, '[)')
       and (m.teacher_user_id = ${input.teacherId}::uuid or m.location_id = ${input.roomId}::uuid)
     order by c.code`);
   return rows.map((row) => ({
@@ -485,29 +494,57 @@ export function endMeetings(
   );
 }
 
+/**
+ * Brings the meetings in one cell of a timetable inside the days their
+ * classes run, so a class whose dates shrank while the timetable was off
+ * frees the cell before anything is placed in it.
+ */
+export async function clipCell(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    timetableId: string;
+    weekday: number;
+    periodId: string;
+  },
+): Promise<void> {
+  const cell = sql`m.tenant_id = ${input.tenantId}::uuid and m.status = 'active'
+    and m.timetable_id = ${input.timetableId}::uuid and m.weekday = ${input.weekday}
+    and m.class_period_id = ${input.periodId}::uuid
+    and c.tenant_id = m.tenant_id and c.id = m.class_id`;
+  await tx.execute(sql`
+    update core.class_meetings m set status = 'tobedeleted'
+    from core.classes c
+    where ${cell} and not m.valid_during && c.runs`);
+  await tx.execute(sql`
+    update core.class_meetings m set valid_during = m.valid_during * c.runs
+    from core.classes c
+    where ${cell} and m.valid_during && c.runs and not c.runs @> m.valid_during`);
+}
+
 export async function insertMeeting(
   tx: Tx,
   input: {
     tenantId: string;
     schoolId: string;
     classId: string;
-    yearId: string;
     timetableId: string;
     weekday: number;
     periodId: string;
     teacherId: string | null;
     roomId: string | null;
     from: string;
-    endsBefore: string;
+    /** The day after the class's last, or null for a class with no end. */
+    endsBefore: string | null;
     clashAccepted: boolean;
   },
 ): Promise<string> {
   const [row] = await tx.execute<{ id: string }>(sql`
     insert into core.class_meetings
-      (tenant_id, org_id, class_id, school_year_id, timetable_id,
+      (tenant_id, org_id, class_id, timetable_id,
        weekday, class_period_id, teacher_user_id, location_id, valid_during, clash_accepted)
     values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.classId}::uuid,
-            ${input.yearId}::uuid, ${input.timetableId}::uuid, ${input.weekday},
+            ${input.timetableId}::uuid, ${input.weekday},
             ${input.periodId}::uuid, ${input.teacherId}::uuid, ${input.roomId}::uuid,
             daterange(${input.from}::date, ${input.endsBefore}::date, '[)'), ${input.clashAccepted})
     returning id`);
@@ -533,8 +570,8 @@ export interface TeacherOption {
   fullNameAr: string | null;
 }
 
-/** Everyone who teaches or assists a class of the year, for the picker. */
-export async function yearTeachers(
+/** Everyone who teaches or assists a class over some of the days, for the picker. */
+export async function teachingStaff(
   tx: Tx,
   input: { tenantId: string; schoolId: string; during: OpenSpan },
 ): Promise<TeacherOption[]> {
@@ -573,13 +610,12 @@ export async function insertTimetable(
   input: TimetableFields & {
     tenantId: string;
     schoolId: string;
-    yearId: string;
   },
 ): Promise<string> {
   const [row] = await tx.execute<{ id: string }>(sql`
-    insert into core.timetables (tenant_id, org_id, school_year_id, name_en, name_ar, starts_on,
+    insert into core.timetables (tenant_id, org_id, name_en, name_ar, starts_on,
       cycle_kind, cycle_length, first_day, closures_move)
-    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.yearId}::uuid,
+    values (${input.tenantId}::uuid, ${input.schoolId}::uuid,
       ${input.nameEn}, ${input.nameAr}, ${input.startsOn}::date, ${input.kind}, ${input.length},
       ${input.firstDay}, ${input.closuresMove})
     returning id`);
@@ -587,31 +623,34 @@ export async function insertTimetable(
   return row.id;
 }
 
+/** Holds a school's timetables until the transaction ends, so two changes to them never interleave. */
+export async function lockTimetables(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string },
+): Promise<void> {
+  await tx.execute(sql`select app.lock(${`timetables:${input.schoolId}`})`);
+}
+
 /**
- * The year's first timetable, an ordinary week from its first day, made
- * when a year that has none is first planned.
+ * The school's first timetable, an ordinary week from the first day
+ * planned, made when a school that has none first places a lesson.
  */
 export async function ensureTimetable(
   tx: Tx,
-  input: {
-    tenantId: string;
-    schoolId: string;
-    year: { id: string; startsOn: string };
-  },
+  input: { tenantId: string; schoolId: string; startsOn: string },
 ): Promise<void> {
-  await tx.execute(sql`select app.lock(${`timetables:${input.year.id}`})`);
+  await lockTimetables(tx, input);
   const [held] = await tx.execute<{ held: boolean }>(sql`
     select exists (select 1 from core.timetables
-      where tenant_id = ${input.tenantId}::uuid and school_year_id = ${input.year.id}::uuid
+      where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
         and status = 'active') as held`);
   if (held?.held) return;
   await insertTimetable(tx, {
     tenantId: input.tenantId,
     schoolId: input.schoolId,
-    yearId: input.year.id,
     nameEn: null,
     nameAr: null,
-    startsOn: input.year.startsOn,
+    startsOn: input.startsOn,
     ...WEEKLY,
   });
 }
@@ -681,10 +720,10 @@ export async function copyMeetings(
     .filter(([, to]) => to >= 1 && to <= MAX_CYCLE_DAY);
   if (pairs.length === 0) return 0;
   const rows = await tx.execute<{ id: string }>(sql`
-    insert into core.class_meetings (tenant_id, org_id, class_id, school_year_id,
+    insert into core.class_meetings (tenant_id, org_id, class_id,
       timetable_id, weekday, class_period_id, teacher_user_id, location_id,
       valid_during, clash_accepted)
-    select m.tenant_id, m.org_id, m.class_id, m.school_year_id, ${input.toId}::uuid,
+    select m.tenant_id, m.org_id, m.class_id, ${input.toId}::uuid,
       x.target, m.class_period_id, m.teacher_user_id, m.location_id,
       daterange(${input.startsOn}::date, upper(m.valid_during), '[)'), m.clash_accepted
     from core.class_meetings m

@@ -6,6 +6,8 @@ import { validationMessage } from "~/utils/validation";
 const REGISTERS_AFTER = "enrollment.registers_after:";
 /** Followed by the last day a register of the class was taken, which ending it would undo. */
 const CLASS_REGISTERS_AFTER = "class.registers_after:";
+/** Followed by the first day a register of the class was taken outside the days asked for. */
+const CLASS_REGISTERS_OUTSIDE = "class.registers_outside:";
 /** Followed by the first day a register was taken in a period the change rewrites. */
 export const PERIOD_REGISTERS_AFTER = "class_period.registers_after:";
 /** Followed by the first day cover is arranged in a period the change ends. */
@@ -78,11 +80,8 @@ const INTERNAL_CODES: ReadonlySet<string> = new Set([
   "auth.invalid_handoff",
   "auth.invalid_invite",
   "broadcast_recipient.exists",
-  "calendar.code_taken",
   "calendar.range",
-  "calendar.school_calendar_exists",
   "calendar_date.exists",
-  "calendar_grade_level.exists",
   "caption_draft.exists",
   "cell.not_open",
   "class.subject_invalid",
@@ -524,8 +523,10 @@ export function getMessageFromError(error: unknown): string {
         return m.messageDraftConflict();
       case "privacy.contact_linked":
         return m.msgContactLinked();
-      case "attendance.outside_year":
-        return m.attendanceOutsideYear();
+      case "attendance.outside_class":
+        return m.attendanceOutsideClass();
+      case "attendance.period_required":
+        return m.attPeriodRequired();
       case "attendance.future":
         return m.attFutureDay();
       case "attendance.not_roster":
@@ -560,8 +561,8 @@ export function getMessageFromError(error: unknown): string {
         return m.attErrCheckInOff();
       case "timetable.busy":
         return m.ttBusyError();
-      case "timetable.outside_year":
-        return m.ttOutsideYear();
+      case "timetable.class_ended":
+        return m.ttClassEnded();
       case "timetable.not_school_day":
         return m.ttNotSchoolDay();
       case "timetable.no_period":
@@ -577,8 +578,6 @@ export function getMessageFromError(error: unknown): string {
       case "timetable.cannot_copy":
         return m.ttErrCannotCopy();
 
-      case "class_period.outside_year":
-        return m.periodsOutsideYear();
       case "class_period.no_days":
         return m.periodsNoDays();
       case "timetable.not_in_group":
@@ -607,8 +606,6 @@ export function getMessageFromError(error: unknown): string {
         return m.ttAbsenceRange();
       case "timetable.change_exists":
         return m.errorConflictVersion();
-      case "academic_year.closed":
-        return m.academicYearClosedError();
       case "reenrolment.no_next_year":
         return m.reenrolNoNextYear();
       case "reenrolment.opened":
@@ -1163,6 +1160,10 @@ export function getMessageFromError(error: unknown): string {
     if (error.message.startsWith(CLASS_REGISTERS_AFTER))
       return m.classesRegistersAfter({
         date: formatDate(error.message.slice(CLASS_REGISTERS_AFTER.length)),
+      });
+    if (error.message.startsWith(CLASS_REGISTERS_OUTSIDE))
+      return m.classesRegistersOutside({
+        date: formatDate(error.message.slice(CLASS_REGISTERS_OUTSIDE.length)),
       });
     if (error.message.startsWith(PERIOD_REGISTERS_AFTER))
       return m.periodsRegistersAfter({

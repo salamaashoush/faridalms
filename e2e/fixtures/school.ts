@@ -1,5 +1,5 @@
-import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import { addDays } from "@faridalms/domain/school";
+import { dayOpen } from "@faridalms/domain/school-days";
 
 import type { Api } from "./api";
 
@@ -105,10 +105,11 @@ export async function newYear(
 
 /** The school days of a year up to and including a day, earliest first. */
 export async function schoolDaysTo(api: Api, yearId: string, last: string) {
-  const { days } = await api.schoolDays.days({ id: yearId });
-  return days
-    .filter(
-      (day) => day.day <= last && SCHOOL_DAY_MEANINGS.includes(day.meaning),
-    )
-    .map((day) => day.day);
+  const { startsOn } = await api.years.record({ id: yearId });
+  const read = await api.schoolDays.days({ from: startsOn, to: last });
+  const marks = new Map(read.days.map((day) => [day.day, day.meaning]));
+  const days: string[] = [];
+  for (let day = startsOn; day <= last; day = addDays(day, 1))
+    if (dayOpen(read, day, marks.get(day) ?? null)) days.push(day);
+  return days;
 }

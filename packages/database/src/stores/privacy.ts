@@ -248,7 +248,7 @@ export async function hadAtSchool(
   return rows[0]?.found ?? false;
 }
 
-/** What the school's calendars say of each day in a span, by day. */
+/** What the school marked each marked day of a span as, by day. */
 export async function dayMeanings(
   tx: Tx,
   scope: OrgScope & { from: string; to: string },
@@ -256,11 +256,9 @@ export async function dayMeanings(
   const rows = await tx.execute<{ day: string; meanings: string[] }>(sql`
     select d.day_on::text as day, array_agg(e.system_meaning) as meanings
     from core.calendar_dates d
-    join core.academic_sessions y on y.tenant_id = d.tenant_id and y.id = d.school_year_id
-      and y.org_id = ${scope.orgId}::uuid and y.status = 'active'
     join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
-    where d.tenant_id = ${scope.tenantId}::uuid and d.status = 'active'
-      and d.day_on between ${scope.from}::date and ${scope.to}::date
+    where d.tenant_id = ${scope.tenantId}::uuid and d.org_id = ${scope.orgId}::uuid
+      and d.status = 'active' and d.day_on between ${scope.from}::date and ${scope.to}::date
       and e.system_meaning is not null
     group by d.day_on`);
   return new Map(rows.map((row) => [row.day, row.meanings]));

@@ -21,9 +21,8 @@ import {
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import { decidingGuardians } from "@faridalms/database/stores/invites";
 import { markActed } from "@faridalms/database/stores/notifications";
-import { copyPeriods } from "@faridalms/database/stores/periods";
 import { childrenOf } from "@faridalms/database/stores/persons";
-import { calendarFor, place } from "@faridalms/database/stores/placements";
+import { place } from "@faridalms/database/stores/placements";
 import {
   markRolloverApplied,
   recordExits,
@@ -552,7 +551,6 @@ export const apply = writeProcedure
     const exitOf = (meaning: string) =>
       exitTypes?.find((row) => row.meaning === meaning)?.id ?? null;
     const scope = scopeFor(context, "school");
-    const calendarId = await calendarFor(tx, context.tenantId, target.id);
     const byStudent = new Map(students.map((row) => [row.studentId, row]));
     const carriedGrade = new Map(
       plan.classes
@@ -579,7 +577,6 @@ export const apply = writeProcedure
           studentId: student.studentId,
           year: target,
           gradeId,
-          calendarId,
           from: target.startsOn,
           entryTypeId: continuing,
           source: "rollover",
@@ -660,12 +657,6 @@ export const apply = writeProcedure
         },
       });
     }
-    await copyPeriods(tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      sourceYearId: source.id,
-      target,
-    });
     const outcome: RolloverOutcome = {
       classes: created,
       placed,

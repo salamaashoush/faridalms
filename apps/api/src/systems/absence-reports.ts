@@ -16,7 +16,6 @@ import {
 } from "@faridalms/database/stores/attendance";
 import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import { childrenOf } from "@faridalms/database/stores/persons";
-import { schoolYears } from "@faridalms/database/stores/years";
 import {
   absenceReportSchema,
   decideReportSchema,
@@ -173,18 +172,6 @@ export const report = writeProcedure
     }
     if (input.from < addDays(context.today, -REPORT_DAYS_BACK))
       throw new ORPCError("BAD_REQUEST", { message: "attendance.report_late" });
-    const years = await schoolYears(
-      context.tx,
-      context.tenantId,
-      context.schoolId,
-    );
-    const year = years.find(
-      (row) => row.startsOn <= input.from && input.to < row.endsBefore,
-    );
-    if (!year || year.lifecycle === "closed")
-      throw new ORPCError("BAD_REQUEST", {
-        message: "attendance.outside_year",
-      });
     const reasons = await reasonsOf(context);
     if (!reasons.some((row) => row.id === input.reasonId))
       throw new ORPCError("BAD_REQUEST", { message: "attendance.reason" });
@@ -199,7 +186,6 @@ export const report = writeProcedure
     const id = await insertReport(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
-      yearId: year.id,
       studentId: input.studentId,
       reporterId: context.actor.userId,
       kind: input.kind,

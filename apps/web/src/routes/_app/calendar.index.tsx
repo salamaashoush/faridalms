@@ -1,5 +1,5 @@
 import type { ShownCategory } from "@faridalms/domain/calendar";
-import type { IsoWeekday } from "@faridalms/domain/timetable";
+import type { IsoWeekday } from "@faridalms/domain/school-days";
 import type { Workspace } from "@faridalms/domain/workspace";
 
 import {

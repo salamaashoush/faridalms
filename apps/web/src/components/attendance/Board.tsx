@@ -12,7 +12,6 @@ import { BellRing, ClipboardCheck, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 
 import { classTitle } from "~/components/classes/format";
-import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { attendanceBoardQuery } from "~/queries/attendance";
@@ -33,12 +32,25 @@ interface ClassLinkProps {
   row: Row;
 }
 
+/** A register opens at its class and period; one taken in a period no plan names any more only shows. */
+const opens = (row: Row) => row.kind === "day" || row.periodId !== "";
+
 function ClassLink({ row }: ClassLinkProps) {
+  if (!opens(row))
+    return (
+      <span>
+        {classTitle({
+          code: row.classCode,
+          titleEn: row.classTitleEn,
+          titleAr: row.classTitleAr,
+        })}
+      </span>
+    );
   return (
     <RowLink
       to="/registers/$classId"
       params={{ classId: row.classId }}
-      search={{ date: row.date, periodId: row.periodId }}
+      search={{ date: row.date, periodId: row.periodId || undefined }}
     >
       {classTitle({
         code: row.classCode,
@@ -74,7 +86,7 @@ function exceptions(row: Row): string {
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function columns(): Column<Row>[] {
+function columns(withPeriods: boolean): Column<Row>[] {
   return [
     {
       id: "class",
@@ -82,11 +94,15 @@ function columns(): Column<Row>[] {
       primary: true,
       cell: (row) => <ClassLink row={row} />,
     },
-    {
-      id: "period",
-      header: m.attPeriod(),
-      cell: (row) => inLocale(row.periodNameEn, row.periodNameAr),
-    },
+    ...(withPeriods
+      ? [
+          {
+            id: "period",
+            header: m.attPeriod(),
+            cell: (row: Row) => inLocale(row.periodNameEn, row.periodNameAr),
+          },
+        ]
+      : []),
     { id: "state", header: m.attStatus(), cell: (row) => <State row={row} /> },
     {
       id: "by",
@@ -124,10 +140,9 @@ export function Board({ date, states, onChange }: BoardProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(attendanceBoardQuery(date)).data;
-  if (!data.year) return <NoSchoolYear shows={m.noYearShowsRegisters()} />;
   const all: Row[] = data.rows.map((row) => ({
     ...row,
-    id: `${row.classId}|${row.periodId}`,
+    id: `${row.classId}|${row.periodId}|${row.registerId ?? ""}`,
     date: data.date,
   }));
   const rows = states.length
@@ -148,19 +163,22 @@ export function Board({ date, states, onChange }: BoardProps) {
     selected: states,
     onChange: (next) => onChange({ states: next as RegisterState[] }),
   };
-  const rowActions = (row: Row): RowAction[] => [
-    {
-      label: row.registerId ? m.attOpenRegister() : m.attTakeRegister(),
-      icon: ClipboardCheck,
-      inline: true,
-      onSelect: () =>
-        void navigate({
-          to: "/registers/$classId",
-          params: { classId: row.classId },
-          search: { date: row.date, periodId: row.periodId },
-        }),
-    },
-  ];
+  const rowActions = (row: Row): RowAction[] =>
+    opens(row)
+      ? [
+          {
+            label: row.registerId ? m.attOpenRegister() : m.attTakeRegister(),
+            icon: ClipboardCheck,
+            inline: true,
+            onSelect: () =>
+              void navigate({
+                to: "/registers/$classId",
+                params: { classId: row.classId },
+                search: { date: row.date, periodId: row.periodId || undefined },
+              }),
+          },
+        ]
+      : [];
   const remind = async (chosen: Row[]) => {
     const classIds = [
       ...new Set(
@@ -181,7 +199,6 @@ export function Board({ date, states, onChange }: BoardProps) {
       m.attReminded({ count: reminded, value: formatNumber(reminded) }),
     );
   };
-  const max = data.today < data.year.lastDay ? data.today : data.year.lastDay;
   return (
     <div className="grid gap-6">
       <IndexToolbar
@@ -190,8 +207,7 @@ export function Board({ date, states, onChange }: BoardProps) {
             <DayNav
               id="board-date"
               date={data.date}
-              min={data.year.startsOn}
-              max={max}
+              max={data.today}
               today={data.today}
               onChange={(next) => onChange({ date: next })}
             />
@@ -201,7 +217,7 @@ export function Board({ date, states, onChange }: BoardProps) {
           </>
         }
       />
-      {data.schoolDay === false ? (
+      {!data.schoolDay ? (
         <p className="rounded-lg border bg-card p-5 text-sm leading-5 text-muted-foreground">
           {m.attNotSchoolDay()}
         </p>
@@ -228,7 +244,9 @@ export function Board({ date, states, onChange }: BoardProps) {
           <DataTable
             caption={m.attBoardCaption()}
             rows={rows}
-            columns={columns()}
+            columns={columns(
+              all.some((row) => row.periodNameEn ?? row.periodNameAr),
+            )}
             rowLabel={(row) =>
               `${classTitle({ code: row.classCode, titleEn: row.classTitleEn, titleAr: row.classTitleAr })} ${inLocale(row.periodNameEn, row.periodNameAr)}`
             }

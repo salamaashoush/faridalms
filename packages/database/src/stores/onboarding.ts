@@ -1,12 +1,13 @@
 import type { OnboardingItem } from "@faridalms/domain/onboarding";
 
-import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import { addDays } from "@faridalms/domain/school";
+import { schoolDayCount } from "@faridalms/domain/school-days";
 import { STAFF_ROLES as ALL_STAFF_ROLES } from "@faridalms/domain/workspace";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
+import { markedMeanings, schoolWeek } from "./school-days";
 import { textArray } from "./sql";
 
 const ADMINISTRATOR_ROLES = [
@@ -60,9 +61,8 @@ export async function onboardingSeen(
           and s.org_id = ${org} and s.role = 'student' and s.status = 'active'
         where u.tenant_id = ${tenant} and u.status = 'active') as guardians_linked,
       exists (select 1 from core.class_meetings c
-        join core.academic_sessions y on y.tenant_id = c.tenant_id and y.id = c.school_year_id
-          and y.status = 'active' and y.lifecycle in ('current', 'upcoming')
-        where c.tenant_id = ${tenant} and c.org_id = ${org} and c.status = 'active') as timetable_ready,
+        where c.tenant_id = ${tenant} and c.org_id = ${org} and c.status = 'active'
+          and (upper_inf(c.valid_during) or upper(c.valid_during) > ${input.today}::date)) as timetable_ready,
       ${signedIn(FAMILY_ROLES)} as families_signed_in,
       exists (select 1 from core.assignments a where a.tenant_id = ${tenant}
         and a.org_id = ${org} and a.status = 'active' and a.state <> 'draft') as first_assignment,
@@ -79,23 +79,24 @@ export async function onboardingSeen(
 }
 
 /**
- * Days of the last week the school's own calendar counts as school days,
- * so a quiet week can be told apart from a holiday.
+ * Days of the last week the school's week and marked days count as school
+ * days, so a quiet week can be told apart from a holiday.
  */
 export async function schoolDaysLastWeek(
   tx: CellTransaction,
   input: { tenantId: string; orgId: string; today: string },
 ): Promise<number> {
-  const [row] = await tx.execute<{ days: number }>(sql`
-    select count(distinct d.day_on)::int as days
-    from core.calendar_dates d
-    join core.calendars c on c.tenant_id = d.tenant_id and c.id = d.calendar_id
-      and c.kind = 'school' and c.status = 'active' and c.org_id = ${input.orgId}::uuid
-    join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
-    where d.tenant_id = ${input.tenantId}::uuid and d.status = 'active'
-      and d.day_on between ${addDays(input.today, -6)}::date and ${input.today}::date
-      and e.system_meaning = any(${textArray(SCHOOL_DAY_MEANINGS)})`);
-  return row?.days ?? 0;
+  const from = addDays(input.today, -6);
+  const scope = { tenantId: input.tenantId, schoolId: input.orgId };
+  const [week, marks] = await Promise.all([
+    schoolWeek(tx, input.tenantId, input.orgId),
+    markedMeanings(tx, { ...scope, from, to: input.today }),
+  ]);
+  return schoolDayCount(
+    week,
+    { from, endsBefore: addDays(input.today, 1) },
+    (day) => marks.get(day) ?? null,
+  );
 }
 
 /** Messages to the school's people that failed for good since a moment. */

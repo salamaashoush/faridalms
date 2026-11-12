@@ -2,7 +2,7 @@ import * as v from "valibot";
 
 import { pageField } from "./paging";
 import { addDays, zonedInstant, zonedLocal } from "./school";
-import { isoWeekday } from "./timetable";
+import { isoWeekday } from "./school-days";
 
 export const NOTIFICATION_KINDS = [
   "announcement",

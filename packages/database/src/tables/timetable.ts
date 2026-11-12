@@ -9,13 +9,14 @@ import {
   boolean,
   date,
   index,
+  jsonb,
   smallint,
   text,
+  time,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { academicSessions, classPeriods } from "./calendar";
 import {
   baseConstraints,
   ck,
@@ -32,11 +33,182 @@ import {
 import { locations } from "./files";
 import { users } from "./people";
 import { classes } from "./teaching";
-import { tenants } from "./tenancy";
+import { orgs, tenants } from "./tenancy";
+
+/** A bell schedule's times for one period, keyed by the period's code. */
+export interface BellTimesRow {
+  code: string;
+  startTime: string;
+  endTime: string;
+}
 
 /**
- * A timetable of a school year, followed from its first day until the next
- * one starts; the first is followed from the start of the year. It says how
+ * Days run on other times than their periods' own (a late start, an exam
+ * day, Ramadan hours): the periods held, each at its time that day. Days
+ * choose it in `timetable_days`.
+ */
+export const bellSchedules = core.table.withRLS(
+  "bell_schedules",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    nameEn: text("name_en"),
+    nameAr: text("name_ar"),
+    /** A period left out is not held on the schedule's days. */
+    times: jsonb("times").$type<BellTimesRow[]>().notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("bell_schedules", t.tenantId, t.id),
+    uq("bell_schedules", t.tenantId, t.id, t.orgId),
+    ...baseConstraints("bell_schedules", t, tenants),
+    fk("bell_schedules", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    ck("bell_schedules", "name_en", sql`char_length(name_en) between 1 and 60`),
+    ck("bell_schedules", "name_ar", sql`char_length(name_ar) between 1 and 60`),
+    ck("bell_schedules", "name", sql`num_nonnulls(name_en, name_ar) >= 1`),
+    ck(
+      "bell_schedules",
+      "times",
+      sql`jsonb_typeof(times) = 'array' and jsonb_array_length(times) between 0 and 50`,
+    ),
+    index("bell_schedules_school_idx")
+      .on(t.tenantId, t.orgId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+export type PeriodKind = "lesson" | "registration" | "break" | "other";
+
+/**
+ * A period of the school's day. A change from a date ends the row and
+ * starts another, so the days before read as they were; the last version
+ * runs on with no end. A bell schedule's own period is held on every day
+ * that runs on its schedule, so it has no dates of its own.
+ */
+export const classPeriods = core.table.withRLS(
+  "class_periods",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    code: text("code").notNull(),
+    nameEn: text("name_en"),
+    nameAr: text("name_ar"),
+    sequence: smallint("sequence").notNull(),
+    kind: text("kind").$type<PeriodKind>().notNull().default("lesson"),
+    startTime: time("start_time"),
+    endTime: time("end_time"),
+    officialAttendance: boolean("official_attendance").notNull().default(false),
+    /** ISO days of the week it runs on, of the school's teaching days. */
+    weekdays: smallint("weekdays")
+      .array()
+      .notNull()
+      .default(sql`'{1,2,3,4,5,6,7}'`),
+    /** Other times it keeps on some of its days of the week. */
+    dayTimes: jsonb("day_times")
+      .$type<{ weekdays: number[]; startTime: string; endTime: string }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    validDuring: daterange("valid_during").notNull(),
+    /** The bell schedule whose days alone hold it, beyond the school's own periods. */
+    bellScheduleId: uuid("bell_schedule_id"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("class_periods", t.tenantId, t.id),
+    uq("class_periods", t.tenantId, t.id, t.orgId),
+    ...baseConstraints("class_periods", t, tenants),
+    fk("class_periods", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk(
+      "class_periods",
+      [t.tenantId, t.bellScheduleId, t.orgId],
+      [bellSchedules.tenantId, bellSchedules.id, bellSchedules.orgId],
+    ),
+    ck("class_periods", "code", sql`code ~ '^[A-Za-z0-9_-]{1,20}$'`),
+    ck("class_periods", "name_en", sql`char_length(name_en) between 1 and 60`),
+    ck("class_periods", "name_ar", sql`char_length(name_ar) between 1 and 60`),
+    ck("class_periods", "sequence", sql`sequence between 1 and 50`),
+    ck(
+      "class_periods",
+      "kind",
+      sql`kind in ('lesson', 'registration', 'break', 'other')`,
+    ),
+    ck("class_periods", "name", sql`num_nonnulls(name_en, name_ar) >= 1`),
+    ck(
+      "class_periods",
+      "times",
+      sql`(start_time is null) = (end_time is null) and (end_time is null or end_time > start_time)`,
+    ),
+    ck(
+      "class_periods",
+      "weekdays",
+      sql`weekdays <@ '{1,2,3,4,5,6,7}' and cardinality(weekdays) between 1 and 7`,
+    ),
+    ck(
+      "class_periods",
+      "day_times",
+      sql`jsonb_typeof(day_times) = 'array' and jsonb_array_length(day_times) <= 6`,
+    ),
+    ck(
+      "class_periods",
+      "valid_during",
+      sql`(bell_schedule_id is null and ${range.started("valid_during")})
+        or (bell_schedule_id is not null and lower_inf(valid_during) and upper_inf(valid_during))`,
+    ),
+    ck(
+      "class_periods",
+      "extra",
+      sql`bell_schedule_id is null or not official_attendance`,
+    ),
+    uniqueIndex("class_periods_extra_code_key")
+      .on(t.tenantId, t.bellScheduleId, t.code)
+      .where(sql`status = 'active' and bell_schedule_id is not null`),
+    ...entityProfile({ integration: true }),
+  ],
+);
+
+/**
+ * How the timetable runs one date of a school: on a bell schedule's times,
+ * as another day of its cycle, or both. A date the school closes keeps its
+ * row and holds nothing.
+ */
+export const timetableDays = core.table.withRLS(
+  "timetable_days",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    dayOn: date("day_on", { mode: "string" }).notNull(),
+    /** The other times the day runs on; none keeps its periods' own. */
+    bellScheduleId: uuid("bell_schedule_id"),
+    /** The day of the timetable's cycle it runs as instead of its own. */
+    runsAs: smallint("runs_as"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("timetable_days", t.tenantId, t.id),
+    ...baseConstraints("timetable_days", t, tenants),
+    fk("timetable_days", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk(
+      "timetable_days",
+      [t.tenantId, t.bellScheduleId, t.orgId],
+      [bellSchedules.tenantId, bellSchedules.id, bellSchedules.orgId],
+    ),
+    ck("timetable_days", "runs_as", sql`runs_as between 1 and 28`),
+    ck(
+      "timetable_days",
+      "shape",
+      sql`num_nonnulls(bell_schedule_id, runs_as) >= 1`,
+    ),
+    uniqueIndex("timetable_days_day_key")
+      .on(t.tenantId, t.orgId, t.dayOn)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * A school's timetable, followed from its first day until the next one
+ * starts; the earliest is followed on every day before it too. It says how
  * its lessons repeat: a cycle of weeks (one, or A and B) or of school days.
  */
 export const timetables = core.table.withRLS(
@@ -44,8 +216,6 @@ export const timetables = core.table.withRLS(
   {
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
-    schoolYearType: text("school_year_type").notNull().default("school_year"),
     nameEn: text("name_en"),
     nameAr: text("name_ar"),
     startsOn: date("starts_on", { mode: "string" }).notNull(),
@@ -59,20 +229,9 @@ export const timetables = core.table.withRLS(
   },
   (t): PgTableExtraConfigValue[] => [
     pk("timetables", t.tenantId, t.id),
-    uq("timetables", t.tenantId, t.id, t.schoolYearId, t.orgId),
+    uq("timetables", t.tenantId, t.id, t.orgId),
     ...baseConstraints("timetables", t, tenants),
-    fk(
-      "timetables",
-      [t.tenantId, t.schoolYearId, t.schoolYearType, t.schoolYearId, t.orgId],
-      [
-        academicSessions.tenantId,
-        academicSessions.id,
-        academicSessions.type,
-        academicSessions.schoolYearId,
-        academicSessions.orgId,
-      ],
-    ),
-    ck("timetables", "school_year_type", sql`school_year_type = 'school_year'`),
+    fk("timetables", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
     ck("timetables", "name_en", sql`char_length(name_en) between 1 and 60`),
     ck("timetables", "name_ar", sql`char_length(name_ar) between 1 and 60`),
     ck(
@@ -83,7 +242,7 @@ export const timetables = core.table.withRLS(
     ),
     ck("timetables", "first_day", sql`first_day between 1 and cycle_length`),
     uniqueIndex("timetables_start_key")
-      .on(t.tenantId, t.schoolYearId, t.startsOn)
+      .on(t.tenantId, t.orgId, t.startsOn)
       .where(sql`status = 'active'`),
     ...entityProfile(),
   ],
@@ -92,7 +251,9 @@ export const timetables = core.table.withRLS(
 /**
  * Ed-Fi's section class period on a day of the week: when a class meets, who
  * teaches it there and in which room. A change from a date ends the row and
- * starts another, so a past week reads as it was taught.
+ * starts another, so a past week reads as it was taught. It is held only on
+ * days its class runs; no key ties it to them, so the class's dates stay
+ * the class's to change.
  */
 export const classMeetings = core.table.withRLS(
   "class_meetings",
@@ -100,8 +261,6 @@ export const classMeetings = core.table.withRLS(
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
     classId: uuid("class_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
-    schoolYearType: text("school_year_type").notNull().default("school_year"),
     /** The timetable it belongs to, which is followed only on its own days. */
     timetableId: uuid("timetable_id").notNull(),
     /** The day of its timetable's cycle: the ISO weekday in an ordinary week. */
@@ -124,23 +283,13 @@ export const classMeetings = core.table.withRLS(
     ),
     fk(
       "class_meetings",
-      [t.tenantId, t.timetableId, t.schoolYearId, t.orgId],
-      [
-        timetables.tenantId,
-        timetables.id,
-        timetables.schoolYearId,
-        timetables.orgId,
-      ],
+      [t.tenantId, t.timetableId, t.orgId],
+      [timetables.tenantId, timetables.id, timetables.orgId],
     ),
     fk(
       "class_meetings",
-      [t.tenantId, t.classPeriodId, t.schoolYearId, t.orgId],
-      [
-        classPeriods.tenantId,
-        classPeriods.id,
-        classPeriods.schoolYearId,
-        classPeriods.orgId,
-      ],
+      [t.tenantId, t.classPeriodId, t.orgId],
+      [classPeriods.tenantId, classPeriods.id, classPeriods.orgId],
     ),
     fk(
       "class_meetings",
@@ -152,13 +301,8 @@ export const classMeetings = core.table.withRLS(
       [t.tenantId, t.locationId],
       [locations.tenantId, locations.id],
     ),
-    ck(
-      "class_meetings",
-      "school_year_type",
-      sql`school_year_type = 'school_year'`,
-    ),
     ck("class_meetings", "weekday", sql`weekday between 1 and 28`),
-    ck("class_meetings", "valid_during", range.bounded("valid_during")),
+    ck("class_meetings", "valid_during", range.started("valid_during")),
     index("class_meetings_class_idx")
       .on(t.tenantId, t.classId)
       .where(sql`status = 'active'`),
@@ -179,8 +323,6 @@ export const staffAbsences = core.table.withRLS(
   {
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
-    schoolYearType: text("school_year_type").notNull().default("school_year"),
     userId: uuid("user_id").notNull(),
     span: daterange("span").notNull(),
     /** The periods missed on each day of the span; none means whole days. */
@@ -192,23 +334,8 @@ export const staffAbsences = core.table.withRLS(
   (t): PgTableExtraConfigValue[] => [
     pk("staff_absences", t.tenantId, t.id),
     ...baseConstraints("staff_absences", t, tenants),
-    fk(
-      "staff_absences",
-      [t.tenantId, t.schoolYearId, t.schoolYearType, t.schoolYearId, t.orgId],
-      [
-        academicSessions.tenantId,
-        academicSessions.id,
-        academicSessions.type,
-        academicSessions.schoolYearId,
-        academicSessions.orgId,
-      ],
-    ),
+    fk("staff_absences", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
     fk("staff_absences", [t.tenantId, t.userId], [users.tenantId, users.id]),
-    ck(
-      "staff_absences",
-      "school_year_type",
-      sql`school_year_type = 'school_year'`,
-    ),
     ck("staff_absences", "span", range.bounded("span")),
     ck(
       "staff_absences",
@@ -238,7 +365,6 @@ export const lessonChanges = core.table.withRLS(
   {
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
     classId: uuid("class_id").notNull(),
     classPeriodId: uuid("class_period_id").notNull(),
     dayOn: date("day_on", { mode: "string" }).notNull(),
@@ -261,13 +387,8 @@ export const lessonChanges = core.table.withRLS(
     ),
     fk(
       "lesson_changes",
-      [t.tenantId, t.classPeriodId, t.schoolYearId, t.orgId],
-      [
-        classPeriods.tenantId,
-        classPeriods.id,
-        classPeriods.schoolYearId,
-        classPeriods.orgId,
-      ],
+      [t.tenantId, t.classPeriodId, t.orgId],
+      [classPeriods.tenantId, classPeriods.id, classPeriods.orgId],
     ),
     fk(
       "lesson_changes",

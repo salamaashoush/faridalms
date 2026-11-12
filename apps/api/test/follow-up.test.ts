@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   login,
+  periodOf,
   rejection,
   runDay,
   schoolDayBack,
@@ -40,7 +41,7 @@ describe("following up absences", () => {
     const taken = await office.attendance.save({
       classId: homeroom.class.id,
       date,
-      periodId: homeroom.period.id,
+      periodId: periodOf(homeroom).id,
       expectedVersion: homeroom.register?.version ?? 0,
       marks: homeroom.students.map((row) => ({
         studentId: row.id,
@@ -50,9 +51,9 @@ describe("following up absences", () => {
 
     const before = await office.followUp.day({ date });
     // Overdue reasons and children needing support come a page at a time.
-    for (const list of [before.followUp?.overdue, before.followUp?.support])
+    for (const list of [before.followUp.overdue, before.followUp.support])
       expect(list).toMatchObject({ page: 1, pageSize: 25 });
-    const call = before.followUp?.calls.find((row) => row.studentId === me.id);
+    const call = before.followUp.calls.find((row) => row.studentId === me.id);
     expect(call).toBeDefined();
     expect(call?.guardians.length).toBeGreaterThan(0);
 
@@ -64,7 +65,7 @@ describe("following up absences", () => {
     });
     const logged = await office.followUp.day({ date });
     expect(
-      logged.followUp?.calls.find((row) => row.studentId === me.id)?.contacts,
+      logged.followUp.calls.find((row) => row.studentId === me.id)?.contacts,
     ).toEqual([
       expect.objectContaining({ outcome: "no_answer", note: "Rang twice." }),
     ]);
@@ -74,7 +75,7 @@ describe("following up absences", () => {
     await office.attendance.save({
       classId: homeroom.class.id,
       date,
-      periodId: homeroom.period.id,
+      periodId: periodOf(homeroom).id,
       expectedVersion: taken.version,
       marks: homeroom.students.map((row) => ({
         studentId: row.id,
@@ -83,7 +84,7 @@ describe("following up absences", () => {
       })),
     });
     const after = await office.followUp.day({ date });
-    expect(after.followUp?.calls.some((row) => row.studentId === me.id)).toBe(
+    expect(after.followUp.calls.some((row) => row.studentId === me.id)).toBe(
       false,
     );
   });

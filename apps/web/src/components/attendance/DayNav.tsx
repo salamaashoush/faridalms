@@ -11,7 +11,8 @@ import * as m from "~/i18n/messages";
 export interface DayNavProps {
   id: string;
   date: string;
-  min: string;
+  /** The earliest day it steps to, as the first day of a class; none steps back freely. */
+  min?: string | null;
   max: string;
   today: string;
   onChange: (date: string) => void;
@@ -24,7 +25,7 @@ export interface DayNavProps {
 export function DayNav({ id, date, min, max, today, onChange }: DayNavProps) {
   const previous = addDays(date, -1);
   const next = addDays(date, 1);
-  const inRange = (day: string) => day >= min && day <= max;
+  const inRange = (day: string) => (!min || day >= min) && day <= max;
   const compact = useContext(ToolbarRow);
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -48,7 +49,7 @@ export function DayNav({ id, date, min, max, today, onChange }: DayNavProps) {
           type="date"
           className={cn("w-40 max-md:h-10", compact && "h-8")}
           value={date}
-          min={min}
+          min={min ?? undefined}
           max={max}
           onChange={(event) => {
             if (event.target.value && inRange(event.target.value))

@@ -1,8 +1,9 @@
-import { targetDaysSchema } from "@faridalms/domain/calendar";
 import { historyQuerySchema } from "@faridalms/domain/history";
+import { schoolDaysQuerySchema } from "@faridalms/domain/school-days";
 import {
   saveArrivalSchema,
   saveYearSchema,
+  targetDaysSchema,
   yearLifecycleSchema,
 } from "@faridalms/domain/years";
 import { createServerFn } from "@tanstack/react-start";
@@ -30,6 +31,10 @@ export const saveYear = createServerFn({ method: "POST" })
 export const changeYearLifecycle = createServerFn({ method: "POST" })
   .validator(checked(yearLifecycleSchema))
   .handler(({ data }) => backend().years.lifecycle(data));
+
+export const getYearsInSpan = createServerFn({ method: "GET" })
+  .validator(checked(schoolDaysQuerySchema))
+  .handler(({ data }) => record(backend().years.planner(data)));
 
 export const setYearTarget = createServerFn({ method: "POST" })
   .validator(checked(targetDaysSchema))

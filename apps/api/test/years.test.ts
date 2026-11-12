@@ -1,9 +1,10 @@
-import { schoolDayCount } from "@faridalms/domain/calendar";
 import { teachingWeeks } from "@faridalms/domain/school";
+import { schoolDayCount } from "@faridalms/domain/school-days";
 import { DEFAULT_PERIODS } from "@faridalms/domain/timetable";
+import { SQL } from "bun";
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, signedIn } from "./harness";
+import { login, rejection, signedIn, testCell } from "./harness";
 
 const northwindPrincipal = () => signedIn("northwind", login("principal"));
 // Lifecycle steps change which year is current, so they run on the second
@@ -84,7 +85,7 @@ describe("the school day", () => {
   test("a year's periods change from a date on, keeping earlier days and their registers", async () => {
     const api = await acmePrincipal();
     const year = await currentYear(api);
-    const before = await api.periods.periods({ id: year.id, on: CHANGED });
+    const before = await api.periods.periods({ on: CHANGED });
     expect(shapeOf(before.periods)).toEqual(
       DEFAULT_PERIODS.map((period) => ({
         nameEn: period.nameEn,
@@ -106,7 +107,7 @@ describe("the school day", () => {
     const last = before.periods.find((period) => period.nameEn === "Period 6");
     const registration = before.periods.find((period) => period.official);
     if (!first || !last || !registration) throw new Error("seeded periods");
-    const { grids } = await api.timetable.options();
+    const { grids } = await api.timetable.options({});
     const homeroom = grids[0];
     if (!homeroom) throw new Error("seeded homeroom");
     const placed = (
@@ -135,7 +136,6 @@ describe("the school day", () => {
     expect(
       await rejection(
         api.periods.savePeriods({
-          yearId: year.id,
           from: year.startsOn,
           known: knownOf(before.periods),
           periods: inputOf(before.periods).map((period) =>
@@ -154,7 +154,6 @@ describe("the school day", () => {
     expect(
       await rejection(
         api.periods.savePeriods({
-          yearId: year.id,
           from: CHANGED,
           known: knownOf(before.periods),
           periods: [...later, { ...added, startTime: "12:00" }],
@@ -163,18 +162,17 @@ describe("the school day", () => {
     ).toMatchObject({ code: "BAD_REQUEST" });
 
     const saved = await api.periods.savePeriods({
-      yearId: year.id,
       from: CHANGED,
       known: knownOf(before.periods),
       periods: [...later, added],
     });
     expect(saved).toMatchObject({ changed: 1, added: 1, ended: 1 });
 
-    const kept = await api.periods.periods({ id: year.id, on: BEFORE_CHANGE });
+    const kept = await api.periods.periods({ on: BEFORE_CHANGE });
     expect(kept.periods.map((period) => period.id)).toEqual(
       before.periods.map((period) => period.id),
     );
-    const after = await api.periods.periods({ id: year.id, on: CHANGED });
+    const after = await api.periods.periods({ on: CHANGED });
     expect(after.changes).toEqual([year.startsOn, CHANGED]);
     const moved = after.periods.find((period) => period.nameEn === "Period 1");
     expect(moved).toMatchObject({ startTime: "08:05", from: CHANGED });
@@ -230,7 +228,6 @@ describe("the school day", () => {
     expect(
       await rejection(
         api.periods.savePeriods({
-          yearId: year.id,
           from: CHANGED,
           known: knownOf(before.periods),
           periods: inputOf(before.periods),
@@ -240,7 +237,6 @@ describe("the school day", () => {
 
     // Changing the day again from the same date changes it where it stands.
     await api.periods.savePeriods({
-      yearId: year.id,
       from: CHANGED,
       known: knownOf(after.periods),
       periods: inputOf(after.periods).map((period) =>
@@ -249,28 +245,36 @@ describe("the school day", () => {
           : period,
       ),
     });
-    const renamed = await api.periods.periods({ id: year.id, on: CHANGED });
+    const renamed = await api.periods.periods({ on: CHANGED });
     expect(renamed.periods.at(-1)).toMatchObject({
       id: seventh.id,
       nameEn: "Last lesson",
     });
     expect(renamed.changes).toEqual([year.startsOn, CHANGED]);
 
-    const { rows: history } = await api.years.history({ id: year.id });
-    expect(history[0]?.action).toBe("class_periods.replace");
+    // The school's day is the school's: its changes are audited on the school.
+    const { school } = await api.identity.currentUser();
+    const sql = new SQL(testCell().adminUrl);
+    try {
+      const [latest] = await sql<{ action: string }[]>`
+        select action from audit.log
+        where object_type = 'org' and object_id = ${school.id}::uuid
+          and action like 'class_periods.%'
+        order by occurred_at desc limit 1`;
+      expect(latest?.action).toBe("class_periods.replace");
+    } finally {
+      await sql.close();
+    }
   });
 
   test("a teacher reads and changes no school day", async () => {
-    const api = await acmePrincipal();
-    const year = await currentYear(api);
     const teacher = await signedIn("acme", login("teacher", 1));
-    expect(
-      await rejection(teacher.periods.periods({ id: year.id, on: "" })),
-    ).toMatchObject({ code: "FORBIDDEN" });
+    expect(await rejection(teacher.periods.periods({ on: "" }))).toMatchObject({
+      code: "FORBIDDEN",
+    });
     expect(
       await rejection(
         teacher.periods.savePeriods({
-          yearId: year.id,
           from: CHANGED,
           known: [],
           periods: [
@@ -335,12 +339,16 @@ describe("school years", () => {
     );
     expect(year.calendar.schoolDays).toBeGreaterThan(150);
     const current = await currentYear(api);
+    // The school's day carries on into the new year; the year writes none of its own.
     const [ours, theirs] = await Promise.all([
-      api.periods.periods({ id, on: "" }),
-      api.periods.periods({ id: current.id, on: lastDay(current.endsBefore) }),
+      api.periods.periods({ on: "2027-09-12" }),
+      api.periods.periods({ on: lastDay(current.endsBefore) }),
     ]);
     expect(shapeOf(ours.periods)).toEqual(shapeOf(theirs.periods));
-    expect(ours.changes).toEqual(["2027-09-12"]);
+    expect(ours.periods.map((period) => period.id)).toEqual(
+      theirs.periods.map((period) => period.id),
+    );
+    expect(ours.changes).not.toContain("2027-09-12");
     expect(
       await rejection(
         api.years.save({
@@ -461,17 +469,23 @@ describe("school years", () => {
     const student = record.roster[0];
     if (!student) throw new Error("old roster");
     expect(record.access.manage).toBe(false);
-    const { periods } = await api.periods.periods({ id: old.id, on: "" });
+    // The school's day is no year's: what keeps a closed year's days as
+    // they were is the registers taken on them.
+    const { periods } = await api.periods.periods({ on: old.startsOn });
     expect(
       await rejection(
         api.periods.savePeriods({
-          yearId: old.id,
           from: old.startsOn,
           known: knownOf(periods),
-          periods: inputOf(periods),
+          periods: inputOf(periods).map((period) =>
+            period.official ? { ...period, endTime: "07:55" } : period,
+          ),
         }),
       ),
-    ).toMatchObject({ code: "CONFLICT", message: "school_year.closed" });
+    ).toMatchObject({
+      code: "CONFLICT",
+      message: expect.stringMatching(/^class_period\.registers_after:/),
+    });
     expect(
       await rejection(
         api.classes.withdraw({
@@ -516,83 +530,100 @@ describe("school years", () => {
 });
 
 describe("planning school days", () => {
-  test("the office marks a week's holiday, weekends stay, and puts it back", async () => {
+  test("the office marks a week's holiday by date, leaves its weekend unmarked, and puts it back", async () => {
     const office = await northwindPrincipal();
     const year = await currentYear(office);
-    const before = await office.schoolDays.days({ id: year.id });
+    const span = { from: "2027-05-02", to: "2027-05-08" };
+    const countOf = (
+      read: Awaited<ReturnType<typeof office.schoolDays.days>>,
+    ) => {
+      const marks = new Map(read.days.map((day) => [day.day, day.meaning]));
+      return schoolDayCount(
+        read,
+        { from: span.from, endsBefore: "2027-05-09" },
+        (day) => marks.get(day) ?? null,
+      );
+    };
+    const before = await office.schoolDays.days(span);
     expect(before.canEdit).toBe(true);
-    const week = before.days.filter(
-      (day) => day.day >= "2027-05-02" && day.day <= "2027-05-08",
-    );
-    const weekdays = week.filter((day) => day.meaning !== "weekend").length;
+    expect(before.days).toEqual([]);
+    const weekdays = countOf(before);
+    expect(weekdays).toBe(5);
+    const yearBefore = await office.years.record({ id: year.id });
 
     const marked = await office.schoolDays.paint({
-      yearId: year.id,
-      from: "2027-05-02",
-      to: "2027-05-08",
+      ...span,
       kind: "school_holiday",
       noteEn: "Spring break",
       noteAr: "عطلة الربيع",
       provisional: true,
     });
     expect(marked.changed).toBe(weekdays);
-    const after = await office.schoolDays.days({ id: year.id });
-    const inWeek = after.days.filter(
-      (day) => day.day >= "2027-05-02" && day.day <= "2027-05-08",
-    );
-    expect(inWeek.filter((day) => day.meaning === "weekend")).toHaveLength(
-      week.length - weekdays,
-    );
+    const after = await office.schoolDays.days(span);
+    expect(after.days).toHaveLength(weekdays);
     expect(
-      inWeek.filter((day) => day.meaning === "school_holiday"),
-    ).toHaveLength(weekdays);
+      after.days.every(
+        (day) =>
+          !before.weekendDays.includes(
+            new Date(`${day.day}T00:00:00Z`).getUTCDay() || 7,
+          ),
+      ),
+    ).toBe(true);
+    expect(after.days[0]).toMatchObject({
+      meaning: "school_holiday",
+      noteEn: "Spring break",
+      provisional: true,
+    });
+    expect(countOf(after)).toBe(0);
     expect(
-      inWeek.find((day) => day.meaning === "school_holiday"),
-    ).toMatchObject({ noteEn: "Spring break", provisional: true });
-    expect(schoolDayCount(after.days)).toBe(
-      schoolDayCount(before.days) - weekdays,
-    );
+      (await office.years.record({ id: year.id })).calendar.schoolDays,
+    ).toBe(yearBefore.calendar.schoolDays - weekdays);
 
-    const friday = inWeek.find((day) => day.meaning === "weekend");
-    if (!friday) throw new Error("the week has no weekend day");
+    const friday = "2027-05-07";
     await office.schoolDays.paint({
-      yearId: year.id,
-      from: friday.day,
-      to: friday.day,
+      from: friday,
+      to: friday,
       kind: "make_up_day",
       noteEn: "",
       noteAr: "",
       provisional: false,
     });
+    expect(
+      (await office.schoolDays.days(span)).days.find(
+        (day) => day.day === friday,
+      )?.meaning,
+    ).toBe("make_up_day");
     await office.schoolDays.paint({
-      yearId: year.id,
-      from: "2027-05-02",
-      to: "2027-05-08",
+      ...span,
       kind: "normal",
       noteEn: "",
       noteAr: "",
       provisional: false,
     });
-    const restored = await office.schoolDays.days({ id: year.id });
-    expect(schoolDayCount(restored.days)).toBe(schoolDayCount(before.days));
-    expect(restored.days.find((day) => day.day === friday.day)?.meaning).toBe(
-      "weekend",
-    );
+    const restored = await office.schoolDays.days(span);
+    expect(restored.days).toEqual([]);
+    expect(countOf(restored)).toBe(weekdays);
+    expect(
+      (await office.years.record({ id: year.id })).calendar.schoolDays,
+    ).toBe(yearBefore.calendar.schoolDays);
 
     await office.years.target({ yearId: year.id, target: 180 });
-    expect((await office.schoolDays.days({ id: year.id })).targetDays).toBe(
-      180,
-    );
+    expect((await office.years.record({ id: year.id })).targetDays).toBe(180);
+    const planned = await office.years.planner({
+      from: year.startsOn,
+      to: lastDay(year.endsBefore),
+    });
+    expect(planned.years.find((row) => row.id === year.id)).toMatchObject({
+      targetDays: 180,
+      schoolDays: yearBefore.calendar.schoolDays,
+    });
   });
 
   test("teachers do not change school days", async () => {
-    const office = await northwindPrincipal();
-    const year = await currentYear(office);
     const teacher = await signedIn("northwind", login("teacher", 0, 1));
     expect(
       await rejection(
         teacher.schoolDays.paint({
-          yearId: year.id,
           from: "2027-05-10",
           to: "2027-05-10",
           kind: "exam_day",

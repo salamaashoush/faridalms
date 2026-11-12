@@ -13,12 +13,9 @@ import {
   messagingGuardians,
 } from "@faridalms/database/stores/messages";
 import {
-  calendarDays,
-  dayIn,
+  markedMeanings,
   schoolWeek,
-  schoolYears,
-  workingYear,
-} from "@faridalms/database/stores/years";
+} from "@faridalms/database/stores/school-days";
 import {
   followUpQuerySchema,
   isChronic,
@@ -26,14 +23,14 @@ import {
   REASON_DUE_DAYS,
   summarise,
 } from "@faridalms/domain/attendance";
-import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { paged, pageWindow } from "@faridalms/domain/paging";
 import { addDays } from "@faridalms/domain/school";
-import { isoWeekday } from "@faridalms/domain/timetable";
+import { dayOpen } from "@faridalms/domain/school-days";
 
 import type { UnitContext } from "../core/context";
 
+import { periodsOf } from "../attendance/plans";
 import {
   audit,
   readProcedure,
@@ -41,47 +38,40 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { requireStudent } from "../core/reach";
+import { reportRange } from "../core/spans";
 import { studentGroupsOf } from "../core/student-groups";
 import {
   openMailboxConversation,
   scopeOf as conversationScope,
   writeEntry,
 } from "../messages/conversations";
-import { daysOf } from "../years/years";
 
 /** Missing half the sessions or more: absent more than present. */
 const SEVERE_PERCENT = 50;
 
 /**
  * The day `count` school days before `day`: weekends and the days the
- * calendar shuts are skipped.
+ * school shuts are skipped.
  */
 async function schoolDaysBefore(
   context: UnitContext,
-  yearId: string,
   day: string,
   count: number,
 ): Promise<string> {
-  const [week, marked] = await Promise.all([
+  const scope = { tenantId: context.tenantId, schoolId: context.schoolId };
+  const [week, marks] = await Promise.all([
     schoolWeek(context.tx, context.tenantId, context.schoolId),
-    calendarDays(context.tx, {
-      tenantId: context.tenantId,
-      yearId,
+    markedMeanings(context.tx, {
+      ...scope,
       from: addDays(day, -count * 3 - 14),
       to: day,
     }),
   ]);
-  const shut = new Set(
-    marked
-      .filter((row) => !SCHOOL_DAY_MEANINGS.includes(row.meaning))
-      .map((row) => row.day),
-  );
   let cursor = day;
   let left = count;
   while (left > 0) {
     cursor = addDays(cursor, -1);
-    if (!week.weekendDays.includes(isoWeekday(cursor)) && !shut.has(cursor))
-      left -= 1;
+    if (dayOpen(week, cursor, marks.get(cursor) ?? null)) left -= 1;
   }
   return cursor;
 }
@@ -95,13 +85,8 @@ export const day = readProcedure
   .input(followUpQuerySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:manage");
-    const year = workingYear(
-      await schoolYears(context.tx, context.tenantId, context.schoolId),
-      context.today,
-    );
-    if (!year) return { followUp: null };
-    const date = dayIn(year, input.date || context.today);
-    const last = addDays(year.endsBefore, -1);
+    const date = input.date || context.today;
+    const range = await reportRange(context, { span: "", from: "", to: "" });
     const [calls, contacts, rules, due] = await Promise.all([
       callList(context.tx, {
         tenantId: context.tenantId,
@@ -114,7 +99,7 @@ export const day = readProcedure
         day: date,
       }),
       settingsOf(context.tx, context.tenantId, context.schoolId),
-      schoolDaysBefore(context, year.id, date, REASON_DUE_DAYS),
+      schoolDaysBefore(context, date, REASON_DUE_DAYS),
     ]);
     const [guardians, overdue, rates, groups] = await Promise.all([
       guardiansToCall(context.tx, {
@@ -125,17 +110,15 @@ export const day = readProcedure
       overdueReasons(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
-        from: year.startsOn,
+        from: range.from,
         before: due,
         ...pageWindow(input.overduePage),
       }),
       attendanceReport(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
-        yearId: year.id,
-        during: daysOf(year),
-        from: year.startsOn,
-        to: last < context.today ? last : context.today,
+        from: range.from,
+        to: range.to,
         by: "student",
         q: "",
         dailyClassIds: [],
@@ -164,15 +147,34 @@ export const day = readProcedure
         sessions: summary.sessions,
         severe: 100 - (summary.rate ?? 100) >= SEVERE_PERCENT,
       }));
+    const periods = await periodsOf(
+      context,
+      calls.flatMap((row) => row.registerIds),
+    );
+    const firstPeriod = (registerIds: readonly string[]) =>
+      registerIds
+        .flatMap((id) => {
+          const period = periods.get(id);
+          return period ? [period] : [];
+        })
+        .toSorted((a, b) => a.sequence - b.sequence)[0] ?? null;
     return {
       followUp: {
         date,
         today: context.today,
-        year: { startsOn: year.startsOn, lastDay: last },
+        from: range.from,
         dueBefore: due,
         chronicPercent: rules.chronicPercent,
         calls: calls
-          .map((row) => ({ ...row, group: groups.get(row.studentId) ?? null }))
+          .map(({ registerIds, ...row }) => {
+            const period = firstPeriod(registerIds);
+            return {
+              ...row,
+              periodNameEn: period?.nameEn ?? null,
+              periodNameAr: period?.nameAr ?? null,
+              group: groups.get(row.studentId) ?? null,
+            };
+          })
           .toSorted((a, b) =>
             (a.group?.code ?? "\uffff").localeCompare(
               b.group?.code ?? "\uffff",

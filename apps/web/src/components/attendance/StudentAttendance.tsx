@@ -1,3 +1,4 @@
+import { DEFAULT_REPORT_WEEKS } from "@faridalms/domain/spans";
 import { Pagination } from "@faridalms/ui/system/data-table";
 import {
   Fact,
@@ -69,7 +70,16 @@ export interface StudentAttendanceProps {
   studentId?: string;
 }
 
-/** A student's year of attendance, as they, their family and staff read it. */
+/** What a student's attendance covers: the span the school names, else the last weeks. */
+export const spanTitle = (span: {
+  titleEn: string | null;
+  titleAr: string | null;
+}) =>
+  span.titleEn || span.titleAr
+    ? m.attThisYear()
+    : m.attLastWeeks({ count: DEFAULT_REPORT_WEEKS });
+
+/** A student's attendance over the span the school reports on, as they, their family and staff read it. */
 export function StudentAttendance({ studentId = "" }: StudentAttendanceProps) {
   const [page, setPage] = useState(1);
   const data = useSuspenseQuery(studentAttendanceQuery(studentId, page)).data;
@@ -89,7 +99,10 @@ export function StudentAttendance({ studentId = "" }: StudentAttendanceProps) {
           })}
         </p>
       ) : null}
-      <RecordSection title={m.attThisYear()} description={m.attDailyHint()}>
+      <RecordSection
+        title={spanTitle(data.span)}
+        description={m.attDailyHint()}
+      >
         {summary.sessions === 0 ? (
           <RecordEmpty>{m.attNothingYet()}</RecordEmpty>
         ) : (

@@ -1,5 +1,3 @@
-import { addDays } from "@faridalms/domain/school";
-import { DEFAULT_PERIODS } from "@faridalms/domain/timetable";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 
@@ -7,11 +5,7 @@ import type { CellTransaction } from "../src/context";
 import type { TenantSpec } from "../src/tenants";
 
 import { openOwner } from "../src/context";
-import {
-  givePeriods,
-  periodsInForce,
-  replacePeriodsFrom,
-} from "../src/stores/periods";
+import { periodsInForce, replacePeriodsFrom } from "../src/stores/periods";
 import { createYear, schoolYears, updateYear } from "../src/stores/years";
 import { createTenant } from "../src/tenants";
 import { CELL, kek, urlFor } from "./harness";
@@ -75,12 +69,6 @@ const year = (
   terms: [],
 });
 
-const target = (id: string, startsOn: string, endsOn: string) => ({
-  id,
-  startsOn,
-  endsBefore: addDays(endsOn, 1),
-});
-
 async function weeksOf(tx: CellTransaction, tenantId: string, yearId: string) {
   return tx.execute<{ id: string; number: number; span: string }>(sql`
     select id, number, span::text as span from core.academic_weeks
@@ -89,96 +77,94 @@ async function weeksOf(tx: CellTransaction, tenantId: string, yearId: string) {
     order by lower(span)`);
 }
 
-describe("a year's school day", () => {
-  test("starts from the platform's default, then from the group's school, then from the school's own year", async () => {
+describe("the school's day", () => {
+  test("belongs to its school and carries on across years, a new year writing no periods of its own", async () => {
     await inGroup(async (tx, { tenantId, first, second }) => {
-      const firstYear = await createYear(
-        tx,
-        year(tenantId, first, "2030-09-01", "2031-06-30"),
-      );
+      await createYear(tx, year(tenantId, first, "2030-09-01", "2031-06-30"));
       expect(
-        await givePeriods(tx, {
+        await periodsInForce(tx, {
           tenantId,
           schoolId: first,
-          target: target(firstYear.id, "2030-09-01", "2031-06-30"),
+          on: "2030-09-01",
         }),
-      ).toBe("default");
-      const given = await periodsInForce(tx, {
-        tenantId,
-        yearId: firstYear.id,
-        on: "2030-09-01",
-      });
-      expect(given.map((period) => period.nameEn)).toEqual(
-        DEFAULT_PERIODS.map((period) => period.nameEn),
-      );
-
+      ).toEqual([]);
+      const morning = {
+        nameEn: "Morning",
+        nameAr: null,
+        kind: "lesson" as const,
+        startTime: "08:30",
+        endTime: "10:00",
+        official: true,
+        weekdays: [7, 1, 2, 3, 4],
+        dayTimes: [],
+      };
+      const afternoon = {
+        ...morning,
+        nameEn: "Afternoon",
+        startTime: "13:00",
+        endTime: "14:00",
+        official: false,
+      };
       await replacePeriodsFrom(tx, {
         tenantId,
         schoolId: first,
-        yearId: firstYear.id,
-        yearEndsBefore: "2031-07-01",
         from: "2030-09-01",
-        known: given.map((period) => ({
+        known: [],
+        periods: [morning, afternoon],
+        firstUse: () => Promise.resolve(null),
+      });
+      await createYear(tx, year(tenantId, first, "2031-09-01", "2032-06-30"));
+      const nextYear = await periodsInForce(tx, {
+        tenantId,
+        schoolId: first,
+        on: "2031-09-01",
+      });
+      expect(nextYear.map((period) => [period.nameEn, period.until])).toEqual([
+        ["Morning", null],
+        ["Afternoon", null],
+      ]);
+      expect(
+        await periodsInForce(tx, {
+          tenantId,
+          schoolId: second,
+          on: "2031-09-01",
+        }),
+      ).toEqual([]);
+      const before = await periodsInForce(tx, {
+        tenantId,
+        schoolId: first,
+        on: "2032-01-10",
+      });
+      await replacePeriodsFrom(tx, {
+        tenantId,
+        schoolId: first,
+        from: "2032-01-10",
+        known: before.map((period) => ({
           id: period.id,
           version: period.version,
         })),
-        periods: [
-          {
-            nameEn: "Morning",
-            nameAr: null,
-            kind: "lesson",
-            startTime: "08:30",
-            endTime: "10:00",
-            official: true,
-            weekdays: [7, 1, 2, 3, 4],
-            dayTimes: [],
-          },
-        ],
+        periods: [{ ...morning, id: before[0]?.id, startTime: "08:00" }],
+        firstUse: () => Promise.resolve(null),
       });
-
-      const sibling = await createYear(
-        tx,
-        year(tenantId, second, "2030-09-01", "2031-06-30"),
+      const earlier = await periodsInForce(tx, {
+        tenantId,
+        schoolId: first,
+        on: "2031-09-01",
+      });
+      expect(earlier.map((period) => [period.startTime, period.until])).toEqual(
+        [
+          ["08:30", "2032-01-10"],
+          ["13:00", "2032-01-10"],
+        ],
       );
-      expect(
-        await givePeriods(tx, {
-          tenantId,
-          schoolId: second,
-          target: target(sibling.id, "2030-09-01", "2031-06-30"),
-        }),
-      ).toBe("group");
-      const own = await createYear(
-        tx,
-        year(tenantId, first, "2031-09-01", "2032-06-30"),
-      );
-      expect(
-        await givePeriods(tx, {
-          tenantId,
-          schoolId: first,
-          target: target(own.id, "2031-09-01", "2032-06-30"),
-        }),
-      ).toBe("year");
-      for (const id of [sibling.id, own.id]) {
-        const periods = await periodsInForce(tx, {
-          tenantId,
-          yearId: id,
-          on: id === own.id ? "2031-09-01" : "2030-09-01",
-        });
-        expect(
-          periods.map((period) => [
-            period.nameEn,
-            period.startTime,
-            period.official,
-          ]),
-        ).toEqual([["Morning", "08:30", true]]);
-      }
-      expect(
-        await givePeriods(tx, {
-          tenantId,
-          schoolId: first,
-          target: target(own.id, "2031-09-01", "2032-06-30"),
-        }),
-      ).toBe("kept");
+      const later = await periodsInForce(tx, {
+        tenantId,
+        schoolId: first,
+        on: "2032-01-10",
+      });
+      expect(later.map((period) => [period.startTime, period.until])).toEqual([
+        ["08:00", null],
+      ]);
     });
   });
 });
@@ -204,6 +190,7 @@ describe("a year's teaching weeks", () => {
         ...year(tenantId, first, "2059-09-01", "2060-07-15"),
         id: created.id,
         expectedVersion: version,
+        refusesRuns: () => Promise.resolve(null),
       });
       const after = await weeksOf(tx, tenantId, created.id);
       const lastBefore = before.at(-1);

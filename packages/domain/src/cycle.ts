@@ -1,8 +1,7 @@
 import type { Cycle } from "./timetable";
 
-import { SCHOOL_DAY_MEANINGS } from "./calendar";
 import { addDays } from "./school";
-import { isoWeekday } from "./timetable";
+import { dayOpen, dayRests, isoWeekday } from "./school-days";
 
 /**
  * Where a lesson on a day of one cycle goes in another, for a timetable
@@ -84,31 +83,98 @@ export function timetableOn<T extends { startsOn: string }>(
 
 const mod = (value: number, by: number) => ((value % by) + by) % by;
 
+const DAY_MS = 86_400_000;
+
+/** Whole days from `from` to `to`, negative when `to` is earlier. */
+const daysFrom = (from: string, to: string) =>
+  Math.round(
+    (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS,
+  );
+
 const weekStartOf = (day: string, weekStart: number) =>
   addDays(day, -mod(isoWeekday(day) - weekStart, 7));
 
 /**
- * What a day is for counting a cycle: open when lessons are held, a rest
- * day when it is the weekend. A day the calendar does not mark is open on
- * a school weekday. An open day may run as another day of the cycle.
+ * What the school marked, for counting a cycle: the days it marked as
+ * something other than its week says, and the days the timetable runs as
+ * another day of its cycle. A day that is not marked is open on a school
+ * weekday and a rest day on the weekend.
  */
 export interface CycleCalendar {
-  meaningOf: (day: string) => string | null;
-  runsAsOf?: (day: string) => number | null;
+  marks: ReadonlyMap<string, string>;
+  runsAs?: ReadonlyMap<string, number>;
   weekStart: number;
   weekendDays: readonly number[];
 }
 
-function openOn(calendar: CycleCalendar, day: string) {
-  const meaning = calendar.meaningOf(day);
-  if (meaning === null) return !calendar.weekendDays.includes(isoWeekday(day));
-  return SCHOOL_DAY_MEANINGS.includes(meaning);
+const meaningOf = (calendar: CycleCalendar, day: string) =>
+  calendar.marks.get(day) ?? null;
+
+const openOn = (calendar: CycleCalendar, day: string) =>
+  dayOpen(calendar, day, meaningOf(calendar, day));
+
+const restOn = (calendar: CycleCalendar, day: string) =>
+  dayRests(calendar, day, meaningOf(calendar, day));
+
+/** How many weekdays of `[from, to)` are not on the week's rest days. */
+function weekdaysBetween(
+  from: string,
+  to: string,
+  weekendDays: readonly number[],
+): number {
+  const length = daysFrom(from, to);
+  if (length <= 0) return 0;
+  const weekly = 7 - new Set(weekendDays).size;
+  let count = Math.floor(length / 7) * weekly;
+  for (let offset = 0; offset < length % 7; offset += 1)
+    if (!weekendDays.includes(isoWeekday(addDays(from, offset)))) count += 1;
+  return count;
 }
 
-function restOn(calendar: CycleCalendar, day: string) {
-  const meaning = calendar.meaningOf(day);
-  if (meaning === null) return calendar.weekendDays.includes(isoWeekday(day));
-  return meaning === "weekend";
+/**
+ * How many units of the cycle from `from` up to `to` use up a place:
+ * weeks for a cycle of weeks (both given as week starts), days for a cycle
+ * of days. Worked out from the week and from the marked days alone, never
+ * by walking the days between.
+ */
+function countedBetween(
+  cycle: Cycle,
+  calendar: CycleCalendar,
+  from: string,
+  to: string,
+): number {
+  if (to <= from) return 0;
+  const marked = [...calendar.marks.keys()].filter(
+    (day) => day >= from && day < to,
+  );
+  if (cycle.kind === "weeks") {
+    const weeks = daysFrom(from, to) / 7;
+    if (!cycle.closuresMove) return weeks;
+    const ownOpen = weekdaysBetween(
+      from,
+      addDays(from, 7),
+      calendar.weekendDays,
+    );
+    let count = ownOpen > 0 ? weeks : 0;
+    for (const start of new Set(
+      marked.map((day) => weekStartOf(day, calendar.weekStart)),
+    )) {
+      const open = Array.from({ length: 7 }, (_, offset) =>
+        addDays(start, offset),
+      ).some((day) => openOn(calendar, day));
+      count += (open ? 1 : 0) - (ownOpen > 0 ? 1 : 0);
+    }
+    return count;
+  }
+  let count = weekdaysBetween(from, to, calendar.weekendDays);
+  for (const day of marked) {
+    const usual = calendar.weekendDays.includes(isoWeekday(day)) ? 0 : 1;
+    const counts = cycle.closuresMove
+      ? openOn(calendar, day)
+      : !restOn(calendar, day);
+    count += (counts ? 1 : 0) - usual;
+  }
+  return count;
 }
 
 /**
@@ -124,50 +190,42 @@ export function cycleDaysOn(
   calendar: CycleCalendar,
 ): Map<string, number | null> {
   const out = new Map<string, number | null>();
-  if (days.length === 0) return out;
-  const sorted = [...new Set(days)].toSorted();
-  const first = sorted[0] ?? cycle.startsOn;
-  const last = sorted.at(-1) ?? cycle.startsOn;
   const anchor =
     cycle.kind === "weeks"
       ? weekStartOf(cycle.startsOn, calendar.weekStart)
       : cycle.startsOn;
-  const counts = (day: string) =>
-    cycle.kind === "weeks"
-      ? !cycle.closuresMove ||
-        Array.from({ length: 7 }, (_, offset) => addDays(day, offset)).some(
-          (one) => openOn(calendar, one),
-        )
-      : cycle.closuresMove
-        ? openOn(calendar, day)
-        : !restOn(calendar, day);
+  const unitOf = (day: string) =>
+    cycle.kind === "weeks" ? weekStartOf(day, calendar.weekStart) : day;
   const runsAs = (day: string) => {
-    const value = calendar.runsAsOf?.(day) ?? null;
+    const value = calendar.runsAs?.get(day) ?? null;
     return value !== null && openOn(calendar, day) && inCycle(cycle, value)
       ? value
       : null;
   };
   const resumes = cycle.kind === "days" && cycle.closuresMove;
-  const step = cycle.kind === "weeks" ? 7 : 1;
-  const unitOf = (day: string) =>
-    cycle.kind === "weeks" ? weekStartOf(day, calendar.weekStart) : day;
-  // How many counted units lie between the anchor and each unit, walking
-  // once over the span the days and the anchor cover.
-  const position = new Map<string, number>();
-  const start = unitOf(first) < anchor ? unitOf(first) : anchor;
-  const end = unitOf(last) > anchor ? unitOf(last) : anchor;
-  let before = 0;
-  for (let unit = start; unit < anchor; unit = addDays(unit, step))
-    if (counts(unit)) before += 1;
-  let seen = -before;
-  for (let unit = start; unit <= end; unit = addDays(unit, step)) {
-    const runs = resumes && unit >= anchor ? runsAs(unit) : null;
-    if (runs !== null)
-      seen += mod(runs - 1 - (cycle.firstDay - 1 + seen), cycle.length);
-    position.set(unit, seen);
-    if (counts(unit)) seen += 1;
-  }
-  for (const day of sorted) {
+  // The days a cycle of days picks up from, in order; each resets the
+  // place the days after it count from.
+  const restarts = resumes
+    ? [...(calendar.runsAs?.keys() ?? [])]
+        .filter((day) => day >= anchor && runsAs(day) !== null)
+        .toSorted()
+    : [];
+  const positionOf = (unit: string) => {
+    if (unit < anchor) return -countedBetween(cycle, calendar, unit, anchor);
+    let seen = 0;
+    let from = anchor;
+    for (const restart of restarts) {
+      if (restart > unit) break;
+      seen += countedBetween(cycle, calendar, from, restart);
+      seen += mod(
+        (runsAs(restart) ?? 1) - 1 - (cycle.firstDay - 1 + seen),
+        cycle.length,
+      );
+      from = restart;
+    }
+    return seen + countedBetween(cycle, calendar, from, unit);
+  };
+  for (const day of [...new Set(days)].toSorted()) {
     if (!openOn(calendar, day)) {
       out.set(day, null);
       continue;
@@ -177,8 +235,10 @@ export function cycleDaysOn(
       out.set(day, runs);
       continue;
     }
-    const elapsed = position.get(unitOf(day)) ?? 0;
-    const place = mod(cycle.firstDay - 1 + elapsed, cycle.length);
+    const place = mod(
+      cycle.firstDay - 1 + positionOf(unitOf(day)),
+      cycle.length,
+    );
     out.set(
       day,
       cycle.kind === "weeks" ? place * 7 + isoWeekday(day) : place + 1,

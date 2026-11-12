@@ -99,9 +99,9 @@ describe("a school's health", () => {
     const { schoolIds } = await contract("hazel-health");
     const [schoolId = ""] = schoolIds;
     await inDirectory(async (sql) => {
-      await sql`update schools set created_at = now() - interval '30 days' where id = ${schoolId}`;
+      await sql`update schools set created_at = ${NOW}::timestamptz - interval '30 days' where id = ${schoolId}`;
       await sql`insert into school_onboarding (school_id, item, reached_at)
-        values (${schoolId}, 'admin_signed_in', now() - interval '20 days')`;
+        values (${schoolId}, 'admin_signed_in', ${NOW}::timestamptz - interval '20 days')`;
     });
     await directory().addHost({
       schoolId,

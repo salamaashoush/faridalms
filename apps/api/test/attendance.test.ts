@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   login,
+  periodOf,
   rejection,
   runDay,
   schoolDayBack,
@@ -74,7 +75,7 @@ describe("taking a register", () => {
       classId: opened.class.id,
       date,
     });
-    expect(register.period.official).toBe(true);
+    expect(periodOf(register).official).toBe(true);
     expect(register.access).toEqual({ editable: true });
     expect(register.register).toBeNull();
     const late = register.students.find((row) => row.id !== me.id);
@@ -83,7 +84,7 @@ describe("taking a register", () => {
     const half = await teacher.attendance.save({
       classId: opened.class.id,
       date,
-      periodId: register.period.id,
+      periodId: periodOf(register).id,
       expectedVersion: 0,
       marks: [{ studentId: me.id, meaning: "absent" }],
     });
@@ -92,7 +93,7 @@ describe("taking a register", () => {
     const full = await teacher.attendance.save({
       classId: opened.class.id,
       date,
-      periodId: register.period.id,
+      periodId: periodOf(register).id,
       expectedVersion: half.version,
       marks: register.students.map((row) =>
         row.id === me.id
@@ -109,7 +110,7 @@ describe("taking a register", () => {
         teacher.attendance.save({
           classId: opened.class.id,
           date,
-          periodId: register.period.id,
+          periodId: periodOf(register).id,
           expectedVersion: half.version,
           marks: [],
         }),
@@ -120,7 +121,7 @@ describe("taking a register", () => {
     const row = board.rows.find(
       (entry) =>
         entry.classId === opened.class.id &&
-        entry.periodId === register.period.id,
+        entry.periodId === periodOf(register).id,
     );
     expect(row).toMatchObject({ state: "submitted" });
     expect(row?.counts.absent).toBe(1);
@@ -139,7 +140,7 @@ describe("taking a register", () => {
     const corrected = {
       classId: opened.class.id,
       date,
-      periodId: register.period.id,
+      periodId: periodOf(register).id,
       expectedVersion: full.version,
       marks: register.students.map((entry) => ({
         studentId: entry.id,
@@ -164,7 +165,7 @@ describe("taking a register", () => {
     const amended = await teacher.attendance.register({
       classId: opened.class.id,
       date,
-      periodId: register.period.id,
+      periodId: periodOf(register).id,
     });
     expect(
       amended.history.find((entry) => entry.studentId === late.id),
@@ -203,7 +204,7 @@ describe("taking a register", () => {
         teacher.attendance.save({
           classId: opened.class.id,
           date: friday,
-          periodId: opened.period.id,
+          periodId: periodOf(opened).id,
           expectedVersion: 0,
           marks: [],
         }),
@@ -215,7 +216,7 @@ describe("taking a register", () => {
         teacher.attendance.save({
           classId: opened.class.id,
           date,
-          periodId: opened.period.id,
+          periodId: periodOf(opened).id,
           expectedVersion: 0,
           marks: [{ studentId: opened.class.id, meaning: "present" }],
         }),
@@ -411,7 +412,8 @@ describe("classroom check-in", () => {
     });
     // A period nobody has taken yet, so the register starts empty.
     const period =
-      first.periods.find((row) => row.id !== first.period.id) ?? first.period;
+      first.periods.find((row) => row.id !== periodOf(first).id) ??
+      periodOf(first);
     const tap = {
       classId: opened.class.id,
       date,

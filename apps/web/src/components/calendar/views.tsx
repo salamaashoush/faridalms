@@ -1,4 +1,4 @@
-import type { IsoWeekday } from "@faridalms/domain/timetable";
+import type { IsoWeekday } from "@faridalms/domain/school-days";
 import type {
   ComponentProps,
   DragEvent,
@@ -8,7 +8,7 @@ import type {
 
 import { monthWeeks, onDay, weekOf } from "@faridalms/domain/calendar";
 import { addDays, daysBetween } from "@faridalms/domain/school";
-import { isoWeekday } from "@faridalms/domain/timetable";
+import { isoWeekday } from "@faridalms/domain/school-days";
 import { cn } from "@faridalms/ui/cn";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { StatusBadge } from "@faridalms/ui/system/status";

@@ -3,7 +3,11 @@ import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 import type { ReactNode } from "react";
 
 import { addDays } from "@faridalms/domain/school";
-import { PERIOD_KINDS, savePeriodsSchema } from "@faridalms/domain/timetable";
+import {
+  DEFAULT_PERIODS,
+  PERIOD_KINDS,
+  savePeriodsSchema,
+} from "@faridalms/domain/timetable";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { DataTable, RowButton } from "@faridalms/ui/system/data-table";
@@ -33,11 +37,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { CheckboxRow } from "~/components/people/fields";
-import { BellSchedules } from "~/components/years/BellSchedules";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { yearPeriodsQuery } from "~/queries/periods";
-import { saveYearPeriods } from "~/server/periods";
+import { schoolPeriodsQuery } from "~/queries/periods";
+import { saveSchoolPeriods } from "~/server/periods";
 import {
   formatDate,
   formatList,
@@ -52,8 +55,10 @@ import {
 } from "~/utils/error";
 import { schemaErrors } from "~/utils/validation";
 
+import { BellSchedules } from "./BellSchedules";
+
 type PeriodsData = Awaited<
-  ReturnType<NonNullable<ReturnType<typeof yearPeriodsQuery>["queryFn"]>>
+  ReturnType<NonNullable<ReturnType<typeof schoolPeriodsQuery>["queryFn"]>>
 >;
 type Period = PeriodsData["periods"][number];
 
@@ -83,29 +88,46 @@ function daysLabel(weekdays: readonly number[], schoolDays: readonly number[]) {
   return formatList(runs.map((day) => formatWeekday(day)));
 }
 
-/** The dates the structure read on `on` holds for: its first day and the day after its last. */
-function segmentOf(data: PeriodsData) {
-  const yearEnd = addDays(data.year.lastDay, 1);
+const earliest = (a: string | null, b: string | null) =>
+  a === null ? b : b === null ? a : a < b ? a : b;
+
+/**
+ * The dates the structure read on `on` holds for: its first day, or none
+ * before the school first set its day, and the day after its last, or none
+ * while it runs on.
+ */
+function segmentOf(data: PeriodsData): {
+  from: string | null;
+  until: string | null;
+} {
+  const next = data.changes.find((day) => day > data.on) ?? null;
   if (data.periods.length === 0)
     return {
-      from:
-        data.changes.findLast((day) => day <= data.on) ?? data.year.startsOn,
-      until: data.changes.find((day) => day > data.on) ?? yearEnd,
+      from: data.changes.findLast((day) => day <= data.on) ?? null,
+      until: next,
     };
   return {
     from: data.periods.reduce(
       (latest, row) => (row.from > latest ? row.from : latest),
-      data.year.startsOn,
+      data.periods[0]?.from ?? data.on,
     ),
-    until: data.periods.reduce(
-      (earliest, row) => (row.until < earliest ? row.until : earliest),
-      yearEnd,
+    until: data.periods.reduce<string | null>(
+      (soonest, row) => earliest(soonest, row.until),
+      next,
     ),
   };
 }
 
-const clamp = (day: string, first: string, last: string) =>
-  day < first ? first : day > last ? last : day;
+const clamp = (day: string, first: string | null, last: string | null) =>
+  first !== null && day < first
+    ? first
+    : last !== null && day > last
+      ? last
+      : day;
+
+/** The last day of a segment, or none while it runs on. */
+const lastOf = (until: string | null) =>
+  until === null ? null : addDays(until, -1);
 
 interface DayTimesDraft {
   key: number;
@@ -145,7 +167,6 @@ const draftOf = (period: Period): Draft => ({
 
 /** The periods as the server takes them, every one of the day. */
 const payloadOf = (data: PeriodsData, from: string, drafts: Draft[]) => ({
-  yearId: data.year.id,
   from,
   known: data.periods.map((period) => ({
     id: period.id,
@@ -214,8 +235,7 @@ function useRefusal(error: Error | null) {
   const code = error?.message ?? "";
   const onFrom =
     code.startsWith(PERIOD_REGISTERS_AFTER) ||
-    code.startsWith(PERIOD_COVER_AFTER) ||
-    code === "class_period.outside_year";
+    code.startsWith(PERIOD_COVER_AFTER);
   return {
     from: onFrom && refusal ? refusal.message : null,
     sheet: refusal && !onFrom ? refusal.message : null,
@@ -239,8 +259,8 @@ function FromField({ data, value, error, onChange }: FromFieldProps) {
       hint={m.periodsFromHint()}
       type="date"
       width="date"
-      min={segment.from}
-      max={addDays(segment.until, -1)}
+      min={segment.from ?? undefined}
+      max={lastOf(segment.until) ?? undefined}
       value={value}
       onChange={(event) => onChange(event.target.value)}
       errors={error ? [error] : undefined}
@@ -250,16 +270,14 @@ function FromField({ data, value, error, onChange }: FromFieldProps) {
 
 function useFrom(data: PeriodsData) {
   const segment = segmentOf(data);
-  return useState(() =>
-    clamp(data.today, segment.from, addDays(segment.until, -1)),
-  );
+  return useState(() => clamp(data.today, segment.from, lastOf(segment.until)));
 }
 
 function useSavePeriods() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: (payload: ReturnType<typeof payloadOf>) =>
-      saveYearPeriods({ data: payload }),
+      saveSchoolPeriods({ data: payload }),
     meta: { inlineError: true },
   });
   return {
@@ -270,8 +288,9 @@ function useSavePeriods() {
       } catch {
         return false;
       }
-      await queryClient.invalidateQueries({ queryKey: ["years"] });
+      await queryClient.invalidateQueries({ queryKey: ["periods"] });
       await queryClient.invalidateQueries({ queryKey: ["timetable"] });
+      await queryClient.invalidateQueries({ queryKey: ["attendance"] });
       toast.success(m.periodsSaved());
       return true;
     },
@@ -675,6 +694,40 @@ function periodCard(days: readonly number[], opener: PeriodOpener) {
   };
 }
 
+interface StartUsualProps {
+  data: PeriodsData;
+}
+
+/** Sets the usual school day from the day read, for a school that has set none. */
+function StartUsual({ data }: StartUsualProps) {
+  const { mutation, save } = useSavePeriods();
+  return (
+    <Button
+      type="button"
+      className="max-md:h-10"
+      disabled={mutation.isPending}
+      onClick={() =>
+        void save({
+          from: data.on,
+          known: [],
+          periods: DEFAULT_PERIODS.map((period) => ({
+            nameEn: period.nameEn ?? "",
+            nameAr: period.nameAr ?? "",
+            kind: period.kind,
+            startTime: period.startTime,
+            endTime: period.endTime,
+            official: period.official,
+            weekdays: [...period.weekdays],
+            dayTimes: [],
+          })),
+        })
+      }
+    >
+      {m.periodsStartUsual()}
+    </Button>
+  );
+}
+
 interface PeriodsTableProps {
   data: PeriodsData;
 }
@@ -746,7 +799,12 @@ function PeriodsTable({ data }: PeriodsTableProps) {
         empty={{
           icon: Clock,
           title: m.periodsNone(),
-          action: add("default"),
+          action: data.canEdit ? (
+            <div className="flex flex-wrap justify-center gap-2">
+              <StartUsual data={data} />
+              {add("outline")}
+            </div>
+          ) : undefined,
         }}
       />
       {sheet?.removing && sheet.period ? (
@@ -770,18 +828,19 @@ function PeriodsTable({ data }: PeriodsTableProps) {
   );
 }
 
-export interface YearPeriodsProps {
-  yearId: string;
+export interface SchoolDayProps {
+  /** The day the school day is read on; empty for today. */
   on: string;
 }
 
 /**
- * A year's school day: its periods with their times and days, as they stand
+ * The school's day: its periods with their times and days, as they stand
  * on the day being read, and the dates the day changes shape on.
  */
-export function YearPeriods({ yearId, on }: YearPeriodsProps) {
-  const data = useSuspenseQuery(yearPeriodsQuery(yearId, on)).data;
+export function SchoolDay({ on }: SchoolDayProps) {
+  const data = useSuspenseQuery(schoolPeriodsQuery(on)).data;
   const segment = segmentOf(data);
+  const last = lastOf(segment.until);
   const lessons = Math.max(
     0,
     ...data.days.map(
@@ -800,12 +859,16 @@ export function YearPeriods({ yearId, on }: YearPeriodsProps) {
             description={
               <>
                 {m.periodsHint()}{" "}
-                <span className="font-medium text-foreground">
-                  {m.accessDuring({
-                    from: formatDate(segment.from),
-                    to: formatDate(addDays(segment.until, -1)),
-                  })}
-                </span>
+                {segment.from === null ? null : (
+                  <span className="font-medium text-foreground">
+                    {last === null
+                      ? m.ttTimetableFrom({ date: formatDate(segment.from) })
+                      : m.accessDuring({
+                          from: formatDate(segment.from),
+                          to: formatDate(last),
+                        })}
+                  </span>
+                )}
               </>
             }
           >
@@ -837,9 +900,8 @@ export function YearPeriods({ yearId, on }: YearPeriodsProps) {
                   return (
                     <li key={day} className="py-3">
                       <Link
-                        to="/years/$yearId"
-                        params={{ yearId }}
-                        search={{ tab: "periods", on: day }}
+                        to="/timetable"
+                        search={{ view: "day", from: day }}
                         aria-current={shown ? "page" : undefined}
                         className={cn(
                           "text-sm leading-5 hover:text-primary hover:underline",

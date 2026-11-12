@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, seeded, sessionFor, signedIn } from "./harness";
+import {
+  login,
+  periodOf,
+  rejection,
+  seeded,
+  sessionFor,
+  signedIn,
+} from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 
@@ -22,7 +29,7 @@ async function northwindTeachers() {
       return {
         api,
         id: me.id,
-        lessons: (week?.meetings ?? []).filter((row) => row.on === DAY),
+        lessons: week.meetings.filter((row) => row.on === DAY),
       };
     }),
   );
@@ -44,13 +51,13 @@ describe("covering lessons", () => {
       reason: "illness",
     });
     const before = await office.cover.day({ on: DAY });
-    const open = before.cover?.lessons.filter((row) => row.away) ?? [];
+    const open = before.cover.lessons.filter((row) => row.away);
     expect(open.length).toBe(away.lessons.length);
     expect(open.every((row) => row.change === null)).toBe(true);
 
     const key = { classId: lesson.classId, periodId: lesson.periodId, on: DAY };
     const changeOf = async (classId: string, periodId: string) =>
-      (await office.cover.day({ on: DAY })).cover?.lessons.find(
+      (await office.cover.day({ on: DAY })).cover.lessons.find(
         (row) => row.classId === classId && row.periodId === periodId,
       )?.change?.id ?? "";
     const { candidates } = await office.cover.options(key);
@@ -84,7 +91,7 @@ describe("covering lessons", () => {
     ).toMatchObject({ code: "CONFLICT", message: "conflict.version" });
 
     const { week } = await cover.api.timetable.teacherWeek({ on: DAY });
-    const covered = week?.meetings.find(
+    const covered = week.meetings.find(
       (row) => row.cover && row.classId === lesson.classId,
     );
     expect(covered).toMatchObject({
@@ -97,7 +104,7 @@ describe("covering lessons", () => {
       classId: lesson.classId,
       date: DAY,
     });
-    expect(register.period.id).toBe(lesson.periodId);
+    expect(periodOf(register).id).toBe(lesson.periodId);
     if (other.classId !== lesson.classId || other.periodId !== lesson.periodId)
       expect(
         await rejection(
@@ -125,7 +132,7 @@ describe("covering lessons", () => {
     ).toBe(false);
 
     const after = await office.cover.day({ on: DAY });
-    const states = after.cover?.lessons ?? [];
+    const states = after.cover.lessons;
     expect(
       states.find((row) => row.classId === lesson.classId)?.change?.coverId,
     ).toBe(cover.id);
@@ -149,7 +156,7 @@ describe("covering lessons", () => {
         }),
       ),
     ).toMatchObject({ code: "NOT_FOUND" });
-    const absence = after.cover?.absences.find((row) => row.userId === away.id);
+    const absence = after.cover.absences.find((row) => row.userId === away.id);
     if (!absence) throw new Error("the absence is gone");
     await office.cover.removeStaffAbsence({ id: absence.id });
     await office.cover.clearLessonChange({

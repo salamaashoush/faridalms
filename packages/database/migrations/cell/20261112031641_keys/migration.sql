@@ -37,19 +37,13 @@ alter table core.academic_weeks add foreign key (tenant_id, school_year_id, scho
 alter table core.academic_weeks add constraint academic_weeks_excl exclude using gist
   (tenant_id with =, school_year_id with =, span with &&) where (status = 'active');
 
-alter table core.calendar_dates add foreign key (tenant_id, school_year_id, school_year_type, period span)
-  references core.academic_sessions (tenant_id, id, type, period span);
-
--- The year's own periods are kept apart here. A bell schedule's periods span
--- the whole year beside them and are kept apart by their own code key.
-alter table core.class_periods
-  add foreign key (tenant_id, school_year_id, school_year_type, period valid_during)
-  references core.academic_sessions (tenant_id, id, type, period span);
+-- The school's own periods are kept apart here. A bell schedule's periods are
+-- held on every day of their schedule and are kept apart by their own code key.
 alter table core.class_periods add constraint class_periods_code_excl exclude using gist
-  (tenant_id with =, org_id with =, school_year_id with =, code with =, valid_during with &&)
+  (tenant_id with =, org_id with =, code with =, valid_during with &&)
   where (status = 'active' and bell_schedule_id is null);
 alter table core.class_periods add constraint class_periods_sequence_excl exclude using gist
-  (tenant_id with =, org_id with =, school_year_id with =, sequence with =, valid_during with &&)
+  (tenant_id with =, org_id with =, sequence with =, valid_during with &&)
   where (status = 'active' and bell_schedule_id is null);
 
 alter table core.student_school_years
@@ -91,14 +85,8 @@ alter table core.homeroom_members add constraint homeroom_members_excl exclude u
   (tenant_id with =, org_id with =, student_user_id with =, valid_during with &&)
   where (status = 'active');
 
-alter table core.attendance_registers add foreign key (tenant_id, school_year_id, school_year_type, period span)
-  references core.academic_sessions (tenant_id, id, type, period span);
-
--- Two timetables of a year never hold the same day, so their meetings may
+-- Two timetables of a school never hold the same day, so their meetings may
 -- share a class, teacher or room at the same place in their cycles.
-alter table core.class_meetings
-  add foreign key (tenant_id, school_year_id, school_year_type, period valid_during)
-  references core.academic_sessions (tenant_id, id, type, period span);
 alter table core.class_meetings add constraint class_meetings_class_excl exclude using gist
   (tenant_id with =, timetable_id with =, class_id with =, weekday with =, class_period_id with =,
    valid_during with &&)

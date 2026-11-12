@@ -124,7 +124,6 @@ export function FrontDesk({ date, onDate }: FrontDeskProps) {
           <DayNav
             id="front-desk-date"
             date={data.date}
-            min={data.year?.startsOn ?? data.today}
             max={data.today}
             today={data.today}
             onChange={onDate}

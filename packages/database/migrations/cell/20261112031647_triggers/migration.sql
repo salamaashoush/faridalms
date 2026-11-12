@@ -35,9 +35,6 @@ create trigger row_meta before insert or update on core.calendar_event_audiences
   for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.calendar_events for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.calendar_feeds for each row execute function app.row_meta();
-create trigger row_meta before insert or update on core.calendar_grade_levels
-  for each row execute function app.row_meta();
-create trigger row_meta before insert or update on core.calendars for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.caption_drafts for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.class_group_members for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.class_groups for each row execute function app.row_meta();
@@ -128,6 +125,7 @@ create trigger row_meta before insert or update on core.quiz_draws for each row 
 create trigger row_meta before insert or update on core.quiz_sittings for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.reading_norms for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.records_requests for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.register_periods for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.relationship_restrictions
   for each row execute function app.row_meta_keyed('relationship_id');
 create trigger row_meta before insert or update on core.retention_settings for each row execute function app.row_meta();
@@ -158,6 +156,7 @@ create trigger row_meta before insert or update on core.submissions for each row
 create trigger row_meta before insert or update on core.tenants
   for each row execute function app.row_meta_keyed('tenant_id');
 create trigger row_meta before insert or update on core.thread_members for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.timetable_days for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.timetables for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.user_preferences for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.user_relationships for each row execute function app.row_meta();
@@ -184,6 +183,15 @@ create trigger refuse_update_delete before delete or update on audit.seal_batche
   for each row execute function audit.refuse_change();
 create trigger refuse_update_delete before delete or update on audit.seal_members
   for each row execute function audit.refuse_change();
+
+-- A period register and its period are written in one unit of work, so the
+-- check waits for its end. It holds whether attendance or the timetable is on.
+create constraint trigger register_period_held after insert or update of kind, status
+  on core.attendance_registers deferrable initially deferred
+  for each row execute function app.register_period_held();
+create constraint trigger register_period_held after update of status or delete
+  on core.register_periods deferrable initially deferred
+  for each row execute function app.register_period_held();
 
 create trigger documents_frozen_guard before update on core.documents
   for each row execute function app.documents_frozen_guard();

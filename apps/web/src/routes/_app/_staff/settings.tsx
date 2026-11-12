@@ -1,6 +1,7 @@
 import type { HeaderAction } from "@faridalms/ui/system/page-header";
 
 import { Skeleton } from "@faridalms/ui/skeleton";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { RowLink } from "@faridalms/ui/system/data-table";
 import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
@@ -252,6 +253,14 @@ function SchoolTab() {
   return (
     <SettingsPage>
       <SchoolProfileSection />
+      <SettingsSection
+        title={m.schoolDaysTitle()}
+        description={m.schoolDaysSettingsHint()}
+      >
+        <ButtonLink to="/school-days" search={{}} variant="outline">
+          {m.schoolDaysOpen()}
+        </ButtonLink>
+      </SettingsSection>
       {sections.map((section) => (
         <section.Section key={section.key} />
       ))}

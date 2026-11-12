@@ -181,13 +181,7 @@ grant select, insert, update on core.calendar_feeds to app, worker, cell_io;
 grant select, delete on core.calendar_feeds to retention;
 grant update (status, metadata) on core.calendar_feeds to retention;
 
-alter table core.calendar_grade_levels force row level security;
-grant select, insert, update on core.calendar_grade_levels to app, worker, cell_io;
-grant select on core.calendar_grade_levels to integration, retention;
 
-alter table core.calendars force row level security;
-grant select, insert, update on core.calendars to app, worker, cell_io;
-grant select on core.calendars to integration, retention;
 
 alter table core.caption_drafts force row level security;
 grant select, insert, update on core.caption_drafts to app, worker, cell_io;
@@ -615,6 +609,10 @@ alter table core.records_requests force row level security;
 grant select, insert, update on core.records_requests to app, worker, cell_io;
 grant select on core.records_requests to retention;
 
+alter table core.register_periods force row level security;
+grant select, insert, update on core.register_periods to app, worker, cell_io;
+grant select on core.register_periods to retention;
+
 alter table core.relationship_restrictions force row level security;
 grant select, insert, update on core.relationship_restrictions to app, worker, cell_io;
 grant select, delete on core.relationship_restrictions to retention;
@@ -738,6 +736,10 @@ alter table core.thread_members force row level security;
 grant select, insert, update on core.thread_members to app, worker, cell_io;
 grant select on core.thread_members to retention;
 grant update (status, metadata) on core.thread_members to retention;
+
+alter table core.timetable_days force row level security;
+grant select, insert, update on core.timetable_days to app, worker, cell_io;
+grant select on core.timetable_days to retention;
 
 alter table core.timetables force row level security;
 grant select, insert, update on core.timetables to app, worker, cell_io;

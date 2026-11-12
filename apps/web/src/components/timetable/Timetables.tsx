@@ -33,7 +33,7 @@ import { getMessageFromError } from "~/utils/error";
 import { cycleDayLabel, cycleName, weekLetter } from "./cycle";
 
 type Data = Awaited<
-  ReturnType<NonNullable<ReturnType<typeof timetablesQuery>["queryFn"]>>
+  ReturnType<NonNullable<(typeof timetablesQuery)["queryFn"]>>
 >;
 type Row = Data["timetables"][number];
 
@@ -78,12 +78,14 @@ interface TimetableSheetProps {
 /**
  * A timetable's name, first day and cycle. One already followed that
  * places lessons keeps its cycle and first day; a new one starts after the
- * year's first and no earlier than today.
+ * school's first and no earlier than today.
  */
 function TimetableSheet({ data, row, onClose }: TimetableSheetProps) {
   const queryClient = useQueryClient();
-  const afterFirst = addDays(data.timetables[0]?.from ?? data.year.startsOn, 1);
-  const earliest = data.today > afterFirst ? data.today : afterFirst;
+  const first = data.timetables[0];
+  const afterFirst = first ? addDays(first.from, 1) : null;
+  const earliest =
+    afterFirst === null || data.today > afterFirst ? data.today : afterFirst;
   const [form, setForm] = useState({
     nameEn: row?.nameEn ?? "",
     nameAr: row?.nameAr ?? "",
@@ -101,7 +103,6 @@ function TimetableSheet({ data, row, onClose }: TimetableSheetProps) {
     mutationFn: () =>
       saveTimetable({
         data: {
-          yearId: data.year.id,
           ...(row ? { id: row.id, version: row.version } : {}),
           ...form,
         },
@@ -178,10 +179,9 @@ function TimetableSheet({ data, row, onClose }: TimetableSheetProps) {
         hint={row?.first ? m.ttTimetableFirstHint() : m.ttTimetableStartsHint()}
         type="date"
         width="date"
-        min={earliest}
-        max={data.year.lastDay}
+        min={first ? earliest : undefined}
         disabled={fixedStart}
-        value={row?.first ? data.year.startsOn : form.startsOn}
+        value={form.startsOn}
         onChange={(event) => patch({ startsOn: event.target.value })}
       />
       <SelectField
@@ -252,14 +252,13 @@ function TimetableSheet({ data, row, onClose }: TimetableSheetProps) {
 
 interface TimetableItemProps {
   row: Row;
-  canEdit: boolean;
   onEdit: () => void;
   onRemove: () => void;
 }
 
-function TimetableItem({ row, canEdit, onEdit, onRemove }: TimetableItemProps) {
+function TimetableItem({ row, onEdit, onRemove }: TimetableItemProps) {
   const title = timetableTitle(row);
-  const lastDay = addDays(row.until, -1);
+  const lastDay = row.until === null ? null : addDays(row.until, -1);
   const removable = !row.first && !(row.started && row.lessons > 0);
   return (
     <li className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 py-3">
@@ -271,10 +270,12 @@ function TimetableItem({ row, canEdit, onEdit, onRemove }: TimetableItemProps) {
           )}
         </span>
         <span className="text-[13px] leading-[18px] text-muted-foreground">
-          {m.accessDuring({
-            from: formatDate(row.from),
-            to: formatDate(lastDay),
-          })}
+          {lastDay === null
+            ? m.ttTimetableFrom({ date: formatDate(row.from) })
+            : m.accessDuring({
+                from: formatDate(row.from),
+                to: formatDate(lastDay),
+              })}
         </span>
         <span className="text-[13px] leading-[18px] text-muted-foreground">
           {[
@@ -290,46 +291,40 @@ function TimetableItem({ row, canEdit, onEdit, onRemove }: TimetableItemProps) {
             .join(" · ")}
         </span>
       </div>
-      {canEdit ? (
-        <div className="flex gap-1">
+      <div className="flex gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="max-md:size-10"
+          aria-label={m.ttTimetableEditOf({ name: title })}
+          onClick={onEdit}
+        >
+          <Pencil aria-hidden />
+        </Button>
+        {removable ? (
           <Button
             type="button"
             variant="ghost"
             size="icon"
             className="max-md:size-10"
-            aria-label={m.ttTimetableEditOf({ name: title })}
-            onClick={onEdit}
+            aria-label={m.ttTimetableRemove({ name: title })}
+            onClick={onRemove}
           >
-            <Pencil aria-hidden />
+            <Trash2 aria-hidden />
           </Button>
-          {removable ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="max-md:size-10"
-              aria-label={m.ttTimetableRemove({ name: title })}
-              onClick={onRemove}
-            >
-              <Trash2 aria-hidden />
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </li>
   );
 }
 
-export interface TimetablesProps {
-  yearId: string;
-}
-
 /**
- * A year's timetables in the order they are followed: each from its first
- * day until the next starts, with how its lessons repeat.
+ * The school's timetables in the order they are followed: each from its
+ * first day until the next starts, with how its lessons repeat.
  */
-export function Timetables({ yearId }: TimetablesProps) {
-  const data = useSuspenseQuery(timetablesQuery(yearId)).data;
+export function Timetables() {
+  const data = useSuspenseQuery(timetablesQuery).data;
   const queryClient = useQueryClient();
   const [sheet, setSheet] = useState<{ row: Row | null; key: number } | null>(
     null,
@@ -353,17 +348,15 @@ export function Timetables({ yearId }: TimetablesProps) {
         <p className="max-w-prose text-[13px] leading-[18px] text-muted-foreground">
           {m.ttTimetablesHint()}
         </p>
-        {data.canEdit ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="max-md:h-10"
-            onClick={() => open(null)}
-          >
-            <Plus aria-hidden />
-            {m.ttTimetableAdd()}
-          </Button>
-        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          className="max-md:h-10"
+          onClick={() => open(null)}
+        >
+          <Plus aria-hidden />
+          {m.ttTimetableAdd()}
+        </Button>
       </div>
       {data.timetables.length === 0 ? (
         <RecordEmpty>{m.ttTimetablesNone()}</RecordEmpty>
@@ -373,7 +366,6 @@ export function Timetables({ yearId }: TimetablesProps) {
           <TimetableItem
             key={row.id}
             row={row}
-            canEdit={data.canEdit}
             onEdit={() => open(row)}
             onRemove={() => {
               remove.reset();

@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   client,
   login,
+  periodOf,
   rejection,
   seeded,
   sessionFor,
@@ -247,7 +248,7 @@ describe("badges at the class screen", () => {
     const held = {
       classId,
       date,
-      periodId: register.period.id,
+      periodId: periodOf(register).id,
       via: "qr" as const,
       badge: secret,
     };

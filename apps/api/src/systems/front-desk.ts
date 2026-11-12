@@ -11,11 +11,6 @@ import {
   pickupContacts,
 } from "@faridalms/database/stores/front-desk";
 import {
-  dayIn,
-  schoolYears,
-  workingYear,
-} from "@faridalms/database/stores/years";
-import {
   findStudentSchema,
   frontDeskQuerySchema,
   minutesLate,
@@ -27,6 +22,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
+import { periodsOf } from "../attendance/plans";
 import {
   audit,
   readProcedure,
@@ -68,13 +64,7 @@ export const day = readProcedure
   .input(frontDeskQuerySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:manage");
-    const year = workingYear(
-      await schoolYears(context.tx, context.tenantId, context.schoolId),
-      context.today,
-    );
-    const date = year
-      ? dayIn(year, input.date || context.today)
-      : context.today;
+    const date = input.date || context.today;
     const [movements, codes] = await Promise.all([
       movementsOn(context.tx, {
         tenantId: context.tenantId,
@@ -86,9 +76,6 @@ export const day = readProcedure
     return {
       date,
       today: context.today,
-      year: year
-        ? { startsOn: year.startsOn, endsBefore: year.endsBefore }
-        : null,
       movements,
       reasons: codes.reasons.map((row) => ({
         id: row.id,
@@ -132,6 +119,31 @@ export const pickup = readProcedure
   });
 
 /**
+ * A student's registers of today with the times of the period each was
+ * taken in; a register of the whole day has none and runs all day.
+ */
+async function timedRegisters(context: UnitContext, studentId: string) {
+  const registers = await studentRegistersOn(context.tx, {
+    tenantId: context.tenantId,
+    schoolId: context.schoolId,
+    studentId,
+    day: context.today,
+  });
+  const periods = await periodsOf(
+    context,
+    registers.map((row) => row.registerId),
+  );
+  return registers.map((row) => {
+    const period = periods.get(row.registerId);
+    return {
+      ...row,
+      startTime: period?.startTime ?? null,
+      endTime: period?.endTime ?? null,
+    };
+  });
+}
+
+/**
  * Signs a late child in. Today's registers whose period has started take
  * the arrival: the daily register always, a lesson only while it runs.
  * A child already marked there keeps their mark.
@@ -143,12 +155,7 @@ export const signIn = writeProcedure
     await requireOnRoll(context, input.studentId);
     const reasonId = await reasonIdOf(context, input.reasonId);
     const [registers, settings] = await Promise.all([
-      studentRegistersOn(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        studentId: input.studentId,
-        day: context.today,
-      }),
+      timedRegisters(context, input.studentId),
       settingsOf(context.tx, context.tenantId, context.schoolId),
     ]);
     const id = await insertMovement(context.tx, {
@@ -167,16 +174,21 @@ export const signIn = writeProcedure
     let marked = 0;
     for (const register of registers) {
       const start = register.startTime;
-      if (!start || minutesOf(start) > minutesOf(input.at)) continue;
-      const running =
-        register.official ||
-        (register.endTime !== null &&
-          minutesOf(input.at) < minutesOf(register.endTime));
-      if (!running) continue;
+      if (register.kind === "period") {
+        if (!start || minutesOf(start) > minutesOf(input.at)) continue;
+        const running =
+          register.daily ||
+          (register.endTime !== null &&
+            minutesOf(input.at) < minutesOf(register.endTime));
+        if (!running) continue;
+      }
       if (register.meaning === "present" || register.meaning === "late")
         continue;
-      const late = minutesLate(start, input.at, settings.lateAfterMinutes);
-      const meaning = late === null ? "present" : "late";
+      // A register of the whole day has no start to count lateness from.
+      const late = start
+        ? minutesLate(start, input.at, settings.lateAfterMinutes)
+        : null;
+      const meaning = start && late === null ? "present" : "late";
       await setStudentMark(context.tx, {
         tenantId: context.tenantId,
         registerId: register.registerId,
@@ -231,12 +243,7 @@ export const signOut = writeProcedure
         });
     }
     const reasonId = await reasonIdOf(context, input.reasonId);
-    const registers = await studentRegistersOn(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      studentId: input.studentId,
-      day: context.today,
-    });
+    const registers = await timedRegisters(context, input.studentId);
     const id = await insertMovement(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
@@ -253,9 +260,11 @@ export const signOut = writeProcedure
     let marked = 0;
     for (const register of registers) {
       const { startTime: start, endTime: end } = register;
-      if (!start || !end) continue;
       const at = minutesOf(input.at);
-      if (at < minutesOf(start) || at >= minutesOf(end)) continue;
+      if (register.kind === "period") {
+        if (!start || !end) continue;
+        if (at < minutesOf(start) || at >= minutesOf(end)) continue;
+      }
       if (
         register.meaning !== null &&
         register.meaning !== "present" &&
@@ -270,7 +279,7 @@ export const signOut = writeProcedure
         markId: register.markId,
         categoryId: await categoryOf(context, "left_early"),
         meaning: "left_early",
-        minutes: minutesOf(end) - at,
+        minutes: end ? minutesOf(end) - at : null,
         reasonId,
         note: null,
         actorId: context.actor.userId,

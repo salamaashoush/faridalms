@@ -13,9 +13,9 @@ import { textArray, uuidArray } from "./sql";
 type Tx = CellTransaction;
 
 /**
- * A change the schedule refuses: a stale version, a code the year's own
+ * A change the schedule refuses: a stale version, a code the school's own
  * periods use, or a period of its own still in use, followed by the first
- * day a register or a one-day lesson holds it.
+ * day a one-day lesson or another module's record holds it.
  */
 export class BellScheduleConflict extends Error {
   constructor(readonly code: string) {
@@ -45,12 +45,11 @@ export async function insertBellSchedule(
   input: ScheduleFields & {
     tenantId: string;
     schoolId: string;
-    yearId: string;
   },
 ): Promise<string> {
   const [row] = await tx.execute<{ id: string }>(sql`
-    insert into core.bell_schedules (tenant_id, org_id, school_year_id, name_en, name_ar, times)
-    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.yearId}::uuid,
+    insert into core.bell_schedules (tenant_id, org_id, name_en, name_ar, times)
+    values (${input.tenantId}::uuid, ${input.schoolId}::uuid,
       ${input.nameEn}, ${input.nameAr}, ${timesOf(input.times)})
     returning id`);
   if (!row) throw new Error("bell schedule not written");
@@ -61,7 +60,7 @@ export async function updateBellSchedule(
   tx: Tx,
   input: ScheduleFields & {
     tenantId: string;
-    yearId: string;
+    schoolId: string;
     id: string;
     version: number;
   },
@@ -70,7 +69,7 @@ export async function updateBellSchedule(
     update core.bell_schedules
     set name_en = ${input.nameEn}, name_ar = ${input.nameAr}, times = ${timesOf(input.times)}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
-      and school_year_id = ${input.yearId}::uuid and status = 'active'
+      and org_id = ${input.schoolId}::uuid and status = 'active'
       and version = ${input.version}
     returning id`);
   if (rows.length === 0) throw new BellScheduleConflict("conflict.version");
@@ -122,21 +121,29 @@ export async function extraPeriodsOf(
   }));
 }
 
-/** Refuses when a register or one-day lesson holds any of the periods. */
-async function refuseInUse(tx: Tx, tenantId: string, ids: readonly string[]) {
+/** The first day on or after a date, or any day for null, another module used one of these periods on. */
+export type FirstUse = (
+  periodIds: readonly string[],
+  from: string | null,
+) => Promise<string | null>;
+
+/** Refuses when a one-day lesson, or what another module keeps, holds any of the periods. */
+async function refuseInUse(
+  tx: Tx,
+  tenantId: string,
+  ids: readonly string[],
+  firstUse: FirstUse,
+) {
   if (ids.length === 0) return;
   const [row] = await tx.execute<{ day: string | null }>(sql`
-    select to_char(min(day), 'YYYY-MM-DD') as day from (
-      select taken_on as day from core.attendance_registers
-      where tenant_id = ${tenantId}::uuid and status = 'active'
-        and class_period_id = any(${uuidArray(ids)})
-      union all
-      select day_on from core.lesson_changes
-      where tenant_id = ${tenantId}::uuid and status = 'active'
-        and class_period_id = any(${uuidArray(ids)})
-    ) held`);
-  if (row?.day)
-    throw new BellScheduleConflict(`bell_schedule.period_in_use:${row.day}`);
+    select to_char(min(day_on), 'YYYY-MM-DD') as day from core.lesson_changes
+    where tenant_id = ${tenantId}::uuid and status = 'active'
+      and class_period_id = any(${uuidArray(ids)})`);
+  const used = await firstUse(ids, null);
+  const day = [row?.day ?? null, used]
+    .flatMap((one) => (one === null ? [] : [one]))
+    .toSorted()[0];
+  if (day) throw new BellScheduleConflict(`bell_schedule.period_in_use:${day}`);
 }
 
 async function endExtras(tx: Tx, tenantId: string, ids: readonly string[]) {
@@ -148,19 +155,20 @@ async function endExtras(tx: Tx, tenantId: string, ids: readonly string[]) {
 
 /**
  * Gives a bell schedule its own periods: those named by id change where
- * they stand, new ones are added for the whole year, and one no longer
- * given ends, refused while a register or one-day lesson holds it. A code
- * the year's own periods use is refused, so a day never holds two.
+ * they stand, new ones are added, held on every day of the schedule, and
+ * one no longer given ends, refused while a register or one-day lesson
+ * holds it. A code the school's own periods use is refused, so a day never
+ * holds two.
  */
 export async function setExtraPeriods(
   tx: Tx,
   input: {
     tenantId: string;
     schoolId: string;
-    year: { id: string; startsOn: string; endsBefore: string };
     scheduleId: string;
     times: readonly BellTimes[];
     extras: readonly ExtraPeriodInput[];
+    firstUse: FirstUse;
   },
 ): Promise<{ added: number; changed: number; ended: number }> {
   const current = await extraPeriodsOf(tx, {
@@ -172,7 +180,7 @@ export async function setExtraPeriods(
     throw new BellScheduleConflict("conflict.version");
   const [taken] = await tx.execute<{ code: string }>(sql`
     select code from core.class_periods
-    where tenant_id = ${input.tenantId}::uuid and school_year_id = ${input.year.id}::uuid
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
       and status = 'active' and bell_schedule_id is null
       and code = any(${textArray(input.extras.map((row) => row.code))})
     limit 1`);
@@ -184,6 +192,7 @@ export async function setExtraPeriods(
     tx,
     input.tenantId,
     ended.map((row) => row.id),
+    input.firstUse,
   );
   await endExtras(
     tx,
@@ -220,13 +229,12 @@ export async function setExtraPeriods(
       continue;
     }
     await tx.execute(sql`
-      insert into core.class_periods (tenant_id, org_id, school_year_id, code, name_en, name_ar,
+      insert into core.class_periods (tenant_id, org_id, code, name_en, name_ar,
         sequence, kind, start_time, end_time, official_attendance, valid_during, bell_schedule_id)
-      values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.year.id}::uuid, ${extra.code},
+      values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${extra.code},
         ${extra.nameEn}, ${extra.nameAr}, ${sequenceOf(extra.startTime)}, ${extra.kind},
         ${extra.startTime}::time, ${extra.endTime}::time, false,
-        daterange(${input.year.startsOn}::date, ${input.year.endsBefore}::date, '[)'),
-        ${input.scheduleId}::uuid)`);
+        '(,)'::daterange, ${input.scheduleId}::uuid)`);
     added += 1;
   }
   return { added, changed, ended: ended.length };
@@ -239,13 +247,19 @@ export async function setExtraPeriods(
  */
 export async function removeBellSchedule(
   tx: Tx,
-  input: { tenantId: string; id: string; version: number },
-): Promise<{ yearId: string; days: number }> {
-  const [row] = await tx.execute<{ school_year_id: string }>(sql`
+  input: {
+    tenantId: string;
+    schoolId: string;
+    id: string;
+    version: number;
+    firstUse: FirstUse;
+  },
+): Promise<{ days: number }> {
+  const [row] = await tx.execute<{ id: string }>(sql`
     update core.bell_schedules set status = 'tobedeleted'
-    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
-      and status = 'active' and version = ${input.version}
-    returning school_year_id`);
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
+      and id = ${input.id}::uuid and status = 'active' and version = ${input.version}
+    returning id`);
   if (!row) throw new BellScheduleConflict("conflict.version");
   const extras = await extraPeriodsOf(tx, {
     tenantId: input.tenantId,
@@ -255,42 +269,154 @@ export async function removeBellSchedule(
     tx,
     input.tenantId,
     extras.map((extra) => extra.id),
+    input.firstUse,
   );
   await endExtras(
     tx,
     input.tenantId,
     extras.map((extra) => extra.id),
   );
-  const days = await tx.execute<{ id: string }>(sql`
-    update core.calendar_dates set bell_schedule_id = null
-    where tenant_id = ${input.tenantId}::uuid and bell_schedule_id = ${input.id}::uuid
+  const scope = sql`tenant_id = ${input.tenantId}::uuid and bell_schedule_id = ${input.id}::uuid
+    and status = 'active'`;
+  const ended = await tx.execute<{ id: string }>(sql`
+    update core.timetable_days set status = 'tobedeleted'
+    where ${scope} and runs_as is null
     returning id`);
-  return { yearId: row.school_year_id, days: days.length };
+  const kept = await tx.execute<{ id: string }>(sql`
+    update core.timetable_days set bell_schedule_id = null
+    where ${scope} and runs_as is not null
+    returning id`);
+  return { days: ended.length + kept.length };
+}
+
+/** How the timetable runs a school's dates: their bell schedules and the cycle days they run as. */
+export interface TimetableDay {
+  day: string;
+  scheduleId: string | null;
+  runsAs: number | null;
+}
+
+export async function timetableDays(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; from: string; to: string },
+): Promise<TimetableDay[]> {
+  const rows = await tx.execute<{
+    day: string;
+    bell_schedule_id: string | null;
+    runs_as: number | null;
+  }>(sql`
+    select to_char(day_on, 'YYYY-MM-DD') as day, bell_schedule_id, runs_as
+    from core.timetable_days
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
+      and status = 'active' and day_on between ${input.from}::date and ${input.to}::date
+    order by day_on`);
+  return rows.map((row) => ({
+    day: row.day,
+    scheduleId: row.bell_schedule_id,
+    runsAs: row.runs_as,
+  }));
+}
+
+/** The days on or before `to` that run as another day of the cycle. */
+export async function runsAsDays(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; to: string },
+): Promise<Map<string, number>> {
+  const rows = await tx.execute<{ day: string; runs_as: number }>(sql`
+    select to_char(day_on, 'YYYY-MM-DD') as day, runs_as from core.timetable_days
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
+      and status = 'active' and runs_as is not null and day_on <= ${input.to}::date`);
+  return new Map(rows.map((row) => [row.day, row.runs_as]));
 }
 
 /**
- * Runs the days in `[from, to]` on a bell schedule, or on their own times
- * when none is given. Weekends are left as they are, as marking days does.
+ * Sets what the timetable runs each of `days` with, leaving the other
+ * setting of each day as it was; a day left with neither has no row.
+ * Returns how many days changed.
  */
-export async function scheduleDays(
+async function setDays(
   tx: Tx,
   input: {
     tenantId: string;
-    yearId: string;
-    from: string;
-    to: string;
-    scheduleId: string | null;
+    schoolId: string;
+    days: readonly string[];
+    set: { scheduleId: string | null } | { runsAs: number | null };
   },
 ): Promise<number> {
-  const rows = await tx.execute<{ id: string }>(sql`
-    update core.calendar_dates d
-    set bell_schedule_id = ${input.scheduleId}::uuid
-    from core.calendars c, core.descriptors e
-    where d.tenant_id = ${input.tenantId}::uuid and d.school_year_id = ${input.yearId}::uuid
-      and d.status = 'active' and d.day_on between ${input.from}::date and ${input.to}::date
-      and c.tenant_id = d.tenant_id and c.id = d.calendar_id and c.kind = 'school' and c.status = 'active'
-      and e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id and e.system_meaning <> 'weekend'
-      and d.bell_schedule_id is distinct from ${input.scheduleId}::uuid
-    returning d.id`);
-  return rows.length;
+  if (input.days.length === 0) return 0;
+  await tx.execute(sql`select app.lock(${`timetable_days:${input.schoolId}`})`);
+  const current = new Map(
+    (
+      await timetableDays(tx, {
+        tenantId: input.tenantId,
+        schoolId: input.schoolId,
+        from: input.days.reduce((a, b) => (a < b ? a : b)),
+        to: input.days.reduce((a, b) => (a > b ? a : b)),
+      })
+    ).map((row) => [row.day, row]),
+  );
+  let changed = 0;
+  for (const day of input.days) {
+    const before = current.get(day) ?? { day, scheduleId: null, runsAs: null };
+    const after = { ...before, ...input.set };
+    if (
+      after.scheduleId === before.scheduleId &&
+      after.runsAs === before.runsAs
+    )
+      continue;
+    changed += 1;
+    const where = sql`tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
+      and day_on = ${day}::date and status = 'active'`;
+    if (current.has(day) && after.scheduleId === null && after.runsAs === null)
+      await tx.execute(sql`
+        update core.timetable_days set status = 'tobedeleted' where ${where}`);
+    else if (current.has(day))
+      await tx.execute(sql`
+        update core.timetable_days
+        set bell_schedule_id = ${after.scheduleId}::uuid, runs_as = ${after.runsAs}::smallint
+        where ${where}`);
+    else
+      await tx.execute(sql`
+        insert into core.timetable_days (tenant_id, org_id, day_on, bell_schedule_id, runs_as)
+        values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${day}::date,
+          ${after.scheduleId}::uuid, ${after.runsAs}::smallint)`);
+  }
+  return changed;
+}
+
+/** Runs these days on a bell schedule, or on their own times when none is given. */
+export const scheduleDays = (
+  tx: Tx,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    days: readonly string[];
+    scheduleId: string | null;
+  },
+) => setDays(tx, { ...input, set: { scheduleId: input.scheduleId } });
+
+/**
+ * Runs one day as another day of its timetable's cycle, or as its own with
+ * null, returning what it ran as before.
+ */
+export async function runDayAs(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    day: string;
+    runsAs: number | null;
+  },
+): Promise<{ before: number | null }> {
+  const [current] = await timetableDays(tx, {
+    ...input,
+    from: input.day,
+    to: input.day,
+  });
+  await setDays(tx, {
+    ...input,
+    days: [input.day],
+    set: { runsAs: input.runsAs },
+  });
+  return { before: current?.runsAs ?? null };
 }

@@ -3,7 +3,7 @@ import * as v from "valibot";
 import type { SchoolStanding } from "./provisioning";
 
 import { addDays, daysBetween, schoolDate } from "./school";
-import { isoWeekday } from "./timetable";
+import { isoWeekday } from "./school-days";
 
 /**
  * The steps an unpaid invoice passes through, by days after it fell due:

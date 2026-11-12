@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 
 import {
   login,
+  periodOf,
   raw,
   rejection,
   runDay,
@@ -72,7 +73,7 @@ describe("absences families report", () => {
     await office.attendance.save({
       classId: homeroom.class.id,
       date,
-      periodId: homeroom.period.id,
+      periodId: periodOf(homeroom).id,
       expectedVersion: homeroom.register?.version ?? 0,
       marks: homeroom.students.map((row) => ({
         studentId: row.id,
@@ -99,7 +100,7 @@ describe("absences families report", () => {
     const after = await office.attendance.register({
       classId: homeroom.class.id,
       date,
-      periodId: homeroom.period.id,
+      periodId: periodOf(homeroom).id,
     });
     expect(after.marks.find((row) => row.studentId === me.id)).toMatchObject({
       meaning: "excused",

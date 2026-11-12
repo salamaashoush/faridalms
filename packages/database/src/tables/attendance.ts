@@ -16,7 +16,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { academicSessions, classPeriods } from "./calendar";
 import {
   baseConstraints,
   ck,
@@ -96,10 +95,13 @@ export const attendanceSettings = core.table.withRLS(
 );
 
 export type RegisterState = "in_progress" | "submitted";
+export type RegisterKind = "day" | "period";
 
 /**
- * Ed-Fi's section attendance taken: one class's register for one period of
- * one day. Its marks are `attendance_events`, which hang off it by date.
+ * Ed-Fi's section attendance taken: one class's register on one day, for
+ * the whole day or for one period of it. Its marks are `attendance_events`,
+ * which hang off it by date; a period register's period is in
+ * `register_periods`.
  */
 export const attendanceRegisters = core.table.withRLS(
   "attendance_registers",
@@ -107,9 +109,13 @@ export const attendanceRegisters = core.table.withRLS(
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
     classId: uuid("class_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
-    schoolYearType: text("school_year_type").notNull().default("school_year"),
-    classPeriodId: uuid("class_period_id").notNull(),
+    kind: text("kind").$type<RegisterKind>().notNull(),
+    /**
+     * Counts as the day's attendance: every register of a whole day, and a
+     * period register taken in a period the school counts. Written when the
+     * register is taken, as the period then stood.
+     */
+    daily: boolean("daily").notNull(),
     takenOn: date("taken_on", { mode: "string" }).notNull(),
     span: daterange("span")
       .notNull()
@@ -122,6 +128,7 @@ export const attendanceRegisters = core.table.withRLS(
   (t): PgTableExtraConfigValue[] => [
     pk("attendance_registers", t.tenantId, t.id),
     uq("attendance_registers", t.tenantId, t.id, t.takenOn),
+    uq("attendance_registers", t.tenantId, t.id, t.classId, t.takenOn),
     ...baseConstraints("attendance_registers", t, tenants),
     fk(
       "attendance_registers",
@@ -130,24 +137,11 @@ export const attendanceRegisters = core.table.withRLS(
     ),
     fk(
       "attendance_registers",
-      [t.tenantId, t.classPeriodId, t.schoolYearId, t.orgId],
-      [
-        classPeriods.tenantId,
-        classPeriods.id,
-        classPeriods.schoolYearId,
-        classPeriods.orgId,
-      ],
-    ),
-    fk(
-      "attendance_registers",
       [t.tenantId, t.recordedByUserId],
       [users.tenantId, users.id],
     ),
-    ck(
-      "attendance_registers",
-      "school_year_type",
-      sql`school_year_type = 'school_year'`,
-    ),
+    ck("attendance_registers", "kind", sql`kind in ('day', 'period')`),
+    ck("attendance_registers", "daily", sql`kind = 'period' or daily`),
     ck(
       "attendance_registers",
       "state",
@@ -158,9 +152,9 @@ export const attendanceRegisters = core.table.withRLS(
       "submitted_at",
       sql`(state = 'submitted') = (submitted_at is not null)`,
     ),
-    uniqueIndex("attendance_registers_key")
-      .on(t.tenantId, t.classId, t.takenOn, t.classPeriodId)
-      .where(sql`status = 'active'`),
+    uniqueIndex("attendance_registers_day_key")
+      .on(t.tenantId, t.classId, t.takenOn)
+      .where(sql`status = 'active' and kind = 'day'`),
     index("attendance_registers_day_idx")
       .on(t.tenantId, t.orgId, t.takenOn)
       .where(sql`status = 'active'`),
@@ -179,8 +173,6 @@ export const absenceReports = core.table.withRLS(
   {
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
-    schoolYearType: text("school_year_type").notNull().default("school_year"),
     studentUserId: uuid("student_user_id").notNull(),
     reportedByUserId: uuid("reported_by_user_id").notNull(),
     kind: text("kind").$type<AbsenceReportKind>().notNull(),
@@ -206,17 +198,7 @@ export const absenceReports = core.table.withRLS(
   (t): PgTableExtraConfigValue[] => [
     pk("absence_reports", t.tenantId, t.id),
     ...baseConstraints("absence_reports", t, tenants),
-    fk(
-      "absence_reports",
-      [t.tenantId, t.schoolYearId, t.schoolYearType, t.schoolYearId, t.orgId],
-      [
-        academicSessions.tenantId,
-        academicSessions.id,
-        academicSessions.type,
-        academicSessions.schoolYearId,
-        academicSessions.orgId,
-      ],
-    ),
+    fk("absence_reports", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
     fk(
       "absence_reports",
       [t.tenantId, t.studentUserId],
@@ -238,11 +220,6 @@ export const absenceReports = core.table.withRLS(
       [descriptors.tenantId, descriptors.id, descriptors.namespace],
     ),
     fk("absence_reports", [t.tenantId, t.fileId], [files.tenantId, files.id]),
-    ck(
-      "absence_reports",
-      "school_year_type",
-      sql`school_year_type = 'school_year'`,
-    ),
     ck("absence_reports", "span", range.bounded("span")),
     ck(
       "absence_reports",

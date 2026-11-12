@@ -65,7 +65,8 @@ definer_allowed(proc) as (values
   ('app.tenant_lifecycle()'), ('app.tenant_entitlements_version()'), ('app.search(text,text[],uuid[],real,uuid,integer,date,uuid[])'), ('app.index_user()'),
   ('app.index_user_orgs()'), ('app.index_document()'), ('app.index_translation()'),
   ('app.index_host()'), ('app.index_message()'),
-  ('app.ensure_partitions(integer,date)'), ('app.change_year_span(uuid,daterange,integer)'))
+  ('app.ensure_partitions(integer,date)'), ('app.change_year_span(uuid,daterange,integer)'),
+  ('app.register_period_held()'))
 select name, 'first column is not tenant_id' as problem from t
   where not exists (select 1 from pg_attribute a where a.attrelid = t.oid and a.attnum = 1 and a.attname = 'tenant_id')
 union all

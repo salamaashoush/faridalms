@@ -11,17 +11,17 @@ import {
   weekdayOfCycleDay,
 } from "./cycle";
 import { addDays } from "./school";
-import { cycleFits, isoWeekday, WEEKLY } from "./timetable";
+import { isoWeekday, SCHOOL_DAY_MEANINGS } from "./school-days";
+import { cycleFits, WEEKLY } from "./timetable";
 
 /** A Sunday-to-Thursday school with Friday and Saturday off, and its marked closures. */
 function calendar(closed: readonly string[] = []): CycleCalendar {
   return {
-    meaningOf: (day) =>
-      [5, 6].includes(isoWeekday(day))
-        ? "weekend"
-        : closed.includes(day)
-          ? "public_holiday"
-          : "instructional_day",
+    marks: new Map(
+      closed
+        .filter((day) => ![5, 6].includes(isoWeekday(day)))
+        .map((day) => [day, "public_holiday"]),
+    ),
     weekStart: 7,
     weekendDays: [5, 6],
   };
@@ -129,7 +129,7 @@ describe("the day of the cycle a date falls on", () => {
   it("runs a date as another weekday, leaving the days around it", () => {
     const runs = {
       ...calendar(),
-      runsAsOf: (day: string) => (day === "2026-09-08" ? 7 : null),
+      runsAs: new Map([["2026-09-08", 7]]),
     };
     const found = cycleDaysOn(
       cycle({ kind: "weeks", length: 2 }),
@@ -149,7 +149,7 @@ describe("the day of the cycle a date falls on", () => {
     const days = span("2026-09-06", 5);
     const runs = {
       ...calendar(),
-      runsAsOf: (day: string) => (day === "2026-09-07" ? 5 : null),
+      runsAs: new Map([["2026-09-07", 5]]),
     };
     const kept = cycleDaysOn(cycle({ kind: "days", length: 6 }), days, runs);
     expect([...kept.values()]).toEqual([1, 5, 3, 4, 5]);
@@ -171,7 +171,10 @@ describe("the day of the cycle a date falls on", () => {
     const days = ["2026-09-06", "2026-09-07"];
     const runs = {
       ...calendar(["2026-09-07"]),
-      runsAsOf: () => 9,
+      runsAs: new Map([
+        ["2026-09-06", 9],
+        ["2026-09-07", 9],
+      ]),
     };
     const found = cycleDaysOn(cycle({ kind: "days", length: 6 }), days, runs);
     expect([...found.values()]).toEqual([1, null]);
@@ -189,6 +192,164 @@ describe("the day of the cycle a date falls on", () => {
       calendar(),
     );
     expect(later.get("2026-10-04")).toBe(walked.get("2026-10-04"));
+  });
+});
+
+/**
+ * The day of the cycle found by walking every day from the timetable's
+ * start, as the planner once did, for checking the counted answer against.
+ */
+const mod = (value: number, by: number) => ((value % by) + by) % by;
+
+function walk(
+  timetable: Cycle & { startsOn: string },
+  day: string,
+  school: CycleCalendar,
+): number | null {
+  const meaning = (one: string) => school.marks.get(one) ?? null;
+  const open = (one: string) => {
+    const known = meaning(one);
+    return known === null
+      ? !school.weekendDays.includes(isoWeekday(one))
+      : SCHOOL_DAY_MEANINGS.includes(known);
+  };
+  const rest = (one: string) =>
+    meaning(one) === null && school.weekendDays.includes(isoWeekday(one));
+  const weekStart = (one: string) =>
+    addDays(one, -mod(isoWeekday(one) - school.weekStart, 7));
+  const unit = (one: string) =>
+    timetable.kind === "weeks" ? weekStart(one) : one;
+  const step = timetable.kind === "weeks" ? 7 : 1;
+  const counts = (one: string) =>
+    timetable.kind === "weeks"
+      ? !timetable.closuresMove || span(one, 7).some((each) => open(each))
+      : timetable.closuresMove
+        ? open(one)
+        : !rest(one);
+  const runs = (one: string) => {
+    const value = school.runsAs?.get(one) ?? null;
+    const last =
+      timetable.kind === "days" ? timetable.length : timetable.length * 7;
+    return value !== null && open(one) && value >= 1 && value <= last
+      ? value
+      : null;
+  };
+  if (!open(day)) return null;
+  const own = runs(day);
+  if (own !== null) return own;
+  const anchor = unit(timetable.startsOn);
+  const target = unit(day);
+  let seen = 0;
+  if (target < anchor) {
+    for (let at = target; at < anchor; at = addDays(at, step))
+      if (counts(at)) seen -= 1;
+  } else
+    for (let at = anchor; at < target; at = addDays(at, step)) {
+      const restart =
+        timetable.kind === "days" && timetable.closuresMove ? runs(at) : null;
+      if (restart !== null)
+        seen += mod(
+          restart - 1 - (timetable.firstDay - 1 + seen),
+          timetable.length,
+        );
+      if (counts(at)) seen += 1;
+    }
+  if (timetable.kind === "days" && timetable.closuresMove && target >= anchor) {
+    const restart = runs(target);
+    if (restart !== null)
+      seen += mod(
+        restart - 1 - (timetable.firstDay - 1 + seen),
+        timetable.length,
+      );
+  }
+  const place = mod(timetable.firstDay - 1 + seen, timetable.length);
+  return timetable.kind === "weeks" ? place * 7 + isoWeekday(day) : place + 1;
+}
+
+describe("counting the cycle without walking the days", () => {
+  const closures = [
+    ...span("2025-12-21", 12),
+    "2026-03-19",
+    ...span("2026-09-13", 5),
+    "2026-09-24",
+    "2027-01-05",
+  ];
+  const marks = new Map<string, string>([
+    ...closures.map((day) => [day, "school_holiday"] as const),
+    ["2026-09-25", "make_up_day"],
+  ]);
+  const runsAs = new Map([
+    ["2026-09-08", 3],
+    ["2026-10-01", 5],
+  ]);
+  const school: CycleCalendar = {
+    marks,
+    runsAs,
+    weekStart: 7,
+    weekendDays: [5, 6],
+  };
+  const dates = [
+    ...span("2025-08-31", 21),
+    ...span("2026-09-01", 60),
+    ...span("2027-01-01", 14),
+  ];
+  const cycles: (Cycle & { startsOn: string })[] = [
+    {
+      kind: "weeks",
+      length: 2,
+      firstDay: 2,
+      closuresMove: false,
+      startsOn: "2026-09-08",
+    },
+    {
+      kind: "weeks",
+      length: 3,
+      firstDay: 1,
+      closuresMove: true,
+      startsOn: "2026-09-08",
+    },
+    {
+      kind: "days",
+      length: 6,
+      firstDay: 4,
+      closuresMove: false,
+      startsOn: "2026-09-06",
+    },
+    {
+      kind: "days",
+      length: 10,
+      firstDay: 1,
+      closuresMove: true,
+      startsOn: "2026-09-06",
+    },
+  ];
+
+  it("agrees with a walk on every day before, inside and long after the start", () => {
+    for (const each of cycles) {
+      const found = cycleDaysOn(each, dates, school);
+      for (const day of dates)
+        expect([each.kind, each.length, day, found.get(day)]).toEqual([
+          each.kind,
+          each.length,
+          day,
+          walk(each, day, school),
+        ]);
+    }
+  });
+
+  it("reads a day years after a timetable started from its marks alone", () => {
+    const distant = cycleDaysOn(
+      { ...WEEKLY, kind: "days", length: 6, startsOn: "2020-01-05" },
+      ["2026-09-07"],
+      { marks: new Map(), weekStart: 7, weekendDays: [5, 6] },
+    );
+    expect(distant.get("2026-09-07")).toBe(
+      walk(
+        { ...WEEKLY, kind: "days", length: 6, startsOn: "2020-01-05" },
+        "2026-09-07",
+        { marks: new Map(), weekStart: 7, weekendDays: [5, 6] },
+      ),
+    );
   });
 });
 

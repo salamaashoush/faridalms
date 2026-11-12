@@ -15,6 +15,7 @@ import {
   studentFilters,
   studentRecordParts,
 } from "~/components/people/slots";
+import { dayPlannerParts } from "~/components/school-days/slots";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { askingQuery } from "~/queries/rollover";
@@ -30,6 +31,7 @@ import { fill } from "~/utils/extension";
 
 import type { ClassYearRead } from "./YearParts";
 
+import { yearDayPart } from "./DayParts";
 import {
   ExitLabel,
   PlacedGradeLabel,
@@ -70,6 +72,7 @@ type Asking = Awaited<ReturnType<NonNullable<(typeof askingQuery)["queryFn"]>>>;
 export const SCHOOL_YEARS: ModuleFillings = {
   module: "school_years",
   fillings: [
+    fill(dayPlannerParts, yearDayPart),
     fill(classFilters, {
       key: "year",
       narrows: (value) => value !== "all",

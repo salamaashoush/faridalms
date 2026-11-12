@@ -171,7 +171,6 @@ export async function place(
     studentId: string;
     year: { id: string; startsOn: string; endsBefore: string };
     gradeId: string;
-    calendarId: string | null;
     /** The day the grade takes effect; today by default, never before the year. */
     from?: string;
     entryTypeId?: string | null;
@@ -213,20 +212,12 @@ export async function place(
       schoolYearId: input.year.id,
       validDuring: `[${start},${input.year.endsBefore})`,
       gradeLevelDescriptorId: input.gradeId,
-      calendarId: input.calendarId,
       entryTypeDescriptorId: input.entryTypeId ?? null,
       source: input.source ?? "manual",
     });
   }
   await ensureStudentRole(tx, scope, input.studentId, start);
   return { changed: true };
-}
-
-export async function calendarFor(tx: Tx, tenantId: string, yearId: string) {
-  const rows = await tx.execute<{ id: string }>(sql`
-    select id from core.calendars where tenant_id = ${tenantId}::uuid and school_year_id = ${yearId}::uuid
-      and kind = 'school' and status = 'active' limit 1`);
-  return rows[0]?.id ?? null;
 }
 
 /** A student in a year's list, as their placements there give them. */

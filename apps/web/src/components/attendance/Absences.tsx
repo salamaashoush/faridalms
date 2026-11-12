@@ -224,7 +224,6 @@ export function Absences({ query, onChange }: AbsencesProps) {
           },
         ]
       : [];
-  const min = data.year?.startsOn ?? "";
   return (
     <div className="grid gap-4">
       <DataTable
@@ -249,7 +248,6 @@ export function Absences({ query, onChange }: AbsencesProps) {
                 aria-label={m.attFrom()}
                 className="h-8 w-40 max-md:h-10"
                 value={data.from}
-                min={min}
                 max={data.to}
                 onChange={(event) =>
                   event.target.value && onChange({ from: event.target.value })

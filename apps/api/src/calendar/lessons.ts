@@ -8,7 +8,6 @@ import {
   meetingsOn,
   studentClasses,
 } from "@faridalms/database/stores/timetable";
-import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import { addDays } from "@faridalms/domain/school";
 
 /** How far a feed's lessons reach: last week, and the weeks ahead. */
@@ -53,11 +52,6 @@ export async function feedLessons(
     origin: string;
   },
 ): Promise<FeedLesson[]> {
-  const year = workingYear(
-    await schoolYears(tx, input.tenantId, input.schoolId),
-    input.today,
-  );
-  if (!year) return [];
   const from = addDays(input.today, -BACK_DAYS);
   const to = addDays(input.today, AHEAD_DAYS);
   const span: string[] = [];
@@ -74,9 +68,7 @@ export async function feedLessons(
       on: input.today,
     }),
   ]);
-  const days = span.filter(
-    (day) => plans.get(day)?.open && plans.get(day)?.yearId === year.id,
-  );
+  const days = span.filter((day) => plans.get(day)?.open);
   if (days.length === 0) return [];
   const learner = classIds.length > 0;
   const [taught, learnt, covers] = await Promise.all([

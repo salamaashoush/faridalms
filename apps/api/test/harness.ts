@@ -492,3 +492,10 @@ export async function raw(
     }),
   );
 }
+
+/** The period a register is taken in, where the timetable plans the day; failing on a register of the whole day. */
+export function periodOf<P>(register: { period: P | null }): P {
+  if (register.period === null)
+    throw new Error("the register is not taken in a period");
+  return register.period;
+}

@@ -6,12 +6,10 @@ import {
 } from "@faridalms/database/stores/classes";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import { historyOf } from "@faridalms/database/stores/history";
-import { givePeriods } from "@faridalms/database/stores/periods";
 import {
   placements,
   saveArrival as storeArrival,
 } from "@faridalms/database/stores/placements";
-import { ensureTimetable } from "@faridalms/database/stores/timetable";
 import {
   calendarSummary,
   createYear,
@@ -20,6 +18,7 @@ import {
   yearsOfClasses,
   setTargetDays,
   setYearLifecycle,
+  targetDays,
   termsOf,
   updateYear,
   YearChangeError,
@@ -27,14 +26,15 @@ import {
   yearDirectory,
   yearOfClass,
 } from "@faridalms/database/stores/years";
-import { targetDaysSchema } from "@faridalms/domain/calendar";
 import { historyQuerySchema } from "@faridalms/domain/history";
 import { PAGE_SIZE } from "@faridalms/domain/paging";
 import { addDays, dayWithin } from "@faridalms/domain/school";
+import { schoolDaysQuerySchema } from "@faridalms/domain/school-days";
 import {
   placementStatus,
   saveArrivalSchema,
   saveYearSchema,
+  targetDaysSchema,
   yearLifecycleSchema,
   yearStanding,
   yearTransitionIssue,
@@ -44,6 +44,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { runsRefusal } from "../classes/points";
 import {
   audit,
   can,
@@ -122,9 +123,14 @@ export const record = readProcedure
     );
     const year = summaries.find((row) => row.id === input.id);
     if (!year) throw new ORPCError("NOT_FOUND");
-    const [terms, calendar] = await Promise.all([
+    const [terms, calendar, target] = await Promise.all([
       termsOf(context.tx, context.tenantId, year.id),
-      calendarSummary(context.tx, context.tenantId, year.id),
+      calendarSummary(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        year,
+      }),
+      targetDays(context.tx, context.tenantId, year.id),
     ]);
     return {
       ...year,
@@ -132,6 +138,7 @@ export const record = readProcedure
       today: context.today,
       terms,
       calendar,
+      targetDays: target,
       access: accessOf(context),
     };
   });
@@ -169,20 +176,6 @@ export const save = writeProcedure
     };
     if (!input.id) {
       const created = await createYear(context.tx, values);
-      const periods = await givePeriods(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        target: {
-          id: created.id,
-          startsOn: input.startsOn,
-          endsBefore: addDays(input.endsOn, 1),
-        },
-      });
-      await ensureTimetable(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        year: { id: created.id, startsOn: input.startsOn },
-      });
       await audit(context, {
         action: "academic_session.create",
         objectType: "academic_session",
@@ -190,7 +183,7 @@ export const save = writeProcedure
         change: {
           table: "core.academic_sessions",
           before: null,
-          after: { ...input, terms: input.terms.length, periods },
+          after: { ...input, terms: input.terms.length },
         },
       });
       return {
@@ -204,6 +197,7 @@ export const save = writeProcedure
       ...values,
       id: input.id,
       expectedVersion: input.expectedVersion ?? 0,
+      refusesRuns: (classId, runs) => runsRefusal(context, classId, runs),
     }).catch(refused);
     await audit(context, {
       action: "academic_session.update",
@@ -286,6 +280,63 @@ async function openYear(context: UnitContext, yearId: string) {
     throw new ORPCError("CONFLICT", { message: "school_year.closed" });
   return year;
 }
+
+/**
+ * The years a span of the school's days falls in, for the planner: each
+ * with its terms, its school days and closed days counted, and the count
+ * it aims at.
+ */
+export const planner = readProcedure
+  .input(schoolDaysQuerySchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(
+      context,
+      "years:manage",
+      "school:manage",
+      "calendar:manage",
+    );
+    const years = (
+      await schoolYears(context.tx, context.tenantId, context.schoolId)
+    )
+      .filter(
+        (year) => year.startsOn <= input.to && input.from < year.endsBefore,
+      )
+      .toSorted((a, b) => a.startsOn.localeCompare(b.startsOn));
+    return {
+      canEdit: can(context, "calendar:manage"),
+      years: await Promise.all(
+        years.map(async (year) => {
+          const [terms, calendar, target] = await Promise.all([
+            termsOf(context.tx, context.tenantId, year.id),
+            calendarSummary(context.tx, {
+              tenantId: context.tenantId,
+              schoolId: context.schoolId,
+              year,
+            }),
+            targetDays(context.tx, context.tenantId, year.id),
+          ]);
+          return {
+            id: year.id,
+            titleEn: year.titleEn,
+            titleAr: year.titleAr,
+            startsOn: year.startsOn,
+            endsBefore: year.endsBefore,
+            closed: year.lifecycle === "closed",
+            terms: terms.map((term) => ({
+              id: term.id,
+              titleEn: term.titleEn,
+              titleAr: term.titleAr,
+              startsOn: term.startsOn,
+              endsBefore: term.endsBefore,
+            })),
+            schoolDays: calendar.schoolDays,
+            closedDays: calendar.closedDays,
+            targetDays: target,
+          };
+        }),
+      ),
+    };
+  });
 
 export const target = writeProcedure
   .input(targetDaysSchema)

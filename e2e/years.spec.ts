@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { apiAs } from "./fixtures/api";
-import { newYear, workingYear } from "./fixtures/school";
+import { workingYear } from "./fixtures/school";
 import { chooseFromMenu, signIn, untilHydrated } from "./fixtures/sign-in";
 
 // Browser projects share one school and years may not overlap, so each adds
@@ -13,153 +13,13 @@ const YEAR = {
   webkit: { title: "2034–2035", start: "2034-09-10", end: "2035-06-14" },
 } as const;
 
-const DAY = {
-  chromium: {
-    title: "2050–2051 Salama",
-    startsOn: "2050-09-04",
-    endsOn: "2051-06-15",
-    later: "2050-11-06",
-  },
-  firefox: {
-    title: "2052–2053 Salama",
-    startsOn: "2052-09-08",
-    endsOn: "2053-06-12",
-    later: "2052-11-07",
-  },
-  webkit: {
-    title: "2054–2055 Salama",
-    startsOn: "2054-09-06",
-    endsOn: "2055-06-17",
-    later: "2054-11-08",
-  },
-} as const;
-
-test("the office sets a year's periods and their days, and a later change keeps the days before it", async ({
-  page,
-  browserName,
-}) => {
-  const dates = DAY[browserName];
-  const admin = await apiAs("admin");
-  const year = await newYear(admin, dates);
-  // A new year takes the school day of the year before it, which may be
-  // another browser's, changed by this same spec; it starts from the seed's.
-  const { id: workingYearId, startsOn } = await workingYear(admin);
-  const seeded = await admin.periods.periods({
-    id: workingYearId,
-    on: startsOn,
-  });
-  const copied = await admin.periods.periods({
-    id: year.id,
-    on: dates.startsOn,
-  });
-  await admin.periods.savePeriods({
-    yearId: year.id,
-    from: dates.startsOn,
-    known: copied.periods.map(({ id, version }) => ({ id, version })),
-    periods: seeded.periods.map((period) => ({
-      nameEn: period.nameEn ?? undefined,
-      nameAr: period.nameAr ?? undefined,
-      kind: period.kind,
-      startTime: period.startTime,
-      endTime: period.endTime,
-      official: period.official,
-      weekdays: period.weekdays,
-      dayTimes: period.dayTimes,
-    })),
-  });
-  await signIn(page, "admin");
-  await page.goto(`/years/${year.id}`);
-  await untilHydrated(page);
-  await page.getByRole("tab", { name: "Periods", exact: true }).click();
-  await expect(page).toHaveURL(/tab=periods/);
-  const day = page.getByRole("region", { name: "School day" });
-  await expect(
-    day.getByRole("table").getByText("Period 1", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    day.getByRole("table").getByText("8:00 AM–8:45 AM"),
-  ).toBeVisible();
-  await expect(
-    page
-      .getByRole("region", { name: "School days" })
-      .getByText("Sunday, Monday, Tuesday, Wednesday, and Thursday"),
-  ).toBeVisible();
-
-  // Each period is a row of the day's table, changed in its own sheet from
-  // a date; the whole-day grid this replaced was opened by Change periods.
-  await chooseFromMenu(
-    day.getByRole("button", { name: "Actions for Period 6" }),
-    page.getByRole("menuitem", { name: "Remove" }),
-  );
-  const removing = page.getByRole("dialog", { name: "Remove Period 6" });
-  await expect(removing.getByLabel("From", { exact: true })).toHaveValue(
-    dates.startsOn,
-  );
-  await removing.getByRole("button", { name: "Remove", exact: true }).click();
-  await expect(removing).toHaveCount(0);
-  await expect(page.getByText("Periods saved", { exact: true })).toBeVisible();
-  await expect(
-    day.getByRole("table").getByText("Period 6", { exact: true }),
-  ).toHaveCount(0);
-
-  await day.getByRole("button", { name: "Add period", exact: true }).click();
-  const adding = page.getByRole("dialog", { name: "Add period" });
-  await adding
-    .getByRole("textbox", { name: "Name in English", exact: true })
-    .fill("Clubs");
-  await adding.getByLabel("Starts", { exact: true }).fill("13:30");
-  const ends = adding.getByLabel("Ends", { exact: true });
-  await ends.fill("13:00");
-  await adding
-    .getByRole("group", { name: "Days", exact: true })
-    .getByRole("checkbox", { name: "Thursday" })
-    .click();
-  await adding.getByRole("button", { name: "Add period", exact: true }).click();
-  await expect(ends).toHaveAttribute("aria-invalid", "true");
-  await expect(ends).toHaveAccessibleDescription(
-    "A lesson must end after it starts.",
-  );
-  await ends.fill("14:15");
-  await adding.getByRole("button", { name: "Add period", exact: true }).click();
-  await expect(adding).toHaveCount(0);
-  const clubs = day.getByRole("row", { name: /^Clubs / });
-  await expect(clubs).toContainText("1:30 PM–2:15 PM");
-  await expect(clubs).toContainText("45 min");
-  await expect(clubs).toContainText("Lesson");
-  await expect(clubs).toContainText("Sunday, Monday, Tuesday, and Wednesday");
-
-  await clubs.getByRole("button", { name: "Clubs", exact: true }).click();
-  const changing = page.getByRole("dialog", { name: "Change Clubs" });
-  await changing.getByLabel("From", { exact: true }).fill(dates.later);
-  await changing
-    .getByRole("textbox", { name: "Name in English", exact: true })
-    .fill("Sports");
-  await changing.getByRole("button", { name: "Save period" }).click();
-  await expect(changing).toHaveCount(0);
-  const changes = page.getByRole("region", { name: "Changes this year" });
-  await expect(changes.getByRole("link")).toHaveCount(2);
-  await changes.getByRole("link").first().click();
-  await expect(page).toHaveURL(new RegExp(`on=${dates.startsOn}`));
-  await expect(
-    day.getByRole("table").getByText("Clubs", { exact: true }),
-  ).toBeVisible();
-  await changes.getByRole("link").last().click();
-  await expect(page).toHaveURL(new RegExp(`on=${dates.later}`));
-  await expect(
-    day.getByRole("table").getByText("Sports", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    day.getByRole("table").getByText("Clubs", { exact: true }),
-  ).toHaveCount(0);
-});
-
 test("a change to the school day cannot reach back over a register already taken", async ({
   page,
 }) => {
   const admin = await apiAs("admin");
-  const { id: workingYearId, startsOn } = await workingYear(admin);
+  const { startsOn } = await workingYear(admin);
   await signIn(page, "admin");
-  await page.goto(`/years/${workingYearId}?tab=periods&on=${startsOn}`);
+  await page.goto(`/timetable?view=day&from=${startsOn}`);
   await untilHydrated(page);
   const day = page.getByRole("region", { name: "School day" });
   await day.getByRole("button", { name: "Registration", exact: true }).click();

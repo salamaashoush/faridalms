@@ -16,12 +16,13 @@ import {
   readFormAnswers,
 } from "@faridalms/domain/questions";
 import { addDays, teachingWeeks } from "@faridalms/domain/school";
+import { dayOpen, schoolDays } from "@faridalms/domain/school-days";
 import {
   buildTemplate,
   STARTERS,
   starterChrome,
 } from "@faridalms/domain/site-templates";
-import { DEFAULT_PERIODS, schoolDays } from "@faridalms/domain/timetable";
+import { DEFAULT_PERIODS } from "@faridalms/domain/timetable";
 import {
   blankPage,
   localizedSections,
@@ -103,7 +104,6 @@ import {
   calendarDates,
   calendarEventAudiences,
   calendarEvents,
-  calendars,
   classGroupMembers,
   classGroups,
   classYears,
@@ -111,6 +111,7 @@ import {
   classMeetings,
   timetables,
   classPeriods,
+  registerPeriods,
   contactPoints,
   courses,
   demographics,
@@ -407,36 +408,18 @@ async function seedYear(
       sequence: index + 1,
     })),
   );
-  const calendarId = Bun.randomUUIDv7();
-  await tx.insert(calendars).values({
-    tenantId,
-    id: calendarId,
-    orgId: schoolId,
-    schoolYearId: yearId,
-    code: "school",
-    kind: "school",
-    titleEn: "School calendar",
-    titleAr: "التقويم المدرسي",
-  });
   const days: (typeof calendarDates.$inferInsert)[] = [];
-  for (let day = YEAR.start; day < YEAR.end; day = addDays(day, 1)) {
-    const holiday = YEAR.holidays.find((h) => day >= h.start && day < h.end);
-    const weekend = weekendDays.includes(isoWeekday(day));
-    const code = weekend
-      ? "weekend"
-      : holiday
-        ? holiday.code
-        : "instructional_day";
-    days.push({
-      tenantId,
-      calendarId,
-      schoolYearId: yearId,
-      dayOn: day,
-      eventDescriptorId: need(events, code),
-      noteEn: !weekend && holiday ? holiday.en : null,
-      noteAr: !weekend && holiday ? holiday.ar : null,
-    });
-  }
+  for (const holiday of YEAR.holidays)
+    for (let day = holiday.start; day < holiday.end; day = addDays(day, 1))
+      if (!weekendDays.includes(isoWeekday(day)))
+        days.push({
+          tenantId,
+          orgId: schoolId,
+          dayOn: day,
+          eventDescriptorId: need(events, holiday.code),
+          noteEn: holiday.en,
+          noteAr: holiday.ar,
+        });
   for (let index = 0; index < days.length; index += 100)
     await tx.insert(calendarDates).values(days.slice(index, index + 100));
   const weeks = teachingWeeks(
@@ -457,7 +440,6 @@ async function seedYear(
     DEFAULT_PERIODS.map((period, index) => ({
       tenantId,
       orgId: schoolId,
-      schoolYearId: yearId,
       code: period.code,
       nameEn: period.nameEn,
       nameAr: period.nameAr,
@@ -467,7 +449,7 @@ async function seedYear(
       endTime: period.endTime,
       officialAttendance: period.official,
       weekdays: [...period.weekdays],
-      validDuring: `[${YEAR.start},${YEAR.end})`,
+      validDuring: `[${YEAR.start},)`,
     })),
   );
   await tx.insert(locations).values(
@@ -491,7 +473,7 @@ async function seedYear(
       capacity: code === "Library" ? 60 : 30,
     })),
   );
-  return { yearId, calendarId };
+  return { yearId };
 }
 
 export interface Person {
@@ -1095,12 +1077,7 @@ export async function seedSchool(
     update core.orgs set email = ${`office@${context.domain}`},
       phone = ${"+20 2 2735 0100"}
     where tenant_id = ${tenantId}::uuid and id = ${schoolId}::uuid`);
-  const { yearId, calendarId } = await seedYear(
-    tx,
-    tenantId,
-    schoolId,
-    homerooms,
-  );
+  const { yearId } = await seedYear(tx, tenantId, schoolId, homerooms);
   const positions = await descriptorIds(tx, tenantId, "staff_position");
   const grades = await descriptorIds(tx, tenantId, "grade_level");
   const relations = await descriptorIds(tx, tenantId, "relation");
@@ -1220,7 +1197,6 @@ export async function seedSchool(
         schoolYearId: yearId,
         validDuring: `[${YEAR.start},${YEAR.end})`,
         gradeLevelDescriptorId: need(grades, grade),
-        calendarId,
         entryTypeDescriptorId: need(entries, "continuing"),
         source: "manual",
       });
@@ -1500,7 +1476,7 @@ async function seedTimetable(
     .where(
       and(
         eq(classPeriods.tenantId, tenantId),
-        eq(classPeriods.schoolYearId, yearId),
+        eq(classPeriods.orgId, schoolId),
         eq(classPeriods.kind, "lesson"),
       ),
     )
@@ -1536,7 +1512,6 @@ async function seedTimetable(
     .values({
       tenantId,
       orgId: schoolId,
-      schoolYearId: yearId,
       startsOn: YEAR.start,
       cycleKind: "weeks",
       cycleLength: 1,
@@ -1558,7 +1533,6 @@ async function seedTimetable(
           tenantId,
           orgId: schoolId,
           classId: taught.id,
-          schoolYearId: yearId,
           timetableId: timetable.id,
           weekday,
           classPeriodId: period.id,
@@ -2702,19 +2676,29 @@ async function seedAttendance(
     descriptorIds(tx, tenantId, "attendance_category"),
     descriptorIds(tx, tenantId, "attendance_reason"),
   ]);
-  const days = await tx.execute<{ day_on: string }>(sql`
-    select to_char(d.day_on, 'YYYY-MM-DD') as day_on from core.calendar_dates d
+  const [school] = await tx
+    .select({ weekStart: orgs.weekStart, weekendDays: orgs.weekendDays })
+    .from(orgs)
+    .where(and(eq(orgs.tenantId, tenantId), eq(orgs.id, schoolId)));
+  if (!school) throw new Error("no seeded school");
+  const marked = await tx.execute<{ day_on: string; meaning: string }>(sql`
+    select to_char(d.day_on, 'YYYY-MM-DD') as day_on, e.system_meaning as meaning
+    from core.calendar_dates d
     join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
-    where d.tenant_id = ${tenantId}::uuid and d.school_year_id = ${yearId}::uuid
-      and e.code_value = 'instructional_day' and d.day_on between ${YEAR.start}::date and ${until}::date
-    order by d.day_on`);
+    where d.tenant_id = ${tenantId}::uuid and d.org_id = ${schoolId}::uuid
+      and d.status = 'active'`);
+  const marks = new Map(marked.map((row) => [row.day_on, row.meaning]));
+  const days: { day_on: string }[] = [];
+  for (let day = YEAR.start; day <= until; day = addDays(day, 1))
+    if (dayOpen(school, day, marks.get(day) ?? null))
+      days.push({ day_on: day });
   const [period] = await tx
     .select({ id: classPeriods.id })
     .from(classPeriods)
     .where(
       and(
         eq(classPeriods.tenantId, tenantId),
-        eq(classPeriods.schoolYearId, yearId),
+        eq(classPeriods.orgId, schoolId),
         eq(classPeriods.officialAttendance, true),
       ),
     )
@@ -2737,6 +2721,7 @@ async function seedAttendance(
       and c.id in (select y.class_id from core.class_years y where y.tenant_id = c.tenant_id and y.school_year_id = ${yearId}::uuid and y.status = 'active')
     order by c.code`);
   const registers: (typeof attendanceRegisters.$inferInsert)[] = [];
+  const taken: (typeof registerPeriods.$inferInsert)[] = [];
   const events: (typeof attendanceEvents.$inferInsert)[] = [];
   for (const homeroom of homerooms) {
     const students = homeroom.students
@@ -2750,12 +2735,20 @@ async function seedAttendance(
         id: registerId,
         orgId: schoolId,
         classId: homeroom.id,
-        schoolYearId: yearId,
-        classPeriodId: period.id,
+        kind: "period",
+        daily: true,
         takenOn: day,
         state: "submitted",
         recordedByUserId: homeroom.teacher_id,
         submittedAt: new Date(`${day}T05:55:00Z`),
+      });
+      taken.push({
+        tenantId,
+        orgId: schoolId,
+        registerId,
+        classId: homeroom.id,
+        takenOn: day,
+        classPeriodId: period.id,
       });
       for (const studentId of students) {
         const chance = roll();
@@ -2789,6 +2782,8 @@ async function seedAttendance(
     await tx
       .insert(attendanceRegisters)
       .values(registers.slice(index, index + 200));
+  for (let index = 0; index < taken.length; index += 200)
+    await tx.insert(registerPeriods).values(taken.slice(index, index + 200));
   for (let index = 0; index < events.length; index += 500)
     await tx.insert(attendanceEvents).values(events.slice(index, index + 500));
 }

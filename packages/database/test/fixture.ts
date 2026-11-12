@@ -25,8 +25,6 @@ import {
   messageDrafts,
   accounts,
   calendarFeeds,
-  calendarGradeLevels,
-  calendars,
   consentRecords,
   descriptorOverrides,
   descriptors,
@@ -55,6 +53,7 @@ import {
   familyShares,
   lessonChanges,
   staffAbsences,
+  timetableDays,
   studentMovements,
   workComments,
   documentThreads,
@@ -182,12 +181,7 @@ export async function completeFixture(
     .from(userRelationships)
     .where(eq(userRelationships.tenantId, tenantId))
     .limit(1);
-  const [calendar] = await tx
-    .select({ id: calendars.id })
-    .from(calendars)
-    .where(eq(calendars.tenantId, tenantId))
-    .limit(1);
-  if (!someone || !account || !identity || !relationship || !calendar)
+  if (!someone || !account || !identity || !relationship)
     throw new Error("the development seed must run before the fixture");
   const userId = someone.id;
 
@@ -202,16 +196,6 @@ export async function completeFixture(
     descriptorId: await descriptor(tx, tenantId, "grade_level", "grade_8"),
     orgId: schoolId,
     labelAr: "الصف الثاني الإعدادي",
-  });
-  await tx.insert(calendarGradeLevels).values({
-    tenantId,
-    calendarId: calendar.id,
-    gradeLevelDescriptorId: await descriptor(
-      tx,
-      tenantId,
-      "grade_level",
-      "grade_7",
-    ),
   });
 
   const photoId = id();
@@ -1052,9 +1036,8 @@ export async function completeFixture(
   const [lessonSlot] = await tx.execute<{
     class_id: string;
     class_period_id: string;
-    school_year_id: string;
   }>(sql`
-    select class_id, class_period_id, school_year_id from core.class_meetings
+    select class_id, class_period_id from core.class_meetings
     where tenant_id = ${tenantId}::uuid and org_id = ${schoolId}::uuid and status = 'active'
     limit 1`);
   if (!lessonSlot) throw new Error("the development seed plans no lessons");
@@ -1067,7 +1050,6 @@ export async function completeFixture(
   await tx.insert(staffAbsences).values({
     tenantId,
     orgId: schoolId,
-    schoolYearId: lessonSlot.school_year_id,
     userId,
     span: "[2026-11-02,2026-11-03)",
     reason: "training",
@@ -1075,23 +1057,30 @@ export async function completeFixture(
   await tx.insert(lessonChanges).values({
     tenantId,
     orgId: schoolId,
-    schoolYearId: lessonSlot.school_year_id,
     classId: lessonSlot.class_id,
     classPeriodId: lessonSlot.class_period_id,
     dayOn: "2026-11-02",
     cancelled: true,
   });
-  await tx.insert(bellSchedules).values({
+  const [schedule] = await tx
+    .insert(bellSchedules)
+    .values({
+      tenantId,
+      orgId: schoolId,
+      nameEn: "Late start",
+      times: [{ code: "1", startTime: "09:00", endTime: "09:45" }],
+    })
+    .returning({ id: bellSchedules.id });
+  if (!schedule) throw new Error("bell schedule not written");
+  await tx.insert(timetableDays).values({
     tenantId,
     orgId: schoolId,
-    schoolYearId: lessonSlot.school_year_id,
-    nameEn: "Late start",
-    times: [{ code: "1", startTime: "09:00", endTime: "09:45" }],
+    dayOn: "2026-11-02",
+    bellScheduleId: schedule.id,
   });
   await tx.insert(absenceReports).values({
     tenantId,
     orgId: schoolId,
-    schoolYearId: lessonSlot.school_year_id,
     studentUserId: relationship.student,
     reportedByUserId: userId,
     kind: "absent",

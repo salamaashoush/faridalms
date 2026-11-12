@@ -84,7 +84,7 @@ export function CheckInScreen({
         data: {
           classId,
           date,
-          periodId: data.period.id,
+          periodId: data.period?.id ?? "",
           via: "touch",
           studentId,
         },
@@ -98,7 +98,7 @@ export function CheckInScreen({
         data: {
           classId,
           date,
-          periodId: data.period.id,
+          periodId: data.period?.id ?? "",
           via,
           badge: secret,
         },
@@ -111,7 +111,9 @@ export function CheckInScreen({
   });
   const takeBack = useMutation({
     mutationFn: (studentId: string) =>
-      undo({ data: { classId, date, periodId: data.period.id, studentId } }),
+      undo({
+        data: { classId, date, periodId: data.period?.id ?? "", studentId },
+      }),
     onSuccess: async () => {
       setGreeted(null);
       await refresh();

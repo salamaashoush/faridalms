@@ -9,6 +9,7 @@ import {
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { formatRate } from "~/components/attendance/format";
+import { spanTitle } from "~/components/attendance/StudentAttendance";
 import { KIND_ICON, noticeText } from "~/components/notifications/format";
 import { periodName } from "~/components/timetable/WeekGrid";
 import {
@@ -34,7 +35,6 @@ export interface StudentTodayProps {
  */
 export function StudentToday({ studentId, today }: StudentTodayProps) {
   const { week } = useSuspenseQuery(studentWeekQuery(studentId)).data;
-  if (!week) return null;
   const held = week.dates.find((row) => row.date === today)?.periods ?? [];
   const lessons = held.flatMap((times) => {
     const period = week.periods.find((row) => row.code === times.code);
@@ -108,11 +108,13 @@ export function StudentAttendanceSummary({
   studentId,
   onOpen,
 }: StudentAttendanceSummaryProps) {
-  const { summary } = useSuspenseQuery(studentAttendanceQuery(studentId)).data;
+  const { summary, span } = useSuspenseQuery(
+    studentAttendanceQuery(studentId),
+  ).data;
   return (
     <RecordSection
       title={m.attendanceTitle()}
-      description={m.attThisYear()}
+      description={spanTitle(span)}
       action={
         <Button
           type="button"

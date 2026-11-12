@@ -26,7 +26,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { classTitle } from "~/components/classes/format";
-import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { followUpQuery } from "~/queries/attendance";
@@ -267,7 +266,6 @@ export function FollowUp({ date, onDate }: FollowUpProps) {
   ).data.followUp;
   const navigate = useNavigate();
   const [logging, setLogging] = useState<Call | null>(null);
-  if (!data) return <NoSchoolYear shows={m.noYearShowsFollowUp()} />;
   const giveReason = (row: Overdue): RowAction[] => [
     {
       label: m.fupGiveReason(),
@@ -291,7 +289,6 @@ export function FollowUp({ date, onDate }: FollowUpProps) {
           <DayNav
             id="follow-up-date"
             date={data.date}
-            min={data.year.startsOn}
             max={data.today}
             today={data.today}
             onChange={onDate}

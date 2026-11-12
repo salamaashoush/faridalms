@@ -8,14 +8,12 @@ import type { OpenSpan } from "@faridalms/domain/school";
 import type { SQL } from "drizzle-orm";
 
 import { DEFAULT_ATTENDANCE_SETTINGS } from "@faridalms/domain/attendance";
-import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
-import type { RegisterState } from "../tables/attendance";
+import type { RegisterKind, RegisterState } from "../tables/attendance";
 
 import { rangeOf } from "./classes";
-import { dayPlan, heldOn } from "./day-plan";
 import { holds, isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
@@ -147,74 +145,11 @@ export async function attendanceCodes(
   };
 }
 
-/**
- * Whether the school calendar holds lessons on a day: false on weekends,
- * holidays and closures, null where the calendar says nothing about it.
- */
-export async function isSchoolDay(
-  tx: Tx,
-  input: { tenantId: string; yearId: string; day: string },
-): Promise<boolean | null> {
-  const rows = await tx.execute<{ meaning: string | null }>(sql`
-    select e.system_meaning as meaning from core.calendar_dates d
-    join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
-    where d.tenant_id = ${input.tenantId}::uuid and d.school_year_id = ${input.yearId}::uuid
-      and d.day_on = ${input.day}::date and d.status = 'active'`);
-  if (rows.length === 0) return null;
-  return rows.some((row) => SCHOOL_DAY_MEANINGS.includes(row.meaning ?? ""));
-}
-
-export interface PeriodRow {
-  id: string;
-  code: string;
-  nameEn: string | null;
-  nameAr: string | null;
-  sequence: number;
-  kind: "lesson" | "registration" | "break" | "other";
-  startTime: string | null;
-  endTime: string | null;
-  official: boolean;
-  weekdays: number[];
-  /** The bell schedule whose own period it is; null for the year's. */
-  scheduleId: string | null;
-}
-
-/**
- * The periods of a school day registers can be taken in, at that day's
- * times and in the order of the day: none its bell schedule leaves out,
- * none that skip the weekday it runs as, and any its schedule adds.
- */
-export async function periodsOn(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    schoolId: string;
-    yearId: string;
-    day: string;
-  },
-): Promise<PeriodRow[]> {
-  const plan = await dayPlan(tx, input);
-  if (plan.yearId !== input.yearId) return [];
-  return plan.periods
-    .filter((row) => row.kind === "lesson" || row.kind === "registration")
-    .map((row) => ({
-      id: row.id,
-      code: row.code,
-      nameEn: row.nameEn,
-      nameAr: row.nameAr,
-      sequence: row.sequence,
-      kind: row.kind,
-      startTime: row.startTime,
-      endTime: row.endTime,
-      official: row.official,
-      weekdays: row.weekdays,
-      scheduleId: row.scheduleId,
-    }));
-}
-
 export interface RegisterRow {
   id: string;
   version: number;
+  kind: RegisterKind;
+  daily: boolean;
   state: RegisterState;
   recordedByUserId: string;
   recordedByNameEn: string | null;
@@ -223,13 +158,12 @@ export interface RegisterRow {
   updatedAt: string;
 }
 
-export async function registerFor(
-  tx: Tx,
-  input: { tenantId: string; classId: string; day: string; periodId: string },
-): Promise<RegisterRow | null> {
+async function registerWhere(tx: Tx, where: SQL): Promise<RegisterRow | null> {
   const [row] = await tx.execute<{
     id: string;
     version: number;
+    kind: RegisterKind;
+    daily: boolean;
     state: RegisterState;
     recorded_by_user_id: string;
     full_name_en: string | null;
@@ -237,18 +171,19 @@ export async function registerFor(
     submitted_at: string | null;
     updated_at: string;
   }>(sql`
-    select g.id, g.version, g.state, g.recorded_by_user_id, u.full_name_en, u.full_name_ar,
+    select g.id, g.version, g.kind, g.daily, g.state, g.recorded_by_user_id,
+           u.full_name_en, u.full_name_ar,
            to_char(g.submitted_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as submitted_at,
            to_char(g.date_last_modified at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as updated_at
     from core.attendance_registers g
     join core.users u on u.tenant_id = g.tenant_id and u.id = g.recorded_by_user_id
-    where g.tenant_id = ${input.tenantId}::uuid and g.class_id = ${input.classId}::uuid
-      and g.taken_on = ${input.day}::date and g.class_period_id = ${input.periodId}::uuid
-      and g.status = 'active'`);
+    where g.status = 'active' and ${where}`);
   if (!row) return null;
   return {
     id: row.id,
     version: row.version,
+    kind: row.kind,
+    daily: row.daily,
     state: row.state,
     recordedByUserId: row.recorded_by_user_id,
     recordedByNameEn: row.full_name_en,
@@ -256,6 +191,52 @@ export async function registerFor(
     submittedAt: row.submitted_at,
     updatedAt: row.updated_at,
   };
+}
+
+export const registerById = (tx: Tx, input: { tenantId: string; id: string }) =>
+  registerWhere(
+    tx,
+    sql`g.tenant_id = ${input.tenantId}::uuid and g.id = ${input.id}::uuid`,
+  );
+
+/** A class's register of the whole day, or null. */
+export const dayRegisterOf = (
+  tx: Tx,
+  input: { tenantId: string; classId: string; day: string },
+) =>
+  registerWhere(
+    tx,
+    sql`g.tenant_id = ${input.tenantId}::uuid and g.class_id = ${input.classId}::uuid
+      and g.taken_on = ${input.day}::date and g.kind = 'day'`,
+  );
+
+/**
+ * Opens a class's register on a day, of the whole day or of a period the
+ * caller then records; a day register already open is returned instead.
+ */
+export async function openRegister(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    classId: string;
+    day: string;
+    kind: RegisterKind;
+    daily: boolean;
+    state: RegisterState;
+    actorId: string;
+  },
+): Promise<{ id: string; version: number } | null> {
+  const [row] = await tx.execute<{ id: string; version: number }>(sql`
+    insert into core.attendance_registers
+      (tenant_id, org_id, class_id, kind, daily, taken_on, state, recorded_by_user_id, submitted_at)
+    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.classId}::uuid,
+            ${input.kind}, ${input.daily}, ${input.day}::date, ${input.state},
+            ${input.actorId}::uuid,
+            case when ${input.state} = 'submitted' then statement_timestamp() end)
+    on conflict do nothing
+    returning id, version`);
+  return row ?? null;
 }
 
 export interface MarkRow {
@@ -304,8 +285,7 @@ export async function marksOf(
 export interface EarlierMark {
   studentId: string;
   meaning: AttendanceMeaning;
-  periodNameEn: string | null;
-  periodNameAr: string | null;
+  registerId: string;
 }
 
 /**
@@ -325,23 +305,20 @@ export async function otherMarksOn(
   const rows = await tx.execute<{
     student_user_id: string;
     category_meaning: AttendanceMeaning;
-    name_en: string | null;
-    name_ar: string | null;
+    register_id: string;
   }>(sql`
-    select e.student_user_id, e.category_meaning, p.name_en, p.name_ar
+    select e.student_user_id, e.category_meaning, e.register_id
     from core.attendance_events e
     join core.attendance_registers g on g.tenant_id = e.tenant_id and g.id = e.register_id
-    join core.class_periods p on p.tenant_id = g.tenant_id and p.id = g.class_period_id
     where e.tenant_id = ${input.tenantId}::uuid and e.taken_on = ${input.day}::date
       and e.status = 'active' and e.category_meaning <> 'present'
       and e.student_user_id = any(${uuidArray(input.studentIds)})
       and (${input.excludeRegisterId}::uuid is null or e.register_id <> ${input.excludeRegisterId}::uuid)
-    order by p.sequence`);
+    order by g.kind, g.created_at, e.register_id`);
   return rows.map((row) => ({
     studentId: row.student_user_id,
     meaning: row.category_meaning,
-    periodNameEn: row.name_en,
-    periodNameAr: row.name_ar,
+    registerId: row.register_id,
   }));
 }
 
@@ -352,9 +329,11 @@ export interface MarkChange {
 }
 
 /**
- * Writes a register and its marks. The register is created at version 0 or
+ * Writes a register and its marks. The register is opened at version 0 or
  * updated only from the version the teacher loaded; marks not sent any more
  * are tombstoned, so the register always says exactly what was saved.
+ * `opened` says the register is new, so a period register's caller records
+ * its period.
  */
 export async function writeRegister(
   tx: Tx,
@@ -362,8 +341,9 @@ export async function writeRegister(
     tenantId: string;
     schoolId: string;
     classId: string;
-    yearId: string;
-    periodId: string;
+    existing: RegisterRow | null;
+    kind: RegisterKind;
+    daily: boolean;
     day: string;
     expectedVersion: number;
     state: RegisterState;
@@ -371,25 +351,21 @@ export async function writeRegister(
     categoryOf: (meaning: AttendanceMeaning) => string;
     actorId: string;
   },
-): Promise<{ id: string; version: number; changes: MarkChange[] }> {
-  const existing = await registerFor(tx, input);
+): Promise<{
+  id: string;
+  version: number;
+  opened: boolean;
+  changes: MarkChange[];
+}> {
+  const { existing } = input;
   let registerId: string;
   let version: number;
   if (!existing) {
     if (input.expectedVersion !== 0)
       throw new AttendanceConflict("conflict.version");
-    const rows = await tx.execute<{ id: string; version: number }>(sql`
-      insert into core.attendance_registers
-        (tenant_id, org_id, class_id, school_year_id, class_period_id, taken_on,
-         state, recorded_by_user_id, submitted_at)
-      values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.classId}::uuid,
-              ${input.yearId}::uuid, ${input.periodId}::uuid, ${input.day}::date,
-              ${input.state}, ${input.actorId}::uuid,
-              case when ${input.state} = 'submitted' then statement_timestamp() end)
-      on conflict do nothing
-      returning id, version`);
-    if (!rows[0]) throw new AttendanceConflict("conflict.version");
-    ({ id: registerId, version } = rows[0]);
+    const opened = await openRegister(tx, input);
+    if (!opened) throw new AttendanceConflict("conflict.version");
+    ({ id: registerId, version } = opened);
   } else {
     if (existing.version !== input.expectedVersion)
       throw new AttendanceConflict("conflict.version");
@@ -488,147 +464,62 @@ export async function writeRegister(
         after: null,
       });
   }
-  return { id: registerId, version, changes };
+  return { id: registerId, version, opened: !existing, changes };
 }
 
-export interface BoardRow {
+/** A register taken on a day, with its marks counted. */
+export interface TakenRegister {
+  registerId: string;
   classId: string;
-  classCode: string;
-  classTitleEn: string | null;
-  classTitleAr: string | null;
-  /** The class is owed a register in the official period every school day. */
-  daily: boolean;
-  periodId: string;
-  periodNameEn: string | null;
-  periodNameAr: string | null;
-  periodSequence: number;
-  registerId: string | null;
-  state: RegisterState | "not_started";
+  kind: RegisterKind;
+  state: RegisterState;
   recordedByNameEn: string | null;
   recordedByNameAr: string | null;
   submittedAt: string | null;
-  students: number;
   counts: Record<AttendanceMeaning, number>;
 }
 
-/**
- * A school day's registers: the daily register of every class owed one,
- * every class the timetable has meeting that day unless cancelled for it,
- * and every one-day lesson in a period its bell schedule adds, taken or not,
- * and any other register taken that day, in the order of the day.
- */
-export async function dayBoard(
+/** Every register a school took on a day. */
+export async function registersTakenOn(
   tx: Tx,
-  input: {
-    tenantId: string;
-    schoolId: string;
-    yearId: string;
-    day: string;
-    officialPeriodId: string | null;
-    /** The classes owed a register in the official period every school day. */
-    dailyClassIds: readonly string[];
-  },
-): Promise<BoardRow[]> {
-  const plan = await dayPlan(tx, input);
-  const added = plan.periods
-    .filter(
-      (row) =>
-        row.scheduleId !== null &&
-        (row.kind === "lesson" || row.kind === "registration"),
-    )
-    .map((row) => row.id);
+  input: { tenantId: string; schoolId: string; day: string },
+): Promise<TakenRegister[]> {
   const rows = await tx.execute<{
+    id: string;
     class_id: string;
-    code: string;
-    title_en: string | null;
-    title_ar: string | null;
-    daily: boolean;
-    period_id: string;
-    period_name_en: string | null;
-    period_name_ar: string | null;
-    period_sequence: number;
-    register_id: string | null;
-    state: RegisterState | null;
+    kind: RegisterKind;
+    state: RegisterState;
     full_name_en: string | null;
     full_name_ar: string | null;
     submitted_at: string | null;
-    students: number;
     present: number;
     absent: number;
     late: number;
     excused: number;
     left_early: number;
   }>(sql`
-    with expected as (
-      select c.id as class_id, ${input.officialPeriodId}::uuid as period_id
-      from core.classes c
-      where ${input.officialPeriodId}::uuid is not null
-        and c.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.schoolId}::uuid
-        and c.id = any(${uuidArray(input.dailyClassIds)}) and c.status = 'active'
-      union
-      select m.class_id, m.class_period_id from core.class_meetings m
-      where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
-        and m.school_year_id = ${input.yearId}::uuid and m.status = 'active'
-        and ${heldOn(plan)}
-        and not exists (select 1 from core.lesson_changes x
-          where x.tenant_id = m.tenant_id and x.status = 'active' and x.cancelled
-            and x.class_id = m.class_id and x.class_period_id = m.class_period_id
-            and x.day_on = ${input.day}::date)
-      union
-      select x.class_id, x.class_period_id from core.lesson_changes x
-      where x.tenant_id = ${input.tenantId}::uuid and x.org_id = ${input.schoolId}::uuid
-        and x.status = 'active' and not x.cancelled and x.day_on = ${input.day}::date
-        and x.class_period_id = any(${uuidArray(added)})
-      union
-      select g.class_id, g.class_period_id from core.attendance_registers g
-      where g.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.schoolId}::uuid
-        and g.taken_on = ${input.day}::date and g.status = 'active'
-    )
-    select c.id as class_id, c.code, c.title_en, c.title_ar,
-           c.id = any(${uuidArray(input.dailyClassIds)}) as daily,
-           p.id as period_id, p.name_en as period_name_en, p.name_ar as period_name_ar,
-           p.sequence as period_sequence, g.id as register_id, g.state,
-           u.full_name_en, u.full_name_ar,
+    select g.id, g.class_id, g.kind, g.state, u.full_name_en, u.full_name_ar,
            to_char(g.submitted_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as submitted_at,
-           (select count(distinct s.user_id)::int from core.enrollments s
-              where s.tenant_id = c.tenant_id and s.class_id = c.id
-                and s.role = 'student' and s.status = 'active'
-                and s.valid_during @> ${input.day}::date) as students,
            count(e.id) filter (where e.category_meaning = 'present')::int as present,
            count(e.id) filter (where e.category_meaning = 'absent')::int as absent,
            count(e.id) filter (where e.category_meaning = 'late')::int as late,
            count(e.id) filter (where e.category_meaning = 'excused')::int as excused,
            count(e.id) filter (where e.category_meaning = 'left_early')::int as left_early
-    from expected x
-    join core.classes c on c.tenant_id = ${input.tenantId}::uuid and c.id = x.class_id
-    join core.class_periods p on p.tenant_id = c.tenant_id and p.id = x.period_id
-    left join core.attendance_registers g on g.tenant_id = c.tenant_id and g.class_id = c.id
-      and g.class_period_id = p.id and g.taken_on = ${input.day}::date and g.status = 'active'
+    from core.attendance_registers g
     left join core.users u on u.tenant_id = g.tenant_id and u.id = g.recorded_by_user_id
-    left join core.attendance_events e on e.tenant_id = g.tenant_id and e.taken_on = ${input.day}::date
+    left join core.attendance_events e on e.tenant_id = g.tenant_id and e.taken_on = g.taken_on
       and e.register_id = g.id and e.status = 'active'
-    group by c.id, c.code, c.title_en, c.title_ar, c.tenant_id,
-             p.id, p.name_en, p.name_ar, p.sequence, g.id, g.state, u.full_name_en, u.full_name_ar,
-             g.submitted_at
-    order by array_position(${uuidArray(plan.periods.map((row) => row.id))}, p.id), p.sequence,
-             c.code`);
-
+    where g.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.schoolId}::uuid
+      and g.taken_on = ${input.day}::date and g.status = 'active'
+    group by g.id, g.class_id, g.kind, g.state, u.full_name_en, u.full_name_ar, g.submitted_at`);
   return rows.map((row) => ({
+    registerId: row.id,
     classId: row.class_id,
-    classCode: row.code,
-    classTitleEn: row.title_en,
-    classTitleAr: row.title_ar,
-    daily: row.daily,
-    periodId: row.period_id,
-    periodNameEn: row.period_name_en,
-    periodNameAr: row.period_name_ar,
-    periodSequence: row.period_sequence,
-    registerId: row.register_id,
-    state: row.state ?? "not_started",
+    kind: row.kind,
+    state: row.state,
     recordedByNameEn: row.full_name_en,
     recordedByNameAr: row.full_name_ar,
     submittedAt: row.submitted_at,
-    students: row.students,
     counts: {
       present: row.present,
       absent: row.absent,
@@ -637,6 +528,49 @@ export async function dayBoard(
       left_early: row.left_early,
     },
   }));
+}
+
+/** A class as a day's board lists it: its names, and the students it has that day. */
+export interface BoardClass {
+  id: string;
+  code: string;
+  titleEn: string | null;
+  titleAr: string | null;
+  students: number;
+}
+
+export async function boardClasses(
+  tx: Tx,
+  input: { tenantId: string; classIds: readonly string[]; day: string },
+): Promise<Map<string, BoardClass>> {
+  if (input.classIds.length === 0) return new Map();
+  const rows = await tx.execute<{
+    id: string;
+    code: string;
+    title_en: string | null;
+    title_ar: string | null;
+    students: number;
+  }>(sql`
+    select c.id, c.code, c.title_en, c.title_ar,
+           (select count(distinct s.user_id)::int from core.enrollments s
+              where s.tenant_id = c.tenant_id and s.class_id = c.id
+                and s.role = 'student' and s.status = 'active'
+                and s.valid_during @> ${input.day}::date) as students
+    from core.classes c
+    where c.tenant_id = ${input.tenantId}::uuid and c.status = 'active'
+      and c.id = any(${uuidArray(input.classIds)})`);
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        id: row.id,
+        code: row.code,
+        titleEn: row.title_en,
+        titleAr: row.title_ar,
+        students: row.students,
+      },
+    ]),
+  );
 }
 
 export interface AbsenceRow {
@@ -649,8 +583,7 @@ export interface AbsenceRow {
   classCode: string;
   classTitleEn: string | null;
   classTitleAr: string | null;
-  periodNameEn: string | null;
-  periodNameAr: string | null;
+  registerId: string;
   meaning: AttendanceMeaning;
   reasonId: string | null;
   minutes: number | null;
@@ -680,8 +613,7 @@ export async function absencesBetween(
     code: string;
     title_en: string | null;
     title_ar: string | null;
-    period_name_en: string | null;
-    period_name_ar: string | null;
+    register_id: string;
     category_meaning: AttendanceMeaning;
     reason_descriptor_id: string | null;
     minutes: number | null;
@@ -689,12 +621,10 @@ export async function absencesBetween(
   }>(sql`
     select e.id, to_char(e.taken_on, 'YYYY-MM-DD') as taken_on, e.student_user_id,
            u.full_name_en, u.full_name_ar, c.id as class_id, c.code, c.title_en, c.title_ar,
-           p.name_en as period_name_en, p.name_ar as period_name_ar, e.category_meaning,
-           e.reason_descriptor_id, e.minutes, e.note
+           e.register_id, e.category_meaning, e.reason_descriptor_id, e.minutes, e.note
     from core.attendance_events e
     join core.attendance_registers g on g.tenant_id = e.tenant_id and g.id = e.register_id
     join core.classes c on c.tenant_id = g.tenant_id and c.id = g.class_id
-    join core.class_periods p on p.tenant_id = g.tenant_id and p.id = g.class_period_id
     join core.users u on u.tenant_id = e.tenant_id and u.id = e.student_user_id
     where e.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.schoolId}::uuid
       and e.taken_on between ${input.from}::date and ${input.to}::date and e.status = 'active'
@@ -703,7 +633,7 @@ export async function absencesBetween(
                 else e.category_meaning <> 'present' end)
       and (${holds(input.q, [sql`u.full_name_en`, sql`u.full_name_ar`])})
     order by (e.reason_descriptor_id is null and e.category_meaning in ('absent', 'late')) desc,
-             e.taken_on desc, p.sequence, c.code, u.full_name_en, e.id
+             e.taken_on desc, g.kind, g.created_at, c.code, u.full_name_en, e.id
     limit ${input.limit}`);
   return rows.map((row) => ({
     id: row.id,
@@ -715,8 +645,7 @@ export async function absencesBetween(
     classCode: row.code,
     classTitleEn: row.title_en,
     classTitleAr: row.title_ar,
-    periodNameEn: row.period_name_en,
-    periodNameAr: row.period_name_ar,
+    registerId: row.register_id,
     meaning: row.category_meaning,
     reasonId: row.reason_descriptor_id,
     minutes: row.minutes,
@@ -800,8 +729,8 @@ export interface StudentMark {
   classCode: string;
   classTitleEn: string | null;
   classTitleAr: string | null;
-  periodNameEn: string | null;
-  periodNameAr: string | null;
+  registerId: string;
+  /** The register counts as the day's attendance. */
   official: boolean;
   meaning: AttendanceMeaning;
   reasonId: string | null;
@@ -822,10 +751,9 @@ export async function attendanceCounts(
            count(*) filter (where e.category_meaning = 'left_early')::int as left_early
     from core.attendance_events e
     join core.attendance_registers g on g.tenant_id = e.tenant_id and g.id = e.register_id
-    join core.class_periods p on p.tenant_id = g.tenant_id and p.id = g.class_period_id
     where e.tenant_id = ${input.tenantId}::uuid and e.student_user_id = ${input.studentId}::uuid
       and e.taken_on between ${input.from}::date and ${input.to}::date and e.status = 'active'
-      and p.official_attendance`);
+      and g.daily`);
   return (
     counts ?? { present: 0, absent: 0, late: 0, excused: 0, left_early: 0 }
   );
@@ -849,9 +777,8 @@ export async function studentMarks(
     code: string;
     title_en: string | null;
     title_ar: string | null;
-    name_en: string | null;
-    name_ar: string | null;
-    official_attendance: boolean;
+    register_id: string;
+    daily: boolean;
     category_meaning: AttendanceMeaning;
     reason_descriptor_id: string | null;
     minutes: number | null;
@@ -859,16 +786,15 @@ export async function studentMarks(
     total: number;
   }>(sql`
     select e.id, to_char(e.taken_on, 'YYYY-MM-DD') as taken_on, c.code, c.title_en, c.title_ar,
-           p.name_en, p.name_ar, p.official_attendance, e.category_meaning,
+           e.register_id, g.daily, e.category_meaning,
            e.reason_descriptor_id, e.minutes, e.note, (count(*) over ())::int as total
     from core.attendance_events e
     join core.attendance_registers g on g.tenant_id = e.tenant_id and g.id = e.register_id
     join core.classes c on c.tenant_id = g.tenant_id and c.id = g.class_id
-    join core.class_periods p on p.tenant_id = g.tenant_id and p.id = g.class_period_id
     where e.tenant_id = ${input.tenantId}::uuid and e.student_user_id = ${input.studentId}::uuid
       and e.taken_on between ${input.from}::date and ${input.to}::date and e.status = 'active'
       and e.category_meaning <> 'present'
-    order by e.taken_on desc, p.sequence, e.id
+    order by e.taken_on desc, g.kind, g.created_at, e.id
     limit ${input.limit} offset ${input.offset}`);
   return {
     rows: rows.map((row) => ({
@@ -877,9 +803,8 @@ export async function studentMarks(
       classCode: row.code,
       classTitleEn: row.title_en,
       classTitleAr: row.title_ar,
-      periodNameEn: row.name_en,
-      periodNameAr: row.name_ar,
-      official: row.official_attendance,
+      registerId: row.register_id,
+      official: row.daily,
       meaning: row.category_meaning,
       reasonId: row.reason_descriptor_id,
       minutes: row.minutes,
@@ -910,9 +835,6 @@ export async function attendanceReport(
   input: {
     tenantId: string;
     schoolId: string;
-    yearId: string;
-    /** The year's days, over which its classes run. */
-    during: OpenSpan;
     from: string;
     to: string;
     by: "student" | "class";
@@ -946,11 +868,10 @@ export async function attendanceReport(
            count(distinct g.id)::int as registers
     from core.attendance_events e
     join core.attendance_registers g on g.tenant_id = e.tenant_id and g.id = e.register_id
-    join core.class_periods p on p.tenant_id = g.tenant_id and p.id = g.class_period_id
     join core.classes c on c.tenant_id = g.tenant_id and c.id = g.class_id
     join core.users u on u.tenant_id = e.tenant_id and u.id = e.student_user_id
     where e.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.schoolId}::uuid
-      and g.school_year_id = ${input.yearId}::uuid and p.official_attendance
+      and g.daily
       and e.taken_on between ${input.from}::date and ${input.to}::date and e.status = 'active'
       and (${holds(input.q, [sql`u.full_name_en`, sql`u.full_name_ar`])})
     group by u.id, u.full_name_en, u.full_name_ar
@@ -969,12 +890,11 @@ export async function attendanceReport(
     from core.classes c
     left join core.attendance_registers g on g.tenant_id = c.tenant_id and g.class_id = c.id
       and g.status = 'active' and g.taken_on between ${input.from}::date and ${input.to}::date
-      and exists (select 1 from core.class_periods p where p.tenant_id = g.tenant_id
-                    and p.id = g.class_period_id and p.official_attendance)
+      and g.daily
     left join core.attendance_events e on e.tenant_id = g.tenant_id and e.taken_on = g.taken_on
       and e.register_id = g.id and e.status = 'active'
     where c.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.schoolId}::uuid
-      and c.runs && ${rangeOf(input.during)}::daterange and c.status = 'active'
+      and c.runs && daterange(${input.from}::date, ${input.to}::date, '[]') and c.status = 'active'
       and (${holds(input.q, [sql`c.title_en`, sql`c.title_ar`, sql`c.code`])})
     group by c.id, c.code, c.title_en, c.title_ar
     having c.id = any(${uuidArray(input.dailyClassIds)}) or count(g.id) > 0
@@ -1075,6 +995,18 @@ export async function lastMarkInClasses(
   return row?.last ?? null;
 }
 
+/** The first day a register of the class was taken outside these days, or null. */
+export async function registerOutside(
+  tx: Tx,
+  input: { tenantId: string; classId: string; runs: OpenSpan },
+): Promise<string | null> {
+  const [row] = await tx.execute<{ day: string | null }>(sql`
+    select to_char(min(taken_on), 'YYYY-MM-DD') as day from core.attendance_registers
+    where tenant_id = ${input.tenantId}::uuid and class_id = ${input.classId}::uuid
+      and status = 'active' and not ${rangeOf(input.runs)}::daterange @> taken_on`);
+  return row?.day ?? null;
+}
+
 /** The last day on or after the date that a register of the class marks anyone. */
 export async function lastMarkInClass(
   tx: Tx,
@@ -1133,10 +1065,7 @@ export async function checkInMark(
   tx: Tx,
   input: {
     tenantId: string;
-    schoolId: string;
-    classId: string;
-    yearId: string;
-    periodId: string;
+    registerId: string;
     day: string;
     studentId: string;
     categoryId: string;
@@ -1146,21 +1075,8 @@ export async function checkInMark(
     via: CheckInWay;
     actorId: string;
   },
-): Promise<{ registerId: string; added: boolean }> {
-  let registerId = (await registerFor(tx, input))?.id;
-  if (!registerId) {
-    const [made] = await tx.execute<{ id: string }>(sql`
-      insert into core.attendance_registers
-        (tenant_id, org_id, class_id, school_year_id, class_period_id, taken_on,
-         state, recorded_by_user_id)
-      values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.classId}::uuid,
-              ${input.yearId}::uuid, ${input.periodId}::uuid,
-              ${input.day}::date, 'in_progress', ${input.actorId}::uuid)
-      on conflict do nothing
-      returning id`);
-    registerId = made?.id ?? (await registerFor(tx, input))?.id;
-  }
-  if (!registerId) throw new AttendanceConflict("conflict.version");
+): Promise<{ added: boolean }> {
+  const { registerId } = input;
   const added = await tx.execute<{ id: string }>(sql`
     insert into core.attendance_events
       (tenant_id, taken_on, register_id, recorded_by_user_id, student_user_id,
@@ -1175,7 +1091,7 @@ export async function checkInMark(
         and status = 'active')
     returning id`);
   if (added.length > 0) await touchRegister(tx, input.tenantId, registerId);
-  return { registerId, added: added.length > 0 };
+  return { added: added.length > 0 };
 }
 
 /** Takes back a child's own check-in, if the teacher has not changed it. */
@@ -1211,10 +1127,8 @@ async function touchRegister(tx: Tx, tenantId: string, registerId: string) {
 export interface StudentRegister {
   registerId: string;
   classId: string;
-  periodId: string;
-  startTime: string | null;
-  endTime: string | null;
-  official: boolean;
+  kind: RegisterKind;
+  daily: boolean;
   markId: string | null;
   meaning: AttendanceMeaning | null;
 }
@@ -1227,20 +1141,15 @@ export async function studentRegistersOn(
   const rows = await tx.execute<{
     register_id: string;
     class_id: string;
-    class_period_id: string;
-    start_time: string | null;
-    end_time: string | null;
-    official_attendance: boolean;
+    kind: RegisterKind;
+    daily: boolean;
     mark_id: string | null;
     category_meaning: AttendanceMeaning | null;
   }>(sql`
-    select g.id as register_id, g.class_id, g.class_period_id,
-           to_char(p.start_time, 'HH24:MI') as start_time,
-           to_char(p.end_time, 'HH24:MI') as end_time, p.official_attendance,
+    select g.id as register_id, g.class_id, g.kind, g.daily,
            e.id as mark_id, e.category_meaning
     from core.attendance_registers g
     join core.classes c on c.tenant_id = g.tenant_id and c.id = g.class_id
-    join core.class_periods p on p.tenant_id = g.tenant_id and p.id = g.class_period_id
     left join core.attendance_events e on e.tenant_id = g.tenant_id and e.taken_on = g.taken_on
       and e.register_id = g.id and e.student_user_id = ${input.studentId}::uuid
       and e.status = 'active'
@@ -1250,14 +1159,12 @@ export async function studentRegistersOn(
         where n.tenant_id = g.tenant_id and n.user_id = ${input.studentId}::uuid
           and n.role = 'student' and n.status = 'active' and n.valid_during @> ${input.day}::date
           and n.class_id = c.id)
-    order by p.sequence`);
+    order by g.kind, g.created_at`);
   return rows.map((row) => ({
     registerId: row.register_id,
     classId: row.class_id,
-    periodId: row.class_period_id,
-    startTime: row.start_time,
-    endTime: row.end_time,
-    official: row.official_attendance,
+    kind: row.kind,
+    daily: row.daily,
     markId: row.mark_id,
     meaning: row.category_meaning,
   }));

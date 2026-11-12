@@ -57,6 +57,7 @@ import {
   assignmentRecipients,
   assignments,
   attendanceRegisters,
+  registerPeriods,
   documents,
   healthRecords,
   messages,
@@ -371,12 +372,16 @@ async function lessonsTaken(tx: Tx, school: FilledSchool, today: string) {
     period_id: string;
     teacher_id: string;
     starts: string;
+    official: boolean;
   }>(sql`
     select m.class_id, m.class_period_id as period_id, m.teacher_user_id as teacher_id,
-      to_char(p.start_time, 'HH24:MI') as starts
+      to_char(p.start_time, 'HH24:MI') as starts, p.official_attendance as official
     from core.class_meetings m
     join core.class_periods p on p.tenant_id = m.tenant_id and p.id = m.class_period_id
-    where m.tenant_id = ${school.tenantId}::uuid and m.school_year_id = ${school.yearId}::uuid
+    join core.classes c on c.tenant_id = m.tenant_id and c.id = m.class_id
+      and c.runs @> ${today}::date
+    where m.tenant_id = ${school.tenantId}::uuid and m.org_id = ${school.schoolId}::uuid
+      and m.valid_during @> ${today}::date
       and m.weekday = ${weekday} and m.status = 'active'
       and p.end_time <= ${now}::time`);
   if (lessons.length === 0) return;
@@ -404,6 +409,7 @@ async function lessonsTaken(tx: Tx, school: FilledSchool, today: string) {
     "attendance_category",
   );
   const registers: (typeof attendanceRegisters.$inferInsert)[] = [];
+  const taken: (typeof registerPeriods.$inferInsert)[] = [];
   const events: (typeof attendanceEvents.$inferInsert)[] = [];
   for (const lesson of lessons) {
     const registerId = Bun.randomUUIDv7();
@@ -412,12 +418,20 @@ async function lessonsTaken(tx: Tx, school: FilledSchool, today: string) {
       id: registerId,
       orgId: school.schoolId,
       classId: lesson.class_id,
-      schoolYearId: school.yearId,
-      classPeriodId: lesson.period_id,
+      kind: "period",
+      daily: lesson.official,
       takenOn: today,
       state: "submitted",
       recordedByUserId: lesson.teacher_id,
       submittedAt: at(today, lesson.starts),
+    });
+    taken.push({
+      tenantId: school.tenantId,
+      orgId: school.schoolId,
+      registerId,
+      classId: lesson.class_id,
+      takenOn: today,
+      classPeriodId: lesson.period_id,
     });
     for (const studentUserId of rosters.get(lesson.class_id) ?? []) {
       const meaning = away.has(studentUserId) ? "absent" : "present";
@@ -435,6 +449,7 @@ async function lessonsTaken(tx: Tx, school: FilledSchool, today: string) {
   await chunked(registers, (part) =>
     tx.insert(attendanceRegisters).values(part),
   );
+  await chunked(taken, (part) => tx.insert(registerPeriods).values(part));
   await chunked(events, (part) => tx.insert(attendanceEvents).values(part));
 }
 

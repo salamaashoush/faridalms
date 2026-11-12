@@ -42,14 +42,37 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "apps/web/src/queries/homerooms.ts",
     "apps/web/src/routes/_app/_staff/homeroom-editor.tsx",
   ],
+  timetable: [
+    "packages/database/src/tables/timetable.ts",
+    "packages/database/src/stores/timetable.ts",
+    "packages/database/src/stores/cover.ts",
+    "packages/database/src/stores/day-plan.ts",
+    "packages/database/src/stores/periods.ts",
+    "packages/database/src/stores/bell-schedules.ts",
+    "packages/domain/src/timetable.ts",
+    "packages/domain/src/cycle.ts",
+    "apps/api/src/timetable/",
+    "apps/api/src/systems/timetable.ts",
+    "apps/api/src/systems/cover.ts",
+    "apps/api/src/systems/periods.ts",
+    "apps/web/src/components/timetable/",
+    "apps/web/src/server/timetable.ts",
+    "apps/web/src/server/periods.ts",
+    "apps/web/src/queries/timetable.ts",
+    "apps/web/src/queries/periods.ts",
+    "apps/web/src/routes/_app/_staff/timetable.tsx",
+    "apps/web/src/routes/_app/me/timetable.tsx",
+    "apps/web/src/routes/_app/family/timetable.tsx",
+  ],
 };
 
 /**
  * A module's files that contribute to the points or fill the slots of a
  * module it does not require: the code's link table between the two. Such
  * a file belongs to its owner and may import what its needs own as well;
- * only the composition roots import it, and its contributions run where
- * the owner and its needs are on.
+ * only the composition roots and the owner's other link files with the
+ * same needs import it, and its contributions run where the owner and its
+ * needs are on.
  */
 export const LINK_FILES: Readonly<
   Record<string, { owner: ModuleId; needs: readonly ModuleId[] }>
@@ -62,7 +85,35 @@ export const LINK_FILES: Readonly<
     owner: "homerooms",
     needs: ["school_years"],
   },
+  "apps/api/src/homerooms/timetable.ts": {
+    owner: "homerooms",
+    needs: ["timetable"],
+  },
+  "apps/api/src/attendance/timetable.ts": {
+    owner: "attendance",
+    needs: ["timetable"],
+  },
+  "packages/database/src/tables/register-periods.ts": {
+    owner: "attendance",
+    needs: ["timetable"],
+  },
+  "packages/database/src/stores/register-periods.ts": {
+    owner: "attendance",
+    needs: ["timetable"],
+  },
 };
+
+/** Whether a link file may import another: one link between the same modules, split over files. */
+function sameLink(from: string, to: string): boolean {
+  const a = LINK_FILES[from];
+  const b = LINK_FILES[to];
+  return (
+    a !== undefined &&
+    b !== undefined &&
+    a.owner === b.owner &&
+    b.needs.every((need) => a.needs.includes(need))
+  );
+}
 
 /**
  * Files outside a module that still import its files, as `path -> module`,
@@ -71,30 +122,13 @@ export const LINK_FILES: Readonly<
  * shrinks.
  */
 export const PENDING_IMPORTS: Readonly<Record<string, readonly string[]>> = {
-  "periods and days": [
-    "apps/api/src/calendar/lessons.ts -> school_years",
-    "apps/api/src/systems/absence-reports.ts -> school_years",
-    "apps/api/src/systems/attendance.ts -> school_years",
-    "apps/api/src/systems/cover.ts -> school_years",
-    "apps/api/src/systems/follow-up.ts -> school_years",
-    "apps/api/src/systems/front-desk.ts -> school_years",
-    "apps/api/src/systems/periods.ts -> school_years",
-    "apps/api/src/systems/school-days.ts -> school_years",
-    "apps/api/src/systems/timetable.ts -> school_years",
-    "apps/web/src/components/attendance/Board.tsx -> school_years",
-    "apps/web/src/components/attendance/FollowUp.tsx -> school_years",
-    "apps/web/src/components/attendance/MyRegisters.tsx -> school_years",
-    "apps/web/src/components/timetable/Cover.tsx -> school_years",
-    "apps/web/src/components/timetable/WeekGrid.tsx -> school_years",
-    "apps/web/src/routes/_app/_staff/timetable.tsx -> school_years",
-    "packages/database/src/stores/day-plan.ts -> school_years",
-  ],
   "coursework, e-learning and gradebook": [
     "apps/api/src/core/coursework-access.ts -> school_years",
     "apps/api/src/core/module-discussions.ts -> school_years",
     "apps/api/src/systems/coursework.ts -> school_years",
     "apps/api/src/systems/gradebook.ts -> school_years",
     "apps/api/src/systems/learning.ts -> school_years",
+    "apps/api/src/systems/learning.ts -> timetable",
     "apps/api/src/systems/reading.ts -> school_years",
     "apps/api/src/systems/standards.ts -> school_years",
     "apps/web/src/components/grading/RegradeSheet.tsx -> school_years",
@@ -109,6 +143,12 @@ export const PENDING_IMPORTS: Readonly<Record<string, readonly string[]>> = {
     "apps/api/src/systems/intakes.ts -> school_years",
   ],
   badges: ["apps/api/src/core/badges.ts -> school_years"],
+  surfaces: [
+    "apps/api/src/calendar/lessons.ts -> timetable",
+    "apps/api/src/systems/home.ts -> timetable",
+    "apps/web/src/components/classes/ClassRecord.tsx -> timetable",
+    "apps/web/src/components/people/StudentOverview.tsx -> timetable",
+  ],
 };
 
 /**
@@ -202,7 +242,7 @@ export function moduleImportProblems(
       const target = resolved(path, specifier);
       if (target === null) continue;
       const link = linkOf(target);
-      if (link && link !== path) {
+      if (link && link !== path && !sameLink(path, link)) {
         problems.push(`${path}: imports ${specifier}, a link file`);
         continue;
       }

@@ -1,11 +1,9 @@
 import type {
   Descriptor,
   MarkChange,
-  PeriodRow,
-  StudentMark,
+  RegisterRow,
 } from "@faridalms/database/stores/attendance";
 import type { ClassRow } from "@faridalms/database/stores/classes";
-import type { SchoolYear } from "@faridalms/database/stores/years";
 import type { AttendanceMeaning } from "@faridalms/domain/attendance";
 
 import { changeOf } from "@faridalms/database/audit";
@@ -21,14 +19,13 @@ import {
   attendanceReport,
   checkInMark,
   classAttendance,
-  dayBoard,
+  dayRegisterOf,
   excuseMarks,
-  isSchoolDay,
   markHistory,
   marksOf,
+  openRegister,
   otherMarksOn,
-  periodsOn,
-  registerFor,
+  registerById,
   saveSettings as writeSettings,
   settingsOf,
   attendanceCounts,
@@ -44,19 +41,11 @@ import {
   teachersOn,
 } from "@faridalms/database/stores/classes";
 import { namesOf } from "@faridalms/database/stores/coursework";
-import { changesOn, coveredPeriods } from "@faridalms/database/stores/cover";
 import { movementsOn } from "@faridalms/database/stores/front-desk";
 import { noticeGuardians } from "@faridalms/database/stores/messages";
 import { noticed, withdraw } from "@faridalms/database/stores/notifications";
+import { schoolDay } from "@faridalms/database/stores/school-days";
 import { facesOf } from "@faridalms/database/stores/students";
-import { meetingsOn } from "@faridalms/database/stores/timetable";
-import {
-  dayIn,
-  holdYear,
-  schoolYears,
-  termsOf,
-  workingYear,
-} from "@faridalms/database/stores/years";
 import {
   absencesQuerySchema,
   attendanceSettingsSchema,
@@ -77,13 +66,24 @@ import {
   undoCheckInSchema,
 } from "@faridalms/domain/attendance";
 import { paged, pageWindow } from "@faridalms/domain/paging";
-import { addDays, dayWithin } from "@faridalms/domain/school";
+import { addDays, dayWithin, spanHolds } from "@faridalms/domain/school";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
+import type { RegisterPeriod } from "../attendance/plans";
 import type { UnitContext } from "../core/context";
 
+import { dayBoard } from "../attendance/board";
 import { dailyClassIds } from "../attendance/daily-registers";
+import {
+  coveredOn,
+  lessonsOn,
+  periodsOf,
+  periodsOn,
+  registerIn,
+  takenIn,
+} from "../attendance/plans";
+import { settlementOf } from "../classes/points";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -95,7 +95,7 @@ import {
 } from "../core/procedure";
 import { reachesClass, reachesStudent, teaches } from "../core/reach";
 import { badgeHash } from "../core/session";
-import { classYear, daysOf, linkedYear } from "../years/years";
+import { reportRange } from "../core/spans";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -110,25 +110,18 @@ async function registerAccess(
 ): Promise<{ periods: "all" | string[] }> {
   if (await teaches(context, "registers", classId)) return { periods: "all" };
   return {
-    periods: await coveredPeriods(context.tx, {
-      tenantId: context.tenantId,
-      userId: context.actor.userId,
-      classId,
-      day: date,
-    }),
+    periods: (
+      await coveredOn(context, { userId: context.actor.userId, day: date })
+    )
+      .filter((row) => row.classId === classId)
+      .map((row) => row.periodId),
   };
 }
 
+/** Whether access to a class's registers reaches a period, or "" for its register of the whole day. */
 const allows = (access: { periods: "all" | string[] }, periodId: string) =>
-  access.periods === "all" || access.periods.includes(periodId);
-
-async function years(context: UnitContext) {
-  return schoolYears(context.tx, context.tenantId, context.schoolId);
-}
-
-function lastDay(year: SchoolYear) {
-  return addDays(year.endsBefore, -1);
-}
+  access.periods === "all" ||
+  (periodId !== "" && access.periods.includes(periodId));
 
 function descriptorView(row: Descriptor) {
   return {
@@ -147,7 +140,7 @@ function codesView(codes: { categories: Descriptor[]; reasons: Descriptor[] }) {
   };
 }
 
-function periodView(period: PeriodRow) {
+function periodView(period: RegisterPeriod) {
   return {
     id: period.id,
     code: period.code,
@@ -160,26 +153,68 @@ function periodView(period: PeriodRow) {
   };
 }
 
-/** The register's year, or not found; a date outside it is refused. */
-async function yearOfClass(context: UnitContext, classId: string, day: string) {
-  const year = await classYear(context, classId);
-  if (day < year.startsOn || day >= year.endsBefore)
+/** A day of the class's own: a register on a day the class does not run is refused. */
+function classDay(classRow: ClassRow, day: string) {
+  if (!spanHolds(classRow.runs, { from: day, to: addDays(day, 1) }))
     throw new ORPCError("BAD_REQUEST", {
-      message: "attendance.outside_year",
+      message: "attendance.outside_class",
     });
-  return year;
 }
+
+/** The days a class runs over, as a register's day navigation reads them. */
+const runsView = (classRow: ClassRow) => ({
+  startsOn: classRow.runs.from,
+  lastDay: classRow.runs.to === null ? null : addDays(classRow.runs.to, -1),
+});
 
 /**
  * Which period a register opens in when none is named: the official one for
  * a class owed a daily register, else the first lesson.
  */
-function defaultPeriod(periods: PeriodRow[], daily: boolean) {
+function defaultPeriod(periods: RegisterPeriod[], daily: boolean) {
   return (
     (daily
       ? periods.find((period) => period.official)
       : periods.find((period) => period.kind === "lesson")) ?? periods[0]
   );
+}
+
+/**
+ * The period a register is asked for in, checked against the day: a named
+ * period the day holds, or none on a day that holds none.
+ */
+function askedPeriod(
+  periods: RegisterPeriod[],
+  periodId: string,
+): RegisterPeriod | null {
+  if (!periodId) {
+    if (periods.length > 0)
+      throw new ORPCError("BAD_REQUEST", {
+        message: "attendance.period_required",
+      });
+    return null;
+  }
+  const period = periods.find((row) => row.id === periodId);
+  if (!period)
+    throw new ORPCError("BAD_REQUEST", { message: "attendance.no_period" });
+  return period;
+}
+
+/** A class's register on a day, in a period or of the whole day, or null. */
+async function registerOf(
+  context: UnitContext,
+  input: { classId: string; day: string; periodId: string },
+): Promise<RegisterRow | null> {
+  if (!input.periodId)
+    return dayRegisterOf(context.tx, {
+      tenantId: context.tenantId,
+      classId: input.classId,
+      day: input.day,
+    });
+  const registerId = await registerIn(context, input);
+  return registerId
+    ? registerById(context.tx, { tenantId: context.tenantId, id: registerId })
+    : null;
 }
 
 const LOCKED = {
@@ -191,7 +226,7 @@ const LOCKED = {
 
 async function editability(
   context: UnitContext,
-  year: SchoolYear,
+  classId: string,
   day: string,
 ): Promise<
   | { editable: true }
@@ -200,14 +235,17 @@ async function editability(
       reason: "closed" | "future" | "window" | "not_school_day";
     }
 > {
-  if (year.lifecycle === "closed") return { editable: false, reason: "closed" };
+  if (await settlementOf(context, classId))
+    return { editable: false, reason: "closed" };
   if (day > context.today) return { editable: false, reason: "future" };
   if (
-    (await isSchoolDay(context.tx, {
-      tenantId: context.tenantId,
-      yearId: year.id,
-      day,
-    })) === false
+    !(
+      await schoolDay(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        day,
+      })
+    ).open
   )
     return { editable: false, reason: "not_school_day" };
   if (can(context, "attendance:manage")) return { editable: true };
@@ -221,50 +259,22 @@ async function editability(
     : { editable: false, reason: "window" };
 }
 
+const oneDay = (day: string) => ({ from: day, to: addDays(day, 1) });
+
 /** A teacher's classes on a day, with the registers already taken in them. */
 export const day = readProcedure
   .input(dayQuerySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:record");
-    const year = workingYear(await years(context), context.today);
-    if (!year)
-      return {
-        date: input.date || context.today,
-        today: context.today,
-        year: null,
-        periods: [],
-        classes: [],
-        expected: [],
-        registers: [],
-      };
-    const date = input.date || dayIn(year, context.today);
-    const on = dayIn(year, date);
-    const [classes, periods] = await Promise.all([
+    const on = input.date || context.today;
+    const [classes, periods, board, covers] = await Promise.all([
       classesTaughtBy(context.tx, context, {
         userId: context.actor.userId,
         on,
       }),
-      periodsOn(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        yearId: year.id,
-        day: on,
-      }),
-    ]);
-    const [board, covers] = await Promise.all([
-      dayBoard(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        yearId: year.id,
-        day: on,
-        officialPeriodId: periods.find((period) => period.official)?.id ?? null,
-        dailyClassIds: await dailyClassIds(context, daysOf(year)),
-      }),
-      changesOn(context.tx, {
-        tenantId: context.tenantId,
-        days: [on],
-        filter: { coverId: context.actor.userId },
-      }),
+      periodsOn(context, on),
+      dayBoard(context, on),
+      coveredOn(context, { userId: context.actor.userId, day: on }),
     ]);
     const taught = new Set(classes.map((row) => row.id));
     const covering = new Set(
@@ -283,12 +293,6 @@ export const day = readProcedure
     return {
       date: on,
       today: context.today,
-      year: {
-        id: year.id,
-        startsOn: year.startsOn,
-        lastDay: lastDay(year),
-        closed: year.lifecycle === "closed",
-      },
       periods: periods.map(periodView),
       classes: [
         ...classes.map((row) => ({
@@ -306,11 +310,13 @@ export const day = readProcedure
           students: row.students,
         })),
       ],
-      expected: board.filter(mine).map((row) => ({
-        classId: row.classId,
-        periodId: row.periodId,
-        cover: covering.has(`${row.classId}:${row.periodId}`),
-      })),
+      expected: board
+        .filter((row) => mine(row) && (row.kind === "day" || row.periodId))
+        .map((row) => ({
+          classId: row.classId,
+          periodId: row.periodId,
+          cover: covering.has(`${row.classId}:${row.periodId}`),
+        })),
       registers: board
         .filter((row) => mine(row) && row.registerId)
         .map((row) => ({
@@ -323,7 +329,7 @@ export const day = readProcedure
     };
   });
 
-/** One class's register for one period of a day, ready to mark. */
+/** One class's register for one day, in one of its periods where the day has them, ready to mark. */
 export const register = readProcedure
   .input(registerQuerySchema)
   .handler(async ({ input, context }) => {
@@ -336,45 +342,42 @@ export const register = readProcedure
       (input.periodId && !allows(taking, input.periodId))
     )
       throw new ORPCError("NOT_FOUND");
-    const year = await yearOfClass(context, classRow.id, input.date);
-    const periods = await periodsOn(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      yearId: year.id,
-      day: input.date,
-    });
+    classDay(classRow, input.date);
+    const periods = await periodsOn(context, input.date);
     const meets = input.periodId
       ? []
-      : await meetingsOn(context.tx, {
-          tenantId: context.tenantId,
-          schoolId: context.schoolId,
-          on: input.date,
-          days: [input.date],
-          filter: { classIds: [classRow.id] },
-        });
-    const period = input.periodId
-      ? periods.find((row) => row.id === input.periodId)
-      : taking.periods === "all"
-        ? (periods.find((row) =>
-            meets.some((meeting) => meeting.periodId === row.id),
-          ) ??
-          defaultPeriod(
-            periods,
-            (await dailyClassIds(context, daysOf(year))).includes(classRow.id),
-          ))
-        : periods.find((row) => allows(taking, row.id));
-    if (!period)
+      : (await lessonsOn(context, input.date)).filter(
+          (row) => row.classId === classRow.id,
+        );
+    const period =
+      periods.length === 0
+        ? null
+        : input.periodId
+          ? periods.find((row) => row.id === input.periodId)
+          : taking.periods === "all"
+            ? (periods.find((row) =>
+                meets.some((meeting) => meeting.periodId === row.id),
+              ) ??
+              defaultPeriod(
+                periods,
+                (await dailyClassIds(context, oneDay(input.date))).includes(
+                  classRow.id,
+                ),
+              ))
+            : periods.find((row) => allows(taking, row.id));
+    if (period === undefined || (period === null && input.periodId))
       throw new ORPCError("BAD_REQUEST", { message: "attendance.no_period" });
+    if (period === null && taking.periods !== "all")
+      throw new ORPCError("NOT_FOUND");
     const [roster, existing, codes, access, settings] = await Promise.all([
       rosterOf(context.tx, context.tenantId, classRow.id, input.date),
-      registerFor(context.tx, {
-        tenantId: context.tenantId,
+      registerOf(context, {
         classId: classRow.id,
         day: input.date,
-        periodId: period.id,
+        periodId: period?.id ?? "",
       }),
       attendanceCodes(context.tx, context.tenantId),
-      editability(context, year, input.date),
+      editability(context, classRow.id, input.date),
       settingsOf(context.tx, context.tenantId, context.schoolId),
     ]);
     const [students, marks, earlier] = await Promise.all([
@@ -393,7 +396,7 @@ export const register = readProcedure
         excludeRegisterId: existing?.id ?? null,
       }),
     ]);
-    const [reports, movements, history] = await Promise.all([
+    const [reports, movements, history, earlierPeriods] = await Promise.all([
       reportsOn(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
@@ -412,6 +415,10 @@ export const register = readProcedure
             registerId: existing.id,
           })
         : Promise.resolve([]),
+      periodsOf(
+        context,
+        earlier.map((row) => row.registerId),
+      ),
     ]);
     const onRoster = new Set(roster);
     return {
@@ -423,8 +430,8 @@ export const register = readProcedure
       },
       date: input.date,
       today: context.today,
-      year: { startsOn: year.startsOn, lastDay: lastDay(year) },
-      period: periodView(period),
+      runs: runsView(classRow),
+      period: period ? periodView(period) : null,
       periods: periods.map(periodView),
       register: existing
         ? {
@@ -468,7 +475,17 @@ export const register = readProcedure
         afterMinutes: settings.lateAfterMinutes,
         closesMinutes: settings.registerClosesMinutes,
       },
-      earlier,
+      earlier: earlier
+        .map((row) => ({ row, period: earlierPeriods.get(row.registerId) }))
+        .toSorted(
+          (a, b) => (a.period?.sequence ?? 0) - (b.period?.sequence ?? 0),
+        )
+        .map(({ row, period: taken }) => ({
+          studentId: row.studentId,
+          meaning: row.meaning,
+          periodNameEn: taken?.nameEn ?? null,
+          periodNameAr: taken?.nameAr ?? null,
+        })),
       reports: reports.map((row) => ({
         studentId: row.studentId,
         kind: row.kind,
@@ -507,25 +524,21 @@ async function checkInRegister(
     )
   )
     throw new ORPCError("NOT_FOUND");
-  const year = await yearOfClass(context, classRow.id, input.date);
-  const access = await editability(context, year, input.date);
+  classDay(classRow, input.date);
+  const access = await editability(context, classRow.id, input.date);
   if (!access.editable)
     throw new ORPCError("CONFLICT", { message: LOCKED[access.reason] });
-  const periods = await periodsOn(context.tx, {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    yearId: year.id,
-    day: input.date,
-  });
-  if (!periods.some((period) => period.id === input.periodId))
-    throw new ORPCError("BAD_REQUEST", { message: "attendance.no_period" });
+  const period = askedPeriod(
+    await periodsOn(context, input.date),
+    input.periodId,
+  );
   const roster = await rosterOf(
     context.tx,
     context.tenantId,
     classRow.id,
     input.date,
   );
-  return { classRow, year, roster };
+  return { classRow, roster, period };
 }
 
 /**
@@ -547,7 +560,7 @@ export const checkIn = writeProcedure
     }[input.via];
     if (!allowed)
       throw new ORPCError("FORBIDDEN", { message: "attendance.check_in_off" });
-    const { classRow, year, roster } = await checkInRegister(context, input);
+    const { classRow, roster, period } = await checkInRegister(context, input);
     const holder = input.badge
       ? await findBadge(context.tx, badgeHash(input.badge))
       : null;
@@ -560,18 +573,13 @@ export const checkIn = writeProcedure
     // A badge from another class reads as no badge at all.
     if (!studentId || !roster.includes(studentId))
       throw new ORPCError("NOT_FOUND", { message: "attendance.not_roster" });
-    const [codes, clock, periods] = await Promise.all([
+    const [codes, clock] = await Promise.all([
       attendanceCodes(context.tx, context.tenantId),
       clockOf(context),
-      periodsOn(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        yearId: year.id,
-        day: input.date,
-      }),
     ]);
-    const start = periods.find((row) => row.id === input.periodId)?.startTime;
-    // Only today's arrivals have a time; a check-in on another day is on time.
+    const start = period?.startTime;
+    // Only today's arrivals have a time; a check-in on another day, or to a
+    // register of the whole day, is on time.
     const late =
       input.date === context.today && start
         ? minutesLate(start, clock, settings.lateAfterMinutes)
@@ -579,12 +587,14 @@ export const checkIn = writeProcedure
     const meaning = late === null ? "present" : "late";
     const category = codes.categories.find((row) => row.meaning === meaning);
     if (!category) throw new Error(`No attendance category means ${meaning}`);
+    const registerId = await registerToMark(context, {
+      classId: classRow.id,
+      day: input.date,
+      period,
+    });
     const result = await checkInMark(context.tx, {
       tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      classId: classRow.id,
-      yearId: year.id,
-      periodId: input.periodId,
+      registerId,
       day: input.date,
       studentId,
       categoryId: category.id,
@@ -597,7 +607,7 @@ export const checkIn = writeProcedure
       await audit(context, {
         action: "attendance.check_in",
         objectType: "attendance_register",
-        objectId: result.registerId,
+        objectId: registerId,
         subjectUserId: studentId,
         studentUserId: studentId,
         details: { via: input.via, date: input.date, late },
@@ -605,16 +615,51 @@ export const checkIn = writeProcedure
     return { studentId, added: result.added, late };
   });
 
+/**
+ * The register a mark goes in, opened in progress when the class has none
+ * on that day in that period yet.
+ */
+async function registerToMark(
+  context: UnitContext,
+  input: { classId: string; day: string; period: RegisterPeriod | null },
+): Promise<string> {
+  const periodId = input.period?.id ?? "";
+  const found = await registerOf(context, { ...input, periodId });
+  if (found) return found.id;
+  const opened = await openRegister(context.tx, {
+    tenantId: context.tenantId,
+    schoolId: context.schoolId,
+    classId: input.classId,
+    day: input.day,
+    kind: input.period ? "period" : "day",
+    daily: input.period?.official ?? true,
+    state: "in_progress",
+    actorId: context.actor.userId,
+  });
+  if (opened) {
+    if (input.period)
+      await takenIn(context, {
+        registerId: opened.id,
+        classId: input.classId,
+        day: input.day,
+        periodId,
+      });
+    return opened.id;
+  }
+  const raced = await registerOf(context, { ...input, periodId });
+  if (!raced) throw new ORPCError("CONFLICT", { message: "conflict.version" });
+  return raced.id;
+}
+
 /** Takes back a check-in made by mistake, unless the teacher changed it since. */
 export const undoCheckIn = writeProcedure
   .input(undoCheckInSchema)
   .handler(async ({ input, context }) => {
-    const { classRow } = await checkInRegister(context, input);
-    const taken = await registerFor(context.tx, {
-      tenantId: context.tenantId,
+    const { classRow, period } = await checkInRegister(context, input);
+    const taken = await registerOf(context, {
       classId: classRow.id,
       day: input.date,
-      periodId: input.periodId,
+      periodId: period?.id ?? "",
     });
     const undone = taken
       ? await undoCheckInMark(context.tx, {
@@ -771,20 +816,14 @@ export const save = writeProcedure
       )
     )
       throw new ORPCError("NOT_FOUND");
-    const year = await yearOfClass(context, classRow.id, input.date);
-    const lifecycle = await holdYear(context.tx, context.tenantId, year.id);
-    if (!lifecycle) throw new ORPCError("NOT_FOUND");
-    const access = await editability(context, year, input.date);
+    classDay(classRow, input.date);
+    const access = await editability(context, classRow.id, input.date);
     if (!access.editable)
       throw new ORPCError("CONFLICT", { message: LOCKED[access.reason] });
-    const periods = await periodsOn(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      yearId: year.id,
-      day: input.date,
-    });
-    if (!periods.some((period) => period.id === input.periodId))
-      throw new ORPCError("BAD_REQUEST", { message: "attendance.no_period" });
+    const period = askedPeriod(
+      await periodsOn(context, input.date),
+      input.periodId,
+    );
     const roster = await rosterOf(
       context.tx,
       context.tenantId,
@@ -809,8 +848,7 @@ export const save = writeProcedure
       roster,
       new Set(input.marks.map((mark) => mark.studentId)),
     );
-    const before = await registerFor(context.tx, {
-      tenantId: context.tenantId,
+    const before = await registerOf(context, {
       classId: classRow.id,
       day: input.date,
       periodId: input.periodId,
@@ -820,8 +858,9 @@ export const save = writeProcedure
         tenantId: context.tenantId,
         schoolId: context.schoolId,
         classId: classRow.id,
-        yearId: year.id,
-        periodId: input.periodId,
+        existing: before,
+        kind: period ? "period" : "day",
+        daily: period?.official ?? true,
         day: input.date,
         expectedVersion: input.expectedVersion,
         state,
@@ -829,6 +868,13 @@ export const save = writeProcedure
         categoryOf,
         actorId: context.actor.userId,
       });
+      if (saved.opened && period)
+        await takenIn(context, {
+          registerId: saved.id,
+          classId: classRow.id,
+          day: input.date,
+          periodId: period.id,
+        });
       await audit(context, {
         action:
           input.expectedVersion === 0
@@ -839,7 +885,7 @@ export const save = writeProcedure
         details: {
           classId: classRow.id,
           date: input.date,
-          periodId: input.periodId,
+          periodId: input.periodId || null,
           state,
           marked: input.marks.length,
         },
@@ -901,40 +947,16 @@ export const board = readProcedure
   .input(dayQuerySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:manage");
-    const year = workingYear(await years(context), context.today);
-    if (!year)
-      return {
-        date: input.date || context.today,
-        today: context.today,
-        year: null,
-        rows: [],
-      };
-    const date = dayIn(year, input.date || context.today);
-    const periods = await periodsOn(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      yearId: year.id,
-      day: date,
-    });
-    const rows = await dayBoard(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      yearId: year.id,
-      day: date,
-      officialPeriodId: periods.find((period) => period.official)?.id ?? null,
-      dailyClassIds: await dailyClassIds(context, daysOf(year)),
-    });
-    return {
-      date,
-      today: context.today,
-      year: { startsOn: year.startsOn, lastDay: lastDay(year) },
-      schoolDay: await isSchoolDay(context.tx, {
+    const date = input.date || context.today;
+    const [rows, held] = await Promise.all([
+      dayBoard(context, date),
+      schoolDay(context.tx, {
         tenantId: context.tenantId,
-        yearId: year.id,
+        schoolId: context.schoolId,
         day: date,
       }),
-      rows,
-    };
+    ]);
+    return { date, today: context.today, schoolDay: held.open, rows };
   });
 
 /**
@@ -981,7 +1003,6 @@ export const absences = readProcedure
   .input(absencesQuerySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:manage");
-    const year = workingYear(await years(context), context.today);
     const to = input.to || context.today;
     const from = input.from || addDays(to, -6);
     if (from > to)
@@ -998,12 +1019,19 @@ export const absences = readProcedure
       }),
       attendanceCodes(context.tx, context.tenantId),
     ]);
+    const periods = await periodsOf(
+      context,
+      rows.map((row) => row.registerId),
+    );
     return {
       from,
       to,
       today: context.today,
-      year: year ? { startsOn: year.startsOn, lastDay: lastDay(year) } : null,
-      rows,
+      rows: rows.map(({ registerId, ...row }) => ({
+        ...row,
+        periodNameEn: periods.get(registerId)?.nameEn ?? null,
+        periodNameAr: periods.get(registerId)?.nameAr ?? null,
+      })),
       reasons: codesView(codes).reasons,
     };
   });
@@ -1046,52 +1074,37 @@ export const excuse = writeProcedure
     return { excused: changed.length };
   });
 
-/** Daily attendance by student or by class over a term or the year. */
+/** Daily attendance by student or by class over a span the school reports on, or any range. */
 export const report = readProcedure
   .input(reportQuerySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:manage");
-    const year = workingYear(await years(context), context.today);
-    const rules = await settingsOf(
-      context.tx,
-      context.tenantId,
-      context.schoolId,
-    );
-    if (!year)
-      return {
-        terms: [],
-        periodId: "",
-        from: context.today,
-        to: context.today,
-        chronicPercent: rules.chronicPercent,
-        rows: [],
-      };
-    const terms = await termsOf(context.tx, context.tenantId, year.id);
-    const term = terms.find((row) => row.id === input.periodId);
-    if (input.periodId && !term) throw new ORPCError("NOT_FOUND");
-    const from = term?.startsOn ?? year.startsOn;
-    const last = addDays(term?.endsBefore ?? year.endsBefore, -1);
-    const to = last < context.today ? last : context.today;
+    const [rules, range] = await Promise.all([
+      settingsOf(context.tx, context.tenantId, context.schoolId),
+      reportRange(context, input),
+    ]);
     const rows = await attendanceReport(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
-      yearId: year.id,
-      during: daysOf(year),
-      from,
-      to,
+      from: range.from,
+      to: range.to,
       by: input.by,
       q: input.q,
-      dailyClassIds: await dailyClassIds(context, daysOf(year)),
+      dailyClassIds: await dailyClassIds(context, {
+        from: range.from,
+        to: addDays(range.to, 1),
+      }),
     });
     return {
-      terms: terms.map((row) => ({
-        id: row.id,
+      spans: range.spans.map((row) => ({
+        key: row.key,
         titleEn: row.titleEn,
         titleAr: row.titleAr,
       })),
-      periodId: term?.id ?? "",
-      from,
-      to,
+      span: range.span,
+      from: range.from,
+      to: range.to,
+      today: context.today,
       chronicPercent: rules.chronicPercent,
       rows: rows.map((row) => {
         const summary = summarise(row.counts);
@@ -1147,8 +1160,8 @@ export const saveSettings = writeProcedure
   });
 
 /**
- * A student's attendance this year: their own, a child's for the family, or
- * any student staff reach.
+ * A student's attendance over the span the school reports on: their own, a
+ * child's for the family, or any student staff reach.
  */
 export const student = readProcedure
   .input(studentAttendanceSchema)
@@ -1160,40 +1173,46 @@ export const student = readProcedure
       !(await reachesStudent(context, "attendance", studentId))
     )
       throw new ORPCError("NOT_FOUND");
-    const year = workingYear(await years(context), context.today);
-    const rules = await settingsOf(
-      context.tx,
-      context.tenantId,
-      context.schoolId,
-    );
-    if (!year)
-      return {
-        year: null,
-        summary: summarise(emptyCounts()),
-        chronic: false,
-        chronicPercent: rules.chronicPercent,
-        marks: paged<StudentMark>([], 0, 1),
-        reasons: [],
-      };
-    const last = lastDay(year);
+    const [rules, range] = await Promise.all([
+      settingsOf(context.tx, context.tenantId, context.schoolId),
+      reportRange(context, { span: "", from: "", to: "" }),
+    ]);
     const span = {
       tenantId: context.tenantId,
       studentId,
-      from: year.startsOn,
-      to: last < context.today ? last : context.today,
+      from: range.from,
+      to: range.to,
     };
     const [counts, marks, codes] = await Promise.all([
       attendanceCounts(context.tx, span),
       studentMarks(context.tx, { ...span, ...pageWindow(input.page) }),
       attendanceCodes(context.tx, context.tenantId),
     ]);
+    const periods = await periodsOf(
+      context,
+      marks.rows.map((row) => row.registerId),
+    );
+    const named = range.spans.find((row) => row.key === range.span);
     const summary = summarise(counts);
     return {
-      year: { id: year.id, titleEn: year.titleEn, titleAr: year.titleAr },
+      span: {
+        titleEn: named?.titleEn ?? null,
+        titleAr: named?.titleAr ?? null,
+        from: range.from,
+        to: range.to,
+      },
       summary,
       chronic: isChronic(summary, rules.chronicPercent),
       chronicPercent: rules.chronicPercent,
-      marks: paged(marks.rows, marks.total, input.page),
+      marks: paged(
+        marks.rows.map(({ registerId, ...row }) => ({
+          ...row,
+          periodNameEn: periods.get(registerId)?.nameEn ?? null,
+          periodNameAr: periods.get(registerId)?.nameAr ?? null,
+        })),
+        marks.total,
+        input.page,
+      ),
       reasons: codesView(codes).reasons,
     };
   });
@@ -1205,10 +1224,7 @@ export const classSummary = readProcedure
     requireCapability(context, "attendance:read");
     const classRow = await classById(context.tx, context, input.classId);
     if (!classRow) throw new ORPCError("NOT_FOUND");
-    const year = await linkedYear(context, classRow.id);
-    const on = year
-      ? dayIn(year, context.today)
-      : dayWithin(classRow.runs, context.today);
+    const on = dayWithin(classRow.runs, context.today);
     if (
       !(await teaches(context, "registers", classRow.id)) &&
       !(await reachesClass(context, "attendance", classRow.id, on))
@@ -1236,8 +1252,7 @@ export const classSummary = readProcedure
       canRecord:
         (can(context, "attendance:record") ||
           can(context, "attendance:manage")) &&
-        year !== null &&
-        year.lifecycle !== "closed" &&
+        (await settlementOf(context, classRow.id)) === null &&
         (await teaches(context, "registers", classRow.id)),
       students: names.map((row) => {
         const summary = summarise(counts.get(row.id) ?? emptyCounts());

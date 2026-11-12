@@ -1,3 +1,5 @@
+import type { Views } from "@faridalms/domain/classes";
+
 import { queryOptions } from "@tanstack/react-query";
 
 import {
@@ -13,10 +15,11 @@ import {
   getTimetables,
 } from "~/server/timetable";
 
-export const timetableOptionsQuery = queryOptions({
-  queryKey: ["timetable", "options"],
-  queryFn: () => getTimetableOptions(),
-});
+export const timetableOptionsQuery = (views: Views = {}) =>
+  queryOptions({
+    queryKey: ["timetable", "options", views],
+    queryFn: () => getTimetableOptions({ data: { views } }),
+  });
 
 export const timetableGridQuery = (classId: string, on = "") =>
   queryOptions({
@@ -24,11 +27,10 @@ export const timetableGridQuery = (classId: string, on = "") =>
     queryFn: () => getTimetableGrid({ data: { classId, on } }),
   });
 
-export const timetablesQuery = (yearId: string) =>
-  queryOptions({
-    queryKey: ["timetable", "timetables", yearId],
-    queryFn: () => getTimetables({ data: { yearId } }),
-  });
+export const timetablesQuery = queryOptions({
+  queryKey: ["timetable", "timetables"],
+  queryFn: () => getTimetables(),
+});
 
 export const clashesQuery = (on = "") =>
   queryOptions({

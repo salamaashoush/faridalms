@@ -116,7 +116,6 @@ export async function insertReport(
   input: {
     tenantId: string;
     schoolId: string;
-    yearId: string;
     studentId: string;
     reporterId: string;
     kind: AbsenceReportKind;
@@ -130,9 +129,9 @@ export async function insertReport(
 ): Promise<string> {
   const [row] = await tx.execute<{ id: string }>(sql`
     insert into core.absence_reports
-      (tenant_id, org_id, school_year_id, student_user_id, reported_by_user_id, kind,
+      (tenant_id, org_id, student_user_id, reported_by_user_id, kind,
        span, at, reason_descriptor_id, note, file_id)
-    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.yearId}::uuid,
+    values (${input.tenantId}::uuid, ${input.schoolId}::uuid,
       ${input.studentId}::uuid, ${input.reporterId}::uuid, ${input.kind},
       daterange(${input.from}::date, ${input.to}::date, '[]'), ${input.at}::time,
       ${input.reasonId}::uuid, ${input.note}, ${input.fileId}::uuid)

@@ -85,7 +85,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: true,
     schoolSwitch: false,
-    systems: ["timetable", "cover"],
+    systems: ["timetable", "cover", "periods"],
   },
   website: {
     requires: [],
@@ -156,8 +156,6 @@ export const CORE_SYSTEMS = [
   "classes",
   "consents",
   "schoolDays",
-  // Registers are taken by period with the timetable off as well.
-  "periods",
   "files",
   "documents",
   "comments",

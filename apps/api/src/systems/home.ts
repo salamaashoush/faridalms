@@ -1,4 +1,3 @@
-import type { PeriodRow } from "@faridalms/database/stores/attendance";
 import type { LessonChange } from "@faridalms/database/stores/cover";
 import type { MeetingRow } from "@faridalms/database/stores/timetable";
 import type { AttendanceCounts } from "@faridalms/domain/attendance";
@@ -11,8 +10,6 @@ import {
   absencesBetween,
   absentUnexplainedOn,
   attendanceReport,
-  dayBoard,
-  periodsOn,
   attendanceCounts,
 } from "@faridalms/database/stores/attendance";
 import { reachOf } from "@faridalms/database/stores/audiences";
@@ -64,14 +61,17 @@ import {
   setupProgress,
 } from "@faridalms/domain/onboarding";
 import { addDays } from "@faridalms/domain/school";
-import { isoWeekday } from "@faridalms/domain/timetable";
+import { isoWeekday } from "@faridalms/domain/school-days";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
+import type { RegisterPeriod } from "../attendance/plans";
 import type { UnitContext } from "../core/context";
 import type { RecordLink } from "../core/reach";
 
+import { dayBoard } from "../attendance/board";
 import { dailyClassIds } from "../attendance/daily-registers";
+import { periodsOn } from "../attendance/plans";
 import { modulesOf } from "../core/modules";
 import {
   can,
@@ -83,7 +83,6 @@ import {
 } from "../core/procedure";
 import { recordLinks, scopeFor } from "../core/reach";
 import { studentGroupsOf } from "../core/student-groups";
-import { daysOf } from "../years/years";
 
 async function yearOf(context: UnitContext) {
   return workingYear(
@@ -196,7 +195,7 @@ async function asHeld(
 
 function slotsOf(
   meetings: MeetingRow[],
-  periods: PeriodRow[],
+  periods: RegisterPeriod[],
   clock: string,
   registerOf: (classId: string, periodId: string) => Slot["register"],
 ): Slot[] {
@@ -284,28 +283,12 @@ export const teacher = readProcedure.handler(async ({ context }) => {
   ]);
   const messages = { unread, threads: threads.rows };
   const upcoming = events.filter((event) => !event.cancelled).slice(0, 5);
-  if (!year)
-    return {
-      today: context.today,
-      slots: [],
-      review: [],
-      reviewTotal: 0,
-      messages,
-      due: [],
-      events: upcoming,
-      classes: [],
-    };
   const [classes, periods, meetings, work, clock] = await Promise.all([
     classesTaughtBy(context.tx, context, {
       userId: context.actor.userId,
       on: context.today,
     }),
-    periodsOn(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      yearId: year.id,
-      day: context.today,
-    }),
+    periodsOn(context, context.today),
     meetingsOn(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
@@ -315,23 +298,18 @@ export const teacher = readProcedure.handler(async ({ context }) => {
     }).then((rows) =>
       asHeld(context, rows, context.today, context.actor.userId),
     ),
-    teacherAssignments(context.tx, scopeFor(context, "own"), {
-      yearId: year.id,
-      classId: "",
-      q: "",
-      now: context.now,
-      graceMs: GRACE_MS,
-    }),
+    year
+      ? teacherAssignments(context.tx, scopeFor(context, "own"), {
+          yearId: year.id,
+          classId: "",
+          q: "",
+          now: context.now,
+          graceMs: GRACE_MS,
+        })
+      : Promise.resolve<Awaited<ReturnType<typeof teacherAssignments>>>([]),
     clockOf(context),
   ]);
-  const board = await dayBoard(context.tx, {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    yearId: year.id,
-    day: context.today,
-    officialPeriodId: periods.find((period) => period.official)?.id ?? null,
-    dailyClassIds: await dailyClassIds(context, daysOf(year)),
-  });
+  const board = await dayBoard(context, context.today);
   const registers = new Map(
     board.map((row) => [`${row.classId}:${row.periodId}`, row.state]),
   );
@@ -466,8 +444,6 @@ function rateOf(rows: { counts: AttendanceCounts }[]): number | null {
 async function studentDay(context: UnitContext, studentId: string) {
   const year = await yearOf(context);
   const weekEnd = addDays(context.today, 7);
-  if (!year)
-    return { presence: "none" as const, slots: [], work: [], year: null };
   const [attendance, unexplained, classIds, periods, rows, clock] =
     await Promise.all([
       attendanceCounts(context.tx, {
@@ -486,17 +462,14 @@ async function studentDay(context: UnitContext, studentId: string) {
         studentId,
         on: context.today,
       }),
-      periodsOn(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        yearId: year.id,
-        day: context.today,
-      }),
-      learnerAssignments(context.tx, {
-        tenantId: context.tenantId,
-        studentId,
-        yearId: year.id,
-      }),
+      periodsOn(context, context.today),
+      year
+        ? learnerAssignments(context.tx, {
+            tenantId: context.tenantId,
+            studentId,
+            yearId: year.id,
+          })
+        : Promise.resolve<Awaited<ReturnType<typeof learnerAssignments>>>([]),
       clockOf(context),
     ]);
   const meetings =
@@ -865,7 +838,6 @@ export const student = readProcedure.handler(async ({ context }) => {
  */
 export const admin = readProcedure.handler(async ({ context }) => {
   if (context.actor.profile !== "staff_admin") throw new ORPCError("FORBIDDEN");
-  const year = await yearOf(context);
   const on = await modulesOf(context);
   const weekStart = addDays(
     context.today,
@@ -895,21 +867,8 @@ export const admin = readProcedure.handler(async ({ context }) => {
   } | null = null;
   let attendance: { today: number | null; week: number | null } | null = null;
   let absences: number | null = null;
-  if (year && on.attendance && can(context, "attendance:manage")) {
-    const periods = await periodsOn(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      yearId: year.id,
-      day: context.today,
-    });
-    const board = await dayBoard(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      yearId: year.id,
-      day: context.today,
-      officialPeriodId: periods.find((period) => period.official)?.id ?? null,
-      dailyClassIds: await dailyClassIds(context, daysOf(year)),
-    });
+  if (on.attendance && can(context, "attendance:manage")) {
+    const board = await dayBoard(context, context.today);
     const missing = board.filter((row) => row.state === "not_started");
     registers = {
       notTaken: missing.length,
@@ -930,13 +889,14 @@ export const admin = readProcedure.handler(async ({ context }) => {
     const week = await attendanceReport(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
-      yearId: year.id,
-      during: daysOf(year),
       from: weekStart,
       to: context.today,
       by: "class",
       q: "",
-      dailyClassIds: await dailyClassIds(context, daysOf(year)),
+      dailyClassIds: await dailyClassIds(context, {
+        from: weekStart,
+        to: addDays(context.today, 1),
+      }),
     });
     attendance = { today: rateOf(board), week: rateOf(week) };
     absences = (

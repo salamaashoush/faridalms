@@ -11,6 +11,7 @@ import {
   getYearHistory,
   getYearOptions,
   getYears,
+  getYearsInSpan,
 } from "~/server/years";
 
 export const yearsQuery = queryOptions({
@@ -66,4 +67,9 @@ export const classYearPartQuery = (classId: string | null) => ({
     options: await getYearOptions(),
     linked: classId ? (await getClassYear({ data: { classId } })).year : null,
   }),
+});
+
+export const yearsInSpanQuery = (from: string, to: string) => ({
+  queryKey: ["years", "planner", from, to],
+  queryFn: () => getYearsInSpan({ data: { from, to } }),
 });

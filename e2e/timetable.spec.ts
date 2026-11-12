@@ -138,10 +138,8 @@ test("an administrator runs a day on a bell schedule", async ({
 }) => {
   test.skip(browserName !== "chromium", "the year's calendar is shared");
   await signIn(page, "admin");
-  await page.goto("/academic-years");
-  await untilHydrated(page);
-  await page.getByRole("link", { name: "2026–2027" }).first().click();
-  await page.getByRole("tab", { name: "Periods" }).click();
+  // The school's day and its bell schedules belong to the timetable.
+  await page.goto("/timetable?view=day");
   await untilHydrated(page);
   // A schedule is added by its names, then opens on its periods, each
   // changed and saved on its own; the grid it replaced held them all.
@@ -169,6 +167,9 @@ test("an administrator runs a day on a bell schedule", async ({
   await expect(first).toBeHidden();
   await schedule.getByRole("button", { name: "Close" }).click();
 
+  await page.goto("/academic-years");
+  await untilHydrated(page);
+  await page.getByRole("link", { name: "2026–2027" }).first().click();
   await page.getByRole("tab", { name: "School days" }).click();
   await untilHydrated(page);
   await page.getByRole("button", { name: /^Wednesday, June 9/ }).click();
@@ -234,10 +235,8 @@ test("a bell schedule adds an assembly that a class can have a lesson in for tha
 }) => {
   test.skip(browserName !== "chromium", "the year's calendar is shared");
   await signIn(page, "admin");
-  await page.goto("/academic-years");
-  await untilHydrated(page);
-  await page.getByRole("link", { name: "2026–2027" }).first().click();
-  await page.getByRole("tab", { name: "Periods" }).click();
+  // The school's day and its bell schedules belong to the timetable.
+  await page.goto("/timetable?view=day");
   await untilHydrated(page);
   await page.getByRole("button", { name: "Add bell schedule" }).click();
   const sheet = page.getByRole("dialog", { name: "Add bell schedule" });
@@ -262,6 +261,9 @@ test("a bell schedule adds an assembly that a class can have a lesson in for tha
   await schedule.getByRole("button", { name: "Close" }).click();
   await expect(page.getByText("Its own: Assembly")).toBeVisible();
 
+  await page.goto("/academic-years");
+  await untilHydrated(page);
+  await page.getByRole("link", { name: "2026–2027" }).first().click();
   await page.getByRole("tab", { name: "School days" }).click();
   await untilHydrated(page);
   await page.getByRole("button", { name: /^Thursday, June 17/ }).click();

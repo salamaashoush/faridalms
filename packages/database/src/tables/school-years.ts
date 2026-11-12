@@ -3,7 +3,7 @@ import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { index, jsonb, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
-import { academicSessions, calendars } from "./calendar";
+import { academicSessions } from "./calendar";
 import {
   baseConstraints,
   ck,
@@ -89,7 +89,6 @@ export const studentSchoolYears = core.table.withRLS(
     gradeLevelNs: text("grade_level_ns")
       .notNull()
       .generatedAlwaysAs(sql`'grade_level'`),
-    calendarId: uuid("calendar_id"),
     entryTypeDescriptorId: uuid("entry_type_descriptor_id"),
     entryTypeNs: text("entry_type_ns")
       .notNull()
@@ -140,11 +139,6 @@ export const studentSchoolYears = core.table.withRLS(
       "student_school_years",
       [t.tenantId, t.gradeLevelDescriptorId, t.gradeLevelNs],
       [descriptors.tenantId, descriptors.id, descriptors.namespace],
-    ),
-    fk(
-      "student_school_years",
-      [t.tenantId, t.calendarId, t.schoolYearId],
-      [calendars.tenantId, calendars.id, calendars.schoolYearId],
     ),
     fk(
       "student_school_years",

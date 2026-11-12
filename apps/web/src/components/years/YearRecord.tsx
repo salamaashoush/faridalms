@@ -1,5 +1,6 @@
 import type { HeaderFact, RecordTab } from "@faridalms/ui/system/record-page";
 
+import { addDays } from "@faridalms/domain/school";
 import { cn } from "@faridalms/ui/cn";
 import { Page } from "@faridalms/ui/system/page";
 import {
@@ -21,6 +22,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
 
 import { HistoryFeed } from "~/components/people/record-parts";
+import { DayPlanner } from "~/components/school-days/DayPlanner";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { yearHistoryQuery, yearQuery, yearsQuery } from "~/queries/years";
@@ -32,16 +34,13 @@ import {
   rolloverActions,
   useYearLifecycle,
 } from "./YearLifecycle";
-import { YearPeriods } from "./YearPeriods";
-import { YearPlanner } from "./YearPlanner";
 
-export const YEAR_TABS = ["overview", "days", "periods", "history"] as const;
+export const YEAR_TABS = ["overview", "days", "history"] as const;
 export type YearTab = (typeof YEAR_TABS)[number];
 
 const TAB_LABEL: Record<YearTab, () => string> = {
   overview: m.recordOverview,
   days: m.plannerTab,
-  periods: m.periodsTab,
   history: m.recordHistory,
 };
 
@@ -142,12 +141,10 @@ function YearHistory({ yearId }: YearHistoryProps) {
 export interface YearRecordProps {
   yearId: string;
   tab: YearTab;
-  /** The day the periods tab reads the school day on; empty for today. */
-  on: string;
   onTab: (tab: YearTab) => void;
 }
 
-export function YearRecord({ yearId, tab, on, onTab }: YearRecordProps) {
+export function YearRecord({ yearId, tab, onTab }: YearRecordProps) {
   const year = useSuspenseQuery(yearQuery(yearId)).data;
   const years = useSuspenseQuery(yearsQuery).data.years;
   const navigate = useNavigate();
@@ -205,14 +202,8 @@ export function YearRecord({ yearId, tab, on, onTab }: YearRecordProps) {
       >
         {tab === "history" ? (
           <RecordColumns main={<YearHistory yearId={year.id} />} />
-        ) : tab === "periods" ? (
-          <YearPeriods yearId={year.id} on={on} />
         ) : tab === "days" ? (
-          <YearPlanner
-            yearId={year.id}
-            startsOn={year.startsOn}
-            endsBefore={year.endsBefore}
-          />
+          <DayPlanner from={year.startsOn} to={addDays(year.endsBefore, -1)} />
         ) : (
           <RecordColumns
             main={<TermsSection year={year} />}

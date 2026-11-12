@@ -319,7 +319,7 @@ describe("calendar links", () => {
     // Long lines fold at 75 octets; unfolded, each entry reads whole.
     const body = (await response.text()).replaceAll("\r\n ", "");
     const { week } = await student.api.timetable.studentWeek({});
-    const lesson = week?.meetings[0];
+    const lesson = week.meetings[0];
     if (!lesson) throw new Error("the seeded student has no lessons");
     expect(body).toContain(`UID:lesson-${lesson.classId}-`);
     expect(body).toMatch(

@@ -221,13 +221,12 @@ end $$;
 revoke all on function app.documents_frozen_guard() from public;
 
 create function app.change_year_span(p_year_id uuid, p_span daterange, p_expected_version integer)
-returns integer
+returns void
 language plpgsql security definer
 set search_path = pg_catalog, pg_temp
 as $$
 declare
   y record;
-  removed integer;
 begin
   perform app.lock('year:' || p_year_id::text);
   select s.tenant_id, s.id, s.org_id, s.span, s.lifecycle, s.version into y
@@ -247,27 +246,12 @@ begin
                and s.school_year_id = y.id and s.id <> y.id and s.status = 'active' and not p_span @> s.span)
      or exists (select 1 from core.academic_weeks w where w.tenant_id = y.tenant_id
                and w.school_year_id = y.id and w.status = 'active' and not p_span @> w.span)
-     or exists (select 1 from core.class_periods p where p.tenant_id = y.tenant_id
-               and p.school_year_id = y.id and p.status = 'active' and not p_span @> p.valid_during)
      or exists (select 1 from core.student_school_years r where r.tenant_id = y.tenant_id
-               and r.school_year_id = y.id and r.status = 'active' and not p_span @> r.valid_during)
-     or exists (select 1 from core.attendance_registers g where g.tenant_id = y.tenant_id
-               and g.school_year_id = y.id and not p_span @> g.taken_on)
-     or exists (select 1 from core.class_meetings c where c.tenant_id = y.tenant_id
-               and c.school_year_id = y.id and c.status = 'active' and not p_span @> c.valid_during) then
+               and r.school_year_id = y.id and r.status = 'active' and not p_span @> r.valid_during) then
     raise exception 'active rows of school year % fall outside %', p_year_id, p_span using errcode = '23514';
   end if;
-  delete from core.calendar_dates d
-  where d.tenant_id = y.tenant_id and d.school_year_id = y.id and not p_span @> d.day_on;
-  get diagnostics removed = row_count;
   delete from core.academic_weeks w
   where w.tenant_id = y.tenant_id and w.school_year_id = y.id and w.status = 'tobedeleted' and not p_span @> w.span;
-  delete from core.class_periods p
-  where p.tenant_id = y.tenant_id and p.school_year_id = y.id and p.status = 'tobedeleted'
-    and not p_span @> p.valid_during;
-  delete from core.class_meetings c
-  where c.tenant_id = y.tenant_id and c.school_year_id = y.id and c.status = 'tobedeleted'
-    and not p_span @> c.valid_during;
   delete from core.student_school_years r
   where r.tenant_id = y.tenant_id and r.school_year_id = y.id and r.status = 'tobedeleted'
     and not p_span @> r.valid_during;
@@ -277,11 +261,36 @@ begin
   update core.academic_sessions set span = p_span where tenant_id = y.tenant_id and id = y.id;
   insert into audit.log (tenant_id, action, object_type, object_id, org_id, details)
   values (y.tenant_id, 'academic_session.span_change', 'academic_session', y.id, y.org_id,
-          jsonb_build_object('from', y.span::text, 'to', p_span::text, 'removed_calendar_dates', removed));
-  return removed;
+          jsonb_build_object('from', y.span::text, 'to', p_span::text));
 end $$;
 revoke all on function app.change_year_span(uuid, daterange, integer) from public;
 grant execute on function app.change_year_span(uuid, daterange, integer) to app;
+
+-- A period register keeps the period it was taken in.
+create function app.register_period_held() returns trigger
+language plpgsql security definer
+set search_path = pg_catalog, pg_temp
+as $$
+declare
+  r_tenant uuid;
+  r_id uuid;
+begin
+  if tg_table_name = 'attendance_registers' then
+    r_tenant := new.tenant_id;
+    r_id := new.id;
+  else
+    r_tenant := old.tenant_id;
+    r_id := old.register_id;
+  end if;
+  if exists (select 1 from core.attendance_registers g
+               where g.tenant_id = r_tenant and g.id = r_id and g.status = 'active' and g.kind = 'period')
+     and not exists (select 1 from core.register_periods p
+               where p.tenant_id = r_tenant and p.register_id = r_id and p.status = 'active') then
+    raise exception 'period register % has no period', r_id using errcode = '23514';
+  end if;
+  return null;
+end $$;
+revoke all on function app.register_period_held() from public;
 
 create function app.staff_roles() returns text[]
 language sql immutable parallel safe

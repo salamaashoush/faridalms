@@ -83,6 +83,8 @@ test("class moves keep other school years and return to a class as a new episode
     classId: first.id,
     date: joined,
   });
+  const period = register.period;
+  if (!period) throw new Error("the seeded day has no periods");
   expect(register.students.map((row) => row.id)).toContain(student.id);
   const mark = (classId: string, date: string, periodId: string) =>
     admin.attendance.save({
@@ -92,7 +94,7 @@ test("class moves keep other school years and return to a class as a new episode
       expectedVersion: 0,
       marks: [{ studentId: student.id, meaning: "present" }],
     });
-  await mark(first.id, joined, register.period.id);
+  await mark(first.id, joined, period.id);
 
   const placed = (
     await admin.classes.record({ id: first.id, on: joined })
@@ -104,9 +106,10 @@ test("class moves keep other school years and return to a class as a new episode
     expectedVersion: placed.version,
     on: left,
   });
-  expect(await refusal(mark(first.id, left, register.period.id))).toMatchObject(
-    { code: "CONFLICT", message: "attendance.not_roster" },
-  );
+  expect(await refusal(mark(first.id, left, period.id))).toMatchObject({
+    code: "CONFLICT",
+    message: "attendance.not_roster",
+  });
   // The register taken while they were in the class still reads with them.
   const past = await admin.attendance.register({
     classId: first.id,
@@ -116,16 +119,17 @@ test("class moves keep other school years and return to a class as a new episode
   expect(past.marks).toContainEqual(
     expect.objectContaining({ studentId: student.id, meaning: "present" }),
   );
-  expect(
-    await refusal(mark(first.id, "1900-01-01", register.period.id)),
-  ).toMatchObject({ code: "BAD_REQUEST", message: "attendance.outside_year" });
+  expect(await refusal(mark(first.id, "1900-01-01", period.id))).toMatchObject({
+    code: "BAD_REQUEST",
+    message: "attendance.outside_class",
+  });
 
   await admin.homerooms.place({
     studentId: student.id,
     classId: first.id,
     from: day,
   });
-  await mark(first.id, day, register.period.id);
+  await mark(first.id, day, period.id);
   // A day already counted in one class cannot be counted again in another.
   expect(
     await refusal(
@@ -216,6 +220,7 @@ test("a backdated move cannot reach over a register already taken, and each day 
     classId: registered.id,
     date: takenOn,
   });
+  if (!taken.period) throw new Error("the seeded day has no periods");
   await admin.attendance.save({
     classId: registered.id,
     date: takenOn,

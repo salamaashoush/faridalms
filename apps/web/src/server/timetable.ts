@@ -15,7 +15,7 @@ import {
   staffAbsenceSchema,
   studentWeekSchema,
   teacherWeekSchema,
-  timetablesQuerySchema,
+  timetableOptionsSchema,
   weekQuerySchema,
 } from "@faridalms/domain/timetable";
 import { createServerFn } from "@tanstack/react-start";
@@ -23,17 +23,17 @@ import { createServerFn } from "@tanstack/react-start";
 import { backend, record } from "./backend";
 import { checked } from "./input";
 
-export const getTimetableOptions = createServerFn({ method: "GET" }).handler(
-  () => backend().timetable.options(),
-);
+export const getTimetableOptions = createServerFn({ method: "GET" })
+  .validator(checked(timetableOptionsSchema))
+  .handler(({ data }) => backend().timetable.options(data));
 
 export const getTimetableGrid = createServerFn({ method: "GET" })
   .validator(checked(gridQuerySchema))
   .handler(({ data }) => record(backend().timetable.grid(data)));
 
-export const getTimetables = createServerFn({ method: "GET" })
-  .validator(checked(timetablesQuerySchema))
-  .handler(({ data }) => backend().timetable.timetables(data));
+export const getTimetables = createServerFn({ method: "GET" }).handler(() =>
+  backend().timetable.timetables(),
+);
 
 export const saveTimetable = createServerFn({ method: "POST" })
   .validator(checked(saveTimetableSchema))

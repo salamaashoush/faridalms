@@ -1,7 +1,6 @@
 import type { LessonChange } from "@faridalms/database/stores/cover";
 import type { TimetableRow } from "@faridalms/database/stores/day-plan";
 import type { MeetingRow } from "@faridalms/database/stores/timetable";
-import type { SchoolYear } from "@faridalms/database/stores/years";
 
 import { classById, roomsOf } from "@faridalms/database/stores/classes";
 import { changesOn } from "@faridalms/database/stores/cover";
@@ -11,8 +10,10 @@ import {
   timetablesOf,
 } from "@faridalms/database/stores/day-plan";
 import { periodsInForce } from "@faridalms/database/stores/periods";
+import { dayMarks, schoolWeek } from "@faridalms/database/stores/school-days";
 import {
   bookingsAt,
+  clipCell,
   copyMeetings,
   endCell,
   endMeetings,
@@ -22,30 +23,23 @@ import {
   insertMeeting,
   lockGrid,
   insertTimetable,
+  lockTimetables,
   meetingsOn,
   tombstoneTimetable,
   studentClasses,
   TimetableConflict,
   timetableLessons,
+  teachingStaff,
   updateTimetable,
-  yearTeachers,
 } from "@faridalms/database/stores/timetable";
-import {
-  calendarDays,
-  dayIn,
-  holdYear,
-  schoolWeek,
-  schoolYears,
-  workingYear,
-} from "@faridalms/database/stores/years";
-import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import {
   copiedDays,
   cycleDays,
   timetableOn,
   weekdayOfCycleDay,
 } from "@faridalms/domain/cycle";
-import { addDays, dayWithin } from "@faridalms/domain/school";
+import { dayWithin } from "@faridalms/domain/school";
+import { schoolDays, weekDates } from "@faridalms/domain/school-days";
 import {
   clashCheckSchema,
   classWeekSchema,
@@ -55,11 +49,9 @@ import {
   removeTimetableSchema,
   roomWeekSchema,
   saveTimetableSchema,
-  schoolDays,
   studentWeekSchema,
   teacherWeekSchema,
-  timetablesQuerySchema,
-  weekDates,
+  timetableOptionsSchema,
   WEEKLY,
 } from "@faridalms/domain/timetable";
 import { ORPCError } from "@orpc/server";
@@ -67,6 +59,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { classViewOf, settlementOf } from "../classes/points";
 import {
   audit,
   can,
@@ -87,23 +80,11 @@ import {
   gridsOf,
   plannedElsewhere,
 } from "../timetable/grids";
-import { daysOf, linkedYear, withYear } from "../years/years";
 
-async function currentYear(context: UnitContext) {
-  return workingYear(
-    await schoolYears(context.tx, context.tenantId, context.schoolId),
-    context.today,
-  );
-}
-
-async function yearById(context: UnitContext, yearId: string) {
-  const years = await schoolYears(
-    context.tx,
-    context.tenantId,
-    context.schoolId,
-  );
-  return years.find((row) => row.id === yearId) ?? null;
-}
+const scope = (context: UnitContext) => ({
+  tenantId: context.tenantId,
+  schoolId: context.schoolId,
+});
 
 function timetableView(row: TimetableRow | null) {
   if (!row) return null;
@@ -119,15 +100,6 @@ function timetableView(row: TimetableRow | null) {
   };
 }
 
-function yearView(year: SchoolYear) {
-  return {
-    id: year.id,
-    startsOn: year.startsOn,
-    lastDay: addDays(year.endsBefore, -1),
-    closed: year.lifecycle === "closed",
-  };
-}
-
 /**
  * The periods and days a dated week is drawn with: each date with what the
  * school calendar marks it as, the day of its timetable's cycle, the bell
@@ -136,19 +108,17 @@ function yearView(year: SchoolYear) {
  * as when it is not its own. Rows are the week's periods by code, so a
  * period changed mid-week stays one row, labelled with its own times.
  */
-async function frame(context: UnitContext, year: SchoolYear, on: string) {
+async function frame(context: UnitContext, on: string) {
   const week = await schoolWeek(context.tx, context.tenantId, context.schoolId);
   const days = schoolDays(week.weekStart, week.weekendDays);
   const dated = weekDates(on, week.weekStart, days);
   const [plans, marked] = await Promise.all([
     dayPlans(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
+      ...scope(context),
       days: [on, ...dated.map((row) => row.date)],
     }),
-    calendarDays(context.tx, {
-      tenantId: context.tenantId,
-      yearId: year.id,
+    dayMarks(context.tx, {
+      ...scope(context),
       from: dated[0]?.date ?? on,
       to: dated.at(-1)?.date ?? on,
     }),
@@ -166,20 +136,16 @@ async function frame(context: UnitContext, year: SchoolYear, on: string) {
   return {
     on,
     today: context.today,
-    year: yearView(year),
     timetable: timetableView(plans.get(on)?.timetable ?? null),
     days,
     dates: dated.map(({ day, date }) => {
       const mark = marked.find((row) => row.day === date);
-      const outside = date < year.startsOn || date >= year.endsBefore;
       const plan = plans.get(date);
       return {
         day,
         date,
-        meaning: outside ? "outside_year" : (mark?.meaning ?? null),
-        closed:
-          outside ||
-          (mark !== undefined && !SCHOOL_DAY_MEANINGS.includes(mark.meaning)),
+        meaning: mark?.meaning ?? null,
+        closed: !(plan?.open ?? false),
         noteEn: mark?.noteEn ?? null,
         noteAr: mark?.noteAr ?? null,
         cycleDay: plan?.cycleDay ?? null,
@@ -222,30 +188,18 @@ async function frame(context: UnitContext, year: SchoolYear, on: string) {
  * the days of its cycle, and the lesson periods in force with the days of
  * the cycle each can meet on.
  */
-async function cycleFrame(context: UnitContext, year: SchoolYear, on: string) {
+async function cycleFrame(context: UnitContext, on: string) {
   const [week, plan, periods, timetables] = await Promise.all([
     schoolWeek(context.tx, context.tenantId, context.schoolId),
-    dayPlan(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      day: on,
-    }),
-    periodsInForce(context.tx, {
-      tenantId: context.tenantId,
-      yearId: year.id,
-      on,
-    }),
-    timetablesOf(context.tx, {
-      tenantId: context.tenantId,
-      yearIds: [year.id],
-    }),
+    dayPlan(context.tx, { ...scope(context), day: on }),
+    periodsInForce(context.tx, { ...scope(context), on }),
+    timetablesOf(context.tx, scope(context)),
   ]);
   const cycle = plan.timetable ?? WEEKLY;
   const days = cycleDays(cycle, schoolDays(week.weekStart, week.weekendDays));
   return {
     on,
     today: context.today,
-    year: yearView(year),
     timetable: timetableView(plan.timetable),
     timetables: timetables.map((row) => ({
       id: row.id,
@@ -400,52 +354,31 @@ async function gridClass(context: UnitContext, classId: string) {
     gridClassIds(context, row.id),
     gridLessonClassIds(context, row.id),
   ]);
-  return {
-    owner: await withYear(context, row),
-    classIds: placed,
-    lessonClassIds: shown,
-  };
+  return { owner: row, classIds: placed, lessonClassIds: shown };
 }
 
-/** Where the grids start: every class of the year that owns its grid. */
-export const options = readProcedure.handler(async ({ context }) => {
-  requireCapability(context, "timetable:manage");
-  const year = await currentYear(context);
-  if (!year)
-    return {
-      year: null,
-      grids: [],
-      rooms: [],
-      teachers: [],
-      today: context.today,
-    };
-  const [grids, rooms, teachers] = await Promise.all([
-    gridOwners(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      during: daysOf(year),
-      except: await plannedElsewhere(context, daysOf(year)),
-    }),
-    roomsOf(context.tx, context.tenantId, context.schoolId),
-    yearTeachers(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      during: daysOf(year),
-    }),
-  ]);
-  return {
-    today: context.today,
-    year: {
-      id: year.id,
-      startsOn: year.startsOn,
-      lastDay: addDays(year.endsBefore, -1),
-      closed: year.lifecycle === "closed",
-    },
-    grids,
-    rooms,
-    teachers,
-  };
-});
+/**
+ * Where the grids start: every class that owns its grid, running from the
+ * day viewed on, or of the view a module offers (a school year, say).
+ */
+export const options = readProcedure
+  .input(timetableOptionsSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "timetable:manage");
+    const view = await classViewOf(context, input.views);
+    const on = view?.on ?? context.today;
+    const from = { from: on, to: null };
+    const [grids, rooms, teachers] = await Promise.all([
+      gridOwners(context.tx, {
+        ...scope(context),
+        during: view ? { only: view.classIds } : from,
+        except: await plannedElsewhere(context, from),
+      }),
+      roomsOf(context.tx, context.tenantId, context.schoolId),
+      teachingStaff(context.tx, { ...scope(context), during: from }),
+    ]);
+    return { today: context.today, on, grids, rooms, teachers };
+  });
 
 /** One grid's week as of a day, with the classes it can place. */
 export const grid = readProcedure
@@ -453,11 +386,9 @@ export const grid = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
     const { owner, classIds } = await gridClass(context, input.classId);
-    const year = await yearById(context, owner.schoolYearId);
-    if (!year) throw new ORPCError("NOT_FOUND");
-    const on = dayIn(year, input.on || context.today);
-    const [shape, classes, meetings] = await Promise.all([
-      cycleFrame(context, year, on),
+    const on = dayWithin(owner.runs, input.on || context.today);
+    const [shape, classes, meetings, settled] = await Promise.all([
+      cycleFrame(context, on),
       gridClasses(context.tx, {
         tenantId: context.tenantId,
         classIds,
@@ -469,6 +400,7 @@ export const grid = readProcedure
         on,
         filter: { classIds },
       }),
+      settlementOf(context, owner.id),
     ]);
     return {
       ...shape,
@@ -477,7 +409,9 @@ export const grid = readProcedure
         code: owner.code,
         titleEn: owner.titleEn,
         titleAr: owner.titleAr,
+        runs: owner.runs,
       },
+      canPlan: settled === null,
       classes,
       meetings: meetings.map(meetingView),
     };
@@ -509,29 +443,26 @@ export const check = readProcedure
     };
   });
 
-async function placementYear(
+/**
+ * Where a placement from a day lands: the timetable followed then, made
+ * when the school has none yet, refused for a class some module has
+ * settled, a day after the class ends, a day of no school, or a period not
+ * held on that day of the cycle.
+ */
+async function placementOn(
   context: UnitContext,
-  owner: { schoolYearId: string },
+  owner: { id: string; runs: { from: string; to: string | null } },
   input: { weekday: number; periodId: string; from: string },
 ) {
-  const lifecycle = await holdYear(
-    context.tx,
-    context.tenantId,
-    owner.schoolYearId,
-  );
-  if (!lifecycle) throw new ORPCError("NOT_FOUND");
-  if (lifecycle === "closed")
-    throw new ORPCError("CONFLICT", { message: "school_year.closed" });
-  const year = await yearById(context, owner.schoolYearId);
-  if (!year) throw new ORPCError("NOT_FOUND");
-  if (input.from < year.startsOn || input.from >= year.endsBefore)
-    throw new ORPCError("BAD_REQUEST", { message: "timetable.outside_year" });
+  const settled = await settlementOf(context, owner.id);
+  if (settled) throw new ORPCError("CONFLICT", { message: settled });
+  if (owner.runs.to !== null && input.from >= owner.runs.to)
+    throw new ORPCError("BAD_REQUEST", { message: "timetable.class_ended" });
   await ensureTimetable(context.tx, {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    year,
+    ...scope(context),
+    startsOn: input.from,
   });
-  const shape = await cycleFrame(context, year, input.from);
+  const shape = await cycleFrame(context, input.from);
   if (!shape.timetable || !shape.days.includes(input.weekday))
     throw new ORPCError("BAD_REQUEST", { message: "timetable.not_school_day" });
   if (
@@ -541,7 +472,7 @@ async function placementYear(
     )
   )
     throw new ORPCError("BAD_REQUEST", { message: "timetable.no_period" });
-  return { year, timetableId: shape.timetable.id };
+  return { timetableId: shape.timetable.id };
 }
 
 /** Puts a class in a cell from a day on, settling any clash as asked. */
@@ -553,18 +484,25 @@ export const place = writeProcedure
       context,
       input.classId,
     );
-    const { year, timetableId } = await placementYear(context, owner, input);
+    const { timetableId } = await placementOn(context, owner, input);
     await lockGrid(context.tx, context.tenantId, owner.id);
+    await clipCell(context.tx, {
+      tenantId: context.tenantId,
+      timetableId,
+      weekday: input.weekday,
+      periodId: input.periodId,
+    });
     const placed = classIds.includes(input.meetingClassId)
       ? await classById(context.tx, context, input.meetingClassId)
       : null;
     if (!placed)
       throw new ORPCError("BAD_REQUEST", { message: "timetable.not_in_group" });
+    if (placed.runs.to !== null && input.from >= placed.runs.to)
+      throw new ORPCError("BAD_REQUEST", { message: "timetable.class_ended" });
     if (input.teacherId) {
-      const teachers = await yearTeachers(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        during: daysOf(year),
+      const teachers = await teachingStaff(context.tx, {
+        ...scope(context),
+        during: { from: input.from, to: null },
       });
       if (!teachers.some((row) => row.userId === input.teacherId))
         throw new ORPCError("BAD_REQUEST", { message: "timetable.teacher" });
@@ -608,14 +546,13 @@ export const place = writeProcedure
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       classId: placed.id,
-      yearId: year.id,
       timetableId,
       weekday: input.weekday,
       periodId: input.periodId,
       teacherId: input.teacherId || null,
       roomId: input.roomId || null,
-      from: input.from,
-      endsBefore: year.endsBefore,
+      from: input.from > placed.runs.from ? input.from : placed.runs.from,
+      endsBefore: placed.runs.to,
       clashAccepted: bookings.length > 0 && input.resolve === "keep",
     });
     await audit(context, {
@@ -642,7 +579,7 @@ export const clear = writeProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
     const { owner, lessonClassIds } = await gridClass(context, input.classId);
-    const { timetableId } = await placementYear(context, owner, input);
+    const { timetableId } = await placementOn(context, owner, input);
     await lockGrid(context.tx, context.tenantId, owner.id);
     const ended = await endCell(context.tx, {
       tenantId: context.tenantId,
@@ -678,12 +615,9 @@ export const clashes = readProcedure
   )
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
-    const year = await currentYear(context);
-    if (!year)
-      return { on: context.today, timetable: null, periods: [], rows: [] };
-    const on = dayIn(year, input.on || context.today);
+    const on = input.on || context.today;
     const [shape, rows] = await Promise.all([
-      cycleFrame(context, year, on),
+      cycleFrame(context, on),
       meetingsOn(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
@@ -721,10 +655,8 @@ export const teacherWeek = readProcedure
     if (teacherId === context.actor.userId)
       requireCapability(context, "timetable:read");
     else requireCapability(context, "timetable:manage");
-    const year = await currentYear(context);
-    if (!year) return { week: null };
-    const on = dayIn(year, input.on || context.today);
-    const shape = await frame(context, year, on);
+    const on = input.on || context.today;
+    const shape = await frame(context, on);
     const meetings = await meetingsOn(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
@@ -749,10 +681,8 @@ export const roomWeek = readProcedure
   .input(roomWeekSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
-    const year = await currentYear(context);
-    if (!year) return { week: null };
-    const on = dayIn(year, input.on || context.today);
-    const shape = await frame(context, year, on);
+    const on = input.on || context.today;
+    const shape = await frame(context, on);
     const meetings = await meetingsOn(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
@@ -783,11 +713,9 @@ export const studentWeek = readProcedure
       !(await reachesStudent(context, "timetable", studentId))
     )
       throw new ORPCError("NOT_FOUND");
-    const year = await currentYear(context);
-    if (!year) return { week: null };
-    const on = dayIn(year, input.on || context.today);
+    const on = input.on || context.today;
     const [shape, classIds] = await Promise.all([
-      frame(context, year, on),
+      frame(context, on),
       studentClasses(context.tx, {
         tenantId: context.tenantId,
         studentId,
@@ -820,17 +748,16 @@ export const classWeek = readProcedure
     requireCapability(context, "timetable:read");
     const row = await classById(context.tx, context, input.classId);
     if (!row) throw new ORPCError("NOT_FOUND");
-    const year = await linkedYear(context, row.id);
-    const on = year
-      ? dayIn(year, input.on || context.today)
-      : dayWithin(row.runs, input.on || context.today);
+    const on = dayWithin(row.runs, input.on || context.today);
     if (
       !(await teaches(context, "timetable", row.id)) &&
       !(await reachesClass(context, "timetable", row.id, on))
     )
       throw new ORPCError("NOT_FOUND");
-    if (!year) return { week: null, canPlan: false, gridClassId: null };
-    const shape = await frame(context, year, on);
+    const [shape, settled] = await Promise.all([
+      frame(context, on),
+      settlementOf(context, row.id),
+    ]);
     const meetings = await meetingsOn(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
@@ -847,59 +774,39 @@ export const classWeek = readProcedure
           shape.dates.map((day) => day.date),
         ),
       },
-      canPlan: can(context, "timetable:manage") && year.lifecycle !== "closed",
+      canPlan: can(context, "timetable:manage") && settled === null,
       gridClassId: await gridOwnerOf(context, row.id),
     };
   });
 
-/** A year of this school whose timetables are read or changed. */
-async function timetableYear(context: UnitContext, yearId: string) {
-  const year = await yearById(context, yearId);
-  if (!year) throw new ORPCError("NOT_FOUND");
-  return year;
-}
-
 /**
- * A year's timetables in the order they are followed, each with the day
- * the next takes over, how its lessons repeat and how many it places.
+ * The school's timetables in the order they are followed, each with the
+ * day the next takes over, how its lessons repeat and how many it places.
  */
-export const timetables = readProcedure
-  .input(timetablesQuerySchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "timetable:manage");
-    const year = await timetableYear(context, input.yearId);
-    const [week, rows] = await Promise.all([
-      schoolWeek(context.tx, context.tenantId, context.schoolId),
-      timetablesOf(context.tx, {
-        tenantId: context.tenantId,
-        yearIds: [year.id],
-      }),
-    ]);
-    const lessons = await timetableLessons(context.tx, {
-      tenantId: context.tenantId,
-      ids: rows.map((row) => row.id),
-    });
-    return {
-      today: context.today,
-      year: yearView(year),
-      days: schoolDays(week.weekStart, week.weekendDays),
-      timetables: rows.map((row, index) => {
-        const from = index === 0 ? year.startsOn : row.startsOn;
-        return {
-          ...(timetableView(row) as NonNullable<
-            ReturnType<typeof timetableView>
-          >),
-          version: row.version,
-          from,
-          until: rows[index + 1]?.startsOn ?? year.endsBefore,
-          first: index === 0,
-          started: from <= context.today,
-          lessons: lessons.get(row.id) ?? 0,
-        };
-      }),
-      canEdit: year.lifecycle !== "closed",
-    };
+export const timetables = readProcedure.handler(async ({ context }) => {
+  requireCapability(context, "timetable:manage");
+  const [week, rows] = await Promise.all([
+    schoolWeek(context.tx, context.tenantId, context.schoolId),
+    timetablesOf(context.tx, scope(context)),
+  ]);
+  const lessons = await timetableLessons(context.tx, {
+    tenantId: context.tenantId,
+    ids: rows.map((row) => row.id),
   });
+  return {
+    today: context.today,
+    days: schoolDays(week.weekStart, week.weekendDays),
+    timetables: rows.map((row, index) => ({
+      ...(timetableView(row) as NonNullable<ReturnType<typeof timetableView>>),
+      version: row.version,
+      from: row.startsOn,
+      until: rows[index + 1]?.startsOn ?? null,
+      first: index === 0,
+      started: row.startsOn <= context.today,
+      lessons: lessons.get(row.id) ?? 0,
+    })),
+  };
+});
 
 function timetableRefused(error: unknown): never {
   if (error instanceof TimetableConflict)
@@ -917,23 +824,9 @@ export const saveTimetable = writeProcedure
   .input(saveTimetableSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
-    const year = await timetableYear(context, input.yearId);
-    const lifecycle = await holdYear(context.tx, context.tenantId, year.id);
-    if (lifecycle === "closed")
-      throw new ORPCError("CONFLICT", { message: "school_year.closed" });
-    if (input.startsOn < year.startsOn || input.startsOn >= year.endsBefore)
-      throw new ORPCError("BAD_REQUEST", { message: "timetable.outside_year" });
-    await ensureTimetable(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      year,
-    });
-    const rows = await timetablesOf(context.tx, {
-      tenantId: context.tenantId,
-      yearIds: [year.id],
-    });
+    await lockTimetables(context.tx, scope(context));
+    const rows = await timetablesOf(context.tx, scope(context));
     const first = rows[0];
-    if (!first) throw new Error("the year has no timetable");
     const fields = {
       tenantId: context.tenantId,
       nameEn: input.nameEn,
@@ -944,9 +837,29 @@ export const saveTimetable = writeProcedure
       firstDay: input.firstDay,
       closuresMove: input.closuresMove,
     };
+    if (!first) {
+      if (input.id) throw new ORPCError("NOT_FOUND");
+      const id = await insertTimetable(context.tx, {
+        ...fields,
+        schoolId: context.schoolId,
+      });
+      await audit(context, {
+        action: "timetable.create",
+        objectType: "timetable",
+        objectId: id,
+        change: {
+          table: "core.timetables",
+          before: null,
+          after: { ...input, id: undefined },
+        },
+        details: { copiedFrom: null, copied: 0 },
+      });
+      return { id, copied: 0 };
+    }
+    const firstStart = first.startsOn;
     const later = (startsOn: string, except: string | null) => {
       if (
-        startsOn <= first.startsOn ||
+        startsOn <= firstStart ||
         startsOn < context.today ||
         rows.some((row) => row.id !== except && row.startsOn === startsOn)
       )
@@ -967,8 +880,7 @@ export const saveTimetable = writeProcedure
             ids: [current.id],
           })
         ).get(current.id) ?? 0;
-      const started =
-        (isFirst ? year.startsOn : current.startsOn) <= context.today;
+      const started = current.startsOn <= context.today;
       if (
         lessons > 0 &&
         (input.kind !== current.kind || input.length !== current.length)
@@ -996,7 +908,7 @@ export const saveTimetable = writeProcedure
         change: {
           table: "core.timetables",
           before: timetableView(current),
-          after: { ...input, yearId: undefined, id: undefined },
+          after: { ...input, id: undefined },
         },
       });
       return { id: current.id, copied: 0 };
@@ -1010,7 +922,6 @@ export const saveTimetable = writeProcedure
     const id = await insertTimetable(context.tx, {
       ...fields,
       schoolId: context.schoolId,
-      yearId: year.id,
     });
     const copied =
       before && days
@@ -1029,7 +940,7 @@ export const saveTimetable = writeProcedure
       change: {
         table: "core.timetables",
         before: null,
-        after: { ...input, yearId: undefined },
+        after: input,
       },
       details: { copiedFrom: days ? before?.id : null, copied },
     });
@@ -1038,29 +949,17 @@ export const saveTimetable = writeProcedure
 
 /**
  * Removes a timetable not yet followed, with its lessons; the one before
- * it carries on in its place. The year's first always stays.
+ * it carries on in its place. The school's first always stays.
  */
 export const removeTimetable = writeProcedure
   .input(removeTimetableSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:manage");
-    const years = await schoolYears(
-      context.tx,
-      context.tenantId,
-      context.schoolId,
-    );
-    const rows = await timetablesOf(context.tx, {
-      tenantId: context.tenantId,
-      yearIds: years.map((row) => row.id),
-    });
+    await lockTimetables(context.tx, scope(context));
+    const rows = await timetablesOf(context.tx, scope(context));
     const current = rows.find((row) => row.id === input.id);
     if (!current) throw new ORPCError("NOT_FOUND");
-    const year = await timetableYear(context, current.yearId);
-    const lifecycle = await holdYear(context.tx, context.tenantId, year.id);
-    if (lifecycle === "closed")
-      throw new ORPCError("CONFLICT", { message: "school_year.closed" });
-    const first = rows.find((row) => row.yearId === year.id);
-    if (first?.id === current.id)
+    if (rows[0]?.id === current.id)
       throw new ORPCError("BAD_REQUEST", { message: "timetable.first_fixed" });
     const lessons =
       (

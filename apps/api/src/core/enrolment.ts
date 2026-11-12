@@ -13,7 +13,6 @@ import {
   descriptorsFor,
 } from "@faridalms/database/stores/descriptors";
 import {
-  calendarFor,
   place,
   placements,
   saveArrival,
@@ -179,7 +178,6 @@ export async function enrol(
     studentId,
     year,
     gradeId: intake.gradeId,
-    calendarId: await calendarFor(tx, context.tenantId, year.id),
     from: year.startsOn,
     source: "admission",
   });

@@ -165,7 +165,7 @@ test("a page that needs the year says so, and who sets it up", async ({
 }) => {
   const teacher = await browser.newPage();
   await signInTo(teacher, school, "teacher");
-  await open(teacher, "/attendance");
+  await open(teacher, "/year-map");
   await expect(
     teacher.getByRole("heading", { name: "The school year is not set up yet" }),
   ).toBeVisible();
@@ -179,7 +179,7 @@ test("a page that needs the year says so, and who sets it up", async ({
 
   const admin = await browser.newPage();
   await signInTo(admin, school, "admin");
-  await open(admin, "/attendance");
+  await open(admin, "/year-map");
   await expect(
     admin.getByRole("heading", { name: "Set up the school year" }),
   ).toBeVisible();

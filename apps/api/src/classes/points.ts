@@ -22,6 +22,11 @@ export interface EnrolmentEnding {
  */
 export interface ClassGuard {
   refusesChange?(context: UnitContext, classId: string): Promise<string | null>;
+  /**
+   * Why nothing more is recorded for a class: its registers, its lessons
+   * on the timetable and their cover, as in a closed year.
+   */
+  settles?(context: UnitContext, classId: string): Promise<string | null>;
   refusesRuns?(
     context: UnitContext,
     classId: string,
@@ -63,6 +68,10 @@ export const runsRefusal = (
     context,
     (guard) => guard.refusesRuns?.(context, classId, runs) ?? null,
   );
+
+/** Why nothing more is recorded for a class, or null. */
+export const settlementOf = (context: UnitContext, classId: string) =>
+  firstRefusal(context, (guard) => guard.settles?.(context, classId) ?? null);
 
 /** Why an enrolment may not be ended by hand, or null. */
 export const endingRefusal = (

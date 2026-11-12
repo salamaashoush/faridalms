@@ -86,7 +86,6 @@ export async function insertAbsence(
   input: {
     tenantId: string;
     schoolId: string;
-    yearId: string;
     userId: string;
     from: string;
     to: string;
@@ -98,8 +97,8 @@ export async function insertAbsence(
   const periods = input.periodIds ? uuidArray(input.periodIds) : sql`null`;
   const [row] = await tx.execute<{ id: string }>(sql`
     insert into core.staff_absences
-      (tenant_id, org_id, school_year_id, user_id, span, period_ids, reason, note)
-    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.yearId}::uuid,
+      (tenant_id, org_id, user_id, span, period_ids, reason, note)
+    values (${input.tenantId}::uuid, ${input.schoolId}::uuid,
       ${input.userId}::uuid, daterange(${input.from}::date, ${input.to}::date, '[]'),
       ${periods}, ${input.reason}, ${input.note})
     returning id`);
@@ -209,7 +208,6 @@ export async function setChange(
   tx: Tx,
   input: ChangeKey & {
     schoolId: string;
-    yearId: string;
     coverId: string | null;
     roomId: string | null;
     cancelled: boolean;
@@ -219,9 +217,9 @@ export async function setChange(
   const previous = await clearChange(tx, input);
   await tx.execute(sql`
     insert into core.lesson_changes
-      (tenant_id, org_id, school_year_id, class_id, class_period_id, day_on,
+      (tenant_id, org_id, class_id, class_period_id, day_on,
        cover_user_id, location_id, cancelled, note)
-    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.yearId}::uuid,
+    values (${input.tenantId}::uuid, ${input.schoolId}::uuid,
       ${input.classId}::uuid, ${input.periodId}::uuid, ${input.day}::date,
       ${input.coverId}::uuid, ${input.roomId}::uuid, ${input.cancelled}, ${input.note})`);
   return previous;
@@ -252,35 +250,23 @@ export async function clearChange(
   return { previousCoverId: row?.cover_user_id ?? null };
 }
 
-/** The periods in which someone covers a class on a day. */
-export async function coveredPeriods(
-  tx: Tx,
-  input: { tenantId: string; userId: string; classId: string; day: string },
-): Promise<string[]> {
-  const rows = await tx.execute<{ class_period_id: string }>(sql`
-    select class_period_id from core.lesson_changes
-    where tenant_id = ${input.tenantId}::uuid and status = 'active'
-      and cover_user_id = ${input.userId}::uuid and class_id = ${input.classId}::uuid
-      and day_on = ${input.day}::date`);
-  return rows.map((row) => row.class_period_id);
-}
-
 export interface CoverCandidate {
   userId: string;
   fullNameEn: string | null;
   fullNameAr: string | null;
   /** Teaches or assists the class, or a class it is planned with, on that day. */
   knowsClass: boolean;
-  /** Teaches another class of the same subject this year. */
+  /** Teaches another class of the same subject over the span the school reports on. */
   sameSubject: boolean;
-  /** Lessons they have covered this year so far. */
+  /** Lessons they have covered over that span. */
   covers: number;
   /** Their own lessons and covers on the day. */
   lessonsThatDay: number;
 }
 
 /**
- * Who could cover a lesson: staff teaching this year who are neither
+ * Who could cover a lesson: staff teaching over the span the school reports
+ * on who are neither
  * timetabled nor already covering in that period. Absence is left to the
  * caller, which knows the day's absences. Those who know the class come
  * first, then the subject, then whoever has covered least.
@@ -290,8 +276,7 @@ export async function coverCandidates(
   input: {
     tenantId: string;
     schoolId: string;
-    yearId: string;
-    /** The year's days, over which staff teach. */
+    /** The span the school reports on, over which staff teach and covers count. */
     during: OpenSpan;
     classId: string;
     /** The class and those it is planned with. */
@@ -348,7 +333,7 @@ export async function coverCandidates(
           and c.subject_descriptor_id = (select subject_descriptor_id from lesson)) as same_subject,
       (select count(*)::int from core.lesson_changes x
         where x.tenant_id = u.tenant_id and x.status = 'active' and x.cover_user_id = u.id
-          and x.school_year_id = ${input.yearId}::uuid) as covers,
+          and ${rangeOf(input.during)}::daterange @> x.day_on) as covers,
       (select count(*)::int from teaching t where t.user_id = u.id) as lessons
     from staff s
     join core.users u on u.tenant_id = ${input.tenantId}::uuid and u.id = s.user_id

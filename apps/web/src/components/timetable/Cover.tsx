@@ -36,7 +36,6 @@ import { toast } from "sonner";
 
 import { classTitle } from "~/components/classes/format";
 import { CheckboxRow } from "~/components/people/fields";
-import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { coverDayQuery, coverOptionsQuery } from "~/queries/timetable";
@@ -246,7 +245,6 @@ export function CoverDay({ on }: CoverDayProps) {
   const [adding, setAdding] = useState(false);
   const [choosing, setChoosing] = useState(false);
   const [arranging, setArranging] = useState<Lesson | null>(null);
-  if (!data) return <NoSchoolYear shows={m.noYearShowsTimetable()} />;
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["timetable"] });
   const periods: Periods = new Map(

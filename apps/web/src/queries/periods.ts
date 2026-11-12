@@ -1,9 +1,14 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { getYearPeriods } from "~/server/periods";
+import { getSchoolPeriods, getTimetableDays } from "~/server/periods";
 
-export const yearPeriodsQuery = (id: string, on = "") =>
+export const schoolPeriodsQuery = (on = "") =>
   queryOptions({
-    queryKey: ["years", "periods", id, on],
-    queryFn: () => getYearPeriods({ data: { id, on } }),
+    queryKey: ["periods", on],
+    queryFn: () => getSchoolPeriods({ data: { on } }),
   });
+
+export const timetableDaysQuery = (from: string, to: string) => ({
+  queryKey: ["periods", "days", from, to],
+  queryFn: () => getTimetableDays({ data: { from, to } }),
+});

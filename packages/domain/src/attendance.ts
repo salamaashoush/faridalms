@@ -1,7 +1,8 @@
 import * as v from "valibot";
 
 import { pageField } from "./paging";
-import { addDays } from "./school";
+import { addDays, daysBetween } from "./school";
+import { reportRangeEntries } from "./spans";
 
 /**
  * The fixed meanings of `attendance_category` descriptors. A school may add
@@ -132,7 +133,8 @@ export const saveRegisterSchema = v.pipe(
   v.object({
     classId: id,
     date: isoDate,
-    periodId: id,
+    /** The period it is taken in, or "" for the class's register of the whole day. */
+    periodId: v.optional(v.union([v.literal(""), id]), ""),
     expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
     marks: v.pipe(v.array(registerMarkSchema), v.maxLength(300)),
     /** Why a submitted register's marks change, kept with each change. */
@@ -166,7 +168,7 @@ export const absencesQuerySchema = v.object({
 export type AbsencesQuery = v.InferOutput<typeof absencesQuerySchema>;
 
 export const reportQuerySchema = v.object({
-  periodId: v.optional(v.union([v.literal(""), id]), ""),
+  ...reportRangeEntries,
   by: v.optional(v.picklist(["student", "class"]), "student"),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
 });
@@ -192,6 +194,9 @@ const optionalId = v.optional(v.union([v.literal(""), id]), "");
  * A family's report: the days a child is away, or the day and time they
  * arrive late or leave early, with a reason the school's codes name.
  */
+/** The longest absence one report covers: a year of days. */
+export const MAX_REPORTED_DAYS = 366;
+
 export const absenceReportSchema = v.pipe(
   v.object({
     studentId: id,
@@ -206,7 +211,12 @@ export const absenceReportSchema = v.pipe(
     note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ""),
     fileId: optionalId,
   }),
-  v.check((input) => input.from <= input.to, "attendance.range"),
+  v.check(
+    (input) =>
+      input.from <= input.to &&
+      daysBetween(input.from, input.to) <= MAX_REPORTED_DAYS,
+    "attendance.range",
+  ),
   v.check(
     (input) =>
       input.kind === "absent"
@@ -398,7 +408,7 @@ export const checkInSchema = v.pipe(
   v.object({
     classId: id,
     date: isoDate,
-    periodId: id,
+    periodId: v.optional(v.union([v.literal(""), id]), ""),
     via: v.picklist(CHECK_IN_WAYS),
     studentId: v.optional(id),
     badge: v.optional(v.pipe(v.string(), v.minLength(16), v.maxLength(200))),
@@ -415,7 +425,7 @@ export const checkInSchema = v.pipe(
 export const undoCheckInSchema = v.object({
   classId: id,
   date: isoDate,
-  periodId: id,
+  periodId: v.optional(v.union([v.literal(""), id]), ""),
   studentId: id,
 });
 

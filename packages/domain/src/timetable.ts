@@ -1,14 +1,10 @@
 import * as v from "valibot";
 
-import { addDays } from "./school";
+import type { IsoWeekday } from "./school-days";
 
-/** ISO weekdays, 1 for Monday to 7 for Sunday, as `core.orgs` stores them. */
-export type IsoWeekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
-export function isoWeekday(iso: string): IsoWeekday {
-  const day = new Date(`${iso}T00:00:00Z`).getUTCDay();
-  return (day === 0 ? 7 : day) as IsoWeekday;
-}
+import { viewsSchema } from "./classes";
+import { daysBetween } from "./school";
+import { MAX_PAINT_DAYS, schoolDaysQuerySchema } from "./school-days";
 
 /**
  * How a timetable's lessons repeat. A cycle of weeks repeats whole weeks
@@ -46,32 +42,6 @@ export const WEEKLY: Cycle = {
   closuresMove: false,
 };
 
-/** The school's teaching days in week order, starting from its first day. */
-export function schoolDays(
-  weekStart: number,
-  weekendDays: readonly number[],
-): IsoWeekday[] {
-  const days: IsoWeekday[] = [];
-  for (let offset = 0; offset < 7; offset += 1) {
-    const day = (((weekStart - 1 + offset) % 7) + 1) as IsoWeekday;
-    if (!weekendDays.includes(day)) days.push(day);
-  }
-  return days;
-}
-
-/** The date of each school day in the week holding `on`, in week order. */
-export function weekDates(
-  on: string,
-  weekStart: number,
-  days: readonly IsoWeekday[],
-): { day: IsoWeekday; date: string }[] {
-  const start = addDays(on, -((isoWeekday(on) - weekStart + 7) % 7));
-  return days.map((day) => ({
-    day,
-    date: addDays(start, (day - weekStart + 7) % 7),
-  }));
-}
-
 /**
  * How a placement meets a teacher or room already booked elsewhere at the
  * same time: refuse and ask, take them from the other class, or keep both
@@ -91,6 +61,9 @@ const cycleDay = v.pipe(
   v.minValue(1),
   v.maxValue(MAX_CYCLE_DAY),
 );
+
+/** The grids a planner starts from, narrowed by the views modules offer. */
+export const timetableOptionsSchema = v.object({ views: viewsSchema });
 
 export const gridQuerySchema = v.object({
   classId: id,
@@ -173,7 +146,12 @@ export const staffAbsenceSchema = v.pipe(
     reason: v.picklist(STAFF_ABSENCE_REASONS),
     note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(500)), ""),
   }),
-  v.check((input) => input.from <= input.to, "timetable.absence_range"),
+  v.check(
+    (input) =>
+      input.from <= input.to &&
+      daysBetween(input.from, input.to) < MAX_PAINT_DAYS,
+    "timetable.absence_range",
+  ),
 );
 export type StaffAbsenceInput = v.InferOutput<typeof staffAbsenceSchema>;
 
@@ -265,7 +243,7 @@ export function timesOnWeekday(
     : { startTime: period.startTime, endTime: period.endTime };
 }
 
-/** The day a school starts from when neither it nor its group has one. */
+/** The usual school day, which a school that has set none may start from. */
 export const DEFAULT_PERIODS: readonly (PeriodPattern & { code: string })[] = [
   ["reg", "Registration", "التسجيل", "registration", "07:45", "08:00"],
   ["1", "Period 1", "الحصة الأولى", "lesson", "08:00", "08:45"],
@@ -417,18 +395,16 @@ export const periodSchema = v.pipe(
 export type PeriodInput = v.InferOutput<typeof periodSchema>;
 
 export const periodsQuerySchema = v.object({
-  id,
   on: v.optional(v.union([v.literal(""), isoDate]), ""),
 });
 
 /**
- * A year's day from a date on: the periods it holds then, in any order,
+ * The school's day from a date on: the periods it holds then, in any order,
  * replacing those in force on that date. `known` is every period the editor
  * read in force on that date, with the version it read.
  */
 export const savePeriodsSchema = v.pipe(
   v.object({
-    yearId: id,
     from: isoDate,
     known: v.pipe(
       v.array(
@@ -525,13 +501,12 @@ export const extraPeriodSchema = v.pipe(
 export type ExtraPeriodInput = v.InferOutput<typeof extraPeriodSchema>;
 
 /**
- * A day of the year run on other times: the periods it holds, each at its
+ * A day run on other times: the periods it holds, each at its
  * time that day, and any periods of its own. A period it leaves out is not
  * held on its days.
  */
 export const saveBellScheduleSchema = v.pipe(
   v.object({
-    yearId: id,
     id: v.optional(id),
     version: v.optional(version),
     nameEn: periodName,
@@ -584,16 +559,22 @@ export type SaveBellSchedule = v.InferOutput<typeof saveBellScheduleSchema>;
 
 export const removeBellScheduleSchema = v.object({ id, version });
 
-/** Runs a range of the year's days on a bell schedule, or "" for their own times. */
+/** Runs a range of days on a bell schedule, or "" for their own times. */
 export const scheduleDaysSchema = v.pipe(
   v.object({
-    yearId: id,
     from: isoDate,
     to: isoDate,
     scheduleId: v.union([v.literal(""), id]),
   }),
   v.forward(
     v.check((value) => value.to >= value.from, "validation.end_date"),
+    ["to"],
+  ),
+  v.forward(
+    v.check(
+      (value) => daysBetween(value.from, value.to) < MAX_PAINT_DAYS,
+      "calendar.range",
+    ),
     ["to"],
   ),
 );
@@ -604,7 +585,6 @@ export type ScheduleDays = v.InferOutput<typeof scheduleDaysSchema>;
  * Monday, a day as Day 3), or as its own day again with null.
  */
 export const runDayAsSchema = v.object({
-  yearId: id,
   day: isoDate,
   runsAs: v.nullable(cycleDay),
 });
@@ -622,12 +602,11 @@ const cycleLength = v.pipe(
 );
 
 /**
- * A timetable of the year from a date on: its name, how its lessons repeat
+ * A timetable of the school from a date on: its name, how its lessons repeat
  * and where the repeat stands on its first day.
  */
 export const saveTimetableSchema = v.pipe(
   v.object({
-    yearId: id,
     id: v.optional(id),
     version: v.optional(version),
     nameEn: periodName,
@@ -648,4 +627,5 @@ export type SaveTimetable = v.InferOutput<typeof saveTimetableSchema>;
 
 export const removeTimetableSchema = v.object({ id, version });
 
-export const timetablesQuerySchema = v.object({ yearId: id });
+/** The days a school-days planner reads the timetable's part of. */
+export const timetableDaysSchema = schoolDaysQuerySchema;

@@ -339,10 +339,8 @@ export async function specialDays(
     select to_char(d.day_on, 'YYYY-MM-DD') as day, x.system_meaning as meaning,
            x.label_en, x.label_ar, d.note_en, d.note_ar
     from core.calendar_dates d
-    join core.calendars c on c.tenant_id = d.tenant_id and c.id = d.calendar_id
-      and c.kind = 'school' and c.status = 'active'
     join core.descriptors x on x.tenant_id = d.tenant_id and x.id = d.event_descriptor_id
-    where d.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.schoolId}::uuid
+    where d.tenant_id = ${input.tenantId}::uuid and d.org_id = ${input.schoolId}::uuid
       and d.status = 'active' and d.day_on between ${input.from}::date and ${input.to}::date
       and x.system_meaning not in ('instructional_day', 'weekend')
     order by d.day_on`);

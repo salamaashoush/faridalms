@@ -12,7 +12,7 @@ const SUNDAY = 7;
 type Api = Awaited<ReturnType<typeof principal>>;
 
 async function gridOf(api: Api, title: string, on = FROM) {
-  const { grids } = await api.timetable.options();
+  const { grids } = await api.timetable.options({});
   const owner = grids.find((row) => row.titleEn === title);
   if (!owner) throw new Error(`the seed has no ${title}`);
   return api.timetable.grid({ classId: owner.id, on });
@@ -131,33 +131,33 @@ describe("reading weeks", () => {
   test("teachers, students and families read the week that concerns them", async () => {
     const teacher = await sessionFor("northwind", login("teacher", 0, 1));
     const mine = await teacher.api.timetable.teacherWeek({});
-    const lessons = mine.week?.meetings ?? [];
+    const lessons = mine.week.meetings;
     expect(lessons.length).toBeGreaterThan(0);
     expect(
       lessons.every((row) => row.teacherId === lessons[0]?.teacherId),
     ).toBe(true);
-    expect(await rejection(teacher.api.timetable.options())).toMatchObject({
+    expect(await rejection(teacher.api.timetable.options({}))).toMatchObject({
       code: "FORBIDDEN",
     });
 
     const student = await sessionFor("northwind", login("student"));
     const me = await student.api.identity.currentUser();
     const own = await student.api.timetable.studentWeek({});
-    expect(own.week?.meetings.length).toBeGreaterThan(0);
+    expect(own.week.meetings.length).toBeGreaterThan(0);
     const parent = await signedIn(
       "northwind",
       login("student").replace("student", "parent"),
     );
     const child = await parent.timetable.studentWeek({ studentId: me.id });
-    expect(child.week?.meetings.length).toBe(own.week?.meetings.length);
+    expect(child.week.meetings.length).toBe(own.week.meetings.length);
     // The office reaches each teacher's record from the week; the family
     // reaches no more than a profile.
     const office = await signedIn("northwind", login("principal"));
     const seen = await office.timetable.studentWeek({ studentId: me.id });
-    const taught = seen.week?.meetings.find((row) => row.teacherId !== null);
+    const taught = seen.week.meetings.find((row) => row.teacherId !== null);
     expect(taught?.teacherLink).toBe("person");
     expect(
-      child.week?.meetings.every((row) => row.teacherLink !== "person"),
+      child.week.meetings.every((row) => row.teacherLink !== "person"),
     ).toBe(true);
   });
 
@@ -166,20 +166,20 @@ describe("reading weeks", () => {
     const { week } = await student.api.timetable.studentWeek({
       on: "2026-10-07",
     });
-    expect(week?.dates.map((row) => row.date)).toEqual([
+    expect(week.dates.map((row) => row.date)).toEqual([
       "2026-10-04",
       "2026-10-05",
       "2026-10-06",
       "2026-10-07",
       "2026-10-08",
     ]);
-    const holiday = week?.dates.find((row) => row.date === "2026-10-06");
+    const holiday = week.dates.find((row) => row.date === "2026-10-06");
     expect(holiday).toMatchObject({ closed: true, noteEn: "Armed Forces Day" });
     expect(
-      week?.dates.filter((row) => row.closed).map((row) => row.date),
+      week.dates.filter((row) => row.closed).map((row) => row.date),
     ).toEqual(["2026-10-06"]);
-    const sunday = week?.meetings.filter((row) => row.weekday === SUNDAY);
-    expect(sunday?.length).toBeGreaterThan(0);
-    expect(sunday?.every((row) => row.on === "2026-10-04")).toBe(true);
+    const sunday = week.meetings.filter((row) => row.weekday === SUNDAY);
+    expect(sunday.length).toBeGreaterThan(0);
+    expect(sunday.every((row) => row.on === "2026-10-04")).toBe(true);
   });
 });

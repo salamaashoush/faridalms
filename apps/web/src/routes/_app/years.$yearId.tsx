@@ -14,10 +14,6 @@ export const Route = createFileRoute("/_app/years/$yearId")({
   },
   validateSearch: v.object({
     tab: v.fallback(v.optional(v.picklist(YEAR_TABS), "overview"), "overview"),
-    on: v.fallback(
-      v.optional(v.union([v.literal(""), v.pipe(v.string(), v.isoDate())]), ""),
-      "",
-    ),
   }),
   loader: async ({ context, params }) => {
     await Promise.all([
@@ -36,18 +32,17 @@ function YearTrail() {
 
 function YearPage() {
   const { yearId } = Route.useParams();
-  const { tab, on } = Route.useSearch();
+  const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
     <YearRecord
       yearId={yearId}
       tab={tab}
-      on={on}
       onTab={(nextTab) => {
         void navigate({
           resetScroll: false,
           replace: true,
-          search: (previous) => ({ ...previous, tab: nextTab, on: "" }),
+          search: (previous) => ({ ...previous, tab: nextTab }),
         });
       }}
     />

@@ -218,7 +218,6 @@ export function Week({
             <WeekStep
               dates={week.dates}
               today={week.today}
-              year={week.year}
               pending={pending}
               onWeek={onWeek}
             />
@@ -402,7 +401,7 @@ export function ClassWeek({ classId }: ClassWeekProps) {
         </div>
       ) : null}
       <Week
-        week={data.week}
+        week={data.week.meetings.length > 0 ? data.week : null}
         caption={m.ttClassCaption()}
         lines={teacherAndRoom}
         pending={pending}

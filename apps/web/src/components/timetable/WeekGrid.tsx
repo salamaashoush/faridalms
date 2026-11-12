@@ -6,7 +6,7 @@ import { cn } from "@faridalms/ui/cn";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
-import { meaningOf } from "~/components/years/YearPlanner";
+import { meaningOf } from "~/components/school-days/DayPlanner";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { formatDate, formatDayRange, formatWeekday } from "~/utils/datetime";
@@ -66,7 +66,6 @@ export interface GridDate {
 function dayNote(date: GridDate | undefined): string | null {
   if (!date) return null;
   const note = inLocale(date.noteEn, date.noteAr);
-  if (date.meaning === "outside_year") return m.ttOutsideYearDay();
   if (!date.meaning || date.meaning === "instructional_day")
     return date.closed ? m.ttNoSchool() : null;
   return note || meaningOf(date.meaning).label();
@@ -491,19 +490,20 @@ export function FreeCell() {
 export interface WeekStepProps {
   dates: readonly GridDate[];
   today: string;
-  year: { startsOn: string; lastDay: string };
+  /** The days the weeks may step within, as a class's own days; none steps freely. */
+  bounds?: { startsOn: string; lastDay: string | null };
   pending?: boolean;
   onWeek: (on: string) => void;
 }
 
 /**
- * Steps a dated week back and forth inside the school year, and back to the
- * week holding today. Arrows follow the reading direction.
+ * Steps a dated week back and forth, within any bounds given, and back to
+ * the week holding today. Arrows follow the reading direction.
  */
 export function WeekStep({
   dates,
   today,
-  year,
+  bounds,
   pending = false,
   onWeek,
 }: WeekStepProps) {
@@ -527,7 +527,7 @@ export function WeekStep({
           size="icon"
           className="max-md:size-10"
           aria-label={m.commonPreviousWeek()}
-          disabled={addDays(last, -7) < year.startsOn}
+          disabled={bounds !== undefined && addDays(last, -7) < bounds.startsOn}
           onClick={() => onWeek(previous)}
         >
           <ChevronLeft className="rtl:rotate-180" aria-hidden />
@@ -538,7 +538,11 @@ export function WeekStep({
           size="icon"
           className="max-md:size-10"
           aria-label={m.commonNextWeek()}
-          disabled={next > year.lastDay}
+          disabled={
+            bounds?.lastDay !== undefined &&
+            bounds.lastDay !== null &&
+            next > bounds.lastDay
+          }
           onClick={() => onWeek(next)}
         >
           <ChevronRight className="rtl:rotate-180" aria-hidden />
@@ -547,7 +551,10 @@ export function WeekStep({
       <p aria-live="polite" className="text-sm leading-5 font-medium">
         {formatDayRange(first, last)}
       </p>
-      {holdsToday || today < year.startsOn || today > year.lastDay ? null : (
+      {holdsToday ||
+      (bounds &&
+        (today < bounds.startsOn ||
+          (bounds.lastDay !== null && today > bounds.lastDay))) ? null : (
         <Button
           type="button"
           variant="ghost"

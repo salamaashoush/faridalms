@@ -1,10 +1,10 @@
 import type { SchoolYear } from "@faridalms/database/stores/years";
 import type { OpenSpan } from "@faridalms/domain/school";
+import type { ReportingSpan } from "@faridalms/domain/spans";
 
 import { classById } from "@faridalms/database/stores/classes";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import {
-  calendarFor,
   endPlacement,
   place,
   placements,
@@ -18,6 +18,7 @@ import {
   holdYear,
   linkClass,
   schoolYears,
+  termsOf,
   workingYear,
   yearHolds,
   yearOfClass,
@@ -44,6 +45,7 @@ import {
 import { contribute } from "../core/extension";
 import { audit } from "../core/procedure";
 import { scopeFor } from "../core/reach";
+import { reportingSpans } from "../core/spans";
 import { leavingParts, studentFormParts, studentViews } from "../people/points";
 import { openYear } from "./years";
 
@@ -122,10 +124,53 @@ async function linkedYear(context: UnitContext, classId: string) {
 
 const outside = (year: SchoolYear, runs: OpenSpan) => !yearHolds(year, runs);
 
+/** A class in a closed year takes no more changes and records nothing more. */
+async function closedYearOf(context: UnitContext, classId: string) {
+  const year = await linkedYear(context, classId);
+  return year &&
+    (await holdYear(context.tx, context.tenantId, year.id)) === "closed"
+    ? "school_year.closed"
+    : null;
+}
+
+/** The year a day falls in, else the working year, and its terms: the spans the school reports over. */
+async function yearSpans(
+  context: UnitContext,
+  day: string,
+): Promise<ReportingSpan[]> {
+  const years = await schoolYears(
+    context.tx,
+    context.tenantId,
+    context.schoolId,
+  );
+  const year =
+    years.find((row) => row.startsOn <= day && day < row.endsBefore) ??
+    workingYear(years, day);
+  if (!year) return [];
+  const terms = await termsOf(context.tx, context.tenantId, year.id);
+  return [
+    {
+      key: `year:${year.id}`,
+      titleEn: year.titleEn,
+      titleAr: year.titleAr,
+      from: year.startsOn,
+      endsBefore: year.endsBefore,
+    },
+    ...terms.map((term) => ({
+      key: `term:${term.id}`,
+      titleEn: term.titleEn,
+      titleAr: term.titleAr,
+      from: term.startsOn,
+      endsBefore: term.endsBefore,
+    })),
+  ];
+}
+
 /** What school years tell the rest of the product, wherever it asks. */
 export const SCHOOL_YEARS: ModuleContributions = {
   module: "school_years",
   contributions: [
+    contribute(reportingSpans, { spansOn: yearSpans }),
     contribute(classViews, {
       key: "year",
       select: async (context, value) => {
@@ -142,13 +187,8 @@ export const SCHOOL_YEARS: ModuleContributions = {
       },
     }),
     contribute(classGuards, {
-      refusesChange: async (context, classId) => {
-        const year = await linkedYear(context, classId);
-        return year &&
-          (await holdYear(context.tx, context.tenantId, year.id)) === "closed"
-          ? "school_year.closed"
-          : null;
-      },
+      refusesChange: closedYearOf,
+      settles: closedYearOf,
       refusesRuns: async (context, classId, runs) => {
         const year = await linkedYear(context, classId);
         return year && outside(year, runs) ? "school_year.class_outside" : null;
@@ -182,17 +222,11 @@ export const SCHOOL_YEARS: ModuleContributions = {
           const year = await reconciledYear(context, classId);
           const found = await classById(context.tx, context, classId);
           if (!year || !found?.gradeId) continue;
-          const calendarId = await calendarFor(
-            context.tx,
-            context.tenantId,
-            year.id,
-          );
           for (const studentId of studentIds)
             await place(context.tx, scopeFor(context, "classes"), {
               studentId,
               year,
               gradeId: found.gradeId,
-              calendarId,
               from,
             });
         }
@@ -233,7 +267,6 @@ export const SCHOOL_YEARS: ModuleContributions = {
           studentId: input.studentId,
           year,
           gradeId,
-          calendarId: await calendarFor(context.tx, context.tenantId, year.id),
         });
         if (result.changed)
           await audit(context, {

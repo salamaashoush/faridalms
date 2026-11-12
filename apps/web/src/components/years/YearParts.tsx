@@ -17,12 +17,12 @@ import { useState } from "react";
 import type { ClassEditorPartProps } from "~/components/classes/slots";
 import type { FamilyChild } from "~/components/home/slots";
 import type { LeavingFieldsProps } from "~/components/people/slots";
+import type { yearEndQuery } from "~/queries/years";
 
 import { HomeCard, HomeItem, HomeList } from "~/components/home/parts";
 import { displayName, labelOf, lastDay } from "~/components/people/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import type { yearEndQuery} from "~/queries/years";
 import { yearOptionsQuery } from "~/queries/years";
 import { setIntention } from "~/server/rollover";
 import { formatDate } from "~/utils/datetime";

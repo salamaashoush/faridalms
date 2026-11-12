@@ -19,7 +19,7 @@ import { CalendarClock, Clock, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { yearPeriodsQuery } from "~/queries/periods";
+import type { schoolPeriodsQuery } from "~/queries/periods";
 
 import { CheckboxRow } from "~/components/people/fields";
 import { inLocale } from "~/hooks/useCurrentUser";
@@ -30,7 +30,7 @@ import { getMessageFromError } from "~/utils/error";
 import { schemaErrors } from "~/utils/validation";
 
 type PeriodsData = Awaited<
-  ReturnType<NonNullable<ReturnType<typeof yearPeriodsQuery>["queryFn"]>>
+  ReturnType<NonNullable<ReturnType<typeof schoolPeriodsQuery>["queryFn"]>>
 >;
 type Schedule = PeriodsData["schedules"][number];
 
@@ -142,7 +142,6 @@ function payloadOf(
   values: ScheduleValues,
 ) {
   return {
-    yearId: data.year.id,
     ...(schedule ? { id: schedule.id, version: schedule.version } : {}),
     nameEn: values.nameEn,
     nameAr: values.nameAr,
@@ -195,7 +194,7 @@ function useScheduleSave(data: PeriodsData, schedule: Schedule | null) {
       } catch {
         return null;
       }
-      await queryClient.invalidateQueries({ queryKey: ["years"] });
+      await queryClient.invalidateQueries({ queryKey: ["periods"] });
       await queryClient.invalidateQueries({ queryKey: ["timetable"] });
       toast.success(m.schedulesSaved());
       return saved.id;
@@ -623,7 +622,7 @@ function SchedulePanel({ data, schedule, open, onClose }: SchedulePanelProps) {
         extras: values.extras.filter((other) => other.id !== extra.id),
       }),
     });
-    await queryClient.invalidateQueries({ queryKey: ["years"] });
+    await queryClient.invalidateQueries({ queryKey: ["periods"] });
     await queryClient.invalidateQueries({ queryKey: ["timetable"] });
     toast.success(m.schedulesSaved());
   };
@@ -783,7 +782,7 @@ export interface BellSchedulesProps {
 }
 
 /**
- * The year's other days: bell schedules giving the periods other times on
+ * The school's other days: bell schedules giving the periods other times on
  * the days that choose them, such as a late start or Ramadan hours. Each
  * schedule opens to its periods, each changed on its own.
  */
@@ -853,7 +852,7 @@ export function BellSchedules({ data }: BellSchedulesProps) {
               await removeBellSchedule({
                 data: { id: schedule.id, version: schedule.version },
               });
-              await queryClient.invalidateQueries({ queryKey: ["years"] });
+              await queryClient.invalidateQueries({ queryKey: ["periods"] });
               await queryClient.invalidateQueries({ queryKey: ["timetable"] });
               toast.success(m.schedulesRemoved());
             },

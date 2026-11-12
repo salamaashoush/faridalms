@@ -272,3 +272,11 @@ export const saveArrivalSchema = v.object({
   previousSchool: optionalText(160),
 });
 export type SaveArrivalInput = v.InferInput<typeof saveArrivalSchema>;
+
+/** The school days a year aims at, as its authority sets them, or none. */
+export const targetDaysSchema = v.object({
+  yearId: id,
+  target: v.nullable(
+    v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(366)),
+  ),
+});

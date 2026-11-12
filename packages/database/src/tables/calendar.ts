@@ -5,11 +5,9 @@ import {
   boolean,
   date,
   index,
-  jsonb,
   pgPolicy,
   smallint,
   text,
-  time,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -57,6 +55,8 @@ export const academicSessions = core.table.withRLS(
     /** When the school asked families whether each student returns the year after. */
     reenrolmentOpenedAt: instant("reenrolment_opened_at"),
     sequence: smallint("sequence").notNull().default(1),
+    /** The school days the authority expects in a year, to count against. */
+    targetDays: smallint("target_days"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -118,6 +118,11 @@ export const academicSessions = core.table.withRLS(
     ck("academic_sessions", "sequence", sql`sequence between 1 and 99`),
     ck(
       "academic_sessions",
+      "target_days",
+      sql`target_days is null or (type = 'school_year' and target_days between 1 and 366)`,
+    ),
+    ck(
+      "academic_sessions",
       "title",
       sql`num_nonnulls(title_en, title_ar) >= 1`,
     ),
@@ -159,155 +164,17 @@ export const academicSessions = core.table.withRLS(
   ],
 );
 
-export const calendars = core.table.withRLS(
-  "calendars",
-  {
-    ...tenantColumns(),
-    orgId: uuid("org_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
-    schoolYearType: text("school_year_type").notNull().default("school_year"),
-    code: text("code").notNull(),
-    kind: text("kind").$type<"school" | "grade_level" | "staff">().notNull(),
-    titleEn: text("title_en"),
-    titleAr: text("title_ar"),
-    /** The school days the authority expects in the year, to count against. */
-    targetDays: smallint("target_days"),
-    ...entityColumns(),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("calendars", t.tenantId, t.id),
-    uq("calendars", t.tenantId, t.id, t.schoolYearId),
-    ...baseConstraints("calendars", t, tenants),
-    fk(
-      "calendars",
-      [t.tenantId, t.schoolYearId, t.schoolYearType, t.schoolYearId, t.orgId],
-      [
-        academicSessions.tenantId,
-        academicSessions.id,
-        academicSessions.type,
-        academicSessions.schoolYearId,
-        academicSessions.orgId,
-      ],
-    ),
-    ck("calendars", "school_year_type", sql`school_year_type = 'school_year'`),
-    ck("calendars", "code", sql`code ~ '^[A-Za-z0-9_-]{1,60}$'`),
-    ck("calendars", "kind", sql`kind in ('school', 'grade_level', 'staff')`),
-    ck("calendars", "title_en", sql`char_length(title_en) between 1 and 80`),
-    ck("calendars", "title_ar", sql`char_length(title_ar) between 1 and 80`),
-    ck("calendars", "title", sql`num_nonnulls(title_en, title_ar) >= 1`),
-    ck(
-      "calendars",
-      "target_days",
-      sql`target_days is null or target_days between 1 and 366`,
-    ),
-    uniqueIndex("calendars_code_key")
-      .on(t.tenantId, t.schoolYearId, t.code)
-      .where(sql`status = 'active'`),
-    uniqueIndex("calendars_school_key")
-      .on(t.tenantId, t.schoolYearId)
-      .where(sql`kind = 'school' and status = 'active'`),
-    ...entityProfile({ integration: true }),
-  ],
-);
-
-export const calendarGradeLevels = core.table.withRLS(
-  "calendar_grade_levels",
-  {
-    ...tenantColumns(),
-    calendarId: uuid("calendar_id").notNull(),
-    gradeLevelDescriptorId: uuid("grade_level_descriptor_id").notNull(),
-    gradeLevelNs: text("grade_level_ns")
-      .notNull()
-      .generatedAlwaysAs(sql`'grade_level'`),
-    ...entityColumns(),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("calendar_grade_levels", t.tenantId, t.id),
-    ...baseConstraints("calendar_grade_levels", t, tenants),
-    fk(
-      "calendar_grade_levels",
-      [t.tenantId, t.calendarId],
-      [calendars.tenantId, calendars.id],
-    ),
-    fk(
-      "calendar_grade_levels",
-      [t.tenantId, t.gradeLevelDescriptorId, t.gradeLevelNs],
-      [descriptors.tenantId, descriptors.id, descriptors.namespace],
-    ),
-    uniqueIndex("calendar_grade_levels_key")
-      .on(t.tenantId, t.calendarId, t.gradeLevelDescriptorId)
-      .where(sql`status = 'active'`),
-    ...entityProfile({ integration: true }),
-  ],
-);
-
-/** A bell schedule's times for one period, keyed by the period's code. */
-export interface BellTimesRow {
-  code: string;
-  startTime: string;
-  endTime: string;
-}
-
 /**
- * A day of the year run on other times than its periods' own (a late
- * start, an exam day, Ramadan hours): the periods held, each at its time
- * that day. Days choose it on the school calendar.
+ * A day a school marks as other than its week says: a holiday or closure
+ * on a school day, an exam day, an early dismissal, a make-up day on a
+ * weekend. A day it does not mark is a school day or a weekend by its week.
+ * The school's days belong to no year.
  */
-export const bellSchedules = core.table.withRLS(
-  "bell_schedules",
-  {
-    ...tenantColumns(),
-    orgId: uuid("org_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
-    schoolYearType: text("school_year_type").notNull().default("school_year"),
-    nameEn: text("name_en"),
-    nameAr: text("name_ar"),
-    /** A period left out is not held on the schedule's days. */
-    times: jsonb("times").$type<BellTimesRow[]>().notNull(),
-    ...entityColumns(),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("bell_schedules", t.tenantId, t.id),
-    uq("bell_schedules", t.tenantId, t.id, t.schoolYearId),
-    ...baseConstraints("bell_schedules", t, tenants),
-    fk(
-      "bell_schedules",
-      [t.tenantId, t.schoolYearId, t.schoolYearType, t.schoolYearId, t.orgId],
-      [
-        academicSessions.tenantId,
-        academicSessions.id,
-        academicSessions.type,
-        academicSessions.schoolYearId,
-        academicSessions.orgId,
-      ],
-    ),
-    ck(
-      "bell_schedules",
-      "school_year_type",
-      sql`school_year_type = 'school_year'`,
-    ),
-    ck("bell_schedules", "name_en", sql`char_length(name_en) between 1 and 60`),
-    ck("bell_schedules", "name_ar", sql`char_length(name_ar) between 1 and 60`),
-    ck("bell_schedules", "name", sql`num_nonnulls(name_en, name_ar) >= 1`),
-    ck(
-      "bell_schedules",
-      "times",
-      sql`jsonb_typeof(times) = 'array' and jsonb_array_length(times) between 0 and 50`,
-    ),
-    index("bell_schedules_year_idx")
-      .on(t.tenantId, t.schoolYearId)
-      .where(sql`status = 'active'`),
-    ...entityProfile(),
-  ],
-);
-
 export const calendarDates = core.table.withRLS(
   "calendar_dates",
   {
     ...tenantColumns(),
-    calendarId: uuid("calendar_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
-    schoolYearType: text("school_year_type").notNull().default("school_year"),
+    orgId: uuid("org_id").notNull(),
     dayOn: date("day_on", { mode: "string" }).notNull(),
     span: daterange("span")
       .notNull()
@@ -320,34 +187,16 @@ export const calendarDates = core.table.withRLS(
     noteAr: text("note_ar"),
     /** Waits on an announcement, as holidays set by the moon do; shown as expected. */
     provisional: boolean("provisional").notNull().default(false),
-    /** The other times the day runs on; none keeps its periods' own. */
-    bellScheduleId: uuid("bell_schedule_id"),
-    /** The day of the timetable's cycle it runs as instead of its own. */
-    runsAs: smallint("runs_as"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
     pk("calendar_dates", t.tenantId, t.id),
     ...baseConstraints("calendar_dates", t, tenants),
-    fk(
-      "calendar_dates",
-      [t.tenantId, t.calendarId, t.schoolYearId],
-      [calendars.tenantId, calendars.id, calendars.schoolYearId],
-    ),
+    fk("calendar_dates", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
     fk(
       "calendar_dates",
       [t.tenantId, t.eventDescriptorId, t.eventNs],
       [descriptors.tenantId, descriptors.id, descriptors.namespace],
-    ),
-    fk(
-      "calendar_dates",
-      [t.tenantId, t.bellScheduleId, t.schoolYearId],
-      [bellSchedules.tenantId, bellSchedules.id, bellSchedules.schoolYearId],
-    ),
-    ck(
-      "calendar_dates",
-      "school_year_type",
-      sql`school_year_type = 'school_year'`,
     ),
     ck(
       "calendar_dates",
@@ -359,9 +208,8 @@ export const calendarDates = core.table.withRLS(
       "note_ar",
       sql`char_length(note_ar) between 1 and 200`,
     ),
-    ck("calendar_dates", "runs_as", sql`runs_as between 1 and 28`),
     uniqueIndex("calendar_dates_day_key")
-      .on(t.tenantId, t.calendarId, t.dayOn)
+      .on(t.tenantId, t.orgId, t.dayOn)
       .where(sql`status = 'active'`),
     ...entityProfile({ integration: true }),
   ],
@@ -406,101 +254,6 @@ export const academicWeeks = core.table.withRLS(
     uniqueIndex("academic_weeks_number_key")
       .on(t.tenantId, t.schoolYearId, t.number)
       .where(sql`status = 'active'`),
-    ...entityProfile({ integration: true }),
-  ],
-);
-
-export type PeriodKind = "lesson" | "registration" | "break" | "other";
-
-export const classPeriods = core.table.withRLS(
-  "class_periods",
-  {
-    ...tenantColumns(),
-    orgId: uuid("org_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
-    schoolYearType: text("school_year_type").notNull().default("school_year"),
-    code: text("code").notNull(),
-    nameEn: text("name_en"),
-    nameAr: text("name_ar"),
-    sequence: smallint("sequence").notNull(),
-    kind: text("kind").$type<PeriodKind>().notNull().default("lesson"),
-    startTime: time("start_time"),
-    endTime: time("end_time"),
-    officialAttendance: boolean("official_attendance").notNull().default(false),
-    /** ISO days of the week it runs on, of the school's teaching days. */
-    weekdays: smallint("weekdays")
-      .array()
-      .notNull()
-      .default(sql`'{1,2,3,4,5,6,7}'`),
-    /** Other times it keeps on some of its days of the week. */
-    dayTimes: jsonb("day_times")
-      .$type<{ weekdays: number[]; startTime: string; endTime: string }[]>()
-      .notNull()
-      .default(sql`'[]'::jsonb`),
-    validDuring: daterange("valid_during").notNull(),
-    /** The bell schedule whose days alone hold it, beyond the year's own periods. */
-    bellScheduleId: uuid("bell_schedule_id"),
-    ...entityColumns(),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("class_periods", t.tenantId, t.id),
-    uq("class_periods", t.tenantId, t.id, t.schoolYearId, t.orgId),
-    ...baseConstraints("class_periods", t, tenants),
-    fk(
-      "class_periods",
-      [t.tenantId, t.schoolYearId, t.schoolYearType, t.schoolYearId, t.orgId],
-      [
-        academicSessions.tenantId,
-        academicSessions.id,
-        academicSessions.type,
-        academicSessions.schoolYearId,
-        academicSessions.orgId,
-      ],
-    ),
-    fk(
-      "class_periods",
-      [t.tenantId, t.bellScheduleId, t.schoolYearId],
-      [bellSchedules.tenantId, bellSchedules.id, bellSchedules.schoolYearId],
-    ),
-    ck(
-      "class_periods",
-      "school_year_type",
-      sql`school_year_type = 'school_year'`,
-    ),
-    ck("class_periods", "code", sql`code ~ '^[A-Za-z0-9_-]{1,20}$'`),
-    ck("class_periods", "name_en", sql`char_length(name_en) between 1 and 60`),
-    ck("class_periods", "name_ar", sql`char_length(name_ar) between 1 and 60`),
-    ck("class_periods", "sequence", sql`sequence between 1 and 50`),
-    ck(
-      "class_periods",
-      "kind",
-      sql`kind in ('lesson', 'registration', 'break', 'other')`,
-    ),
-    ck("class_periods", "name", sql`num_nonnulls(name_en, name_ar) >= 1`),
-    ck(
-      "class_periods",
-      "times",
-      sql`(start_time is null) = (end_time is null) and (end_time is null or end_time > start_time)`,
-    ),
-    ck(
-      "class_periods",
-      "weekdays",
-      sql`weekdays <@ '{1,2,3,4,5,6,7}' and cardinality(weekdays) between 1 and 7`,
-    ),
-    ck(
-      "class_periods",
-      "day_times",
-      sql`jsonb_typeof(day_times) = 'array' and jsonb_array_length(day_times) <= 6`,
-    ),
-    ck("class_periods", "valid_during", range.bounded("valid_during")),
-    ck(
-      "class_periods",
-      "extra",
-      sql`bell_schedule_id is null or not official_attendance`,
-    ),
-    uniqueIndex("class_periods_extra_code_key")
-      .on(t.tenantId, t.bellScheduleId, t.code)
-      .where(sql`status = 'active' and bell_schedule_id is not null`),
     ...entityProfile({ integration: true }),
   ],
 );

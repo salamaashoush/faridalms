@@ -6,6 +6,7 @@ import { describe, expect, test } from "bun:test";
 import { deliverTenant } from "../src/notifications/deliver";
 import {
   login,
+  periodOf,
   rejection,
   runDay,
   schoolDayBack,
@@ -210,7 +211,7 @@ describe("absence notices", () => {
     const absent = await office.attendance.save({
       classId: homeroom.class.id,
       date,
-      periodId: homeroom.period.id,
+      periodId: periodOf(homeroom).id,
       expectedVersion: homeroom.register?.version ?? 0,
       marks: marks("absent"),
     });
@@ -232,7 +233,7 @@ describe("absence notices", () => {
     await office.attendance.save({
       classId: homeroom.class.id,
       date,
-      periodId: homeroom.period.id,
+      periodId: periodOf(homeroom).id,
       expectedVersion: absent.version,
       marks: marks("present"),
       correction: "The family rang: she was in the library.",
@@ -292,7 +293,7 @@ describe("absence notices", () => {
     const absent = await office.attendance.save({
       classId: homeroom.class.id,
       date,
-      periodId: homeroom.period.id,
+      periodId: periodOf(homeroom).id,
       expectedVersion: homeroom.register?.version ?? 0,
       marks: marks("absent"),
     });
@@ -308,7 +309,7 @@ describe("absence notices", () => {
     await office.attendance.save({
       classId: homeroom.class.id,
       date,
-      periodId: homeroom.period.id,
+      periodId: periodOf(homeroom).id,
       expectedVersion: absent.version,
       marks: marks("present"),
       correction: "Marked absent by mistake.",

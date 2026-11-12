@@ -14,14 +14,22 @@ import {
   PROVISION_AUDIENCE,
 } from "@faridalms/domain/provisioning";
 import { addDays } from "@faridalms/domain/school";
-import { DEFAULT_PERIODS, isoWeekday } from "@faridalms/domain/timetable";
+import { dayOpen, isoWeekday } from "@faridalms/domain/school-days";
+import { DEFAULT_PERIODS } from "@faridalms/domain/timetable";
 import { SQL } from "bun";
 import { afterAll, describe, expect, test } from "bun:test";
 import { SignJWT } from "jose";
 import { randomBytes } from "node:crypto";
 import * as v from "valibot";
 
-import { client, rejection, seeded, testCell, testDirectory } from "./harness";
+import {
+  client,
+  periodOf,
+  rejection,
+  seeded,
+  testCell,
+  testDirectory,
+} from "./harness";
 
 const OPERATOR = "operator-under-test";
 const operatorDirectory = openDirectoryAdmin(testDirectory().operatorUrl);
@@ -134,6 +142,37 @@ async function choosePassword(slug: string, secret: string) {
   return { api: client(slug, session.token), loginName, password };
 }
 
+type SchoolApi = Awaited<ReturnType<typeof choosePassword>>["api"];
+
+/** Sets the platform's usual school day from a date, as the office does on a school that has set none. */
+async function setUsualDay(api: SchoolApi, from: string) {
+  await api.periods.savePeriods({
+    from,
+    known: [],
+    periods: DEFAULT_PERIODS.map((period) => ({
+      nameEn: period.nameEn ?? "",
+      nameAr: period.nameAr ?? "",
+      kind: period.kind,
+      startTime: period.startTime,
+      endTime: period.endTime,
+      official: period.official,
+      weekdays: [...period.weekdays],
+    })),
+  });
+}
+
+/** The last day on or before `today` the school holds lessons on. */
+async function lastSchoolDay(api: SchoolApi, today: string) {
+  const read = await api.schoolDays.days({
+    from: addDays(today, -14),
+    to: today,
+  });
+  const marks = new Map(read.days.map((row) => [row.day, row.meaning]));
+  for (let day = today; day >= read.from; day = addDays(day, -1))
+    if (dayOpen(read, day, marks.get(day) ?? null)) return day;
+  throw new Error("the school has had no school day yet");
+}
+
 describe("creating a school from the operator console", () => {
   test("a standalone school's administrator chooses a password and runs the school", async () => {
     const email = "salama@riverside.example.com";
@@ -162,7 +201,7 @@ describe("creating a school from the operator console", () => {
     expect(me.capabilities.toSorted()).toEqual([...CAPABILITIES].toSorted());
   });
 
-  test("a new school's first year has a working day, so lessons are placed and registers taken", async () => {
+  test("a new school sets the usual day once, then places lessons and takes registers", async () => {
     const email = "salama@orchard.example.com";
     const { body } = await begin(standalone("orchard", email));
     expect((await call("/v1/tenants", body)).status).toBe(200);
@@ -178,7 +217,9 @@ describe("creating a school from the operator console", () => {
       endsOn: addDays(today, 200),
       terms: [],
     });
-    const day = await api.periods.periods({ id: year.id, on: "" });
+    expect((await api.periods.periods({ on: "" })).periods).toEqual([]);
+    await setUsualDay(api, addDays(today, -40));
+    const day = await api.periods.periods({ on: "" });
     expect(
       day.periods.map((period) => [
         period.nameEn,
@@ -255,11 +296,7 @@ describe("creating a school from the operator console", () => {
       from: addDays(today, -40),
     });
 
-    const { days } = await api.schoolDays.days({ id: year.id });
-    const taught = days
-      .filter((row) => row.day <= today && row.meaning === "instructional_day")
-      .at(-1)?.day;
-    if (!taught) throw new Error("the year has no school day yet");
+    const taught = await lastSchoolDay(api, today);
     const grid = await api.timetable.grid({ classId: homeroom.id, on: taught });
     const [lesson] = grid.periods;
     const [subjectClass] = grid.classes;
@@ -284,11 +321,11 @@ describe("creating a school from the operator console", () => {
       date: taught,
     });
     const official = day.periods.find((period) => period.official);
-    expect(register.period.id).toBe(official?.id ?? "");
+    expect(periodOf(register).id).toBe(official?.id ?? "");
     await api.attendance.save({
       classId: homeroom.id,
       date: taught,
-      periodId: register.period.id,
+      periodId: periodOf(register).id,
       expectedVersion: 0,
       marks: [{ studentId: student.id, meaning: "present" }],
     });
@@ -317,6 +354,7 @@ describe("creating a school from the operator console", () => {
       endsOn: addDays(today, 200),
       terms: [],
     });
+    await setUsualDay(api, addDays(today, -40));
     const teacher = await api.people.saveStaff({
       names: {
         en: { given: "Salama", middle: "", family: "Ashoush" },
@@ -390,15 +428,11 @@ describe("creating a school from the operator console", () => {
     ])
       expect(await rejection(ask())).toMatchObject({ code: "NOT_FOUND" });
 
-    const { days } = await api.schoolDays.days({ id: year.id });
-    const taught = days
-      .filter((row) => row.day <= today && row.meaning === "instructional_day")
-      .at(-1)?.day;
-    if (!taught) throw new Error("the year has no school day yet");
+    const taught = await lastSchoolDay(api, today);
     const grid = await api.timetable.grid({ classId: course.id, on: taught });
     expect(grid.classes.map((row) => row.id)).toEqual([course.id]);
     const official = new Set(
-      (await api.periods.periods({ id: year.id, on: "" })).periods
+      (await api.periods.periods({ on: "" })).periods
         .filter((period) => period.official)
         .map((period) => period.id),
     );
@@ -417,12 +451,12 @@ describe("creating a school from the operator console", () => {
       classId: course.id,
       date: taught,
     });
-    expect(register.period.id).toBe(lesson.id);
+    expect(periodOf(register).id).toBe(lesson.id);
     expect(register.students.map((row) => row.id)).toEqual([learner.id]);
     await api.attendance.save({
       classId: course.id,
       date: taught,
-      periodId: register.period.id,
+      periodId: periodOf(register).id,
       expectedVersion: 0,
       marks: [{ studentId: learner.id, meaning: "present" }],
     });
@@ -479,8 +513,8 @@ describe("creating a school from the operator console", () => {
       terms: [],
       units: [],
     });
+    // Registers belong to no year: a new school's board reads its day.
     expect(await api.attendance.board({ date: "" })).toMatchObject({
-      year: null,
       rows: [],
     });
     expect(
@@ -963,5 +997,347 @@ describe("creating a school from the operator console", () => {
       }),
     );
     expect(response.status).toBe(404);
+  });
+});
+
+/** A new school with these modules off, its administrator signed in, a teacher, a class with no year and a student in it. */
+async function schoolWithout(
+  slug: string,
+  off: readonly string[],
+  options: { usualDay: boolean },
+) {
+  const email = `salama@${slug}.example.com`;
+  const { body } = await begin({
+    ...standalone(slug, email),
+    entitlements: {
+      ...settableOf(BASIC_ENTITLEMENTS),
+      modules: MODULE_IDS.filter((id) => !off.includes(id)),
+    },
+  });
+  expect((await call("/v1/tenants", body)).status).toBe(200);
+  const { api } = await choosePassword(slug, linkTo(email, slug).secret);
+  const { today, modules } = await api.identity.currentUser();
+  for (const id of off) expect(modules[id as keyof typeof modules]).toBe(false);
+  if (options.usualDay) await setUsualDay(api, addDays(today, -40));
+  const teacher = await api.people.saveStaff({
+    names: {
+      en: { given: "Salama", middle: "", family: "Ashoush" },
+      ar: { given: "سلامة", middle: "", family: "عشوش" },
+    },
+    email: `teacher@${slug}.example.com`,
+    roles: ["teacher"],
+  });
+  const course = await api.classes.save({
+    startsOn: addDays(today, -40),
+    code: "RUN-1",
+    titleEn: "Running club",
+    titleAr: "",
+    teacherIds: [teacher.id],
+  });
+  const learner = await api.people.saveStudent({
+    names: {
+      en: { given: "Omar", middle: "", family: "Ashoush" },
+      ar: { given: "عمر", middle: "", family: "عشوش" },
+    },
+    reference: `${slug.toUpperCase()}-1`,
+    guardians: [],
+  });
+  await api.classes.enrol({
+    studentId: learner.id,
+    classId: course.id,
+    from: addDays(today, -40),
+  });
+  return { api, today, teacher, course, learner };
+}
+
+describe("registers by class and date", () => {
+  test("a school without school years or a timetable takes each class's register of the whole day, once a day, and never in a period", async () => {
+    const { api, today, course, learner } = await schoolWithout(
+      "meadow",
+      ["school_years", "timetable"],
+      { usualDay: false },
+    );
+    const taught = await lastSchoolDay(api, today);
+    const register = await api.attendance.register({
+      classId: course.id,
+      date: taught,
+    });
+    expect(register.period).toBeNull();
+    expect(register.periods).toEqual([]);
+    expect(register.register).toBeNull();
+    expect(register.access).toEqual({ editable: true });
+    expect(
+      await rejection(
+        api.attendance.save({
+          classId: course.id,
+          date: taught,
+          periodId: crypto.randomUUID(),
+          expectedVersion: 0,
+          marks: [],
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST", message: "attendance.no_period" });
+    expect(
+      await api.attendance.save({
+        classId: course.id,
+        date: taught,
+        periodId: "",
+        expectedVersion: 0,
+        marks: [{ studentId: learner.id, meaning: "absent" }],
+      }),
+    ).toMatchObject({ state: "submitted" });
+    expect(
+      await rejection(
+        api.attendance.save({
+          classId: course.id,
+          date: taught,
+          periodId: "",
+          expectedVersion: 0,
+          marks: [{ studentId: learner.id, meaning: "present" }],
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "conflict.version" });
+    const again = await api.attendance.register({
+      classId: course.id,
+      date: taught,
+    });
+    expect(again.register?.state).toBe("submitted");
+    expect(again.marks).toEqual([
+      expect.objectContaining({ studentId: learner.id, meaning: "absent" }),
+    ]);
+
+    const board = await api.attendance.board({ date: taught });
+    expect(board.rows).toEqual([
+      expect.objectContaining({
+        classId: course.id,
+        kind: "day",
+        periodId: "",
+        periodNameEn: null,
+        state: "submitted",
+      }),
+    ]);
+    const report = await api.attendance.report({});
+    expect(report.spans).toEqual([]);
+    expect(report.span).toBe("");
+    expect(report.from).toBe(addDays(today, 1 - 7 * 12));
+    expect(report.rows).toEqual([
+      expect.objectContaining({
+        id: learner.id,
+        counts: expect.objectContaining({ absent: 1 }),
+      }),
+    ]);
+    const summary = await api.attendance.student({ studentId: learner.id });
+    expect(summary.span).toMatchObject({ titleEn: null, titleAr: null });
+    expect(summary.summary.sessions).toBe(1);
+    expect(await rejection(api.timetable.options({}))).toMatchObject({
+      code: "NOT_FOUND",
+    });
+    expect(await rejection(api.periods.periods({ on: "" }))).toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+
+  test("a school without school years plans a class in no year on the timetable, takes its register in the period, and changes its lesson for a day", async () => {
+    const { api, today, teacher, course, learner } = await schoolWithout(
+      "linden",
+      ["school_years"],
+      { usualDay: true },
+    );
+    const taught = await lastSchoolDay(api, today);
+    const grid = await api.timetable.grid({ classId: course.id, on: taught });
+    expect(grid.canPlan).toBe(true);
+    const lesson = grid.periods[1];
+    if (!lesson) throw new Error("the usual day has lessons");
+    await api.timetable.place({
+      classId: course.id,
+      weekday: isoWeekday(taught),
+      periodId: lesson.id,
+      from: taught,
+      meetingClassId: course.id,
+      teacherId: teacher.id,
+      roomId: "",
+    });
+    const week = await api.timetable.classWeek({
+      classId: course.id,
+      on: taught,
+    });
+    expect(
+      week.week.meetings
+        .filter((row) => row.on === taught)
+        .map((row) => row.periodId),
+    ).toEqual([lesson.id]);
+    const onboarding = (await api.home.admin()).onboarding;
+    expect(
+      onboarding?.steps.find((step) => step.id === "timetable")?.done,
+    ).toBe(true);
+
+    const register = await api.attendance.register({
+      classId: course.id,
+      date: taught,
+    });
+    expect(periodOf(register).id).toBe(lesson.id);
+    expect(
+      await rejection(
+        api.attendance.save({
+          classId: course.id,
+          date: taught,
+          periodId: "",
+          expectedVersion: 0,
+          marks: [],
+        }),
+      ),
+    ).toMatchObject({
+      code: "BAD_REQUEST",
+      message: "attendance.period_required",
+    });
+    await api.attendance.save({
+      classId: course.id,
+      date: taught,
+      periodId: lesson.id,
+      expectedVersion: 0,
+      marks: [{ studentId: learner.id, meaning: "present" }],
+    });
+    const board = await api.attendance.board({ date: taught });
+    expect(board.rows).toEqual([
+      expect.objectContaining({
+        classId: course.id,
+        kind: "period",
+        periodId: lesson.id,
+        state: "submitted",
+      }),
+    ]);
+
+    const next = addDays(taught, 7);
+    await api.cover.changeLesson({
+      classId: course.id,
+      periodId: lesson.id,
+      on: next,
+      expected: "",
+      coverId: "",
+      roomId: "",
+      cancelled: true,
+      note: "",
+    });
+    const changed = await api.timetable.classWeek({
+      classId: course.id,
+      on: next,
+    });
+    expect(
+      changed.week.meetings.find((row) => row.on === next)?.change?.cancelled,
+    ).toBe(true);
+  });
+
+  test("with the timetable on, a day that holds no periods takes the register of the whole day: before any are set, and on a schedule that holds none", async () => {
+    const { api, today, course } = await schoolWithout(
+      "willow",
+      ["school_years"],
+      { usualDay: false },
+    );
+    const taught = await lastSchoolDay(api, today);
+    const unset = await api.attendance.register({
+      classId: course.id,
+      date: taught,
+    });
+    expect(unset.period).toBeNull();
+    expect(unset.periods).toEqual([]);
+
+    await setUsualDay(api, addDays(today, -40));
+    expect(
+      (await api.attendance.register({ classId: course.id, date: taught }))
+        .period,
+    ).not.toBeNull();
+    const schedule = await api.periods.saveSchedule({
+      nameEn: "Sports day",
+      nameAr: "اليوم الرياضي",
+      times: [],
+      extras: [
+        {
+          code: "games",
+          nameEn: "Games",
+          nameAr: "الألعاب",
+          kind: "break",
+          startTime: "09:00",
+          endTime: "12:00",
+        },
+      ],
+    });
+    await api.periods.scheduleRange({
+      from: taught,
+      to: taught,
+      scheduleId: schedule.id,
+    });
+    const sportsDay = await api.attendance.register({
+      classId: course.id,
+      date: taught,
+    });
+    expect(sportsDay.period).toBeNull();
+    expect(sportsDay.periods).toEqual([]);
+    await api.attendance.save({
+      classId: course.id,
+      date: taught,
+      periodId: "",
+      expectedVersion: 0,
+      marks: [],
+    });
+  });
+
+  test("with school years on, the days after a year owe no register and hold no lesson of its classes, while a class with no end keeps its lessons there until the school closes those days", async () => {
+    const { api, today, teacher, course } = await schoolWithout("rowan", [], {
+      usualDay: true,
+    });
+    const year = await api.years.save({
+      titleEn: "Rowan year",
+      titleAr: "",
+      startsOn: addDays(today, -40),
+      endsOn: addDays(today, 20),
+      terms: [],
+    });
+    const inYear = await api.classes.save({
+      startsOn: addDays(today, -40),
+      endsOn: addDays(today, 20),
+      parts: { year: { yearId: year.id } },
+      code: "YEAR-1",
+      titleEn: "Year class",
+      titleAr: "",
+      teacherIds: [teacher.id],
+    });
+    const taught = await lastSchoolDay(api, today);
+    const lesson = (
+      await api.timetable.grid({ classId: course.id, on: taught })
+    ).periods[1];
+    if (!lesson) throw new Error("the usual day has lessons");
+    for (const classId of [course.id, inYear.id])
+      await api.timetable.place({
+        classId,
+        weekday: isoWeekday(taught),
+        periodId: lesson.id,
+        from: taught,
+        meetingClassId: classId,
+        teacherId: "",
+        roomId: "",
+      });
+    const after = addDays(taught, 35);
+    const owed = (await api.attendance.board({ date: after })).rows.map(
+      (row) => row.classId,
+    );
+    expect(owed).toEqual([course.id]);
+    const heldOn = async (classId: string) =>
+      (await api.timetable.classWeek({ classId, on: after })).week.meetings
+        .filter((row) => row.on === after)
+        .map((row) => row.classId);
+    expect(await heldOn(inYear.id)).toEqual([]);
+    expect(await heldOn(course.id)).toEqual([course.id]);
+
+    await api.schoolDays.paint({
+      from: addDays(today, 21),
+      to: addDays(today, 60),
+      kind: "school_holiday",
+      noteEn: "Summer",
+      noteAr: "",
+      provisional: false,
+    });
+    const closed = await api.attendance.board({ date: after });
+    expect(closed).toMatchObject({ schoolDay: false, rows: [] });
+    expect(await heldOn(course.id)).toEqual([]);
   });
 });

@@ -9,7 +9,7 @@ import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
   Link,
@@ -21,10 +21,15 @@ import * as v from "valibot";
 import type { CardCell } from "~/components/timetable/Weeks";
 
 import { classTitle } from "~/components/classes/format";
+import {
+  classFilters,
+  viewsOf as classViewsOf,
+} from "~/components/classes/slots";
 import { displayName } from "~/components/people/format";
 import { CoverDay } from "~/components/timetable/Cover";
 import { cycleDayLabel } from "~/components/timetable/cycle";
 import { Planner } from "~/components/timetable/Planner";
+import { SchoolDay } from "~/components/timetable/SchoolDay";
 import { Timetables } from "~/components/timetable/Timetables";
 import {
   roomLabel,
@@ -32,10 +37,11 @@ import {
   teacherLabel,
   TeacherWeek,
 } from "~/components/timetable/Weeks";
-import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import { loadTeaches, useTeaches } from "~/hooks/useTeaches";
 import * as m from "~/i18n/messages";
+import { schoolPeriodsQuery } from "~/queries/periods";
 import {
   clashesQuery,
   coverDayQuery,
@@ -46,6 +52,7 @@ import {
   timetablesQuery,
 } from "~/queries/timetable";
 import { currentUserQuery } from "~/queries/user";
+import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
 
 const VIEWS = [
@@ -56,13 +63,15 @@ const VIEWS = [
   "cover",
   "clashes",
   "timetables",
+  "day",
 ] as const;
 type View = (typeof VIEWS)[number];
 type SchoolView = Exclude<View, "mine">;
 const SCHOOL_VIEWS = VIEWS.filter((view) => view !== "mine");
 
 const uuid = v.pipe(v.string(), v.uuid());
-const searchSchema = v.object({
+// Loose, so a module's view of the classes rides in the address under its own key.
+const searchSchema = v.looseObject({
   view: v.fallback(v.optional(v.picklist(VIEWS)), undefined),
   classId: v.optional(v.union([v.literal(""), uuid]), ""),
   teacherId: v.optional(v.union([v.literal(""), uuid]), ""),
@@ -93,7 +102,13 @@ export const Route = createFileRoute("/_app/_staff/timetable")({
       await queryClient.ensureQueryData(teacherWeekQuery());
       return;
     }
-    const options = await queryClient.ensureQueryData(timetableOptionsQuery);
+    const filters = filled(context.extensions, user.modules, classFilters);
+    const [options] = await Promise.all([
+      queryClient.ensureQueryData(
+        timetableOptionsQuery(classViewsOf(filters, deps)),
+      ),
+      ...filters.map((filter) => queryClient.ensureQueryData(filter.query())),
+    ]);
     const picked = pickedOf(deps, options);
     if (view === "classes" && picked.classId)
       await queryClient.ensureQueryData(
@@ -111,8 +126,10 @@ export const Route = createFileRoute("/_app/_staff/timetable")({
       await queryClient.ensureQueryData(coverDayQuery(picked.from));
     else if (view === "clashes")
       await queryClient.ensureQueryData(clashesQuery(picked.from));
-    else if (view === "timetables" && options.year)
-      await queryClient.ensureQueryData(timetablesQuery(options.year.id));
+    else if (view === "timetables")
+      await queryClient.ensureQueryData(timetablesQuery);
+    else if (view === "day")
+      await queryClient.ensureQueryData(schoolPeriodsQuery(deps.from));
   },
   component: TimetablePage,
 });
@@ -158,24 +175,13 @@ function registerCell(date: string): CardCell {
 }
 
 type Options = Awaited<
-  ReturnType<NonNullable<(typeof timetableOptionsQuery)["queryFn"]>>
+  ReturnType<NonNullable<ReturnType<typeof timetableOptionsQuery>["queryFn"]>>
 >;
 
-/** What each view shows when nothing is picked yet: the first of each. */
+/** What each view shows when nothing is picked yet: the first of each, on the day its view reads. */
 function pickedOf(search: Search, options: Options) {
-  const today = options.today;
-  const year = options.year;
-  const from =
-    search.from ||
-    (year
-      ? today < year.startsOn
-        ? year.startsOn
-        : today > year.lastDay
-          ? year.lastDay
-          : today
-      : today);
   return {
-    from,
+    from: search.from || options.on,
     classId: search.classId || options.grids[0]?.id || "",
     teacherId: search.teacherId || options.teachers[0]?.userId || "",
     roomId: search.roomId || options.rooms[0]?.id || "",
@@ -190,6 +196,7 @@ const VIEW_LABEL: Record<View, () => string> = {
   cover: m.ttCover,
   clashes: m.ttClashes,
   timetables: m.ttTimetables,
+  day: m.ttSchoolDay,
 };
 
 type Clash = Awaited<
@@ -364,9 +371,26 @@ interface SchoolTimetableProps {
 }
 
 function SchoolTimetable({ view, search, patch }: SchoolTimetableProps) {
-  const options = useSuspenseQuery(timetableOptionsQuery).data;
+  const filters = useSlot(classFilters);
+  const reads = useSuspenseQueries({
+    queries: filters.map((filter) => filter.query()),
+  });
+  const options = useSuspenseQuery(
+    timetableOptionsQuery(classViewsOf(filters, search)),
+  ).data;
   const picked = pickedOf(search, options);
-  if (!options.year) return <NoSchoolYear shows={m.noYearShowsTimetable()} />;
+  const classFacets: Facet[] =
+    view === "classes"
+      ? filters.flatMap((filter, index) => {
+          const value = search[filter.key];
+          const facet = filter.facetOf(
+            reads[index]?.data,
+            typeof value === "string" && value ? value : undefined,
+            (next) => patch({ [filter.key]: next, classId: "" }),
+          );
+          return facet ? [facet] : [];
+        })
+      : [];
   const picker =
     view === "classes"
       ? pickerFacet(
@@ -402,25 +426,23 @@ function SchoolTimetable({ view, search, patch }: SchoolTimetableProps) {
               (roomId) => patch({ roomId }),
             )
           : null;
-  if (view === "timetables") return <Timetables yearId={options.year.id} />;
+  if (view === "timetables") return <Timetables />;
   return (
     <div className="grid gap-4">
       <IndexToolbar
-        facets={picker ? [picker] : []}
+        facets={[...classFacets, ...(picker ? [picker] : [])]}
         period={
           <Input
             type="date"
             aria-label={
               view === "classes"
                 ? m.ttChangesFrom()
-                : view === "cover"
+                : view === "cover" || view === "day"
                   ? m.ttDay()
                   : m.ttWeekOf()
             }
             className="h-8 w-40 max-md:h-10"
             value={picked.from}
-            min={options.year.startsOn}
-            max={options.year.lastDay}
             onChange={(event) =>
               event.target.value && patch({ from: event.target.value })
             }
@@ -439,6 +461,8 @@ function SchoolTimetable({ view, search, patch }: SchoolTimetableProps) {
         <RoomWeek roomId={picked.roomId} on={picked.from} />
       ) : view === "cover" ? (
         <CoverDay on={picked.from} />
+      ) : view === "day" ? (
+        <SchoolDay on={picked.from} />
       ) : (
         <Clashes from={picked.from} />
       )}

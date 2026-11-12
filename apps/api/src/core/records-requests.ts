@@ -6,7 +6,6 @@ import {
   insertRequest,
   openRequestsBy,
 } from "@faridalms/database/stores/privacy";
-import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import {
   familyRequestLaw,
   MAX_OPEN_CORRECTIONS,
@@ -14,7 +13,7 @@ import {
   requestDueOn,
 } from "@faridalms/domain/privacy";
 import { addDays } from "@faridalms/domain/school";
-import { isoWeekday } from "@faridalms/domain/timetable";
+import { isoWeekday, SCHOOL_DAY_MEANINGS } from "@faridalms/domain/school-days";
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "./context";

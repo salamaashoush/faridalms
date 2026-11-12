@@ -25,11 +25,10 @@ async function one<T>(text: string, params: unknown[] = []): Promise<T> {
 }
 
 async function schoolOf(tenantId: string) {
-  return one<{ id: string; year: string; calendar: string; term: string }>(
-    `select o.id, y.id as year, c.id as calendar, t.id as term
+  return one<{ id: string; year: string; term: string }>(
+    `select o.id, y.id as year, t.id as term
      from core.orgs o
      join core.academic_sessions y on y.tenant_id = o.tenant_id and y.org_id = o.id and y.type = 'school_year'
-     join core.calendars c on c.tenant_id = o.tenant_id and c.school_year_id = y.id
      join core.academic_sessions t on t.tenant_id = o.tenant_id and t.parent_id = y.id and t.sequence = 1
      where o.tenant_id = $1 and o.type = 'school' order by o.created_at limit 1`,
     [tenantId],
@@ -94,7 +93,7 @@ describe("row level security", () => {
 });
 
 describe("temporal keys", () => {
-  test("a term outside its year, a date outside the year and a week under a term are refused", async () => {
+  test("a term outside its year and a week under a term are refused, while a school's marked day belongs to no year", async () => {
     const { a } = harness();
     const school = await schoolOf(a.tenantId);
     const term = await probe("app", a.tenantId, [
@@ -107,13 +106,13 @@ describe("temporal keys", () => {
     expect(term.error?.code).toBe("23503");
     const date = await probe("app", a.tenantId, [
       {
-        text: `insert into core.calendar_dates (tenant_id, calendar_id, school_year_id, day_on, event_descriptor_id)
-               select $1, $2, $3, '2027-08-01', id from core.descriptors
-               where tenant_id = $1 and namespace = 'calendar_event' and code_value = 'weekend'`,
-        params: [a.tenantId, school.calendar, school.year],
+        text: `insert into core.calendar_dates (tenant_id, org_id, day_on, event_descriptor_id)
+               select $1, $2, '2027-08-01', id from core.descriptors
+               where tenant_id = $1 and namespace = 'calendar_event' and code_value = 'school_holiday'`,
+        params: [a.tenantId, school.id],
       },
     ]);
-    expect(date.error?.code).toBe("23503");
+    expect(date.error).toBeUndefined();
     const week = await probe("app", a.tenantId, [
       {
         text: `insert into core.academic_weeks (tenant_id, school_year_id, number, span)
@@ -158,7 +157,7 @@ describe("temporal keys", () => {
     );
   });
 
-  test("a year cannot shrink under its calendar except through change_year_span", async () => {
+  test("a year cannot shrink under its placements except through change_year_span, which leaves the school's days alone", async () => {
     const { a } = harness();
     const school = await schoolOf(a.tenantId);
     const direct = await probe("app", a.tenantId, [
@@ -194,14 +193,6 @@ describe("temporal keys", () => {
         params: [a.tenantId, school.year],
       },
       {
-        text: `update core.class_periods set valid_during = '[2026-09-13,2027-06-10)' where tenant_id = $1 and school_year_id = $2`,
-        params: [a.tenantId, school.year],
-      },
-      {
-        text: `update core.class_meetings set valid_during = '[2026-09-13,2027-06-10)' where tenant_id = $1 and school_year_id = $2`,
-        params: [a.tenantId, school.year],
-      },
-      {
         text: `update core.academic_sessions set span = '[2027-02-07,2027-06-10)' where tenant_id = $1 and parent_id = $2 and sequence = 2`,
         params: [a.tenantId, school.year],
       },
@@ -210,8 +201,18 @@ describe("temporal keys", () => {
         params: [a.tenantId, school.year],
       },
       {
-        text: "select app.change_year_span($1, '[2026-09-13,2027-06-10)', $2) as removed",
+        text: `select count(*)::int as marks from core.calendar_dates
+               where tenant_id = $1 and org_id = $2 and status = 'active'`,
+        params: [a.tenantId, school.id],
+      },
+      {
+        text: "select app.change_year_span($1, '[2026-09-13,2027-06-10)', $2)",
         params: [school.year, version],
+      },
+      {
+        text: `select count(*)::int as marks from core.calendar_dates
+               where tenant_id = $1 and org_id = $2 and status = 'active'`,
+        params: [a.tenantId, school.id],
       },
       {
         text: `select count(*)::int as audited from audit.log
@@ -220,7 +221,8 @@ describe("temporal keys", () => {
       },
     ]);
     expect(changed.error).toBeUndefined();
-    expect(changed.all.at(-2)?.[0]?.removed).toBe(8);
+    expect(changed.all.at(-2)?.[0]?.marks).toBe(changed.all.at(-4)?.[0]?.marks);
+    expect(changed.all.at(-4)?.[0]?.marks).toBeGreaterThan(0);
     expect(changed.rows[0]?.audited).toBe(1);
   });
 

@@ -8,42 +8,41 @@ import type {
 } from "@faridalms/domain/timetable";
 import type { SQL } from "drizzle-orm";
 
-import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import {
   cycleDaysOn,
   inCycle,
   timetableOn,
   weekdayOfCycleDay,
 } from "@faridalms/domain/cycle";
-import { isoWeekday, timesOnWeekday } from "@faridalms/domain/timetable";
+import { addDays } from "@faridalms/domain/school";
+import { dayOpen, isoWeekday } from "@faridalms/domain/school-days";
+import { timesOnWeekday } from "@faridalms/domain/timetable";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
+import { runsAsDays, timetableDays } from "./bell-schedules";
+import { markedMeanings, schoolWeek } from "./school-days";
 import { bounds, uuidArray } from "./sql";
-import { schoolWeek, schoolYears } from "./years";
 
 type Tx = CellTransaction;
 
 export interface TimetableRow extends Cycle {
   id: string;
   version: number;
-  yearId: string;
   nameEn: string | null;
   nameAr: string | null;
   startsOn: string;
 }
 
-/** A year's timetables in the order they start. */
+/** A school's timetables in the order they start. */
 export async function timetablesOf(
   tx: Tx,
-  input: { tenantId: string; yearIds: readonly string[] },
+  input: { tenantId: string; schoolId: string },
 ): Promise<TimetableRow[]> {
-  if (input.yearIds.length === 0) return [];
   const rows = await tx.execute<{
     id: string;
     version: number;
-    school_year_id: string;
     name_en: string | null;
     name_ar: string | null;
     starts_on: string;
@@ -52,17 +51,16 @@ export async function timetablesOf(
     first_day: number;
     closures_move: boolean;
   }>(sql`
-    select id, version, school_year_id, name_en, name_ar,
+    select id, version, name_en, name_ar,
            to_char(starts_on, 'YYYY-MM-DD') as starts_on, cycle_kind, cycle_length,
            first_day, closures_move
     from core.timetables
-    where tenant_id = ${input.tenantId}::uuid and school_year_id = any(${uuidArray(input.yearIds)})
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
       and status = 'active'
     order by starts_on`);
   return rows.map((row) => ({
     id: row.id,
     version: row.version,
-    yearId: row.school_year_id,
     nameEn: row.name_en,
     nameAr: row.name_ar,
     startsOn: row.starts_on,
@@ -76,7 +74,6 @@ export async function timetablesOf(
 export interface BellScheduleRow {
   id: string;
   version: number;
-  yearId: string;
   nameEn: string | null;
   nameAr: string | null;
   times: BellTimes[];
@@ -84,26 +81,23 @@ export interface BellScheduleRow {
 
 export async function bellSchedulesOf(
   tx: Tx,
-  input: { tenantId: string; yearIds: readonly string[] },
+  input: { tenantId: string; schoolId: string },
 ): Promise<BellScheduleRow[]> {
-  if (input.yearIds.length === 0) return [];
   const rows = await tx.execute<{
     id: string;
     version: number;
-    school_year_id: string;
     name_en: string | null;
     name_ar: string | null;
     times: BellTimes[];
   }>(sql`
-    select id, version, school_year_id, name_en, name_ar, times
+    select id, version, name_en, name_ar, times
     from core.bell_schedules
-    where tenant_id = ${input.tenantId}::uuid and school_year_id = any(${uuidArray(input.yearIds)})
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
       and status = 'active'
     order by coalesce(name_en, name_ar), id`);
   return rows.map((row) => ({
     id: row.id,
     version: row.version,
-    yearId: row.school_year_id,
     nameEn: row.name_en,
     nameAr: row.name_ar,
     times: row.times.toSorted((a, b) => a.startTime.localeCompare(b.startTime)),
@@ -125,14 +119,13 @@ export interface PlannedPeriod {
   /** Its own times, which most days keep. */
   ownStartTime: string;
   ownEndTime: string;
-  /** The bell schedule whose own period it is, held only on its days; null for the year's. */
+  /** The bell schedule whose own period it is, held only on its days; null for the school's. */
   scheduleId: string | null;
 }
 
 /** What a date holds: whether it is open, where its timetable's cycle stands, its periods and their times. */
 export interface DayPlan {
   day: string;
-  yearId: string | null;
   meaning: string | null;
   open: boolean;
   timetable: TimetableRow | null;
@@ -147,7 +140,6 @@ export interface DayPlan {
 
 interface PeriodVersion {
   id: string;
-  yearId: string;
   code: string;
   nameEn: string | null;
   nameAr: string | null;
@@ -159,17 +151,16 @@ interface PeriodVersion {
   weekdays: number[];
   dayTimes: DayTimes[];
   from: string;
-  until: string;
+  until: string | null;
   scheduleId: string | null;
 }
 
 async function periodVersions(
   tx: Tx,
-  input: { tenantId: string; yearIds: readonly string[] },
+  input: { tenantId: string; schoolId: string },
 ): Promise<PeriodVersion[]> {
   const rows = await tx.execute<{
     id: string;
-    school_year_id: string;
     code: string;
     name_en: string | null;
     name_ar: string | null;
@@ -180,22 +171,24 @@ async function periodVersions(
     official_attendance: boolean;
     weekdays: number[];
     day_times: DayTimes[];
-    valid_during: string;
+    valid_during: string | null;
     bell_schedule_id: string | null;
   }>(sql`
-    select id, school_year_id, code, name_en, name_ar, sequence, kind,
+    select id, code, name_en, name_ar, sequence, kind,
            to_char(start_time, 'HH24:MI') as start_time, to_char(end_time, 'HH24:MI') as end_time,
-           official_attendance, weekdays, day_times, valid_during::text as valid_during,
+           official_attendance, weekdays, day_times,
+           case when bell_schedule_id is null then valid_during::text end as valid_during,
            bell_schedule_id
     from core.class_periods
-    where tenant_id = ${input.tenantId}::uuid and school_year_id = any(${uuidArray(input.yearIds)})
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
       and status = 'active'
     order by sequence`);
   return rows.map((row) => {
-    const range = bounds(row.valid_during);
+    const range = row.valid_during
+      ? bounds(row.valid_during)
+      : { from: "", to: null };
     return {
       id: row.id,
-      yearId: row.school_year_id,
       code: row.code,
       nameEn: row.name_en,
       nameAr: row.name_ar,
@@ -207,31 +200,10 @@ async function periodVersions(
       weekdays: row.weekdays,
       dayTimes: row.day_times,
       from: range.from,
-      until: range.to ?? range.from,
+      until: range.to,
       scheduleId: row.bell_schedule_id,
     };
   });
-}
-
-async function calendarOf(
-  tx: Tx,
-  input: { tenantId: string; yearIds: readonly string[] },
-) {
-  const rows = await tx.execute<{
-    day: string;
-    meaning: string;
-    bell_schedule_id: string | null;
-    runs_as: number | null;
-  }>(sql`
-    select to_char(d.day_on, 'YYYY-MM-DD') as day, e.system_meaning as meaning, d.bell_schedule_id,
-           d.runs_as
-    from core.calendar_dates d
-    join core.calendars c on c.tenant_id = d.tenant_id and c.id = d.calendar_id
-      and c.kind = 'school' and c.status = 'active'
-    join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
-    where d.tenant_id = ${input.tenantId}::uuid and d.school_year_id = any(${uuidArray(input.yearIds)})
-      and d.status = 'active'`);
-  return new Map(rows.map((row) => [row.day, row]));
 }
 
 /**
@@ -248,7 +220,11 @@ function periodsOfDay(
   schedule: BellScheduleRow | null,
 ): PlannedPeriod[] {
   const held = versions.flatMap((period) => {
-    if (period.from > day || period.until <= day) return [];
+    if (
+      period.scheduleId === null &&
+      (period.from > day || (period.until !== null && period.until <= day))
+    )
+      return [];
     if (period.scheduleId !== null && period.scheduleId !== schedule?.id)
       return [];
     const own =
@@ -291,7 +267,8 @@ function periodsOfDay(
  * What each of `days` holds at a school. This is the one place that
  * decides which timetable a date follows, the day of its cycle, and the
  * periods and times it keeps; registers, cover, weeks and feeds all read
- * their days from it.
+ * their days from it. Whether a date is open is the school's week and the
+ * days it marked, whatever timetable it follows.
  */
 export async function dayPlans(
   tx: Tx,
@@ -302,90 +279,76 @@ export async function dayPlans(
   if (days.length === 0) return plans;
   const first = days[0] ?? "";
   const last = days.at(-1) ?? "";
-  const [years, week] = await Promise.all([
-    schoolYears(tx, input.tenantId, input.schoolId),
+  const scope = { tenantId: input.tenantId, schoolId: input.schoolId };
+  const [week, timetables, schedules, versions] = await Promise.all([
     schoolWeek(tx, input.tenantId, input.schoolId),
+    timetablesOf(tx, scope),
+    bellSchedulesOf(tx, scope),
+    periodVersions(tx, scope),
   ]);
-  const held = years.filter(
-    (year) => year.startsOn <= last && first < year.endsBefore,
+  const followed = new Map(
+    days.map((day) => [day, timetableOn(timetables, day)] as const),
   );
-  const yearIds = held.map((year) => year.id);
-  const [timetables, schedules, versions, calendar] = await Promise.all([
-    timetablesOf(tx, { tenantId: input.tenantId, yearIds }),
-    bellSchedulesOf(tx, { tenantId: input.tenantId, yearIds }),
-    periodVersions(tx, { tenantId: input.tenantId, yearIds }),
-    calendarOf(tx, { tenantId: input.tenantId, yearIds }),
+  // A cycle counts from its timetable's start, so the marks are read from
+  // the earliest start a day here follows; the count itself is worked out
+  // from them, not by walking the days between.
+  const since = [...followed.values()].reduce(
+    (earliest, row) =>
+      row && row.startsOn < earliest ? row.startsOn : earliest,
+    first,
+  );
+  const [marks, runsAs, settings] = await Promise.all([
+    markedMeanings(tx, {
+      ...scope,
+      from: addDays(since, -7),
+      to: addDays(last, 7),
+    }),
+    runsAsDays(tx, { ...scope, to: last }),
+    timetableDays(tx, { ...scope, from: first, to: last }),
   ]);
   const cycleCalendar: CycleCalendar = {
-    meaningOf: (day) => calendar.get(day)?.meaning ?? null,
-    runsAsOf: (day) => calendar.get(day)?.runs_as ?? null,
+    marks,
+    runsAs,
     weekStart: week.weekStart,
     weekendDays: week.weekendDays,
   };
   const scheduleOf = new Map(schedules.map((row) => [row.id, row]));
-  const yearOf = (day: string) =>
-    held.find((year) => year.startsOn <= day && day < year.endsBefore) ?? null;
+  const settingOf = new Map(settings.map((row) => [row.day, row]));
   const cycleDayOf = new Map<string, number | null>();
-  for (const year of held) {
-    const own = timetables.filter((row) => row.yearId === year.id);
-    const inYear = days.filter((day) => yearOf(day)?.id === year.id);
-    for (const timetable of own) {
-      const followed = inYear.filter(
-        (day) => timetableOn(own, day)?.id === timetable.id,
-      );
-      for (const [day, cycleDay] of cycleDaysOn(
-        timetable,
-        followed,
-        cycleCalendar,
-      ))
-        cycleDayOf.set(day, cycleDay);
-    }
-  }
+  for (const timetable of timetables)
+    for (const [day, cycleDay] of cycleDaysOn(
+      timetable,
+      days.filter((one) => followed.get(one)?.id === timetable.id),
+      cycleCalendar,
+    ))
+      cycleDayOf.set(day, cycleDay);
   for (const day of days) {
-    const year = yearOf(day);
-    const mark = calendar.get(day);
-    const meaning = year ? (mark?.meaning ?? null) : null;
-    const open =
-      year !== null &&
-      (meaning === null
-        ? !week.weekendDays.includes(isoWeekday(day))
-        : SCHOOL_DAY_MEANINGS.includes(meaning));
-    const schedule = mark?.bell_schedule_id
-      ? (scheduleOf.get(mark.bell_schedule_id) ?? null)
+    const meaning = marks.get(day) ?? null;
+    const open = dayOpen(week, day, meaning);
+    const setting = settingOf.get(day);
+    const schedule = setting?.scheduleId
+      ? (scheduleOf.get(setting.scheduleId) ?? null)
       : null;
-    const timetable = year
-      ? timetableOn(
-          timetables.filter((row) => row.yearId === year.id),
-          day,
-        )
-      : null;
-    const runsAs =
-      open && timetable && mark?.runs_as && inCycle(timetable, mark.runs_as)
-        ? mark.runs_as
+    const timetable = followed.get(day) ?? null;
+    const runsAsDay =
+      open && timetable && setting?.runsAs && inCycle(timetable, setting.runsAs)
+        ? setting.runsAs
         : null;
     const weekday =
-      runsAs !== null && timetable
-        ? (weekdayOfCycleDay(timetable, runsAs) ?? isoWeekday(day))
+      runsAsDay !== null && timetable
+        ? (weekdayOfCycleDay(timetable, runsAsDay) ?? isoWeekday(day))
         : isoWeekday(day);
     plans.set(day, {
       day,
-      yearId: year?.id ?? null,
       meaning,
       open,
       timetable,
       cycleDay: open ? (cycleDayOf.get(day) ?? null) : null,
-      runsAs,
+      runsAs: runsAsDay,
       schedule: schedule
         ? { id: schedule.id, nameEn: schedule.nameEn, nameAr: schedule.nameAr }
         : null,
-      periods: year
-        ? periodsOfDay(
-            versions.filter((row) => row.yearId === year.id),
-            day,
-            weekday,
-            schedule,
-          )
-        : [],
+      periods: open ? periodsOfDay(versions, day, weekday, schedule) : [],
     });
   }
   return plans;
@@ -393,33 +356,37 @@ export async function dayPlans(
 
 /**
  * The condition a meeting aliased `m` meets to be held on a planned day:
- * its timetable's, on that day of the cycle, in force, in a period held.
+ * its timetable's, on that day of the cycle, in force, in a period held,
+ * on a day its class runs.
  */
 export function heldOn(plan: DayPlan): SQL {
   if (!plan.timetable || plan.cycleDay === null) return sql`false`;
   return sql`(m.timetable_id = ${plan.timetable.id}::uuid and m.weekday = ${plan.cycleDay}
     and m.valid_during @> ${plan.day}::date
-    and m.class_period_id = any(${uuidArray(plan.periods.map((row) => row.id))}))`;
+    and m.class_period_id = any(${uuidArray(plan.periods.map((row) => row.id))})
+    and exists (select 1 from core.classes held_class
+      where held_class.tenant_id = m.tenant_id and held_class.id = m.class_id
+        and held_class.runs @> ${plan.day}::date))`;
 }
 
-/** One day's plan; a day outside every year holds nothing. */
+/** One day's plan. */
 export async function dayPlan(
   tx: Tx,
   input: { tenantId: string; schoolId: string; day: string },
 ): Promise<DayPlan> {
   const plans = await dayPlans(tx, { ...input, days: [input.day] });
-  return (
-    plans.get(input.day) ?? {
-      day: input.day,
-      yearId: null,
-      meaning: null,
-      open: false,
-      timetable: null,
-      cycleDay: null,
-      runsAs: null,
-      schedule: null,
+  const plan = plans.get(input.day);
+  if (!plan) throw new Error("a day's plan was not made");
+  return plan;
+}
 
-      periods: [],
-    }
+/** The periods of a day lessons and registers are held in, at that day's times, in order. */
+export async function teachingPeriodsOn(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; day: string },
+): Promise<PlannedPeriod[]> {
+  const plan = await dayPlan(tx, input);
+  return plan.periods.filter(
+    (row) => row.kind === "lesson" || row.kind === "registration",
   );
 }

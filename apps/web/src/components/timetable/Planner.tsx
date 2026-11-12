@@ -40,7 +40,7 @@ type Grid = Awaited<
   ReturnType<NonNullable<ReturnType<typeof timetableGridQuery>["queryFn"]>>
 >;
 type Options = Awaited<
-  ReturnType<NonNullable<(typeof timetableOptionsQuery)["queryFn"]>>
+  ReturnType<NonNullable<ReturnType<typeof timetableOptionsQuery>["queryFn"]>>
 >;
 type GridMeeting = Grid["meetings"][number];
 type Booking = Awaited<ReturnType<typeof checkPlacement>>["bookings"][number];
@@ -346,7 +346,7 @@ interface TimetableBarProps {
 }
 
 /**
- * Which of the year's timetables the grid edits, how it repeats, and the
+ * Which of the school's timetables the grid edits, how it repeats, and the
  * way to another: picking one plans from its first day, or from today
  * while it is followed.
  */
@@ -356,9 +356,10 @@ function TimetableBar({ grid, onFrom }: TimetableBarProps) {
     const row = grid.timetables[index];
     const next = grid.timetables[index + 1];
     if (!row) return grid.on;
-    const from = index === 0 ? grid.year.startsOn : row.startsOn;
-    const until = next ? next.startsOn : grid.year.lastDay;
-    return grid.today >= from && grid.today < until ? grid.today : from;
+    const from = row.startsOn;
+    return grid.today >= from && (!next || grid.today < next.startsOn)
+      ? grid.today
+      : from;
   };
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -400,11 +401,11 @@ export interface PlannerProps {
 
 /** One grid's week, each cell edited from the day changes apply. */
 export function Planner({ classId, from, onFrom }: PlannerProps) {
-  const options = useSuspenseQuery(timetableOptionsQuery).data;
+  const options = useSuspenseQuery(timetableOptionsQuery()).data;
   const grid = useSuspenseQuery(timetableGridQuery(classId, from)).data;
   const user = useCurrentUser();
   const [open, setOpen] = useState<{ cell: Cell; key: number } | null>(null);
-  const editable = !grid.year.closed;
+  const editable = grid.canPlan;
   const label = dayOf(grid);
   const today = todayOf(user.today);
   return (

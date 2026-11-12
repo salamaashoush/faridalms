@@ -2,7 +2,9 @@ import type { ReportQuery } from "@faridalms/domain/attendance";
 import type { Column } from "@faridalms/ui/system/data-table";
 import type { Facet } from "@faridalms/ui/system/index-toolbar";
 
+import { DEFAULT_REPORT_WEEKS } from "@faridalms/domain/spans";
 import { Button } from "@faridalms/ui/button";
+import { Input } from "@faridalms/ui/input";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -183,20 +185,28 @@ export interface ReportProps {
 export function Report({ query, onChange }: ReportProps) {
   const group = useSlot(groupWords)[0]?.group() ?? m.attClass();
   const data = useSuspenseQuery(attendanceReportQuery(query)).data;
-  const termFacet: Facet = {
-    id: "term",
-    label: m.attTerm(),
+  // The first span a module names is the default; with none, the last weeks are.
+  const spanFacet: Facet = {
+    id: "span",
+    label: m.attSpan(),
     single: true,
     options: [
-      { value: "", label: m.attWholeYear() },
-      ...data.terms.map((term) => ({
-        value: term.id,
-        label: inLocale(term.titleEn, term.titleAr),
+      ...(data.spans.length === 0
+        ? [
+            {
+              value: "",
+              label: m.attLastWeeks({ count: DEFAULT_REPORT_WEEKS }),
+            },
+          ]
+        : []),
+      ...data.spans.map((span) => ({
+        value: span.key,
+        label: inLocale(span.titleEn, span.titleAr),
       })),
     ],
-    selected: [data.periodId],
-    defaultSelected: [""],
-    onChange: ([next]) => onChange({ periodId: next ?? "" }),
+    selected: [data.span],
+    defaultSelected: [data.spans[0]?.key ?? ""],
+    onChange: ([next]) => onChange({ span: next ?? "", from: "", to: "" }),
   };
   const byFacet: Facet = {
     id: "by",
@@ -244,8 +254,42 @@ export function Report({ query, onChange }: ReportProps) {
             label: m.attSearchReport(),
             placeholder: m.attSearchReportPlaceholder(),
           },
-          facets: [termFacet, byFacet],
-          onReset: () => onChange({ q: "", periodId: "", by: "student" }),
+          facets: [spanFacet, byFacet],
+          onReset: () =>
+            onChange({ q: "", span: "", from: "", to: "", by: "student" }),
+          period: (
+            <>
+              <Input
+                id="report-from"
+                type="date"
+                aria-label={m.attFrom()}
+                className="h-8 w-40 max-md:h-10"
+                value={data.from}
+                max={data.to}
+                onChange={(event) =>
+                  event.target.value &&
+                  onChange({ span: "", from: event.target.value, to: data.to })
+                }
+              />
+              <Input
+                id="report-to"
+                type="date"
+                aria-label={m.attTo()}
+                className="h-8 w-40 max-md:h-10"
+                value={data.to}
+                min={data.from}
+                max={data.today}
+                onChange={(event) =>
+                  event.target.value &&
+                  onChange({
+                    span: "",
+                    from: data.from,
+                    to: event.target.value,
+                  })
+                }
+              />
+            </>
+          ),
         }}
         card={cardFor(query.by)}
         empty={{

@@ -1,9 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { getYearDays } from "~/server/school-days";
+import { getSchoolDays } from "~/server/school-days";
 
-export const yearDaysQuery = (id: string) =>
+export const schoolDaysQuery = (from: string, to: string) =>
   queryOptions({
-    queryKey: ["years", "days", id],
-    queryFn: () => getYearDays({ data: { id } }),
+    queryKey: ["school-days", from, to],
+    queryFn: () => getSchoolDays({ data: { from, to } }),
   });

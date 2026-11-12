@@ -1,26 +1,25 @@
 import type { OpenSpan } from "@faridalms/domain/school";
 
-import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import {
   addDays,
   spanHolds,
   teachingWeeks,
   weekdayOf,
 } from "@faridalms/domain/school";
+import {
+  SCHOOL_DAY_MEANINGS,
+  schoolDayCount,
+} from "@faridalms/domain/school-days";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 import type { YearLifecycle } from "../tables/calendar";
 
-import {
-  academicSessions,
-  academicWeeks,
-  calendarDates,
-  calendars,
-} from "../tables/calendar";
+import { academicSessions, academicWeeks } from "../tables/calendar";
 import { classYears } from "../tables/school-years";
 import { classColumns, classOf, moveClassRuns } from "./classes";
-import { bounds, isoOf, textArray, uuidArray } from "./sql";
+import { markedMeanings, schoolWeek } from "./school-days";
+import { bounds, isoOf, uuidArray } from "./sql";
 
 export interface SchoolYear {
   id: string;
@@ -212,175 +211,51 @@ export async function termsOf(
   });
 }
 
+/**
+ * A year's weeks, and its school days and closed school days, counted from
+ * the school's week and the days it marked over the year's dates.
+ */
 export async function calendarSummary(
   tx: CellTransaction,
-  tenantId: string,
-  yearId: string,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    year: { id: string; startsOn: string; endsBefore: string };
+  },
 ): Promise<{ weeks: number; schoolDays: number; closedDays: number }> {
-  const [row] = await tx.execute<{
-    weeks: number;
-    school_days: number;
-    closed_days: number;
-  }>(sql`
-    select
-      (select count(*)::int from core.academic_weeks w
-        where w.tenant_id = ${tenantId}::uuid and w.school_year_id = ${yearId}::uuid
-          and w.status = 'active') as weeks,
-      (select count(*)::int from core.calendar_dates d
-        join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
-        where d.tenant_id = ${tenantId}::uuid and d.school_year_id = ${yearId}::uuid
-          and d.status = 'active' and e.system_meaning = any(${textArray(SCHOOL_DAY_MEANINGS)})) as school_days,
-      (select count(*)::int from core.calendar_dates d
-        join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
-        where d.tenant_id = ${tenantId}::uuid and d.school_year_id = ${yearId}::uuid
-          and d.status = 'active' and e.system_meaning <> 'weekend'
-          and not e.system_meaning = any(${textArray(SCHOOL_DAY_MEANINGS)})) as closed_days`);
+  const span = { from: input.year.startsOn, endsBefore: input.year.endsBefore };
+  const [[row], week, marks] = await Promise.all([
+    tx.execute<{ weeks: number }>(sql`
+      select count(*)::int as weeks from core.academic_weeks w
+      where w.tenant_id = ${input.tenantId}::uuid and w.school_year_id = ${input.year.id}::uuid
+        and w.status = 'active'`),
+    schoolWeek(tx, input.tenantId, input.schoolId),
+    markedMeanings(tx, {
+      tenantId: input.tenantId,
+      schoolId: input.schoolId,
+      from: span.from,
+      to: addDays(span.endsBefore, -1),
+    }),
+  ]);
   return {
     weeks: row?.weeks ?? 0,
-    schoolDays: row?.school_days ?? 0,
-    closedDays: row?.closed_days ?? 0,
+    schoolDays: schoolDayCount(week, span, (day) => marks.get(day) ?? null),
+    closedDays: [...marks.values()].filter(
+      (meaning) => !SCHOOL_DAY_MEANINGS.includes(meaning),
+    ).length,
   };
 }
 
-export interface CalendarDay {
-  day: string;
-  meaning: string;
-  noteEn: string | null;
-  noteAr: string | null;
-  provisional: boolean;
-  /** The bell schedule the day runs on instead of its periods' own times. */
-  scheduleId: string | null;
-  /** The day of the timetable's cycle it runs as instead of its own. */
-  runsAs: number | null;
-}
-
-/** Every day of a year's school calendar with what it is, and the count it aims at. */
-export async function yearCalendar(
+/** The school days a year aims at, or null where it names none. */
+export async function targetDays(
   tx: CellTransaction,
   tenantId: string,
   yearId: string,
-): Promise<{ targetDays: number | null; days: CalendarDay[] }> {
-  const [calendar] = await tx.execute<{ target_days: number | null }>(sql`
-    select target_days from core.calendars
-    where tenant_id = ${tenantId}::uuid and school_year_id = ${yearId}::uuid
-      and kind = 'school' and status = 'active'`);
-  return {
-    targetDays: calendar?.target_days ?? null,
-    days: await calendarDays(tx, { tenantId, yearId }),
-  };
-}
-
-/** What the school calendar marks each day as, the whole year or `[from, to]`. */
-export async function calendarDays(
-  tx: CellTransaction,
-  input: { tenantId: string; yearId: string; from?: string; to?: string },
-): Promise<CalendarDay[]> {
-  const range =
-    input.from && input.to
-      ? sql`and d.day_on between ${input.from}::date and ${input.to}::date`
-      : sql``;
-  const rows = await tx.execute<{
-    day: string;
-    meaning: string;
-    note_en: string | null;
-    note_ar: string | null;
-    provisional: boolean;
-    bell_schedule_id: string | null;
-    runs_as: number | null;
-  }>(sql`
-    select to_char(d.day_on, 'YYYY-MM-DD') as day, e.system_meaning as meaning,
-           d.note_en, d.note_ar, d.provisional, d.bell_schedule_id, d.runs_as
-    from core.calendar_dates d
-    join core.calendars c on c.tenant_id = d.tenant_id and c.id = d.calendar_id
-      and c.kind = 'school' and c.status = 'active'
-    join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
-    where d.tenant_id = ${input.tenantId}::uuid and d.school_year_id = ${input.yearId}::uuid
-      and d.status = 'active' ${range}
-    order by d.day_on`);
-  return rows.map((row) => ({
-    day: row.day,
-    meaning: row.meaning,
-    noteEn: row.note_en,
-    noteAr: row.note_ar,
-    provisional: row.provisional,
-    scheduleId: row.bell_schedule_id,
-    runsAs: row.runs_as,
-  }));
-}
-
-/**
- * Runs one day of the school calendar as another day of its timetable's
- * cycle, or as its own with null, returning what it ran as before; null
- * when the calendar has no such day.
- */
-export async function runDayAs(
-  tx: CellTransaction,
-  input: {
-    tenantId: string;
-    yearId: string;
-    day: string;
-    runsAs: number | null;
-  },
-): Promise<{ before: number | null } | null> {
-  const [row] = await tx.execute<{ before: number | null }>(sql`
-    update core.calendar_dates d
-    set runs_as = ${input.runsAs}::smallint
-    from core.calendar_dates o, core.calendars c
-    where d.tenant_id = ${input.tenantId}::uuid and d.school_year_id = ${input.yearId}::uuid
-      and d.status = 'active' and d.day_on = ${input.day}::date
-      and o.tenant_id = d.tenant_id and o.id = d.id
-      and c.tenant_id = d.tenant_id and c.id = d.calendar_id and c.kind = 'school' and c.status = 'active'
-    returning o.runs_as as before`);
-  return row ? { before: row.before } : null;
-}
-
-/**
- * Marks the school calendar's days in `[from, to]` as one kind, returning how
- * many changed. Weekends stay weekends except for a make-up day, and `normal`
- * returns each day to a school day or weekend by the school's week.
- */
-export async function paintDays(
-  tx: CellTransaction,
-  input: {
-    tenantId: string;
-    yearId: string;
-    from: string;
-    to: string;
-    kind: string;
-    noteEn: string | null;
-    noteAr: string | null;
-    provisional: boolean;
-    weekendDays: number[];
-  },
-): Promise<number> {
-  const normal = input.kind === "normal";
-  const meanings = normal ? ["instructional_day", "weekend"] : [input.kind];
-  const found = await tx.execute<{ id: string; meaning: string }>(sql`
-    select distinct on (system_meaning) id, system_meaning as meaning from core.descriptors
-    where tenant_id = ${input.tenantId}::uuid and namespace = 'calendar_event'
-      and system_meaning = any(${textArray(meanings)}) and status = 'active'
-    order by system_meaning, org_id nulls first`);
-  const idOf = new Map(found.map((row) => [row.meaning, row.id]));
-  const target = normal
-    ? sql`case when extract(isodow from d.day_on)::int = any(${`{${input.weekendDays.join(",")}}`}::int[])
-        then ${idOf.get("weekend") ?? null}::uuid else ${idOf.get("instructional_day") ?? null}::uuid end`
-    : sql`${idOf.get(input.kind) ?? null}::uuid`;
-  if (meanings.some((meaning) => !idOf.has(meaning)))
-    throw new Error(`calendar day descriptor missing for ${input.kind}`);
-  const rows = await tx.execute<{ id: string }>(sql`
-    update core.calendar_dates d
-    set event_descriptor_id = ${target},
-        note_en = ${normal ? null : input.noteEn || null},
-        note_ar = ${normal ? null : input.noteAr || null},
-        provisional = ${!normal && input.provisional}
-    from core.calendars c, core.descriptors e
-    where d.tenant_id = ${input.tenantId}::uuid and d.school_year_id = ${input.yearId}::uuid
-      and d.status = 'active' and d.day_on between ${input.from}::date and ${input.to}::date
-      and c.tenant_id = d.tenant_id and c.id = d.calendar_id and c.kind = 'school' and c.status = 'active'
-      and e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
-      and (${normal || input.kind === "make_up_day"} or e.system_meaning <> 'weekend')
-    returning d.id`);
-  return rows.length;
+): Promise<number | null> {
+  const [row] = await tx.execute<{ target_days: number | null }>(sql`
+    select target_days from core.academic_sessions
+    where tenant_id = ${tenantId}::uuid and id = ${yearId}::uuid and type = 'school_year'`);
+  return row?.target_days ?? null;
 }
 
 export async function setTargetDays(
@@ -388,79 +263,9 @@ export async function setTargetDays(
   input: { tenantId: string; yearId: string; target: number | null },
 ) {
   await tx.execute(sql`
-    update core.calendars set target_days = ${input.target}
-    where tenant_id = ${input.tenantId}::uuid and school_year_id = ${input.yearId}::uuid
-      and kind = 'school' and status = 'active'`);
-}
-
-export interface SchoolWeek {
-  weekStart: number;
-  weekendDays: number[];
-}
-
-export async function schoolWeek(
-  tx: CellTransaction,
-  tenantId: string,
-  schoolId: string,
-): Promise<SchoolWeek> {
-  const [row] = await tx.execute<{
-    week_start: number;
-    weekend_days: number[];
-  }>(sql`
-    select week_start, weekend_days from core.orgs
-    where tenant_id = ${tenantId}::uuid and id = ${schoolId}::uuid`);
-  return {
-    weekStart: row?.week_start ?? 7,
-    weekendDays: row?.weekend_days ?? [5, 6],
-  };
-}
-
-const isoWeekday = (day: string) => weekdayOf(day) || 7;
-
-async function calendarEvents(tx: CellTransaction, tenantId: string) {
-  const rows = await tx.execute<{ id: string; code_value: string }>(sql`
-    select distinct on (code_value) id, code_value from core.descriptors
-    where tenant_id = ${tenantId}::uuid and namespace = 'calendar_event'
-      and code_value in ('instructional_day', 'weekend') and status = 'active'
-    order by code_value, org_id nulls first`);
-  const byCode = new Map(rows.map((row) => [row.code_value, row.id]));
-  const instructional = byCode.get("instructional_day");
-  const weekend = byCode.get("weekend");
-  if (!instructional || !weekend)
-    throw new Error("calendar event descriptors are missing");
-  return { instructional, weekend };
-}
-
-/**
- * Marks each day of `[from, to)` on the year's school calendar as a school day
- * or a weekend. Holidays are set on the calendar afterwards.
- */
-async function fillCalendar(
-  tx: CellTransaction,
-  input: {
-    tenantId: string;
-    calendarId: string;
-    yearId: string;
-    from: string;
-    to: string;
-    weekendDays: number[];
-  },
-) {
-  if (input.from >= input.to) return;
-  const events = await calendarEvents(tx, input.tenantId);
-  const days: (typeof calendarDates.$inferInsert)[] = [];
-  for (let day = input.from; day < input.to; day = addDays(day, 1))
-    days.push({
-      tenantId: input.tenantId,
-      calendarId: input.calendarId,
-      schoolYearId: input.yearId,
-      dayOn: day,
-      eventDescriptorId: input.weekendDays.includes(isoWeekday(day))
-        ? events.weekend
-        : events.instructional,
-    });
-  for (let index = 0; index < days.length; index += 200)
-    await tx.insert(calendarDates).values(days.slice(index, index + 200));
+    update core.academic_sessions set target_days = ${input.target}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.yearId}::uuid
+      and type = 'school_year' and status = 'active'`);
 }
 
 const weekLabel = (number: number) => ({
@@ -634,7 +439,7 @@ const range = (from: string, to: string) =>
   sql`daterange(${from}::date, ${to}::date, '[)')`;
 
 /**
- * Brings the year's weeks, periods and placements inside `[from, to)` before
+ * Brings the year's weeks and placements inside `[from, to)` before
  * its dates narrow. Setup rows wholly outside are tombstoned; a placement
  * wholly outside is real data, so it is left for `app.change_year_span` to
  * refuse.
@@ -655,26 +460,14 @@ async function narrowChildren(
     update core.academic_weeks set span = span * ${span}
     where ${scope} and span && ${span} and not ${span} @> span`);
   await renumberWeeks(tx, tenantId, yearId);
-  await Promise.all(
-    [sql`core.class_periods`, sql`core.class_meetings`].map((table) =>
-      tx.execute(sql`
-        update ${table} set status = 'tobedeleted'
-        where ${scope} and not valid_during && ${span}`),
-    ),
-  );
-  for (const table of [
-    sql`core.class_periods`,
-    sql`core.class_meetings`,
-    sql`core.student_school_years`,
-  ])
-    await tx.execute(sql`
-      update ${table} set valid_during = valid_during * ${span}
-      where ${scope} and valid_during && ${span} and not ${span} @> valid_during`);
+  await tx.execute(sql`
+    update core.student_school_years set valid_during = valid_during * ${span}
+    where ${scope} and valid_during && ${span} and not ${span} @> valid_during`);
 }
 
 /**
- * After the year's dates widen, periods and placements that ran to its old
- * first or last day run to the new one, as a student placed for the whole
+ * After the year's dates widen, placements that ran to its old first or
+ * last day run to the new one, as a student placed for the whole
  * year stays placed for the whole year.
  */
 async function widenChildren(
@@ -685,20 +478,16 @@ async function widenChildren(
   after: { from: string; to: string },
 ) {
   const scope = sql`tenant_id = ${tenantId}::uuid and school_year_id = ${yearId}::uuid and status = 'active'`;
-  for (const table of [
-    sql`core.class_periods`,
-    sql`core.class_meetings`,
-    sql`core.student_school_years`,
-  ]) {
-    if (after.to > before.to)
-      await tx.execute(sql`
-        update ${table} set valid_during = daterange(lower(valid_during), ${after.to}::date, '[)')
-        where ${scope} and upper(valid_during) = ${before.to}::date`);
-    if (after.from < before.from)
-      await tx.execute(sql`
-        update ${table} set valid_during = daterange(${after.from}::date, upper(valid_during), '[)')
-        where ${scope} and lower(valid_during) = ${before.from}::date`);
-  }
+  if (after.to > before.to)
+    await tx.execute(sql`
+      update core.student_school_years
+      set valid_during = daterange(lower(valid_during), ${after.to}::date, '[)')
+      where ${scope} and upper(valid_during) = ${before.to}::date`);
+  if (after.from < before.from)
+    await tx.execute(sql`
+      update core.student_school_years
+      set valid_during = daterange(${after.from}::date, upper(valid_during), '[)')
+      where ${scope} and lower(valid_during) = ${before.from}::date`);
 }
 
 export interface TermInput {
@@ -853,28 +642,7 @@ export async function createYear(
     terms: input.terms,
   });
   await finish({ schoolId: input.schoolId, schoolYear: endYear(input.endsOn) });
-  const [calendar] = await tx
-    .insert(calendars)
-    .values({
-      tenantId: input.tenantId,
-      orgId: input.schoolId,
-      schoolYearId: year.id,
-      code: "school",
-      kind: "school",
-      titleEn: "School calendar",
-      titleAr: "التقويم المدرسي",
-    })
-    .returning({ id: calendars.id });
-  if (!calendar) throw new Error("school calendar was not created");
   const week = await schoolWeek(tx, input.tenantId, input.schoolId);
-  await fillCalendar(tx, {
-    tenantId: input.tenantId,
-    calendarId: calendar.id,
-    yearId: year.id,
-    from: input.startsOn,
-    to,
-    weekendDays: week.weekendDays,
-  });
   await coverWeeks(tx, {
     tenantId: input.tenantId,
     yearId: year.id,
@@ -887,15 +655,20 @@ export async function createYear(
 
 /**
  * Changes a year's names, dates and terms. Narrowing clips what crosses the
- * new edges; widening marks the new days on the calendar, extends the weeks
- * and carries whole-year rows to the new edges. The year's classes move with
+ * new edges; widening extends the weeks and carries whole-year rows to the
+ * new edges. The year's classes move with
  * it, and their enrollments with them. Real data that would fall wholly
  * outside is refused: a class's by `moveClassesWithYear`, the rest by
  * `app.change_year_span`.
  */
 export async function updateYear(
   tx: CellTransaction,
-  input: YearInput & { id: string; expectedVersion: number },
+  input: YearInput & {
+    id: string;
+    expectedVersion: number;
+    /** Why a class moved with the year may not run over its new days, or null. */
+    refusesRuns: (classId: string, runs: OpenSpan) => Promise<string | null>;
+  },
 ): Promise<void> {
   await tx.execute(sql`select app.lock('school_years')`);
   const [row] = await tx.execute<{
@@ -926,13 +699,15 @@ export async function updateYear(
     terms: input.terms,
   });
   const moved = before.from !== after.from || before.to !== after.to;
+  const classes = moved
+    ? await moveClassesWithYear(tx, {
+        tenantId: input.tenantId,
+        yearId: input.id,
+        before,
+        after,
+      })
+    : [];
   if (moved) {
-    await moveClassesWithYear(tx, {
-      tenantId: input.tenantId,
-      yearId: input.id,
-      before,
-      after,
-    });
     await narrowChildren(tx, input.tenantId, input.id, after.from, after.to);
     await tx.execute(sql`
       select app.change_year_span(${input.id}::uuid, ${range(after.from, after.to)}, ${row.version})`);
@@ -942,24 +717,11 @@ export async function updateYear(
     update core.academic_sessions set title_en = ${input.titleEn}, title_ar = ${input.titleAr}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid`);
   await finish({ schoolId: input.schoolId, schoolYear: row.school_year });
+  for (const moving of classes)
+    if (await input.refusesRuns(moving.classId, moving.runs))
+      throw new YearChangeError("school_year.rows_outside_dates");
   if (!moved) return;
-  const [calendar] = await tx.execute<{ id: string }>(sql`
-    select id from core.calendars
-    where tenant_id = ${input.tenantId}::uuid and school_year_id = ${input.id}::uuid
-      and kind = 'school' and status = 'active'`);
   const week = await schoolWeek(tx, input.tenantId, input.schoolId);
-  if (calendar)
-    for (const gap of [
-      { from: after.from, to: before.from < after.to ? before.from : after.to },
-      { from: before.to > after.from ? before.to : after.from, to: after.to },
-    ])
-      await fillCalendar(tx, {
-        tenantId: input.tenantId,
-        calendarId: calendar.id,
-        yearId: input.id,
-        ...gap,
-        weekendDays: week.weekendDays,
-      });
   await coverWeeks(tx, {
     tenantId: input.tenantId,
     yearId: input.id,
@@ -1011,7 +773,8 @@ export async function setYearLifecycle(
  * what began before. A class with an active enrollment wholly outside the
  * new dates refuses the change, since that is a student's real days. A
  * class whose days had already left the year, as they may while the
- * module is off, is the year's no longer and does not move.
+ * module is off, is the year's no longer and does not move. Returns the
+ * classes moved, with their new days, for the caller's guards.
  */
 async function moveClassesWithYear(
   tx: CellTransaction,
@@ -1025,13 +788,14 @@ async function moveClassesWithYear(
   const { before, after } = input;
   const linked = await classesOfYear(tx, input.tenantId, input.yearId);
   const classes = [];
+  const moved: { classId: string; runs: OpenSpan }[] = [];
   for (const row of linked)
     if (spanHolds(before, row.runs)) classes.push(row);
     else
       await tx.execute(sql`
         update core.class_years set status = 'tobedeleted'
         where tenant_id = ${input.tenantId}::uuid and class_id = ${row.id}::uuid and status = 'active'`);
-  if (classes.length === 0) return;
+  if (classes.length === 0) return moved;
   const [outside] = await tx.execute<{ found: boolean }>(sql`
     select exists (select 1 from core.enrollments e
       where e.tenant_id = ${input.tenantId}::uuid and e.status = 'active'
@@ -1052,6 +816,7 @@ async function moveClassesWithYear(
         : row.runs.to;
     if (from >= to) throw new YearChangeError("school_year.rows_outside_dates");
     if (from === row.runs.from && to === row.runs.to) continue;
+    moved.push({ classId: row.id, runs: { from, to } });
     if (from > row.runs.from)
       await tx.execute(sql`
         update core.enrollments set valid_during = daterange(${from}::date, upper(valid_during))
@@ -1064,6 +829,7 @@ async function moveClassesWithYear(
       after: { from, to },
     });
   }
+  return moved;
 }
 
 /** The classes linked to a year, whatever their dates. */

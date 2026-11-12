@@ -59,6 +59,7 @@ import { Route as AppStaffModulePlanRouteImport } from './routes/_app/_staff/mod
 import { Route as AppStaffModulesRouteImport } from './routes/_app/_staff/modules'
 import { Route as AppStaffNotificationAuditRouteImport } from './routes/_app/_staff/notification-audit'
 import { Route as AppStaffRolloverRouteImport } from './routes/_app/_staff/rollover'
+import { Route as AppStaffSchoolDaysRouteImport } from './routes/_app/_staff/school-days'
 import { Route as AppStaffSettingsRouteImport } from './routes/_app/_staff/settings'
 import { Route as AppStaffSitePageEditorRouteImport } from './routes/_app/_staff/site-page-editor'
 import { Route as AppStaffStaffRouteImport } from './routes/_app/_staff/staff'
@@ -385,6 +386,11 @@ const AppStaffNotificationAuditRoute =
 const AppStaffRolloverRoute = AppStaffRolloverRouteImport.update({
   id: '/rollover',
   path: '/rollover',
+  getParentRoute: () => AppStaffRoute,
+} as any)
+const AppStaffSchoolDaysRoute = AppStaffSchoolDaysRouteImport.update({
+  id: '/school-days',
+  path: '/school-days',
   getParentRoute: () => AppStaffRoute,
 } as any)
 const AppStaffSettingsRoute = AppStaffSettingsRouteImport.update({
@@ -823,6 +829,7 @@ export interface FileRoutesByFullPath {
   '/modules': typeof AppStaffModulesRoute
   '/notification-audit': typeof AppStaffNotificationAuditRoute
   '/rollover': typeof AppStaffRolloverRoute
+  '/school-days': typeof AppStaffSchoolDaysRoute
   '/settings': typeof AppStaffSettingsRoute
   '/site-page-editor': typeof AppStaffSitePageEditorRoute
   '/staff': typeof AppStaffStaffRoute
@@ -944,6 +951,7 @@ export interface FileRoutesByTo {
   '/modules': typeof AppStaffModulesRoute
   '/notification-audit': typeof AppStaffNotificationAuditRoute
   '/rollover': typeof AppStaffRolloverRoute
+  '/school-days': typeof AppStaffSchoolDaysRoute
   '/settings': typeof AppStaffSettingsRoute
   '/site-page-editor': typeof AppStaffSitePageEditorRoute
   '/staff': typeof AppStaffStaffRoute
@@ -1072,6 +1080,7 @@ export interface FileRoutesById {
   '/_app/_staff/modules': typeof AppStaffModulesRoute
   '/_app/_staff/notification-audit': typeof AppStaffNotificationAuditRoute
   '/_app/_staff/rollover': typeof AppStaffRolloverRoute
+  '/_app/_staff/school-days': typeof AppStaffSchoolDaysRoute
   '/_app/_staff/settings': typeof AppStaffSettingsRoute
   '/_app/_staff/site-page-editor': typeof AppStaffSitePageEditorRoute
   '/_app/_staff/staff': typeof AppStaffStaffRoute
@@ -1198,6 +1207,7 @@ export interface FileRouteTypes {
     | '/modules'
     | '/notification-audit'
     | '/rollover'
+    | '/school-days'
     | '/settings'
     | '/site-page-editor'
     | '/staff'
@@ -1319,6 +1329,7 @@ export interface FileRouteTypes {
     | '/modules'
     | '/notification-audit'
     | '/rollover'
+    | '/school-days'
     | '/settings'
     | '/site-page-editor'
     | '/staff'
@@ -1446,6 +1457,7 @@ export interface FileRouteTypes {
     | '/_app/_staff/modules'
     | '/_app/_staff/notification-audit'
     | '/_app/_staff/rollover'
+    | '/_app/_staff/school-days'
     | '/_app/_staff/settings'
     | '/_app/_staff/site-page-editor'
     | '/_app/_staff/staff'
@@ -1894,6 +1906,13 @@ declare module '@tanstack/react-router' {
       path: '/rollover'
       fullPath: '/rollover'
       preLoaderRoute: typeof AppStaffRolloverRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/school-days': {
+      id: '/_app/_staff/school-days'
+      path: '/school-days'
+      fullPath: '/school-days'
+      preLoaderRoute: typeof AppStaffSchoolDaysRouteImport
       parentRoute: typeof AppStaffRoute
     }
     '/_app/_staff/settings': {
@@ -2445,6 +2464,7 @@ interface AppStaffRouteChildren {
   AppStaffModulesRoute: typeof AppStaffModulesRoute
   AppStaffNotificationAuditRoute: typeof AppStaffNotificationAuditRoute
   AppStaffRolloverRoute: typeof AppStaffRolloverRoute
+  AppStaffSchoolDaysRoute: typeof AppStaffSchoolDaysRoute
   AppStaffSettingsRoute: typeof AppStaffSettingsRoute
   AppStaffSitePageEditorRoute: typeof AppStaffSitePageEditorRoute
   AppStaffStaffRoute: typeof AppStaffStaffRoute
@@ -2478,6 +2498,7 @@ const AppStaffRouteChildren: AppStaffRouteChildren = {
   AppStaffModulesRoute: AppStaffModulesRoute,
   AppStaffNotificationAuditRoute: AppStaffNotificationAuditRoute,
   AppStaffRolloverRoute: AppStaffRolloverRoute,
+  AppStaffSchoolDaysRoute: AppStaffSchoolDaysRoute,
   AppStaffSettingsRoute: AppStaffSettingsRoute,
   AppStaffSitePageEditorRoute: AppStaffSitePageEditorRoute,
   AppStaffStaffRoute: AppStaffStaffRoute,

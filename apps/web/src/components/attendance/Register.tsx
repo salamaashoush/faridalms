@@ -115,7 +115,7 @@ function withReports(drafts: Drafts, data: Data): Drafts {
         reasonId: report.reasonId,
       };
   // A child signed out before this period started is away for it.
-  const start = data.period.startTime;
+  const start = data.period?.startTime;
   for (const movement of data.movements)
     if (
       movement.direction === "out" &&
@@ -511,7 +511,7 @@ function RegisterForm({ data, loading, onDirtyChange }: RegisterFormProps) {
         data: {
           classId: data.class.id,
           date: data.date,
-          periodId: data.period.id,
+          periodId: data.period?.id ?? "",
           expectedVersion,
           marks: data.students.flatMap((student) => {
             const draft = drafts[student.id] ?? BLANK;
@@ -555,7 +555,7 @@ function RegisterForm({ data, loading, onDirtyChange }: RegisterFormProps) {
   const earlierOf = (studentId: string) =>
     data.earlier.filter((mark) => mark.studentId === studentId);
   const lateNow = () => {
-    const start = data.period.startTime;
+    const start = data.period?.startTime;
     if (data.date !== data.today || !start) return null;
     return minutesLate(start, schoolClockAt(), data.lateness.afterMinutes);
   };
@@ -725,7 +725,8 @@ export function Register({
         ]
       : []),
   ];
-  const max = data.today < data.year.lastDay ? data.today : data.year.lastDay;
+  const last = data.runs.lastDay;
+  const max = last === null || data.today < last ? data.today : last;
   return (
     <Page width="form">
       <div className="grid gap-4">
@@ -749,37 +750,41 @@ export function Register({
           <CheckInScreen
             classId={classId}
             date={data.date}
-            periodId={data.period.id}
+            periodId={data.period?.id ?? ""}
             onClose={() => setChecking(false)}
           />
         ) : null}
         <IndexToolbar
-          facets={[
-            {
-              id: "period",
-              label: m.attPeriod(),
-              single: true,
-              defaultSelected: [data.period.id],
-              selected: [loading?.periodId || data.period.id],
-              options: data.periods.map((period) => ({
-                value: period.id,
-                label: period.startTime
-                  ? m.attPeriodAt({
-                      period: inLocale(period.nameEn, period.nameAr),
-                      time: period.startTime,
-                    })
-                  : inLocale(period.nameEn, period.nameAr),
-              })),
-              onChange: ([next]) => {
-                if (next) onChange({ periodId: next });
-              },
-            },
-          ]}
+          facets={
+            data.period
+              ? [
+                  {
+                    id: "period",
+                    label: m.attPeriod(),
+                    single: true,
+                    defaultSelected: [data.period.id],
+                    selected: [loading?.periodId || data.period.id],
+                    options: data.periods.map((period) => ({
+                      value: period.id,
+                      label: period.startTime
+                        ? m.attPeriodAt({
+                            period: inLocale(period.nameEn, period.nameAr),
+                            time: period.startTime,
+                          })
+                        : inLocale(period.nameEn, period.nameAr),
+                    })),
+                    onChange: ([next]) => {
+                      if (next) onChange({ periodId: next });
+                    },
+                  },
+                ]
+              : []
+          }
           period={
             <DayNav
               id="register-date"
               date={loading?.date || data.date}
-              min={data.year.startsOn}
+              min={data.runs.startsOn}
               max={max < data.date ? data.date : max}
               today={data.today}
               onChange={(next) => onChange({ date: next })}
@@ -799,7 +804,7 @@ export function Register({
           <EmptyState icon={Users} title={m.attNoStudents()} />
         ) : (
           <RegisterForm
-            key={`${data.date}|${data.period.id}|${shown}`}
+            key={`${data.date}|${data.period?.id ?? ""}|${shown}`}
             data={data}
             loading={loading !== undefined}
             onDirtyChange={setEditing}

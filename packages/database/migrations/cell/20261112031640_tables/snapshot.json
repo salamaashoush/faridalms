@@ -2,9 +2,9 @@
   "type": "diff",
   "version": "9",
   "dialect": "postgres",
-  "id": "9709cba3-c4bc-4520-9e16-96b22d57581d",
+  "id": "cd38c3c8-f9c4-45d6-9e16-26666ff88611",
   "prevIds": [
-    "d03c00e0-fdee-4c25-b88b-d1e0ce13b44d"
+    "1876f24c-b432-423b-a879-f1afec7bf120"
   ],
   "footprints": [
     {
@@ -424,7 +424,8 @@
         "n|rel|core.attendance_registers",
         "n|type|core.attendance_registers",
         "n|rel|core.attendance_registers_pkey",
-        "n|rel|core.attendance_registers_tenant_id_id_taken_on_key"
+        "n|rel|core.attendance_registers_tenant_id_id_taken_on_key",
+        "n|rel|core.attendance_registers_tenant_id_id_class_id_taken_on_key"
       ],
       "reads": [
         "n|sch|core"
@@ -520,7 +521,7 @@
         "n|rel|core.bell_schedules",
         "n|type|core.bell_schedules",
         "n|rel|core.bell_schedules_pkey",
-        "n|rel|core.bell_schedules_tenant_id_id_school_year_id_key"
+        "n|rel|core.bell_schedules_tenant_id_id_org_id_key"
       ],
       "reads": [
         "n|sch|core"
@@ -683,45 +684,6 @@
       "statementTarget": [
         "table",
         "core",
-        "calendar_grade_levels"
-      ],
-      "writes": [
-        "s|tbl|core.calendar_grade_levels",
-        "n|tbl|core.calendar_grade_levels",
-        "e|tbl|core.calendar_grade_levels",
-        "n|rel|core.calendar_grade_levels",
-        "n|type|core.calendar_grade_levels",
-        "n|rel|core.calendar_grade_levels_pkey"
-      ],
-      "reads": [
-        "n|sch|core"
-      ]
-    },
-    {
-      "statementType": "create_table",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendars"
-      ],
-      "writes": [
-        "s|tbl|core.calendars",
-        "n|tbl|core.calendars",
-        "e|tbl|core.calendars",
-        "n|rel|core.calendars",
-        "n|type|core.calendars",
-        "n|rel|core.calendars_pkey",
-        "n|rel|core.calendars_tenant_id_id_school_year_id_key"
-      ],
-      "reads": [
-        "n|sch|core"
-      ]
-    },
-    {
-      "statementType": "create_table",
-      "statementTarget": [
-        "table",
-        "core",
         "caption_drafts"
       ],
       "writes": [
@@ -807,7 +769,7 @@
         "n|rel|core.class_periods",
         "n|type|core.class_periods",
         "n|rel|core.class_periods_pkey",
-        "n|rel|core.class_periods_tenant_id_id_school_year_id_org_id_key"
+        "n|rel|core.class_periods_tenant_id_id_org_id_key"
       ],
       "reads": [
         "n|sch|core"
@@ -2448,6 +2410,25 @@
       "statementTarget": [
         "table",
         "core",
+        "register_periods"
+      ],
+      "writes": [
+        "s|tbl|core.register_periods",
+        "n|tbl|core.register_periods",
+        "e|tbl|core.register_periods",
+        "n|rel|core.register_periods",
+        "n|type|core.register_periods",
+        "n|rel|core.register_periods_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
         "relationship_restrictions"
       ],
       "writes": [
@@ -3021,6 +3002,25 @@
       "statementTarget": [
         "table",
         "core",
+        "timetable_days"
+      ],
+      "writes": [
+        "s|tbl|core.timetable_days",
+        "n|tbl|core.timetable_days",
+        "e|tbl|core.timetable_days",
+        "n|rel|core.timetable_days",
+        "n|type|core.timetable_days",
+        "n|rel|core.timetable_days_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
         "timetables"
       ],
       "writes": [
@@ -3030,7 +3030,7 @@
         "n|rel|core.timetables",
         "n|type|core.timetables",
         "n|rel|core.timetables_pkey",
-        "n|rel|core.timetables_tenant_id_id_school_year_id_org_id_key"
+        "n|rel|core.timetables_tenant_id_id_org_id_key"
       ],
       "reads": [
         "n|sch|core"
@@ -3929,21 +3929,20 @@
         "index",
         "core",
         "attendance_registers",
-        "attendance_registers_key"
+        "attendance_registers_day_key"
       ],
       "writes": [
-        "s|idx|core.attendance_registers_key",
-        "n|idx|core.attendance_registers_key",
-        "e|idx|core.attendance_registers_key",
-        "n|rel|core.attendance_registers_key"
+        "s|idx|core.attendance_registers_day_key",
+        "n|idx|core.attendance_registers_day_key",
+        "e|idx|core.attendance_registers_day_key",
+        "n|rel|core.attendance_registers_day_key"
       ],
       "reads": [
         "n|tbl|core.attendance_registers",
         "n|sch|core",
         "n|col|core.attendance_registers.tenant_id",
         "n|col|core.attendance_registers.class_id",
-        "n|col|core.attendance_registers.taken_on",
-        "n|col|core.attendance_registers.class_period_id"
+        "n|col|core.attendance_registers.taken_on"
       ]
     },
     {
@@ -4059,19 +4058,19 @@
         "index",
         "core",
         "bell_schedules",
-        "bell_schedules_year_idx"
+        "bell_schedules_school_idx"
       ],
       "writes": [
-        "s|idx|core.bell_schedules_year_idx",
-        "n|idx|core.bell_schedules_year_idx",
-        "e|idx|core.bell_schedules_year_idx",
-        "n|rel|core.bell_schedules_year_idx"
+        "s|idx|core.bell_schedules_school_idx",
+        "n|idx|core.bell_schedules_school_idx",
+        "e|idx|core.bell_schedules_school_idx",
+        "n|rel|core.bell_schedules_school_idx"
       ],
       "reads": [
         "n|tbl|core.bell_schedules",
         "n|sch|core",
         "n|col|core.bell_schedules.tenant_id",
-        "n|col|core.bell_schedules.school_year_id"
+        "n|col|core.bell_schedules.org_id"
       ]
     },
     {
@@ -4243,7 +4242,7 @@
         "n|tbl|core.calendar_dates",
         "n|sch|core",
         "n|col|core.calendar_dates.tenant_id",
-        "n|col|core.calendar_dates.calendar_id",
+        "n|col|core.calendar_dates.org_id",
         "n|col|core.calendar_dates.day_on"
       ]
     },
@@ -4332,71 +4331,6 @@
         "n|col|core.calendar_feeds.tenant_id",
         "n|col|core.calendar_feeds.user_id",
         "n|col|core.calendar_feeds.org_id"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "core",
-        "calendar_grade_levels",
-        "calendar_grade_levels_key"
-      ],
-      "writes": [
-        "s|idx|core.calendar_grade_levels_key",
-        "n|idx|core.calendar_grade_levels_key",
-        "e|idx|core.calendar_grade_levels_key",
-        "n|rel|core.calendar_grade_levels_key"
-      ],
-      "reads": [
-        "n|tbl|core.calendar_grade_levels",
-        "n|sch|core",
-        "n|col|core.calendar_grade_levels.tenant_id",
-        "n|col|core.calendar_grade_levels.calendar_id",
-        "n|col|core.calendar_grade_levels.grade_level_descriptor_id"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "core",
-        "calendars",
-        "calendars_code_key"
-      ],
-      "writes": [
-        "s|idx|core.calendars_code_key",
-        "n|idx|core.calendars_code_key",
-        "e|idx|core.calendars_code_key",
-        "n|rel|core.calendars_code_key"
-      ],
-      "reads": [
-        "n|tbl|core.calendars",
-        "n|sch|core",
-        "n|col|core.calendars.tenant_id",
-        "n|col|core.calendars.school_year_id",
-        "n|col|core.calendars.code"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "core",
-        "calendars",
-        "calendars_school_key"
-      ],
-      "writes": [
-        "s|idx|core.calendars_school_key",
-        "n|idx|core.calendars_school_key",
-        "e|idx|core.calendars_school_key",
-        "n|rel|core.calendars_school_key"
-      ],
-      "reads": [
-        "n|tbl|core.calendars",
-        "n|sch|core",
-        "n|col|core.calendars.tenant_id",
-        "n|col|core.calendars.school_year_id"
       ]
     },
     {
@@ -7536,6 +7470,50 @@
       "statementTarget": [
         "index",
         "core",
+        "register_periods",
+        "register_periods_register_key"
+      ],
+      "writes": [
+        "s|idx|core.register_periods_register_key",
+        "n|idx|core.register_periods_register_key",
+        "e|idx|core.register_periods_register_key",
+        "n|rel|core.register_periods_register_key"
+      ],
+      "reads": [
+        "n|tbl|core.register_periods",
+        "n|sch|core",
+        "n|col|core.register_periods.tenant_id",
+        "n|col|core.register_periods.register_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "register_periods",
+        "register_periods_key"
+      ],
+      "writes": [
+        "s|idx|core.register_periods_key",
+        "n|idx|core.register_periods_key",
+        "e|idx|core.register_periods_key",
+        "n|rel|core.register_periods_key"
+      ],
+      "reads": [
+        "n|tbl|core.register_periods",
+        "n|sch|core",
+        "n|col|core.register_periods.tenant_id",
+        "n|col|core.register_periods.class_id",
+        "n|col|core.register_periods.taken_on",
+        "n|col|core.register_periods.class_period_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
         "retention_settings",
         "retention_settings_org_key"
       ],
@@ -8560,6 +8538,28 @@
       "statementTarget": [
         "index",
         "core",
+        "timetable_days",
+        "timetable_days_day_key"
+      ],
+      "writes": [
+        "s|idx|core.timetable_days_day_key",
+        "n|idx|core.timetable_days_day_key",
+        "e|idx|core.timetable_days_day_key",
+        "n|rel|core.timetable_days_day_key"
+      ],
+      "reads": [
+        "n|tbl|core.timetable_days",
+        "n|sch|core",
+        "n|col|core.timetable_days.tenant_id",
+        "n|col|core.timetable_days.org_id",
+        "n|col|core.timetable_days.day_on"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
         "timetables",
         "timetables_start_key"
       ],
@@ -8573,7 +8573,7 @@
         "n|tbl|core.timetables",
         "n|sch|core",
         "n|col|core.timetables.tenant_id",
-        "n|col|core.timetables.school_year_id",
+        "n|col|core.timetables.org_id",
         "n|col|core.timetables.starts_on"
       ]
     },
@@ -8947,27 +8947,21 @@
         "absence_reports"
       ],
       "writes": [
-        "s|fk|core.absence_reports.absence_reports_tenant_id_school_year_id_school_year_type__fkey",
-        "n|fk|core.absence_reports.absence_reports_tenant_id_school_year_id_school_year_type__fkey",
-        "e|fk|core.absence_reports.absence_reports_tenant_id_school_year_id_school_year_type__fkey",
-        "n|con|core.absence_reports.absence_reports_tenant_id_school_year_id_school_year_type__fkey"
+        "s|fk|core.absence_reports.absence_reports_tenant_id_org_id_fkey",
+        "n|fk|core.absence_reports.absence_reports_tenant_id_org_id_fkey",
+        "e|fk|core.absence_reports.absence_reports_tenant_id_org_id_fkey",
+        "n|con|core.absence_reports.absence_reports_tenant_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.absence_reports",
         "n|sch|core",
-        "n|tbl|core.academic_sessions",
+        "n|tbl|core.orgs",
         "n|sch|core",
         "n|col|core.absence_reports.tenant_id",
-        "n|col|core.absence_reports.school_year_id",
-        "n|col|core.absence_reports.school_year_type",
-        "n|col|core.absence_reports.school_year_id",
         "n|col|core.absence_reports.org_id",
-        "n|col|core.academic_sessions.tenant_id",
-        "n|col|core.academic_sessions.id",
-        "n|col|core.academic_sessions.type",
-        "n|col|core.academic_sessions.school_year_id",
-        "n|col|core.academic_sessions.org_id",
-        "e|uniqueness|core.academic_sessions.id.org_id.school_year_id.tenant_id.type"
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
       ]
     },
     {
@@ -10991,35 +10985,6 @@
         "attendance_registers"
       ],
       "writes": [
-        "s|fk|core.attendance_registers.attendance_registers_tenant_id_class_period_id_school_year_fkey",
-        "n|fk|core.attendance_registers.attendance_registers_tenant_id_class_period_id_school_year_fkey",
-        "e|fk|core.attendance_registers.attendance_registers_tenant_id_class_period_id_school_year_fkey",
-        "n|con|core.attendance_registers.attendance_registers_tenant_id_class_period_id_school_year_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.attendance_registers",
-        "n|sch|core",
-        "n|tbl|core.class_periods",
-        "n|sch|core",
-        "n|col|core.attendance_registers.tenant_id",
-        "n|col|core.attendance_registers.class_period_id",
-        "n|col|core.attendance_registers.school_year_id",
-        "n|col|core.attendance_registers.org_id",
-        "n|col|core.class_periods.tenant_id",
-        "n|col|core.class_periods.id",
-        "n|col|core.class_periods.school_year_id",
-        "n|col|core.class_periods.org_id",
-        "e|uniqueness|core.class_periods.id.org_id.school_year_id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "attendance_registers"
-      ],
-      "writes": [
         "s|fk|core.attendance_registers.attendance_registers_tenant_id_recorded_by_user_id_fkey",
         "n|fk|core.attendance_registers.attendance_registers_tenant_id_recorded_by_user_id_fkey",
         "e|fk|core.attendance_registers.attendance_registers_tenant_id_recorded_by_user_id_fkey",
@@ -11260,27 +11225,21 @@
         "bell_schedules"
       ],
       "writes": [
-        "s|fk|core.bell_schedules.bell_schedules_tenant_id_school_year_id_school_year_type_s_fkey",
-        "n|fk|core.bell_schedules.bell_schedules_tenant_id_school_year_id_school_year_type_s_fkey",
-        "e|fk|core.bell_schedules.bell_schedules_tenant_id_school_year_id_school_year_type_s_fkey",
-        "n|con|core.bell_schedules.bell_schedules_tenant_id_school_year_id_school_year_type_s_fkey"
+        "s|fk|core.bell_schedules.bell_schedules_tenant_id_org_id_fkey",
+        "n|fk|core.bell_schedules.bell_schedules_tenant_id_org_id_fkey",
+        "e|fk|core.bell_schedules.bell_schedules_tenant_id_org_id_fkey",
+        "n|con|core.bell_schedules.bell_schedules_tenant_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.bell_schedules",
         "n|sch|core",
-        "n|tbl|core.academic_sessions",
+        "n|tbl|core.orgs",
         "n|sch|core",
         "n|col|core.bell_schedules.tenant_id",
-        "n|col|core.bell_schedules.school_year_id",
-        "n|col|core.bell_schedules.school_year_type",
-        "n|col|core.bell_schedules.school_year_id",
         "n|col|core.bell_schedules.org_id",
-        "n|col|core.academic_sessions.tenant_id",
-        "n|col|core.academic_sessions.id",
-        "n|col|core.academic_sessions.type",
-        "n|col|core.academic_sessions.school_year_id",
-        "n|col|core.academic_sessions.org_id",
-        "e|uniqueness|core.academic_sessions.id.org_id.school_year_id.tenant_id.type"
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
       ]
     },
     {
@@ -11733,23 +11692,21 @@
         "calendar_dates"
       ],
       "writes": [
-        "s|fk|core.calendar_dates.calendar_dates_tenant_id_calendar_id_school_year_id_fkey",
-        "n|fk|core.calendar_dates.calendar_dates_tenant_id_calendar_id_school_year_id_fkey",
-        "e|fk|core.calendar_dates.calendar_dates_tenant_id_calendar_id_school_year_id_fkey",
-        "n|con|core.calendar_dates.calendar_dates_tenant_id_calendar_id_school_year_id_fkey"
+        "s|fk|core.calendar_dates.calendar_dates_tenant_id_org_id_fkey",
+        "n|fk|core.calendar_dates.calendar_dates_tenant_id_org_id_fkey",
+        "e|fk|core.calendar_dates.calendar_dates_tenant_id_org_id_fkey",
+        "n|con|core.calendar_dates.calendar_dates_tenant_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.calendar_dates",
         "n|sch|core",
-        "n|tbl|core.calendars",
+        "n|tbl|core.orgs",
         "n|sch|core",
         "n|col|core.calendar_dates.tenant_id",
-        "n|col|core.calendar_dates.calendar_id",
-        "n|col|core.calendar_dates.school_year_id",
-        "n|col|core.calendars.tenant_id",
-        "n|col|core.calendars.id",
-        "n|col|core.calendars.school_year_id",
-        "e|uniqueness|core.calendars.id.school_year_id.tenant_id"
+        "n|col|core.calendar_dates.org_id",
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
       ]
     },
     {
@@ -11777,33 +11734,6 @@
         "n|col|core.descriptors.id",
         "n|col|core.descriptors.namespace",
         "e|uniqueness|core.descriptors.id.namespace.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendar_dates"
-      ],
-      "writes": [
-        "s|fk|core.calendar_dates.calendar_dates_tenant_id_bell_schedule_id_school_year_id_fkey",
-        "n|fk|core.calendar_dates.calendar_dates_tenant_id_bell_schedule_id_school_year_id_fkey",
-        "e|fk|core.calendar_dates.calendar_dates_tenant_id_bell_schedule_id_school_year_id_fkey",
-        "n|con|core.calendar_dates.calendar_dates_tenant_id_bell_schedule_id_school_year_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.calendar_dates",
-        "n|sch|core",
-        "n|tbl|core.bell_schedules",
-        "n|sch|core",
-        "n|col|core.calendar_dates.tenant_id",
-        "n|col|core.calendar_dates.bell_schedule_id",
-        "n|col|core.calendar_dates.school_year_id",
-        "n|col|core.bell_schedules.tenant_id",
-        "n|col|core.bell_schedules.id",
-        "n|col|core.bell_schedules.school_year_id",
-        "e|uniqueness|core.bell_schedules.id.school_year_id.tenant_id"
       ]
     },
     {
@@ -12075,135 +12005,6 @@
         "n|col|core.orgs.tenant_id",
         "n|col|core.orgs.id",
         "e|uniqueness|core.orgs.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendar_grade_levels"
-      ],
-      "writes": [
-        "s|fk|core.calendar_grade_levels.calendar_grade_levels_tenant_id_fkey",
-        "n|fk|core.calendar_grade_levels.calendar_grade_levels_tenant_id_fkey",
-        "e|fk|core.calendar_grade_levels.calendar_grade_levels_tenant_id_fkey",
-        "n|con|core.calendar_grade_levels.calendar_grade_levels_tenant_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.calendar_grade_levels",
-        "n|sch|core",
-        "n|tbl|core.tenants",
-        "n|sch|core",
-        "n|col|core.calendar_grade_levels.tenant_id",
-        "n|col|core.tenants.tenant_id",
-        "e|uniqueness|core.tenants.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendar_grade_levels"
-      ],
-      "writes": [
-        "s|fk|core.calendar_grade_levels.calendar_grade_levels_tenant_id_calendar_id_fkey",
-        "n|fk|core.calendar_grade_levels.calendar_grade_levels_tenant_id_calendar_id_fkey",
-        "e|fk|core.calendar_grade_levels.calendar_grade_levels_tenant_id_calendar_id_fkey",
-        "n|con|core.calendar_grade_levels.calendar_grade_levels_tenant_id_calendar_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.calendar_grade_levels",
-        "n|sch|core",
-        "n|tbl|core.calendars",
-        "n|sch|core",
-        "n|col|core.calendar_grade_levels.tenant_id",
-        "n|col|core.calendar_grade_levels.calendar_id",
-        "n|col|core.calendars.tenant_id",
-        "n|col|core.calendars.id",
-        "e|uniqueness|core.calendars.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendar_grade_levels"
-      ],
-      "writes": [
-        "s|fk|core.calendar_grade_levels.calendar_grade_levels_tenant_id_grade_level_descriptor_id__fkey",
-        "n|fk|core.calendar_grade_levels.calendar_grade_levels_tenant_id_grade_level_descriptor_id__fkey",
-        "e|fk|core.calendar_grade_levels.calendar_grade_levels_tenant_id_grade_level_descriptor_id__fkey",
-        "n|con|core.calendar_grade_levels.calendar_grade_levels_tenant_id_grade_level_descriptor_id__fkey"
-      ],
-      "reads": [
-        "n|tbl|core.calendar_grade_levels",
-        "n|sch|core",
-        "n|tbl|core.descriptors",
-        "n|sch|core",
-        "n|col|core.calendar_grade_levels.tenant_id",
-        "n|col|core.calendar_grade_levels.grade_level_descriptor_id",
-        "n|col|core.calendar_grade_levels.grade_level_ns",
-        "n|col|core.descriptors.tenant_id",
-        "n|col|core.descriptors.id",
-        "n|col|core.descriptors.namespace",
-        "e|uniqueness|core.descriptors.id.namespace.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendars"
-      ],
-      "writes": [
-        "s|fk|core.calendars.calendars_tenant_id_fkey",
-        "n|fk|core.calendars.calendars_tenant_id_fkey",
-        "e|fk|core.calendars.calendars_tenant_id_fkey",
-        "n|con|core.calendars.calendars_tenant_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.calendars",
-        "n|sch|core",
-        "n|tbl|core.tenants",
-        "n|sch|core",
-        "n|col|core.calendars.tenant_id",
-        "n|col|core.tenants.tenant_id",
-        "e|uniqueness|core.tenants.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendars"
-      ],
-      "writes": [
-        "s|fk|core.calendars.calendars_tenant_id_school_year_id_school_year_type_school_fkey",
-        "n|fk|core.calendars.calendars_tenant_id_school_year_id_school_year_type_school_fkey",
-        "e|fk|core.calendars.calendars_tenant_id_school_year_id_school_year_type_school_fkey",
-        "n|con|core.calendars.calendars_tenant_id_school_year_id_school_year_type_school_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.calendars",
-        "n|sch|core",
-        "n|tbl|core.academic_sessions",
-        "n|sch|core",
-        "n|col|core.calendars.tenant_id",
-        "n|col|core.calendars.school_year_id",
-        "n|col|core.calendars.school_year_type",
-        "n|col|core.calendars.school_year_id",
-        "n|col|core.calendars.org_id",
-        "n|col|core.academic_sessions.tenant_id",
-        "n|col|core.academic_sessions.id",
-        "n|col|core.academic_sessions.type",
-        "n|col|core.academic_sessions.school_year_id",
-        "n|col|core.academic_sessions.org_id",
-        "e|uniqueness|core.academic_sessions.id.org_id.school_year_id.tenant_id.type"
       ]
     },
     {
@@ -12485,10 +12286,10 @@
         "class_meetings"
       ],
       "writes": [
-        "s|fk|core.class_meetings.class_meetings_tenant_id_timetable_id_school_year_id_org_i_fkey",
-        "n|fk|core.class_meetings.class_meetings_tenant_id_timetable_id_school_year_id_org_i_fkey",
-        "e|fk|core.class_meetings.class_meetings_tenant_id_timetable_id_school_year_id_org_i_fkey",
-        "n|con|core.class_meetings.class_meetings_tenant_id_timetable_id_school_year_id_org_i_fkey"
+        "s|fk|core.class_meetings.class_meetings_tenant_id_timetable_id_org_id_fkey",
+        "n|fk|core.class_meetings.class_meetings_tenant_id_timetable_id_org_id_fkey",
+        "e|fk|core.class_meetings.class_meetings_tenant_id_timetable_id_org_id_fkey",
+        "n|con|core.class_meetings.class_meetings_tenant_id_timetable_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.class_meetings",
@@ -12497,13 +12298,11 @@
         "n|sch|core",
         "n|col|core.class_meetings.tenant_id",
         "n|col|core.class_meetings.timetable_id",
-        "n|col|core.class_meetings.school_year_id",
         "n|col|core.class_meetings.org_id",
         "n|col|core.timetables.tenant_id",
         "n|col|core.timetables.id",
-        "n|col|core.timetables.school_year_id",
         "n|col|core.timetables.org_id",
-        "e|uniqueness|core.timetables.id.org_id.school_year_id.tenant_id"
+        "e|uniqueness|core.timetables.id.org_id.tenant_id"
       ]
     },
     {
@@ -12514,10 +12313,10 @@
         "class_meetings"
       ],
       "writes": [
-        "s|fk|core.class_meetings.class_meetings_tenant_id_class_period_id_school_year_id_or_fkey",
-        "n|fk|core.class_meetings.class_meetings_tenant_id_class_period_id_school_year_id_or_fkey",
-        "e|fk|core.class_meetings.class_meetings_tenant_id_class_period_id_school_year_id_or_fkey",
-        "n|con|core.class_meetings.class_meetings_tenant_id_class_period_id_school_year_id_or_fkey"
+        "s|fk|core.class_meetings.class_meetings_tenant_id_class_period_id_org_id_fkey",
+        "n|fk|core.class_meetings.class_meetings_tenant_id_class_period_id_org_id_fkey",
+        "e|fk|core.class_meetings.class_meetings_tenant_id_class_period_id_org_id_fkey",
+        "n|con|core.class_meetings.class_meetings_tenant_id_class_period_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.class_meetings",
@@ -12526,13 +12325,11 @@
         "n|sch|core",
         "n|col|core.class_meetings.tenant_id",
         "n|col|core.class_meetings.class_period_id",
-        "n|col|core.class_meetings.school_year_id",
         "n|col|core.class_meetings.org_id",
         "n|col|core.class_periods.tenant_id",
         "n|col|core.class_periods.id",
-        "n|col|core.class_periods.school_year_id",
         "n|col|core.class_periods.org_id",
-        "e|uniqueness|core.class_periods.id.org_id.school_year_id.tenant_id"
+        "e|uniqueness|core.class_periods.id.org_id.tenant_id"
       ]
     },
     {
@@ -12616,27 +12413,21 @@
         "class_periods"
       ],
       "writes": [
-        "s|fk|core.class_periods.class_periods_tenant_id_school_year_id_school_year_type_sc_fkey",
-        "n|fk|core.class_periods.class_periods_tenant_id_school_year_id_school_year_type_sc_fkey",
-        "e|fk|core.class_periods.class_periods_tenant_id_school_year_id_school_year_type_sc_fkey",
-        "n|con|core.class_periods.class_periods_tenant_id_school_year_id_school_year_type_sc_fkey"
+        "s|fk|core.class_periods.class_periods_tenant_id_org_id_fkey",
+        "n|fk|core.class_periods.class_periods_tenant_id_org_id_fkey",
+        "e|fk|core.class_periods.class_periods_tenant_id_org_id_fkey",
+        "n|con|core.class_periods.class_periods_tenant_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.class_periods",
         "n|sch|core",
-        "n|tbl|core.academic_sessions",
+        "n|tbl|core.orgs",
         "n|sch|core",
         "n|col|core.class_periods.tenant_id",
-        "n|col|core.class_periods.school_year_id",
-        "n|col|core.class_periods.school_year_type",
-        "n|col|core.class_periods.school_year_id",
         "n|col|core.class_periods.org_id",
-        "n|col|core.academic_sessions.tenant_id",
-        "n|col|core.academic_sessions.id",
-        "n|col|core.academic_sessions.type",
-        "n|col|core.academic_sessions.school_year_id",
-        "n|col|core.academic_sessions.org_id",
-        "e|uniqueness|core.academic_sessions.id.org_id.school_year_id.tenant_id.type"
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
       ]
     },
     {
@@ -12647,10 +12438,10 @@
         "class_periods"
       ],
       "writes": [
-        "s|fk|core.class_periods.class_periods_tenant_id_bell_schedule_id_school_year_id_fkey",
-        "n|fk|core.class_periods.class_periods_tenant_id_bell_schedule_id_school_year_id_fkey",
-        "e|fk|core.class_periods.class_periods_tenant_id_bell_schedule_id_school_year_id_fkey",
-        "n|con|core.class_periods.class_periods_tenant_id_bell_schedule_id_school_year_id_fkey"
+        "s|fk|core.class_periods.class_periods_tenant_id_bell_schedule_id_org_id_fkey",
+        "n|fk|core.class_periods.class_periods_tenant_id_bell_schedule_id_org_id_fkey",
+        "e|fk|core.class_periods.class_periods_tenant_id_bell_schedule_id_org_id_fkey",
+        "n|con|core.class_periods.class_periods_tenant_id_bell_schedule_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.class_periods",
@@ -12659,11 +12450,11 @@
         "n|sch|core",
         "n|col|core.class_periods.tenant_id",
         "n|col|core.class_periods.bell_schedule_id",
-        "n|col|core.class_periods.school_year_id",
+        "n|col|core.class_periods.org_id",
         "n|col|core.bell_schedules.tenant_id",
         "n|col|core.bell_schedules.id",
-        "n|col|core.bell_schedules.school_year_id",
-        "e|uniqueness|core.bell_schedules.id.school_year_id.tenant_id"
+        "n|col|core.bell_schedules.org_id",
+        "e|uniqueness|core.bell_schedules.id.org_id.tenant_id"
       ]
     },
     {
@@ -16791,10 +16582,10 @@
         "lesson_changes"
       ],
       "writes": [
-        "s|fk|core.lesson_changes.lesson_changes_tenant_id_class_period_id_school_year_id_or_fkey",
-        "n|fk|core.lesson_changes.lesson_changes_tenant_id_class_period_id_school_year_id_or_fkey",
-        "e|fk|core.lesson_changes.lesson_changes_tenant_id_class_period_id_school_year_id_or_fkey",
-        "n|con|core.lesson_changes.lesson_changes_tenant_id_class_period_id_school_year_id_or_fkey"
+        "s|fk|core.lesson_changes.lesson_changes_tenant_id_class_period_id_org_id_fkey",
+        "n|fk|core.lesson_changes.lesson_changes_tenant_id_class_period_id_org_id_fkey",
+        "e|fk|core.lesson_changes.lesson_changes_tenant_id_class_period_id_org_id_fkey",
+        "n|con|core.lesson_changes.lesson_changes_tenant_id_class_period_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.lesson_changes",
@@ -16803,13 +16594,11 @@
         "n|sch|core",
         "n|col|core.lesson_changes.tenant_id",
         "n|col|core.lesson_changes.class_period_id",
-        "n|col|core.lesson_changes.school_year_id",
         "n|col|core.lesson_changes.org_id",
         "n|col|core.class_periods.tenant_id",
         "n|col|core.class_periods.id",
-        "n|col|core.class_periods.school_year_id",
         "n|col|core.class_periods.org_id",
-        "e|uniqueness|core.class_periods.id.org_id.school_year_id.tenant_id"
+        "e|uniqueness|core.class_periods.id.org_id.tenant_id"
       ]
     },
     {
@@ -20280,6 +20069,85 @@
       "statementTarget": [
         "table",
         "core",
+        "register_periods"
+      ],
+      "writes": [
+        "s|fk|core.register_periods.register_periods_tenant_id_fkey",
+        "n|fk|core.register_periods.register_periods_tenant_id_fkey",
+        "e|fk|core.register_periods.register_periods_tenant_id_fkey",
+        "n|con|core.register_periods.register_periods_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.register_periods",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.register_periods.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "register_periods"
+      ],
+      "writes": [
+        "s|fk|core.register_periods.register_periods_tenant_id_register_id_class_id_taken_on_fkey",
+        "n|fk|core.register_periods.register_periods_tenant_id_register_id_class_id_taken_on_fkey",
+        "e|fk|core.register_periods.register_periods_tenant_id_register_id_class_id_taken_on_fkey",
+        "n|con|core.register_periods.register_periods_tenant_id_register_id_class_id_taken_on_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.register_periods",
+        "n|sch|core",
+        "n|tbl|core.attendance_registers",
+        "n|sch|core",
+        "n|col|core.register_periods.tenant_id",
+        "n|col|core.register_periods.register_id",
+        "n|col|core.register_periods.class_id",
+        "n|col|core.register_periods.taken_on",
+        "n|col|core.attendance_registers.tenant_id",
+        "n|col|core.attendance_registers.id",
+        "n|col|core.attendance_registers.class_id",
+        "n|col|core.attendance_registers.taken_on",
+        "e|uniqueness|core.attendance_registers.class_id.id.taken_on.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "register_periods"
+      ],
+      "writes": [
+        "s|fk|core.register_periods.register_periods_tenant_id_class_period_id_org_id_fkey",
+        "n|fk|core.register_periods.register_periods_tenant_id_class_period_id_org_id_fkey",
+        "e|fk|core.register_periods.register_periods_tenant_id_class_period_id_org_id_fkey",
+        "n|con|core.register_periods.register_periods_tenant_id_class_period_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.register_periods",
+        "n|sch|core",
+        "n|tbl|core.class_periods",
+        "n|sch|core",
+        "n|col|core.register_periods.tenant_id",
+        "n|col|core.register_periods.class_period_id",
+        "n|col|core.register_periods.org_id",
+        "n|col|core.class_periods.tenant_id",
+        "n|col|core.class_periods.id",
+        "n|col|core.class_periods.org_id",
+        "e|uniqueness|core.class_periods.id.org_id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
         "relationship_restrictions"
       ],
       "writes": [
@@ -21532,27 +21400,21 @@
         "staff_absences"
       ],
       "writes": [
-        "s|fk|core.staff_absences.staff_absences_tenant_id_school_year_id_school_year_type_s_fkey",
-        "n|fk|core.staff_absences.staff_absences_tenant_id_school_year_id_school_year_type_s_fkey",
-        "e|fk|core.staff_absences.staff_absences_tenant_id_school_year_id_school_year_type_s_fkey",
-        "n|con|core.staff_absences.staff_absences_tenant_id_school_year_id_school_year_type_s_fkey"
+        "s|fk|core.staff_absences.staff_absences_tenant_id_org_id_fkey",
+        "n|fk|core.staff_absences.staff_absences_tenant_id_org_id_fkey",
+        "e|fk|core.staff_absences.staff_absences_tenant_id_org_id_fkey",
+        "n|con|core.staff_absences.staff_absences_tenant_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.staff_absences",
         "n|sch|core",
-        "n|tbl|core.academic_sessions",
+        "n|tbl|core.orgs",
         "n|sch|core",
         "n|col|core.staff_absences.tenant_id",
-        "n|col|core.staff_absences.school_year_id",
-        "n|col|core.staff_absences.school_year_type",
-        "n|col|core.staff_absences.school_year_id",
         "n|col|core.staff_absences.org_id",
-        "n|col|core.academic_sessions.tenant_id",
-        "n|col|core.academic_sessions.id",
-        "n|col|core.academic_sessions.type",
-        "n|col|core.academic_sessions.school_year_id",
-        "n|col|core.academic_sessions.org_id",
-        "e|uniqueness|core.academic_sessions.id.org_id.school_year_id.tenant_id.type"
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
       ]
     },
     {
@@ -22288,33 +22150,6 @@
         "student_school_years"
       ],
       "writes": [
-        "s|fk|core.student_school_years.student_school_years_tenant_id_calendar_id_school_year_id_fkey",
-        "n|fk|core.student_school_years.student_school_years_tenant_id_calendar_id_school_year_id_fkey",
-        "e|fk|core.student_school_years.student_school_years_tenant_id_calendar_id_school_year_id_fkey",
-        "n|con|core.student_school_years.student_school_years_tenant_id_calendar_id_school_year_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.student_school_years",
-        "n|sch|core",
-        "n|tbl|core.calendars",
-        "n|sch|core",
-        "n|col|core.student_school_years.tenant_id",
-        "n|col|core.student_school_years.calendar_id",
-        "n|col|core.student_school_years.school_year_id",
-        "n|col|core.calendars.tenant_id",
-        "n|col|core.calendars.id",
-        "n|col|core.calendars.school_year_id",
-        "e|uniqueness|core.calendars.id.school_year_id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "student_school_years"
-      ],
-      "writes": [
         "s|fk|core.student_school_years.student_school_years_tenant_id_entry_type_descriptor_id_en_fkey",
         "n|fk|core.student_school_years.student_school_years_tenant_id_entry_type_descriptor_id_en_fkey",
         "e|fk|core.student_school_years.student_school_years_tenant_id_entry_type_descriptor_id_en_fkey",
@@ -22685,6 +22520,81 @@
       "statementTarget": [
         "table",
         "core",
+        "timetable_days"
+      ],
+      "writes": [
+        "s|fk|core.timetable_days.timetable_days_tenant_id_fkey",
+        "n|fk|core.timetable_days.timetable_days_tenant_id_fkey",
+        "e|fk|core.timetable_days.timetable_days_tenant_id_fkey",
+        "n|con|core.timetable_days.timetable_days_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.timetable_days",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.timetable_days.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "timetable_days"
+      ],
+      "writes": [
+        "s|fk|core.timetable_days.timetable_days_tenant_id_org_id_fkey",
+        "n|fk|core.timetable_days.timetable_days_tenant_id_org_id_fkey",
+        "e|fk|core.timetable_days.timetable_days_tenant_id_org_id_fkey",
+        "n|con|core.timetable_days.timetable_days_tenant_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.timetable_days",
+        "n|sch|core",
+        "n|tbl|core.orgs",
+        "n|sch|core",
+        "n|col|core.timetable_days.tenant_id",
+        "n|col|core.timetable_days.org_id",
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "timetable_days"
+      ],
+      "writes": [
+        "s|fk|core.timetable_days.timetable_days_tenant_id_bell_schedule_id_org_id_fkey",
+        "n|fk|core.timetable_days.timetable_days_tenant_id_bell_schedule_id_org_id_fkey",
+        "e|fk|core.timetable_days.timetable_days_tenant_id_bell_schedule_id_org_id_fkey",
+        "n|con|core.timetable_days.timetable_days_tenant_id_bell_schedule_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.timetable_days",
+        "n|sch|core",
+        "n|tbl|core.bell_schedules",
+        "n|sch|core",
+        "n|col|core.timetable_days.tenant_id",
+        "n|col|core.timetable_days.bell_schedule_id",
+        "n|col|core.timetable_days.org_id",
+        "n|col|core.bell_schedules.tenant_id",
+        "n|col|core.bell_schedules.id",
+        "n|col|core.bell_schedules.org_id",
+        "e|uniqueness|core.bell_schedules.id.org_id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
         "timetables"
       ],
       "writes": [
@@ -22711,27 +22621,21 @@
         "timetables"
       ],
       "writes": [
-        "s|fk|core.timetables.timetables_tenant_id_school_year_id_school_year_type_schoo_fkey",
-        "n|fk|core.timetables.timetables_tenant_id_school_year_id_school_year_type_schoo_fkey",
-        "e|fk|core.timetables.timetables_tenant_id_school_year_id_school_year_type_schoo_fkey",
-        "n|con|core.timetables.timetables_tenant_id_school_year_id_school_year_type_schoo_fkey"
+        "s|fk|core.timetables.timetables_tenant_id_org_id_fkey",
+        "n|fk|core.timetables.timetables_tenant_id_org_id_fkey",
+        "e|fk|core.timetables.timetables_tenant_id_org_id_fkey",
+        "n|con|core.timetables.timetables_tenant_id_org_id_fkey"
       ],
       "reads": [
         "n|tbl|core.timetables",
         "n|sch|core",
-        "n|tbl|core.academic_sessions",
+        "n|tbl|core.orgs",
         "n|sch|core",
         "n|col|core.timetables.tenant_id",
-        "n|col|core.timetables.school_year_id",
-        "n|col|core.timetables.school_year_type",
-        "n|col|core.timetables.school_year_id",
         "n|col|core.timetables.org_id",
-        "n|col|core.academic_sessions.tenant_id",
-        "n|col|core.academic_sessions.id",
-        "n|col|core.academic_sessions.type",
-        "n|col|core.academic_sessions.school_year_id",
-        "n|col|core.academic_sessions.org_id",
-        "e|uniqueness|core.academic_sessions.id.org_id.school_year_id.tenant_id.type"
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
       ]
     },
     {
@@ -27460,246 +27364,6 @@
         "n|sch|core",
         "n|role|retention",
         "e|rls|core.calendar_feeds"
-      ]
-    },
-    {
-      "statementType": "create_policy",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendar_grade_levels"
-      ],
-      "writes": [
-        "s|pol|core.calendar_grade_levels.tenant_isolation",
-        "n|pol|core.calendar_grade_levels.tenant_isolation",
-        "e|pol|core.calendar_grade_levels.tenant_isolation"
-      ],
-      "reads": [
-        "n|tbl|core.calendar_grade_levels",
-        "n|sch|core",
-        "e|rls|core.calendar_grade_levels"
-      ]
-    },
-    {
-      "statementType": "create_policy",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendar_grade_levels"
-      ],
-      "writes": [
-        "s|pol|core.calendar_grade_levels.owner_all",
-        "n|pol|core.calendar_grade_levels.owner_all",
-        "e|pol|core.calendar_grade_levels.owner_all"
-      ],
-      "reads": [
-        "n|tbl|core.calendar_grade_levels",
-        "n|sch|core",
-        "n|role|cell_owner",
-        "e|rls|core.calendar_grade_levels"
-      ]
-    },
-    {
-      "statementType": "create_policy",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendar_grade_levels"
-      ],
-      "writes": [
-        "s|pol|core.calendar_grade_levels.p_select",
-        "n|pol|core.calendar_grade_levels.p_select",
-        "e|pol|core.calendar_grade_levels.p_select"
-      ],
-      "reads": [
-        "n|tbl|core.calendar_grade_levels",
-        "n|sch|core",
-        "n|role|app",
-        "n|role|cell_io",
-        "n|role|retention",
-        "n|role|worker",
-        "e|rls|core.calendar_grade_levels"
-      ]
-    },
-    {
-      "statementType": "create_policy",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendar_grade_levels"
-      ],
-      "writes": [
-        "s|pol|core.calendar_grade_levels.p_insert",
-        "n|pol|core.calendar_grade_levels.p_insert",
-        "e|pol|core.calendar_grade_levels.p_insert"
-      ],
-      "reads": [
-        "n|tbl|core.calendar_grade_levels",
-        "n|sch|core",
-        "n|role|app",
-        "n|role|cell_io",
-        "n|role|worker",
-        "e|rls|core.calendar_grade_levels"
-      ]
-    },
-    {
-      "statementType": "create_policy",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendar_grade_levels"
-      ],
-      "writes": [
-        "s|pol|core.calendar_grade_levels.p_update",
-        "n|pol|core.calendar_grade_levels.p_update",
-        "e|pol|core.calendar_grade_levels.p_update"
-      ],
-      "reads": [
-        "n|tbl|core.calendar_grade_levels",
-        "n|sch|core",
-        "n|role|app",
-        "n|role|cell_io",
-        "n|role|worker",
-        "e|rls|core.calendar_grade_levels"
-      ]
-    },
-    {
-      "statementType": "create_policy",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendar_grade_levels"
-      ],
-      "writes": [
-        "s|pol|core.calendar_grade_levels.p_integration_select",
-        "n|pol|core.calendar_grade_levels.p_integration_select",
-        "e|pol|core.calendar_grade_levels.p_integration_select"
-      ],
-      "reads": [
-        "n|tbl|core.calendar_grade_levels",
-        "n|sch|core",
-        "n|role|integration",
-        "e|rls|core.calendar_grade_levels"
-      ]
-    },
-    {
-      "statementType": "create_policy",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendars"
-      ],
-      "writes": [
-        "s|pol|core.calendars.tenant_isolation",
-        "n|pol|core.calendars.tenant_isolation",
-        "e|pol|core.calendars.tenant_isolation"
-      ],
-      "reads": [
-        "n|tbl|core.calendars",
-        "n|sch|core",
-        "e|rls|core.calendars"
-      ]
-    },
-    {
-      "statementType": "create_policy",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendars"
-      ],
-      "writes": [
-        "s|pol|core.calendars.owner_all",
-        "n|pol|core.calendars.owner_all",
-        "e|pol|core.calendars.owner_all"
-      ],
-      "reads": [
-        "n|tbl|core.calendars",
-        "n|sch|core",
-        "n|role|cell_owner",
-        "e|rls|core.calendars"
-      ]
-    },
-    {
-      "statementType": "create_policy",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendars"
-      ],
-      "writes": [
-        "s|pol|core.calendars.p_select",
-        "n|pol|core.calendars.p_select",
-        "e|pol|core.calendars.p_select"
-      ],
-      "reads": [
-        "n|tbl|core.calendars",
-        "n|sch|core",
-        "n|role|app",
-        "n|role|cell_io",
-        "n|role|retention",
-        "n|role|worker",
-        "e|rls|core.calendars"
-      ]
-    },
-    {
-      "statementType": "create_policy",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendars"
-      ],
-      "writes": [
-        "s|pol|core.calendars.p_insert",
-        "n|pol|core.calendars.p_insert",
-        "e|pol|core.calendars.p_insert"
-      ],
-      "reads": [
-        "n|tbl|core.calendars",
-        "n|sch|core",
-        "n|role|app",
-        "n|role|cell_io",
-        "n|role|worker",
-        "e|rls|core.calendars"
-      ]
-    },
-    {
-      "statementType": "create_policy",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendars"
-      ],
-      "writes": [
-        "s|pol|core.calendars.p_update",
-        "n|pol|core.calendars.p_update",
-        "e|pol|core.calendars.p_update"
-      ],
-      "reads": [
-        "n|tbl|core.calendars",
-        "n|sch|core",
-        "n|role|app",
-        "n|role|cell_io",
-        "n|role|worker",
-        "e|rls|core.calendars"
-      ]
-    },
-    {
-      "statementType": "create_policy",
-      "statementTarget": [
-        "table",
-        "core",
-        "calendars"
-      ],
-      "writes": [
-        "s|pol|core.calendars.p_integration_select",
-        "n|pol|core.calendars.p_integration_select",
-        "e|pol|core.calendars.p_integration_select"
-      ],
-      "reads": [
-        "n|tbl|core.calendars",
-        "n|sch|core",
-        "n|role|integration",
-        "e|rls|core.calendars"
       ]
     },
     {
@@ -38364,6 +38028,107 @@
       "statementTarget": [
         "table",
         "core",
+        "register_periods"
+      ],
+      "writes": [
+        "s|pol|core.register_periods.tenant_isolation",
+        "n|pol|core.register_periods.tenant_isolation",
+        "e|pol|core.register_periods.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.register_periods",
+        "n|sch|core",
+        "e|rls|core.register_periods"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "register_periods"
+      ],
+      "writes": [
+        "s|pol|core.register_periods.owner_all",
+        "n|pol|core.register_periods.owner_all",
+        "e|pol|core.register_periods.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.register_periods",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.register_periods"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "register_periods"
+      ],
+      "writes": [
+        "s|pol|core.register_periods.p_select",
+        "n|pol|core.register_periods.p_select",
+        "e|pol|core.register_periods.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.register_periods",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.register_periods"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "register_periods"
+      ],
+      "writes": [
+        "s|pol|core.register_periods.p_insert",
+        "n|pol|core.register_periods.p_insert",
+        "e|pol|core.register_periods.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.register_periods",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.register_periods"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "register_periods"
+      ],
+      "writes": [
+        "s|pol|core.register_periods.p_update",
+        "n|pol|core.register_periods.p_update",
+        "e|pol|core.register_periods.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.register_periods",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.register_periods"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "relationship_restrictions"
       ],
       "writes": [
@@ -41577,6 +41342,107 @@
       "statementTarget": [
         "table",
         "core",
+        "timetable_days"
+      ],
+      "writes": [
+        "s|pol|core.timetable_days.tenant_isolation",
+        "n|pol|core.timetable_days.tenant_isolation",
+        "e|pol|core.timetable_days.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.timetable_days",
+        "n|sch|core",
+        "e|rls|core.timetable_days"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "timetable_days"
+      ],
+      "writes": [
+        "s|pol|core.timetable_days.owner_all",
+        "n|pol|core.timetable_days.owner_all",
+        "e|pol|core.timetable_days.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.timetable_days",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.timetable_days"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "timetable_days"
+      ],
+      "writes": [
+        "s|pol|core.timetable_days.p_select",
+        "n|pol|core.timetable_days.p_select",
+        "e|pol|core.timetable_days.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.timetable_days",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.timetable_days"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "timetable_days"
+      ],
+      "writes": [
+        "s|pol|core.timetable_days.p_insert",
+        "n|pol|core.timetable_days.p_insert",
+        "e|pol|core.timetable_days.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.timetable_days",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.timetable_days"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "timetable_days"
+      ],
+      "writes": [
+        "s|pol|core.timetable_days.p_update",
+        "n|pol|core.timetable_days.p_update",
+        "e|pol|core.timetable_days.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.timetable_days",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.timetable_days"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "timetables"
       ],
       "writes": [
@@ -43030,24 +42896,6 @@
       "op": "create",
       "row": {
         "schema": "core",
-        "name": "calendar_grade_levels",
-        "isRlsEnabled": true,
-        "entityType": "tables"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "name": "calendars",
-        "isRlsEnabled": true,
-        "entityType": "tables"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
         "name": "caption_drafts",
         "isRlsEnabled": true,
         "entityType": "tables"
@@ -43858,6 +43706,15 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "name": "register_periods",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "name": "relationship_restrictions",
         "isRlsEnabled": true,
         "entityType": "tables"
@@ -44128,6 +43985,15 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "name": "timetable_days",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "name": "timetables",
         "isRlsEnabled": true,
         "entityType": "tables"
@@ -44248,38 +44114,6 @@
         "notNull": true,
         "dimensions": 0,
         "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "absence_reports",
-        "name": "school_year_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "absence_reports",
-        "name": "school_year_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'school_year'",
         "generated": null,
         "identity": null,
         "entityType": "columns"
@@ -44811,6 +44645,22 @@
         "notNull": true,
         "dimensions": 0,
         "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "academic_sessions",
+        "name": "target_days",
+        "type": "smallint",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
         "generated": null,
         "identity": null,
         "entityType": "columns"
@@ -50248,8 +50098,8 @@
       "row": {
         "schema": "core",
         "table": "attendance_registers",
-        "name": "school_year_id",
-        "type": "uuid",
+        "name": "kind",
+        "type": "text",
         "typeSchema": null,
         "notNull": true,
         "dimensions": 0,
@@ -50264,24 +50114,8 @@
       "row": {
         "schema": "core",
         "table": "attendance_registers",
-        "name": "school_year_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'school_year'",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "attendance_registers",
-        "name": "class_period_id",
-        "type": "uuid",
+        "name": "daily",
+        "type": "boolean",
         "typeSchema": null,
         "notNull": true,
         "dimensions": 0,
@@ -51201,38 +51035,6 @@
         "notNull": true,
         "dimensions": 0,
         "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "bell_schedules",
-        "name": "school_year_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "bell_schedules",
-        "name": "school_year_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'school_year'",
         "generated": null,
         "identity": null,
         "entityType": "columns"
@@ -52651,44 +52453,12 @@
       "row": {
         "schema": "core",
         "table": "calendar_dates",
-        "name": "calendar_id",
+        "name": "org_id",
         "type": "uuid",
         "typeSchema": null,
         "notNull": true,
         "dimensions": 0,
         "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_dates",
-        "name": "school_year_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_dates",
-        "name": "school_year_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'school_year'",
         "generated": null,
         "identity": null,
         "entityType": "columns"
@@ -52807,38 +52577,6 @@
         "notNull": true,
         "dimensions": 0,
         "default": "false",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_dates",
-        "name": "bell_schedule_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_dates",
-        "name": "runs_as",
-        "type": "smallint",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
         "generated": null,
         "identity": null,
         "entityType": "columns"
@@ -53712,409 +53450,6 @@
       "op": "create",
       "row": {
         "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "tenant_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "uuidv7()",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "calendar_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "grade_level_descriptor_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "grade_level_ns",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": {
-          "as": "'grade_level'",
-          "type": "stored"
-        },
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "status",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'active'",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "date_last_modified",
-        "type": "timestamp with time zone",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "statement_timestamp()",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "version",
-        "type": "integer",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "1",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "metadata",
-        "type": "jsonb",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'{}'",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "created_at",
-        "type": "timestamp with time zone",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "statement_timestamp()",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "tenant_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "uuidv7()",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "org_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "school_year_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "school_year_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'school_year'",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "code",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "kind",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "title_en",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "title_ar",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "target_days",
-        "type": "smallint",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "status",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'active'",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "date_last_modified",
-        "type": "timestamp with time zone",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "statement_timestamp()",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "version",
-        "type": "integer",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "1",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "metadata",
-        "type": "jsonb",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'{}'",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "created_at",
-        "type": "timestamp with time zone",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "statement_timestamp()",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
         "table": "caption_drafts",
         "name": "tenant_id",
         "type": "uuid",
@@ -54772,38 +54107,6 @@
       "row": {
         "schema": "core",
         "table": "class_meetings",
-        "name": "school_year_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "class_meetings",
-        "name": "school_year_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'school_year'",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "class_meetings",
         "name": "timetable_id",
         "type": "uuid",
         "typeSchema": null,
@@ -55034,38 +54337,6 @@
         "notNull": true,
         "dimensions": 0,
         "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "class_periods",
-        "name": "school_year_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "class_periods",
-        "name": "school_year_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'school_year'",
         "generated": null,
         "identity": null,
         "entityType": "columns"
@@ -66183,22 +65454,6 @@
       "row": {
         "schema": "core",
         "table": "lesson_changes",
-        "name": "school_year_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "lesson_changes",
         "name": "class_id",
         "type": "uuid",
         "typeSchema": null,
@@ -75823,6 +75078,198 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "register_periods",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "register_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "class_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "taken_on",
+        "type": "date",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "class_period_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "relationship_restrictions",
         "name": "tenant_id",
         "type": "uuid",
@@ -79616,38 +79063,6 @@
       "row": {
         "schema": "core",
         "table": "staff_absences",
-        "name": "school_year_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "staff_absences",
-        "name": "school_year_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'school_year'",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "staff_absences",
         "name": "user_id",
         "type": "uuid",
         "typeSchema": null,
@@ -81385,22 +80800,6 @@
       "row": {
         "schema": "core",
         "table": "student_school_years",
-        "name": "calendar_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "student_school_years",
         "name": "entry_type_descriptor_id",
         "type": "uuid",
         "typeSchema": null,
@@ -82718,6 +82117,182 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "timetable_days",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "day_on",
+        "type": "date",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "bell_schedule_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "runs_as",
+        "type": "smallint",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "timetables",
         "name": "tenant_id",
         "type": "uuid",
@@ -82757,38 +82332,6 @@
         "notNull": true,
         "dimensions": 0,
         "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "timetables",
-        "name": "school_year_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "timetables",
-        "name": "school_year_type",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'school_year'",
         "generated": null,
         "identity": null,
         "entityType": "columns"
@@ -86425,7 +85968,7 @@
       "row": {
         "schema": "core",
         "table": "attendance_registers",
-        "name": "attendance_registers_key",
+        "name": "attendance_registers_day_key",
         "nameExplicit": true,
         "columns": [
           {
@@ -86448,17 +85991,10 @@
             "asc": true,
             "nullsFirst": false,
             "opclass": null
-          },
-          {
-            "value": "class_period_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
           }
         ],
         "isUnique": true,
-        "where": "status = 'active'",
+        "where": "status = 'active' and kind = 'day'",
         "with": "",
         "method": "btree",
         "concurrently": false,
@@ -86639,7 +86175,7 @@
       "row": {
         "schema": "core",
         "table": "bell_schedules",
-        "name": "bell_schedules_year_idx",
+        "name": "bell_schedules_school_idx",
         "nameExplicit": true,
         "columns": [
           {
@@ -86650,7 +86186,7 @@
             "opclass": null
           },
           {
-            "value": "school_year_id",
+            "value": "org_id",
             "isExpression": false,
             "asc": true,
             "nullsFirst": false,
@@ -86926,7 +86462,7 @@
             "opclass": null
           },
           {
-            "value": "calendar_id",
+            "value": "org_id",
             "isExpression": false,
             "asc": true,
             "nullsFirst": false,
@@ -87087,113 +86623,6 @@
         ],
         "isUnique": true,
         "where": "status = 'active'",
-        "with": "",
-        "method": "btree",
-        "concurrently": false,
-        "entityType": "indexes"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "calendar_grade_levels_key",
-        "nameExplicit": true,
-        "columns": [
-          {
-            "value": "tenant_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "calendar_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "grade_level_descriptor_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          }
-        ],
-        "isUnique": true,
-        "where": "status = 'active'",
-        "with": "",
-        "method": "btree",
-        "concurrently": false,
-        "entityType": "indexes"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_code_key",
-        "nameExplicit": true,
-        "columns": [
-          {
-            "value": "tenant_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "school_year_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "code",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          }
-        ],
-        "isUnique": true,
-        "where": "status = 'active'",
-        "with": "",
-        "method": "btree",
-        "concurrently": false,
-        "entityType": "indexes"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_school_key",
-        "nameExplicit": true,
-        "columns": [
-          {
-            "value": "tenant_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "school_year_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          }
-        ],
-        "isUnique": true,
-        "where": "kind = 'school' and status = 'active'",
         "with": "",
         "method": "btree",
         "concurrently": false,
@@ -92336,6 +91765,82 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "register_periods",
+        "name": "register_periods_register_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "register_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "register_periods_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "class_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "taken_on",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "class_period_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "retention_settings",
         "name": "retention_settings_org_key",
         "nameExplicit": true,
@@ -94059,6 +93564,44 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "timetable_days",
+        "name": "timetable_days_day_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "org_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "day_on",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "timetables",
         "name": "timetables_start_key",
         "nameExplicit": true,
@@ -94071,7 +93614,7 @@
             "opclass": null
           },
           {
-            "value": "school_year_id",
+            "value": "org_id",
             "isExpression": false,
             "asc": true,
             "nullsFirst": false,
@@ -94649,23 +94192,17 @@
       "row": {
         "schema": "core",
         "table": "absence_reports",
-        "name": "absence_reports_tenant_id_school_year_id_school_year_type__fkey",
+        "name": "absence_reports_tenant_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
-          "school_year_id",
-          "school_year_type",
-          "school_year_id",
           "org_id"
         ],
         "schemaTo": "core",
-        "tableTo": "academic_sessions",
+        "tableTo": "orgs",
         "columnsTo": [
           "tenant_id",
-          "id",
-          "type",
-          "school_year_id",
-          "org_id"
+          "id"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -96447,32 +95984,6 @@
       "row": {
         "schema": "core",
         "table": "attendance_registers",
-        "name": "attendance_registers_tenant_id_class_period_id_school_year_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "class_period_id",
-          "school_year_id",
-          "org_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "class_periods",
-        "columnsTo": [
-          "tenant_id",
-          "id",
-          "school_year_id",
-          "org_id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "attendance_registers",
         "name": "attendance_registers_tenant_id_recorded_by_user_id_fkey",
         "nameExplicit": true,
         "columns": [
@@ -96683,23 +96194,17 @@
       "row": {
         "schema": "core",
         "table": "bell_schedules",
-        "name": "bell_schedules_tenant_id_school_year_id_school_year_type_s_fkey",
+        "name": "bell_schedules_tenant_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
-          "school_year_id",
-          "school_year_type",
-          "school_year_id",
           "org_id"
         ],
         "schemaTo": "core",
-        "tableTo": "academic_sessions",
+        "tableTo": "orgs",
         "columnsTo": [
           "tenant_id",
-          "id",
-          "type",
-          "school_year_id",
-          "org_id"
+          "id"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -97099,19 +96604,17 @@
       "row": {
         "schema": "core",
         "table": "calendar_dates",
-        "name": "calendar_dates_tenant_id_calendar_id_school_year_id_fkey",
+        "name": "calendar_dates_tenant_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
-          "calendar_id",
-          "school_year_id"
+          "org_id"
         ],
         "schemaTo": "core",
-        "tableTo": "calendars",
+        "tableTo": "orgs",
         "columnsTo": [
           "tenant_id",
-          "id",
-          "school_year_id"
+          "id"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -97136,30 +96639,6 @@
           "tenant_id",
           "id",
           "namespace"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_dates",
-        "name": "calendar_dates_tenant_id_bell_schedule_id_school_year_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "bell_schedule_id",
-          "school_year_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "bell_schedules",
-        "columnsTo": [
-          "tenant_id",
-          "id",
-          "school_year_id"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -97398,120 +96877,6 @@
         "columnsTo": [
           "tenant_id",
           "id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "calendar_grade_levels_tenant_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "tenants",
-        "columnsTo": [
-          "tenant_id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "calendar_grade_levels_tenant_id_calendar_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "calendar_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "calendars",
-        "columnsTo": [
-          "tenant_id",
-          "id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "calendar_grade_levels_tenant_id_grade_level_descriptor_id__fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "grade_level_descriptor_id",
-          "grade_level_ns"
-        ],
-        "schemaTo": "core",
-        "tableTo": "descriptors",
-        "columnsTo": [
-          "tenant_id",
-          "id",
-          "namespace"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_tenant_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "tenants",
-        "columnsTo": [
-          "tenant_id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_tenant_id_school_year_id_school_year_type_school_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "school_year_id",
-          "school_year_type",
-          "school_year_id",
-          "org_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "academic_sessions",
-        "columnsTo": [
-          "tenant_id",
-          "id",
-          "type",
-          "school_year_id",
-          "org_id"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -97761,12 +97126,11 @@
       "row": {
         "schema": "core",
         "table": "class_meetings",
-        "name": "class_meetings_tenant_id_timetable_id_school_year_id_org_i_fkey",
+        "name": "class_meetings_tenant_id_timetable_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "timetable_id",
-          "school_year_id",
           "org_id"
         ],
         "schemaTo": "core",
@@ -97774,7 +97138,6 @@
         "columnsTo": [
           "tenant_id",
           "id",
-          "school_year_id",
           "org_id"
         ],
         "onUpdate": "NO ACTION",
@@ -97787,12 +97150,11 @@
       "row": {
         "schema": "core",
         "table": "class_meetings",
-        "name": "class_meetings_tenant_id_class_period_id_school_year_id_or_fkey",
+        "name": "class_meetings_tenant_id_class_period_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "class_period_id",
-          "school_year_id",
           "org_id"
         ],
         "schemaTo": "core",
@@ -97800,7 +97162,6 @@
         "columnsTo": [
           "tenant_id",
           "id",
-          "school_year_id",
           "org_id"
         ],
         "onUpdate": "NO ACTION",
@@ -97877,23 +97238,17 @@
       "row": {
         "schema": "core",
         "table": "class_periods",
-        "name": "class_periods_tenant_id_school_year_id_school_year_type_sc_fkey",
+        "name": "class_periods_tenant_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
-          "school_year_id",
-          "school_year_type",
-          "school_year_id",
           "org_id"
         ],
         "schemaTo": "core",
-        "tableTo": "academic_sessions",
+        "tableTo": "orgs",
         "columnsTo": [
           "tenant_id",
-          "id",
-          "type",
-          "school_year_id",
-          "org_id"
+          "id"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -97905,19 +97260,19 @@
       "row": {
         "schema": "core",
         "table": "class_periods",
-        "name": "class_periods_tenant_id_bell_schedule_id_school_year_id_fkey",
+        "name": "class_periods_tenant_id_bell_schedule_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "bell_schedule_id",
-          "school_year_id"
+          "org_id"
         ],
         "schemaTo": "core",
         "tableTo": "bell_schedules",
         "columnsTo": [
           "tenant_id",
           "id",
-          "school_year_id"
+          "org_id"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -101551,12 +100906,11 @@
       "row": {
         "schema": "core",
         "table": "lesson_changes",
-        "name": "lesson_changes_tenant_id_class_period_id_school_year_id_or_fkey",
+        "name": "lesson_changes_tenant_id_class_period_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "class_period_id",
-          "school_year_id",
           "org_id"
         ],
         "schemaTo": "core",
@@ -101564,7 +100918,6 @@
         "columnsTo": [
           "tenant_id",
           "id",
-          "school_year_id",
           "org_id"
         ],
         "onUpdate": "NO ACTION",
@@ -104616,6 +103969,76 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "register_periods",
+        "name": "register_periods_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "register_periods_tenant_id_register_id_class_id_taken_on_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "register_id",
+          "class_id",
+          "taken_on"
+        ],
+        "schemaTo": "core",
+        "tableTo": "attendance_registers",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "class_id",
+          "taken_on"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "register_periods_tenant_id_class_period_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "class_period_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "class_periods",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "org_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "relationship_restrictions",
         "name": "relationship_restrictions_tenant_id_fkey",
         "nameExplicit": true,
@@ -105713,23 +105136,17 @@
       "row": {
         "schema": "core",
         "table": "staff_absences",
-        "name": "staff_absences_tenant_id_school_year_id_school_year_type_s_fkey",
+        "name": "staff_absences_tenant_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
-          "school_year_id",
-          "school_year_type",
-          "school_year_id",
           "org_id"
         ],
         "schemaTo": "core",
-        "tableTo": "academic_sessions",
+        "tableTo": "orgs",
         "columnsTo": [
           "tenant_id",
-          "id",
-          "type",
-          "school_year_id",
-          "org_id"
+          "id"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -106379,30 +105796,6 @@
       "row": {
         "schema": "core",
         "table": "student_school_years",
-        "name": "student_school_years_tenant_id_calendar_id_school_year_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "calendar_id",
-          "school_year_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "calendars",
-        "columnsTo": [
-          "tenant_id",
-          "id",
-          "school_year_id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "student_school_years",
         "name": "student_school_years_tenant_id_entry_type_descriptor_id_en_fkey",
         "nameExplicit": true,
         "columns": [
@@ -106730,6 +106123,72 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "timetable_days",
+        "name": "timetable_days_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "timetable_days_tenant_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "orgs",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "timetable_days_tenant_id_bell_schedule_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "bell_schedule_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "bell_schedules",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "org_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "timetables",
         "name": "timetables_tenant_id_fkey",
         "nameExplicit": true,
@@ -106751,23 +106210,17 @@
       "row": {
         "schema": "core",
         "table": "timetables",
-        "name": "timetables_tenant_id_school_year_id_school_year_type_schoo_fkey",
+        "name": "timetables_tenant_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
-          "school_year_id",
-          "school_year_type",
-          "school_year_id",
           "org_id"
         ],
         "schemaTo": "core",
-        "tableTo": "academic_sessions",
+        "tableTo": "orgs",
         "columnsTo": [
           "tenant_id",
-          "id",
-          "type",
-          "school_year_id",
-          "org_id"
+          "id"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -107966,34 +107419,6 @@
         "schema": "core",
         "table": "calendar_feeds",
         "name": "calendar_feeds_pkey",
-        "columns": [
-          "tenant_id",
-          "id"
-        ],
-        "nameExplicit": true,
-        "entityType": "pks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "calendar_grade_levels_pkey",
-        "columns": [
-          "tenant_id",
-          "id"
-        ],
-        "nameExplicit": true,
-        "entityType": "pks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_pkey",
         "columns": [
           "tenant_id",
           "id"
@@ -109270,6 +108695,20 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "register_periods",
+        "name": "register_periods_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "relationship_restrictions",
         "name": "relationship_restrictions_pkey",
         "columns": [
@@ -109676,6 +109115,20 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "timetable_days",
+        "name": "timetable_days_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "timetables",
         "name": "timetables_pkey",
         "columns": [
@@ -109899,13 +109352,14 @@
       "op": "create",
       "row": {
         "schema": "core",
-        "table": "bell_schedules",
-        "name": "bell_schedules_tenant_id_id_school_year_id_key",
+        "table": "attendance_registers",
+        "name": "attendance_registers_tenant_id_id_class_id_taken_on_key",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "id",
-          "school_year_id"
+          "class_id",
+          "taken_on"
         ],
         "nullsNotDistinct": false,
         "entityType": "uniques"
@@ -109915,13 +109369,13 @@
       "op": "create",
       "row": {
         "schema": "core",
-        "table": "calendars",
-        "name": "calendars_tenant_id_id_school_year_id_key",
+        "table": "bell_schedules",
+        "name": "bell_schedules_tenant_id_id_org_id_key",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "id",
-          "school_year_id"
+          "org_id"
         ],
         "nullsNotDistinct": false,
         "entityType": "uniques"
@@ -109932,12 +109386,11 @@
       "row": {
         "schema": "core",
         "table": "class_periods",
-        "name": "class_periods_tenant_id_id_school_year_id_org_id_key",
+        "name": "class_periods_tenant_id_id_org_id_key",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "id",
-          "school_year_id",
           "org_id"
         ],
         "nullsNotDistinct": false,
@@ -110237,12 +109690,11 @@
       "row": {
         "schema": "core",
         "table": "timetables",
-        "name": "timetables_tenant_id_id_school_year_id_org_id_key",
+        "name": "timetables_tenant_id_id_org_id_key",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
           "id",
-          "school_year_id",
           "org_id"
         ],
         "nullsNotDistinct": false,
@@ -110276,16 +109728,6 @@
         "table": "absence_reports",
         "name": "absence_reports_metadata_check",
         "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "absence_reports",
-        "name": "absence_reports_school_year_type_check",
-        "value": "school_year_type = 'school_year'",
         "entityType": "checks"
       }
     },
@@ -110436,6 +109878,16 @@
         "table": "academic_sessions",
         "name": "academic_sessions_sequence_check",
         "value": "sequence between 1 and 99",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "academic_sessions",
+        "name": "academic_sessions_target_days_check",
+        "value": "target_days is null or (type = 'school_year' and target_days between 1 and 366)",
         "entityType": "checks"
       }
     },
@@ -112054,8 +111506,18 @@
       "row": {
         "schema": "core",
         "table": "attendance_registers",
-        "name": "attendance_registers_school_year_type_check",
-        "value": "school_year_type = 'school_year'",
+        "name": "attendance_registers_kind_check",
+        "value": "kind in ('day', 'period')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "attendance_registers",
+        "name": "attendance_registers_daily_check",
+        "value": "kind = 'period' or daily",
         "entityType": "checks"
       }
     },
@@ -112306,16 +111768,6 @@
         "table": "bell_schedules",
         "name": "bell_schedules_metadata_check",
         "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "bell_schedules",
-        "name": "bell_schedules_school_year_type_check",
-        "value": "school_year_type = 'school_year'",
         "entityType": "checks"
       }
     },
@@ -112754,16 +112206,6 @@
       "row": {
         "schema": "core",
         "table": "calendar_dates",
-        "name": "calendar_dates_school_year_type_check",
-        "value": "school_year_type = 'school_year'",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_dates",
         "name": "calendar_dates_note_en_check",
         "value": "char_length(note_en) between 1 and 200",
         "entityType": "checks"
@@ -112776,16 +112218,6 @@
         "table": "calendar_dates",
         "name": "calendar_dates_note_ar_check",
         "value": "char_length(note_ar) between 1 and 200",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_dates",
-        "name": "calendar_dates_runs_as_check",
-        "value": "runs_as between 1 and 28",
         "entityType": "checks"
       }
     },
@@ -113006,136 +112438,6 @@
         "table": "calendar_feeds",
         "name": "calendar_feeds_token_hash_check",
         "value": "token_hash ~ '^[0-9a-f]{64}$'",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "calendar_grade_levels_status_check",
-        "value": "status in ('active', 'tobedeleted')",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "calendar_grade_levels_version_check",
-        "value": "version > 0",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "calendar_grade_levels_metadata_check",
-        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_status_check",
-        "value": "status in ('active', 'tobedeleted')",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_version_check",
-        "value": "version > 0",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_metadata_check",
-        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_school_year_type_check",
-        "value": "school_year_type = 'school_year'",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_code_check",
-        "value": "code ~ '^[A-Za-z0-9_-]{1,60}$'",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_kind_check",
-        "value": "kind in ('school', 'grade_level', 'staff')",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_title_en_check",
-        "value": "char_length(title_en) between 1 and 80",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_title_ar_check",
-        "value": "char_length(title_ar) between 1 and 80",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_title_check",
-        "value": "num_nonnulls(title_en, title_ar) >= 1",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "calendars_target_days_check",
-        "value": "target_days is null or target_days between 1 and 366",
         "entityType": "checks"
       }
     },
@@ -113374,16 +112676,6 @@
       "row": {
         "schema": "core",
         "table": "class_meetings",
-        "name": "class_meetings_school_year_type_check",
-        "value": "school_year_type = 'school_year'",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "class_meetings",
         "name": "class_meetings_weekday_check",
         "value": "weekday between 1 and 28",
         "entityType": "checks"
@@ -113395,7 +112687,7 @@
         "schema": "core",
         "table": "class_meetings",
         "name": "class_meetings_valid_during_check",
-        "value": "not isempty(\"valid_during\") and not lower_inf(\"valid_during\") and not upper_inf(\"valid_during\") and lower_inc(\"valid_during\") and not upper_inc(\"valid_during\")",
+        "value": "not isempty(\"valid_during\") and not lower_inf(\"valid_during\") and lower_inc(\"valid_during\") and not upper_inc(\"valid_during\")",
         "entityType": "checks"
       }
     },
@@ -113426,16 +112718,6 @@
         "table": "class_periods",
         "name": "class_periods_metadata_check",
         "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "class_periods",
-        "name": "class_periods_school_year_type_check",
-        "value": "school_year_type = 'school_year'",
         "entityType": "checks"
       }
     },
@@ -113535,7 +112817,7 @@
         "schema": "core",
         "table": "class_periods",
         "name": "class_periods_valid_during_check",
-        "value": "not isempty(\"valid_during\") and not lower_inf(\"valid_during\") and not upper_inf(\"valid_during\") and lower_inc(\"valid_during\") and not upper_inc(\"valid_during\")",
+        "value": "(bell_schedule_id is null and not isempty(\"valid_during\") and not lower_inf(\"valid_during\") and lower_inc(\"valid_during\") and not upper_inc(\"valid_during\"))\n        or (bell_schedule_id is not null and lower_inf(valid_during) and upper_inf(valid_during))",
         "entityType": "checks"
       }
     },
@@ -120103,6 +119385,36 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "register_periods",
+        "name": "register_periods_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "register_periods_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "register_periods_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "relationship_restrictions",
         "name": "relationship_restrictions_status_check",
         "value": "status in ('active', 'tobedeleted')",
@@ -121304,16 +120616,6 @@
       "row": {
         "schema": "core",
         "table": "staff_absences",
-        "name": "staff_absences_school_year_type_check",
-        "value": "school_year_type = 'school_year'",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "staff_absences",
         "name": "staff_absences_span_check",
         "value": "not isempty(\"span\") and not lower_inf(\"span\") and not upper_inf(\"span\") and lower_inc(\"span\") and not upper_inc(\"span\")",
         "entityType": "checks"
@@ -122123,6 +121425,56 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "timetable_days",
+        "name": "timetable_days_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "timetable_days_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "timetable_days_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "timetable_days_runs_as_check",
+        "value": "runs_as between 1 and 28",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "timetable_days_shape_check",
+        "value": "num_nonnulls(bell_schedule_id, runs_as) >= 1",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "timetables",
         "name": "timetables_status_check",
         "value": "status in ('active', 'tobedeleted')",
@@ -122146,16 +121498,6 @@
         "table": "timetables",
         "name": "timetables_metadata_check",
         "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "timetables",
-        "name": "timetables_school_year_type_check",
-        "value": "school_year_type = 'school_year'",
         "entityType": "checks"
       }
     },
@@ -126324,212 +125666,6 @@
           "retention"
         ],
         "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"user_id\"))",
-        "withCheck": null,
-        "entityType": "policies"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "tenant_isolation",
-        "as": "RESTRICTIVE",
-        "for": "ALL",
-        "roles": [
-          "public"
-        ],
-        "using": "tenant_id = (select app.tenant_id())",
-        "withCheck": "tenant_id = (select app.tenant_id())",
-        "entityType": "policies"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "owner_all",
-        "as": "PERMISSIVE",
-        "for": "ALL",
-        "roles": [
-          "cell_owner"
-        ],
-        "using": "true",
-        "withCheck": "true",
-        "entityType": "policies"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "p_select",
-        "as": "PERMISSIVE",
-        "for": "SELECT",
-        "roles": [
-          "app",
-          "cell_io",
-          "retention",
-          "worker"
-        ],
-        "using": "true",
-        "withCheck": null,
-        "entityType": "policies"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "p_insert",
-        "as": "PERMISSIVE",
-        "for": "INSERT",
-        "roles": [
-          "app",
-          "cell_io",
-          "worker"
-        ],
-        "using": null,
-        "withCheck": "true",
-        "entityType": "policies"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "p_update",
-        "as": "PERMISSIVE",
-        "for": "UPDATE",
-        "roles": [
-          "app",
-          "cell_io",
-          "worker"
-        ],
-        "using": "true",
-        "withCheck": "true",
-        "entityType": "policies"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_grade_levels",
-        "name": "p_integration_select",
-        "as": "PERMISSIVE",
-        "for": "SELECT",
-        "roles": [
-          "integration"
-        ],
-        "using": "true",
-        "withCheck": null,
-        "entityType": "policies"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "tenant_isolation",
-        "as": "RESTRICTIVE",
-        "for": "ALL",
-        "roles": [
-          "public"
-        ],
-        "using": "tenant_id = (select app.tenant_id())",
-        "withCheck": "tenant_id = (select app.tenant_id())",
-        "entityType": "policies"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "owner_all",
-        "as": "PERMISSIVE",
-        "for": "ALL",
-        "roles": [
-          "cell_owner"
-        ],
-        "using": "true",
-        "withCheck": "true",
-        "entityType": "policies"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "p_select",
-        "as": "PERMISSIVE",
-        "for": "SELECT",
-        "roles": [
-          "app",
-          "cell_io",
-          "retention",
-          "worker"
-        ],
-        "using": "true",
-        "withCheck": null,
-        "entityType": "policies"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "p_insert",
-        "as": "PERMISSIVE",
-        "for": "INSERT",
-        "roles": [
-          "app",
-          "cell_io",
-          "worker"
-        ],
-        "using": null,
-        "withCheck": "true",
-        "entityType": "policies"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "p_update",
-        "as": "PERMISSIVE",
-        "for": "UPDATE",
-        "roles": [
-          "app",
-          "cell_io",
-          "worker"
-        ],
-        "using": "true",
-        "withCheck": "true",
-        "entityType": "policies"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendars",
-        "name": "p_integration_select",
-        "as": "PERMISSIVE",
-        "for": "SELECT",
-        "roles": [
-          "integration"
-        ],
-        "using": "true",
         "withCheck": null,
         "entityType": "policies"
       }
@@ -135686,6 +134822,93 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "register_periods",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "register_periods",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "relationship_restrictions",
         "name": "tenant_isolation",
         "as": "RESTRICTIVE",
@@ -138438,6 +137661,93 @@
         ],
         "using": "app.erasure_approved(tenant_id, \"user_id\") or app.erasure_approved(tenant_id, \"contact_id\") or app.erasure_listed(tenant_id, 'message_thread', \"thread_id\")",
         "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "timetable_days",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
         "entityType": "policies"
       }
     },

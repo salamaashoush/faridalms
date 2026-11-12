@@ -50,8 +50,8 @@ test("a school without school years or homerooms runs a class with no end, enrol
   await expect(
     page.getByRole("definition").filter({ hasText: "From" }).first(),
   ).toBeVisible();
-  // Lessons and registers are kept by school year, so a class in none reads
-  // as having neither rather than failing.
+  // Lessons and registers belong to no year: a class in none has no lessons
+  // yet, and its register can be taken.
   await page.getByRole("tab", { name: "Timetable", exact: true }).click();
   await expect(page.getByText("No lessons on the timetable")).toBeVisible();
   await page.getByRole("tab", { name: "Attendance", exact: true }).click();
@@ -60,7 +60,7 @@ test("a school without school years or homerooms runs a class with no end, enrol
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Take register", exact: true }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   await page.getByRole("tab", { name: "Students", exact: true }).click();
   const roster = page.getByRole("region", { name: "Students" });
   await roster

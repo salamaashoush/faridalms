@@ -20,9 +20,8 @@ export interface CallRow {
   studentId: string;
   fullNameEn: string | null;
   fullNameAr: string | null;
-  /** The first period the child was marked away in. */
-  periodNameEn: string | null;
-  periodNameAr: string | null;
+  /** The registers that marked the child away, the day's first first. */
+  registerIds: string[];
 }
 
 /**
@@ -37,22 +36,20 @@ export async function callList(
     student_user_id: string;
     full_name_en: string | null;
     full_name_ar: string | null;
-    period_en: string | null;
-    period_ar: string | null;
+    register_ids: string[];
   }>(sql`
     with away as (
-      select distinct on (e.student_user_id) e.student_user_id, p.name_en, p.name_ar
+      select e.student_user_id,
+             array_agg(e.register_id order by g.kind, g.created_at) as register_ids
       from core.attendance_events e
       join core.attendance_registers g on g.tenant_id = e.tenant_id and g.id = e.register_id
-      join core.class_periods p on p.tenant_id = g.tenant_id and p.id = g.class_period_id
       where e.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.schoolId}::uuid
         and e.taken_on = ${input.day}::date and e.status = 'active'
         and e.category_meaning = 'absent' and e.reason_descriptor_id is null
         and ${unreported(sql`${input.day}::date`)}
-      order by e.student_user_id, p.sequence
+      group by e.student_user_id
     )
-    select a.student_user_id, u.full_name_en, u.full_name_ar,
-           a.name_en as period_en, a.name_ar as period_ar
+    select a.student_user_id, u.full_name_en, u.full_name_ar, a.register_ids
     from away a
     join core.users u on u.tenant_id = ${input.tenantId}::uuid and u.id = a.student_user_id
     order by u.full_name_en, u.id`);
@@ -60,8 +57,7 @@ export async function callList(
     studentId: row.student_user_id,
     fullNameEn: row.full_name_en,
     fullNameAr: row.full_name_ar,
-    periodNameEn: row.period_en,
-    periodNameAr: row.period_ar,
+    registerIds: row.register_ids,
   }));
 }
 

@@ -185,7 +185,7 @@ test("an unsaved register asks before it is left, and a register saved meanwhile
   await admin.attendance.save({
     classId: klass.id,
     date: day,
-    periodId: register.period.id,
+    periodId: register.period?.id ?? "",
     expectedVersion: 0,
     marks: [{ studentId: second.id, meaning: "present" }],
   });

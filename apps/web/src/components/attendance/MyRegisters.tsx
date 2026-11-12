@@ -18,7 +18,6 @@ import {
   STATE_TONE,
 } from "~/components/attendance/format";
 import { classTitle } from "~/components/classes/format";
-import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { attendanceDayQuery } from "~/queries/attendance";
@@ -48,7 +47,7 @@ function rowsOf(data: Data): Row[] {
     return period ? inLocale(period.nameEn, period.nameAr) : "";
   };
   const classOf = new Map(data.classes.map((row) => [row.id, row]));
-  const cells = [
+  const listed = [
     ...data.expected,
     ...data.registers.filter(
       (register) =>
@@ -59,6 +58,22 @@ function rowsOf(data: Data): Row[] {
         ),
     ),
   ];
+  // A day that holds no periods takes each class's register of the whole day.
+  const wholeDays =
+    data.periods.length > 0
+      ? []
+      : data.classes
+          .filter(
+            (row) =>
+              !listed.some(
+                (cell) => cell.classId === row.id && cell.periodId === "",
+              ) &&
+              !data.expected.some(
+                (cell) => cell.classId === row.id && cell.cover,
+              ),
+          )
+          .map((row) => ({ classId: row.id, periodId: "" }));
+  const cells = [...listed, ...wholeDays];
   return cells.flatMap(({ classId, periodId }) => {
     const found = classOf.get(classId);
     if (!found) return [];
@@ -95,7 +110,7 @@ function ClassLink({ row }: ClassLinkProps) {
     <RowLink
       to="/registers/$classId"
       params={{ classId: row.classId }}
-      search={{ date: row.date, periodId: row.periodId }}
+      search={{ date: row.date, periodId: row.periodId || undefined }}
     >
       {row.classTitle}
     </RowLink>
@@ -127,7 +142,7 @@ function marked(row: Row): string | null {
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function columns(): Column<Row>[] {
+function columns(withPeriods: boolean): Column<Row>[] {
   return [
     {
       id: "class",
@@ -135,7 +150,9 @@ function columns(): Column<Row>[] {
       primary: true,
       cell: (row) => <ClassLink row={row} />,
     },
-    { id: "period", header: m.attPeriod(), cell: periodOf },
+    ...(withPeriods
+      ? [{ id: "period", header: m.attPeriod(), cell: periodOf }]
+      : []),
     { id: "state", header: m.attStatus(), cell: (row) => <State row={row} /> },
     {
       id: "marks",
@@ -173,7 +190,7 @@ export function MyRegisters({ date, onDate }: MyRegistersProps) {
     navigate({
       to: "/registers/$classId",
       params: { classId: row.classId },
-      search: { date: row.date, periodId: row.periodId },
+      search: { date: row.date, periodId: row.periodId || undefined },
     });
   const rowActions = (row: Row): RowAction[] => [
     {
@@ -184,8 +201,6 @@ export function MyRegisters({ date, onDate }: MyRegistersProps) {
       onSelect: () => void open(row),
     },
   ];
-  if (!data.year) return <NoSchoolYear shows={m.noYearShowsRegisters()} />;
-  const max = data.today < data.year.lastDay ? data.today : data.year.lastDay;
   return (
     <>
       <div className="mb-4">
@@ -195,8 +210,7 @@ export function MyRegisters({ date, onDate }: MyRegistersProps) {
               <DayNav
                 id="attendance-date"
                 date={data.date}
-                min={data.year.startsOn}
-                max={max}
+                max={data.today}
                 today={data.today}
                 onChange={onDate}
               />
@@ -210,7 +224,7 @@ export function MyRegisters({ date, onDate }: MyRegistersProps) {
       <DataTable
         caption={m.attRegistersCaption()}
         rows={rows}
-        columns={columns()}
+        columns={columns(data.periods.length > 0)}
         rowLabel={(row) => `${row.classTitle} ${row.periodName}`}
         rowActions={rowActions}
         card={card}
