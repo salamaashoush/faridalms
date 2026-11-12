@@ -21,7 +21,13 @@ type Data = Awaited<
 >;
 type Row = Data["rows"][number];
 
-const QUEUE = { tab: "to_grade" as const, classId: "", q: "" };
+const QUEUE = {
+  tab: "to_grade" as const,
+  classId: "",
+  q: "",
+  ended: false,
+  views: {},
+};
 
 export const Route = createFileRoute("/_app/_staff/grading")({
   validateSearch: v.object({

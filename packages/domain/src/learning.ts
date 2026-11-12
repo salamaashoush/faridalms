@@ -12,6 +12,7 @@ import type { CrosswordEntry } from "./crossword";
 import type { MathNote } from "./math-marking";
 
 import { matchAnswer, parseNumber } from "./answers";
+import { viewsSchema } from "./classes";
 import {
   codeSource,
   contentDocumentSchema,
@@ -3075,8 +3076,15 @@ export const copyLessonSchema = v.object({ id, moduleId: id });
 export const planSchema = v.object({ moduleId: id });
 
 /** A class's year map; empty for the first class the viewer sets modules for. */
-export const yearMapSchema = v.object({
+export const unitPlanSchema = v.object({
   classId: v.optional(v.union([v.literal(""), id]), ""),
+});
+
+/** The modules of the viewer's classes: one class, or those in view, or with `ended` those over. */
+export const teachingModulesSchema = v.object({
+  classId: v.optional(v.union([v.literal(""), id]), ""),
+  ended: v.optional(v.boolean(), false),
+  views: viewsSchema,
 });
 
 const dayOrNone = v.union([v.literal(""), v.pipe(v.string(), v.isoDate())]);

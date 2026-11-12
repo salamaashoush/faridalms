@@ -64,6 +64,44 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "apps/web/src/routes/_app/me/timetable.tsx",
     "apps/web/src/routes/_app/family/timetable.tsx",
   ],
+  coursework: [
+    "packages/database/src/tables/coursework.ts",
+    "packages/database/src/tables/grading.ts",
+    "packages/database/src/tables/programmes.ts",
+    "packages/database/src/stores/coursework.ts",
+    "packages/database/src/stores/grading.ts",
+    "packages/database/src/stores/quizzes.ts",
+    "packages/database/src/stores/bank.ts",
+    "packages/database/src/stores/reading.ts",
+    "apps/api/src/coursework/",
+    "apps/api/src/quizzes/",
+    "apps/api/src/systems/coursework.ts",
+    "apps/api/src/systems/grading.ts",
+    "apps/api/src/systems/bank.ts",
+    "apps/api/src/systems/reading.ts",
+  ],
+  peer_review: [
+    "packages/database/src/stores/peer-reviews.ts",
+    "apps/api/src/peer/",
+    "apps/api/src/systems/peer.ts",
+  ],
+  gradebook: [
+    "packages/database/src/stores/gradebook.ts",
+    "apps/api/src/gradebook/",
+    "apps/api/src/systems/gradebook.ts",
+  ],
+  elearning: [
+    "packages/database/src/tables/learning.ts",
+    "packages/database/src/stores/learning.ts",
+    "apps/api/src/learning/",
+    "apps/api/src/systems/learning.ts",
+  ],
+  standards: [
+    "packages/database/src/tables/standards.ts",
+    "packages/database/src/stores/standards.ts",
+    "apps/api/src/standards/",
+    "apps/api/src/systems/standards.ts",
+  ],
 };
 
 /**
@@ -101,6 +139,78 @@ export const LINK_FILES: Readonly<
     owner: "attendance",
     needs: ["timetable"],
   },
+  "packages/database/src/tables/term-grades.ts": {
+    owner: "gradebook",
+    needs: ["school_years"],
+  },
+  "packages/database/src/stores/term-grades.ts": {
+    owner: "gradebook",
+    needs: ["school_years"],
+  },
+  "apps/api/src/gradebook/years.ts": {
+    owner: "gradebook",
+    needs: ["school_years"],
+  },
+  "apps/web/src/components/gradebook/years.tsx": {
+    owner: "gradebook",
+    needs: ["school_years"],
+  },
+  "apps/web/src/components/gradebook/RegradeSheet.tsx": {
+    owner: "gradebook",
+    needs: ["school_years"],
+  },
+  "packages/database/src/tables/module-discussions.ts": {
+    owner: "elearning",
+    needs: ["coursework"],
+  },
+  "packages/database/src/stores/module-discussions.ts": {
+    owner: "elearning",
+    needs: ["coursework"],
+  },
+  "apps/api/src/learning/discussions.ts": {
+    owner: "elearning",
+    needs: ["coursework"],
+  },
+  "apps/api/src/learning/years.ts": {
+    owner: "elearning",
+    needs: ["school_years"],
+  },
+  "apps/api/src/learning/reading.ts": {
+    owner: "elearning",
+    needs: ["coursework"],
+  },
+  "apps/web/src/components/learning/discussions.tsx": {
+    owner: "elearning",
+    needs: ["coursework"],
+  },
+  "apps/web/src/routes/_app/_staff/year-map.tsx": {
+    owner: "elearning",
+    needs: ["school_years"],
+  },
+  "packages/database/src/tables/lesson-sittings.ts": {
+    owner: "standards",
+    needs: ["elearning"],
+  },
+  "packages/database/src/stores/lesson-sittings.ts": {
+    owner: "standards",
+    needs: ["elearning"],
+  },
+  "apps/api/src/standards/lessons.ts": {
+    owner: "standards",
+    needs: ["elearning"],
+  },
+  "packages/database/src/tables/work-sittings.ts": {
+    owner: "standards",
+    needs: ["coursework"],
+  },
+  "packages/database/src/stores/work-sittings.ts": {
+    owner: "standards",
+    needs: ["coursework"],
+  },
+  "apps/api/src/standards/work.ts": {
+    owner: "standards",
+    needs: ["coursework"],
+  },
 };
 
 /** Whether a link file may import another: one link between the same modules, split over files. */
@@ -122,19 +232,6 @@ function sameLink(from: string, to: string): boolean {
  * shrinks.
  */
 export const PENDING_IMPORTS: Readonly<Record<string, readonly string[]>> = {
-  "coursework, e-learning and gradebook": [
-    "apps/api/src/core/coursework-access.ts -> school_years",
-    "apps/api/src/core/module-discussions.ts -> school_years",
-    "apps/api/src/systems/coursework.ts -> school_years",
-    "apps/api/src/systems/gradebook.ts -> school_years",
-    "apps/api/src/systems/learning.ts -> school_years",
-    "apps/api/src/systems/learning.ts -> timetable",
-    "apps/api/src/systems/reading.ts -> school_years",
-    "apps/api/src/systems/standards.ts -> school_years",
-    "apps/web/src/components/grading/RegradeSheet.tsx -> school_years",
-    "apps/web/src/routes/_app/_staff/modules.tsx -> school_years",
-    "apps/web/src/routes/_app/_staff/year-map.tsx -> school_years",
-  ],
   "grade levels and admissions": [
     "apps/api/src/core/enrolment.ts -> school_years",
     "apps/api/src/systems/applications.ts -> school_years",
@@ -145,9 +242,19 @@ export const PENDING_IMPORTS: Readonly<Record<string, readonly string[]>> = {
   badges: ["apps/api/src/core/badges.ts -> school_years"],
   surfaces: [
     "apps/api/src/calendar/lessons.ts -> timetable",
+    "apps/api/src/coding/rerun.ts -> elearning",
+    "apps/api/src/files/exports.ts -> coursework",
+    "apps/api/src/index.ts -> coursework",
+    "apps/api/src/index.ts -> peer_review",
+    "apps/api/src/systems/coursework.ts -> peer_review",
+    "apps/api/src/systems/home.ts -> coursework",
+    "apps/api/src/systems/home.ts -> elearning",
     "apps/api/src/systems/home.ts -> timetable",
+    "apps/api/src/systems/records.ts -> coursework",
+    "apps/api/src/systems/templates.ts -> elearning",
     "apps/web/src/components/classes/ClassRecord.tsx -> timetable",
     "apps/web/src/components/people/StudentOverview.tsx -> timetable",
+    "packages/database/src/stores/search.ts -> elearning",
   ],
 };
 

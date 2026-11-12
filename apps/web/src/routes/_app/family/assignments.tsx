@@ -6,7 +6,7 @@ import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Users } from "lucide-react";
+import { History, Users } from "lucide-react";
 import * as v from "valibot";
 
 import { FamilyBrief } from "~/components/coursework/FamilyBrief";
@@ -27,6 +27,8 @@ export const Route = createFileRoute("/_app/family/assignments")({
     studentId: v.optional(v.pipe(v.string(), v.uuid())),
     /** The piece open in the side panel, so a notice can open it. */
     assignment: v.fallback(v.optional(v.pipe(v.string(), v.uuid())), undefined),
+    /** The work of classes that ended, in place of those still running. */
+    ended: v.fallback(v.optional(v.boolean(), false), false),
   }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
@@ -36,19 +38,24 @@ export const Route = createFileRoute("/_app/family/assignments")({
     );
     const child = deps.studentId ?? me.children[0]?.studentId;
     if (child)
-      await context.queryClient.ensureQueryData(childCourseworkQuery(child));
+      await context.queryClient.ensureQueryData(
+        childCourseworkQuery(child, deps.ended),
+      );
   },
   component: FamilyCourseworkPage,
 });
 
 interface ChildWorkProps {
   studentId: string;
+  ended: boolean;
   open: string | undefined;
   onOpen: (assignmentId: string | undefined) => void;
 }
 
-function ChildWork({ studentId, open, onOpen }: ChildWorkProps) {
-  const { rows, now } = useSuspenseQuery(childCourseworkQuery(studentId)).data;
+function ChildWork({ studentId, ended, open, onOpen }: ChildWorkProps) {
+  const { rows, now } = useSuspenseQuery(
+    childCourseworkQuery(studentId, ended),
+  ).data;
   const at = Date.parse(now);
   const missing = rows.filter((row) => row.state === "missing");
   const week = rows.filter(
@@ -138,7 +145,11 @@ function FamilyCourseworkPage() {
     defaultSelected: children[0] ? [children[0].studentId] : [],
     onChange: ([next]) => {
       void navigate({
-        search: { studentId: next || undefined, assignment: undefined },
+        search: (previous) => ({
+          ...previous,
+          studentId: next || undefined,
+          assignment: undefined,
+        }),
       });
     },
   };
@@ -147,12 +158,34 @@ function FamilyCourseworkPage() {
       <PageHeader
         title={m.courseworkTitlePage()}
         description={m.courseworkFamilyHint()}
+        menu={
+          current
+            ? [
+                {
+                  label: search.ended
+                    ? m.courseworkCurrentClasses()
+                    : m.courseworkEndedClasses(),
+                  icon: History,
+                  onSelect: () => {
+                    void navigate({
+                      search: (previous) => ({
+                        ...previous,
+                        ended: !search.ended,
+                        assignment: undefined,
+                      }),
+                    });
+                  },
+                },
+              ]
+            : []
+        }
       />
       {current ? (
         <div className="grid gap-6">
           {children.length > 1 ? <IndexToolbar facets={[childFacet]} /> : null}
           <ChildWork
             studentId={current}
+            ended={search.ended}
             open={search.assignment}
             onOpen={(assignment) =>
               void navigate({

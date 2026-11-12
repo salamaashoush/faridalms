@@ -22,8 +22,8 @@ describe("gradebook", () => {
   test("a class book shows each student's results and the term grades", async () => {
     const api = await arabicTeacher();
     const { book, me } = await studentClass(api);
-    expect(book.periodId).toBeTruthy();
-    expect(book.grades.length).toBe(book.students.length);
+    expect(book.term?.periodId).toBeTruthy();
+    expect(book.term?.grades.length).toBe(book.students.length);
     expect(book.assignments.map((row) => row.title)).toContain(
       "Chapter 1 review",
     );
@@ -35,7 +35,7 @@ describe("gradebook", () => {
   test("a changed term grade waits to be released before the student and family see it", async () => {
     const api = await arabicTeacher();
     const { book, me, student } = await studentClass(api);
-    const periodId = book.periodId;
+    const periodId = book.term?.periodId;
     if (!periodId) throw new Error("seed term");
     const before = await student.gradebook.student({});
     expect(
@@ -126,7 +126,7 @@ describe("gradebook", () => {
       score: null,
     });
     expect(of(false)).toMatchObject({ handedIn: false, missing: true });
-    expect(after.currentPeriodId).toBe(book.periodId);
+    expect(after.term?.currentPeriodId).toBe(book.term?.periodId);
   });
 
   test("a teacher who does not teach the class opens no book", async () => {

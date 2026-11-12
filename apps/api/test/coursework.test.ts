@@ -20,6 +20,7 @@ import {
   sessionFor,
   signedIn,
   timeHasCome,
+  workerModules,
 } from "./harness";
 
 // The seed's second teacher teaches Arabic to every grade, the third English.
@@ -2220,11 +2221,15 @@ describe("quizzes", () => {
       (await student.api.coursework.work({ id: saved.id })).quiz?.timing
         ?.timeUp,
     ).toBe(true);
-    expect(await handInTimedOut(cell, tenantId, new Date())).toBeGreaterThan(0);
+    expect(
+      await handInTimedOut(cell, tenantId, new Date(), workerModules()),
+    ).toBeGreaterThan(0);
     const handed = await student.api.coursework.work({ id: saved.id });
     expect(handed.quiz?.results[0]).toMatchObject({ score: 2 });
     expect(handed.quiz?.timing).toMatchObject({ startedAt: null });
-    expect(await handInTimedOut(cell, tenantId, new Date())).toBe(0);
+    expect(
+      await handInTimedOut(cell, tenantId, new Date(), workerModules()),
+    ).toBe(0);
 
     // A student may still hand in an attempt whose time ran out themselves.
     await student.api.coursework.startQuiz({ assignmentId: saved.id });
@@ -2470,7 +2475,9 @@ describe("quizzes", () => {
             and submission_id in (select id from core.submissions
               where tenant_id = ${tenantId}::uuid and assignment_id = ${saved.id}::uuid)`),
     );
-    expect(await handInTimedOut(cell, tenantId, new Date())).toBe(0);
+    expect(
+      await handInTimedOut(cell, tenantId, new Date(), workerModules()),
+    ).toBe(0);
     await student.api.coursework.resumeQuiz({ assignmentId: saved.id });
     const back = await student.api.coursework.work({ id: saved.id });
     const { startedAt, endsAt } = back.quiz?.timing ?? {};
@@ -3412,7 +3419,8 @@ describe("discussions", () => {
         teacher.api.coursework.save(
           draft(elsewhere.id, "Which river would you visit?", {
             submissionFormat: "discussion",
-            discussion: { postFirst: false, replies: 0, moduleId: module.id },
+            discussion: { postFirst: false, replies: 0 },
+            parts: { module: module.id },
           }),
         ),
       ),
@@ -3420,22 +3428,23 @@ describe("discussions", () => {
     const saved = await teacher.api.coursework.save(
       draft(target.id, "Which river would you visit?", {
         submissionFormat: "discussion",
-        discussion: { postFirst: false, replies: 0, moduleId: module.id },
+        discussion: { postFirst: false, replies: 0 },
+        parts: { module: module.id },
       }),
     );
     expect(
-      (await teacher.api.coursework.editor({ id: saved.id })).discussion,
-    ).toMatchObject({ moduleId: module.id });
+      await teacher.api.learning.discussionModule({ assignmentId: saved.id }),
+    ).toEqual({ moduleId: module.id });
     // Unpublished, the module lists it for its teacher and not its students.
     expect(
       (
-        await teacher.api.coursework.moduleDiscussionsOf({
+        await teacher.api.learning.discussions({
           moduleId: module.id,
         })
       ).map((row) => [row.id, row.class?.id]),
     ).toEqual([[saved.id, target.id]]);
     expect(
-      await student.api.coursework.moduleDiscussionsOf({ moduleId: module.id }),
+      await student.api.learning.discussions({ moduleId: module.id }),
     ).toEqual([]);
     await teacher.api.coursework.publish({
       id: saved.id,
@@ -3443,7 +3452,7 @@ describe("discussions", () => {
     });
     expect(
       (
-        await student.api.coursework.moduleDiscussionsOf({
+        await student.api.learning.discussions({
           moduleId: module.id,
         })
       ).map((row) => row.title),
@@ -3523,12 +3532,13 @@ describe("a module's discussion", () => {
     });
     const asked = draft(target.id, "Where does a river begin?", {
       submissionFormat: "discussion",
-      discussion: { postFirst: false, replies: 0, moduleId: module.id },
+      discussion: { postFirst: false, replies: 0 },
+      parts: { module: module.id },
     });
     const saved = await teacher.api.coursework.save(asked);
     const listed = async () =>
       (
-        await teacher.api.coursework.moduleDiscussionsOf({
+        await teacher.api.learning.discussions({
           moduleId: module.id,
         })
       ).map((row) => ({
@@ -3595,7 +3605,7 @@ describe("a module's discussion", () => {
     // in it; the other class's part, and its teacher's moderating, is its own.
     expect(
       (
-        await student.api.coursework.moduleDiscussionsOf({
+        await student.api.learning.discussions({
           moduleId: module.id,
         })
       ).map((row) => row.id),
@@ -3633,7 +3643,8 @@ describe("a module's discussion", () => {
           ...asked,
           id: saved.id,
           expectedVersion: latest.version,
-          discussion: { postFirst: false, replies: 0, moduleId: "" },
+          discussion: { postFirst: false, replies: 0 },
+          parts: { module: "" },
         }),
       ),
     ).toMatchObject({ message: "coursework.module_fixed" });

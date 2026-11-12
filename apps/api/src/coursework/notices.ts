@@ -8,11 +8,11 @@ import { studentWork } from "@faridalms/database/stores/coursework";
 import { noticeGuardians } from "@faridalms/database/stores/messages";
 import { schoolDate } from "@faridalms/domain/school";
 
-import type { UnitContext } from "./context";
-import type { NoticeScope } from "./notify";
+import type { UnitContext } from "../core/context";
+import type { NoticeScope } from "../core/notify";
 
-import { notifyIn } from "./notify";
-import { schoolZone } from "./procedure";
+import { notifyIn } from "../core/notify";
+import { schoolZone } from "../core/procedure";
 
 /** Where a teaching notice is written: a unit of work and the school's day. */
 export type TeachingScope = NoticeScope & { today: string };

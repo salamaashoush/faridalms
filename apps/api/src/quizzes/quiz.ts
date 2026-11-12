@@ -36,7 +36,6 @@ import {
   quizStarted,
   storeQuizDraws,
 } from "@faridalms/database/stores/quizzes";
-import { recordEvidence } from "@faridalms/database/stores/standards";
 import { bankQuestionOf } from "@faridalms/domain/bank";
 import {
   attemptQuiz,
@@ -62,6 +61,10 @@ import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
+import type { ModuleScope } from "../core/extension";
+
+import { contributionsTo } from "../core/extension";
+import { markedWork } from "../coursework/points";
 
 /** What reading and marking a quiz needs of a unit of work; a worker's pass has it too. */
 export type QuizUnit = Pick<UnitContext, "tx" | "tenantId">;
@@ -343,7 +346,7 @@ const fractionsOf = (answers: readonly QuizAnswer[]) =>
  * at once when the quiz shows results and nothing waits for the teacher.
  */
 export async function rescoreQuiz(
-  context: QuizUnit & { today: string },
+  context: ModuleScope & { today: string },
   input: {
     assignment: AssignmentRow;
     quizzes: AttemptQuizzes;
@@ -366,30 +369,32 @@ export async function rescoreQuiz(
       fractionsOf(byAttempt.get(attempt.number) ?? []),
     ),
   );
-  await recordEvidence(context.tx, {
-    tenantId: context.tenantId,
-    studentId: input.studentId,
-    sitting: { source: "quiz", submissionId: input.submissionId },
-    marks: attempts.flatMap((attempt) => {
-      const blocks = checkBlocks(input.quizzes.of(attempt.number));
-      return (byAttempt.get(attempt.number) ?? []).flatMap((answer) => {
-        const block = blocks.find((item) => item.id === answer.blockId);
-        return block?.standards?.length &&
-          answer.state === "marked" &&
-          answer.fraction !== null
-          ? [
-              {
-                attempt: attempt.number,
-                blockId: block.id,
-                standards: block.standards,
-                fraction: answer.fraction,
-              },
-            ]
-          : [];
-      });
-    }),
-    replace: true,
+  const marks = attempts.flatMap((attempt) => {
+    const blocks = checkBlocks(input.quizzes.of(attempt.number));
+    return (byAttempt.get(attempt.number) ?? []).flatMap((answer) => {
+      const block = blocks.find((item) => item.id === answer.blockId);
+      return block?.standards?.length &&
+        answer.state === "marked" &&
+        answer.fraction !== null
+        ? [
+            {
+              attempt: attempt.number,
+              blockId: block.id,
+              standards: block.standards,
+              fraction: answer.fraction,
+            },
+          ]
+        : [];
+    });
   });
+  if (marks.length > 0)
+    for (const told of await contributionsTo(context, markedWork))
+      await told.quiz(context, {
+        submissionId: input.submissionId,
+        studentId: input.studentId,
+        marks,
+        replace: true,
+      });
   const kept = keptScore(scores, input.assignment.quizKeep ?? "highest");
   const pending = (byAttempt.get(latest.number) ?? []).some(
     (answer) => answer.state === "needs_marking",
@@ -426,7 +431,7 @@ interface QuizMark {
  * reads it, and the attempt's clock stopped. Null when the quiz is gone.
  */
 export async function handInAttempt(
-  unit: QuizUnit & { today: string },
+  unit: ModuleScope & { today: string },
   input: {
     assignment: AssignmentRow;
     submissionId: string;

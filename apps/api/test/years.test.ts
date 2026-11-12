@@ -1,3 +1,4 @@
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { teachingWeeks } from "@faridalms/domain/school";
 import { schoolDayCount } from "@faridalms/domain/school-days";
 import { DEFAULT_PERIODS } from "@faridalms/domain/timetable";
@@ -493,6 +494,21 @@ describe("school years", () => {
           enrollmentId: student.enrollmentId,
           expectedVersion: student.version,
           on: "",
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "school_year.closed" });
+    // A closed year's class takes no more work.
+    expect(
+      await rejection(
+        api.coursework.save({
+          classId: homeroom.id,
+          title: "Work for a closed year",
+          brief: plainContent("Instructions."),
+          audience: "class",
+          latePolicy: "accept",
+          submissionFormat: "both",
+          points: 10,
+          rubric: null,
         }),
       ),
     ).toMatchObject({ code: "CONFLICT", message: "school_year.closed" });

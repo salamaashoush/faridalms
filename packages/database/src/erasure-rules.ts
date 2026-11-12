@@ -247,6 +247,7 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     reviewed: false,
   },
   "core.standard_evidence": { rule: "erased" },
+  "core.standard_sittings": { rule: "erased" },
   "core.standard_observations": { rule: "erased" },
   "core.student_movements": {
     rule: "kept",

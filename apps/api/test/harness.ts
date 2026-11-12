@@ -41,6 +41,7 @@ import { createJavaScriptRunner, createPythonRunner } from "../src/coding/run";
 import { createKeyRing } from "../src/core/keys";
 import { createLoginIndex } from "../src/core/login-index";
 import { LOCALE_HEADER, SCHOOL_HEADER } from "../src/core/procedure";
+import { MODULE_EXTENSIONS } from "../src/extensions";
 import { createFilesHost, linkKey } from "../src/files/links";
 import { fileKeys } from "../src/files/sealed";
 import { DiskFileStore, PUBLIC_KEY } from "../src/files/store";
@@ -371,6 +372,11 @@ export function handlerWith(overrides: Partial<ApiDependencies>) {
 export function seeded() {
   if (!state) throw new Error("The API test cell is not ready");
   return state;
+}
+
+/** How a background worker of the test cell learns a school's modules, as the API process gives it. */
+export function workerModules() {
+  return { directory: seeded().directory, extensions: MODULE_EXTENSIONS };
 }
 
 export function client(

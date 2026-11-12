@@ -2,12 +2,12 @@ import type { PublishedVersion } from "@faridalms/database/stores/documents";
 import type { ContentDocument } from "@faridalms/domain/content";
 
 import { reachedAmong } from "@faridalms/database/stores/audiences";
-import { namesOf } from "@faridalms/database/stores/coursework";
 import {
   publishedVersion,
   publishedVersions,
   snapshotPublish,
 } from "@faridalms/database/stores/documents";
+import { namesOf } from "@faridalms/database/stores/persons";
 import { contentMentions } from "@faridalms/domain/content";
 
 import type { UnitContext } from "./context";

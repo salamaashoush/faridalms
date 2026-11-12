@@ -2,7 +2,7 @@ import { plainContent } from "@faridalms/domain/content-conversion";
 import { briefWithQuiz } from "@faridalms/domain/lesson-content";
 import { describe, expect, test } from "bun:test";
 
-import { remindPeerReviews } from "../src/core/peer-clock";
+import { remindPeerReviews } from "../src/peer/clock";
 import { login, raw, rejection, seeded, sessionFor } from "./harness";
 
 type Session = Awaited<ReturnType<typeof sessionFor>>;

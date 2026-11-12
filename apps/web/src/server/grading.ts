@@ -14,11 +14,6 @@ import { backend } from "./backend";
 import { checked } from "./input";
 
 const classRef = v.object({ classId: v.pipe(v.string(), v.uuid()) });
-const regrade = v.object({
-  periodId: v.pipe(v.string(), v.uuid()),
-  reason: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(500)),
-});
-
 export const getGradingOverview = createServerFn({ method: "GET" }).handler(
   () => backend().grading.overview(),
 );
@@ -54,10 +49,6 @@ export const setClassGrading = createServerFn({ method: "POST" })
 export const getClassPlan = createServerFn({ method: "GET" })
   .validator(checked(classRef))
   .handler(({ data }) => backend().grading.classPlan(data));
-
-export const regradeTerm = createServerFn({ method: "POST" })
-  .validator(checked(regrade))
-  .handler(({ data }) => backend().grading.regradeTerm(data));
 
 export const getGradingHistory = createServerFn({ method: "GET" })
   .validator(checked(gradingHistorySchema))

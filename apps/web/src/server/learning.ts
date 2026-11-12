@@ -30,7 +30,8 @@ import {
   releaseSchema,
   startPacedSchema,
   unitDatesSchema,
-  yearMapSchema,
+  teachingModulesSchema,
+  unitPlanSchema,
 } from "@faridalms/domain/learning";
 import {
   practiceCheckSchema,
@@ -59,12 +60,27 @@ export const getLearningOptions = createServerFn({ method: "GET" }).handler(
 );
 
 export const getTeachingModules = createServerFn({ method: "GET" })
-  .validator(checked(v.object({ classId: optionalId })))
+  .validator(checked(teachingModulesSchema))
   .handler(({ data }) => backend().learning.modules(data));
 
-export const getYearMap = createServerFn({ method: "GET" })
-  .validator(checked(yearMapSchema))
-  .handler(({ data }) => backend().learning.yearMap(data));
+export const getUnitPlan = createServerFn({ method: "GET" })
+  .validator(checked(unitPlanSchema))
+  .handler(({ data }) => backend().learning.unitPlan(data));
+
+export const getModuleDiscussions = createServerFn({ method: "GET" })
+  .validator(
+    checked(
+      v.object({
+        moduleId: v.pipe(v.string(), v.uuid()),
+        studentId: v.union([v.literal(""), v.pipe(v.string(), v.uuid())]),
+      }),
+    ),
+  )
+  .handler(({ data }) => record(backend().learning.discussions(data)));
+
+export const getDiscussionModule = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ assignmentId: v.pipe(v.string(), v.uuid()) })))
+  .handler(({ data }) => record(backend().learning.discussionModule(data)));
 
 export const setUnitDates = createServerFn({ method: "POST" })
   .validator(checked(unitDatesSchema))

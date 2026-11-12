@@ -15,7 +15,6 @@ import {
   getCourseworkOptions,
   getCommentBank,
   getDiscussion,
-  getModuleDiscussions,
   getGrading,
   getQuizAnswers,
   getQuizPollResults,
@@ -90,22 +89,18 @@ export const discussionQuery = (assignmentId: string) =>
     queryFn: () => getDiscussion({ data: { assignmentId } }),
   });
 
-export const moduleDiscussionsQuery = (moduleId: string, studentId = "") =>
-  queryOptions({
-    queryKey: ["coursework", "module-discussions", moduleId, studentId],
-    queryFn: () => getModuleDiscussions({ data: { moduleId, studentId } }),
-  });
-
 export const myWorkQuery = (id: string) =>
   queryOptions({
     queryKey: ["coursework", "work", id],
     queryFn: () => getMyWork({ data: { id } }),
   });
 
-export const myCourseworkQuery = queryOptions({
-  queryKey: ["coursework", "mine"],
-  queryFn: () => getMyCoursework(),
-});
+/** A student's own work: in their classes now, or with `ended` in those over. */
+export const myCourseworkQuery = (ended = false) =>
+  queryOptions({
+    queryKey: ["coursework", "mine", ended],
+    queryFn: () => getMyCoursework({ data: { ended } }),
+  });
 
 export const sharedWorkQuery = (studentId: string) =>
   infiniteQueryOptions({
@@ -122,10 +117,10 @@ export const childBriefQuery = (studentId: string, assignmentId: string) =>
     queryFn: () => getChildBrief({ data: { studentId, assignmentId } }),
   });
 
-export const childCourseworkQuery = (studentId: string) =>
+export const childCourseworkQuery = (studentId: string, ended = false) =>
   queryOptions({
-    queryKey: ["coursework", "child", studentId],
-    queryFn: () => getChildCoursework({ data: { studentId } }),
+    queryKey: ["coursework", "child", studentId, ended],
+    queryFn: () => getChildCoursework({ data: { studentId, ended } }),
   });
 
 export const studentCourseworkQuery = (studentId: string) =>

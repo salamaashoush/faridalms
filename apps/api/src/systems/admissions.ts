@@ -5,7 +5,6 @@ import type {
 } from "@faridalms/domain/enquiries";
 
 import { capabilityHolders } from "@faridalms/database/stores/access";
-import { namesOf } from "@faridalms/database/stores/coursework";
 import {
   enquiryById,
   enquiryOfThread,
@@ -18,6 +17,7 @@ import {
   setEnquiryState,
 } from "@faridalms/database/stores/enquiries";
 import { membersOf, setOwner } from "@faridalms/database/stores/messages";
+import { namesOf } from "@faridalms/database/stores/persons";
 import { publicSchool } from "@faridalms/database/stores/site";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import {

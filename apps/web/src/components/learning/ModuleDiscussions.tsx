@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MessagesSquare, Plus } from "lucide-react";
 
 import * as m from "~/i18n/messages";
-import { moduleDiscussionsQuery } from "~/queries/coursework";
+import { moduleDiscussionsQuery } from "~/queries/learning";
 import { formatInstant } from "~/utils/datetime";
 
 import { classTitle } from "../classes/format";

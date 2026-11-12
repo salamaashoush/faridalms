@@ -60,6 +60,7 @@ export const isErrorCode = (message: string) => CODE.test(message);
  */
 const INTERNAL_CODES: ReadonlySet<string> = new Set([
   "classes.part_unknown",
+  "coursework.part_unknown",
   "classes.view_unknown",
   "people.part_unknown",
   "people.view_unknown",
@@ -420,8 +421,6 @@ export function getMessageFromError(error: unknown): string {
         return m.errorLeavingReasonRequired();
       case "class.runs_enrolments":
         return m.errorClassRunsEnrolments();
-      case "class.no_school_year":
-        return m.errorClassNoSchoolYear();
       case "school_year.class_outside":
         return m.errorClassOutsideYear();
       case "enrollment.overlapping":
@@ -670,6 +669,8 @@ export function getMessageFromError(error: unknown): string {
         return m.courseworkErrCategoryUnknown();
       case "coursework.module_unknown":
         return m.courseworkErrModuleUnknown();
+      case "coursework.term_unknown":
+        return m.courseworkErrTermUnknown();
       case "coursework.module_fixed":
         return m.courseworkErrModuleFixed();
       case "coursework.like_own":
@@ -885,12 +886,10 @@ export function getMessageFromError(error: unknown): string {
         return m.learningDisabled();
       case "onboarding.not_finished":
         return m.onboardingErrNotFinished();
-      case "learning.no_year":
-        return m.lrnErrNoYear();
       case "learning.unit_dates":
         return m.lrnErrUnitDates();
-      case "learning.unit_dates_year":
-        return m.lrnErrUnitDatesYear();
+      case "learning.unit_dates_runs":
+        return m.lrnErrUnitDatesRuns();
       case "learning.class":
         return m.lrnErrClass();
       case "learning.prerequisite":

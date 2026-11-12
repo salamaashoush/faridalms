@@ -103,6 +103,8 @@ export interface StudentPanelProps {
   grades: TermGrades;
   studentId: string;
   editable: boolean;
+  /** The book is a term's, with its grade and comment. */
+  termed: boolean;
   docked: boolean;
   phone: boolean;
   onGo: (studentId: string | undefined) => void;
@@ -119,6 +121,7 @@ export function StudentPanel({
   grades,
   studentId,
   editable,
+  termed,
   docked,
   phone,
   onGo,
@@ -204,33 +207,45 @@ export function StudentPanel({
       ) : (
         <SummaryList
           items={[
-            {
-              id: "term",
-              label: m.gradebookTermGrade(),
-              value: (
-                <Value absent={m.gradebookNoTermGrade()}>
-                  {row.score === null ? null : formatNumber(row.score)}
-                </Value>
-              ),
-            },
+            ...(termed
+              ? [
+                  {
+                    id: "term",
+                    label: m.gradebookTermGrade(),
+                    value: (
+                      <Value absent={m.gradebookNoTermGrade()}>
+                        {row.score === null ? null : formatNumber(row.score)}
+                      </Value>
+                    ),
+                  },
+                ]
+              : []),
             {
               id: "calculated",
-              label: m.gradebookCalculatedGrade(),
+              label: termed
+                ? m.gradebookCalculatedGrade()
+                : m.gradebookRunning(),
               value: (
                 <Value absent={m.gradebookNoGradedWork()}>
                   {calculatedText(book, student.id)}
                 </Value>
               ),
             },
-            {
-              id: "comment",
-              label: m.gradebookComment(),
-              value: (
-                <span dir="auto">
-                  <Value absent={m.gradebookNoComment()}>{row.comment}</Value>
-                </span>
-              ),
-            },
+            ...(termed
+              ? [
+                  {
+                    id: "comment",
+                    label: m.gradebookComment(),
+                    value: (
+                      <span dir="auto">
+                        <Value absent={m.gradebookNoComment()}>
+                          {row.comment}
+                        </Value>
+                      </span>
+                    ),
+                  },
+                ]
+              : []),
           ]}
         />
       )}

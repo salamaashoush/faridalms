@@ -4,7 +4,6 @@ import type { CommentAnchor, Rubric } from "@faridalms/domain/coursework";
 import {
   assignmentById,
   isRecipient,
-  namesOf,
   studentWork,
 } from "@faridalms/database/stores/coursework";
 import { documentOf } from "@faridalms/database/stores/documents";
@@ -21,6 +20,7 @@ import {
   removePeerComment,
   sendPeerReview,
 } from "@faridalms/database/stores/peer-reviews";
+import { namesOf } from "@faridalms/database/stores/persons";
 import { withBlockIds, wordsAt } from "@faridalms/domain/content";
 import {
   hidePeerReviewSchema,
@@ -36,15 +36,16 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { requireOpenYear, taughtAssignment } from "../core/coursework-access";
-import { workUnderReview } from "../core/peer-work";
+import { requireUnsettled } from "../classes/points";
 import {
   audit,
   readProcedure,
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { teachingScope, tellReviewers } from "../core/teaching-notices";
+import { taughtAssignment } from "../coursework/access";
+import { teachingScope, tellReviewers } from "../coursework/notices";
+import { workUnderReview } from "../peer/work";
 
 const byAssignment = v.object({ assignmentId: v.pipe(v.string(), v.uuid()) });
 
@@ -188,7 +189,7 @@ export const start = writeProcedure
   .input(byAssignment)
   .handler(async ({ input, context }) => {
     const assignment = await reviewedAssignment(context, input.assignmentId);
-    await requireOpenYear(context, assignment.schoolYearId);
+    await requireUnsettled(context, assignment.classId);
     if (assignment.state !== "published")
       throw new ORPCError("BAD_REQUEST", { message: "coursework.peer_draft" });
     const [reviews, work] = await Promise.all([
@@ -241,7 +242,7 @@ export const release = writeProcedure
   .input(byAssignment)
   .handler(async ({ input, context }) => {
     const assignment = await reviewedAssignment(context, input.assignmentId);
-    await requireOpenYear(context, assignment.schoolYearId);
+    await requireUnsettled(context, assignment.classId);
     if (!assignment.peerStartedAt)
       throw new ORPCError("BAD_REQUEST", {
         message: "coursework.peer_not_started",
@@ -270,7 +271,7 @@ export const hide = writeProcedure
     );
     if (!review) throw new ORPCError("NOT_FOUND");
     const assignment = await reviewedAssignment(context, review.assignmentId);
-    await requireOpenYear(context, assignment.schoolYearId);
+    await requireUnsettled(context, assignment.classId);
     await hidePeerReview(context.tx, {
       tenantId: context.tenantId,
       id: review.id,
@@ -387,7 +388,7 @@ async function ownReview(context: UnitContext, reviewId: string) {
   if (!review || review.reviewerId !== context.actor.userId)
     throw new ORPCError("NOT_FOUND");
   const assignment = await learnerReviewed(context, review.assignmentId);
-  await requireOpenYear(context, assignment.schoolYearId);
+  await requireUnsettled(context, assignment.classId);
   if (assignment.peerReleasedAt)
     throw new ORPCError("CONFLICT", { message: "coursework.peer_released" });
   return { review, assignment };

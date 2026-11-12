@@ -3,7 +3,7 @@ import type { GoalLevel } from "@faridalms/domain/standards";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
-import type { EvidenceSource } from "../tables/learning";
+import type { EvidenceSource, SittingKind } from "../tables/standards";
 
 import { escapeLike, holds, isoOf, uuidArray } from "./sql";
 
@@ -493,6 +493,19 @@ export interface EvidenceMark {
   fraction: number;
 }
 
+/** Starts a sitting for a student's work; the module the work belongs to records where it came from. */
+export async function insertSitting(
+  tx: Tx,
+  input: { tenantId: string; studentId: string; kind: SittingKind },
+): Promise<string> {
+  const [row] = await tx.execute<{ id: string }>(sql`
+    insert into core.standard_sittings (tenant_id, student_user_id, kind)
+    values (${input.tenantId}::uuid, ${input.studentId}::uuid, ${input.kind})
+    returning id`);
+  if (!row) throw new Error("sitting not written");
+  return row.id;
+}
+
 /**
  * Keeps the evidence a sitting's marked answers give, for the standards the
  * school still has. Marking again replaces it, keeping when the student
@@ -504,9 +517,8 @@ export async function recordEvidence(
   input: {
     tenantId: string;
     studentId: string;
-    sitting:
-      | { source: "lesson"; lessonId: string }
-      | { source: "quiz" | "rubric"; submissionId: string };
+    sittingId: string;
+    source: EvidenceSource;
     marks: readonly EvidenceMark[];
     replace: boolean;
   },
@@ -518,20 +530,15 @@ export async function recordEvidence(
     ),
   );
   if (rows.length === 0) return;
-  const lesson =
-    input.sitting.source === "lesson" ? input.sitting.lessonId : null;
-  const submission =
-    input.sitting.source === "lesson" ? null : input.sitting.submissionId;
   await tx.execute(sql`
-    insert into core.standard_evidence (tenant_id, student_user_id, standard_id, source, lesson_id,
-      submission_id, attempt, block_id, fraction, answered_at)
-    select ${input.tenantId}::uuid, ${input.studentId}::uuid, s.id, ${input.sitting.source},
-      ${lesson}::uuid, ${submission}::uuid, e.attempt, e.block_id, e.fraction,
-      statement_timestamp()
+    insert into core.standard_evidence (tenant_id, student_user_id, standard_id, source,
+      sitting_id, attempt, block_id, fraction, answered_at)
+    select ${input.tenantId}::uuid, ${input.studentId}::uuid, s.id, ${input.source},
+      ${input.sittingId}::uuid, e.attempt, e.block_id, e.fraction, statement_timestamp()
     from (values ${sql.join(rows, sql`, `)}) as e(attempt, block_id, standard_id, fraction)
     join core.standards s on s.tenant_id = ${input.tenantId}::uuid and s.id = e.standard_id
       and s.status = 'active'
-    on conflict (tenant_id, sitting, student_user_id, attempt, block_id, standard_id)
+    on conflict (tenant_id, sitting_id, attempt, block_id, standard_id)
       where status = 'active'
     ${
       input.replace
@@ -551,7 +558,7 @@ export async function recordRubricEvidence(
   input: {
     tenantId: string;
     studentId: string;
-    submissionId: string;
+    sittingId: string;
     attempt: number;
     marks: readonly Omit<EvidenceMark, "attempt">[];
   },
@@ -563,9 +570,8 @@ export async function recordRubricEvidence(
   );
   await tx.execute(sql`
     update core.standard_evidence set status = 'tobedeleted'
-    where tenant_id = ${input.tenantId}::uuid and submission_id = ${input.submissionId}::uuid
-      and student_user_id = ${input.studentId}::uuid and source = 'rubric'
-      and attempt = ${input.attempt} and status = 'active'
+    where tenant_id = ${input.tenantId}::uuid and sitting_id = ${input.sittingId}::uuid
+      and source = 'rubric' and attempt = ${input.attempt} and status = 'active'
       ${
         kept.length > 0
           ? sql`and (block_id, standard_id) not in (values ${sql.join(kept, sql`, `)})`
@@ -574,36 +580,21 @@ export async function recordRubricEvidence(
   await recordEvidence(tx, {
     tenantId: input.tenantId,
     studentId: input.studentId,
-    sitting: { source: "rubric", submissionId: input.submissionId },
+    sittingId: input.sittingId,
+    source: "rubric",
     marks: input.marks.map((mark) => ({ ...mark, attempt: input.attempt })),
     replace: true,
   });
 }
 
-/**
- * Evidence from handed-in work as its student and family may read it, by
- * what the work itself shows them: a quiz's answers once its results show,
- * which for most quizzes is at once and for some only once returned; a
- * rubric once the grade is returned.
- */
-const releasedOnly = sql`and (e.submission_id is null or (
-  e.source = 'quiz' and exists (
-    select 1 from core.submissions sb
-    join core.assignments a on a.tenant_id = sb.tenant_id and a.id = sb.assignment_id
-    where sb.tenant_id = e.tenant_id and sb.id = e.submission_id
-      and a.quiz_reveal is distinct from 'returned'))
-  or exists (
-    select 1 from core.assessments asm
-    join core.submission_attempts t on t.tenant_id = asm.tenant_id and t.id = asm.attempt_id
-    where asm.tenant_id = e.tenant_id and asm.submission_id = e.submission_id
-      and asm.status = 'active' and asm.released_at is not null and t.number = e.attempt))`;
-
 /** A piece of evidence as mastery is worked out from it. */
 export interface EvidenceRow {
   studentId: string;
   standardId: string;
-  /** The sitting and attempt it came from, which group its answers. */
-  occasion: string;
+  sittingId: string;
+  source: EvidenceSource;
+  attempt: number;
+  blockId: string;
   fraction: number;
   answeredAt: string;
 }
@@ -611,7 +602,10 @@ export interface EvidenceRow {
 type EvidenceRecord = {
   student_user_id: string;
   standard_id: string;
-  occasion: string;
+  sitting_id: string;
+  source: EvidenceSource;
+  attempt: number;
+  block_id: string;
   fraction: string | number;
   answered_at: string;
 };
@@ -619,14 +613,18 @@ type EvidenceRecord = {
 const evidenceOf = (row: EvidenceRecord): EvidenceRow => ({
   studentId: row.student_user_id,
   standardId: row.standard_id,
-  occasion: row.occasion,
+  sittingId: row.sitting_id,
+  source: row.source,
+  attempt: row.attempt,
+  blockId: row.block_id,
   fraction: Number(row.fraction),
   answeredAt: row.answered_at,
 });
 
 /**
- * The students' evidence on the school's standards. With a class, only what
- * the class's own work gave: its modules' lessons and its assignments.
+ * The students' evidence on the school's standards, oldest first, or on
+ * only the standards named. Which work it came from, and whether the work
+ * is a class's or its results are out, the modules the work belongs to say.
  */
 export async function evidenceOfStudents(
   tx: Tx,
@@ -634,14 +632,13 @@ export async function evidenceOfStudents(
     tenantId: string;
     orgId: string;
     studentIds: readonly string[];
-    classId: string | null;
-    /** Only what the student already knows of: grades returned to them. */
-    released: boolean;
+    standardIds?: readonly string[];
   },
 ): Promise<EvidenceRow[]> {
-  if (input.studentIds.length === 0) return [];
+  if (input.studentIds.length === 0 || input.standardIds?.length === 0)
+    return [];
   const rows = await tx.execute<EvidenceRecord>(sql`
-    select e.student_user_id, e.standard_id, e.sitting::text || ':' || e.attempt as occasion,
+    select e.student_user_id, e.standard_id, e.sitting_id, e.source, e.attempt, e.block_id,
       e.fraction, ${isoOf(sql`e.answered_at`)} as answered_at
     from core.standard_evidence e
     join core.standards s on s.tenant_id = e.tenant_id and s.id = e.standard_id and s.status = 'active'
@@ -649,179 +646,9 @@ export async function evidenceOfStudents(
       and f.status = 'active' and f.org_id = ${input.orgId}::uuid
     where e.tenant_id = ${input.tenantId}::uuid and e.status = 'active'
       and e.student_user_id = any(${uuidArray(input.studentIds)})
-      ${
-        input.classId
-          ? sql`and (
-            exists (select 1 from core.lessons l
-              join core.module_classes mc on mc.tenant_id = l.tenant_id and mc.module_id = l.module_id
-                and mc.class_id = ${input.classId}::uuid and mc.status = 'active'
-              where l.tenant_id = e.tenant_id and l.id = e.lesson_id)
-            or exists (select 1 from core.submissions sb
-              join core.assignments a on a.tenant_id = sb.tenant_id and a.id = sb.assignment_id
-                and a.class_id = ${input.classId}::uuid
-              where sb.tenant_id = e.tenant_id and sb.id = e.submission_id))`
-          : sql``
-      }
-      ${input.released ? releasedOnly : sql``}
+      ${input.standardIds ? sql`and e.standard_id = any(${uuidArray(input.standardIds)})` : sql``}
     order by e.answered_at`);
   return rows.map(evidenceOf);
-}
-
-/** The work a judgement or a right answer came from: a lesson's question or a quiz's. */
-export type GoalWork =
-  | { lessonId: string; blockId: string }
-  | { submissionId: string; blockId: string };
-
-/** A student's latest right answer to a question tagged with a standard. */
-export interface RightAnswerRow {
-  studentId: string;
-  standardId: string;
-  work: GoalWork;
-  /** The lesson's title, or the quiz's. */
-  title: string;
-  answeredAt: string;
-}
-
-/**
- * Each student's latest full-marks answer on each standard named, from a
- * lesson of one of the class's modules or a quiz set to the class.
- */
-export async function rightAnswersOf(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    classId: string;
-    studentIds: readonly string[];
-    standardIds: readonly string[];
-  },
-): Promise<RightAnswerRow[]> {
-  if (input.studentIds.length === 0 || input.standardIds.length === 0)
-    return [];
-  const rows = await tx.execute<{
-    student_user_id: string;
-    standard_id: string;
-    lesson_id: string | null;
-    submission_id: string | null;
-    block_id: string;
-    title: string;
-    answered_at: string;
-  }>(sql`
-    select distinct on (e.student_user_id, e.standard_id)
-      e.student_user_id, e.standard_id, e.lesson_id, e.submission_id, e.block_id,
-      coalesce(l.title, a.title) as title, ${isoOf(sql`e.answered_at`)} as answered_at
-    from core.standard_evidence e
-    left join core.lessons l on l.tenant_id = e.tenant_id and l.id = e.lesson_id
-      and l.status = 'active'
-      and exists (select 1 from core.module_classes mc
-        where mc.tenant_id = l.tenant_id and mc.module_id = l.module_id
-          and mc.class_id = ${input.classId}::uuid and mc.status = 'active')
-    left join core.submissions sb on sb.tenant_id = e.tenant_id and sb.id = e.submission_id
-    left join core.assignments a on a.tenant_id = sb.tenant_id and a.id = sb.assignment_id
-      and a.class_id = ${input.classId}::uuid and a.status = 'active'
-    where e.tenant_id = ${input.tenantId}::uuid and e.status = 'active'
-      and e.source in ('lesson', 'quiz') and e.fraction >= 1
-      and e.student_user_id = any(${uuidArray(input.studentIds)})
-      and e.standard_id = any(${uuidArray(input.standardIds)})
-      and coalesce(l.id, a.id) is not null
-    order by e.student_user_id, e.standard_id, e.answered_at desc`);
-  return rows.flatMap((row) => {
-    const work: GoalWork | null = row.lesson_id
-      ? { lessonId: row.lesson_id, blockId: row.block_id }
-      : row.submission_id
-        ? { submissionId: row.submission_id, blockId: row.block_id }
-        : null;
-    return work
-      ? [
-          {
-            studentId: row.student_user_id,
-            standardId: row.standard_id,
-            work,
-            title: row.title,
-            answeredAt: row.answered_at,
-          },
-        ]
-      : [];
-  });
-}
-
-/** Whether a submission is the student's, to a quiz set to the class. */
-export async function isClassQuizOf(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    submissionId: string;
-    studentId: string;
-    classId: string;
-  },
-): Promise<boolean> {
-  const [row] = await tx.execute<{ id: string }>(sql`
-    select sb.id from core.submissions sb
-    join core.assignments a on a.tenant_id = sb.tenant_id and a.id = sb.assignment_id
-      and a.class_id = ${input.classId}::uuid and a.status = 'active'
-      and a.submission_format = 'quiz'
-    where sb.tenant_id = ${input.tenantId}::uuid and sb.id = ${input.submissionId}::uuid
-      and sb.student_user_id = ${input.studentId}::uuid`);
-  return row !== undefined;
-}
-
-/** One sitting a student's mastery of a standard was worked out from. */
-export interface SittingRow {
-  source: EvidenceSource;
-  /** The lesson, or the assignment the quiz belongs to. */
-  workId: string;
-  title: string;
-  attempt: number;
-  /** Its answers on the standard averaged, from 0 to 1. */
-  fraction: number;
-  answers: number;
-  at: string;
-}
-
-/** The sittings behind a student's mastery of one of the school's standards, latest first. */
-export async function sittingsOfStandard(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    orgId: string;
-    studentId: string;
-    standardId: string;
-    released: boolean;
-  },
-): Promise<SittingRow[]> {
-  const rows = await tx.execute<{
-    source: EvidenceSource;
-    work_id: string;
-    title: string;
-    attempt: number;
-    fraction: string | number;
-    answers: number;
-    at: string;
-  }>(sql`
-    select e.source, coalesce(l.id, a.id) as work_id, coalesce(l.title, a.title) as title,
-      e.attempt, avg(e.fraction) as fraction, count(*)::int as answers,
-      ${isoOf(sql`max(e.answered_at)`)} as at
-    from core.standard_evidence e
-    join core.standards s on s.tenant_id = e.tenant_id and s.id = e.standard_id and s.status = 'active'
-    join core.standard_frameworks f on f.tenant_id = s.tenant_id and f.id = s.framework_id
-      and f.status = 'active' and f.org_id = ${input.orgId}::uuid
-    left join core.lessons l on l.tenant_id = e.tenant_id and l.id = e.lesson_id
-    left join core.submissions sb on sb.tenant_id = e.tenant_id and sb.id = e.submission_id
-    left join core.assignments a on a.tenant_id = sb.tenant_id and a.id = sb.assignment_id
-    where e.tenant_id = ${input.tenantId}::uuid and e.status = 'active'
-      and e.student_user_id = ${input.studentId}::uuid and e.standard_id = ${input.standardId}::uuid
-      and coalesce(l.id, a.id) is not null
-      ${input.released ? releasedOnly : sql``}
-    group by e.source, e.sitting, e.attempt, l.id, l.title, a.id, a.title
-    order by max(e.answered_at) desc`);
-  return rows.map((row) => ({
-    source: row.source,
-    workId: row.work_id,
-    title: row.title,
-    attempt: row.attempt,
-    fraction: Number(row.fraction),
-    answers: row.answers,
-    at: row.at,
-  }));
 }
 
 export type ObservedLevel = "beginning" | "developing" | "secure";
@@ -934,14 +761,8 @@ export interface JudgementRow {
   frameworkId: string;
   level: GoalLevel;
   note: string;
-  lesson: { id: string; title: string; blockId: string } | null;
-  /** The quiz it was judged from, with the child's submission to it. */
-  quiz: {
-    id: string;
-    title: string;
-    submissionId: string;
-    blockId: string;
-  } | null;
+  /** The sitting and question it was judged from, when it was. */
+  from: { sittingId: string; blockId: string } | null;
   judgedByUserId: string;
   judgedAt: string;
 }
@@ -952,11 +773,7 @@ type JudgementRecord = {
   framework_id: string;
   level: GoalLevel;
   note: string;
-  lesson_id: string | null;
-  lesson_title: string | null;
-  submission_id: string | null;
-  assignment_id: string | null;
-  assignment_title: string | null;
+  sitting_id: string | null;
   block_id: string | null;
   judged_by_user_id: string;
   judged_at: string;
@@ -968,21 +785,9 @@ const judgementOf = (row: JudgementRecord): JudgementRow => ({
   frameworkId: row.framework_id,
   level: row.level,
   note: row.note,
-  lesson:
-    row.lesson_id && row.lesson_title !== null && row.block_id
-      ? { id: row.lesson_id, title: row.lesson_title, blockId: row.block_id }
-      : null,
-  quiz:
-    row.submission_id &&
-    row.assignment_id &&
-    row.assignment_title !== null &&
-    row.block_id
-      ? {
-          id: row.assignment_id,
-          title: row.assignment_title,
-          submissionId: row.submission_id,
-          blockId: row.block_id,
-        }
+  from:
+    row.sitting_id && row.block_id
+      ? { sittingId: row.sitting_id, blockId: row.block_id }
       : null,
   judgedByUserId: row.judged_by_user_id,
   judgedAt: row.judged_at,
@@ -1004,19 +809,13 @@ export async function judgementsOf(
   if (input.studentIds.length === 0 || input.standardIds?.length === 0)
     return [];
   const rows = await tx.execute<JudgementRecord>(sql`
-    select j.student_user_id, j.standard_id, s.framework_id, j.level, j.note, j.lesson_id,
-      l.title as lesson_title, j.submission_id, a.id as assignment_id,
-      a.title as assignment_title, j.block_id, j.judged_by_user_id,
+    select j.student_user_id, j.standard_id, s.framework_id, j.level, j.note, j.sitting_id,
+      j.block_id, j.judged_by_user_id,
       ${isoOf(sql`j.judged_at`)} as judged_at
     from core.goal_judgements j
     join core.standards s on s.tenant_id = j.tenant_id and s.id = j.standard_id and s.status = 'active'
     join core.standard_frameworks f on f.tenant_id = s.tenant_id and f.id = s.framework_id
       and f.status = 'active' and f.org_id = ${input.orgId}::uuid
-    left join core.lessons l on l.tenant_id = j.tenant_id and l.id = j.lesson_id
-      and l.status = 'active'
-    left join core.submissions sb on sb.tenant_id = j.tenant_id and sb.id = j.submission_id
-    left join core.assignments a on a.tenant_id = sb.tenant_id and a.id = sb.assignment_id
-      and a.status = 'active'
     where j.tenant_id = ${input.tenantId}::uuid and j.status = 'active'
       and j.student_user_id = any(${uuidArray(input.studentIds)})
       ${input.standardIds ? sql`and j.standard_id = any(${uuidArray(input.standardIds)})` : sql``}
@@ -1038,27 +837,22 @@ export async function judgeGoal(
     standardId: string;
     level: GoalLevel;
     note?: string;
-    from?: GoalWork;
+    from?: { sittingId: string; blockId: string };
     judgedByUserId: string;
   },
 ): Promise<void> {
   const keep = input.from === undefined;
   const keepNote = input.note === undefined;
-  const lessonId =
-    input.from && "lessonId" in input.from ? input.from.lessonId : null;
-  const submissionId =
-    input.from && "submissionId" in input.from ? input.from.submissionId : null;
   await tx.execute(sql`
     insert into core.goal_judgements (tenant_id, student_user_id, standard_id, level, note,
-      lesson_id, submission_id, block_id, judged_by_user_id, judged_at)
+      sitting_id, block_id, judged_by_user_id, judged_at)
     values (${input.tenantId}::uuid, ${input.studentId}::uuid, ${input.standardId}::uuid,
-      ${input.level}, ${input.note ?? ""}, ${lessonId}::uuid, ${submissionId}::uuid,
+      ${input.level}, ${input.note ?? ""}, ${input.from?.sittingId ?? null}::uuid,
       ${input.from?.blockId ?? null}::uuid, ${input.judgedByUserId}::uuid, statement_timestamp())
     on conflict (tenant_id, student_user_id, standard_id) where status = 'active'
     do update set level = excluded.level,
       note = ${keepNote ? sql`core.goal_judgements.note` : sql`excluded.note`},
-      lesson_id = ${keep ? sql`core.goal_judgements.lesson_id` : sql`excluded.lesson_id`},
-      submission_id = ${keep ? sql`core.goal_judgements.submission_id` : sql`excluded.submission_id`},
+      sitting_id = ${keep ? sql`core.goal_judgements.sitting_id` : sql`excluded.sitting_id`},
       block_id = ${keep ? sql`core.goal_judgements.block_id` : sql`excluded.block_id`},
       judged_by_user_id = excluded.judged_by_user_id, judged_at = excluded.judged_at`);
 }

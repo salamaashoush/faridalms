@@ -6,7 +6,6 @@ import {
   insertScaleVersion,
   programmeInUse,
   programmesOf,
-  regradeTerm as regradeTermOf,
   retireProgramme as retireProgrammeOf,
   retireScale as retireScaleOf,
   saveProgramme as saveProgrammeOf,
@@ -263,33 +262,6 @@ export const setClassGrade = writeProcedure
       details: { programmeId: input.programmeId, scaleId: input.scaleId },
     });
     return { ok: true };
-  });
-
-/**
- * Grades a term's scores again on today's bands, when a school decides a
- * scale change should reach grades already given. It says why.
- */
-export const regradeTerm = writeProcedure
-  .input(
-    v.object({
-      periodId: uuid,
-      reason: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(500)),
-    }),
-  )
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "grading:manage");
-    const counts = await regradeTermOf(context.tx, {
-      ...scopeOf(context),
-      periodId: input.periodId,
-      today: context.today,
-    });
-    await audit(context, {
-      action: "grading_scale.regrade",
-      objectType: "academic_session",
-      objectId: input.periodId,
-      details: { reason: input.reason, ...counts },
-    });
-    return counts;
   });
 
 /**

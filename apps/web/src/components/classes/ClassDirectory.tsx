@@ -19,7 +19,11 @@ import { Pencil, Plus, School } from "lucide-react";
 
 import type { ClassesSearch } from "~/components/classes/slots";
 
-import { useClassFacets } from "~/components/classes/class-facets";
+import {
+  endedFacet,
+  useClassFacets,
+  useNarrowed,
+} from "~/components/classes/class-facets";
 import { classTitle, subjectName } from "~/components/classes/format";
 import { classFilters, viewsOf } from "~/components/classes/slots";
 import { displayName, labelOf } from "~/components/people/format";
@@ -154,22 +158,8 @@ export function ClassDirectory({
   const data = useSuspenseQuery(classDirectoryQuery({ ...search, views })).data;
   const options = useSuspenseQuery(classOptionsQuery).data;
   const moduleFacets = useClassFacets(search, patch);
-  const narrowed = filters.some((filter) => {
-    const value = search[filter.key];
-    return filter.narrows(typeof value === "string" ? value : undefined);
-  });
-  const endedFacet: Facet = {
-    id: "ended",
-    label: m.classesWhen(),
-    single: true,
-    options: [
-      { value: "", label: m.classesRunning() },
-      { value: "ended", label: m.classesEnded() },
-    ],
-    selected: [search.ended ? "ended" : ""],
-    defaultSelected: [""],
-    onChange: ([next = ""]) => patch({ ended: next === "ended" }),
-  };
+  const narrowed = useNarrowed(search);
+  const whenFacet = endedFacet(search.ended, (ended) => patch({ ended }));
   const gradeFacet: Facet = {
     id: "grade",
     label: m.studentGrade(),
@@ -208,7 +198,7 @@ export function ClassDirectory({
       label: m.classesSearchHint(),
       placeholder: m.classesSearchPlaceholder(),
     },
-    facets: [...moduleFacets, ...(narrowed ? [] : [endedFacet]), gradeFacet],
+    facets: [...moduleFacets, ...(narrowed ? [] : [whenFacet]), gradeFacet],
     onReset: () =>
       patch({
         q: "",

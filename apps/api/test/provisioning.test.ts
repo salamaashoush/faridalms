@@ -502,15 +502,14 @@ describe("creating a school from the operator console", () => {
 
     expect(await api.learning.options()).toEqual({ classes: [], modules: [] });
     expect(await api.learning.modules({ classId: "" })).toEqual({
-      yearSet: false,
       classes: [],
       rows: [],
     });
-    expect(await api.learning.yearMap({ classId: "" })).toEqual({
+    expect(await api.learning.unitPlan({ classId: "" })).toEqual({
       classes: [],
       classId: "",
-      year: null,
-      terms: [],
+      ready: false,
+      frame: null,
       units: [],
     });
     // Registers belong to no year: a new school's board reads its day.
@@ -529,7 +528,7 @@ describe("creating a school from the operator console", () => {
           sequential: false,
         }),
       ),
-    ).toMatchObject({ code: "CONFLICT", message: "learning.no_year" });
+    ).toMatchObject({ code: "FORBIDDEN", message: "learning.class" });
 
     // Its setup waits for it on Today, and cannot be hidden half done.
     const onboarding = (await api.home.admin()).onboarding;

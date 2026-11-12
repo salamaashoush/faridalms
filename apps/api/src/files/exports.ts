@@ -5,12 +5,12 @@ import { TenantUnavailableError } from "@faridalms/database/context";
 import {
   assignmentById,
   handedInWork,
-  namesOf,
   studentWork,
 } from "@faridalms/database/stores/coursework";
 import { documentOf } from "@faridalms/database/stores/documents";
 import { filesByIds } from "@faridalms/database/stores/files";
 import { mediaItemsByIds } from "@faridalms/database/stores/media";
+import { namesOf } from "@faridalms/database/stores/persons";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { contentDisposition, safeFilename } from "@faridalms/domain/file";
 import { MAX_MEDIA_BATCH, usesMedia } from "@faridalms/domain/media";

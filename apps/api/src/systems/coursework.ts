@@ -2,7 +2,6 @@ import type {
   AssignmentRow,
   WorkRow,
 } from "@faridalms/database/stores/coursework";
-import type { KeptFiles } from "@faridalms/database/stores/learning";
 import type { SittingRow } from "@faridalms/database/stores/quizzes";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
@@ -27,6 +26,7 @@ import {
   classById,
   classesKeptBy,
   rosterOf,
+  groupsOf,
 } from "@faridalms/database/stores/classes";
 import {
   joinOpenWork,
@@ -49,7 +49,6 @@ import {
   discussionPostById,
   discussionPostsOf,
   ensureSubmission,
-  groupsOf,
   hideDiscussionPost,
   insertAssignment,
   insertAttempt,
@@ -59,7 +58,6 @@ import {
   insertReply,
   isRecipient,
   learnerAssignments,
-  namesOf,
   releaseAssessments,
   releaseComments,
   removeBankComment,
@@ -72,9 +70,7 @@ import {
   saveGroup,
   saveRubric,
   selectionOf,
-  moduleDiscussions,
   setAssignmentState,
-  setDiscussionGroup,
   setDiscussionLike,
   setCommentState,
   setRecipientDue,
@@ -110,13 +106,10 @@ import {
 } from "@faridalms/database/stores/files";
 import { classCategories } from "@faridalms/database/stores/grading";
 import {
-  classesOfModule,
-  moduleById,
-} from "@faridalms/database/stores/learning";
-import {
   attemptUnderReview,
   reviewsAttempt,
 } from "@faridalms/database/stores/peer-reviews";
+import { namesOf } from "@faridalms/database/stores/persons";
 import {
   keepPracticeAnswer,
   markQuizAnswer as storeQuizMark,
@@ -130,17 +123,10 @@ import {
   pauseSitting,
   resumeSitting,
 } from "@faridalms/database/stores/quizzes";
-import { recordRubricEvidence } from "@faridalms/database/stores/standards";
 import {
   reviewTranslation,
   translationReview,
 } from "@faridalms/database/stores/translations";
-import {
-  dayIn,
-  schoolYears,
-  termsOf,
-  workingYear,
-} from "@faridalms/database/stores/years";
 import {
   allowedMinutes,
   NO_ARRANGEMENTS,
@@ -187,7 +173,9 @@ import {
   saveAssignmentSchema,
   saveBankCommentSchema,
   reusableSchema,
+  learnerWorkSchema,
   reuseSchema,
+  studentWorkSchema,
   saveCommentSchema,
   saveDraftSchema,
   extendSchema,
@@ -236,20 +224,16 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 import type { AttemptQuizzes } from "../quizzes/quiz";
 
-import { markedProgramAt } from "../coding/mark";
 import {
-  learnerAssignment,
-  ownSchedule,
-  requireOpenYear,
-  taughtAssignment,
-} from "../core/coursework-access";
-import { gradeReader } from "../core/grades";
-import { mayEditModule } from "../core/learning-access";
+  classesInView,
+  currentClasses,
+  requireUnsettled,
+} from "../classes/points";
+import { markedProgramAt } from "../coding/mark";
+import { contributionsTo } from "../core/extension";
 import { publishTelling } from "../core/mentions";
-import { audienceIn, spreadDiscussion } from "../core/module-discussions";
 import { nameUuid } from "../core/names";
 import { notify } from "../core/notify";
-import { reviewerReads } from "../core/peer-work";
 import {
   audit,
   can,
@@ -267,13 +251,25 @@ import {
   scopeFor,
   teaches,
 } from "../core/reach";
+import { checkTranslation } from "../core/translation-review";
+import {
+  learnerAssignment,
+  ownSchedule,
+  taughtAssignment,
+} from "../coursework/access";
+import { gradeReader } from "../coursework/grades";
 import {
   teachingScope,
   tellAssigned,
   tellGradeShown,
   tellReturned,
-} from "../core/teaching-notices";
-import { checkTranslation } from "../core/translation-review";
+} from "../coursework/notices";
+import {
+  markedWork,
+  partsFor,
+  partsPublished,
+  partsReused,
+} from "../coursework/points";
 import {
   registerArea,
   registerOpenWork,
@@ -282,6 +278,7 @@ import {
   registerLiveRules,
   placeMedia,
 } from "../files/authorize";
+import { reviewerReads } from "../peer/work";
 import {
   answersByAttempt,
   attemptQuizzes,
@@ -300,7 +297,6 @@ import {
   rescoreQuiz,
   responsesOf,
 } from "../quizzes/quiz";
-import { classYear, daysOf, withYear } from "../years/years";
 
 const AUDIT_ACTIONS = {
   return: "submission.return",
@@ -313,15 +309,6 @@ const AUDIT_ACTIONS = {
 } as const satisfies Record<StudentWorkAction, string>;
 
 const id = v.pipe(v.string(), v.uuid());
-
-async function currentYear(context: UnitContext) {
-  const years = await schoolYears(
-    context.tx,
-    context.tenantId,
-    context.schoolId,
-  );
-  return workingYear(years, context.today);
-}
 
 /**
  * The brief its readers see. Once work is out that is what was last assigned
@@ -552,48 +539,35 @@ registerHostReader("attempt_feedback", async (context, attemptId) => {
 });
 
 /**
- * The classes the viewer may set work for this year, with the choices the
- * editor offers: those they teach, marked as theirs, then for school-wide
- * staff every other class of the school.
+ * The classes the viewer may set work for, those running or yet to start,
+ * with the choices the editor offers: those they teach, marked as theirs, then for school-wide staff
+ * every other class of the school; and what each module's part offers.
  */
 export const options = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "assignments:author");
-  const year = await currentYear(context);
-  if (!year) return { year: null, classes: [], rubrics: [], terms: [] };
-  const on = dayIn(year, context.today);
   const scope = scopeFor(context, "teaching");
-  const kept = await classesKeptBy(context.tx, scope, {
-    during: daysOf(year),
-    on,
-  });
+  const kept = (
+    await classesKeptBy(context.tx, scope, currentClasses(context))
+  ).filter((row) => row.role === "teacher" || scope.schoolWide);
   const rubrics = await rubricsOf(
     context.tx,
     context.tenantId,
     context.actor.userId,
   );
-  const terms = await termsOf(context.tx, context.tenantId, year.id);
   return {
-    year: { id: year.id, titleEn: year.titleEn, titleAr: year.titleAr },
-    classes: kept
-      .filter((row) => row.role === "teacher" || scope.schoolWide)
-      .map((row) => ({
-        id: row.id,
-        code: row.code,
-        titleEn: row.titleEn,
-        titleAr: row.titleAr,
-        subjectId: row.subjectId,
-        students: row.students,
-        mine: row.role === "teacher",
-      })),
+    classes: kept.map((row) => ({
+      id: row.id,
+      code: row.code,
+      titleEn: row.titleEn,
+      titleAr: row.titleAr,
+      subjectId: row.subjectId,
+      students: row.students,
+      mine: row.role === "teacher",
+    })),
     rubrics: rubrics.map((row) => ({
       id: row.id,
       title: row.title,
       rubric: row.criteria as unknown as Rubric,
-    })),
-    terms: terms.map((row) => ({
-      id: row.id,
-      titleEn: row.titleEn,
-      titleAr: row.titleAr,
     })),
   };
 });
@@ -615,17 +589,11 @@ export const list = readProcedure
   .input(teacherListSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "assignments:author", "submissions:grade");
-    const year = await currentYear(context);
-    if (!year)
-      return {
-        rows: [],
-        counts: { to_grade: 0, assigned: 0, scheduled: 0, drafts: 0, past: 0 },
-      };
     const rows = await teacherAssignments(
       context.tx,
       scopeFor(context, "teaching"),
       {
-        yearId: year.id,
+        viewed: await classesInView(context, input),
         classId: input.classId,
         q: input.q,
         now: context.now,
@@ -712,7 +680,6 @@ export const editor = readProcedure
           ? {
               postFirst: assignment.discussionPostFirst,
               replies: assignment.discussionReplies,
-              moduleId: assignment.moduleId ?? "",
             }
           : null,
       peer: peerSettingsOf(assignment),
@@ -754,7 +721,6 @@ function fieldsOf(input: SaveAssignment) {
       ? quizPoints(quizOfBrief(input.brief)) || null
       : input.points,
     rubric: input.rubric as unknown as Record<string, unknown> | null,
-    gradingPeriodId: input.gradingPeriodId || null,
     categoryId: input.categoryId || null,
     quizAttempts: input.quiz?.attempts ?? null,
     quizKeep: input.quiz?.keep ?? null,
@@ -767,7 +733,6 @@ function fieldsOf(input: SaveAssignment) {
     gradeAfterAnswers: !input.quiz && input.gradeAfterAnswers,
     discussionPostFirst: input.discussion?.postFirst ?? null,
     discussionReplies: input.discussion?.replies ?? null,
-    moduleId: input.discussion?.moduleId || null,
     peerReviews: input.peer?.reviews ?? null,
     peerAnonymous: input.peer?.anonymous ?? null,
     peerDueAt: input.peer?.dueAt || null,
@@ -804,11 +769,10 @@ export const reuse = writeProcedure
         !(await teaches(context, "teaching", source.classId)))
     )
       throw new ORPCError("NOT_FOUND");
-    const found = await classById(tx, context, input.classId);
-    if (!found || !(await teaches(context, "teaching", found.id)))
+    const classRow = await classById(tx, context, input.classId);
+    if (!classRow || !(await teaches(context, "teaching", classRow.id)))
       throw new ORPCError("NOT_FOUND");
-    const classRow = await withYear(context, found);
-    await requireOpenYear(context, classRow.schoolYearId);
+    await requireUnsettled(context, classRow.id);
     const categories = await classCategories(tx, {
       tenantId: context.tenantId,
       classId: classRow.id,
@@ -830,7 +794,6 @@ export const reuse = writeProcedure
       resubmission: source.resubmission,
       points: source.points,
       rubric: source.rubric,
-      gradingPeriodId: null,
       categoryId: categories.some((row) => row.id === source.categoryId)
         ? source.categoryId
         : null,
@@ -844,14 +807,6 @@ export const reuse = writeProcedure
       gradeAfterAnswers: source.gradeAfterAnswers,
       discussionPostFirst: source.discussionPostFirst,
       discussionReplies: source.discussionReplies,
-      // The module stays only where it is set for the new class too.
-      moduleId:
-        source.moduleId &&
-        (await classesOfModule(tx, context.tenantId, source.moduleId)).some(
-          (row) => row.id === classRow.id,
-        )
-          ? source.moduleId
-          : null,
       peerReviews: source.peerReviews,
       peerAnonymous: source.peerAnonymous,
       peerDueAt: null,
@@ -893,6 +848,8 @@ export const reuse = writeProcedure
         userId: context.actor.userId,
       });
     }
+    const made = await assignmentById(tx, context.tenantId, created.id);
+    if (made) await partsReused(context, { source, created: made });
     await audit(context, {
       action: "assignment.reuse",
       objectType: "assignment",
@@ -923,11 +880,10 @@ export const save = writeProcedure
         message: "coursework.rubric_total",
       });
     const tx = context.tx;
-    const found = await classById(tx, context, input.classId);
-    if (!found || !(await teaches(context, "teaching", found.id)))
+    const classRow = await classById(tx, context, input.classId);
+    if (!classRow || !(await teaches(context, "teaching", classRow.id)))
       throw new ORPCError("NOT_FOUND");
-    const classRow = await withYear(context, found);
-    await requireOpenYear(context, classRow.schoolYearId);
+    await requireUnsettled(context, classRow.id);
     if (
       input.categoryId &&
       !(
@@ -940,37 +896,27 @@ export const save = writeProcedure
       throw new ORPCError("BAD_REQUEST", {
         message: "coursework.category_unknown",
       });
-    if (input.discussion?.moduleId) {
-      const placed = await moduleById(
-        tx,
-        context.tenantId,
-        input.discussion.moduleId,
-      );
-      if (
-        !placed ||
-        placed.orgId !== context.schoolId ||
-        !(await mayEditModule(context, placed)) ||
-        !(await classesOfModule(tx, context.tenantId, placed.id)).some(
-          (row) => row.id === classRow.id,
-        )
-      )
-        throw new ORPCError("BAD_REQUEST", {
-          message: "coursework.module_unknown",
-        });
-      // Who takes part in each class is who the module reaches there.
-      const reached = await audienceIn(context, placed.id, classRow.id);
-      input = {
-        ...input,
-        audience: reached.audience,
-        groupIds: reached.selection.groupIds,
-        studentIds: reached.selection.studentIds,
-      };
+    const stored = input.id ? await taughtAssignment(context, input.id) : null;
+    const parts = await partsFor(context, input.parts);
+    for (const part of parts) {
+      const decided = await part.prepare?.(context, {
+        classId: classRow.id,
+        format: input.submissionFormat,
+        stored,
+        value: input.parts[part.key],
+      });
+      if (decided)
+        input = {
+          ...input,
+          audience: decided.audience,
+          groupIds: decided.selection.groupIds,
+          studentIds: decided.selection.studentIds,
+        };
     }
     let assignmentId: string;
     let version: number;
     let published = false;
     let author = context.actor.userId;
-    const stored = input.id ? await taughtAssignment(context, input.id) : null;
     const before = stored
       ? await documentOf(tx, context.tenantId, {
           type: "assignment",
@@ -1008,22 +954,10 @@ export const save = writeProcedure
     if (stored) {
       const existing = stored;
       // A draft saves itself as it is written, so its class may still change;
-      // once assigned, students and their work belong to that class. A
-      // class's part of a module discussion stays that class's.
-      if (
-        existing.classId !== classRow.id &&
-        (existing.state !== "draft" || existing.discussionGroup)
-      )
+      // once assigned, students and their work belong to that class.
+      if (existing.classId !== classRow.id && existing.state !== "draft")
         throw new ORPCError("BAD_REQUEST", {
           message: "coursework.class_fixed",
-        });
-      // A module discussion stays in its module, across its classes.
-      if (
-        existing.discussionGroup &&
-        existing.moduleId !== (input.discussion?.moduleId || null)
-      )
-        throw new ORPCError("CONFLICT", {
-          message: "coursework.module_fixed",
         });
       // Once out, a quiz's answers and a discussion's posts belong to it.
       if (
@@ -1139,32 +1073,26 @@ export const save = writeProcedure
       input.audience === "selected"
         ? { groupIds: input.groupIds, studentIds: input.studentIds }
         : { groupIds: [], studentIds: [] };
-    if (published || input.audience === "selected") {
-      const year = await classYear(context, classRow.id);
+    if (published || input.audience === "selected")
       await setRecipients(tx, {
         tenantId: context.tenantId,
         assignmentId,
         classId: classRow.id,
         audience: published ? input.audience : "selected",
         selection,
-        on: dayIn(year, context.today),
+        on: dayWithin(classRow.runs, context.today),
       });
-    }
-    if (input.discussion?.moduleId) {
-      // One discussion across the module's classes: this part leads, the
-      // others take its words and settings, and classes without one get one.
-      if (!stored?.discussionGroup)
-        await setDiscussionGroup(tx, {
-          tenantId: context.tenantId,
-          id: assignmentId,
-          group: assignmentId,
+    const saved = parts.filter((part) => part.key in input.parts);
+    const written = saved.length
+      ? await assignmentById(tx, context.tenantId, assignmentId)
+      : null;
+    if (written)
+      for (const part of saved)
+        await part.save(context, {
+          assignment: written,
+          value: input.parts[part.key],
+          created: !stored,
         });
-      const lead = await assignmentById(tx, context.tenantId, assignmentId);
-      if (lead) {
-        await spreadDiscussion(context, lead);
-        version = lead.version;
-      }
-    }
     await audit(context, {
       action: input.id ? "assignment.update" : "assignment.create",
       objectType: "assignment",
@@ -1208,7 +1136,7 @@ export const publish = writeProcedure
     const assignment = await taughtAssignment(context, input.id);
     if (assignment.state !== "draft")
       throw new ORPCError("CONFLICT", { message: "coursework.not_draft" });
-    await requireOpenYear(context, assignment.schoolYearId);
+    await requireUnsettled(context, assignment.classId);
     const [brief, selection] = await Promise.all([
       documentOf(tx, context.tenantId, {
         type: "assignment",
@@ -1252,16 +1180,14 @@ export const publish = writeProcedure
         subject: { type: "assignment", id: assignment.id },
         title: assignment.title,
       });
-    const year = (
-      await schoolYears(tx, context.tenantId, context.schoolId)
-    ).find((row) => row.id === assignment.schoolYearId);
+    const classRow = await classById(tx, context, assignment.classId);
     const recipients = await setRecipients(tx, {
       tenantId: context.tenantId,
       assignmentId: assignment.id,
       classId: assignment.classId,
       audience: assignment.audience,
       selection,
-      on: year ? dayIn(year, context.today) : context.today,
+      on: classRow ? dayWithin(classRow.runs, context.today) : context.today,
     });
     if (recipients === 0)
       throw new ORPCError("BAD_REQUEST", {
@@ -1276,13 +1202,11 @@ export const publish = writeProcedure
     if (!saved)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
     if (!opensLater) await tellAssigned(teachingScope(context), assignment);
-    // A module discussion goes out to every class of the module at once.
-    if (assignment.discussionGroup)
-      await spreadDiscussion(context, {
-        ...assignment,
-        state: "published",
-        version: saved.version,
-      });
+    await partsPublished(context, {
+      ...assignment,
+      state: "published",
+      version: saved.version,
+    });
     await audit(context, {
       action: "assignment.publish",
       objectType: "assignment",
@@ -1610,7 +1534,7 @@ export const act = writeProcedure
     requireCapability(context, "submissions:grade");
     const tx = context.tx;
     const assignment = await taughtAssignment(context, input.assignmentId);
-    await requireOpenYear(context, assignment.schoolYearId);
+    await requireUnsettled(context, assignment.classId);
     const work = await studentWork(tx, {
       tenantId: context.tenantId,
       assignmentId: assignment.id,
@@ -1718,7 +1642,7 @@ export const extend = writeProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "assignments:author");
     const assignment = await taughtAssignment(context, input.assignmentId);
-    await requireOpenYear(context, assignment.schoolYearId);
+    await requireUnsettled(context, assignment.classId);
     if (assignment.state !== "published")
       throw new ORPCError("CONFLICT", { message: "coursework.not_assigned" });
     if (
@@ -1973,7 +1897,7 @@ export const assess = writeProcedure
     const attempt = await attemptById(tx, context.tenantId, input.attemptId);
     if (!attempt) throw new ORPCError("NOT_FOUND");
     const assignment = await taughtAssignment(context, attempt.assignmentId);
-    await requireOpenYear(context, assignment.schoolYearId);
+    await requireUnsettled(context, assignment.classId);
     if (
       assignment.points !== null &&
       input.score !== null &&
@@ -1995,19 +1919,19 @@ export const assess = writeProcedure
       today: context.today,
     });
     const rubric = assignment.rubric as unknown as Rubric | null;
-    await recordRubricEvidence(tx, {
-      tenantId: context.tenantId,
-      studentId: attempt.studentId,
-      submissionId: attempt.submissionId,
-      attempt: attempt.number,
-      marks: rubric
-        ? rubricEvidence(rubric, input.rubricScores ?? {}).map((mark) => ({
-            blockId: nameUuid(CRITERION_NAMESPACE, mark.criterionId),
-            standards: mark.standards,
-            fraction: mark.fraction,
-          }))
-        : [],
-    });
+    for (const told of await contributionsTo(context, markedWork))
+      await told.rubric(context, {
+        studentId: attempt.studentId,
+        submissionId: attempt.submissionId,
+        attempt: attempt.number,
+        marks: rubric
+          ? rubricEvidence(rubric, input.rubricScores ?? {}).map((mark) => ({
+              blockId: nameUuid(CRITERION_NAMESPACE, mark.criterionId),
+              standards: mark.standards,
+              fraction: mark.fraction,
+            }))
+          : [],
+      });
     return saved;
   });
 
@@ -2020,7 +1944,7 @@ async function commentableAttempt(context: UnitContext, attemptId: string) {
   const attempt = await attemptById(context.tx, context.tenantId, attemptId);
   if (!attempt) throw new ORPCError("NOT_FOUND");
   const assignment = await taughtAssignment(context, attempt.assignmentId);
-  await requireOpenYear(context, assignment.schoolYearId);
+  await requireUnsettled(context, assignment.classId);
   return { ...attempt, id: attemptId };
 }
 
@@ -3026,31 +2950,32 @@ async function learnerRows(
   }));
 }
 
-/** The student's own coursework this year, each with its state. */
-export const mine = readProcedure.handler(async ({ context }) => {
-  requireCapability(context, "own-work:read");
-  const year = await currentYear(context);
-  if (!year) return { rows: [], now: context.now.toISOString() };
-  const rows = await learnerAssignments(context.tx, {
-    tenantId: context.tenantId,
-    studentId: context.actor.userId,
-    yearId: year.id,
+/** The student's own coursework in the classes viewed, each with its state. */
+export const mine = readProcedure
+  .input(learnerWorkSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "own-work:read");
+    const rows = await learnerAssignments(context.tx, {
+      tenantId: context.tenantId,
+      studentId: context.actor.userId,
+      viewed: await classesInView(context, input),
+    });
+    return {
+      rows: await learnerRows(context, rows, true),
+      now: context.now.toISOString(),
+    };
   });
-  return {
-    rows: await learnerRows(context, rows, true),
-    now: context.now.toISOString(),
-  };
-});
 
-/** A student's work this year as their family or school reads it: released results only. */
-async function workOf(context: UnitContext, studentId: string) {
-  await requireStudent(context, "teaching", studentId);
-  const year = await currentYear(context);
-  if (!year) return { rows: [], now: context.now.toISOString() };
+/** A student's work in the classes viewed as their family or school reads it: released results only. */
+async function workOf(
+  context: UnitContext,
+  input: { studentId: string; ended: boolean },
+) {
+  await requireStudent(context, "teaching", input.studentId);
   const rows = await learnerAssignments(context.tx, {
     tenantId: context.tenantId,
-    studentId,
-    yearId: year.id,
+    studentId: input.studentId,
+    viewed: await classesInView(context, input),
   });
   return {
     rows: await learnerRows(context, rows),
@@ -3105,11 +3030,11 @@ export const sharedPiece = readProcedure
 
 /** A child's coursework for their family: never draft grades, never other students. */
 export const child = readProcedure
-  .input(v.object({ studentId: id }))
+  .input(studentWorkSchema)
   .handler(({ input, context }) => {
     requireCapability(context, "children:read");
     requireCapability(context, "assignments:read");
-    return workOf(context, input.studentId);
+    return workOf(context, input);
   });
 
 /**
@@ -3209,11 +3134,11 @@ async function familyResult(
 
 /** A student's coursework for the staff who reach their record. */
 export const student = readProcedure
-  .input(v.object({ studentId: id }))
+  .input(studentWorkSchema)
   .handler(({ input, context }) => {
     requireCapability(context, "people:read");
     requireCapability(context, "assignments:read");
-    return workOf(context, input.studentId);
+    return workOf(context, input);
   });
 
 /** A class's groups and roster, for choosing who gets work. */
@@ -3743,7 +3668,7 @@ export const markQuizAnswer = writeProcedure
     )
       throw new ORPCError("NOT_FOUND");
     const assignment = await taughtAssignment(context, first.assignmentId);
-    await requireOpenYear(context, assignment.schoolYearId);
+    await requireUnsettled(context, assignment.classId);
     const document =
       assignment.submissionFormat === "quiz"
         ? await publishedQuiz(context, assignment.id)
@@ -3864,7 +3789,9 @@ export const quizAnswers = readProcedure
         } | null,
         picture: (response.picture ?? null) as { fileId: string } | null,
         project: (response.project ?? null) as { fileId: string } | null,
-        files: (response.files ?? null) as KeptFiles | null,
+        files: (response.files ?? null) as
+          | { name: string; code: string }[]
+          | null,
       })),
     };
   });
@@ -4262,85 +4189,6 @@ export const likePost = writeProcedure
       liked: input.liked,
     });
     return { liked: input.liked };
-  });
-
-/**
- * The discussions a module holds, for whoever reads the module: those who
- * teach any of their classes see each with its class, a student those set
- * for them and open, a family those of the child they follow.
- */
-export const moduleDiscussionsOf = readProcedure
-  .input(
-    v.object({
-      moduleId: id,
-      studentId: v.optional(v.union([v.literal(""), id]), ""),
-    }),
-  )
-  .handler(async ({ input, context }) => {
-    const all = (
-      await moduleDiscussions(context.tx, {
-        tenantId: context.tenantId,
-        moduleId: input.moduleId,
-      })
-    ).filter((assignment) => assignment.orgId === context.schoolId);
-    if (can(context, "submissions:grade")) {
-      const rows = [];
-      for (const assignment of all) {
-        if (!(await teaches(context, "teaching", assignment.classId))) continue;
-        const classRow = await classById(
-          context.tx,
-          context,
-          assignment.classId,
-        );
-        rows.push({
-          id: assignment.id,
-          title: assignment.title,
-          dueAt: assignment.dueAt,
-          state: assignment.state,
-          class: classRow && {
-            id: classRow.id,
-            code: classRow.code,
-            titleEn: classRow.titleEn,
-            titleAr: classRow.titleAr,
-          },
-        });
-      }
-      return rows;
-    }
-    const studentId = input.studentId || context.actor.userId;
-    if (studentId === context.actor.userId)
-      requireCapability(context, "own-work:read");
-    else {
-      requireCapability(context, "children:read");
-      await requireStudent(context, "teaching", studentId);
-    }
-    const rows = [];
-    for (const assignment of all) {
-      const recipient =
-        assignment.state === "published"
-          ? await isRecipient(
-              context.tx,
-              context.tenantId,
-              assignment.id,
-              studentId,
-            )
-          : null;
-      if (!recipient) continue;
-      const own = ownSchedule(assignment, recipient);
-      if (
-        own.assignment.availableFrom &&
-        Date.parse(own.assignment.availableFrom) > context.now.getTime()
-      )
-        continue;
-      rows.push({
-        id: assignment.id,
-        title: assignment.title,
-        dueAt: own.dueAt,
-        state: assignment.state,
-        class: null,
-      });
-    }
-    return rows;
   });
 
 /** A teacher hides a post from the class, or shows it again; its author still reads it. */

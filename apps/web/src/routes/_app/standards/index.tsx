@@ -11,10 +11,12 @@ import { Flag, Grid3x3, ListTree, Plus, Sprout } from "lucide-react";
 import { useState } from "react";
 
 import { FrameworkSheet, sourceOf } from "~/components/standards/Standards";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { frameworksQuery } from "~/queries/standards";
 import { addDevelopmentMatters, addEarlyGoals } from "~/server/standards";
 import { formatNumber } from "~/utils/datetime";
+import { pageOn } from "~/utils/modules";
 
 type Data = Awaited<
   ReturnType<NonNullable<(typeof frameworksQuery)["queryFn"]>>
@@ -77,6 +79,7 @@ const frameworkCard = {
 function FrameworksPage() {
   const data = useSuspenseQuery(frameworksQuery).data;
   const navigate = useNavigate();
+  const user = useCurrentUser();
   const queryClient = useQueryClient();
   const addGoals = useServerFn(addEarlyGoals);
   const addMatters = useServerFn(addDevelopmentMatters);
@@ -107,11 +110,16 @@ function FrameworksPage() {
         count={data.frameworks.length}
         action={create}
         menu={[
-          {
-            label: m.curriculumMapTitle(),
-            icon: Grid3x3,
-            onSelect: () => navigate({ to: "/standards/map", search: {} }),
-          },
+          ...(pageOn(user.modules, "/standards/map")
+            ? [
+                {
+                  label: m.curriculumMapTitle(),
+                  icon: Grid3x3,
+                  onSelect: () =>
+                    navigate({ to: "/standards/map", search: {} }),
+                },
+              ]
+            : []),
           ...(data.canManage
             ? [
                 {

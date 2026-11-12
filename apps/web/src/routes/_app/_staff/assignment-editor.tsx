@@ -13,6 +13,7 @@ import { useState } from "react";
 import * as v from "valibot";
 
 import { AssignmentEditor } from "~/components/coursework/AssignmentEditor";
+import { assignmentEditorParts } from "~/components/coursework/slots";
 import * as m from "~/i18n/messages";
 import {
   assignmentEditorQuery,
@@ -21,6 +22,7 @@ import {
 import { collaborationQuery } from "~/queries/documents";
 import { templateQuery } from "~/queries/templates";
 import { currentUserQuery } from "~/queries/user";
+import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/_staff/assignment-editor")({
@@ -37,10 +39,23 @@ export const Route = createFileRoute("/_app/_staff/assignment-editor")({
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "assignments:author");
+    const parts = filled(
+      context.extensions,
+      user.modules,
+      assignmentEditorParts,
+    );
     await Promise.all([
       context.queryClient.ensureQueryData(courseworkOptionsQuery),
       deps.id
-        ? context.queryClient.ensureQueryData(assignmentEditorQuery(deps.id))
+        ? context.queryClient
+            .ensureQueryData(assignmentEditorQuery(deps.id))
+            .then((existing) =>
+              Promise.all(
+                parts.map((part) =>
+                  context.queryClient.ensureQueryData(part.initial(existing)),
+                ),
+              ),
+            )
         : null,
       deps.id
         ? context.queryClient.prefetchQuery(
@@ -170,7 +185,7 @@ function EditorPage() {
     <AssignmentEditor
       existing={null}
       classId={classId}
-      moduleId={moduleId}
+      parts={moduleId ? { module: moduleId } : {}}
       onClose={close}
       onCreated={onCreated}
     />

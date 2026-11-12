@@ -69,26 +69,3 @@ export async function linkedYear(
     ) ?? null
   );
 }
-
-/**
- * The year a class belongs to, for what is kept by school year: an
- * assignment, a register, a lesson of the timetable, a term grade. A class
- * in no year cannot take one, and is refused plainly.
- */
-export async function classYear(
-  context: UnitContext,
-  classId: string,
-): Promise<SchoolYear> {
-  const year = await linkedYear(context, classId);
-  if (!year)
-    throw new ORPCError("CONFLICT", { message: "class.no_school_year" });
-  return year;
-}
-
-/** A class with the year it belongs to, for the stores that keep rows by year. */
-export async function withYear<T extends { id: string }>(
-  context: UnitContext,
-  row: T,
-): Promise<T & { schoolYearId: string }> {
-  return { ...row, schoolYearId: (await classYear(context, row.id)).id };
-}

@@ -10,7 +10,7 @@ import { CalendarRange } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { yearMapQuery } from "~/queries/learning";
+import type { unitPlanQuery } from "~/queries/learning";
 
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -21,9 +21,9 @@ import { getMessageFromError } from "~/utils/error";
 import { STATE_LABEL, shownState } from "./format";
 
 type MapData = Awaited<
-  ReturnType<NonNullable<ReturnType<typeof yearMapQuery>["queryFn"]>>
+  ReturnType<NonNullable<ReturnType<typeof unitPlanQuery>["queryFn"]>>
 >;
-type YearData = MapData & { year: NonNullable<MapData["year"]> };
+type YearData = MapData & { frame: NonNullable<MapData["frame"]> };
 type Unit = YearData["units"][number];
 
 const DAY_MS = 86_400_000;
@@ -76,7 +76,7 @@ export function YearMap({ map, today }: YearMapProps) {
     key: 0,
     unit: null,
   });
-  const { year } = map;
+  const { frame: year } = map;
   const months = monthsOf(year);
   const todayShown = today >= year.startsOn && today < year.endsBefore;
   const todayAt = placeIn(year, today, nextDay(today));
@@ -108,9 +108,9 @@ export function YearMap({ map, today }: YearMapProps) {
               </span>
             ))}
           </div>
-          {map.terms.length > 0 ? (
+          {year.parts.length > 0 ? (
             <div className="relative h-6">
-              {map.terms.map((term) => (
+              {year.parts.map((term) => (
                 <span
                   key={term.id}
                   className="absolute top-0 truncate rounded-sm bg-muted px-1.5 text-xs leading-6 text-muted-foreground"
@@ -251,7 +251,7 @@ function DatesSheet({
     mutationFn: (days: { startsOn: string; endsOn: string }) =>
       setUnitDates({ data: { moduleId: unit.id, classId, ...days } }),
     onSuccess: async (_, days) => {
-      await queryClient.invalidateQueries({ queryKey: ["learning", "year"] });
+      await queryClient.invalidateQueries({ queryKey: ["learning", "units"] });
       toast.success(days.startsOn ? m.yearMapSaved() : m.yearMapCleared());
       onClose();
     },

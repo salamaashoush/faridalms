@@ -3,7 +3,6 @@ import type { NormRow, ReadingLanguage } from "@faridalms/domain/reading";
 
 import {
   gradesOverTime,
-  lessonReadingsOf,
   quizReadingsOf,
   readingNormsOf,
   resetReadingNorms,
@@ -32,6 +31,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { contributionsTo } from "../core/extension";
 import {
   audit,
   readProcedure,
@@ -39,8 +39,9 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { requireStudent } from "../core/reach";
+import { defaultSpan } from "../core/spans";
+import { lessonReadings } from "../coursework/points";
 import { publishedQuiz } from "../quizzes/quiz";
-import { yearOf } from "../years/years";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -141,20 +142,21 @@ interface Marked {
 }
 
 /**
- * Every reading aloud of a student a teacher marked word by word this
- * school year, in lessons and quizzes, with what it came to.
+ * Every reading aloud of a student a teacher marked word by word over the
+ * span the school reports over now, in lessons and quizzes, with what it
+ * came to.
  */
 async function readingsOf(context: UnitContext, studentId: string) {
-  const { year } = await yearOf(context, "");
-  const from = year?.startsOn ?? context.today;
-  const before = year?.endsBefore ?? context.today;
+  const { from, endsBefore: before } = await defaultSpan(
+    context,
+    context.today,
+  );
   const [lessons, quizzes] = await Promise.all([
-    lessonReadingsOf(context.tx, {
-      tenantId: context.tenantId,
-      studentId,
-      from,
-      before,
-    }),
+    Promise.all(
+      (await contributionsTo(context, lessonReadings)).map((source) =>
+        source.readingsOf(context, { studentId, from, before }),
+      ),
+    ).then((found) => found.flat()),
     quizReadingsOf(context.tx, {
       tenantId: context.tenantId,
       studentId,
@@ -219,7 +221,7 @@ async function readingsOf(context: UnitContext, studentId: string) {
 }
 
 /**
- * A student's reading aloud over the school year for staff who reach
+ * A student's reading aloud over the span reported on, for staff who reach
  * them: each marked reading set against the norm for the grade they were
  * in and the time of year it was read.
  */
@@ -262,7 +264,7 @@ export const student = readProcedure
   });
 
 /**
- * A student's own reading aloud this school year: how many words they read
+ * A student's own reading aloud over the span reported on: how many words they read
  * correctly a minute each time, and the words their teacher marked for
  * them to practise. Norms are for their teachers.
  */

@@ -20,7 +20,9 @@ import type {
   ResponseState,
   RunOutcome,
 } from "../tables/learning";
+import type { ClassesViewed } from "./classes";
 
+import { viewedClasses } from "./classes";
 import { liveSql } from "./publication";
 import { isoOf, textArray, uuidArray } from "./sql";
 
@@ -32,7 +34,6 @@ export interface ModuleRow {
   id: string;
   version: number;
   orgId: string;
-  schoolYearId: string;
   title: string;
   summary: string;
   state: ModuleState;
@@ -47,7 +48,7 @@ export interface ModuleRow {
   authorNameAr: string | null;
 }
 
-const moduleColumns = sql`m.id, m.version, m.org_id, m.school_year_id, m.title, m.summary, m.state,
+const moduleColumns = sql`m.id, m.version, m.org_id, m.title, m.summary, m.state,
   ${isoOf(sql`m.publish_at`)} as publish_at, m.sequential, m.prerequisite_module_id,
   m.prerequisite_score, p.title as prerequisite_title, m.practice_bands, m.author_user_id,
   u.full_name_en as author_en,
@@ -62,7 +63,6 @@ type ModuleRecord = {
   id: string;
   version: number;
   org_id: string;
-  school_year_id: string;
   title: string;
   summary: string;
   state: ModuleState;
@@ -82,7 +82,6 @@ function moduleOf(row: ModuleRecord): ModuleRow {
     id: row.id,
     version: row.version,
     orgId: row.org_id,
-    schoolYearId: row.school_year_id,
     title: row.title,
     summary: row.summary,
     state: row.state,
@@ -159,14 +158,13 @@ export async function insertModule(
   input: ModuleFields & {
     tenantId: string;
     schoolId: string;
-    yearId: string;
     authorId: string;
   },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.learning_modules (tenant_id, org_id, school_year_id, title, summary,
+    insert into core.learning_modules (tenant_id, org_id, title, summary,
       sequential, prerequisite_module_id, prerequisite_score, practice_bands, author_user_id)
-    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.yearId}::uuid, ${input.title},
+    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.title},
       ${input.summary}, ${input.sequential}, ${input.prerequisiteId}::uuid, ${input.prerequisiteScore},
       ${JSON.stringify(input.practiceBands)}::text::jsonb, ${input.authorId}::uuid)
     returning id, version`);
@@ -435,7 +433,7 @@ export async function modulesForClasses(
 }
 
 /** A unit on a class's year map: a module set for the class, and when the class takes it. */
-export interface YearUnitRow {
+export interface ClassUnitRow {
   id: string;
   title: string;
   state: ModuleState;
@@ -447,11 +445,11 @@ export interface YearUnitRow {
   endsOn: string | null;
 }
 
-/** The modules a class takes this year, in the order their dates and places give them. */
-export async function yearUnitsOf(
+/** The modules a class takes, in the order their dates and places give them. */
+export async function classUnitsOf(
   tx: Tx,
   input: { tenantId: string; classId: string },
-): Promise<YearUnitRow[]> {
+): Promise<ClassUnitRow[]> {
   const rows = await tx.execute<{
     id: string;
     title: string;
@@ -485,8 +483,8 @@ export async function yearUnitsOf(
   }));
 }
 
-/** A module of the school year, with the classes that take it and when the earliest starts it. */
-export interface YearModuleRow {
+/** A module in use, with the classes that take it and when the earliest starts it. */
+export interface ModuleInUseRow {
   id: string;
   title: string;
   state: ModuleState;
@@ -494,11 +492,11 @@ export interface YearModuleRow {
   startsOn: string | null;
 }
 
-/** The school year's modules still in use, by their first class and when they are taken. */
-export async function yearModulesOf(
+/** The modules still in use in the classes viewed, by their first class and when they are taken. */
+export async function modulesInUse(
   tx: Tx,
-  input: { tenantId: string; schoolId: string; yearId: string },
-): Promise<YearModuleRow[]> {
+  input: { tenantId: string; schoolId: string; viewed: ClassesViewed },
+): Promise<ModuleInUseRow[]> {
   const rows = await tx.execute<{
     id: string;
     title: string;
@@ -520,7 +518,11 @@ export async function yearModulesOf(
         where x.tenant_id = m.tenant_id and x.module_id = m.id and x.status = 'active'), '[]'::json) as classes
     from core.learning_modules m
     where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
-      and m.school_year_id = ${input.yearId}::uuid and m.status = 'active' and m.state <> 'archived'
+      and m.status = 'active' and m.state <> 'archived'
+      and exists (select 1 from core.module_classes x
+        join core.classes c on c.tenant_id = x.tenant_id and c.id = x.class_id and c.status = 'active'
+        where x.tenant_id = m.tenant_id and x.module_id = m.id and x.status = 'active'
+          and ${viewedClasses(input.viewed)})
     order by (select min(c.code) from core.module_classes x
         join core.classes c on c.tenant_id = x.tenant_id and c.id = x.class_id
         where x.tenant_id = m.tenant_id and x.module_id = m.id and x.status = 'active') nulls last,
@@ -2038,8 +2040,10 @@ export async function lessonSoundsOf(
   classId: string,
 ): Promise<boolean | null> {
   const [row] = await tx.execute<{ lesson_sounds: boolean }>(sql`
-    select lesson_sounds from core.classes
-    where tenant_id = ${tenantId}::uuid and id = ${classId}::uuid and status = 'active'`);
+    select coalesce(s.lesson_sounds, true) as lesson_sounds from core.classes c
+    left join core.class_lesson_settings s on s.tenant_id = c.tenant_id and s.class_id = c.id
+      and s.status = 'active'
+    where c.tenant_id = ${tenantId}::uuid and c.id = ${classId}::uuid and c.status = 'active'`);
   return row ? row.lesson_sounds : null;
 }
 
@@ -2048,8 +2052,12 @@ export async function setLessonSounds(
   input: { tenantId: string; classId: string; on: boolean },
 ) {
   await tx.execute(sql`
-    update core.classes set lesson_sounds = ${input.on}
-    where tenant_id = ${input.tenantId}::uuid and id = ${input.classId}::uuid and status = 'active'`);
+    insert into core.class_lesson_settings (tenant_id, org_id, class_id, lesson_sounds)
+    select c.tenant_id, c.org_id, c.id, ${input.on} from core.classes c
+    where c.tenant_id = ${input.tenantId}::uuid and c.id = ${input.classId}::uuid
+      and c.status = 'active'
+    on conflict (tenant_id, class_id) where status = 'active'
+    do update set lesson_sounds = excluded.lesson_sounds`);
 }
 
 /**
@@ -2064,12 +2072,14 @@ export async function quietLessons(
     select exists (
       select 1 from core.module_classes x
       join core.classes c on c.tenant_id = x.tenant_id and c.id = x.class_id and c.status = 'active'
+      join core.class_lesson_settings s on s.tenant_id = c.tenant_id and s.class_id = c.id
+        and s.status = 'active' and not s.lesson_sounds
       join core.enrollments e on e.tenant_id = c.tenant_id
         and e.class_id = c.id
         and e.user_id = ${input.studentId}::uuid and e.role = 'student' and e.status = 'active'
         and e.valid_during @> ${input.on}::date
       where x.tenant_id = ${input.tenantId}::uuid and x.module_id = ${input.moduleId}::uuid
-        and x.status = 'active' and not c.lesson_sounds) as quiet`);
+        and x.status = 'active') as quiet`);
   return row?.quiet ?? false;
 }
 
@@ -2499,5 +2509,54 @@ export async function releasesOf(
   return rows.map((row) => ({
     lessonId: row.lesson_id,
     studentId: row.student_user_id,
+  }));
+}
+
+export interface LessonReading {
+  lessonId: string;
+  title: string;
+  blockId: string;
+  /** The lesson as the student read it, which holds the passage. */
+  content: unknown;
+  fluency: FluencyMark;
+  markedAt: string;
+}
+
+/**
+ * Each passage a student read aloud in a lesson and a teacher marked word
+ * by word in the period, its latest marking only.
+ */
+export async function lessonReadingsOf(
+  tx: Tx,
+  input: { tenantId: string; studentId: string; from: string; before: string },
+): Promise<LessonReading[]> {
+  const rows = await tx.execute<{
+    lesson_id: string;
+    title: string;
+    block_id: string;
+    content: unknown;
+    fluency: FluencyMark;
+    marked_at: string;
+  }>(sql`
+    select * from (
+      select distinct on (r.lesson_id, r.block_id, r.attempt)
+        r.lesson_id, l.title, r.block_id, v.content, r.response->'fluency' as fluency,
+        ${isoOf(sql`r.created_at`)} as marked_at
+      from core.lesson_responses r
+      join core.lessons l on l.tenant_id = r.tenant_id and l.id = r.lesson_id
+      join core.document_versions v on v.tenant_id = r.tenant_id and v.id = r.document_version_id
+      where r.tenant_id = ${input.tenantId}::uuid and r.student_user_id = ${input.studentId}::uuid
+        and r.kind = 'written' and r.state = 'marked' and r.response ? 'fluency'
+        and r.created_at >= ${input.from}::date and r.created_at < ${input.before}::date
+      order by r.lesson_id, r.block_id, r.attempt, r.created_at desc
+    ) marked
+    order by marked_at`);
+  return rows.map((row) => ({
+    lessonId: row.lesson_id,
+    title: row.title,
+    blockId: row.block_id,
+    content: row.content,
+    fluency: row.fluency,
+    markedAt: row.marked_at,
   }));
 }

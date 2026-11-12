@@ -139,6 +139,23 @@ export const studentsOn = (on: string) =>
     where s.tenant_id = c.tenant_id and s.class_id = c.id and s.role = 'student'
       and s.status = 'active' and s.valid_during @> ${on}::date)`;
 
+/** Which classes a list shows, the class aliased `c`. */
+export interface ClassesViewed {
+  on: string;
+  /** The classes a module's view names; null for the school's own. */
+  classIds: readonly string[] | null;
+  /** Without a module's view, those over rather than those still running or yet to start. */
+  ended: boolean;
+}
+
+/** The condition a list's classes meet: those a view names, else those running on or after the day, or ended before it. */
+export const viewedClasses = (filter: ClassesViewed) =>
+  filter.classIds
+    ? sql`c.id = any(${uuidArray([...filter.classIds])})`
+    : filter.ended
+      ? sql`upper(c.runs) <= ${filter.on}::date`
+      : sql`(upper_inf(c.runs) or upper(c.runs) > ${filter.on}::date)`;
+
 /**
  * The school's classes as the viewer reaches them on the date, each with its
  * teachers and how many students it has then: those a module's view names,
@@ -166,13 +183,7 @@ export async function classDirectory(
     from core.classes c
     where c.tenant_id = ${scope.tenantId}::uuid and c.org_id = ${scope.schoolId}::uuid
       and c.status = 'active'
-      and ${
-        filter.classIds
-          ? sql`c.id = any(${uuidArray([...filter.classIds])})`
-          : filter.ended
-            ? sql`upper(c.runs) <= ${filter.on}::date`
-            : sql`(upper_inf(c.runs) or upper(c.runs) > ${filter.on}::date)`
-      }
+      and ${viewedClasses(filter)}
       and c.id in ${reached(scope, filter.on)}
       and (${holds(q, [sql`c.code`, sql`c.title_en`, sql`c.title_ar`])})
       and (${filter.gradeIds.length === 0} or c.grade_level_descriptor_id = any(${uuidArray(filter.gradeIds)}))
@@ -874,28 +885,29 @@ export interface KeptClass extends ClassRow {
 }
 
 /**
- * The classes running over some of `during` the viewer keeps (see
- * `taughtClasses`), on the date: their own first, then, for school-wide
- * staff, the rest of the school's.
+ * The classes viewed that the viewer keeps (see `taughtClasses`), read on
+ * the view's day: their own first, then, for school-wide staff, the rest of
+ * the school's. A class that ended is the viewer's if they taught it at all.
  */
 export async function classesKeptBy(
   tx: Tx,
   scope: Scope,
-  input: { during: OpenSpan; on: string },
+  viewed: ClassesViewed,
 ): Promise<KeptClass[]> {
   const rows = await tx.execute<
     ClassRecord & { role: EnrollmentRole | null; students: number }
   >(sql`
-    select ${classColumns}, own.role, ${studentsOn(input.on)} as students
+    select ${classColumns}, own.role, ${studentsOn(viewed.on)} as students
     from core.classes c
     left join lateral (
       select e.role from core.enrollments e
       where e.tenant_id = c.tenant_id and e.class_id = c.id and e.user_id = ${scope.viewerId}::uuid
-        and e.role in ('teacher', 'aide') and e.status = 'active' and e.valid_during @> ${input.on}::date
+        and e.role in ('teacher', 'aide') and e.status = 'active'
+        and (${viewed.ended} or e.valid_during @> ${viewed.on}::date)
       order by e.role = 'teacher' desc
       limit 1) own on true
     where c.tenant_id = ${scope.tenantId}::uuid and c.org_id = ${scope.schoolId}::uuid
-      and c.runs && ${rangeOf(input.during)}::daterange and c.status = 'active'
+      and ${viewedClasses(viewed)} and c.status = 'active'
       and c.id in ${taughtClasses(scope)}
       and (${scope.schoolWide} or own.role is not null)
     order by own.role is null, c.code`);
@@ -941,4 +953,39 @@ export async function teachersOn(
     where e.tenant_id = ${tenantId}::uuid and e.class_id = ${classId}::uuid
       and e.role in ('teacher', 'aide') and e.status = 'active' and e.valid_during @> ${on}::date`);
   return rows.map((row) => row.user_id);
+}
+
+export interface GroupRow {
+  id: string;
+  version: number;
+  titleEn: string | null;
+  titleAr: string | null;
+  studentIds: string[];
+}
+
+export async function groupsOf(
+  tx: Tx,
+  tenantId: string,
+  classId: string,
+): Promise<GroupRow[]> {
+  const rows = await tx.execute<{
+    id: string;
+    version: number;
+    title_en: string | null;
+    title_ar: string | null;
+    student_ids: string[] | null;
+  }>(sql`
+    select g.id, g.version, g.title_en, g.title_ar,
+      array(select m.student_user_id from core.class_group_members m
+        where m.tenant_id = g.tenant_id and m.group_id = g.id and m.status = 'active')::text[] as student_ids
+    from core.class_groups g
+    where g.tenant_id = ${tenantId}::uuid and g.class_id = ${classId}::uuid and g.status = 'active'
+    order by coalesce(g.title_en, g.title_ar), g.id`);
+  return rows.map((row) => ({
+    id: row.id,
+    version: row.version,
+    titleEn: row.title_en,
+    titleAr: row.title_ar,
+    studentIds: row.student_ids ?? [],
+  }));
 }

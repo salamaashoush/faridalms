@@ -51,16 +51,29 @@ const PAGES: Partial<Record<ModuleId, readonly string[]>> = {
   ],
 };
 
+/**
+ * Pages of a module that show what another module knows, and so exist only
+ * where one of these groups of modules is on in full as well: the year map
+ * lays a class's units along its school year, say.
+ */
+const NEEDS: Readonly<Record<string, readonly (readonly ModuleId[])[]>> = {
+  "/year-map": [["school_years"]],
+  "/standards/map": [["elearning"]],
+  // Term grades and skills are what a student's grades page shows.
+  "/me/grades": [["school_years"], ["standards"]],
+  "/family/grades": [["school_years"], ["standards"]],
+};
+
 const OWNED = Object.entries(PAGES).flatMap(([module, prefixes]) =>
   prefixes.map((prefix) => ({ prefix, module: module as ModuleId })),
 );
 
+const matches = (path: string, prefix: string) =>
+  path === prefix || path.startsWith(`${prefix}/`);
+
 /** The module a page belongs to, or null for a page every school has. */
 export function moduleOfPath(path: string): ModuleId | null {
-  return (
-    OWNED.find(({ prefix }) => path === prefix || path.startsWith(`${prefix}/`))
-      ?.module ?? null
-  );
+  return OWNED.find(({ prefix }) => matches(path, prefix))?.module ?? null;
 }
 
 /** Whether a school with these modules on shows the page. */
@@ -69,7 +82,11 @@ export const pageOn = (
   path: string,
 ): boolean => {
   const module = moduleOfPath(path);
-  return module === null || modules[module];
+  if (module !== null && !modules[module]) return false;
+  const needs = Object.entries(NEEDS).find(([prefix]) =>
+    matches(path, prefix),
+  )?.[1];
+  return !needs || needs.some((group) => group.every((id) => modules[id]));
 };
 
 export const MODULE_LABEL: Record<ModuleId, () => string> = {

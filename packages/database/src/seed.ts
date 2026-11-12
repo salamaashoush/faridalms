@@ -125,6 +125,7 @@ import {
   messages,
   messageThreads,
   orgs,
+  assignmentTerms,
   periodGrades,
   siteEnquiries,
   rubrics,
@@ -863,8 +864,6 @@ async function seedCoursework(
       tenantId,
       orgId: schoolId,
       classId: offering.id,
-      schoolYearId: yearId,
-      gradingPeriodId: term?.id ?? null,
       authorUserId: offering.teacher_id,
     };
     const dueId = Bun.randomUUIDv7();
@@ -906,6 +905,14 @@ async function seedCoursework(
         submissionFormat: "none",
       },
     ]);
+    if (term)
+      await tx.insert(assignmentTerms).values(
+        [dueId, laterId, draftId].map((assignmentId) => ({
+          tenantId,
+          assignmentId,
+          gradingPeriodId: term.id,
+        })),
+      );
     await brief(dueId, "Answer the review questions at the end of chapter 1.");
     await brief(
       laterId,
@@ -1003,7 +1010,6 @@ async function seedCoursework(
           tenantId,
           orgId: schoolId,
           classId: offering.id,
-          schoolYearId: yearId,
           gradingPeriodId: term.id,
           studentUserId,
           score: 70 + ((position * 4) % 30),
@@ -2436,7 +2442,6 @@ async function seedLearning(
     const created = await insertModule(tx, {
       tenantId,
       schoolId,
-      yearId,
       authorId: homeroom.teacher_id,
       title: plan.title,
       summary: plan.summary,

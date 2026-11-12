@@ -17,17 +17,26 @@ import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { CalendarRange, Layers, Pencil, Plus } from "lucide-react";
 import * as v from "valibot";
 
+import {
+  endedFacet,
+  useNarrowed,
+  useViewFacets,
+} from "~/components/classes/class-facets";
 import { classChoices, classTitle } from "~/components/classes/format";
+import { classFilters, viewsOf } from "~/components/classes/slots";
 import {
   shownState,
   STATE_LABEL,
   STATE_TONE,
 } from "~/components/learning/format";
-import { NoSchoolYear } from "~/components/years/NoSchoolYear";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { teachingModulesQuery } from "~/queries/learning";
 import { currentUserQuery } from "~/queries/user";
 import { formatNumber } from "~/utils/datetime";
+import { filled } from "~/utils/extension";
+import { pageOn } from "~/utils/modules";
 import { requirePage } from "~/utils/page-access";
 
 const TABS = [
@@ -36,8 +45,10 @@ const TABS = [
   "archived",
 ] as const satisfies readonly ModuleState[];
 
-const searchSchema = v.object({
+// Loose, so a module's view of the classes rides in the address under its own key.
+const searchSchema = v.looseObject({
   tab: v.fallback(v.optional(v.picklist(TABS), "published"), "published"),
+  ended: v.fallback(v.optional(v.boolean(), false), false),
   classId: v.fallback(
     v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
     "",
@@ -55,13 +66,22 @@ type Row = Data["rows"][number];
 export const Route = createFileRoute("/_app/_staff/modules")({
   validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
-  loaderDeps: ({ search }) => ({ classId: search.classId }),
+  loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "learning:author");
-    await context.queryClient.ensureQueryData(
-      teachingModulesQuery(deps.classId),
-    );
+    const filters = filled(context.extensions, user.modules, classFilters);
+    await Promise.all([
+      context.queryClient.ensureQueryData(
+        teachingModulesQuery(deps.classId, {
+          ended: deps.ended,
+          views: viewsOf(filters, deps),
+        }),
+      ),
+      ...filters.map((filter) =>
+        context.queryClient.ensureQueryData(filter.query()),
+      ),
+    ]);
   },
   component: ModulesPage,
 });
@@ -137,7 +157,11 @@ const card = {
 function ModulesPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const data = useSuspenseQuery(teachingModulesQuery(search.classId)).data;
+  const user = useCurrentUser();
+  const views = viewsOf(useSlot(classFilters), search);
+  const data = useSuspenseQuery(
+    teachingModulesQuery(search.classId, { ended: search.ended, views }),
+  ).data;
   const patch = (change: Partial<Search>) => {
     void navigate({
       resetScroll: false,
@@ -151,6 +175,10 @@ function ModulesPage() {
   const lists = Object.fromEntries(
     TABS.map((tab) => [tab, matching.filter((row) => row.state === tab)]),
   ) as Record<(typeof TABS)[number], Row[]>;
+  const viewFacets = useViewFacets(search, (key, value) =>
+    patch({ [key]: value, classId: "" }),
+  );
+  const narrowed = useNarrowed(search);
   const classFacet: Facet = {
     id: "class",
     label: m.lrnClass(),
@@ -166,8 +194,22 @@ function ModulesPage() {
       label: m.lrnSearchHint(),
       placeholder: m.lrnSearchPlaceholder(),
     },
-    facets: data.classes.length > 1 ? [classFacet] : [],
-    onReset: () => patch({ q: "", classId: "" }),
+    facets: [
+      ...viewFacets,
+      ...(narrowed
+        ? []
+        : [endedFacet(search.ended, (ended) => patch({ ended }))]),
+      ...(data.classes.length > 1 ? [classFacet] : []),
+    ],
+    onReset: () =>
+      patch({
+        q: "",
+        classId: "",
+        ended: false,
+        ...Object.fromEntries(
+          Object.keys(views).map((key) => [key, undefined]),
+        ),
+      }),
   };
   const create: HeaderAction | undefined =
     data.classes.length > 0
@@ -191,13 +233,6 @@ function ModulesPage() {
               navigate({ to: "/module-editor", search: { id: row.id } }),
           },
         ];
-  if (!data.yearSet)
-    return (
-      <>
-        <PageHeader title={m.navModules()} description={m.lrnTeachHint()} />
-        <NoSchoolYear shows={m.noYearShowsModules()} />
-      </>
-    );
   return (
     <Page width="list">
       <PageHeader
@@ -205,7 +240,7 @@ function ModulesPage() {
         description={m.lrnTeachHint()}
         action={create}
         menu={
-          data.classes.length > 0
+          data.classes.length > 0 && pageOn(user.modules, "/year-map")
             ? [
                 {
                   label: m.yearMapTitle(),

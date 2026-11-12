@@ -365,3 +365,26 @@ export async function searchReached(
     roles: row.roles,
   }));
 }
+
+export async function namesOf(
+  tx: Tx,
+  tenantId: string,
+  ids: readonly string[],
+): Promise<
+  { id: string; fullNameEn: string | null; fullNameAr: string | null }[]
+> {
+  if (ids.length === 0) return [];
+  const rows = await tx.execute<{
+    id: string;
+    full_name_en: string | null;
+    full_name_ar: string | null;
+  }>(sql`
+    select id, full_name_en, full_name_ar from core.users
+    where tenant_id = ${tenantId}::uuid and id = any(${uuidArray(ids)})
+    order by full_name_en, full_name_ar, id`);
+  return rows.map((row) => ({
+    id: row.id,
+    fullNameEn: row.full_name_en,
+    fullNameAr: row.full_name_ar,
+  }));
+}

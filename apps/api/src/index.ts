@@ -17,10 +17,10 @@ import { startAdmissionsClock } from "./core/admissions-clock";
 import { createKeyRing } from "./core/keys";
 import { createLoginIndex, startLoginIndex } from "./core/login-index";
 import { startPartitionUpkeep } from "./core/partitions";
-import { startPeerReviewClock } from "./core/peer-clock";
 import { startPublicationClock } from "./core/publication";
 import { turnstileFrom } from "./core/turnstile";
 import { env } from "./env";
+import { MODULE_EXTENSIONS } from "./extensions";
 import { createFilesHost, linkKey } from "./files/links";
 import { createMakeCode } from "./files/makecode";
 import { createScanner } from "./files/scan";
@@ -37,6 +37,7 @@ import { createHostChecks } from "./hosts/checks";
 import { streamLinkKey } from "./media/streams";
 import { resendInbox } from "./notifications/gateway";
 import { startDelivery } from "./notifications/scheduler";
+import { startPeerReviewClock } from "./peer/clock";
 import { commonsSearcher } from "./pictures/commons";
 import { createProvisioner } from "./provisioning/host";
 import { startQuizClock } from "./quizzes/clock";
@@ -312,6 +313,7 @@ const stopQuizClock = env.CELL_WORKER_URL
   ? startQuizClock({
       cell,
       directory,
+      extensions: MODULE_EXTENSIONS,
       cellId: env.CELL_ID,
       intervalMs: 30_000,
     })
@@ -322,6 +324,7 @@ const stopProgramReruns = env.CELL_WORKER_URL
   ? startProgramReruns({
       cell,
       directory,
+      extensions: MODULE_EXTENSIONS,
       cellId: env.CELL_ID,
       runners,
       intervalMs: 30_000,

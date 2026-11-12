@@ -1,7 +1,4 @@
-import type {
-  TeacherListQuery,
-  TeacherTab,
-} from "@faridalms/domain/coursework";
+import type { TeacherTab } from "@faridalms/domain/coursework";
 import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 import type {
   Facet,
@@ -9,7 +6,10 @@ import type {
 } from "@faridalms/ui/system/index-toolbar";
 import type { HeaderAction } from "@faridalms/ui/system/page-header";
 
-import { TEACHER_TABS, teacherListSchema } from "@faridalms/domain/coursework";
+import {
+  TEACHER_TABS,
+  teacherListSearchSchema,
+} from "@faridalms/domain/coursework";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { Page } from "@faridalms/ui/system/page";
@@ -23,9 +23,16 @@ import { ClipboardList, ClipboardPen, Copy, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
+import {
+  endedFacet,
+  useNarrowed,
+  useViewFacets,
+} from "~/components/classes/class-facets";
 import { classChoices, classTitle } from "~/components/classes/format";
+import { classFilters, viewsOf } from "~/components/classes/slots";
 import { PHASE_LABEL, PHASE_TONE } from "~/components/coursework/format";
 import { UseAgainSheet } from "~/components/coursework/UseAgain";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import {
   courseworkListQuery,
@@ -33,6 +40,7 @@ import {
 } from "~/queries/coursework";
 import { currentUserQuery } from "~/queries/user";
 import { formatInstant, formatNumber } from "~/utils/datetime";
+import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
 
 type Data = Awaited<
@@ -40,18 +48,27 @@ type Data = Awaited<
 >;
 type Row = Data["rows"][number];
 
-const DEFAULT_SEARCH = v.parse(teacherListSchema, {});
+// Loose, so a module's view of the classes rides in the address under its own key.
+const searchSchema = v.looseObject(teacherListSearchSchema.entries);
+type Search = v.InferOutput<typeof searchSchema>;
+const DEFAULT_SEARCH = v.parse(searchSchema, {});
 
 export const Route = createFileRoute("/_app/_staff/assignments")({
-  validateSearch: teacherListSchema,
+  validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "assignments:author", "submissions:grade");
+    const filters = filled(context.extensions, user.modules, classFilters);
     await Promise.all([
-      context.queryClient.ensureQueryData(courseworkListQuery(deps)),
+      context.queryClient.ensureQueryData(
+        courseworkListQuery({ ...deps, views: viewsOf(filters, deps) }),
+      ),
       context.queryClient.ensureQueryData(courseworkOptionsQuery),
+      ...filters.map((filter) =>
+        context.queryClient.ensureQueryData(filter.query()),
+      ),
     ]);
   },
   component: CourseworkPage,
@@ -168,14 +185,19 @@ const card = {
 function CourseworkPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const data = useSuspenseQuery(courseworkListQuery(search)).data;
+  const views = viewsOf(useSlot(classFilters), search);
+  const data = useSuspenseQuery(courseworkListQuery({ ...search, views })).data;
   const options = useSuspenseQuery(courseworkOptionsQuery).data;
-  const patch = (change: Partial<TeacherListQuery>) => {
+  const patch = (change: Partial<Search>) => {
     void navigate({
       resetScroll: false,
       search: (previous) => ({ ...previous, ...change }),
     });
   };
+  const viewFacets = useViewFacets(search, (key, value) =>
+    patch({ [key]: value, classId: "" }),
+  );
+  const narrowed = useNarrowed(search);
   const classFacet: Facet = {
     id: "class",
     label: m.studentClass(),
@@ -191,8 +213,22 @@ function CourseworkPage() {
       label: m.courseworkSearchHint(),
       placeholder: m.courseworkSearchPlaceholder(),
     },
-    facets: [classFacet],
-    onReset: () => patch({ q: "", classId: "" }),
+    facets: [
+      ...viewFacets,
+      ...(narrowed
+        ? []
+        : [endedFacet(search.ended, (ended) => patch({ ended }))]),
+      classFacet,
+    ],
+    onReset: () =>
+      patch({
+        q: "",
+        classId: "",
+        ended: false,
+        ...Object.fromEntries(
+          Object.keys(views).map((key) => [key, undefined]),
+        ),
+      }),
   };
   const [reusing, setReusing] = useState<{
     source: { id: string; title: string } | null;

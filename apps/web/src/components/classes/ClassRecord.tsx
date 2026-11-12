@@ -17,15 +17,8 @@ import {
   RecordSection,
   RecordTabs,
 } from "@faridalms/ui/system/record-page";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  useSuspenseQueries,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { ArrowRightLeft, Pencil, Plus, QrCode, UserMinus } from "lucide-react";
 import { useState } from "react";
 
@@ -46,18 +39,15 @@ import {
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
-import { classSoundsQuery } from "~/queries/learning";
-import { changeClassSounds } from "~/server/learning";
 import { formatDate } from "~/utils/datetime";
 
 import type { ClassRecordData, RosterKeeping } from "./slots";
 
-import { CheckboxRow } from "../people/fields";
 import { displayName, labelOf, lastDay } from "../people/format";
 import { Deferred } from "../people/record-parts";
 import { AddStudentSheet, WithdrawSheet } from "./Enrolment";
 import { classTitle, subjectName } from "./format";
-import { classRecordParts } from "./slots";
+import { classRecordParts, classRecordSections } from "./slots";
 
 export const CLASS_TABS = [
   "overview",
@@ -155,37 +145,6 @@ function TeachersSection({ data, primary }: TeachersSectionProps) {
           ))}
         </RecordList>
       )}
-    </RecordSection>
-  );
-}
-
-interface LessonSoundsSectionProps {
-  classId: string;
-}
-
-/**
- * Whether lessons tick and chime as this class's children answer. A room of
- * tablets is loud; words still play, since children who cannot read need
- * them.
- */
-function LessonSoundsSection({ classId }: LessonSoundsSectionProps) {
-  const queryClient = useQueryClient();
-  const sounds = useQuery(classSoundsQuery(classId));
-  const change = useServerFn(changeClassSounds);
-  const save = useMutation({
-    mutationFn: (on: boolean) => change({ data: { classId, on } }),
-    onSuccess: (result) =>
-      queryClient.setQueryData(classSoundsQuery(classId).queryKey, result),
-  });
-  if (!sounds.data) return null;
-  return (
-    <RecordSection title={m.classesLessons()}>
-      <CheckboxRow
-        label={m.classesLessonSounds()}
-        hint={m.classesLessonSoundsHint()}
-        checked={save.isPending ? save.variables : sounds.data.on}
-        onChange={(on) => save.mutate(on)}
-      />
     </RecordSection>
   );
 }
@@ -411,6 +370,7 @@ export function ClassRecord({
           {},
         );
   const modules = useCurrentUser().modules;
+  const sections = useSlot(classRecordSections);
   const seesAttendance = useCapability("attendance:read") && modules.attendance;
   const seesTimetable = useCapability("timetable:read") && modules.timetable;
   const setsUpGrading = useCapability("grading:manage");
@@ -500,9 +460,14 @@ export function ClassRecord({
             {part?.overview ? (
               <TeachersSection data={data} primary={part.primaryTeacher} />
             ) : null}
-            {youngClass && (teaches || keepsClasses) && data.access.staff ? (
-              <LessonSoundsSection classId={data.id} />
-            ) : null}
+            {sections.map(({ key, Section }) => (
+              <Section
+                key={key}
+                classId={data.id}
+                young={youngClass}
+                keeps={(teaches || keepsClasses) && data.access.staff}
+              />
+            ))}
             {keepsGrading || teaches ? (
               <ClassGradingSection
                 classId={data.id}

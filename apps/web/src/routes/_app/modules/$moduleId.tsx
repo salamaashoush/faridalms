@@ -6,8 +6,11 @@ import * as v from "valibot";
 import { areaViewSearch } from "~/components/files/AreaFiles";
 import { MODULE_TABS, ModuleRecord } from "~/components/learning/ModuleRecord";
 import { ModuleOutline } from "~/components/learning/StudentModules";
-import { moduleDiscussionsQuery } from "~/queries/coursework";
-import { moduleOutlineQuery, moduleRecordQuery } from "~/queries/learning";
+import {
+  moduleDiscussionsQuery,
+  moduleOutlineQuery,
+  moduleRecordQuery,
+} from "~/queries/learning";
 import { currentUserQuery } from "~/queries/user";
 
 const searchSchema = v.object({

@@ -103,6 +103,24 @@ export interface ClassRecordPart {
 
 export const classRecordParts = slot<ClassRecordPart>("class record parts");
 
+export interface ClassRecordSectionProps {
+  classId: string;
+  /** The class is of young children, by its grade. */
+  young: boolean;
+  /** The viewer teaches the class or keeps the school's classes. */
+  keeps: boolean;
+}
+
+/** A section a module adds beside a class's overview: how its lessons sound, say. */
+export interface ClassRecordSection {
+  key: string;
+  Section: ComponentType<ClassRecordSectionProps>;
+}
+
+export const classRecordSections = slot<ClassRecordSection>(
+  "class record sections",
+);
+
 /**
  * What a module says beside each class in a student's class history, read
  * once for the student: the year a class belonged to, say.

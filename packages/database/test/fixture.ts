@@ -36,7 +36,15 @@ import {
   sharedBlocks,
   standardFrameworks,
   standardEvidence,
+  standardSittings,
   standards,
+  workSittings,
+  lessonSittings,
+  classGrading,
+  classLessonSettings,
+  moduleDiscussions,
+  assignments,
+  classes,
   goalJudgements,
   goalReports,
   healthChanges,
@@ -853,12 +861,34 @@ export async function completeFixture(
     })
     .returning();
   if (!standard) throw new Error("standard not inserted");
+  const [sitting] = await tx
+    .insert(standardSittings)
+    .values({ tenantId, studentUserId: submission.studentUserId, kind: "work" })
+    .returning();
+  if (!sitting) throw new Error("sitting not inserted");
+  await tx.insert(workSittings).values({
+    tenantId,
+    sittingId: sitting.id,
+    studentUserId: submission.studentUserId,
+    submissionId: submission.id,
+  });
+  const [lessonSitting] = await tx
+    .insert(standardSittings)
+    .values({ tenantId, studentUserId: userId, kind: "lesson" })
+    .returning();
+  if (!lessonSitting) throw new Error("lesson sitting not inserted");
+  await tx.insert(lessonSittings).values({
+    tenantId,
+    sittingId: lessonSitting.id,
+    studentUserId: userId,
+    lessonId: lesson.id,
+  });
   await tx.insert(standardEvidence).values({
     tenantId,
     studentUserId: submission.studentUserId,
     standardId: standard.id,
     source: "quiz",
-    submissionId: submission.id,
+    sittingId: sitting.id,
     attempt: 1,
     blockId: id(),
     fraction: 0.75,
@@ -870,7 +900,7 @@ export async function completeFixture(
     standardId: standard.id,
     level: "expected",
     note: "Retold the story in order with the pictures.",
-    submissionId: submission.id,
+    sittingId: sitting.id,
     blockId: id(),
     judgedByUserId: userId,
     judgedAt: new Date("2026-09-21T10:00:00Z"),
@@ -948,6 +978,45 @@ export async function completeFixture(
     })
     .returning();
   if (!programme) throw new Error("programme fixture missing");
+  const [taught] = await tx
+    .select({ id: classes.id })
+    .from(classes)
+    .where(and(eq(classes.tenantId, tenantId), eq(classes.orgId, schoolId)))
+    .limit(1);
+  if (!taught) throw new Error("the development seed must run first");
+  await tx.insert(classGrading).values({
+    tenantId,
+    orgId: schoolId,
+    classId: taught.id,
+    programmeId: programme.id,
+  });
+  await tx.insert(classLessonSettings).values({
+    tenantId,
+    orgId: schoolId,
+    classId: taught.id,
+    lessonSounds: false,
+  });
+  const [discussion] = await tx
+    .insert(assignments)
+    .values({
+      tenantId,
+      orgId: schoolId,
+      classId: taught.id,
+      authorUserId: userId,
+      title: "Which river would you visit?",
+      submissionFormat: "discussion",
+      discussionPostFirst: false,
+      discussionReplies: 0,
+    })
+    .returning({ id: assignments.id });
+  if (!discussion) throw new Error("discussion fixture missing");
+  await tx.insert(moduleDiscussions).values({
+    tenantId,
+    assignmentId: discussion.id,
+    classId: taught.id,
+    moduleId: setFor.moduleId,
+    discussionGroup: discussion.id,
+  });
   await tx.insert(retentionSettings).values({
     tenantId,
     orgId: schoolId,

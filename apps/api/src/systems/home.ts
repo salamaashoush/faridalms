@@ -72,6 +72,7 @@ import type { RecordLink } from "../core/reach";
 import { dayBoard } from "../attendance/board";
 import { dailyClassIds } from "../attendance/daily-registers";
 import { periodsOn } from "../attendance/plans";
+import { classesInView } from "../classes/points";
 import { modulesOf } from "../core/modules";
 import {
   can,
@@ -250,7 +251,6 @@ function slotsOf(
  */
 export const teacher = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "assignments:author", "attendance:record");
-  const year = await yearOf(context);
   const weekEnd = addDays(context.today, 7);
   const [unread, threads, events] = await Promise.all([
     unreadThreads(context.tx, {
@@ -298,15 +298,13 @@ export const teacher = readProcedure.handler(async ({ context }) => {
     }).then((rows) =>
       asHeld(context, rows, context.today, context.actor.userId),
     ),
-    year
-      ? teacherAssignments(context.tx, scopeFor(context, "own"), {
-          yearId: year.id,
-          classId: "",
-          q: "",
-          now: context.now,
-          graceMs: GRACE_MS,
-        })
-      : Promise.resolve<Awaited<ReturnType<typeof teacherAssignments>>>([]),
+    teacherAssignments(context.tx, scopeFor(context, "own"), {
+      viewed: await classesInView(context),
+      classId: "",
+      q: "",
+      now: context.now,
+      graceMs: GRACE_MS,
+    }),
     clockOf(context),
   ]);
   const board = await dayBoard(context, context.today);
@@ -463,13 +461,11 @@ async function studentDay(context: UnitContext, studentId: string) {
         on: context.today,
       }),
       periodsOn(context, context.today),
-      year
-        ? learnerAssignments(context.tx, {
-            tenantId: context.tenantId,
-            studentId,
-            yearId: year.id,
-          })
-        : Promise.resolve<Awaited<ReturnType<typeof learnerAssignments>>>([]),
+      learnerAssignments(context.tx, {
+        tenantId: context.tenantId,
+        studentId,
+        viewed: await classesInView(context),
+      }),
       clockOf(context),
     ]);
   const meetings =

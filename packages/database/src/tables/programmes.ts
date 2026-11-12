@@ -22,6 +22,7 @@ import {
 } from "./conventions";
 import { descriptors } from "./descriptors";
 import { gradeScales } from "./grading";
+import { classes } from "./teaching";
 import { orgs, tenants } from "./tenancy";
 
 /**
@@ -137,6 +138,51 @@ export const programmeCategories = core.table.withRLS(
     ),
     index("programme_categories_programme_idx")
       .on(t.tenantId, t.programmeId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * What a class grades by where it is not its programme's own way: the
+ * programme it follows when its grade level does not settle one, and a
+ * scale of its own. A class with neither has no row.
+ */
+export const classGrading = core.table.withRLS(
+  "class_grading",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    classId: uuid("class_id").notNull(),
+    programmeId: uuid("programme_id"),
+    gradeScaleId: uuid("grade_scale_id"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("class_grading", t.tenantId, t.id),
+    ...baseConstraints("class_grading", t, tenants),
+    fk(
+      "class_grading",
+      [t.tenantId, t.classId, t.orgId],
+      [classes.tenantId, classes.id, classes.orgId],
+    ),
+    fk(
+      "class_grading",
+      [t.tenantId, t.programmeId],
+      [programmes.tenantId, programmes.id],
+    ),
+    fk(
+      "class_grading",
+      [t.tenantId, t.gradeScaleId],
+      [gradeScales.tenantId, gradeScales.id],
+    ),
+    ck(
+      "class_grading",
+      "chosen",
+      sql`num_nonnulls(programme_id, grade_scale_id) >= 1`,
+    ),
+    uniqueIndex("class_grading_class_key")
+      .on(t.tenantId, t.classId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
   ],

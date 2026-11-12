@@ -63,6 +63,7 @@ import {
   messages,
   messageThreads,
   orgs,
+  assignmentTerms,
   periodGrades,
   submissionAttempts,
   submissions,
@@ -1064,8 +1065,6 @@ async function coursework(
       tenantId: school.tenantId,
       orgId: school.schoolId,
       classId: taught.id,
-      schoolYearId: school.yearId,
-      gradingPeriodId: term?.id ?? null,
       authorUserId: taught.teacherId,
     };
     if (taught.band === "kg") {
@@ -1217,6 +1216,21 @@ async function coursework(
   await chunked(rows.assignments, (part) =>
     tx.insert(assignments).values(part),
   );
+  if (term)
+    await chunked(
+      rows.assignments.flatMap((row) =>
+        row.id
+          ? [
+              {
+                tenantId: school.tenantId,
+                assignmentId: row.id,
+                gradingPeriodId: term.id,
+              },
+            ]
+          : [],
+      ),
+      (part) => tx.insert(assignmentTerms).values(part),
+    );
   await chunked(rows.documents, (part) => tx.insert(documents).values(part));
   await chunked(rows.recipients, (part) =>
     tx.insert(assignmentRecipients).values(part),
@@ -1243,7 +1257,6 @@ async function coursework(
       tenantId: school.tenantId,
       orgId: school.schoolId,
       classId: taught.id,
-      schoolYearId: school.yearId,
       gradingPeriodId: term.id,
       studentUserId,
       score: Math.round(mean * 100),
@@ -1966,7 +1979,6 @@ async function learning(
     const created = await insertModule(tx, {
       tenantId: school.tenantId,
       schoolId: school.schoolId,
-      yearId: school.yearId,
       authorId: first.teacherId,
       title: plan.title,
       summary: plan.summary,

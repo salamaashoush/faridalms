@@ -3,9 +3,9 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import type { SavedSection } from "@faridalms/domain/saved-sections";
 
 import { changeOf } from "@faridalms/database/audit";
-import { namesOf } from "@faridalms/database/stores/coursework";
 import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
 import { retireModule } from "@faridalms/database/stores/learning";
+import { namesOf } from "@faridalms/database/stores/persons";
 import {
   insertTemplate,
   removeTemplate,

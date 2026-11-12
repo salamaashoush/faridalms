@@ -40,10 +40,10 @@ import {
   rosterOf,
   teachersOn,
 } from "@faridalms/database/stores/classes";
-import { namesOf } from "@faridalms/database/stores/coursework";
 import { movementsOn } from "@faridalms/database/stores/front-desk";
 import { noticeGuardians } from "@faridalms/database/stores/messages";
 import { noticed, withdraw } from "@faridalms/database/stores/notifications";
+import { namesOf } from "@faridalms/database/stores/persons";
 import { schoolDay } from "@faridalms/database/stores/school-days";
 import { facesOf } from "@faridalms/database/stores/students";
 import {

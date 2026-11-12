@@ -483,13 +483,13 @@ $$;
 revoke all on function app.reached_people(uuid, uuid, date, boolean) from public;
 grant execute on function app.reached_people(uuid, uuid, date, boolean) to app;
 
--- A class's programme: its own, else the one programme covering its grade
--- level. Two programmes sharing the level leave the class to choose.
+-- A class's programme: the one it was given, else the one programme
+-- covering its grade level. Two programmes sharing the level leave the class to choose.
 create function app.programme_of(p_class uuid) returns uuid
 language sql stable
 set search_path = pg_catalog, pg_temp
 as $$
-  select coalesce(c.programme_id, (
+  select coalesce(g.programme_id, (
     select min(p.id::text)::uuid
     from core.programme_grade_levels l
     join core.programmes p on p.tenant_id = l.tenant_id and p.id = l.programme_id
@@ -498,6 +498,8 @@ as $$
       and l.status = 'active'
     having count(distinct p.id) = 1))
   from core.classes c
+  left join core.class_grading g on g.tenant_id = c.tenant_id and g.class_id = c.id
+    and g.status = 'active'
   where c.tenant_id = app.tenant_id() and c.id = p_class
 $$;
 revoke all on function app.programme_of(uuid) from public;
@@ -512,9 +514,11 @@ set search_path = pg_catalog, pg_temp
 as $$
   select v.id
   from core.classes c
+  left join core.class_grading g on g.tenant_id = c.tenant_id and g.class_id = c.id
+    and g.status = 'active'
   left join core.programmes p on p.tenant_id = c.tenant_id and p.id = app.programme_of(c.id)
   join core.grade_scales s on s.tenant_id = c.tenant_id
-    and s.id = coalesce(c.grade_scale_id, p.grade_scale_id) and s.status = 'active'
+    and s.id = coalesce(g.grade_scale_id, p.grade_scale_id) and s.status = 'active'
   join core.grade_scale_versions v on v.tenant_id = s.tenant_id and v.scale_id = s.id
     and v.status = 'active' and v.effective_from <= p_on
   where c.tenant_id = app.tenant_id() and c.id = p_class

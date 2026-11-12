@@ -78,9 +78,9 @@ export const getMyWork = createServerFn({ method: "GET" })
   .validator(byId)
   .handler(({ data }) => record(backend().coursework.work(data)));
 
-export const getMyCoursework = createServerFn({ method: "GET" }).handler(() =>
-  record(backend().coursework.mine()),
-);
+export const getMyCoursework = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ ended: v.boolean() })))
+  .handler(({ data }) => record(backend().coursework.mine(data)));
 
 export const getSharedWork = createServerFn({ method: "GET" })
   .validator(checked(sharedWorkQuerySchema))
@@ -95,7 +95,7 @@ export const getChildBrief = createServerFn({ method: "GET" })
   .handler(({ data }) => record(backend().coursework.childBrief(data)));
 
 export const getChildCoursework = createServerFn({ method: "GET" })
-  .validator(checked(v.object({ studentId: uuid })))
+  .validator(checked(v.object({ studentId: uuid, ended: v.boolean() })))
   .handler(({ data }) => record(backend().coursework.child(data)));
 
 export const getStudentCoursework = createServerFn({ method: "GET" })
@@ -259,19 +259,6 @@ export const hideDiscussionPost = createServerFn({ method: "POST" })
 export const likeDiscussionPost = createServerFn({ method: "POST" })
   .validator(checked(likeDiscussionPostSchema))
   .handler(({ data }) => backend().coursework.likePost(data));
-
-export const getModuleDiscussions = createServerFn({ method: "GET" })
-  .validator(
-    checked(
-      v.object({
-        moduleId: uuid,
-        studentId: v.union([v.literal(""), uuid]),
-      }),
-    ),
-  )
-  .handler(({ data }) =>
-    record(backend().coursework.moduleDiscussionsOf(data)),
-  );
 
 export const saveRubric = createServerFn({ method: "POST" })
   .validator(checked(saveRubricSchema))

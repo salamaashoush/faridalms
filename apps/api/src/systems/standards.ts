@@ -1,15 +1,9 @@
-import type { ContentDocument } from "@faridalms/domain/content";
+import type { EvidenceRow } from "@faridalms/database/stores/standards";
 import type { GoalItem } from "@faridalms/domain/early-goals";
 
 import { changeOf } from "@faridalms/database/audit";
 import { classById, rosterOf } from "@faridalms/database/stores/classes";
-import { namesOf } from "@faridalms/database/stores/coursework";
-import { contentsOf } from "@faridalms/database/stores/documents";
-import {
-  classesOfModule,
-  lessonById,
-  yearModulesOf,
-} from "@faridalms/database/stores/learning";
+import { namesOf } from "@faridalms/database/stores/persons";
 import {
   clearJudgement,
   evidenceOfStudents,
@@ -20,7 +14,6 @@ import {
   insertFramework,
   insertObservation,
   insertStandard,
-  isClassQuizOf,
   isWithin,
   judgeGoal as recordJudgement,
   judgementsOf,
@@ -30,10 +23,8 @@ import {
   removeObservation as dropObservation,
   removeStandard,
   reportsOf,
-  rightAnswersOf,
   searchStandards,
   shareReports,
-  sittingsOfStandard,
   standardById,
   standardsByIds,
   standardsOf,
@@ -41,11 +32,6 @@ import {
   updateStandard,
   withdrawReports,
 } from "@faridalms/database/stores/standards";
-import {
-  dayIn,
-  schoolYears,
-  workingYear,
-} from "@faridalms/database/stores/years";
 import {
   DEVELOPMENT_MATTERS,
   DEVELOPMENT_MATTERS_ARABIC,
@@ -64,7 +50,6 @@ import {
   moveStandardSchema,
   OBSERVED_FRACTION,
   observeSchema,
-  planTargets,
   refSchema,
   saveFrameworkSchema,
   saveStandardSchema,
@@ -77,6 +62,12 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
+import {
+  classesInView,
+  requireUnsettled,
+  settlementOf,
+} from "../classes/points";
+import { contributionsTo } from "../core/extension";
 import {
   audit,
   can,
@@ -91,7 +82,12 @@ import {
   requireTaught,
   teaches,
 } from "../core/reach";
-import { linkedYear } from "../years/years";
+import {
+  curriculumUnits,
+  sittingFrom,
+  sittingsOf,
+  sittingsOfClass,
+} from "../standards/points";
 
 /** Whoever writes lessons or assignments reads the school's standards to tag them. */
 function requireReader(context: UnitContext) {
@@ -371,50 +367,23 @@ export const addDevelopmentMatters = writeProcedure.handler(({ context }) =>
 );
 
 /**
- * One framework across the school year's unit plans: each unit with the
- * items of the framework its plan names, so a coordinator sees which key
- * concepts, contexts or standards the year's units take up and which none
- * does. Without a framework chosen, the one the plans name most.
+ * One framework across the unit plans of the classes in view: each unit
+ * with the items of the framework its plan names, so a coordinator sees
+ * which key concepts, contexts or standards the units take up and which
+ * none does. Without a framework chosen, the one the plans name most.
  */
 export const curriculumMap = readProcedure
   .input(curriculumMapSchema)
   .handler(async ({ input, context }) => {
     requireReader(context);
+    const [source] = await contributionsTo(context, curriculumUnits);
+    if (!source) throw new ORPCError("NOT_FOUND");
     const scope = { tenantId: context.tenantId, orgId: context.schoolId };
-    const [kept, years] = await Promise.all([
+    const [kept, units] = await Promise.all([
       frameworksOf(context.tx, scope),
-      schoolYears(context.tx, context.tenantId, context.schoolId),
+      source.unitsOf(context, await classesInView(context)),
     ]);
-    const year = workingYear(years, context.today);
-    const modules = year
-      ? await yearModulesOf(context.tx, {
-          tenantId: context.tenantId,
-          schoolId: context.schoolId,
-          yearId: year.id,
-        })
-      : [];
-    const plans = await contentsOf(
-      context.tx,
-      context.tenantId,
-      "module_plan",
-      modules.map((row) => row.id),
-    );
-    const named = new Map(
-      modules.map((row) => {
-        const plan = plans.get(row.id);
-        return [
-          row.id,
-          new Set(
-            plan
-              ? planTargets(plan as unknown as ContentDocument).map(
-                  (target) => target.id,
-                )
-              : [],
-          ),
-        ];
-      }),
-    );
-    const everyName = [...named.values()].flatMap((ids) => [...ids]);
+    const everyName = units.flatMap((row) => row.named);
     const seen = await standardsByIds(context.tx, {
       ...scope,
       ids: [...new Set(everyName)],
@@ -439,7 +408,6 @@ export const curriculumMap = readProcedure
         })
       : [];
     return {
-      year: year ? { titleEn: year.titleEn, titleAr: year.titleAr } : null,
       frameworks: kept.map((row) => ({
         id: row.id,
         title: row.title,
@@ -452,11 +420,9 @@ export const curriculumMap = readProcedure
         code: row.code,
         statement: row.statement,
       })),
-      units: modules.map((row) => ({
+      units: units.map(({ named, ...row }) => ({
         ...row,
-        items: [...(named.get(row.id) ?? [])].filter(
-          (item) => frameworkOfItem.get(item) === chosen?.id,
-        ),
+        items: named.filter((item) => frameworkOfItem.get(item) === chosen?.id),
       })),
     };
   });
@@ -487,16 +453,33 @@ export const describe = readProcedure
     });
   });
 
-type EvidenceRows = Awaited<ReturnType<typeof evidenceOfStudents>>;
 type Observations = Awaited<ReturnType<typeof observationsOf>>;
+
+/** A piece of evidence as mastery is worked out from it: the sitting and attempt it came from group its answers. */
+interface Occasion {
+  studentId: string;
+  standardId: string;
+  occasion: string;
+  fraction: number;
+  answeredAt: string;
+}
+
+const occasionsOf = (rows: readonly EvidenceRow[]): Occasion[] =>
+  rows.map((row) => ({
+    studentId: row.studentId,
+    standardId: row.standardId,
+    occasion: `${row.sittingId}:${row.attempt}`,
+    fraction: row.fraction,
+    answeredAt: row.answeredAt,
+  }));
 
 /** Observations as evidence: each one sitting, at what its level counts for. */
 const withObserved = (
-  evidence: EvidenceRows,
+  evidence: readonly EvidenceRow[],
   observed: Observations,
-): EvidenceRows =>
+): Occasion[] =>
   [
-    ...evidence,
+    ...occasionsOf(evidence),
     ...observed.map((row) => ({
       studentId: row.studentId,
       standardId: row.standardId,
@@ -507,8 +490,8 @@ const withObserved = (
   ].toSorted((a, b) => a.answeredAt.localeCompare(b.answeredAt));
 
 /** Each student's mastery of each standard they have evidence on. */
-function masteries(rows: EvidenceRows) {
-  const grouped = new Map<string, EvidenceRows>();
+function masteries(rows: readonly Occasion[]) {
+  const grouped = new Map<string, Occasion[]>();
   for (const row of rows) {
     const key = `${row.studentId}:${row.standardId}`;
     const group = grouped.get(key);
@@ -536,7 +519,10 @@ function masteries(rows: EvidenceRows) {
   });
 }
 
-async function described(context: UnitContext, rows: EvidenceRows) {
+async function described(
+  context: UnitContext,
+  rows: readonly { standardId: string }[],
+) {
   const standards = await standardsByIds(context.tx, {
     tenantId: context.tenantId,
     orgId: context.schoolId,
@@ -550,20 +536,54 @@ async function described(context: UnitContext, rows: EvidenceRows) {
   );
 }
 
-/** A class the viewer teaches, its year if it has one, and its students on the day. */
+const sittingIdsOf = (rows: readonly { sittingId: string }[]) => [
+  ...new Set(rows.map((row) => row.sittingId)),
+];
+
+/**
+ * The evidence a student and their family already know of, by what the
+ * work it came from shows them: a lesson's answers and most quizzes' at
+ * once, other quizzes' and every rubric's once the grade is returned.
+ * Evidence from work no module on keeps is not theirs to read.
+ */
+async function releasedOnly(context: UnitContext, rows: EvidenceRow[]) {
+  const info = await sittingsOf(context, sittingIdsOf(rows));
+  return rows.filter((row) => {
+    const sitting = info.get(row.sittingId);
+    return (
+      sitting !== undefined &&
+      (sitting.shown.includes(row.source) ||
+        sitting.releasedAttempts.includes(row.attempt))
+    );
+  });
+}
+
+/** The evidence a class's own work gave: its modules' lessons and its assignments. */
+async function ofClass(
+  context: UnitContext,
+  classId: string,
+  rows: EvidenceRow[],
+) {
+  const own = await sittingsOfClass(context, {
+    classId,
+    sittingIds: sittingIdsOf(rows),
+  });
+  return rows.filter((row) => own.has(row.sittingId));
+}
+
+/** A class the viewer teaches, and its students on the day. */
 async function taughtClass(context: UnitContext, classId: string) {
   requireCapability(context, "submissions:grade");
   const classRow = await classById(context.tx, context, classId);
   if (!classRow || !(await teaches(context, "teaching", classId)))
     throw new ORPCError("NOT_FOUND");
-  const year = await linkedYear(context, classRow.id);
   const roster = await rosterOf(
     context.tx,
     context.tenantId,
     classId,
-    year ? dayIn(year, context.today) : dayWithin(classRow.runs, context.today),
+    dayWithin(classRow.runs, context.today),
   );
-  return { year, roster };
+  return { classRow, roster };
 }
 
 /**
@@ -582,10 +602,13 @@ export const classProgress = readProcedure
     };
     const [students, answered, observed] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
-      evidenceOfStudents(context.tx, { ...scope, released: false }),
+      evidenceOfStudents(context.tx, scope),
       observationsOf(context.tx, scope),
     ]);
-    const evidence = withObserved(answered, observed);
+    const evidence = withObserved(
+      await ofClass(context, input.classId, answered),
+      observed,
+    );
     return {
       standards: await described(context, evidence),
       students,
@@ -619,18 +642,18 @@ export const studentProgress = readProcedure
       orgId: context.schoolId,
       studentIds: [studentId],
     };
+    const staff = can(context, "submissions:grade");
     const [answered, observed, judged] = await Promise.all([
-      evidenceOfStudents(context.tx, {
-        ...scope,
-        classId: null,
-        released: !can(context, "submissions:grade"),
-      }),
+      evidenceOfStudents(context.tx, scope),
       observationsOf(context.tx, { ...scope, classId: null }),
       // Judgements are for the child's teachers to read, not the child or
       // their family.
-      can(context, "submissions:grade") ? judgementsOf(context.tx, scope) : [],
+      staff ? judgementsOf(context.tx, scope) : [],
     ]);
-    const evidence = withObserved(answered, observed);
+    const evidence = withObserved(
+      staff ? answered : await releasedOnly(context, answered),
+      observed,
+    );
     const judgedIn = await Promise.all(
       [...new Set(judged.map((row) => row.frameworkId))].map(async (id) => ({
         found: await frameworkById(context.tx, { ...scope, id }),
@@ -646,6 +669,40 @@ export const studentProgress = readProcedure
       judgements: await withJudges(context, judged),
     };
   });
+
+/**
+ * Evidence by the sitting and attempt it came from, each with its work and
+ * its answers averaged; evidence from work no module on keeps is left out.
+ */
+async function workedSittings(context: UnitContext, rows: EvidenceRow[]) {
+  const info = await sittingsOf(context, sittingIdsOf(rows));
+  const grouped = new Map<string, EvidenceRow[]>();
+  for (const row of rows) {
+    if (!info.has(row.sittingId)) continue;
+    const key = `${row.source}:${row.sittingId}:${row.attempt}`;
+    grouped.set(key, [...(grouped.get(key) ?? []), row]);
+  }
+  return [...grouped.values()].flatMap((group) => {
+    const [first] = group;
+    const work = first ? info.get(first.sittingId)?.work : undefined;
+    if (!first || !work) return [];
+    return [
+      {
+        source: first.source,
+        workId: "lessonId" in work ? work.lessonId : work.assignmentId,
+        title: work.title,
+        attempt: first.attempt,
+        fraction:
+          group.reduce((sum, row) => sum + row.fraction, 0) / group.length,
+        answers: group.length,
+        at: group.reduce(
+          (latest, row) => (row.answeredAt > latest ? row.answeredAt : latest),
+          first.answeredAt,
+        ),
+      },
+    ];
+  });
+}
 
 /**
  * The sittings one student's mastery of a standard was worked out from:
@@ -664,10 +721,11 @@ export const sittings = readProcedure
       studentId,
       standardId: input.standardId,
     };
-    const [worked, observed] = await Promise.all([
-      sittingsOfStandard(context.tx, {
+    const [answered, observed] = await Promise.all([
+      evidenceOfStudents(context.tx, {
         ...scope,
-        released: !can(context, "submissions:grade"),
+        studentIds: [studentId],
+        standardIds: [input.standardId],
       }),
       observationsOf(context.tx, {
         ...scope,
@@ -675,6 +733,12 @@ export const sittings = readProcedure
         classId: null,
       }),
     ]);
+    const worked = await workedSittings(
+      context,
+      can(context, "submissions:grade")
+        ? answered
+        : await releasedOnly(context, answered),
+    );
     return [
       ...worked.map((row) => ({ ...row, observation: null })),
       ...observed.map((row) => ({
@@ -752,19 +816,83 @@ export const removeObservation = writeProcedure
 
 type Judgements = Awaited<ReturnType<typeof judgementsOf>>;
 
-/** Judgements as a teacher reads them, with who made each. */
+/**
+ * Judgements as a teacher reads them, with who made each and the lesson or
+ * quiz answer each came from, where the module keeping that work is on.
+ */
 async function withJudges(context: UnitContext, judgements: Judgements) {
-  const judges = new Map(
-    (
-      await namesOf(context.tx, context.tenantId, [
-        ...new Set(judgements.map((row) => row.judgedByUserId)),
-      ])
-    ).map((row) => [row.id, row]),
-  );
-  return judgements.map(({ judgedByUserId, frameworkId: _, ...row }) => ({
-    ...row,
-    judgedBy: judges.get(judgedByUserId) ?? null,
-  }));
+  const [judges, works] = await Promise.all([
+    namesOf(context.tx, context.tenantId, [
+      ...new Set(judgements.map((row) => row.judgedByUserId)),
+    ]),
+    sittingsOf(context, [
+      ...new Set(judgements.flatMap((row) => row.from?.sittingId ?? [])),
+    ]),
+  ]);
+  const judgedBy = new Map(judges.map((row) => [row.id, row]));
+  return judgements.map(({ judgedByUserId, frameworkId: _, from, ...row }) => {
+    const work = from ? works.get(from.sittingId)?.work : undefined;
+    return {
+      ...row,
+      lesson:
+        from && work && "lessonId" in work
+          ? { id: work.lessonId, title: work.title, blockId: from.blockId }
+          : null,
+      quiz:
+        from && work && "assignmentId" in work
+          ? {
+              id: work.assignmentId,
+              title: work.title,
+              submissionId: work.submissionId,
+              blockId: from.blockId,
+            }
+          : null,
+      judgedBy: judgedBy.get(judgedByUserId) ?? null,
+    };
+  });
+}
+
+/**
+ * Each student's latest full-marks answer on each goal named, from a
+ * lesson of one of the class's modules or a quiz set to the class.
+ */
+async function rightAnswersOf(
+  context: UnitContext,
+  input: {
+    classId: string;
+    studentIds: readonly string[];
+    standardIds: readonly string[];
+  },
+) {
+  if (input.standardIds.length === 0) return [];
+  const right = (
+    await evidenceOfStudents(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      studentIds: input.studentIds,
+      standardIds: input.standardIds,
+    })
+  ).filter((row) => row.source !== "rubric" && row.fraction >= 1);
+  const own = await ofClass(context, input.classId, right);
+  const works = await sittingsOf(context, sittingIdsOf(own));
+  const latest = new Map<string, EvidenceRow>();
+  for (const row of own) latest.set(`${row.studentId}:${row.standardId}`, row);
+  return [...latest.values()].flatMap((row) => {
+    const work = works.get(row.sittingId)?.work;
+    if (!work) return [];
+    return [
+      {
+        studentId: row.studentId,
+        standardId: row.standardId,
+        work:
+          "lessonId" in work
+            ? { lessonId: work.lessonId, blockId: row.blockId }
+            : { submissionId: work.submissionId, blockId: row.blockId },
+        title: work.title,
+        answeredAt: row.answeredAt,
+      },
+    ];
+  });
 }
 
 /**
@@ -775,7 +903,7 @@ async function withJudges(context: UnitContext, judgements: Judgements) {
 export const classGoals = readProcedure
   .input(classGoalsSchema)
   .handler(async ({ input, context }) => {
-    const { year, roster } = await taughtClass(context, input.classId);
+    const { classRow, roster } = await taughtClass(context, input.classId);
     const [kept, students, judged] = await Promise.all([
       frameworksOf(context.tx, {
         tenantId: context.tenantId,
@@ -803,8 +931,7 @@ export const classGoals = readProcedure
       judgements.map((row) => [`${row.studentId}:${row.standardId}`, row]),
     );
     const [answered, reports] = await Promise.all([
-      rightAnswersOf(context.tx, {
-        tenantId: context.tenantId,
+      rightAnswersOf(context, {
         classId: input.classId,
         studentIds: roster,
         standardIds: goals.map((row) => row.id),
@@ -834,7 +961,7 @@ export const classGoals = readProcedure
       ),
       /** How many of the class's families see the report, and when it was last shared. */
       report: { shared: shared.length, sharedAt: shared.at(-1) ?? null },
-      canJudge: year?.lifecycle !== "closed",
+      canJudge: !(await settlementOf(context, classRow.id)),
       canAddGoals: can(context, "standards:manage"),
     };
   });
@@ -950,34 +1077,18 @@ export const goalsReport = readProcedure
 export const judgeGoal = writeProcedure
   .input(judgeGoalSchema)
   .handler(async ({ input, context }) => {
-    const { year, roster } = await taughtClass(context, input.classId);
-    if (year?.lifecycle === "closed")
-      throw new ORPCError("CONFLICT", { message: "school_year.closed" });
+    const { roster } = await taughtClass(context, input.classId);
+    await requireUnsettled(context, input.classId);
     if (!roster.includes(input.studentId)) throw new ORPCError("NOT_FOUND");
     await ownStandard(context, input.standardId);
-    if (input.from && "lessonId" in input.from) {
-      const lesson = await lessonById(
-        context.tx,
-        context.tenantId,
-        input.from.lessonId,
-      );
-      const classes = lesson
-        ? await classesOfModule(context.tx, context.tenantId, lesson.moduleId)
-        : [];
-      if (!classes.some((row) => row.id === input.classId))
-        throw new ORPCError("NOT_FOUND");
-    }
-    if (
-      input.from &&
-      "submissionId" in input.from &&
-      !(await isClassQuizOf(context.tx, {
-        tenantId: context.tenantId,
-        submissionId: input.from.submissionId,
-        studentId: input.studentId,
-        classId: input.classId,
-      }))
-    )
-      throw new ORPCError("NOT_FOUND");
+    const sittingId = input.from
+      ? await sittingFrom(context, {
+          from: input.from,
+          studentId: input.studentId,
+          classId: input.classId,
+        })
+      : null;
+    if (input.from && !sittingId) throw new ORPCError("NOT_FOUND");
     const key = {
       tenantId: context.tenantId,
       studentId: input.studentId,
@@ -988,7 +1099,10 @@ export const judgeGoal = writeProcedure
         ...key,
         level: input.level,
         note: input.note,
-        from: input.from,
+        from:
+          input.from && sittingId
+            ? { sittingId, blockId: input.from.blockId }
+            : undefined,
         judgedByUserId: context.actor.userId,
       });
     else await clearJudgement(context.tx, key);

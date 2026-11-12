@@ -15,7 +15,7 @@ import { YearMap } from "~/components/learning/YearMap";
 import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { yearMapQuery } from "~/queries/learning";
+import { unitPlanQuery } from "~/queries/learning";
 import { currentUserQuery } from "~/queries/user";
 import { requirePage } from "~/utils/page-access";
 
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/_app/_staff/year-map")({
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "learning:author");
-    await context.queryClient.ensureQueryData(yearMapQuery(deps.classId));
+    await context.queryClient.ensureQueryData(unitPlanQuery(deps.classId));
   },
   staticData: { breadcrumb: m.yearMapTitle, section: "/modules" },
   component: YearMapPage,
@@ -44,8 +44,8 @@ function YearMapPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
-  const map = useSuspenseQuery(yearMapQuery(search.classId)).data;
-  if (!map.year)
+  const map = useSuspenseQuery(unitPlanQuery(search.classId)).data;
+  if (!map.ready)
     return (
       <>
         <PageHeader title={m.yearMapTitle()} />
@@ -79,7 +79,13 @@ function YearMapPage() {
       <PageHeader title={m.yearMapTitle()} description={m.yearMapHint()} />
       <div className="grid gap-4">
         {map.classes.length > 1 ? <IndexToolbar facets={[classFacet]} /> : null}
-        {map.units.length === 0 ? (
+        {!map.frame ? (
+          <EmptyState
+            icon={CalendarRange}
+            title={m.yearMapNoYearTitle()}
+            description={m.yearMapNoYearBody()}
+          />
+        ) : map.units.length === 0 ? (
           <EmptyState
             icon={CalendarRange}
             title={m.yearMapNoUnits()}
@@ -92,7 +98,7 @@ function YearMapPage() {
             }
           />
         ) : (
-          <YearMap map={{ ...map, year: map.year }} today={user.today} />
+          <YearMap map={{ ...map, frame: map.frame }} today={user.today} />
         )}
       </div>
     </Page>

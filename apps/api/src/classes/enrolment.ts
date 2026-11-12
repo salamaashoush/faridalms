@@ -8,7 +8,6 @@ import {
   enrolledBefore,
   moveClassRuns,
 } from "@faridalms/database/stores/classes";
-import { joinOpenWork } from "@faridalms/database/stores/coursework";
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
@@ -35,20 +34,14 @@ export async function refuseOverRegisters(
 }
 
 /**
- * Gives students who joined classes from the date the work still open to
- * the whole class, and tells the modules that keep something in step.
+ * Tells the modules that keep something in step with students joining
+ * classes from the date, such as the work still open to the whole class.
  */
 export async function joinedClasses(
   context: UnitContext,
   joins: ReadonlyMap<string, readonly string[]>,
   from: string,
 ) {
-  for (const [classId, studentIds] of joins)
-    await joinOpenWork(context.tx, {
-      tenantId: context.tenantId,
-      studentIds,
-      classId,
-    });
   for (const contribution of await contributionsTo(context, classJoins))
     await contribution.joined(context, joins, from);
 }

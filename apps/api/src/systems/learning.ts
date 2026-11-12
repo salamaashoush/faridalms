@@ -1,3 +1,4 @@
+import type { ClassesViewed } from "@faridalms/database/stores/classes";
 import type {
   LessonRow,
   ModuleAudienceRow,
@@ -21,8 +22,12 @@ import { changeOf } from "@faridalms/database/audit";
 import { arrangementsOf } from "@faridalms/database/stores/arrangements";
 import { machineTranslationUnchecked } from "@faridalms/database/stores/assistant";
 import { reachOf } from "@faridalms/database/stores/audiences";
-import { classesTaughtBy, rosterOf } from "@faridalms/database/stores/classes";
-import { groupsOf, namesOf } from "@faridalms/database/stores/coursework";
+import {
+  classById,
+  classesKeptBy,
+  groupsOf,
+  rosterOf,
+} from "@faridalms/database/stores/classes";
 import {
   contentsOf,
   documentIdOf,
@@ -60,7 +65,7 @@ import {
   moduleById,
   modulesForClasses,
   orderLessons,
-  yearUnitsOf,
+  classUnitsOf,
   progressIn,
   openingsIn,
   setOpening,
@@ -107,23 +112,13 @@ import {
   watchesOf,
   watchRowsIn,
 } from "@faridalms/database/stores/learning";
+import { namesOf } from "@faridalms/database/stores/persons";
 import { localeOf } from "@faridalms/database/stores/preferences";
-import {
-  judgementsOf,
-  recordEvidence,
-  standardsByIds,
-} from "@faridalms/database/stores/standards";
 import { insertTemplate } from "@faridalms/database/stores/templates";
-import { gridOwners } from "@faridalms/database/stores/timetable";
 import {
   reviewTranslation,
   translationReview,
 } from "@faridalms/database/stores/translations";
-import {
-  schoolYears,
-  termsOf,
-  workingYear,
-} from "@faridalms/database/stores/years";
 import {
   roomOf,
   signTicket,
@@ -209,7 +204,8 @@ import {
   studentBlocks,
   videoStops,
   watchSchema,
-  yearMapSchema,
+  teachingModulesSchema,
+  unitPlanSchema,
 } from "@faridalms/domain/learning";
 import { lessonOfContent } from "@faridalms/domain/lesson-content";
 import { translatedLesson } from "@faridalms/domain/lesson-translation";
@@ -223,6 +219,7 @@ import {
 } from "@faridalms/domain/practice";
 import { heldAs, sameFiles } from "@faridalms/domain/project";
 import { isLive } from "@faridalms/domain/publication";
+import { addDays, spanHolds } from "@faridalms/domain/school";
 import { scratchReadingOf } from "@faridalms/domain/scratch-project";
 import {
   intendedStandards,
@@ -243,15 +240,15 @@ import * as v from "valibot";
 
 import type { SchoolContext, UnitContext } from "../core/context";
 
+import {
+  classesInView,
+  classGroupsOf,
+  currentClasses,
+} from "../classes/points";
 import { markedProgramAt } from "../coding/mark";
 import { projectCode } from "../coding/scratch-file";
-import {
-  editableModule,
-  mayEditModule,
-  moduleOfSchool,
-} from "../core/learning-access";
+import { contributionsTo } from "../core/extension";
 import { publishTelling } from "../core/mentions";
-import { spreadModuleDiscussions } from "../core/module-discussions";
 import { modulesOf } from "../core/modules";
 import {
   audit,
@@ -263,8 +260,12 @@ import {
   writeProcedure as anyWrite,
 } from "../core/procedure";
 import { wordsIssues } from "../core/publication";
-import { requireStudent, requireTaught, teaches } from "../core/reach";
-import { applyRemarks } from "../core/remarks";
+import {
+  requireStudent,
+  requireTaught,
+  scopeFor,
+  teaches,
+} from "../core/reach";
 import { signalPacing } from "../core/signals";
 import { templateHost, usableTemplate } from "../core/templates";
 import { checkTranslation } from "../core/translation-review";
@@ -275,9 +276,19 @@ import {
   registerLiveRules,
   placeMedia,
 } from "../files/authorize";
+import {
+  editableModule,
+  mayEditModule,
+  moduleOfSchool,
+} from "../learning/access";
 import { copyLesson, copyModule, planHost } from "../learning/module-copy";
-import { plannedElsewhere } from "../timetable/grids";
-import { daysOf } from "../years/years";
+import {
+  moduleParts,
+  standardsNamed,
+  tellMarkedLesson,
+  unitFrames,
+} from "../learning/points";
+import { applyRemarks } from "../learning/remarks";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -300,68 +311,39 @@ const writeProcedure = anyWrite.use(async ({ context, next }) => {
   return next();
 });
 
-async function yearOf(context: UnitContext) {
-  return workingYear(
-    await schoolYears(context.tx, context.tenantId, context.schoolId),
-    context.today,
+/**
+ * The classes the viewer may set modules for, of those viewed (those still
+ * running or yet to start, given none): those they teach, marked as theirs
+ * and listed first, then for school-wide staff every other class that is
+ * its own group rather than one taught to another's, such as a homeroom's
+ * subject class. A school-wide teacher keeps their own classes, even one
+ * taught to another's group.
+ */
+async function authoringClasses(
+  context: UnitContext,
+  viewed: ClassesViewed = currentClasses(context),
+) {
+  const kept = await classesKeptBy(
+    context.tx,
+    scopeFor(context, "teaching"),
+    viewed,
   );
-}
-
-async function currentYear(context: UnitContext) {
-  const year = await yearOf(context);
-  if (!year) throw new ORPCError("CONFLICT", { message: "learning.no_year" });
-  return year;
-}
-
-/**
- * The classes the viewer may set modules for this year: those they teach,
- * marked as theirs and listed first, then for school-wide staff every other
- * class that owns its timetable grid. A school-wide teacher keeps their own
- * classes, even one planned in another's grid.
- */
-async function authoringClasses(context: UnitContext) {
-  const year = await yearOf(context);
-  if (!year) return { year: null, classes: [] };
-  const taught = await classesTaughtBy(context.tx, context, {
-    userId: context.actor.userId,
-    on: context.today,
-  });
-  const own = taught.map((row) => ({
-    id: row.id,
-    code: row.code,
-    titleEn: row.titleEn,
-    titleAr: row.titleAr,
-    subjectId: row.subjectId,
-    mine: true,
-  }));
-  if (!can(context, "classes:manage")) return { year, classes: own };
-  const rows = await gridOwners(context.tx, {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    during: daysOf(year),
-    except: await plannedElsewhere(context, daysOf(year)),
-  });
-  const mine = new Set(own.map((row) => row.id));
+  const groups = await classGroupsOf(
+    context,
+    kept.filter((row) => row.role === null).map((row) => row.id),
+  );
   return {
-    year,
-    classes: [
-      ...own,
-      ...rows
-        .filter((row) => !mine.has(row.id))
-        .map((row) => ({ ...row, subjectId: null, mine: false })),
-    ],
+    classes: kept
+      .filter((row) => row.role !== null || groups.get(row.id)?.own !== false)
+      .map((row) => ({
+        id: row.id,
+        code: row.code,
+        titleEn: row.titleEn,
+        titleAr: row.titleAr,
+        subjectId: row.role === null ? null : row.subjectId,
+        mine: row.role !== null,
+      })),
   };
-}
-
-/**
- * The year and classes a change to a module belongs to. A school that has
- * not set up a year has no classes to set modules for yet, so the change is
- * refused rather than made for no year.
- */
-async function authoringYear(context: UnitContext) {
-  const { year, classes } = await authoringClasses(context);
-  if (!year) throw new ORPCError("CONFLICT", { message: "learning.no_year" });
-  return { year, classes };
 }
 
 /**
@@ -786,11 +768,12 @@ export const plan = readProcedure
     const documents = [...contents.values()].map(lessonContentOf);
     const tagged = questionStandards(documents);
     const intended = intendedStandards(documents);
-    const covered = await standardsByIds(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      ids: [...new Set([...tagged.keys(), ...intended.keys()])],
-    });
+    const covered =
+      (await (
+        await standardsNamed(context)
+      )?.standardsOf(context, [
+        ...new Set([...tagged.keys(), ...intended.keys()]),
+      ])) ?? [];
     return {
       content: stored ? (stored.content as unknown as ContentDocument) : null,
       covered: covered.map((row) => ({
@@ -859,19 +842,21 @@ export const options = readProcedure.handler(async ({ context }) => {
   };
 });
 
-/** The modules of the viewer's classes, for teaching. */
+/** The modules of the viewer's classes in view, for teaching. */
 export const modules = readProcedure
-  .input(v.object({ classId: v.optional(v.union([v.literal(""), id]), "") }))
+  .input(teachingModulesSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "learning:author");
-    const { year, classes } = await authoringClasses(context);
+    const { classes } = await authoringClasses(
+      context,
+      await classesInView(context, input),
+    );
     const classIds = input.classId
       ? classes
           .filter((item) => item.id === input.classId)
           .map((item) => item.id)
       : classes.map((item) => item.id);
     return {
-      yearSet: year !== null,
       classes,
       rows: await modulesForClasses(context.tx, {
         tenantId: context.tenantId,
@@ -882,59 +867,89 @@ export const modules = readProcedure
     };
   });
 
+/** The discussions a module holds, as its reader sees them, where coursework keeps them. */
+export const discussions = readProcedure
+  .input(
+    v.object({
+      moduleId: id,
+      studentId: v.optional(v.union([v.literal(""), id]), ""),
+    }),
+  )
+  .handler(async ({ input, context }) => {
+    const found = await Promise.all(
+      (await contributionsTo(context, moduleParts)).map((part) =>
+        part.discussionsOf(context, input),
+      ),
+    );
+    return found.flat();
+  });
+
+/** The module a discussion sits in, for its editor; empty where it sits in none. */
+export const discussionModule = readProcedure
+  .input(v.object({ assignmentId: id }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "assignments:author", "learning:author");
+    for (const part of await contributionsTo(context, moduleParts)) {
+      const found = await part.placementOf(context, input.assignmentId);
+      if (found) return { moduleId: found };
+    }
+    return { moduleId: "" };
+  });
+
 /**
- * A class's year map: the school year and its terms, and the modules the
- * class takes, each with the days its teachers plan to spend on it.
+ * A class's plan of units: the modules the class takes, each with the days
+ * its teachers plan to spend on it, and the days a module lays them along.
  */
-export const yearMap = readProcedure
-  .input(yearMapSchema)
+export const unitPlan = readProcedure
+  .input(unitPlanSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "learning:author");
-    const { year, classes } = await authoringClasses(context);
+    const { classes } = await authoringClasses(context);
     const classId = input.classId || classes[0]?.id || "";
     if (classId && !classes.some((row) => row.id === classId))
       throw new ORPCError("NOT_FOUND");
-    if (!year) return { classes, classId, year: null, terms: [], units: [] };
-    const [terms, units] = await Promise.all([
-      termsOf(context.tx, context.tenantId, year.id),
-      classId
-        ? yearUnitsOf(context.tx, { tenantId: context.tenantId, classId })
-        : [],
-    ]);
+    const sources = await contributionsTo(context, unitFrames);
+    const [frame] = classId
+      ? await Promise.all(
+          sources.map((source) => source.frameOf(context, classId)),
+        )
+      : [];
     return {
       classes,
       classId,
-      year: {
-        titleEn: year.titleEn,
-        titleAr: year.titleAr,
-        startsOn: year.startsOn,
-        endsBefore: year.endsBefore,
-      },
-      terms: terms.map((term) => ({
-        id: term.id,
-        titleEn: term.titleEn,
-        titleAr: term.titleAr,
-        startsOn: term.startsOn,
-        endsBefore: term.endsBefore,
-      })),
-      units,
+      /** What the frames come from is set up, as a school year is. */
+      ready: (
+        await Promise.all(sources.map((source) => source.ready(context)))
+      ).every(Boolean),
+      frame: frame ?? null,
+      units: classId
+        ? await classUnitsOf(context.tx, {
+            tenantId: context.tenantId,
+            classId,
+          })
+        : [],
     };
   });
 
-/** Sets the days a class plans to spend on one of its modules, inside the school year, or clears them. */
+/** Sets the days a class plans to spend on one of its modules, inside the days it runs, or clears them. */
 export const setUnitDates = writeProcedure
   .input(unitDatesSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "learning:author");
-    const { year, classes } = await authoringYear(context);
-    if (!classes.some((row) => row.id === input.classId))
-      throw new ORPCError("NOT_FOUND");
+    const { classes } = await authoringClasses(context);
+    const classRow = classes.some((row) => row.id === input.classId)
+      ? await classById(context.tx, context, input.classId)
+      : null;
+    if (!classRow) throw new ORPCError("NOT_FOUND");
     if (
       input.startsOn &&
-      (input.startsOn < year.startsOn || input.endsOn >= year.endsBefore)
+      !spanHolds(classRow.runs, {
+        from: input.startsOn,
+        to: addDays(input.endsOn, 1),
+      })
     )
       throw new ORPCError("BAD_REQUEST", {
-        message: "learning.unit_dates_year",
+        message: "learning.unit_dates_runs",
       });
     const set = await storeUnitDates(context.tx, {
       tenantId: context.tenantId,
@@ -1081,7 +1096,7 @@ export const saveModule = writeProcedure
   .input(saveModuleSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "learning:author");
-    const { year, classes } = await authoringYear(context);
+    const { classes } = await authoringClasses(context);
     const allowed = new Set(classes.map((item) => item.id));
     if (input.classIds.some((classId) => !allowed.has(classId)))
       throw new ORPCError("FORBIDDEN", { message: "learning.class" });
@@ -1118,7 +1133,6 @@ export const saveModule = writeProcedure
       const created = await insertModule(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
-        yearId: year.id,
         authorId: context.actor.userId,
         ...fields,
       });
@@ -1135,8 +1149,9 @@ export const saveModule = writeProcedure
       moduleId,
       audiences: await checkedAudiences(context, input),
     });
-    // Its discussions reach the classes it is set for now.
-    await spreadModuleDiscussions(context, moduleId);
+    // What other modules keep in it reaches the classes it is set for now.
+    for (const part of await contributionsTo(context, moduleParts))
+      await part.classesChanged(context, moduleId);
     await audit(context, {
       action: input.id ? "module.update" : "module.create",
       objectType: "learning_module",
@@ -1246,12 +1261,11 @@ export const duplicateModule = writeProcedure
   .input(duplicateModuleSchema)
   .handler(async ({ input, context }) => {
     const row = await editableModule(context, input.id);
-    const { year, classes } = await authoringYear(context);
+    const { classes } = await authoringClasses(context);
     const allowed = new Set(classes.map((item) => item.id));
     if (input.classIds.some((classId) => !allowed.has(classId)))
       throw new ORPCError("FORBIDDEN", { message: "learning.class" });
     const created = await copyModule(context, row, {
-      yearId: year.id,
       classIds: input.classIds,
     });
     await audit(context, {
@@ -1287,11 +1301,7 @@ export const shareModule = writeProcedure
   .input(shareModuleSchema)
   .handler(async ({ input, context }) => {
     const row = await editableModule(context, input.moduleId);
-    const year = await currentYear(context);
-    const kept = await copyModule(context, row, {
-      yearId: year.id,
-      classIds: [],
-    });
+    const kept = await copyModule(context, row, { classIds: [] });
     await setModuleState(context.tx, {
       tenantId: context.tenantId,
       id: kept.id,
@@ -1344,11 +1354,10 @@ export const moduleFromTemplate = writeProcedure
         ? await moduleById(context.tx, context.tenantId, piece.moduleId)
         : null;
     if (!kept) throw new ORPCError("NOT_FOUND");
-    const { year, classes } = await authoringYear(context);
+    const { classes } = await authoringClasses(context);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("FORBIDDEN", { message: "learning.class" });
     const created = await copyModule(context, kept, {
-      yearId: year.id,
       classIds: [input.classId],
     });
     await audit(context, {
@@ -3661,10 +3670,9 @@ async function keepEvidence(
 ) {
   const { standards } = input.block;
   if (!standards?.length || input.fraction === null) return;
-  await recordEvidence(context.tx, {
-    tenantId: context.tenantId,
+  await tellMarkedLesson(context, {
+    lessonId: input.lessonId,
     studentId: input.studentId,
-    sitting: { source: "lesson", lessonId: input.lessonId },
     marks: [
       {
         attempt: input.attempt,
@@ -4286,30 +4294,20 @@ export const answers = readProcedure
     const tagged = [
       ...new Set(questions.flatMap((question) => question.standards)),
     ];
+    const named = await standardsNamed(context);
     const judging =
+      named !== null &&
       tagged.length > 0 &&
       classes.some((item) => item.id === input.classId && item.young) &&
       can(context, "submissions:grade") &&
       (await teaches(context, "teaching", input.classId));
     const goals = judging
       ? {
-          standards: await standardsByIds(context.tx, {
-            tenantId: context.tenantId,
-            orgId: context.schoolId,
-            ids: tagged,
+          standards: await named.standardsOf(context, tagged),
+          judgements: await named.judgementsOf(context, {
+            studentIds: roster,
+            standardIds: tagged,
           }),
-          judgements: (
-            await judgementsOf(context.tx, {
-              tenantId: context.tenantId,
-              orgId: context.schoolId,
-              studentIds: roster,
-              standardIds: tagged,
-            })
-          ).map((judgement) => ({
-            studentId: judgement.studentId,
-            standardId: judgement.standardId,
-            level: judgement.level,
-          })),
         }
       : null;
     const offered = new Map(

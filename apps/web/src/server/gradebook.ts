@@ -26,3 +26,25 @@ export const savePeriodGrades = createServerFn({ method: "POST" })
 export const releasePeriodGrades = createServerFn({ method: "POST" })
   .validator(checked(releasePeriodSchema))
   .handler(({ data }) => backend().gradebook.releasePeriod(data));
+
+export const getWorkTerm = createServerFn({ method: "GET" })
+  .validator(
+    checked(
+      v.object({
+        classId: v.pipe(v.string(), v.uuid()),
+        assignmentId: v.union([v.literal(""), v.pipe(v.string(), v.uuid())]),
+      }),
+    ),
+  )
+  .handler(({ data }) => record(backend().gradebook.workTerm(data)));
+
+export const regradeTerm = createServerFn({ method: "POST" })
+  .validator(
+    checked(
+      v.object({
+        periodId: v.pipe(v.string(), v.uuid()),
+        reason: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(500)),
+      }),
+    ),
+  )
+  .handler(({ data }) => backend().gradebook.regradeTerm(data));

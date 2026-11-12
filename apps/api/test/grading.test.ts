@@ -159,19 +159,20 @@ describe("grade scales", () => {
       display: "grade_score",
     });
     const book = await teacher.api.gradebook.classBook({ classId: target.id });
-    if (!book.periodId) throw new Error("the seed has no term");
+    const periodId = book.term?.periodId;
+    if (!periodId) throw new Error("the seed has no term");
     await teacher.api.gradebook.savePeriodGrades({
       classId: target.id,
-      periodId: book.periodId,
+      periodId,
       maxScore: 100,
       grades: [{ studentId: me.id, score: 86 }],
     });
     const after = await teacher.api.gradebook.classBook({
       classId: target.id,
-      periodId: book.periodId,
+      periodId,
     });
     expect(
-      after.grades.find((row) => row.studentId === me.id)?.grade,
+      after.term?.grades.find((row) => row.studentId === me.id)?.grade,
     ).toMatchObject({ labelEn: "Excellent", labelAr: "ممتاز" });
     expect(
       await rejection(
@@ -192,7 +193,7 @@ describe("grade scales", () => {
     // it as released.
     await teacher.api.gradebook.releasePeriod({
       classId: target.id,
-      periodId: book.periodId,
+      periodId,
     });
   });
 

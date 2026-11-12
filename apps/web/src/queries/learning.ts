@@ -23,7 +23,8 @@ import {
   getRouteChoices,
   getTeachingModules,
   getWrittenAnswers,
-  getYearMap,
+  getUnitPlan,
+  getModuleDiscussions,
   openLesson,
 } from "~/server/learning";
 
@@ -32,18 +33,31 @@ export const learningOptionsQuery = queryOptions({
   queryFn: () => getLearningOptions(),
 });
 
-export const teachingModulesQuery = (classId: string) =>
+/** The modules of the viewer's classes: one class's, those in the views given, or with `ended` those over. */
+export const teachingModulesQuery = (
+  classId: string,
+  view: { ended?: boolean; views?: Record<string, string> } = {},
+) =>
   queryOptions({
-    queryKey: ["learning", "teaching", classId],
-    queryFn: () => getTeachingModules({ data: { classId } }),
+    queryKey: ["learning", "teaching", classId, view],
+    queryFn: () =>
+      getTeachingModules({
+        data: { classId, ended: view.ended ?? false, views: view.views ?? {} },
+      }),
     placeholderData: (previous) => previous,
   });
 
-export const yearMapQuery = (classId: string) =>
+export const unitPlanQuery = (classId: string) =>
   queryOptions({
-    queryKey: ["learning", "year", classId],
-    queryFn: () => getYearMap({ data: { classId } }),
+    queryKey: ["learning", "units", classId],
+    queryFn: () => getUnitPlan({ data: { classId } }),
     placeholderData: (previous) => previous,
+  });
+
+export const moduleDiscussionsQuery = (moduleId: string, studentId = "") =>
+  queryOptions({
+    queryKey: ["learning", "discussions", moduleId, studentId],
+    queryFn: () => getModuleDiscussions({ data: { moduleId, studentId } }),
   });
 
 export const moduleRecordQuery = (id: string) =>

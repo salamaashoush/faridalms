@@ -19,10 +19,10 @@ import {
 } from "@faridalms/domain/learning";
 import * as v from "valibot";
 
-import type { UnitContext } from "./context";
+import type { UnitContext } from "../core/context";
 
+import { can } from "../core/procedure";
 import { attemptQuizzes, publishedQuiz } from "../quizzes/quiz";
-import { can } from "./procedure";
 
 /**
  * What a reviewer reads of a classmate's work: the page and files they

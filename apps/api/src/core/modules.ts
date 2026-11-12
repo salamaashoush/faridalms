@@ -4,9 +4,9 @@ import { schoolFeatures } from "@faridalms/database/stores/identity";
 import { modulesOn, SWITCHED_MODULES } from "@faridalms/domain/modules";
 import { availableModules } from "@faridalms/domain/plans";
 
-import type { UnitContext } from "./context";
+import type { ModuleScope } from "./extension";
 
-const settled = new WeakMap<UnitContext, Promise<Record<ModuleId, boolean>>>();
+const settled = new WeakMap<ModuleScope, Promise<Record<ModuleId, boolean>>>();
 
 /**
  * What a school has on: modules its plan includes, with what each needs on,
@@ -15,7 +15,7 @@ const settled = new WeakMap<UnitContext, Promise<Record<ModuleId, boolean>>>();
  * Read once per unit of work.
  */
 export function modulesOf(
-  context: UnitContext,
+  context: ModuleScope,
 ): Promise<Record<ModuleId, boolean>> {
   let found = settled.get(context);
   if (!found) {

@@ -13,8 +13,8 @@ import {
   threadsOfDocument,
   updateDocumentComment,
 } from "@faridalms/database/stores/comments";
-import { namesOf } from "@faridalms/database/stores/coursework";
 import { documentIdOf } from "@faridalms/database/stores/documents";
+import { namesOf } from "@faridalms/database/stores/persons";
 import { staffDirectory } from "@faridalms/database/stores/staff";
 import {
   colleaguesSchema,

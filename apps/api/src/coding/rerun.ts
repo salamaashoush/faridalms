@@ -6,6 +6,7 @@ import {
   finishProgramRemark,
   lessonById,
   lessonResponses,
+  moduleById,
   pendingProgramRemarks,
 } from "@faridalms/database/stores/learning";
 import {
@@ -16,10 +17,12 @@ import {
 import { lessonOfContent } from "@faridalms/domain/lesson-content";
 import * as v from "valibot";
 
-import type { Remark } from "../core/remarks";
+import type { ModuleContributions, WorkerModules } from "../core/extension";
+import type { Remark } from "../learning/remarks";
 import type { CodeRunner } from "./run";
 
-import { applyRemarks } from "../core/remarks";
+import { workerScope } from "../core/extension";
+import { applyRemarks } from "../learning/remarks";
 import { markedProgram } from "./mark";
 
 type Runners = { python: CodeRunner | null; javascript: CodeRunner };
@@ -35,6 +38,7 @@ async function rerunAsk(
   cell: Cell,
   runners: Runners,
   tenantId: string,
+  modules: WorkerModules,
   ask: Awaited<ReturnType<typeof pendingProgramRemarks>>[number],
 ): Promise<boolean> {
   const read = await cell.withWorker(
@@ -94,9 +98,15 @@ async function rerunAsk(
       remarked: changes.length,
     });
     if (!closed) return false;
-    if (read.lesson && content && changes.length > 0)
+    const owner = read.lesson
+      ? await moduleById(tx, tenantId, read.lesson.moduleId)
+      : null;
+    const scope = owner
+      ? await workerScope(modules, { tx, tenantId, schoolId: owner.orgId })
+      : null;
+    if (read.lesson && scope && content && changes.length > 0)
       await applyRemarks(
-        { tx, tenantId },
+        scope,
         read.lesson,
         { content, versionId: ask.documentVersionId },
         await lessonResponses(tx, { tenantId, lessonId: ask.lessonId }),
@@ -118,6 +128,7 @@ export async function rerunPrograms(
   cell: Cell,
   runners: Runners,
   tenantId: string,
+  modules: WorkerModules,
   limit = 5,
 ): Promise<number> {
   const asks = await cell.withWorker(asWorker(tenantId), "read", (tx) =>
@@ -126,7 +137,7 @@ export async function rerunPrograms(
   let finished = 0;
   for (const ask of asks)
     try {
-      if (await rerunAsk(cell, runners, tenantId, ask)) finished += 1;
+      if (await rerunAsk(cell, runners, tenantId, modules, ask)) finished += 1;
     } catch (error) {
       console.error(
         JSON.stringify({
@@ -147,6 +158,7 @@ export async function rerunPrograms(
 export function startProgramReruns(input: {
   cell: Cell;
   directory: Directory;
+  extensions: readonly ModuleContributions[];
   cellId: string;
   runners: Runners;
   intervalMs: number;
@@ -157,7 +169,7 @@ export function startProgramReruns(input: {
     const tenants = await input.directory.tenantsOfCell(input.cellId);
     for (const tenantId of tenants) {
       if (stopped) return;
-      await rerunPrograms(input.cell, input.runners, tenantId);
+      await rerunPrograms(input.cell, input.runners, tenantId, input);
     }
   };
   const timer = setInterval(() => {

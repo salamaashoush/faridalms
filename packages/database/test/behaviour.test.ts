@@ -655,12 +655,19 @@ describe("erasing a student's work", () => {
           standard as (
             insert into core.standards (tenant_id, framework_id, statement, position)
             select ${t}::uuid, id, 'Read aloud.', 0 from framework
-            returning id)
+            returning id),
+          sitting as (
+            insert into core.standard_sittings (tenant_id, student_user_id, kind)
+            values (${t}::uuid, ${work.student}::uuid, 'lesson')
+            returning id),
+          lesson_sitting as (
+            insert into core.lesson_sittings (tenant_id, sitting_id, student_user_id, lesson_id)
+            select ${t}::uuid, id, ${work.student}::uuid, ${lesson.id}::uuid from sitting)
           insert into core.standard_evidence (tenant_id, student_user_id, standard_id, source,
-                                              lesson_id, attempt, block_id, fraction, answered_at)
-          select ${t}::uuid, ${work.student}::uuid, id, 'lesson', ${lesson.id}::uuid, 1,
+                                              sitting_id, attempt, block_id, fraction, answered_at)
+          select ${t}::uuid, ${work.student}::uuid, standard.id, 'lesson', sitting.id, 1,
                  ${block}::uuid, 1, statement_timestamp()
-          from standard`);
+          from standard, sitting`);
         // Where their teacher judged them against that standard.
         await tx.execute(sql`
           insert into core.goal_judgements (tenant_id, student_user_id, standard_id, level, note,
@@ -822,6 +829,7 @@ describe("erasing a student's work", () => {
           sittings: number;
           draws: number;
           evidence: number;
+          worked: number;
           judgements: number;
           reports: number;
           reviews: number;
@@ -848,6 +856,10 @@ describe("erasing a student's work", () => {
                    and student_user_id = ${work.student}::uuid) as draws,
                  (select count(*)::int from core.standard_evidence where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as evidence,
+                 (select count(*)::int from core.standard_sittings where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid)
+                 + (select count(*)::int from core.lesson_sittings where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid) as worked,
                  (select count(*)::int from core.goal_judgements where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as judgements,
                  (select count(*)::int from core.goal_reports where tenant_id = ${t}::uuid
@@ -868,6 +880,7 @@ describe("erasing a student's work", () => {
           sittings: 0,
           draws: 0,
           evidence: 0,
+          worked: 0,
           judgements: 0,
           reports: 0,
           reviews: 0,

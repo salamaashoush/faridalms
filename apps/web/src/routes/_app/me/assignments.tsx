@@ -6,7 +6,7 @@ import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Download } from "lucide-react";
+import { Download, History } from "lucide-react";
 import * as v from "valibot";
 
 import { ByDay, DONE, TO_DO } from "~/components/coursework/LearnerList";
@@ -20,10 +20,13 @@ import { formatNumber } from "~/utils/datetime";
 export const Route = createFileRoute("/_app/me/assignments")({
   validateSearch: v.object({
     tab: v.fallback(v.optional(v.picklist(LEARNER_TABS), "to_do"), "to_do"),
+    /** The work of classes that ended, in place of those still running. */
+    ended: v.fallback(v.optional(v.boolean(), false), false),
   }),
-  loader: async ({ context }) => {
+  loaderDeps: ({ search }) => ({ ended: search.ended }),
+  loader: async ({ context, deps }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(myCourseworkQuery),
+      context.queryClient.ensureQueryData(myCourseworkQuery(deps.ended)),
       context.queryClient.ensureQueryData(myReadingQuery),
     ]);
   },
@@ -37,10 +40,10 @@ const TAB_LABEL: Record<LearnerTab, () => string> = {
 };
 
 function ToDoPage() {
-  const { tab } = Route.useSearch();
+  const { tab, ended } = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
-  const { rows } = useSuspenseQuery(myCourseworkQuery).data;
+  const { rows } = useSuspenseQuery(myCourseworkQuery(ended)).data;
   const lists: Record<LearnerTab, typeof rows> = {
     to_do: rows.filter((row) => TO_DO.includes(row.state)),
     missing: rows.filter((row) => row.state === "missing"),
@@ -57,6 +60,19 @@ function ToDoPage() {
         title={m.courseworkToDoTitle()}
         description={m.courseworkToDoHint()}
         menu={[
+          {
+            label: ended
+              ? m.courseworkCurrentClasses()
+              : m.courseworkEndedClasses(),
+            icon: History,
+            onSelect: () => {
+              void navigate({
+                resetScroll: false,
+                replace: true,
+                search: (previous) => ({ ...previous, ended: !ended }),
+              });
+            },
+          },
           {
             label: m.courseworkDownloadMine(),
             icon: Download,
@@ -76,7 +92,7 @@ function ToDoPage() {
           void navigate({
             resetScroll: false,
             replace: true,
-            search: { tab: next },
+            search: (previous) => ({ ...previous, tab: next }),
           });
         }}
       >

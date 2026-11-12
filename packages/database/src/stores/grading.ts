@@ -143,8 +143,10 @@ export async function scaleInUse(
   input: { tenantId: string; id: string },
 ): Promise<boolean> {
   const [row] = await tx.execute<{ used: boolean }>(sql`
-    select exists (select 1 from core.classes where tenant_id = ${input.tenantId}::uuid
-        and grade_scale_id = ${input.id}::uuid and status = 'active')
+    select exists (select 1 from core.class_grading g
+        join core.classes c on c.tenant_id = g.tenant_id and c.id = g.class_id and c.status = 'active'
+        where g.tenant_id = ${input.tenantId}::uuid
+        and g.grade_scale_id = ${input.id}::uuid and g.status = 'active')
       or exists (select 1 from core.programmes where tenant_id = ${input.tenantId}::uuid
         and grade_scale_id = ${input.id}::uuid and status = 'active') as used`);
   return row?.used ?? false;
@@ -279,8 +281,10 @@ export async function programmeInUse(
   input: { tenantId: string; id: string },
 ): Promise<boolean> {
   const [row] = await tx.execute<{ used: boolean }>(sql`
-    select exists (select 1 from core.classes where tenant_id = ${input.tenantId}::uuid
-      and programme_id = ${input.id}::uuid and status = 'active') as used`);
+    select exists (select 1 from core.class_grading g
+      join core.classes c on c.tenant_id = g.tenant_id and c.id = g.class_id and c.status = 'active'
+      where g.tenant_id = ${input.tenantId}::uuid
+      and g.programme_id = ${input.id}::uuid and g.status = 'active') as used`);
   return row?.used ?? false;
 }
 
@@ -320,10 +324,13 @@ export async function classGrading(
     effective_programme_id: string | null;
     version_id: string | null;
   }>(sql`
-    select programme_id, grade_scale_id, app.programme_of(id) as effective_programme_id,
-      app.scale_version_of(id, ${input.today}::date) as version_id
-    from core.classes
-    where tenant_id = ${input.tenantId}::uuid and id = ${input.classId}::uuid and status = 'active'`);
+    select g.programme_id, g.grade_scale_id, app.programme_of(c.id) as effective_programme_id,
+      app.scale_version_of(c.id, ${input.today}::date) as version_id
+    from core.classes c
+    left join core.class_grading g on g.tenant_id = c.tenant_id and g.class_id = c.id
+      and g.status = 'active'
+    where c.tenant_id = ${input.tenantId}::uuid and c.id = ${input.classId}::uuid
+      and c.status = 'active'`);
   return row
     ? {
         programmeId: row.programme_id,
@@ -344,37 +351,16 @@ export async function setClassGrading(
   },
 ): Promise<void> {
   await tx.execute(sql`
-    update core.classes set programme_id = ${input.programmeId}::uuid,
-      grade_scale_id = ${input.scaleId}::uuid
-    where tenant_id = ${input.tenantId}::uuid and id = ${input.classId}::uuid and status = 'active'`);
-}
-
-/**
- * Grades a term's work again on the bands in force today: its term grades
- * and the scores of the work set for it. Only what has a score changes.
- */
-export async function regradeTerm(
-  tx: Tx,
-  input: { tenantId: string; orgId: string; periodId: string; today: string },
-): Promise<{ terms: number; work: number }> {
-  const terms = await tx.execute<{ id: string }>(sql`
-    update core.period_grades g
-    set grade_scale_version_id = app.scale_version_of(g.class_id, ${input.today}::date)
-    where g.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.orgId}::uuid
-      and g.grading_period_id = ${input.periodId}::uuid and g.status = 'active'
-      and g.score is not null
-    returning g.id`);
-  const work = await tx.execute<{ id: string }>(sql`
-    update core.assessments x
-    set grade_scale_version_id = app.scale_version_of(a.class_id, ${input.today}::date)
-    from core.submissions s
-    join core.assignments a on a.tenant_id = s.tenant_id and a.id = s.assignment_id
-    where x.tenant_id = ${input.tenantId}::uuid and s.tenant_id = x.tenant_id
-      and s.id = x.submission_id and a.org_id = ${input.orgId}::uuid
-      and a.grading_period_id = ${input.periodId}::uuid and x.status = 'active'
-      and x.score is not null
-    returning x.id`);
-  return { terms: terms.length, work: work.length };
+    update core.class_grading set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and class_id = ${input.classId}::uuid
+      and status = 'active'`);
+  if (input.programmeId || input.scaleId)
+    await tx.execute(sql`
+      insert into core.class_grading (tenant_id, org_id, class_id, programme_id, grade_scale_id)
+      select c.tenant_id, c.org_id, c.id, ${input.programmeId}::uuid, ${input.scaleId}::uuid
+      from core.classes c
+      where c.tenant_id = ${input.tenantId}::uuid and c.id = ${input.classId}::uuid
+        and c.status = 'active'`);
 }
 
 /**

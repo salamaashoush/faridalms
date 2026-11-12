@@ -20,13 +20,7 @@ import { PageHeader } from "@faridalms/ui/system/page-header";
 import { sidePanelRoom } from "@faridalms/ui/system/side-panel";
 import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import {
-  BookOpen,
-  CalendarRange,
-  Calculator,
-  EyeOff,
-  Send,
-} from "lucide-react";
+import { BookOpen, Calculator, EyeOff, Send } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -46,6 +40,7 @@ import {
   calculatedScore,
   calculatedText,
   isUnreleased,
+  termOf,
   termCellId,
 } from "./book";
 import { gradebookMarks, NothingYet, ResultMark, WorkHeader } from "./marks";
@@ -80,6 +75,7 @@ interface GridOptions {
 
 // Built per render: headers read the request's locale.
 function gradebookGrid({ book, grades, editable, onOpen }: GridOptions) {
+  const termed = termOf(book) !== null;
   const rowHeader = {
     header: m.courseworkStudent(),
     cell: (student: Student) => (
@@ -101,14 +97,16 @@ function gradebookGrid({ book, grades, editable, onOpen }: GridOptions) {
   const columns: GridColumn<Student>[] = [
     {
       id: "calculated",
-      header: m.gradebookCalculated(),
+      header: termed ? m.gradebookCalculated() : m.gradebookRunning(),
       numeric: true,
       cell: (student) =>
         calculatedText(book, student.id) ?? (
           <NothingYet label={m.gradebookNoGradedWork()} />
         ),
     },
-    {
+  ];
+  if (termed)
+    columns.push({
       id: "term",
       header: m.gradebookTermGrade(),
       numeric: true,
@@ -136,7 +134,8 @@ function gradebookGrid({ book, grades, editable, onOpen }: GridOptions) {
           </span>
         );
       },
-    },
+    });
+  columns.push(
     ...book.assignments.map((work): GridColumn<Student> => ({
       id: `work-${work.id}`,
       header: <WorkHeader work={work} />,
@@ -145,7 +144,7 @@ function gradebookGrid({ book, grades, editable, onOpen }: GridOptions) {
         <ResultMark book={book} work={work} student={student} />
       ),
     })),
-  ];
+  );
   return { rowHeader, columns };
 }
 
@@ -155,8 +154,9 @@ interface PhoneListProps {
   onOpen: (studentId: string) => void;
 }
 
-/** Below 768px each student is a row that opens their term in the panel. */
+/** Below 768px each student is a row that opens their work, and term, in the panel. */
 function PhoneList({ book, grades, onOpen }: PhoneListProps) {
+  const termed = termOf(book) !== null;
   return (
     <ul
       aria-label={m.gradebookCaption()}
@@ -179,15 +179,19 @@ function PhoneList({ book, grades, onOpen }: PhoneListProps) {
                 </bdi>
                 <span className="truncate text-[13px] leading-[18px] text-muted-foreground">
                   {calculated
-                    ? m.gradebookCalculatedLine({ value: calculated })
+                    ? termed
+                      ? m.gradebookCalculatedLine({ value: calculated })
+                      : m.gradebookRunningLine({ value: calculated })
                     : m.gradebookNoGradedWork()}
                 </span>
               </span>
-              <span className="inline-flex shrink-0 items-center gap-1.5 text-sm tabular-nums">
-                <UnreleasedMark shown={isUnreleased(book, student.id)} />
-                <span className="sr-only">{m.gradebookTermGrade()}</span>
-                <GridFigure value={score} />
-              </span>
+              {termed ? (
+                <span className="inline-flex shrink-0 items-center gap-1.5 text-sm tabular-nums">
+                  <UnreleasedMark shown={isUnreleased(book, student.id)} />
+                  <span className="sr-only">{m.gradebookTermGrade()}</span>
+                  <GridFigure value={score} />
+                </span>
+              ) : null}
             </button>
           </li>
         );
@@ -220,10 +224,12 @@ interface SheetProps {
 /**
  * The class's term, editable in place: the header says whether what was
  * typed is saved and offers Release when grades wait for it, and the grid
- * and the student panel edit the same term grades and comments.
+ * and the student panel edit the same term grades and comments. Without a
+ * term it is the class's running book, to read.
  */
 function Sheet({ book, toolbar, studentId, onStudent }: SheetProps) {
-  const editable = !book.closed;
+  const term = termOf(book);
+  const editable = term !== null && !term.closed;
   const grades = useTermGrades(book, editable);
   const docked = useMedia("(min-width: 64rem)");
   const phone = !useMedia("(min-width: 48rem)");
@@ -251,7 +257,13 @@ function Sheet({ book, toolbar, studentId, onStudent }: SheetProps) {
       <Page width="list">
         <PageHeader
           title={m.gradebookTitle()}
-          description={editable ? m.gradebookHint() : m.gradebookClosedHint()}
+          description={
+            !term
+              ? m.gradebookRunningHint()
+              : editable
+                ? m.gradebookHint()
+                : m.gradebookClosedHint()
+          }
           status={editable ? <SaveState grades={grades} /> : undefined}
           action={
             editable && unreleased > 0
@@ -326,6 +338,7 @@ function Sheet({ book, toolbar, studentId, onStudent }: SheetProps) {
           grades={grades}
           studentId={studentId}
           editable={editable}
+          termed={term !== null}
           docked={docked}
           phone={phone}
           onGo={goTo}
@@ -404,18 +417,20 @@ export function Gradebook({
       onChange: ([next]) =>
         onScope({ classId: next, periodId: undefined, student: undefined }),
     },
-    ...(book.terms.length
+    ...(book.term?.terms.length
       ? [
           {
             id: "term",
             label: m.courseworkTerm(),
             single: true,
-            options: book.terms.map((row) => ({
+            options: book.term.terms.map((row) => ({
               value: row.id,
               label: inLocale(row.titleEn, row.titleAr),
             })),
-            selected: book.periodId ? [book.periodId] : [],
-            defaultSelected: book.currentPeriodId ? [book.currentPeriodId] : [],
+            selected: book.term.periodId ? [book.term.periodId] : [],
+            defaultSelected: book.term.currentPeriodId
+              ? [book.term.currentPeriodId]
+              : [],
             onChange: ([next]: string[]) =>
               onScope({ periodId: next, student: undefined }),
           },
@@ -427,7 +442,7 @@ export function Gradebook({
     onReset: () =>
       onScope({ classId: undefined, periodId: undefined, student: undefined }),
   };
-  if (!book.periodId || book.students.length === 0)
+  if (book.students.length === 0)
     return (
       <Page width="list">
         <PageHeader
@@ -436,21 +451,13 @@ export function Gradebook({
         />
         <div className="grid gap-4">
           <IndexToolbar {...toolbar} />
-          {book.periodId ? (
-            <EmptyState icon={BookOpen} title={m.gradebookNoStudents()} />
-          ) : (
-            <EmptyState
-              icon={CalendarRange}
-              title={m.gradebookNoTerms()}
-              description={m.gradebookNoTermsBody()}
-            />
-          )}
+          <EmptyState icon={BookOpen} title={m.gradebookNoStudents()} />
         </div>
       </Page>
     );
   return (
     <Sheet
-      key={`${classId}-${book.periodId}`}
+      key={`${classId}-${book.term?.periodId ?? ""}`}
       book={book}
       toolbar={toolbar}
       studentId={studentId}

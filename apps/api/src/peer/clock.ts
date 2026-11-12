@@ -7,10 +7,10 @@ import {
   peerReviewsDueSoon,
 } from "@faridalms/database/stores/peer-reviews";
 
-import type { UnitContext } from "./context";
+import type { UnitContext } from "../core/context";
 
+import { tellReviewers } from "../coursework/notices";
 import { everyTenant } from "../files/upkeep";
-import { tellReviewers } from "./teaching-notices";
 
 /** How long before a review date the reviewers still writing hear of it. */
 export const PEER_REMINDER_HOURS = 24;

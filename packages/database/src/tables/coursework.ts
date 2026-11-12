@@ -13,7 +13,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { academicSessions } from "./calendar";
 import {
   baseConstraints,
   ck,
@@ -31,75 +30,10 @@ import {
   uq,
 } from "./conventions";
 import { gradeScaleVersions } from "./grading";
-import { learningModules } from "./learning";
 import { users } from "./people";
 import { programmeCategories } from "./programmes";
-import { classes } from "./teaching";
-import { tenants } from "./tenancy";
-
-/** A teacher's named set of students in one class, for giving work to some. */
-export const classGroups = core.table.withRLS(
-  "class_groups",
-  {
-    ...tenantColumns(),
-    orgId: uuid("org_id").notNull(),
-    classId: uuid("class_id").notNull(),
-    titleEn: text("title_en"),
-    titleAr: text("title_ar"),
-    createdByUserId: uuid("created_by_user_id"),
-    ...entityColumns(),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("class_groups", t.tenantId, t.id),
-    ...baseConstraints("class_groups", t, tenants),
-    fk(
-      "class_groups",
-      [t.tenantId, t.classId, t.orgId],
-      [classes.tenantId, classes.id, classes.orgId],
-    ),
-    fk(
-      "class_groups",
-      [t.tenantId, t.createdByUserId],
-      [users.tenantId, users.id],
-    ),
-    ck("class_groups", "title_en", sql`char_length(title_en) between 1 and 80`),
-    ck("class_groups", "title_ar", sql`char_length(title_ar) between 1 and 80`),
-    ck("class_groups", "title", sql`num_nonnulls(title_en, title_ar) >= 1`),
-    index("class_groups_class_idx")
-      .on(t.tenantId, t.classId)
-      .where(sql`status = 'active'`),
-    ...entityProfile(),
-  ],
-);
-
-export const classGroupMembers = core.table.withRLS(
-  "class_group_members",
-  {
-    ...tenantColumns(),
-    groupId: uuid("group_id").notNull(),
-    studentUserId: uuid("student_user_id").notNull(),
-    ...entityColumns(),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("class_group_members", t.tenantId, t.id),
-    ...baseConstraints("class_group_members", t, tenants),
-    fk(
-      "class_group_members",
-      [t.tenantId, t.groupId],
-      [classGroups.tenantId, classGroups.id],
-    ),
-    fk(
-      "class_group_members",
-      [t.tenantId, t.studentUserId],
-      [users.tenantId, users.id],
-    ),
-    uniqueIndex("class_group_members_key")
-      .on(t.tenantId, t.groupId, t.studentUserId)
-      .where(sql`status = 'active'`),
-    ...eraseAndDelete(erasureOf("student_user_id")),
-    ...entityProfile(),
-  ],
-);
+import { classes, classGroups } from "./teaching";
+import { orgs, tenants } from "./tenancy";
 
 export type AssignmentState = "draft" | "published" | "archived";
 export type LatePolicy = "accept" | "deduct" | "refuse";
@@ -127,8 +61,6 @@ export const assignments = core.table.withRLS(
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
     classId: uuid("class_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
-    gradingPeriodId: uuid("grading_period_id"),
     /** Where the work counts in its class programme's term grade. */
     categoryId: uuid("category_id"),
     authorUserId: uuid("author_user_id").notNull(),
@@ -173,14 +105,6 @@ export const assignments = core.table.withRLS(
      */
     discussionPostFirst: boolean("discussion_post_first"),
     discussionReplies: smallint("discussion_replies"),
-    /** The module a discussion sits in, beside its lessons, when its teacher puts it there. */
-    moduleId: uuid("module_id"),
-    /**
-     * A module's discussion is one discussion across every class the
-     * module is set for: a row per class, each its class's conversation
-     * and grade, sharing this key, the id of the part made first.
-     */
-    discussionGroup: uuid("discussion_group"),
     /**
      * For peer review: how many classmates' work each student reviews,
      * whether reviewers and authors stay unnamed to each other, when the
@@ -210,16 +134,12 @@ export const assignments = core.table.withRLS(
   },
   (t): PgTableExtraConfigValue[] => [
     pk("assignments", t.tenantId, t.id),
+    uq("assignments", t.tenantId, t.id, t.classId, t.status),
     ...baseConstraints("assignments", t, tenants),
     fk(
       "assignments",
       [t.tenantId, t.classId, t.orgId],
       [classes.tenantId, classes.id, classes.orgId],
-    ),
-    fk(
-      "assignments",
-      [t.tenantId, t.gradingPeriodId],
-      [academicSessions.tenantId, academicSessions.id],
     ),
     fk("assignments", [t.tenantId, t.authorUserId], [users.tenantId, users.id]),
     ck("assignments", "title", sql`char_length(title) between 1 and 200`),
@@ -254,24 +174,6 @@ export const assignments = core.table.withRLS(
       "discussion",
       sql`(submission_format = 'discussion') = (discussion_post_first is not null and discussion_replies is not null) and (discussion_replies is null or discussion_replies between 0 and 5)`,
     ),
-    fk(
-      "assignments",
-      [t.tenantId, t.moduleId],
-      [learningModules.tenantId, learningModules.id],
-    ),
-    ck(
-      "assignments",
-      "module",
-      sql`module_id is null or submission_format = 'discussion'`,
-    ),
-    ck(
-      "assignments",
-      "discussion_group",
-      sql`discussion_group is null or module_id is not null`,
-    ),
-    uniqueIndex("assignments_discussion_class_key")
-      .on(t.tenantId, t.discussionGroup, t.classId)
-      .where(sql`status = 'active' and discussion_group is not null`),
     ck("assignments", "language", sql`language in ('en', 'ar')`),
     ck(
       "assignments",
@@ -334,12 +236,6 @@ export const assignments = core.table.withRLS(
     index("assignments_class_idx")
       .on(t.tenantId, t.classId, t.state)
       .where(sql`status = 'active'`),
-    index("assignments_year_idx")
-      .on(t.tenantId, t.orgId, t.schoolYearId)
-      .where(sql`status = 'active'`),
-    index("assignments_module_idx")
-      .on(t.tenantId, t.moduleId)
-      .where(sql`status = 'active' and module_id is not null`),
     ...entityProfile({ integration: true }),
   ],
 );
@@ -1229,70 +1125,43 @@ export const rubrics = core.table.withRLS(
 );
 
 /**
- * A student's grade in a class for a term, the period grade the gradebook
- * and report cards show; families see it once it is released.
+ * A question a teacher keeps to ask again: in their own bank, or the
+ * school's. Its content is a document holding the one question, so its
+ * pictures and recordings belong to it and are copied wherever it is used.
+ * The title is the prompt's words and the kind the question's, kept here so
+ * the bank can be searched without opening each document.
  */
-export const periodGrades = core.table.withRLS(
-  "period_grades",
+export const bankQuestions = core.table.withRLS(
+  "bank_questions",
   {
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
-    classId: uuid("class_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
-    gradingPeriodId: uuid("grading_period_id").notNull(),
-    studentUserId: uuid("student_user_id").notNull(),
-    score: numeric("score", { precision: 7, scale: 2, mode: "number" }),
-    maxScore: numeric("max_score", { precision: 7, scale: 2, mode: "number" })
+    ownerUserId: uuid("owner_user_id").notNull(),
+    scope: text("scope").$type<"mine" | "school">().notNull(),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    tags: text("tags")
+      .array()
       .notNull()
-      .default(100),
-    comment: text("comment"),
-    gradeScaleVersionId: uuid("grade_scale_version_id"),
-    recordedByUserId: uuid("recorded_by_user_id").notNull(),
-    releasedAt: instant("released_at"),
+      .default(sql`'{}'`),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
-    pk("period_grades", t.tenantId, t.id),
-    ...baseConstraints("period_grades", t, tenants),
+    pk("bank_questions", t.tenantId, t.id),
+    ...baseConstraints("bank_questions", t, tenants),
+    fk("bank_questions", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
     fk(
-      "period_grades",
-      [t.tenantId, t.classId, t.orgId],
-      [classes.tenantId, classes.id, classes.orgId],
-    ),
-    fk(
-      "period_grades",
-      [t.tenantId, t.gradingPeriodId],
-      [academicSessions.tenantId, academicSessions.id],
-    ),
-    fk(
-      "period_grades",
-      [t.tenantId, t.studentUserId],
+      "bank_questions",
+      [t.tenantId, t.ownerUserId],
       [users.tenantId, users.id],
     ),
-    fk(
-      "period_grades",
-      [t.tenantId, t.recordedByUserId],
-      [users.tenantId, users.id],
-    ),
-    fk(
-      "period_grades",
-      [t.tenantId, t.gradeScaleVersionId],
-      [gradeScaleVersions.tenantId, gradeScaleVersions.id],
-    ),
-    ck("period_grades", "max_score", sql`max_score > 0`),
-    ck(
-      "period_grades",
-      "score",
-      sql`score is null or (score >= 0 and score <= max_score)`,
-    ),
-    ck(
-      "period_grades",
-      "comment",
-      sql`char_length(comment) between 1 and 2000`,
-    ),
-    uniqueIndex("period_grades_key")
-      .on(t.tenantId, t.classId, t.gradingPeriodId, t.studentUserId)
+    ck("bank_questions", "scope", sql`scope in ('mine', 'school')`),
+    ck("bank_questions", "kind", sql`kind ~ '^[a-z]{2,20}$'`),
+    ck("bank_questions", "title", sql`char_length(title) between 1 and 300`),
+    ck("bank_questions", "tags", sql`cardinality(tags) <= 8`),
+    index("bank_questions_org_idx")
+      .on(t.tenantId, t.orgId, t.scope)
       .where(sql`status = 'active'`),
-    ...entityProfile({ integration: true }),
+    ...entityProfile(),
   ],
 );

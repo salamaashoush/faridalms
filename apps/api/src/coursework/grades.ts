@@ -3,7 +3,7 @@ import type { GradeView } from "@faridalms/domain/grading";
 import { scaleVersionsOf } from "@faridalms/database/stores/grading";
 import { gradeOf } from "@faridalms/domain/grading";
 
-import type { UnitContext } from "./context";
+import type { UnitContext } from "../core/context";
 
 /**
  * Reads grades for scores pinned to scale versions: one query for every

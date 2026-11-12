@@ -1,4 +1,3 @@
-import type { CellTransaction } from "@faridalms/database/context";
 import type {
   LessonRow,
   lessonResponses,
@@ -14,12 +13,15 @@ import {
   progressIn,
   recordProgress,
 } from "@faridalms/database/stores/learning";
-import { recordEvidence } from "@faridalms/database/stores/standards";
 import {
   checkStates,
   completionMet,
   lessonScore,
 } from "@faridalms/domain/learning";
+
+import type { ModuleScope } from "../core/extension";
+
+import { tellMarkedLesson } from "./points";
 
 /** A changed mark for one try at a question, and for code, how running it again went. */
 export interface Remark {
@@ -37,7 +39,7 @@ export interface Remark {
  * finished.
  */
 export async function applyRemarks(
-  unit: { tx: CellTransaction; tenantId: string },
+  unit: ModuleScope,
   shown: LessonRow,
   published: { content: LessonDocument; versionId: string },
   rows: Awaited<ReturnType<typeof lessonResponses>>,
@@ -108,10 +110,9 @@ export async function applyRemarks(
         item.try === 1 &&
         item.block.standards?.length,
     ))
-      await recordEvidence(unit.tx, {
-        tenantId: unit.tenantId,
+      await tellMarkedLesson(unit, {
+        lessonId: shown.id,
         studentId,
-        sitting: { source: "lesson", lessonId: shown.id },
         marks: [
           {
             attempt: change.attempt,

@@ -1,14 +1,16 @@
+import { Button } from "@faridalms/ui/button";
 import { FormField, SelectField } from "@faridalms/ui/system/form-field";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { RefreshCcw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { yearOptionsQuery, yearQuery } from "~/queries/years";
-import { regradeTerm } from "~/server/grading";
+import { regradeTerm } from "~/server/gradebook";
 import { getMessageFromError } from "~/utils/error";
 
 export interface RegradeSheetProps {
@@ -92,5 +94,33 @@ export function RegradeSheet({ open, onClose }: RegradeSheetProps) {
         )}
       </FormField>
     </SheetForm>
+  );
+}
+
+/** The scales' action that grades a term again, with its sheet. */
+export function RegradeAction() {
+  const [open, setOpen] = useState(false);
+  const [generation, setGeneration] = useState(0);
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="max-md:h-10"
+        onClick={() => {
+          setGeneration((current) => current + 1);
+          setOpen(true);
+        }}
+      >
+        <RefreshCcw aria-hidden />
+        {m.gradingRegradeTitle()}
+      </Button>
+      <RegradeSheet
+        key={generation}
+        open={open}
+        onClose={() => setOpen(false)}
+      />
+    </>
   );
 }

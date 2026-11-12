@@ -68,7 +68,7 @@ export function useTermGrades(book: Book, editable: boolean) {
   const [drafts, setDrafts] = useState<Drafts>(() => storedDrafts(book));
   const stored = useRef<Drafts>(storedDrafts(book));
   const classId = book.class.id;
-  const periodId = book.periodId ?? "";
+  const periodId = book.term?.periodId ?? "";
   const refresh = useCallback(
     () => queryClient.invalidateQueries({ queryKey: ["gradebook"] }),
     [queryClient],

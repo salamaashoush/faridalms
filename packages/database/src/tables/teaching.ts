@@ -11,6 +11,7 @@ import {
   entityColumns,
   entityProfile,
   erase,
+  eraseAndDelete,
   erasureOf,
   fk,
   pk,
@@ -20,9 +21,7 @@ import {
 } from "./conventions";
 import { descriptors } from "./descriptors";
 import { locations } from "./files";
-import { gradeScales } from "./grading";
 import { users } from "./people";
-import { programmes } from "./programmes";
 import { importRuns } from "./records";
 import { orgs, tenants } from "./tenancy";
 
@@ -117,15 +116,6 @@ export const classes = core.table.withRLS(
       .notNull()
       .generatedAlwaysAs(sql`'grade_level'`),
     locationId: uuid("location_id"),
-    /** Empty for the one programme covering the class's grade level. */
-    programmeId: uuid("programme_id"),
-    /** Empty to grade on the programme's scale. */
-    gradeScaleId: uuid("grade_scale_id"),
-    /**
-     * Ticks and chimes as children answer in lessons; a teacher turns them
-     * off for a room full of tablets. Recorded and read words still play.
-     */
-    lessonSounds: boolean("lesson_sounds").notNull().default(true),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -156,16 +146,6 @@ export const classes = core.table.withRLS(
       "classes",
       [t.tenantId, t.locationId],
       [locations.tenantId, locations.id],
-    ),
-    fk(
-      "classes",
-      [t.tenantId, t.programmeId],
-      [programmes.tenantId, programmes.id],
-    ),
-    fk(
-      "classes",
-      [t.tenantId, t.gradeScaleId],
-      [gradeScales.tenantId, gradeScales.id],
     ),
     ck("classes", "org_type", sql`org_type = 'school'`),
     ck("classes", "code", sql`code ~ '^[A-Za-z0-9_.-]{1,40}$'`),
@@ -267,5 +247,69 @@ export const enrollments = core.table.withRLS(
     index("enrollments_delta_idx").on(t.tenantId, t.dateLastModified),
     ...entityProfile({ integration: true }),
     ...erase(erasureOf("user_id")),
+  ],
+);
+
+/** A teacher's named set of students in one class, for giving work to some. */
+export const classGroups = core.table.withRLS(
+  "class_groups",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    classId: uuid("class_id").notNull(),
+    titleEn: text("title_en"),
+    titleAr: text("title_ar"),
+    createdByUserId: uuid("created_by_user_id"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("class_groups", t.tenantId, t.id),
+    ...baseConstraints("class_groups", t, tenants),
+    fk(
+      "class_groups",
+      [t.tenantId, t.classId, t.orgId],
+      [classes.tenantId, classes.id, classes.orgId],
+    ),
+    fk(
+      "class_groups",
+      [t.tenantId, t.createdByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("class_groups", "title_en", sql`char_length(title_en) between 1 and 80`),
+    ck("class_groups", "title_ar", sql`char_length(title_ar) between 1 and 80`),
+    ck("class_groups", "title", sql`num_nonnulls(title_en, title_ar) >= 1`),
+    index("class_groups_class_idx")
+      .on(t.tenantId, t.classId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+export const classGroupMembers = core.table.withRLS(
+  "class_group_members",
+  {
+    ...tenantColumns(),
+    groupId: uuid("group_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("class_group_members", t.tenantId, t.id),
+    ...baseConstraints("class_group_members", t, tenants),
+    fk(
+      "class_group_members",
+      [t.tenantId, t.groupId],
+      [classGroups.tenantId, classGroups.id],
+    ),
+    fk(
+      "class_group_members",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    uniqueIndex("class_group_members_key")
+      .on(t.tenantId, t.groupId, t.studentUserId)
+      .where(sql`status = 'active'`),
+    ...eraseAndDelete(erasureOf("student_user_id")),
+    ...entityProfile(),
   ],
 );

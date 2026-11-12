@@ -96,12 +96,11 @@ export async function copyLesson(
 export async function copyModule(
   context: UnitContext,
   source: ModuleRow,
-  into: { yearId: string; classIds: readonly string[] },
+  into: { classIds: readonly string[] },
 ) {
   const created = await insertModule(context.tx, {
     tenantId: context.tenantId,
     schoolId: context.schoolId,
-    yearId: into.yearId,
     authorId: context.actor.userId,
     title: source.title,
     summary: source.summary,

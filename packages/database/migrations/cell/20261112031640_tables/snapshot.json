@@ -2,9 +2,9 @@
   "type": "diff",
   "version": "9",
   "dialect": "postgres",
-  "id": "cd38c3c8-f9c4-45d6-9e16-26666ff88611",
+  "id": "6a70a756-35c1-4f75-abe4-9279d4accc68",
   "prevIds": [
-    "1876f24c-b432-423b-a879-f1afec7bf120"
+    "3639a044-0ad4-4852-8585-435040845ef3"
   ],
   "footprints": [
     {
@@ -358,6 +358,25 @@
       "statementTarget": [
         "table",
         "core",
+        "assignment_terms"
+      ],
+      "writes": [
+        "s|tbl|core.assignment_terms",
+        "n|tbl|core.assignment_terms",
+        "e|tbl|core.assignment_terms",
+        "n|rel|core.assignment_terms",
+        "n|type|core.assignment_terms",
+        "n|rel|core.assignment_terms_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
         "assignments"
       ],
       "writes": [
@@ -366,7 +385,8 @@
         "e|tbl|core.assignments",
         "n|rel|core.assignments",
         "n|type|core.assignments",
-        "n|rel|core.assignments_pkey"
+        "n|rel|core.assignments_pkey",
+        "n|rel|core.assignments_tenant_id_id_class_id_status_key"
       ],
       "reads": [
         "n|sch|core"
@@ -703,6 +723,25 @@
       "statementTarget": [
         "table",
         "core",
+        "class_grading"
+      ],
+      "writes": [
+        "s|tbl|core.class_grading",
+        "n|tbl|core.class_grading",
+        "e|tbl|core.class_grading",
+        "n|rel|core.class_grading",
+        "n|type|core.class_grading",
+        "n|rel|core.class_grading_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
         "class_group_members"
       ],
       "writes": [
@@ -731,6 +770,25 @@
         "n|rel|core.class_groups",
         "n|type|core.class_groups",
         "n|rel|core.class_groups_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_lesson_settings"
+      ],
+      "writes": [
+        "s|tbl|core.class_lesson_settings",
+        "n|tbl|core.class_lesson_settings",
+        "e|tbl|core.class_lesson_settings",
+        "n|rel|core.class_lesson_settings",
+        "n|type|core.class_lesson_settings",
+        "n|rel|core.class_lesson_settings_pkey"
       ],
       "reads": [
         "n|sch|core"
@@ -1799,6 +1857,25 @@
       "statementTarget": [
         "table",
         "core",
+        "lesson_sittings"
+      ],
+      "writes": [
+        "s|tbl|core.lesson_sittings",
+        "n|tbl|core.lesson_sittings",
+        "e|tbl|core.lesson_sittings",
+        "n|rel|core.lesson_sittings",
+        "n|type|core.lesson_sittings",
+        "n|rel|core.lesson_sittings_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
         "lesson_watches"
       ],
       "writes": [
@@ -2056,6 +2133,25 @@
         "n|rel|core.module_classes",
         "n|type|core.module_classes",
         "n|rel|core.module_classes_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "module_discussions"
+      ],
+      "writes": [
+        "s|tbl|core.module_discussions",
+        "n|tbl|core.module_discussions",
+        "e|tbl|core.module_discussions",
+        "n|rel|core.module_discussions",
+        "n|type|core.module_discussions",
+        "n|rel|core.module_discussions_pkey"
       ],
       "reads": [
         "n|sch|core"
@@ -2810,6 +2906,27 @@
       "statementTarget": [
         "table",
         "core",
+        "standard_sittings"
+      ],
+      "writes": [
+        "s|tbl|core.standard_sittings",
+        "n|tbl|core.standard_sittings",
+        "e|tbl|core.standard_sittings",
+        "n|rel|core.standard_sittings",
+        "n|type|core.standard_sittings",
+        "n|rel|core.standard_sittings_pkey",
+        "n|rel|core.standard_sittings_tenant_id_id_student_user_id_key",
+        "n|rel|core.standard_sittings_tenant_id_id_student_user_id_kind_key"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
         "standards"
       ],
       "writes": [
@@ -3164,6 +3281,25 @@
         "n|rel|core.work_comments",
         "n|type|core.work_comments",
         "n|rel|core.work_comments_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "work_sittings"
+      ],
+      "writes": [
+        "s|tbl|core.work_sittings",
+        "n|tbl|core.work_sittings",
+        "e|tbl|core.work_sittings",
+        "n|rel|core.work_sittings",
+        "n|type|core.work_sittings",
+        "n|rel|core.work_sittings_pkey"
       ],
       "reads": [
         "n|sch|core"
@@ -3776,21 +3912,41 @@
       "statementTarget": [
         "index",
         "core",
-        "assignments",
-        "assignments_discussion_class_key"
+        "assignment_terms",
+        "assignment_terms_assignment_key"
       ],
       "writes": [
-        "s|idx|core.assignments_discussion_class_key",
-        "n|idx|core.assignments_discussion_class_key",
-        "e|idx|core.assignments_discussion_class_key",
-        "n|rel|core.assignments_discussion_class_key"
+        "s|idx|core.assignment_terms_assignment_key",
+        "n|idx|core.assignment_terms_assignment_key",
+        "e|idx|core.assignment_terms_assignment_key",
+        "n|rel|core.assignment_terms_assignment_key"
       ],
       "reads": [
-        "n|tbl|core.assignments",
+        "n|tbl|core.assignment_terms",
         "n|sch|core",
-        "n|col|core.assignments.tenant_id",
-        "n|col|core.assignments.discussion_group",
-        "n|col|core.assignments.class_id"
+        "n|col|core.assignment_terms.tenant_id",
+        "n|col|core.assignment_terms.assignment_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "assignment_terms",
+        "assignment_terms_period_idx"
+      ],
+      "writes": [
+        "s|idx|core.assignment_terms_period_idx",
+        "n|idx|core.assignment_terms_period_idx",
+        "e|idx|core.assignment_terms_period_idx",
+        "n|rel|core.assignment_terms_period_idx"
+      ],
+      "reads": [
+        "n|tbl|core.assignment_terms",
+        "n|sch|core",
+        "n|col|core.assignment_terms.tenant_id",
+        "n|col|core.assignment_terms.grading_period_id"
       ]
     },
     {
@@ -3813,49 +3969,6 @@
         "n|col|core.assignments.tenant_id",
         "n|col|core.assignments.class_id",
         "n|col|core.assignments.state"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "core",
-        "assignments",
-        "assignments_year_idx"
-      ],
-      "writes": [
-        "s|idx|core.assignments_year_idx",
-        "n|idx|core.assignments_year_idx",
-        "e|idx|core.assignments_year_idx",
-        "n|rel|core.assignments_year_idx"
-      ],
-      "reads": [
-        "n|tbl|core.assignments",
-        "n|sch|core",
-        "n|col|core.assignments.tenant_id",
-        "n|col|core.assignments.org_id",
-        "n|col|core.assignments.school_year_id"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "core",
-        "assignments",
-        "assignments_module_idx"
-      ],
-      "writes": [
-        "s|idx|core.assignments_module_idx",
-        "n|idx|core.assignments_module_idx",
-        "e|idx|core.assignments_module_idx",
-        "n|rel|core.assignments_module_idx"
-      ],
-      "reads": [
-        "n|tbl|core.assignments",
-        "n|sch|core",
-        "n|col|core.assignments.tenant_id",
-        "n|col|core.assignments.module_id"
       ]
     },
     {
@@ -4380,6 +4493,27 @@
       "statementTarget": [
         "index",
         "core",
+        "class_grading",
+        "class_grading_class_key"
+      ],
+      "writes": [
+        "s|idx|core.class_grading_class_key",
+        "n|idx|core.class_grading_class_key",
+        "e|idx|core.class_grading_class_key",
+        "n|rel|core.class_grading_class_key"
+      ],
+      "reads": [
+        "n|tbl|core.class_grading",
+        "n|sch|core",
+        "n|col|core.class_grading.tenant_id",
+        "n|col|core.class_grading.class_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
         "class_group_members",
         "class_group_members_key"
       ],
@@ -4416,6 +4550,27 @@
         "n|sch|core",
         "n|col|core.class_groups.tenant_id",
         "n|col|core.class_groups.class_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "class_lesson_settings",
+        "class_lesson_settings_class_key"
+      ],
+      "writes": [
+        "s|idx|core.class_lesson_settings_class_key",
+        "n|idx|core.class_lesson_settings_class_key",
+        "e|idx|core.class_lesson_settings_class_key",
+        "n|rel|core.class_lesson_settings_class_key"
+      ],
+      "reads": [
+        "n|tbl|core.class_lesson_settings",
+        "n|sch|core",
+        "n|col|core.class_lesson_settings.tenant_id",
+        "n|col|core.class_lesson_settings.class_id"
       ]
     },
     {
@@ -5924,20 +6079,19 @@
         "index",
         "core",
         "learning_modules",
-        "learning_modules_year_idx"
+        "learning_modules_org_idx"
       ],
       "writes": [
-        "s|idx|core.learning_modules_year_idx",
-        "n|idx|core.learning_modules_year_idx",
-        "e|idx|core.learning_modules_year_idx",
-        "n|rel|core.learning_modules_year_idx"
+        "s|idx|core.learning_modules_org_idx",
+        "n|idx|core.learning_modules_org_idx",
+        "e|idx|core.learning_modules_org_idx",
+        "n|rel|core.learning_modules_org_idx"
       ],
       "reads": [
         "n|tbl|core.learning_modules",
         "n|sch|core",
         "n|col|core.learning_modules.tenant_id",
-        "n|col|core.learning_modules.org_id",
-        "n|col|core.learning_modules.school_year_id"
+        "n|col|core.learning_modules.org_id"
       ]
     },
     {
@@ -6249,6 +6403,49 @@
         "n|col|core.lesson_shares.lesson_id",
         "n|col|core.lesson_shares.student_user_id",
         "n|col|core.lesson_shares.block_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "lesson_sittings",
+        "lesson_sittings_sitting_key"
+      ],
+      "writes": [
+        "s|idx|core.lesson_sittings_sitting_key",
+        "n|idx|core.lesson_sittings_sitting_key",
+        "e|idx|core.lesson_sittings_sitting_key",
+        "n|rel|core.lesson_sittings_sitting_key"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_sittings",
+        "n|sch|core",
+        "n|col|core.lesson_sittings.tenant_id",
+        "n|col|core.lesson_sittings.sitting_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "lesson_sittings",
+        "lesson_sittings_key"
+      ],
+      "writes": [
+        "s|idx|core.lesson_sittings_key",
+        "n|idx|core.lesson_sittings_key",
+        "e|idx|core.lesson_sittings_key",
+        "n|rel|core.lesson_sittings_key"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_sittings",
+        "n|sch|core",
+        "n|col|core.lesson_sittings.tenant_id",
+        "n|col|core.lesson_sittings.lesson_id",
+        "n|col|core.lesson_sittings.student_user_id"
       ]
     },
     {
@@ -6897,6 +7094,49 @@
         "n|sch|core",
         "n|col|core.module_classes.tenant_id",
         "n|col|core.module_classes.class_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "module_discussions",
+        "module_discussions_assignment_key"
+      ],
+      "writes": [
+        "s|idx|core.module_discussions_assignment_key",
+        "n|idx|core.module_discussions_assignment_key",
+        "e|idx|core.module_discussions_assignment_key",
+        "n|rel|core.module_discussions_assignment_key"
+      ],
+      "reads": [
+        "n|tbl|core.module_discussions",
+        "n|sch|core",
+        "n|col|core.module_discussions.tenant_id",
+        "n|col|core.module_discussions.assignment_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "module_discussions",
+        "module_discussions_class_key"
+      ],
+      "writes": [
+        "s|idx|core.module_discussions_class_key",
+        "n|idx|core.module_discussions_class_key",
+        "e|idx|core.module_discussions_class_key",
+        "n|rel|core.module_discussions_class_key"
+      ],
+      "reads": [
+        "n|tbl|core.module_discussions",
+        "n|sch|core",
+        "n|col|core.module_discussions.tenant_id",
+        "n|col|core.module_discussions.discussion_group",
+        "n|col|core.module_discussions.class_id"
       ]
     },
     {
@@ -8093,8 +8333,7 @@
         "n|tbl|core.standard_evidence",
         "n|sch|core",
         "n|col|core.standard_evidence.tenant_id",
-        "n|col|core.standard_evidence.sitting",
-        "n|col|core.standard_evidence.student_user_id",
+        "n|col|core.standard_evidence.sitting_id",
         "n|col|core.standard_evidence.attempt",
         "n|col|core.standard_evidence.block_id",
         "n|col|core.standard_evidence.standard_id"
@@ -8892,6 +9131,48 @@
         "n|sch|core",
         "n|col|core.work_comments.tenant_id",
         "n|col|core.work_comments.attempt_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "work_sittings",
+        "work_sittings_sitting_key"
+      ],
+      "writes": [
+        "s|idx|core.work_sittings_sitting_key",
+        "n|idx|core.work_sittings_sitting_key",
+        "e|idx|core.work_sittings_sitting_key",
+        "n|rel|core.work_sittings_sitting_key"
+      ],
+      "reads": [
+        "n|tbl|core.work_sittings",
+        "n|sch|core",
+        "n|col|core.work_sittings.tenant_id",
+        "n|col|core.work_sittings.sitting_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "work_sittings",
+        "work_sittings_key"
+      ],
+      "writes": [
+        "s|idx|core.work_sittings_key",
+        "n|idx|core.work_sittings_key",
+        "e|idx|core.work_sittings_key",
+        "n|rel|core.work_sittings_key"
+      ],
+      "reads": [
+        "n|tbl|core.work_sittings",
+        "n|sch|core",
+        "n|col|core.work_sittings.tenant_id",
+        "n|col|core.work_sittings.submission_id"
       ]
     },
     {
@@ -10636,6 +10917,79 @@
       "statementTarget": [
         "table",
         "core",
+        "assignment_terms"
+      ],
+      "writes": [
+        "s|fk|core.assignment_terms.assignment_terms_tenant_id_fkey",
+        "n|fk|core.assignment_terms.assignment_terms_tenant_id_fkey",
+        "e|fk|core.assignment_terms.assignment_terms_tenant_id_fkey",
+        "n|con|core.assignment_terms.assignment_terms_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.assignment_terms",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.assignment_terms.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "assignment_terms"
+      ],
+      "writes": [
+        "s|fk|core.assignment_terms.assignment_terms_tenant_id_assignment_id_fkey",
+        "n|fk|core.assignment_terms.assignment_terms_tenant_id_assignment_id_fkey",
+        "e|fk|core.assignment_terms.assignment_terms_tenant_id_assignment_id_fkey",
+        "n|con|core.assignment_terms.assignment_terms_tenant_id_assignment_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.assignment_terms",
+        "n|sch|core",
+        "n|tbl|core.assignments",
+        "n|sch|core",
+        "n|col|core.assignment_terms.tenant_id",
+        "n|col|core.assignment_terms.assignment_id",
+        "n|col|core.assignments.tenant_id",
+        "n|col|core.assignments.id",
+        "e|uniqueness|core.assignments.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "assignment_terms"
+      ],
+      "writes": [
+        "s|fk|core.assignment_terms.assignment_terms_tenant_id_grading_period_id_fkey",
+        "n|fk|core.assignment_terms.assignment_terms_tenant_id_grading_period_id_fkey",
+        "e|fk|core.assignment_terms.assignment_terms_tenant_id_grading_period_id_fkey",
+        "n|con|core.assignment_terms.assignment_terms_tenant_id_grading_period_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.assignment_terms",
+        "n|sch|core",
+        "n|tbl|core.academic_sessions",
+        "n|sch|core",
+        "n|col|core.assignment_terms.tenant_id",
+        "n|col|core.assignment_terms.grading_period_id",
+        "n|col|core.academic_sessions.tenant_id",
+        "n|col|core.academic_sessions.id",
+        "e|uniqueness|core.academic_sessions.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
         "assignments"
       ],
       "writes": [
@@ -10689,31 +11043,6 @@
         "assignments"
       ],
       "writes": [
-        "s|fk|core.assignments.assignments_tenant_id_grading_period_id_fkey",
-        "n|fk|core.assignments.assignments_tenant_id_grading_period_id_fkey",
-        "e|fk|core.assignments.assignments_tenant_id_grading_period_id_fkey",
-        "n|con|core.assignments.assignments_tenant_id_grading_period_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.assignments",
-        "n|sch|core",
-        "n|tbl|core.academic_sessions",
-        "n|sch|core",
-        "n|col|core.assignments.tenant_id",
-        "n|col|core.assignments.grading_period_id",
-        "n|col|core.academic_sessions.tenant_id",
-        "n|col|core.academic_sessions.id",
-        "e|uniqueness|core.academic_sessions.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "assignments"
-      ],
-      "writes": [
         "s|fk|core.assignments.assignments_tenant_id_author_user_id_fkey",
         "n|fk|core.assignments.assignments_tenant_id_author_user_id_fkey",
         "e|fk|core.assignments.assignments_tenant_id_author_user_id_fkey",
@@ -10729,31 +11058,6 @@
         "n|col|core.users.tenant_id",
         "n|col|core.users.id",
         "e|uniqueness|core.users.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "assignments"
-      ],
-      "writes": [
-        "s|fk|core.assignments.assignments_tenant_id_module_id_fkey",
-        "n|fk|core.assignments.assignments_tenant_id_module_id_fkey",
-        "e|fk|core.assignments.assignments_tenant_id_module_id_fkey",
-        "n|con|core.assignments.assignments_tenant_id_module_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.assignments",
-        "n|sch|core",
-        "n|tbl|core.learning_modules",
-        "n|sch|core",
-        "n|col|core.assignments.tenant_id",
-        "n|col|core.assignments.module_id",
-        "n|col|core.learning_modules.tenant_id",
-        "n|col|core.learning_modules.id",
-        "e|uniqueness|core.learning_modules.id.tenant_id"
       ]
     },
     {
@@ -12085,6 +12389,106 @@
       "statementTarget": [
         "table",
         "core",
+        "class_grading"
+      ],
+      "writes": [
+        "s|fk|core.class_grading.class_grading_tenant_id_fkey",
+        "n|fk|core.class_grading.class_grading_tenant_id_fkey",
+        "e|fk|core.class_grading.class_grading_tenant_id_fkey",
+        "n|con|core.class_grading.class_grading_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.class_grading",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.class_grading.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grading"
+      ],
+      "writes": [
+        "s|fk|core.class_grading.class_grading_tenant_id_class_id_org_id_fkey",
+        "n|fk|core.class_grading.class_grading_tenant_id_class_id_org_id_fkey",
+        "e|fk|core.class_grading.class_grading_tenant_id_class_id_org_id_fkey",
+        "n|con|core.class_grading.class_grading_tenant_id_class_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.class_grading",
+        "n|sch|core",
+        "n|tbl|core.classes",
+        "n|sch|core",
+        "n|col|core.class_grading.tenant_id",
+        "n|col|core.class_grading.class_id",
+        "n|col|core.class_grading.org_id",
+        "n|col|core.classes.tenant_id",
+        "n|col|core.classes.id",
+        "n|col|core.classes.org_id",
+        "e|uniqueness|core.classes.id.org_id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grading"
+      ],
+      "writes": [
+        "s|fk|core.class_grading.class_grading_tenant_id_programme_id_fkey",
+        "n|fk|core.class_grading.class_grading_tenant_id_programme_id_fkey",
+        "e|fk|core.class_grading.class_grading_tenant_id_programme_id_fkey",
+        "n|con|core.class_grading.class_grading_tenant_id_programme_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.class_grading",
+        "n|sch|core",
+        "n|tbl|core.programmes",
+        "n|sch|core",
+        "n|col|core.class_grading.tenant_id",
+        "n|col|core.class_grading.programme_id",
+        "n|col|core.programmes.tenant_id",
+        "n|col|core.programmes.id",
+        "e|uniqueness|core.programmes.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grading"
+      ],
+      "writes": [
+        "s|fk|core.class_grading.class_grading_tenant_id_grade_scale_id_fkey",
+        "n|fk|core.class_grading.class_grading_tenant_id_grade_scale_id_fkey",
+        "e|fk|core.class_grading.class_grading_tenant_id_grade_scale_id_fkey",
+        "n|con|core.class_grading.class_grading_tenant_id_grade_scale_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.class_grading",
+        "n|sch|core",
+        "n|tbl|core.grade_scales",
+        "n|sch|core",
+        "n|col|core.class_grading.tenant_id",
+        "n|col|core.class_grading.grade_scale_id",
+        "n|col|core.grade_scales.tenant_id",
+        "n|col|core.grade_scales.id",
+        "e|uniqueness|core.grade_scales.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
         "class_group_members"
       ],
       "writes": [
@@ -12226,6 +12630,56 @@
         "n|col|core.users.tenant_id",
         "n|col|core.users.id",
         "e|uniqueness|core.users.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_lesson_settings"
+      ],
+      "writes": [
+        "s|fk|core.class_lesson_settings.class_lesson_settings_tenant_id_fkey",
+        "n|fk|core.class_lesson_settings.class_lesson_settings_tenant_id_fkey",
+        "e|fk|core.class_lesson_settings.class_lesson_settings_tenant_id_fkey",
+        "n|con|core.class_lesson_settings.class_lesson_settings_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.class_lesson_settings",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.class_lesson_settings.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_lesson_settings"
+      ],
+      "writes": [
+        "s|fk|core.class_lesson_settings.class_lesson_settings_tenant_id_class_id_org_id_fkey",
+        "n|fk|core.class_lesson_settings.class_lesson_settings_tenant_id_class_id_org_id_fkey",
+        "e|fk|core.class_lesson_settings.class_lesson_settings_tenant_id_class_id_org_id_fkey",
+        "n|con|core.class_lesson_settings.class_lesson_settings_tenant_id_class_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.class_lesson_settings",
+        "n|sch|core",
+        "n|tbl|core.classes",
+        "n|sch|core",
+        "n|col|core.class_lesson_settings.tenant_id",
+        "n|col|core.class_lesson_settings.class_id",
+        "n|col|core.class_lesson_settings.org_id",
+        "n|col|core.classes.tenant_id",
+        "n|col|core.classes.id",
+        "n|col|core.classes.org_id",
+        "e|uniqueness|core.classes.id.org_id.tenant_id"
       ]
     },
     {
@@ -12692,56 +13146,6 @@
         "n|col|core.locations.tenant_id",
         "n|col|core.locations.id",
         "e|uniqueness|core.locations.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "classes"
-      ],
-      "writes": [
-        "s|fk|core.classes.classes_tenant_id_programme_id_fkey",
-        "n|fk|core.classes.classes_tenant_id_programme_id_fkey",
-        "e|fk|core.classes.classes_tenant_id_programme_id_fkey",
-        "n|con|core.classes.classes_tenant_id_programme_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.classes",
-        "n|sch|core",
-        "n|tbl|core.programmes",
-        "n|sch|core",
-        "n|col|core.classes.tenant_id",
-        "n|col|core.classes.programme_id",
-        "n|col|core.programmes.tenant_id",
-        "n|col|core.programmes.id",
-        "e|uniqueness|core.programmes.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "classes"
-      ],
-      "writes": [
-        "s|fk|core.classes.classes_tenant_id_grade_scale_id_fkey",
-        "n|fk|core.classes.classes_tenant_id_grade_scale_id_fkey",
-        "e|fk|core.classes.classes_tenant_id_grade_scale_id_fkey",
-        "n|con|core.classes.classes_tenant_id_grade_scale_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.classes",
-        "n|sch|core",
-        "n|tbl|core.grade_scales",
-        "n|sch|core",
-        "n|col|core.classes.tenant_id",
-        "n|col|core.classes.grade_scale_id",
-        "n|col|core.grade_scales.tenant_id",
-        "n|col|core.grade_scales.id",
-        "e|uniqueness|core.grade_scales.id.tenant_id"
       ]
     },
     {
@@ -15203,48 +15607,23 @@
         "goal_judgements"
       ],
       "writes": [
-        "s|fk|core.goal_judgements.goal_judgements_tenant_id_lesson_id_fkey",
-        "n|fk|core.goal_judgements.goal_judgements_tenant_id_lesson_id_fkey",
-        "e|fk|core.goal_judgements.goal_judgements_tenant_id_lesson_id_fkey",
-        "n|con|core.goal_judgements.goal_judgements_tenant_id_lesson_id_fkey"
+        "s|fk|core.goal_judgements.goal_judgements_tenant_id_sitting_id_student_user_id_fkey",
+        "n|fk|core.goal_judgements.goal_judgements_tenant_id_sitting_id_student_user_id_fkey",
+        "e|fk|core.goal_judgements.goal_judgements_tenant_id_sitting_id_student_user_id_fkey",
+        "n|con|core.goal_judgements.goal_judgements_tenant_id_sitting_id_student_user_id_fkey"
       ],
       "reads": [
         "n|tbl|core.goal_judgements",
         "n|sch|core",
-        "n|tbl|core.lessons",
+        "n|tbl|core.standard_sittings",
         "n|sch|core",
         "n|col|core.goal_judgements.tenant_id",
-        "n|col|core.goal_judgements.lesson_id",
-        "n|col|core.lessons.tenant_id",
-        "n|col|core.lessons.id",
-        "e|uniqueness|core.lessons.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "goal_judgements"
-      ],
-      "writes": [
-        "s|fk|core.goal_judgements.goal_judgements_tenant_id_submission_id_student_user_id_fkey",
-        "n|fk|core.goal_judgements.goal_judgements_tenant_id_submission_id_student_user_id_fkey",
-        "e|fk|core.goal_judgements.goal_judgements_tenant_id_submission_id_student_user_id_fkey",
-        "n|con|core.goal_judgements.goal_judgements_tenant_id_submission_id_student_user_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.goal_judgements",
-        "n|sch|core",
-        "n|tbl|core.submissions",
-        "n|sch|core",
-        "n|col|core.goal_judgements.tenant_id",
-        "n|col|core.goal_judgements.submission_id",
+        "n|col|core.goal_judgements.sitting_id",
         "n|col|core.goal_judgements.student_user_id",
-        "n|col|core.submissions.tenant_id",
-        "n|col|core.submissions.id",
-        "n|col|core.submissions.student_user_id",
-        "e|uniqueness|core.submissions.id.student_user_id.tenant_id"
+        "n|col|core.standard_sittings.tenant_id",
+        "n|col|core.standard_sittings.id",
+        "n|col|core.standard_sittings.student_user_id",
+        "e|uniqueness|core.standard_sittings.id.student_user_id.tenant_id"
       ]
     },
     {
@@ -16361,31 +16740,6 @@
         "learning_modules"
       ],
       "writes": [
-        "s|fk|core.learning_modules.learning_modules_tenant_id_school_year_id_fkey",
-        "n|fk|core.learning_modules.learning_modules_tenant_id_school_year_id_fkey",
-        "e|fk|core.learning_modules.learning_modules_tenant_id_school_year_id_fkey",
-        "n|con|core.learning_modules.learning_modules_tenant_id_school_year_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.learning_modules",
-        "n|sch|core",
-        "n|tbl|core.academic_sessions",
-        "n|sch|core",
-        "n|col|core.learning_modules.tenant_id",
-        "n|col|core.learning_modules.school_year_id",
-        "n|col|core.academic_sessions.tenant_id",
-        "n|col|core.academic_sessions.id",
-        "e|uniqueness|core.academic_sessions.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "learning_modules"
-      ],
-      "writes": [
         "s|fk|core.learning_modules.learning_modules_tenant_id_prerequisite_module_id_fkey",
         "n|fk|core.learning_modules.learning_modules_tenant_id_prerequisite_module_id_fkey",
         "e|fk|core.learning_modules.learning_modules_tenant_id_prerequisite_module_id_fkey",
@@ -17408,6 +17762,83 @@
         "n|col|core.users.tenant_id",
         "n|col|core.users.id",
         "e|uniqueness|core.users.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_sittings"
+      ],
+      "writes": [
+        "s|fk|core.lesson_sittings.lesson_sittings_tenant_id_fkey",
+        "n|fk|core.lesson_sittings.lesson_sittings_tenant_id_fkey",
+        "e|fk|core.lesson_sittings.lesson_sittings_tenant_id_fkey",
+        "n|con|core.lesson_sittings.lesson_sittings_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_sittings",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.lesson_sittings.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_sittings"
+      ],
+      "writes": [
+        "s|fk|core.lesson_sittings.lesson_sittings_tenant_id_sitting_id_student_user_id_kind_fkey",
+        "n|fk|core.lesson_sittings.lesson_sittings_tenant_id_sitting_id_student_user_id_kind_fkey",
+        "e|fk|core.lesson_sittings.lesson_sittings_tenant_id_sitting_id_student_user_id_kind_fkey",
+        "n|con|core.lesson_sittings.lesson_sittings_tenant_id_sitting_id_student_user_id_kind_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_sittings",
+        "n|sch|core",
+        "n|tbl|core.standard_sittings",
+        "n|sch|core",
+        "n|col|core.lesson_sittings.tenant_id",
+        "n|col|core.lesson_sittings.sitting_id",
+        "n|col|core.lesson_sittings.student_user_id",
+        "n|col|core.lesson_sittings.kind",
+        "n|col|core.standard_sittings.tenant_id",
+        "n|col|core.standard_sittings.id",
+        "n|col|core.standard_sittings.student_user_id",
+        "n|col|core.standard_sittings.kind",
+        "e|uniqueness|core.standard_sittings.id.kind.student_user_id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_sittings"
+      ],
+      "writes": [
+        "s|fk|core.lesson_sittings.lesson_sittings_tenant_id_lesson_id_fkey",
+        "n|fk|core.lesson_sittings.lesson_sittings_tenant_id_lesson_id_fkey",
+        "e|fk|core.lesson_sittings.lesson_sittings_tenant_id_lesson_id_fkey",
+        "n|con|core.lesson_sittings.lesson_sittings_tenant_id_lesson_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_sittings",
+        "n|sch|core",
+        "n|tbl|core.lessons",
+        "n|sch|core",
+        "n|col|core.lesson_sittings.tenant_id",
+        "n|col|core.lesson_sittings.lesson_id",
+        "n|col|core.lessons.tenant_id",
+        "n|col|core.lessons.id",
+        "e|uniqueness|core.lessons.id.tenant_id"
       ]
     },
     {
@@ -18632,6 +19063,83 @@
         "n|col|core.classes.tenant_id",
         "n|col|core.classes.id",
         "e|uniqueness|core.classes.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "module_discussions"
+      ],
+      "writes": [
+        "s|fk|core.module_discussions.module_discussions_tenant_id_fkey",
+        "n|fk|core.module_discussions.module_discussions_tenant_id_fkey",
+        "e|fk|core.module_discussions.module_discussions_tenant_id_fkey",
+        "n|con|core.module_discussions.module_discussions_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.module_discussions",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.module_discussions.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "module_discussions"
+      ],
+      "writes": [
+        "s|fk|core.module_discussions.module_discussions_tenant_id_assignment_id_class_id_status_fkey",
+        "n|fk|core.module_discussions.module_discussions_tenant_id_assignment_id_class_id_status_fkey",
+        "e|fk|core.module_discussions.module_discussions_tenant_id_assignment_id_class_id_status_fkey",
+        "n|con|core.module_discussions.module_discussions_tenant_id_assignment_id_class_id_status_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.module_discussions",
+        "n|sch|core",
+        "n|tbl|core.assignments",
+        "n|sch|core",
+        "n|col|core.module_discussions.tenant_id",
+        "n|col|core.module_discussions.assignment_id",
+        "n|col|core.module_discussions.class_id",
+        "n|col|core.module_discussions.status",
+        "n|col|core.assignments.tenant_id",
+        "n|col|core.assignments.id",
+        "n|col|core.assignments.class_id",
+        "n|col|core.assignments.status",
+        "e|uniqueness|core.assignments.class_id.id.status.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "module_discussions"
+      ],
+      "writes": [
+        "s|fk|core.module_discussions.module_discussions_tenant_id_module_id_fkey",
+        "n|fk|core.module_discussions.module_discussions_tenant_id_module_id_fkey",
+        "e|fk|core.module_discussions.module_discussions_tenant_id_module_id_fkey",
+        "n|con|core.module_discussions.module_discussions_tenant_id_module_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.module_discussions",
+        "n|sch|core",
+        "n|tbl|core.learning_modules",
+        "n|sch|core",
+        "n|col|core.module_discussions.tenant_id",
+        "n|col|core.module_discussions.module_id",
+        "n|col|core.learning_modules.tenant_id",
+        "n|col|core.learning_modules.id",
+        "e|uniqueness|core.learning_modules.id.tenant_id"
       ]
     },
     {
@@ -21523,48 +22031,25 @@
         "standard_evidence"
       ],
       "writes": [
-        "s|fk|core.standard_evidence.standard_evidence_tenant_id_lesson_id_fkey",
-        "n|fk|core.standard_evidence.standard_evidence_tenant_id_lesson_id_fkey",
-        "e|fk|core.standard_evidence.standard_evidence_tenant_id_lesson_id_fkey",
-        "n|con|core.standard_evidence.standard_evidence_tenant_id_lesson_id_fkey"
+        "s|fk|core.standard_evidence.standard_evidence_tenant_id_sitting_id_student_user_id_sit_fkey",
+        "n|fk|core.standard_evidence.standard_evidence_tenant_id_sitting_id_student_user_id_sit_fkey",
+        "e|fk|core.standard_evidence.standard_evidence_tenant_id_sitting_id_student_user_id_sit_fkey",
+        "n|con|core.standard_evidence.standard_evidence_tenant_id_sitting_id_student_user_id_sit_fkey"
       ],
       "reads": [
         "n|tbl|core.standard_evidence",
         "n|sch|core",
-        "n|tbl|core.lessons",
+        "n|tbl|core.standard_sittings",
         "n|sch|core",
         "n|col|core.standard_evidence.tenant_id",
-        "n|col|core.standard_evidence.lesson_id",
-        "n|col|core.lessons.tenant_id",
-        "n|col|core.lessons.id",
-        "e|uniqueness|core.lessons.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "standard_evidence"
-      ],
-      "writes": [
-        "s|fk|core.standard_evidence.standard_evidence_tenant_id_submission_id_student_user_id_fkey",
-        "n|fk|core.standard_evidence.standard_evidence_tenant_id_submission_id_student_user_id_fkey",
-        "e|fk|core.standard_evidence.standard_evidence_tenant_id_submission_id_student_user_id_fkey",
-        "n|con|core.standard_evidence.standard_evidence_tenant_id_submission_id_student_user_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.standard_evidence",
-        "n|sch|core",
-        "n|tbl|core.submissions",
-        "n|sch|core",
-        "n|col|core.standard_evidence.tenant_id",
-        "n|col|core.standard_evidence.submission_id",
+        "n|col|core.standard_evidence.sitting_id",
         "n|col|core.standard_evidence.student_user_id",
-        "n|col|core.submissions.tenant_id",
-        "n|col|core.submissions.id",
-        "n|col|core.submissions.student_user_id",
-        "e|uniqueness|core.submissions.id.student_user_id.tenant_id"
+        "n|col|core.standard_evidence.sitting_kind",
+        "n|col|core.standard_sittings.tenant_id",
+        "n|col|core.standard_sittings.id",
+        "n|col|core.standard_sittings.student_user_id",
+        "n|col|core.standard_sittings.kind",
+        "e|uniqueness|core.standard_sittings.id.kind.student_user_id.tenant_id"
       ]
     },
     {
@@ -21733,6 +22218,54 @@
         "n|sch|core",
         "n|col|core.standard_observations.tenant_id",
         "n|col|core.standard_observations.observed_by_user_id",
+        "n|col|core.users.tenant_id",
+        "n|col|core.users.id",
+        "e|uniqueness|core.users.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "standard_sittings"
+      ],
+      "writes": [
+        "s|fk|core.standard_sittings.standard_sittings_tenant_id_fkey",
+        "n|fk|core.standard_sittings.standard_sittings_tenant_id_fkey",
+        "e|fk|core.standard_sittings.standard_sittings_tenant_id_fkey",
+        "n|con|core.standard_sittings.standard_sittings_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.standard_sittings",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.standard_sittings.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "standard_sittings"
+      ],
+      "writes": [
+        "s|fk|core.standard_sittings.standard_sittings_tenant_id_student_user_id_fkey",
+        "n|fk|core.standard_sittings.standard_sittings_tenant_id_student_user_id_fkey",
+        "e|fk|core.standard_sittings.standard_sittings_tenant_id_student_user_id_fkey",
+        "n|con|core.standard_sittings.standard_sittings_tenant_id_student_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.standard_sittings",
+        "n|sch|core",
+        "n|tbl|core.users",
+        "n|sch|core",
+        "n|col|core.standard_sittings.tenant_id",
+        "n|col|core.standard_sittings.student_user_id",
         "n|col|core.users.tenant_id",
         "n|col|core.users.id",
         "e|uniqueness|core.users.id.tenant_id"
@@ -23332,6 +23865,85 @@
         "n|col|core.bank_comments.tenant_id",
         "n|col|core.bank_comments.id",
         "e|uniqueness|core.bank_comments.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "work_sittings"
+      ],
+      "writes": [
+        "s|fk|core.work_sittings.work_sittings_tenant_id_fkey",
+        "n|fk|core.work_sittings.work_sittings_tenant_id_fkey",
+        "e|fk|core.work_sittings.work_sittings_tenant_id_fkey",
+        "n|con|core.work_sittings.work_sittings_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.work_sittings",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.work_sittings.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "work_sittings"
+      ],
+      "writes": [
+        "s|fk|core.work_sittings.work_sittings_tenant_id_sitting_id_student_user_id_kind_fkey",
+        "n|fk|core.work_sittings.work_sittings_tenant_id_sitting_id_student_user_id_kind_fkey",
+        "e|fk|core.work_sittings.work_sittings_tenant_id_sitting_id_student_user_id_kind_fkey",
+        "n|con|core.work_sittings.work_sittings_tenant_id_sitting_id_student_user_id_kind_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.work_sittings",
+        "n|sch|core",
+        "n|tbl|core.standard_sittings",
+        "n|sch|core",
+        "n|col|core.work_sittings.tenant_id",
+        "n|col|core.work_sittings.sitting_id",
+        "n|col|core.work_sittings.student_user_id",
+        "n|col|core.work_sittings.kind",
+        "n|col|core.standard_sittings.tenant_id",
+        "n|col|core.standard_sittings.id",
+        "n|col|core.standard_sittings.student_user_id",
+        "n|col|core.standard_sittings.kind",
+        "e|uniqueness|core.standard_sittings.id.kind.student_user_id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "work_sittings"
+      ],
+      "writes": [
+        "s|fk|core.work_sittings.work_sittings_tenant_id_submission_id_student_user_id_fkey",
+        "n|fk|core.work_sittings.work_sittings_tenant_id_submission_id_student_user_id_fkey",
+        "e|fk|core.work_sittings.work_sittings_tenant_id_submission_id_student_user_id_fkey",
+        "n|con|core.work_sittings.work_sittings_tenant_id_submission_id_student_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.work_sittings",
+        "n|sch|core",
+        "n|tbl|core.submissions",
+        "n|sch|core",
+        "n|col|core.work_sittings.tenant_id",
+        "n|col|core.work_sittings.submission_id",
+        "n|col|core.work_sittings.student_user_id",
+        "n|col|core.submissions.tenant_id",
+        "n|col|core.submissions.id",
+        "n|col|core.submissions.student_user_id",
+        "e|uniqueness|core.submissions.id.student_user_id.tenant_id"
       ]
     },
     {
@@ -25505,6 +26117,107 @@
       "statementTarget": [
         "table",
         "core",
+        "assignment_terms"
+      ],
+      "writes": [
+        "s|pol|core.assignment_terms.tenant_isolation",
+        "n|pol|core.assignment_terms.tenant_isolation",
+        "e|pol|core.assignment_terms.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.assignment_terms",
+        "n|sch|core",
+        "e|rls|core.assignment_terms"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assignment_terms"
+      ],
+      "writes": [
+        "s|pol|core.assignment_terms.owner_all",
+        "n|pol|core.assignment_terms.owner_all",
+        "e|pol|core.assignment_terms.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.assignment_terms",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.assignment_terms"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assignment_terms"
+      ],
+      "writes": [
+        "s|pol|core.assignment_terms.p_select",
+        "n|pol|core.assignment_terms.p_select",
+        "e|pol|core.assignment_terms.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.assignment_terms",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.assignment_terms"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assignment_terms"
+      ],
+      "writes": [
+        "s|pol|core.assignment_terms.p_insert",
+        "n|pol|core.assignment_terms.p_insert",
+        "e|pol|core.assignment_terms.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.assignment_terms",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.assignment_terms"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assignment_terms"
+      ],
+      "writes": [
+        "s|pol|core.assignment_terms.p_update",
+        "n|pol|core.assignment_terms.p_update",
+        "e|pol|core.assignment_terms.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.assignment_terms",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.assignment_terms"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "assignments"
       ],
       "writes": [
@@ -27472,6 +28185,107 @@
       "statementTarget": [
         "table",
         "core",
+        "class_grading"
+      ],
+      "writes": [
+        "s|pol|core.class_grading.tenant_isolation",
+        "n|pol|core.class_grading.tenant_isolation",
+        "e|pol|core.class_grading.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.class_grading",
+        "n|sch|core",
+        "e|rls|core.class_grading"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grading"
+      ],
+      "writes": [
+        "s|pol|core.class_grading.owner_all",
+        "n|pol|core.class_grading.owner_all",
+        "e|pol|core.class_grading.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.class_grading",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.class_grading"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grading"
+      ],
+      "writes": [
+        "s|pol|core.class_grading.p_select",
+        "n|pol|core.class_grading.p_select",
+        "e|pol|core.class_grading.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.class_grading",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.class_grading"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grading"
+      ],
+      "writes": [
+        "s|pol|core.class_grading.p_insert",
+        "n|pol|core.class_grading.p_insert",
+        "e|pol|core.class_grading.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.class_grading",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.class_grading"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grading"
+      ],
+      "writes": [
+        "s|pol|core.class_grading.p_update",
+        "n|pol|core.class_grading.p_update",
+        "e|pol|core.class_grading.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.class_grading",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.class_grading"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "class_group_members"
       ],
       "writes": [
@@ -27705,6 +28519,107 @@
         "n|role|cell_io",
         "n|role|worker",
         "e|rls|core.class_groups"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_lesson_settings"
+      ],
+      "writes": [
+        "s|pol|core.class_lesson_settings.tenant_isolation",
+        "n|pol|core.class_lesson_settings.tenant_isolation",
+        "e|pol|core.class_lesson_settings.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.class_lesson_settings",
+        "n|sch|core",
+        "e|rls|core.class_lesson_settings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_lesson_settings"
+      ],
+      "writes": [
+        "s|pol|core.class_lesson_settings.owner_all",
+        "n|pol|core.class_lesson_settings.owner_all",
+        "e|pol|core.class_lesson_settings.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.class_lesson_settings",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.class_lesson_settings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_lesson_settings"
+      ],
+      "writes": [
+        "s|pol|core.class_lesson_settings.p_select",
+        "n|pol|core.class_lesson_settings.p_select",
+        "e|pol|core.class_lesson_settings.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.class_lesson_settings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.class_lesson_settings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_lesson_settings"
+      ],
+      "writes": [
+        "s|pol|core.class_lesson_settings.p_insert",
+        "n|pol|core.class_lesson_settings.p_insert",
+        "e|pol|core.class_lesson_settings.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.class_lesson_settings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.class_lesson_settings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_lesson_settings"
+      ],
+      "writes": [
+        "s|pol|core.class_lesson_settings.p_update",
+        "n|pol|core.class_lesson_settings.p_update",
+        "e|pol|core.class_lesson_settings.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.class_lesson_settings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.class_lesson_settings"
       ]
     },
     {
@@ -34405,6 +35320,145 @@
       "statementTarget": [
         "table",
         "core",
+        "lesson_sittings"
+      ],
+      "writes": [
+        "s|pol|core.lesson_sittings.tenant_isolation",
+        "n|pol|core.lesson_sittings.tenant_isolation",
+        "e|pol|core.lesson_sittings.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_sittings",
+        "n|sch|core",
+        "e|rls|core.lesson_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_sittings"
+      ],
+      "writes": [
+        "s|pol|core.lesson_sittings.owner_all",
+        "n|pol|core.lesson_sittings.owner_all",
+        "e|pol|core.lesson_sittings.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_sittings",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.lesson_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_sittings"
+      ],
+      "writes": [
+        "s|pol|core.lesson_sittings.p_select",
+        "n|pol|core.lesson_sittings.p_select",
+        "e|pol|core.lesson_sittings.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_sittings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.lesson_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_sittings"
+      ],
+      "writes": [
+        "s|pol|core.lesson_sittings.p_insert",
+        "n|pol|core.lesson_sittings.p_insert",
+        "e|pol|core.lesson_sittings.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_sittings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.lesson_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_sittings"
+      ],
+      "writes": [
+        "s|pol|core.lesson_sittings.p_update",
+        "n|pol|core.lesson_sittings.p_update",
+        "e|pol|core.lesson_sittings.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_sittings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.lesson_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_sittings"
+      ],
+      "writes": [
+        "s|pol|core.lesson_sittings.p_erase_update",
+        "n|pol|core.lesson_sittings.p_erase_update",
+        "e|pol|core.lesson_sittings.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_sittings",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.lesson_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "lesson_sittings"
+      ],
+      "writes": [
+        "s|pol|core.lesson_sittings.p_erase_delete",
+        "n|pol|core.lesson_sittings.p_erase_delete",
+        "e|pol|core.lesson_sittings.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.lesson_sittings",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.lesson_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "lesson_watches"
       ],
       "writes": [
@@ -36002,6 +37056,107 @@
         "n|role|cell_io",
         "n|role|worker",
         "e|rls|core.module_classes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "module_discussions"
+      ],
+      "writes": [
+        "s|pol|core.module_discussions.tenant_isolation",
+        "n|pol|core.module_discussions.tenant_isolation",
+        "e|pol|core.module_discussions.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.module_discussions",
+        "n|sch|core",
+        "e|rls|core.module_discussions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "module_discussions"
+      ],
+      "writes": [
+        "s|pol|core.module_discussions.owner_all",
+        "n|pol|core.module_discussions.owner_all",
+        "e|pol|core.module_discussions.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.module_discussions",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.module_discussions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "module_discussions"
+      ],
+      "writes": [
+        "s|pol|core.module_discussions.p_select",
+        "n|pol|core.module_discussions.p_select",
+        "e|pol|core.module_discussions.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.module_discussions",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.module_discussions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "module_discussions"
+      ],
+      "writes": [
+        "s|pol|core.module_discussions.p_insert",
+        "n|pol|core.module_discussions.p_insert",
+        "e|pol|core.module_discussions.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.module_discussions",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.module_discussions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "module_discussions"
+      ],
+      "writes": [
+        "s|pol|core.module_discussions.p_update",
+        "n|pol|core.module_discussions.p_update",
+        "e|pol|core.module_discussions.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.module_discussions",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.module_discussions"
       ]
     },
     {
@@ -40342,6 +41497,145 @@
       "statementTarget": [
         "table",
         "core",
+        "standard_sittings"
+      ],
+      "writes": [
+        "s|pol|core.standard_sittings.tenant_isolation",
+        "n|pol|core.standard_sittings.tenant_isolation",
+        "e|pol|core.standard_sittings.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.standard_sittings",
+        "n|sch|core",
+        "e|rls|core.standard_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "standard_sittings"
+      ],
+      "writes": [
+        "s|pol|core.standard_sittings.owner_all",
+        "n|pol|core.standard_sittings.owner_all",
+        "e|pol|core.standard_sittings.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.standard_sittings",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.standard_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "standard_sittings"
+      ],
+      "writes": [
+        "s|pol|core.standard_sittings.p_select",
+        "n|pol|core.standard_sittings.p_select",
+        "e|pol|core.standard_sittings.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.standard_sittings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.standard_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "standard_sittings"
+      ],
+      "writes": [
+        "s|pol|core.standard_sittings.p_insert",
+        "n|pol|core.standard_sittings.p_insert",
+        "e|pol|core.standard_sittings.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.standard_sittings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.standard_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "standard_sittings"
+      ],
+      "writes": [
+        "s|pol|core.standard_sittings.p_update",
+        "n|pol|core.standard_sittings.p_update",
+        "e|pol|core.standard_sittings.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.standard_sittings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.standard_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "standard_sittings"
+      ],
+      "writes": [
+        "s|pol|core.standard_sittings.p_erase_update",
+        "n|pol|core.standard_sittings.p_erase_update",
+        "e|pol|core.standard_sittings.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.standard_sittings",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.standard_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "standard_sittings"
+      ],
+      "writes": [
+        "s|pol|core.standard_sittings.p_erase_delete",
+        "n|pol|core.standard_sittings.p_erase_delete",
+        "e|pol|core.standard_sittings.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.standard_sittings",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.standard_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "standards"
       ],
       "writes": [
@@ -42479,6 +43773,145 @@
       "statementTarget": [
         "table",
         "core",
+        "work_sittings"
+      ],
+      "writes": [
+        "s|pol|core.work_sittings.tenant_isolation",
+        "n|pol|core.work_sittings.tenant_isolation",
+        "e|pol|core.work_sittings.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.work_sittings",
+        "n|sch|core",
+        "e|rls|core.work_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "work_sittings"
+      ],
+      "writes": [
+        "s|pol|core.work_sittings.owner_all",
+        "n|pol|core.work_sittings.owner_all",
+        "e|pol|core.work_sittings.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.work_sittings",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.work_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "work_sittings"
+      ],
+      "writes": [
+        "s|pol|core.work_sittings.p_select",
+        "n|pol|core.work_sittings.p_select",
+        "e|pol|core.work_sittings.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.work_sittings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.work_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "work_sittings"
+      ],
+      "writes": [
+        "s|pol|core.work_sittings.p_insert",
+        "n|pol|core.work_sittings.p_insert",
+        "e|pol|core.work_sittings.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.work_sittings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.work_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "work_sittings"
+      ],
+      "writes": [
+        "s|pol|core.work_sittings.p_update",
+        "n|pol|core.work_sittings.p_update",
+        "e|pol|core.work_sittings.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.work_sittings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.work_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "work_sittings"
+      ],
+      "writes": [
+        "s|pol|core.work_sittings.p_erase_update",
+        "n|pol|core.work_sittings.p_erase_update",
+        "e|pol|core.work_sittings.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.work_sittings",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.work_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "work_sittings"
+      ],
+      "writes": [
+        "s|pol|core.work_sittings.p_erase_delete",
+        "n|pol|core.work_sittings.p_erase_delete",
+        "e|pol|core.work_sittings.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.work_sittings",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.work_sittings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "year_rollovers"
       ],
       "writes": [
@@ -42743,6 +44176,15 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "name": "assignment_terms",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "name": "assignments",
         "isRlsEnabled": true,
         "entityType": "tables"
@@ -42905,6 +44347,15 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "name": "class_grading",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "name": "class_group_members",
         "isRlsEnabled": true,
         "entityType": "tables"
@@ -42915,6 +44366,15 @@
       "row": {
         "schema": "core",
         "name": "class_groups",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "class_lesson_settings",
         "isRlsEnabled": true,
         "entityType": "tables"
       }
@@ -43418,6 +44878,15 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "name": "lesson_sittings",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "name": "lesson_watches",
         "isRlsEnabled": true,
         "entityType": "tables"
@@ -43536,6 +45005,15 @@
       "row": {
         "schema": "core",
         "name": "module_classes",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "module_discussions",
         "isRlsEnabled": true,
         "entityType": "tables"
       }
@@ -43895,6 +45373,15 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "name": "standard_sittings",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "name": "standards",
         "isRlsEnabled": true,
         "entityType": "tables"
@@ -44058,6 +45545,15 @@
       "row": {
         "schema": "core",
         "name": "work_comments",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "work_sittings",
         "isRlsEnabled": true,
         "entityType": "tables"
       }
@@ -48705,6 +50201,150 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "assignment_terms",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "assignment_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "grading_period_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "assignments",
         "name": "tenant_id",
         "type": "uuid",
@@ -48758,38 +50398,6 @@
         "type": "uuid",
         "typeSchema": null,
         "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "assignments",
-        "name": "school_year_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "assignments",
-        "name": "grading_period_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
         "dimensions": 0,
         "default": null,
         "generated": null,
@@ -49188,38 +50796,6 @@
         "table": "assignments",
         "name": "discussion_replies",
         "type": "smallint",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "assignments",
-        "name": "module_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "assignments",
-        "name": "discussion_group",
-        "type": "uuid",
         "typeSchema": null,
         "notNull": false,
         "dimensions": 0,
@@ -53706,6 +55282,182 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "class_grading",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "class_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "programme_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "grade_scale_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "class_group_members",
         "name": "tenant_id",
         "type": "uuid",
@@ -54027,6 +55779,166 @@
       "row": {
         "schema": "core",
         "table": "class_groups",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "class_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "lesson_sounds",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
         "name": "created_at",
         "type": "timestamp with time zone",
         "typeSchema": null,
@@ -55015,54 +56927,6 @@
         "notNull": false,
         "dimensions": 0,
         "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
-        "name": "programme_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
-        "name": "grade_scale_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
-        "name": "lesson_sounds",
-        "type": "boolean",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "true",
         "generated": null,
         "identity": null,
         "entityType": "columns"
@@ -62178,23 +64042,7 @@
       "row": {
         "schema": "core",
         "table": "goal_judgements",
-        "name": "lesson_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "goal_judgements",
-        "name": "submission_id",
+        "name": "sitting_id",
         "type": "uuid",
         "typeSchema": null,
         "notNull": false,
@@ -64974,22 +66822,6 @@
       "row": {
         "schema": "core",
         "table": "learning_modules",
-        "name": "school_year_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "learning_modules",
         "name": "title",
         "type": "text",
         "typeSchema": null,
@@ -67326,6 +69158,185 @@
       "row": {
         "schema": "core",
         "table": "lesson_shares",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "sitting_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "student_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "kind",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": {
+          "as": "'lesson'",
+          "type": "stored"
+        },
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "lesson_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
         "name": "created_at",
         "type": "timestamp with time zone",
         "typeSchema": null,
@@ -70640,6 +72651,182 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "module_discussions",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "assignment_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "class_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "module_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "discussion_group",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "org_features",
         "name": "tenant_id",
         "type": "uuid",
@@ -72418,22 +74605,6 @@
         "schema": "core",
         "table": "period_grades",
         "name": "class_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "period_grades",
-        "name": "school_year_id",
         "type": "uuid",
         "typeSchema": null,
         "notNull": true,
@@ -79303,46 +81474,30 @@
       "row": {
         "schema": "core",
         "table": "standard_evidence",
-        "name": "lesson_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "standard_evidence",
-        "name": "submission_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "standard_evidence",
-        "name": "sitting",
+        "name": "sitting_id",
         "type": "uuid",
         "typeSchema": null,
         "notNull": true,
         "dimensions": 0,
         "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_evidence",
+        "name": "sitting_kind",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
         "generated": {
-          "as": "coalesce(lesson_id, submission_id)",
+          "as": "case when source = 'lesson' then 'lesson' else 'work' end",
           "type": "stored"
         },
         "identity": null,
@@ -79898,6 +82053,150 @@
       "row": {
         "schema": "core",
         "table": "standard_observations",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "student_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "kind",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
         "name": "created_at",
         "type": "timestamp with time zone",
         "typeSchema": null,
@@ -84494,6 +86793,185 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "work_sittings",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "sitting_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "student_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "kind",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": {
+          "as": "'work'",
+          "type": "stored"
+        },
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "submission_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "year_rollovers",
         "name": "tenant_id",
         "type": "uuid",
@@ -85715,8 +88193,8 @@
       "op": "create",
       "row": {
         "schema": "core",
-        "table": "assignments",
-        "name": "assignments_discussion_class_key",
+        "table": "assignment_terms",
+        "name": "assignment_terms_assignment_key",
         "nameExplicit": true,
         "columns": [
           {
@@ -85727,14 +88205,7 @@
             "opclass": null
           },
           {
-            "value": "discussion_group",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "class_id",
+            "value": "assignment_id",
             "isExpression": false,
             "asc": true,
             "nullsFirst": false,
@@ -85742,7 +88213,38 @@
           }
         ],
         "isUnique": true,
-        "where": "status = 'active' and discussion_group is not null",
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "assignment_terms_period_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "grading_period_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active'",
         "with": "",
         "method": "btree",
         "concurrently": false,
@@ -85781,75 +88283,6 @@
         ],
         "isUnique": false,
         "where": "status = 'active'",
-        "with": "",
-        "method": "btree",
-        "concurrently": false,
-        "entityType": "indexes"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "assignments",
-        "name": "assignments_year_idx",
-        "nameExplicit": true,
-        "columns": [
-          {
-            "value": "tenant_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "org_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "school_year_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          }
-        ],
-        "isUnique": false,
-        "where": "status = 'active'",
-        "with": "",
-        "method": "btree",
-        "concurrently": false,
-        "entityType": "indexes"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "assignments",
-        "name": "assignments_module_idx",
-        "nameExplicit": true,
-        "columns": [
-          {
-            "value": "tenant_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "module_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          }
-        ],
-        "isUnique": false,
-        "where": "status = 'active' and module_id is not null",
         "with": "",
         "method": "btree",
         "concurrently": false,
@@ -86695,6 +89128,37 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "class_grading",
+        "name": "class_grading_class_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "class_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "class_group_members",
         "name": "class_group_members_key",
         "nameExplicit": true,
@@ -86753,6 +89217,37 @@
           }
         ],
         "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "class_lesson_settings_class_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "class_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
         "where": "status = 'active'",
         "with": "",
         "method": "btree",
@@ -89145,7 +91640,7 @@
       "row": {
         "schema": "core",
         "table": "learning_modules",
-        "name": "learning_modules_year_idx",
+        "name": "learning_modules_org_idx",
         "nameExplicit": true,
         "columns": [
           {
@@ -89157,13 +91652,6 @@
           },
           {
             "value": "org_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "school_year_id",
             "isExpression": false,
             "asc": true,
             "nullsFirst": false,
@@ -89717,6 +92205,75 @@
           },
           {
             "value": "block_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "lesson_sittings_sitting_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "sitting_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "lesson_sittings_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "lesson_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "student_user_id",
             "isExpression": false,
             "asc": true,
             "nullsFirst": false,
@@ -90808,6 +93365,75 @@
           }
         ],
         "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "module_discussions_assignment_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "assignment_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "module_discussions_class_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "discussion_group",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "class_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
         "where": "status = 'active'",
         "with": "",
         "method": "btree",
@@ -92806,14 +95432,7 @@
             "opclass": null
           },
           {
-            "value": "sitting",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "student_user_id",
+            "value": "sitting_id",
             "isExpression": false,
             "asc": true,
             "nullsFirst": false,
@@ -94122,6 +96741,68 @@
           }
         ],
         "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "work_sittings_sitting_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "sitting_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "work_sittings_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "submission_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
         "where": "status = 'active'",
         "with": "",
         "method": "btree",
@@ -95679,6 +98360,70 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "assignment_terms",
+        "name": "assignment_terms_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "assignment_terms_tenant_id_assignment_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "assignment_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "assignments",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "assignment_terms_tenant_id_grading_period_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "grading_period_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "academic_sessions",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "assignments",
         "name": "assignments_tenant_id_fkey",
         "nameExplicit": true,
@@ -95724,28 +98469,6 @@
       "row": {
         "schema": "core",
         "table": "assignments",
-        "name": "assignments_tenant_id_grading_period_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "grading_period_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "academic_sessions",
-        "columnsTo": [
-          "tenant_id",
-          "id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "assignments",
         "name": "assignments_tenant_id_author_user_id_fkey",
         "nameExplicit": true,
         "columns": [
@@ -95754,28 +98477,6 @@
         ],
         "schemaTo": "core",
         "tableTo": "users",
-        "columnsTo": [
-          "tenant_id",
-          "id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "assignments",
-        "name": "assignments_tenant_id_module_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "module_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "learning_modules",
         "columnsTo": [
           "tenant_id",
           "id"
@@ -96951,6 +99652,94 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "class_grading",
+        "name": "class_grading_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "class_grading_tenant_id_class_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "class_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "classes",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "org_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "class_grading_tenant_id_programme_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "programme_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "programmes",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "class_grading_tenant_id_grade_scale_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "grade_scale_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "grade_scales",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "class_group_members",
         "name": "class_group_members_tenant_id_fkey",
         "nameExplicit": true,
@@ -97071,6 +99860,50 @@
         "columnsTo": [
           "tenant_id",
           "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "class_lesson_settings_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "class_lesson_settings_tenant_id_class_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "class_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "classes",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "org_id"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -97480,50 +100313,6 @@
         ],
         "schemaTo": "core",
         "tableTo": "locations",
-        "columnsTo": [
-          "tenant_id",
-          "id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
-        "name": "classes_tenant_id_programme_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "programme_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "programmes",
-        "columnsTo": [
-          "tenant_id",
-          "id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
-        "name": "classes_tenant_id_grade_scale_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "grade_scale_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "grade_scales",
         "columnsTo": [
           "tenant_id",
           "id"
@@ -99692,37 +102481,15 @@
       "row": {
         "schema": "core",
         "table": "goal_judgements",
-        "name": "goal_judgements_tenant_id_lesson_id_fkey",
+        "name": "goal_judgements_tenant_id_sitting_id_student_user_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
-          "lesson_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "lessons",
-        "columnsTo": [
-          "tenant_id",
-          "id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "goal_judgements",
-        "name": "goal_judgements_tenant_id_submission_id_student_user_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "submission_id",
+          "sitting_id",
           "student_user_id"
         ],
         "schemaTo": "core",
-        "tableTo": "submissions",
+        "tableTo": "standard_sittings",
         "columnsTo": [
           "tenant_id",
           "id",
@@ -100712,28 +103479,6 @@
       "row": {
         "schema": "core",
         "table": "learning_modules",
-        "name": "learning_modules_tenant_id_school_year_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "school_year_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "academic_sessions",
-        "columnsTo": [
-          "tenant_id",
-          "id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "learning_modules",
         "name": "learning_modules_tenant_id_prerequisite_module_id_fkey",
         "nameExplicit": true,
         "columns": [
@@ -101626,6 +104371,74 @@
         ],
         "schemaTo": "core",
         "tableTo": "users",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "lesson_sittings_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "lesson_sittings_tenant_id_sitting_id_student_user_id_kind_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "sitting_id",
+          "student_user_id",
+          "kind"
+        ],
+        "schemaTo": "core",
+        "tableTo": "standard_sittings",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "student_user_id",
+          "kind"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "lesson_sittings_tenant_id_lesson_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "lesson_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "lessons",
         "columnsTo": [
           "tenant_id",
           "id"
@@ -102700,6 +105513,74 @@
         ],
         "schemaTo": "core",
         "tableTo": "classes",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "module_discussions_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "module_discussions_tenant_id_assignment_id_class_id_status_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "assignment_id",
+          "class_id",
+          "status"
+        ],
+        "schemaTo": "core",
+        "tableTo": "assignments",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "class_id",
+          "status"
+        ],
+        "onUpdate": "CASCADE",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "module_discussions_tenant_id_module_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "module_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "learning_modules",
         "columnsTo": [
           "tenant_id",
           "id"
@@ -105244,41 +108125,21 @@
       "row": {
         "schema": "core",
         "table": "standard_evidence",
-        "name": "standard_evidence_tenant_id_lesson_id_fkey",
+        "name": "standard_evidence_tenant_id_sitting_id_student_user_id_sit_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
-          "lesson_id"
+          "sitting_id",
+          "student_user_id",
+          "sitting_kind"
         ],
         "schemaTo": "core",
-        "tableTo": "lessons",
-        "columnsTo": [
-          "tenant_id",
-          "id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "standard_evidence",
-        "name": "standard_evidence_tenant_id_submission_id_student_user_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "submission_id",
-          "student_user_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "submissions",
+        "tableTo": "standard_sittings",
         "columnsTo": [
           "tenant_id",
           "id",
-          "student_user_id"
+          "student_user_id",
+          "kind"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -105423,6 +108284,48 @@
         "columns": [
           "tenant_id",
           "observed_by_user_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "users",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "standard_sittings_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "standard_sittings_tenant_id_student_user_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "student_user_id"
         ],
         "schemaTo": "core",
         "tableTo": "users",
@@ -106843,6 +109746,76 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "work_sittings",
+        "name": "work_sittings_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "work_sittings_tenant_id_sitting_id_student_user_id_kind_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "sitting_id",
+          "student_user_id",
+          "kind"
+        ],
+        "schemaTo": "core",
+        "tableTo": "standard_sittings",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "student_user_id",
+          "kind"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "work_sittings_tenant_id_submission_id_student_user_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "submission_id",
+          "student_user_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "submissions",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "student_user_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "year_rollovers",
         "name": "year_rollovers_tenant_id_fkey",
         "nameExplicit": true,
@@ -107193,6 +110166,20 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "assignment_terms",
+        "name": "assignment_terms_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "assignments",
         "name": "assignments_pkey",
         "columns": [
@@ -107445,6 +110432,20 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "class_grading",
+        "name": "class_grading_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "class_group_members",
         "name": "class_group_members_pkey",
         "columns": [
@@ -107461,6 +110462,20 @@
         "schema": "core",
         "table": "class_groups",
         "name": "class_groups_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "class_lesson_settings_pkey",
         "columns": [
           "tenant_id",
           "id"
@@ -108247,6 +111262,20 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "lesson_sittings",
+        "name": "lesson_sittings_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "lesson_watches",
         "name": "lesson_watches_pkey",
         "columns": [
@@ -108431,6 +111460,20 @@
         "schema": "core",
         "table": "module_classes",
         "name": "module_classes_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "module_discussions_pkey",
         "columns": [
           "tenant_id",
           "id"
@@ -108989,6 +112032,20 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "standard_sittings",
+        "name": "standard_sittings_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "standards",
         "name": "standards_pkey",
         "columns": [
@@ -109241,6 +112298,20 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "work_sittings",
+        "name": "work_sittings_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "year_rollovers",
         "name": "year_rollovers_pkey",
         "columns": [
@@ -109327,6 +112398,23 @@
           "tenant_id",
           "form_id",
           "number"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignments",
+        "name": "assignments_tenant_id_id_class_id_status_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "id",
+          "class_id",
+          "status"
         ],
         "nullsNotDistinct": false,
         "entityType": "uniques"
@@ -109648,6 +112736,39 @@
         "columns": [
           "tenant_id",
           "token_hash"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "standard_sittings_tenant_id_id_student_user_id_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "id",
+          "student_user_id"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "standard_sittings_tenant_id_id_student_user_id_kind_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "id",
+          "student_user_id",
+          "kind"
         ],
         "nullsNotDistinct": false,
         "entityType": "uniques"
@@ -111085,6 +114206,36 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "assignment_terms",
+        "name": "assignment_terms_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "assignment_terms_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "assignment_terms_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "assignments",
         "name": "assignments_status_check",
         "value": "status in ('active', 'tobedeleted')",
@@ -111188,26 +114339,6 @@
         "table": "assignments",
         "name": "assignments_discussion_check",
         "value": "(submission_format = 'discussion') = (discussion_post_first is not null and discussion_replies is not null) and (discussion_replies is null or discussion_replies between 0 and 5)",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "assignments",
-        "name": "assignments_module_check",
-        "value": "module_id is null or submission_format = 'discussion'",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "assignments",
-        "name": "assignments_discussion_group_check",
-        "value": "discussion_group is null or module_id is not null",
         "entityType": "checks"
       }
     },
@@ -112555,6 +115686,46 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "class_grading",
+        "name": "class_grading_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "class_grading_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "class_grading_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "class_grading_chosen_check",
+        "value": "num_nonnulls(programme_id, grade_scale_id) >= 1",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "class_group_members",
         "name": "class_group_members_status_check",
         "value": "status in ('active', 'tobedeleted')",
@@ -112638,6 +115809,36 @@
         "table": "class_groups",
         "name": "class_groups_title_check",
         "value": "num_nonnulls(title_en, title_ar) >= 1",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "class_lesson_settings_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "class_lesson_settings_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "class_lesson_settings_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
         "entityType": "checks"
       }
     },
@@ -115497,7 +118698,7 @@
         "schema": "core",
         "table": "goal_judgements",
         "name": "goal_judgements_work_check",
-        "value": "(lesson_id is null or submission_id is null) and (block_id is null) = (lesson_id is null and submission_id is null)",
+        "value": "(sitting_id is null) = (block_id is null)",
         "entityType": "checks"
       }
     },
@@ -116935,6 +120136,36 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "lesson_sittings",
+        "name": "lesson_sittings_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "lesson_sittings_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "lesson_sittings_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "lesson_watches",
         "name": "lesson_watches_status_check",
         "value": "status in ('active', 'tobedeleted')",
@@ -118018,6 +121249,36 @@
         "table": "module_classes",
         "name": "module_classes_dates_check",
         "value": "(starts_on is null) = (ends_on is null) and (ends_on is null or ends_on >= starts_on)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "module_discussions_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "module_discussions_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "module_discussions_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
         "entityType": "checks"
       }
     },
@@ -120687,7 +123948,7 @@
         "schema": "core",
         "table": "standard_evidence",
         "name": "standard_evidence_source_check",
-        "value": "(source = 'lesson' and lesson_id is not null and submission_id is null) or (source in ('quiz', 'rubric') and submission_id is not null and lesson_id is null)",
+        "value": "source in ('lesson', 'quiz', 'rubric')",
         "entityType": "checks"
       }
     },
@@ -120808,6 +124069,46 @@
         "table": "standard_observations",
         "name": "standard_observations_note_check",
         "value": "char_length(note) <= 500",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "standard_sittings_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "standard_sittings_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "standard_sittings_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "standard_sittings_kind_check",
+        "value": "kind in ('lesson', 'work')",
         "entityType": "checks"
       }
     },
@@ -122208,6 +125509,36 @@
         "table": "work_comments",
         "name": "work_comments_criterion_id_check",
         "value": "char_length(criterion_id) between 1 and 40",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "work_sittings_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "work_sittings_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "work_sittings_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
         "entityType": "checks"
       }
     },
@@ -124070,6 +127401,93 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "assignment_terms",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignment_terms",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "assignments",
         "name": "tenant_isolation",
         "as": "RESTRICTIVE",
@@ -125761,6 +129179,93 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "class_grading",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "class_group_members",
         "name": "p_erase_update",
         "as": "PERMISSIVE",
@@ -125950,6 +129455,93 @@
       "row": {
         "schema": "core",
         "table": "class_groups",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_lesson_settings",
         "name": "p_update",
         "as": "PERMISSIVE",
         "for": "UPDATE",
@@ -131711,6 +135303,125 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "lesson_sittings",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lesson_sittings",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "lesson_watches",
         "name": "p_erase_update",
         "as": "PERMISSIVE",
@@ -133072,6 +136783,93 @@
       "row": {
         "schema": "core",
         "table": "module_classes",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "module_discussions",
         "name": "p_update",
         "as": "PERMISSIVE",
         "for": "UPDATE",
@@ -136809,6 +140607,125 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "standard_sittings",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "standard_sittings",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "standards",
         "name": "tenant_isolation",
         "as": "RESTRICTIVE",
@@ -138636,6 +142553,125 @@
         ],
         "using": "true",
         "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "work_sittings",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\"))",
+        "withCheck": null,
         "entityType": "policies"
       }
     },

@@ -79,55 +79,6 @@ export async function resetReadingNorms(
       and language = ${input.language} and status = 'active'`);
 }
 
-export interface LessonReading {
-  lessonId: string;
-  title: string;
-  blockId: string;
-  /** The lesson as the student read it, which holds the passage. */
-  content: unknown;
-  fluency: FluencyMark;
-  markedAt: string;
-}
-
-/**
- * Each passage a student read aloud in a lesson and a teacher marked word
- * by word in the period, its latest marking only.
- */
-export async function lessonReadingsOf(
-  tx: Tx,
-  input: { tenantId: string; studentId: string; from: string; before: string },
-): Promise<LessonReading[]> {
-  const rows = await tx.execute<{
-    lesson_id: string;
-    title: string;
-    block_id: string;
-    content: unknown;
-    fluency: FluencyMark;
-    marked_at: string;
-  }>(sql`
-    select * from (
-      select distinct on (r.lesson_id, r.block_id, r.attempt)
-        r.lesson_id, l.title, r.block_id, v.content, r.response->'fluency' as fluency,
-        ${isoOf(sql`r.created_at`)} as marked_at
-      from core.lesson_responses r
-      join core.lessons l on l.tenant_id = r.tenant_id and l.id = r.lesson_id
-      join core.document_versions v on v.tenant_id = r.tenant_id and v.id = r.document_version_id
-      where r.tenant_id = ${input.tenantId}::uuid and r.student_user_id = ${input.studentId}::uuid
-        and r.kind = 'written' and r.state = 'marked' and r.response ? 'fluency'
-        and r.created_at >= ${input.from}::date and r.created_at < ${input.before}::date
-      order by r.lesson_id, r.block_id, r.attempt, r.created_at desc
-    ) marked
-    order by marked_at`);
-  return rows.map((row) => ({
-    lessonId: row.lesson_id,
-    title: row.title,
-    blockId: row.block_id,
-    content: row.content,
-    fluency: row.fluency,
-    markedAt: row.marked_at,
-  }));
-}
-
 export interface QuizReading {
   assignmentId: string;
   title: string;

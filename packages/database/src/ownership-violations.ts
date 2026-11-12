@@ -11,11 +11,6 @@ export const OWNERSHIP_VIOLATIONS: OwnershipViolations = {
     "core.admission_intakes: admission_intakes_tenant_id_school_year_id_school_year_typ_fkey -> core.academic_sessions",
     "core.admission_intakes: school_year_id -> school_years",
     "core.admission_intakes: school_year_type -> school_years",
-    "core.assignments: assignments_tenant_id_grading_period_id_fkey -> core.academic_sessions",
-    "core.assignments: grading_period_id -> school_years",
-    "core.assignments: school_year_id -> school_years",
-    "core.learning_modules: learning_modules_tenant_id_school_year_id_fkey -> core.academic_sessions",
-    "core.learning_modules: school_year_id -> school_years",
   ],
   grade_levels: [
     "core.admission_intakes: grade_level_ns -> grade_level",
@@ -33,17 +28,6 @@ export const OWNERSHIP_VIOLATIONS: OwnershipViolations = {
     "core.users: custody_alert -> families",
     "health.requested_changes: relationship_id -> families",
     "health.requested_changes: requested_changes_tenant_id_relationship_id_fkey -> core.user_relationships",
-  ],
-  coursework: [
-    "core.classes: classes_tenant_id_grade_scale_id_fkey -> core.grade_scales",
-    "core.classes: classes_tenant_id_programme_id_fkey -> core.programmes",
-    "core.goal_judgements: goal_judgements_tenant_id_submission_id_student_user_id_fkey -> core.submissions",
-    "core.standard_evidence: standard_evidence_tenant_id_submission_id_student_user_id_fkey -> core.submissions",
-  ],
-  elearning: [
-    "core.assignments: assignments_tenant_id_module_id_fkey -> core.learning_modules",
-    "core.goal_judgements: goal_judgements_tenant_id_lesson_id_fkey -> core.lessons",
-    "core.standard_evidence: standard_evidence_tenant_id_lesson_id_fkey -> core.lessons",
   ],
   website: [
     "core.broadcasts: broadcasts_tenant_id_category_id_fkey -> core.site_categories",

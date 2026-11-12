@@ -1,6 +1,8 @@
+import type { CellTransaction } from "@faridalms/database/context";
+import type { Directory } from "@faridalms/database/directory/client";
 import type { ModuleId } from "@faridalms/domain/modules";
 
-import type { UnitContext } from "./context";
+import type { SchoolContext } from "./context";
 
 import { modulesOf } from "./modules";
 
@@ -39,9 +41,23 @@ export interface ModuleContributions {
   contributions: readonly Contribution[];
 }
 
+/**
+ * What says which modules are on at a school and what they contribute: a
+ * unit of work, or a background worker acting for one school without an
+ * actor.
+ */
+export interface ModuleScope extends Pick<
+  SchoolContext,
+  "school" | "extensions"
+> {
+  tx: CellTransaction;
+  tenantId: string;
+  schoolId: string;
+}
+
 /** The values the modules on at the school contribute to a point. */
 export async function contributionsTo<T>(
-  context: UnitContext,
+  context: ModuleScope,
   to: Point<T>,
 ): Promise<T[]> {
   const on = await modulesOf(context);
@@ -52,4 +68,25 @@ export async function contributionsTo<T>(
           .map((contribution) => contribution.value as T)
       : [],
   );
+}
+
+/**
+ * How a background worker learns which modules are on at a school, as a
+ * request does: the school's entitlements from the directory, its own
+ * switches in the cell, and every module's contributions.
+ */
+export interface WorkerModules {
+  directory: Pick<Directory, "schoolsOfTenant">;
+  extensions: readonly ModuleContributions[];
+}
+
+/** A worker's module scope for one school of a tenant, or null for a school the directory does not hold. */
+export async function workerScope(
+  modules: WorkerModules,
+  input: { tx: CellTransaction; tenantId: string; schoolId: string },
+): Promise<ModuleScope | null> {
+  const school = (await modules.directory.schoolsOfTenant(input.tenantId)).find(
+    (row) => row.schoolId === input.schoolId,
+  );
+  return school ? { ...input, school, extensions: modules.extensions } : null;
 }

@@ -26,6 +26,7 @@ import {
   sessionFor,
   setPlan,
   signedIn,
+  workerModules,
 } from "./harness";
 
 const student = () => signedIn("northwind", login("student"));
@@ -354,13 +355,13 @@ describe("a class's year map", () => {
       prerequisiteId: "",
       sequential: false,
     });
-    const before = await keeper.learning.yearMap({ classId });
+    const before = await keeper.learning.unitPlan({ classId });
     expect(before.classId).toBe(classId);
     const placed = before.units.find((row) => row.id === saved.id);
     expect(placed).toMatchObject({ startsOn: null, endsOn: null });
 
-    if (!before.year) throw new Error("the seeded school has no year");
-    const first = before.year.startsOn;
+    if (!before.frame) throw new Error("the seeded class is in no year");
+    const first = before.frame.startsOn;
     const day = (offset: number) =>
       new Date(Date.parse(`${first}T00:00:00Z`) + offset * 86_400_000)
         .toISOString()
@@ -371,7 +372,7 @@ describe("a class's year map", () => {
       startsOn: day(14),
       endsOn: day(27),
     });
-    const after = await keeper.learning.yearMap({ classId });
+    const after = await keeper.learning.unitPlan({ classId });
     expect(after.units.find((row) => row.id === saved.id)).toMatchObject({
       startsOn: day(14),
       endsOn: day(27),
@@ -396,7 +397,7 @@ describe("a class's year map", () => {
           endsOn: day(4),
         }),
       ),
-    ).toMatchObject({ message: "learning.unit_dates_year" });
+    ).toMatchObject({ message: "learning.unit_dates_runs" });
     // Saving the module again keeps the class's dates.
     const resaved = await keeper.learning.saveModule({
       id: saved.id,
@@ -408,7 +409,7 @@ describe("a class's year map", () => {
       sequential: false,
     });
     expect(
-      (await keeper.learning.yearMap({ classId })).units.find(
+      (await keeper.learning.unitPlan({ classId })).units.find(
         (row) => row.id === saved.id,
       )?.startsOn,
     ).toBe(day(14));
@@ -423,7 +424,7 @@ describe("a class's year map", () => {
     ).toMatchObject({ code: "NOT_FOUND" });
     await keeper.learning.setUnitDates({ ...dates, startsOn: "", endsOn: "" });
     expect(
-      (await keeper.learning.yearMap({ classId })).units.find(
+      (await keeper.learning.unitPlan({ classId })).units.find(
         (row) => row.id === saved.id,
       ),
     ).toMatchObject({ startsOn: null, endsOn: null });
@@ -2695,7 +2696,9 @@ describe("marking again", () => {
       ),
       javascript: createJavaScriptRunner(),
     };
-    expect(await rerunPrograms(cell, runners, tenantId)).toBe(1);
+    expect(await rerunPrograms(cell, runners, tenantId, workerModules())).toBe(
+      1,
+    );
     const after = await pupil.learning.playLesson({ id: created.id });
     expect(after.checks[exercise.id]).toMatchObject({
       correct: false,
@@ -2703,7 +2706,9 @@ describe("marking again", () => {
       response: { results: { [check.id]: { passed: false, output: "8\n" } } },
     });
     expect(after.score).toBe(0);
-    expect(await rerunPrograms(cell, runners, tenantId)).toBe(0);
+    expect(await rerunPrograms(cell, runners, tenantId, workerModules())).toBe(
+      0,
+    );
   });
 });
 

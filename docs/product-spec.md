@@ -69,10 +69,11 @@ another. A class runs over its own dates, a first day and, for one that
 ends, a last day; a student joins on a day inside them, and the dates cannot
 be narrowed past a student still in the class. The class list shows the
 classes running or about to start, or those that ended. A school with every
-module off creates classes and enrols people in them directly. Coursework,
-attendance, the timetable and the gradebook read the school year, so a class
-with no year is refused an assignment, a register, a timetable entry and a
-gradebook with a message that says why.
+module off creates classes and enrols people in them directly. A class in no
+school year takes assignments, lessons, registers and timetable entries like
+any other, and its gradebook keeps a running grade from the work graded so
+far; term grades, and the term a piece of work counts toward, belong to a
+class's school year where the school keeps years.
 
 The class is the hub for everything taught in it.
 

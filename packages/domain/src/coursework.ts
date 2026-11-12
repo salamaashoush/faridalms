@@ -5,6 +5,7 @@ import type { PublishIssue } from "./content-checks";
 import type { CheckBlock, LessonDocument } from "./learning";
 
 import { anchorSchema } from "./anchors";
+import { viewsSchema } from "./classes";
 import { contentDocumentSchema, contentPlainText } from "./content";
 import { CONTENT_ISSUE_CODE, publishIssues } from "./content-checks";
 import {
@@ -47,11 +48,6 @@ export const discussionSchema = v.object({
     v.integer(),
     v.minValue(0),
     v.maxValue(MAX_DISCUSSION_REPLIES),
-  ),
-  /** The module it stands in among the lessons, one set for its class; empty for none. */
-  moduleId: v.optional(
-    v.union([v.literal(""), v.pipe(v.string(), v.uuid())]),
-    "",
   ),
 });
 export type DiscussionSettings = v.InferOutput<typeof discussionSchema>;
@@ -289,13 +285,14 @@ export const saveAssignmentSchema = v.object({
   resubmission: v.optional(v.boolean(), false),
   points: v.nullable(v.pipe(points, v.minValue(0.5))),
   rubric: v.nullable(rubricSchema),
-  gradingPeriodId: v.optional(v.union([v.literal(""), id]), ""),
   categoryId: v.optional(v.union([v.literal(""), id]), ""),
   /** Returned work shows its grade only once the student answers every comment. */
   gradeAfterAnswers: v.optional(v.boolean(), false),
   quiz: v.optional(v.nullable(quizSchema), null),
   discussion: v.optional(v.nullable(discussionSchema), null),
   peer: v.optional(v.nullable(peerReviewSchema), null),
+  /** What modules keep about the work, each read by its own schema. */
+  parts: v.optional(v.record(v.string(), v.unknown()), {}),
   /** The language the brief is written in; without it, the one it had stays. */
   language: v.optional(v.nullable(v.picklist(CONTENT_LOCALES))),
   /** The brief in the other language; without it, the translation it had stays. */
@@ -772,12 +769,31 @@ export const TEACHER_TABS = [
 ] as const;
 export type TeacherTab = (typeof TEACHER_TABS)[number];
 
-export const teacherListSchema = v.object({
+/** The coursework list as its page's address keeps it. */
+export const teacherListSearchSchema = v.object({
   tab: v.optional(v.picklist(TEACHER_TABS), "assigned"),
   classId: v.optional(v.union([v.literal(""), id]), ""),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
+  /** Without a module's view, the work of classes that have ended. */
+  ended: v.optional(v.boolean(), false),
+});
+
+export const teacherListSchema = v.object({
+  ...teacherListSearchSchema.entries,
+  views: viewsSchema,
 });
 export type TeacherListQuery = v.InferOutput<typeof teacherListSchema>;
+
+/** A student's work: in the classes viewed, or with `ended`, in those that ended. */
+export const learnerWorkSchema = v.optional(
+  v.object({ ended: v.optional(v.boolean(), false) }),
+  {},
+);
+
+export const studentWorkSchema = v.object({
+  studentId: id,
+  ended: v.optional(v.boolean(), false),
+});
 
 export const LEARNER_TABS = ["to_do", "missing", "done"] as const;
 export type LearnerTab = (typeof LEARNER_TABS)[number];

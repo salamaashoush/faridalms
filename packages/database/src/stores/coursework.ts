@@ -16,9 +16,10 @@ import type {
   SubmissionFormat,
   SubmissionState,
 } from "../tables/coursework";
+import type { ClassesViewed } from "./classes";
 import type { Scope } from "./students";
 
-import { rosterOf, taughtClasses } from "./classes";
+import { rosterOf, taughtClasses, viewedClasses } from "./classes";
 import { holds, isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
@@ -28,8 +29,6 @@ export interface AssignmentRow {
   version: number;
   orgId: string;
   classId: string;
-  schoolYearId: string;
-  gradingPeriodId: string | null;
   categoryId: string | null;
   authorUserId: string;
   title: string;
@@ -55,9 +54,6 @@ export interface AssignmentRow {
   gradeAfterAnswers: boolean;
   discussionPostFirst: boolean | null;
   discussionReplies: number | null;
-  moduleId: string | null;
-  /** The module discussion this is one class's part of, by its first part's id. */
-  discussionGroup: string | null;
   peerReviews: number | null;
   peerAnonymous: boolean | null;
   peerStartedAt: string | null;
@@ -69,13 +65,11 @@ export interface AssignmentRow {
   publishedAt: string | null;
 }
 
-type AssignmentRecord = {
+export type AssignmentRecord = {
   id: string;
   version: number;
   org_id: string;
   class_id: string;
-  school_year_id: string;
-  grading_period_id: string | null;
   category_id: string | null;
   author_user_id: string;
   title: string;
@@ -101,8 +95,6 @@ type AssignmentRecord = {
   grade_after_answers: boolean;
   discussion_post_first: boolean | null;
   discussion_replies: number | null;
-  module_id: string | null;
-  discussion_group: string | null;
   peer_reviews: number | null;
   peer_anonymous: boolean | null;
   peer_started_at: string | null;
@@ -114,15 +106,15 @@ type AssignmentRecord = {
   published_at: string | null;
 };
 
-const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id, a.school_year_id,
-  a.grading_period_id, a.category_id, a.author_user_id, a.title, a.state, a.audience,
+export const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id,
+  a.category_id, a.author_user_id, a.title, a.state, a.audience,
   to_char(a.available_from at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as available_from,
   to_char(a.due_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as due_at,
   to_char(a.closes_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as closes_at,
   a.late_policy, a.late_deduction_percent, a.submission_format, a.max_files, a.resubmission,
   a.points::text as points, a.rubric, a.quiz_attempts, a.quiz_keep, a.quiz_reveal, a.quiz_shuffle,
   a.quiz_time_limit, a.quiz_practice, a.quiz_bands, a.grade_after_answers, a.discussion_post_first, a.discussion_replies,
-  a.module_id, a.discussion_group, a.peer_reviews, a.peer_anonymous,
+  a.peer_reviews, a.peer_anonymous,
   to_char(a.peer_started_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_started_at,
   to_char(a.peer_released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_released_at,
   to_char(a.peer_due_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_due_at,
@@ -130,14 +122,12 @@ const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id, a.school_ye
   a.language, a.translation_title,
   to_char(a.published_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as published_at`;
 
-function assignmentOf(row: AssignmentRecord): AssignmentRow {
+export function assignmentOf(row: AssignmentRecord): AssignmentRow {
   return {
     id: row.id,
     version: row.version,
     orgId: row.org_id,
     classId: row.class_id,
-    schoolYearId: row.school_year_id,
-    gradingPeriodId: row.grading_period_id,
     categoryId: row.category_id,
     authorUserId: row.author_user_id,
     title: row.title,
@@ -163,8 +153,6 @@ function assignmentOf(row: AssignmentRecord): AssignmentRow {
     gradeAfterAnswers: row.grade_after_answers,
     discussionPostFirst: row.discussion_post_first,
     discussionReplies: row.discussion_replies,
-    moduleId: row.module_id,
-    discussionGroup: row.discussion_group,
     peerReviews: row.peer_reviews,
     peerAnonymous: row.peer_anonymous,
     peerStartedAt: row.peer_started_at,
@@ -224,7 +212,6 @@ export interface AssignmentFields {
   resubmission: boolean;
   points: number | null;
   rubric: Record<string, unknown> | null;
-  gradingPeriodId: string | null;
   categoryId: string | null;
   quizAttempts: number | null;
   quizKeep: QuizKeep | null;
@@ -236,7 +223,6 @@ export interface AssignmentFields {
   gradeAfterAnswers: boolean;
   discussionPostFirst: boolean | null;
   discussionReplies: number | null;
-  moduleId: string | null;
   peerReviews: number | null;
   peerAnonymous: boolean | null;
   peerDueAt: string | null;
@@ -249,20 +235,18 @@ export async function insertAssignment(
   input: AssignmentFields & {
     tenantId: string;
     orgId: string;
-    classRow: { id: string; schoolYearId: string };
+    classRow: { id: string };
     authorUserId: string;
   },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.assignments (tenant_id, org_id, class_id, school_year_id,
-      grading_period_id, author_user_id, title, audience, available_from, due_at, closes_at,
+    insert into core.assignments (tenant_id, org_id, class_id, author_user_id, title, audience, available_from, due_at, closes_at,
       late_policy, late_deduction_percent, submission_format, max_files, resubmission, points, rubric,
       quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle, quiz_time_limit, quiz_practice, quiz_bands, category_id,
-      grade_after_answers, discussion_post_first, discussion_replies, module_id, peer_reviews,
+      grade_after_answers, discussion_post_first, discussion_replies, peer_reviews,
       peer_anonymous, peer_due_at, language, translation_title)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
-      ${input.classRow.schoolYearId}::uuid,
-      ${input.gradingPeriodId}::uuid, ${input.authorUserId}::uuid, ${input.title},
+      ${input.authorUserId}::uuid, ${input.title},
       ${input.audience}, ${input.availableFrom}::timestamptz, ${input.dueAt}::timestamptz,
       ${input.closesAt}::timestamptz, ${input.latePolicy}, ${input.lateDeductionPercent},
       ${input.submissionFormat}, ${input.maxFiles}, ${input.resubmission}, ${input.points},
@@ -270,7 +254,7 @@ export async function insertAssignment(
       ${input.quizShuffle}, ${input.quizTimeLimit}, ${input.quizPractice},
       ${JSON.stringify(input.quizBands)}::text::jsonb, ${input.categoryId}::uuid,
       ${input.gradeAfterAnswers}, ${input.discussionPostFirst}, ${input.discussionReplies},
-      ${input.moduleId}::uuid, ${input.peerReviews}, ${input.peerAnonymous}, ${input.peerDueAt}::timestamptz,
+      ${input.peerReviews}, ${input.peerAnonymous}, ${input.peerDueAt}::timestamptz,
       ${input.language}, ${input.translationTitle})
     returning id, version`);
   if (!row) throw new Error("assignment was not created");
@@ -284,20 +268,19 @@ export async function updateAssignment(
     tenantId: string;
     id: string;
     expectedVersion: number;
-    classRow: { id: string; schoolYearId: string };
+    classRow: { id: string };
   },
 ): Promise<{ version: number } | null> {
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.assignments
     set class_id = ${input.classRow.id}::uuid,
-        school_year_id = ${input.classRow.schoolYearId}::uuid,
         title = ${input.title}, audience = ${input.audience},
         available_from = ${input.availableFrom}::timestamptz, due_at = ${input.dueAt}::timestamptz,
         closes_at = ${input.closesAt}::timestamptz, late_policy = ${input.latePolicy},
         late_deduction_percent = ${input.lateDeductionPercent},
         submission_format = ${input.submissionFormat}, max_files = ${input.maxFiles},
         resubmission = ${input.resubmission}, points = ${input.points},
-        rubric = ${input.rubric}::jsonb, grading_period_id = ${input.gradingPeriodId}::uuid,
+        rubric = ${input.rubric}::jsonb,
         category_id = ${input.categoryId}::uuid,
         quiz_attempts = ${input.quizAttempts}, quiz_keep = ${input.quizKeep},
         quiz_reveal = ${input.quizReveal}, quiz_shuffle = ${input.quizShuffle},
@@ -307,7 +290,6 @@ export async function updateAssignment(
         grade_after_answers = ${input.gradeAfterAnswers},
         discussion_post_first = ${input.discussionPostFirst},
         discussion_replies = ${input.discussionReplies},
-        module_id = ${input.moduleId}::uuid,
         peer_reviews = ${input.peerReviews}, peer_anonymous = ${input.peerAnonymous},
         peer_due_at = ${input.peerDueAt}::timestamptz,
         -- A new review date earns its own reminder.
@@ -419,7 +401,7 @@ export async function teacherAssignments(
   tx: Tx,
   scope: Scope,
   filter: {
-    yearId: string;
+    viewed: ClassesViewed;
     classId: string;
     q: string;
     now: Date;
@@ -451,7 +433,7 @@ export async function teacherAssignments(
       from core.assignments a
       join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
       where a.tenant_id = ${scope.tenantId}::uuid and a.org_id = ${scope.schoolId}::uuid
-        and a.school_year_id = ${filter.yearId}::uuid and a.status = 'active'
+        and ${viewedClasses(filter.viewed)} and a.status = 'active'
         and a.class_id in ${taughtClasses(scope)}
         and (${filter.classId === ""} or a.class_id = ${filter.classId || null}::uuid)
         and (${holds(q, [sql`a.title`])})
@@ -1653,10 +1635,10 @@ export interface LearnerRow {
   held: boolean;
 }
 
-/** The published work a student was given in a year, with their standing on each. */
+/** The published work a student was given in the classes viewed, with their standing on each. */
 export async function learnerAssignments(
   tx: Tx,
-  input: { tenantId: string; studentId: string; yearId: string },
+  input: { tenantId: string; studentId: string; viewed: ClassesViewed },
 ): Promise<LearnerRow[]> {
   const rows = await tx.execute<{
     assignment_id: string;
@@ -1714,7 +1696,7 @@ export async function learnerAssignments(
     left join core.assessments x on x.tenant_id = r.tenant_id and x.attempt_id = t.id and x.status = 'active'
     where r.tenant_id = ${input.tenantId}::uuid and r.student_user_id = ${input.studentId}::uuid
       and r.status = 'active' and a.status = 'active' and a.state = 'published'
-      and a.school_year_id = ${input.yearId}::uuid
+      and ${viewedClasses(input.viewed)}
     order by coalesce(r.due_at, a.due_at) nulls last, a.title`);
   return rows.map((row) => ({
     assignmentId: row.assignment_id,
@@ -1743,41 +1725,6 @@ export async function learnerAssignments(
     effectiveScore:
       row.effective_score === null ? null : Number(row.effective_score),
     gradeScaleVersionId: row.grade_scale_version_id,
-  }));
-}
-
-export interface GroupRow {
-  id: string;
-  version: number;
-  titleEn: string | null;
-  titleAr: string | null;
-  studentIds: string[];
-}
-
-export async function groupsOf(
-  tx: Tx,
-  tenantId: string,
-  classId: string,
-): Promise<GroupRow[]> {
-  const rows = await tx.execute<{
-    id: string;
-    version: number;
-    title_en: string | null;
-    title_ar: string | null;
-    student_ids: string[] | null;
-  }>(sql`
-    select g.id, g.version, g.title_en, g.title_ar,
-      array(select m.student_user_id from core.class_group_members m
-        where m.tenant_id = g.tenant_id and m.group_id = g.id and m.status = 'active')::text[] as student_ids
-    from core.class_groups g
-    where g.tenant_id = ${tenantId}::uuid and g.class_id = ${classId}::uuid and g.status = 'active'
-    order by coalesce(g.title_en, g.title_ar), g.id`);
-  return rows.map((row) => ({
-    id: row.id,
-    version: row.version,
-    titleEn: row.title_en,
-    titleAr: row.title_ar,
-    studentIds: row.student_ids ?? [],
   }));
 }
 
@@ -1965,29 +1912,6 @@ export async function attemptById(
         isLate: row.is_late,
       }
     : null;
-}
-
-export async function namesOf(
-  tx: Tx,
-  tenantId: string,
-  ids: readonly string[],
-): Promise<
-  { id: string; fullNameEn: string | null; fullNameAr: string | null }[]
-> {
-  if (ids.length === 0) return [];
-  const rows = await tx.execute<{
-    id: string;
-    full_name_en: string | null;
-    full_name_ar: string | null;
-  }>(sql`
-    select id, full_name_en, full_name_ar from core.users
-    where tenant_id = ${tenantId}::uuid and id = any(${uuidArray(ids)})
-    order by full_name_en, full_name_ar, id`);
-  return rows.map((row) => ({
-    id: row.id,
-    fullNameEn: row.full_name_en,
-    fullNameAr: row.full_name_ar,
-  }));
 }
 
 export interface PortfolioRow {
@@ -2213,52 +2137,4 @@ export async function setDiscussionLike(
       update core.discussion_likes set status = 'tobedeleted'
       where tenant_id = ${input.tenantId}::uuid and post_id = ${input.postId}::uuid
         and user_id = ${input.userId}::uuid and status = 'active'`);
-}
-
-/** Makes a discussion one class's part of a module discussion, or takes it out of one. */
-export async function setDiscussionGroup(
-  tx: Tx,
-  input: { tenantId: string; id: string; group: string | null },
-): Promise<void> {
-  await tx.execute(sql`
-    update core.assignments set discussion_group = ${input.group}::uuid
-    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and status = 'active'`);
-}
-
-/** Every class's part of a module discussion, archived ones included, first made first. */
-export async function discussionParts(
-  tx: Tx,
-  input: { tenantId: string; group: string },
-): Promise<AssignmentRow[]> {
-  const rows = await tx.execute<AssignmentRecord>(sql`
-    select ${assignmentColumns} from core.assignments a
-    where a.tenant_id = ${input.tenantId}::uuid and a.discussion_group = ${input.group}::uuid
-      and a.status = 'active'
-    order by a.created_at, a.id`);
-  return rows.map(assignmentOf);
-}
-
-/** The module discussions a module holds, by group. */
-export async function discussionGroupsOf(
-  tx: Tx,
-  input: { tenantId: string; moduleId: string },
-): Promise<string[]> {
-  const rows = await tx.execute<{ discussion_group: string }>(sql`
-    select distinct discussion_group from core.assignments
-    where tenant_id = ${input.tenantId}::uuid and module_id = ${input.moduleId}::uuid
-      and discussion_group is not null and status = 'active' and state <> 'archived'`);
-  return rows.map((row) => row.discussion_group);
-}
-
-/** The discussions a module holds, in any of its classes, in the order they fall due. */
-export async function moduleDiscussions(
-  tx: Tx,
-  input: { tenantId: string; moduleId: string },
-): Promise<AssignmentRow[]> {
-  const rows = await tx.execute<AssignmentRecord>(sql`
-    select ${assignmentColumns} from core.assignments a
-    where a.tenant_id = ${input.tenantId}::uuid and a.module_id = ${input.moduleId}::uuid
-      and a.status = 'active' and a.state <> 'archived'
-    order by a.due_at nulls last, a.created_at, a.id`);
-  return rows.map(assignmentOf);
 }

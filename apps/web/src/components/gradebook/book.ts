@@ -28,8 +28,13 @@ export function resultOf(book: Book, workId: string, studentId: string) {
   );
 }
 
+/** The term the book is open at, where a module keeps terms and the class's year has one. */
+export function termOf(book: Book) {
+  return book.term?.periodId ? book.term : null;
+}
+
 export function savedGradeOf(book: Book, studentId: string) {
-  return book.grades.find((row) => row.studentId === studentId);
+  return book.term?.grades.find((row) => row.studentId === studentId);
 }
 
 /** A saved term grade students and families cannot see yet. */

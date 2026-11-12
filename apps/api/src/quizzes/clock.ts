@@ -16,6 +16,9 @@ import {
 import { isLate, QUIZ_GRACE_MS } from "@faridalms/domain/coursework";
 import { schoolDate } from "@faridalms/domain/school";
 
+import type { WorkerModules } from "../core/extension";
+
+import { workerScope } from "../core/extension";
 import { handInAttempt } from "./quiz";
 
 /**
@@ -27,6 +30,7 @@ export async function handInTimedOut(
   cell: Cell,
   tenantId: string,
   now: Date,
+  modules: WorkerModules,
   limit = 100,
 ): Promise<number> {
   return cell.withWorker(
@@ -51,22 +55,28 @@ export async function handInTimedOut(
           schoolProfile(tx, row.orgId),
         ]);
         const endsAt = sittings.get(row.attempt)?.endsAt ?? now;
-        const unit = {
+        const scope = await workerScope(modules, {
           tx,
           tenantId,
-          today: schoolDate(school?.timeZone ?? "UTC", endsAt),
-        };
+          schoolId: row.orgId,
+        });
         // An attempt handed in another way, or work withdrawn since, only
         // has its clock stopped.
         const result =
-          assignment && work && work.attempts + 1 === row.attempt
-            ? await handInAttempt(unit, {
-                assignment,
-                submissionId: row.submissionId,
-                studentId: row.studentId,
-                attempt: row.attempt,
-                isLate: isLate(work.dueAt, endsAt),
-              })
+          scope && assignment && work && work.attempts + 1 === row.attempt
+            ? await handInAttempt(
+                {
+                  ...scope,
+                  today: schoolDate(school?.timeZone ?? "UTC", endsAt),
+                },
+                {
+                  assignment,
+                  submissionId: row.submissionId,
+                  studentId: row.studentId,
+                  attempt: row.attempt,
+                  isLate: isLate(work.dueAt, endsAt),
+                },
+              )
             : null;
         if (!result || !work?.submissionVersion) {
           await closeSitting(tx, {
@@ -111,6 +121,7 @@ export async function handInTimedOut(
 export function startQuizClock(input: {
   cell: Cell;
   directory: Directory;
+  extensions: WorkerModules["extensions"];
   cellId: string;
   intervalMs: number;
 }): () => Promise<void> {
@@ -121,7 +132,7 @@ export function startQuizClock(input: {
     for (const tenantId of tenants) {
       if (stopped) return;
       try {
-        await handInTimedOut(input.cell, tenantId, new Date());
+        await handInTimedOut(input.cell, tenantId, new Date(), input);
       } catch (error) {
         console.error(
           JSON.stringify({

@@ -20,8 +20,11 @@ import { CircleCheck, Lock, MessagesSquare, Play, Shuffle } from "lucide-react";
 
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { moduleDiscussionsQuery } from "~/queries/coursework";
-import { moduleOutlineQuery, myModulesQuery } from "~/queries/learning";
+import {
+  moduleDiscussionsQuery,
+  moduleOutlineQuery,
+  myModulesQuery,
+} from "~/queries/learning";
 import { formatInstant, formatNumber } from "~/utils/datetime";
 
 import { LESSON_STATE_LABEL, lockedText } from "./format";

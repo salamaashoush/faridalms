@@ -2,11 +2,12 @@ import { Button } from "@faridalms/ui/button";
 import { ChangeLog } from "@faridalms/ui/system/change-log";
 import { RecordSection } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Plus, RefreshCcw } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 
 import { historyEntry, historyLabels } from "~/components/system/history";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { gradingHistoryQuery, gradingOverviewQuery } from "~/queries/grading";
 
@@ -18,21 +19,20 @@ import {
   ProgrammesTable,
   RetireProgrammeDialog,
 } from "./Programmes";
-import { RegradeSheet } from "./RegradeSheet";
 import {
   BandsSheet,
   RetireScaleSheet,
   ScaleSheet,
   ScalesTable,
 } from "./Scales";
+import { gradingScaleActions } from "./slots";
 
 type Open =
   | { kind: "scale"; scale?: ScaleRow }
   | { kind: "bands"; scale: ScaleRow }
   | { kind: "retireScale"; scale: ScaleRow }
   | { kind: "programme"; programme?: ProgrammeRow }
-  | { kind: "retireProgramme"; programme: ProgrammeRow }
-  | { kind: "regrade" };
+  | { kind: "retireProgramme"; programme: ProgrammeRow };
 
 /**
  * Sheets keep their content while they animate closed, and a new opening
@@ -132,6 +132,7 @@ export function GradingSettings() {
   const grading = useSuspenseQuery(gradingOverviewQuery).data;
   const sheet = useSheet();
   const shown = sheet.shown;
+  const actions = useSlot(gradingScaleActions);
   return (
     <div className="grid gap-10">
       <RecordSection
@@ -139,16 +140,9 @@ export function GradingSettings() {
         description={m.gradingScalesHint()}
         action={
           <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="max-md:h-10"
-              onClick={() => sheet.show({ kind: "regrade" })}
-            >
-              <RefreshCcw aria-hidden />
-              {m.gradingRegradeTitle()}
-            </Button>
+            {actions.map(({ key, Action }) => (
+              <Action key={key} />
+            ))}
             <Button
               type="button"
               size="sm"
@@ -230,12 +224,6 @@ export function GradingSettings() {
           key={shown.generation}
           open={sheet.isOpen}
           programme={shown.open.programme}
-          onClose={sheet.close}
-        />
-      ) : shown?.open.kind === "regrade" ? (
-        <RegradeSheet
-          key={shown.generation}
-          open={sheet.isOpen}
           onClose={sheet.close}
         />
       ) : null}

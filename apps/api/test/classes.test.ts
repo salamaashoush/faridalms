@@ -216,7 +216,7 @@ describe("a class of its own", () => {
     ).toMatchObject({ code: "CONFLICT", message: "school_year.class_outside" });
   });
 
-  test("a closed year's classes take no enrolments, and a class with no year takes no assignment", async () => {
+  test("a closed year's classes take no enrolments, and a class with no year takes an assignment", async () => {
     const api = await principal();
     const created = await api.years.save({
       titleEn: "Salama's closed year",
@@ -261,22 +261,21 @@ describe("a class of its own", () => {
       titleEn: "In no year",
       teacherIds: [],
     });
-    expect(
-      await rejection(
-        api.coursework.save({
-          classId: yearless.id,
-          title: "Work for a class in no year",
-          brief: plainContent("Instructions."),
-          audience: "class",
-          latePolicy: "accept",
-          submissionFormat: "both",
-          points: 10,
-          rubric: null,
-        }),
-      ),
-    ).toMatchObject({ code: "CONFLICT", message: "class.no_school_year" });
-    // Lessons and registers belong to no year: a class in none is planned
-    // and registered like any other.
+    // Work, lessons and registers belong to no year: a class in none takes
+    // an assignment, and is planned and registered like any other.
+    const work = await api.coursework.save({
+      classId: yearless.id,
+      title: "Work for a class in no year",
+      brief: plainContent("Instructions."),
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "both",
+      points: 10,
+      rubric: null,
+    });
+    expect((await api.coursework.editor({ id: work.id })).classId).toBe(
+      yearless.id,
+    );
     const week = await api.timetable.classWeek({ classId: yearless.id });
     expect(week).toMatchObject({ canPlan: true, gridClassId: yearless.id });
     expect(week.week.meetings).toEqual([]);

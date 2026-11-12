@@ -1,3 +1,4 @@
+import type { ClassesViewed } from "@faridalms/database/stores/classes";
 import type { EnrollmentSource } from "@faridalms/database/tables/teaching";
 import type { Views } from "@faridalms/domain/classes";
 import type { OpenSpan } from "@faridalms/domain/school";
@@ -72,6 +73,12 @@ export const runsRefusal = (
 /** Why nothing more is recorded for a class, or null. */
 export const settlementOf = (context: UnitContext, classId: string) =>
   firstRefusal(context, (guard) => guard.settles?.(context, classId) ?? null);
+
+/** Refuses to record anything more for a class a module has settled, as in a closed year. */
+export async function requireUnsettled(context: UnitContext, classId: string) {
+  const refusal = await settlementOf(context, classId);
+  if (refusal) throw new ORPCError("CONFLICT", { message: refusal });
+}
 
 /** Why an enrolment may not be ended by hand, or null. */
 export const endingRefusal = (
@@ -236,3 +243,47 @@ export interface ClassJoins {
 }
 
 export const classJoins = point<ClassJoins>("class joins");
+
+/** The classes a list of work shows, and the day it reads them on. */
+export interface ClassesInView extends ClassesViewed {
+  /** No class in the view takes changes, as in a closed year. */
+  settled: boolean;
+  title: ClassSelection["title"];
+}
+
+/**
+ * The classes running today or yet to start, whatever a module's view: the
+ * classes work and modules are set for.
+ */
+export const currentClasses = (context: UnitContext): ClassesViewed => ({
+  on: context.today,
+  classIds: null,
+  ended: false,
+});
+
+/**
+ * The classes a list of a school's work shows: those a module's view names
+ * (the working year's, given none), else those still running or yet to
+ * start, or with `ended` those over.
+ */
+export async function classesInView(
+  context: UnitContext,
+  input: { views?: Views; ended?: boolean } = {},
+): Promise<ClassesInView> {
+  const view = await classViewOf(context, input.views ?? {});
+  return view
+    ? {
+        on: view.on,
+        classIds: view.classIds,
+        ended: false,
+        settled: Boolean(view.settled),
+        title: view.title,
+      }
+    : {
+        on: context.today,
+        classIds: null,
+        ended: input.ended ?? false,
+        settled: false,
+        title: undefined,
+      };
+}

@@ -5,7 +5,6 @@ import type {
   StartKind,
 } from "@faridalms/domain/messages";
 
-import { namesOf } from "@faridalms/database/stores/coursework";
 import { saveDocument } from "@faridalms/database/stores/documents";
 import { rehostFiles } from "@faridalms/database/stores/files";
 import {
@@ -34,6 +33,7 @@ import {
   writtenSince,
 } from "@faridalms/database/stores/messages";
 import { readSubject } from "@faridalms/database/stores/notifications";
+import { namesOf } from "@faridalms/database/stores/persons";
 import {
   roomOf,
   signTicket,

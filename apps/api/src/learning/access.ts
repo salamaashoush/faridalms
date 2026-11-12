@@ -6,10 +6,10 @@ import {
 } from "@faridalms/database/stores/learning";
 import { ORPCError } from "@orpc/server";
 
-import type { UnitContext } from "./context";
+import type { UnitContext } from "../core/context";
 
-import { can } from "./procedure";
-import { teaches } from "./reach";
+import { can } from "../core/procedure";
+import { teaches } from "../core/reach";
 
 /** A module of the viewer's school, or not found. */
 export async function moduleOfSchool(context: UnitContext, moduleId: string) {

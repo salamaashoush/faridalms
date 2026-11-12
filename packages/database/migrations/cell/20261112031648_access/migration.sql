@@ -104,6 +104,10 @@ grant select, insert, update on core.assignment_recipients to app, worker, cell_
 grant select, delete on core.assignment_recipients to retention;
 grant update (status, metadata) on core.assignment_recipients to retention;
 
+alter table core.assignment_terms force row level security;
+grant select, insert, update on core.assignment_terms to app, worker, cell_io;
+grant select on core.assignment_terms to retention;
+
 alter table core.assignments force row level security;
 grant select, insert, update on core.assignments to app, worker, cell_io;
 grant select on core.assignments to integration, retention;
@@ -187,6 +191,10 @@ alter table core.caption_drafts force row level security;
 grant select, insert, update on core.caption_drafts to app, worker, cell_io;
 grant select on core.caption_drafts to retention;
 
+alter table core.class_grading force row level security;
+grant select, insert, update on core.class_grading to app, worker, cell_io;
+grant select on core.class_grading to retention;
+
 alter table core.class_group_members force row level security;
 grant select, insert, update on core.class_group_members to app, worker, cell_io;
 grant select, delete on core.class_group_members to retention;
@@ -195,6 +203,10 @@ grant update (status, metadata) on core.class_group_members to retention;
 alter table core.class_groups force row level security;
 grant select, insert, update on core.class_groups to app, worker, cell_io;
 grant select on core.class_groups to retention;
+
+alter table core.class_lesson_settings force row level security;
+grant select, insert, update on core.class_lesson_settings to app, worker, cell_io;
+grant select on core.class_lesson_settings to retention;
 
 alter table core.class_meetings force row level security;
 grant select, insert, update on core.class_meetings to app, worker, cell_io;
@@ -452,6 +464,11 @@ grant select, insert, update on core.lesson_shares to app, worker, cell_io;
 grant select, delete on core.lesson_shares to retention;
 grant update (status, metadata) on core.lesson_shares to retention;
 
+alter table core.lesson_sittings force row level security;
+grant select, insert, update on core.lesson_sittings to app, worker, cell_io;
+grant select, delete on core.lesson_sittings to retention;
+grant update (status, metadata) on core.lesson_sittings to retention;
+
 alter table core.lesson_watches force row level security;
 grant select, insert, update on core.lesson_watches to app, worker, cell_io;
 grant select, delete on core.lesson_watches to retention;
@@ -515,6 +532,10 @@ grant update (status, metadata) on core.module_audiences to retention;
 alter table core.module_classes force row level security;
 grant select, insert, update on core.module_classes to app, worker, cell_io;
 grant select on core.module_classes to retention;
+
+alter table core.module_discussions force row level security;
+grant select, insert, update on core.module_discussions to app, worker, cell_io;
+grant select on core.module_discussions to retention;
 
 alter table core.notification_deliveries force row level security;
 grant select, insert, update on core.notification_deliveries to app, worker, cell_io;
@@ -692,6 +713,11 @@ grant select, insert, update on core.standard_observations to app, worker, cell_
 grant select, delete on core.standard_observations to retention;
 grant update (status, metadata) on core.standard_observations to retention;
 
+alter table core.standard_sittings force row level security;
+grant select, insert, update on core.standard_sittings to app, worker, cell_io;
+grant select, delete on core.standard_sittings to retention;
+grant update (status, metadata) on core.standard_sittings to retention;
+
 alter table core.standards force row level security;
 grant select, insert, update on core.standards to app, worker, cell_io;
 grant select on core.standards to retention;
@@ -781,6 +807,11 @@ grant update (status, metadata) on core.work_comment_replies to retention;
 alter table core.work_comments force row level security;
 grant select, insert, update on core.work_comments to app, worker, cell_io;
 grant select on core.work_comments to retention;
+
+alter table core.work_sittings force row level security;
+grant select, insert, update on core.work_sittings to app, worker, cell_io;
+grant select, delete on core.work_sittings to retention;
+grant update (status, metadata) on core.work_sittings to retention;
 
 alter table core.year_rollovers force row level security;
 grant select, insert, update on core.year_rollovers to app, worker, cell_io;
