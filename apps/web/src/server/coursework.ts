@@ -5,11 +5,6 @@ import {
   editDiscussionPostSchema,
   hideDiscussionPostSchema,
   likeDiscussionPostSchema,
-  hidePeerReviewSchema,
-  peerCommentSchema,
-  peerReviewInputSchema,
-  ratePeerReviewSchema,
-  removePeerCommentSchema,
   extendSchema,
   feedbackRecordingSchema,
   handInSchema,
@@ -258,42 +253,6 @@ export const saveRubric = createServerFn({ method: "POST" })
 export const removeRubric = createServerFn({ method: "POST" })
   .validator(byId)
   .handler(({ data }) => backend().coursework.removeTeacherRubric(data));
-
-export const getPeerOverview = createServerFn({ method: "GET" })
-  .validator(checked(v.object({ assignmentId: uuid })))
-  .handler(({ data }) => record(backend().peer.overview(data)));
-
-export const startPeerReview = createServerFn({ method: "POST" })
-  .validator(checked(v.object({ assignmentId: uuid })))
-  .handler(({ data }) => backend().peer.start(data));
-
-export const releasePeerReviews = createServerFn({ method: "POST" })
-  .validator(checked(v.object({ assignmentId: uuid })))
-  .handler(({ data }) => backend().peer.release(data));
-
-export const hidePeerReview = createServerFn({ method: "POST" })
-  .validator(checked(hidePeerReviewSchema))
-  .handler(({ data }) => backend().peer.hide(data));
-
-export const getMyPeerReviews = createServerFn({ method: "GET" })
-  .validator(checked(v.object({ assignmentId: uuid })))
-  .handler(({ data }) => record(backend().peer.mine(data)));
-
-export const sendPeerReview = createServerFn({ method: "POST" })
-  .validator(checked(peerReviewInputSchema))
-  .handler(({ data }) => backend().peer.send(data));
-
-export const commentInPeerReview = createServerFn({ method: "POST" })
-  .validator(checked(peerCommentSchema))
-  .handler(({ data }) => backend().peer.comment(data));
-
-export const removePeerComment = createServerFn({ method: "POST" })
-  .validator(checked(removePeerCommentSchema))
-  .handler(({ data }) => backend().peer.uncomment(data));
-
-export const ratePeerReview = createServerFn({ method: "POST" })
-  .validator(checked(ratePeerReviewSchema))
-  .handler(({ data }) => backend().peer.rate(data));
 
 export const reviewBriefTranslation = createServerFn({ method: "POST" })
   .validator(checked(reviewTranslationSchema))

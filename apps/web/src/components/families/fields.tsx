@@ -2,6 +2,7 @@ import type { RelationshipFlags } from "@faridalms/domain/families";
 
 import { SelectField } from "@faridalms/ui/system/form-field";
 
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 
 import { CheckboxRow } from "../people/fields";
@@ -37,6 +38,7 @@ export function RelationshipFields({
   portalError,
   idPrefix,
 }: RelationshipFieldsProps) {
+  const { texts } = useCurrentUser();
   const set = <K extends keyof FlagsDraft>(key: K, next: FlagsDraft[K]) =>
     onChange({ ...value, [key]: next });
   return (
@@ -63,7 +65,11 @@ export function RelationshipFields({
         />
         <CheckboxRow
           label={m.guardianReceivesNotifications()}
-          hint={m.guardianReceivesNotificationsHint()}
+          hint={
+            texts
+              ? m.guardianReceivesNotificationsHint()
+              : m.guardianReceivesNotificationsHintEmail()
+          }
           checked={value.receivesNotifications}
           onChange={(next) => set("receivesNotifications", next)}
         />

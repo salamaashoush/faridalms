@@ -1,4 +1,7 @@
+import { schoolYears } from "@faridalms/database/stores/years";
+import { BADGE_DAYS, badgeYearEnd } from "@faridalms/domain/badges";
 import { describe, expect, test } from "bun:test";
+import { sql } from "drizzle-orm";
 
 import {
   client,
@@ -8,6 +11,7 @@ import {
   seeded,
   sessionFor,
   signedIn,
+  withoutModules,
 } from "./harness";
 
 const YOUNG = "northwind-east";
@@ -59,7 +63,7 @@ describe("sign-in badges", () => {
 
     const first = await badgeFor(api, classId, child.userId);
     expect(first).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    const session = await client(YOUNG).identity.badgeSignIn({
+    const session = await client(YOUNG).badges.signIn({
       secret: first,
     });
     const signed = client(YOUNG, session.token);
@@ -73,7 +77,7 @@ describe("sign-in badges", () => {
 
     const second = await badgeFor(api, classId, child.userId);
     expect(
-      await rejection(client(YOUNG).identity.badgeSignIn({ secret: first })),
+      await rejection(client(YOUNG).badges.signIn({ secret: first })),
     ).toMatchObject({
       code: "BAD_REQUEST",
       message: "auth.invalid_credentials",
@@ -81,7 +85,7 @@ describe("sign-in badges", () => {
     expect(await rejection(signed.identity.currentUser())).toMatchObject({
       code: "UNAUTHORIZED",
     });
-    const again = await client(YOUNG).identity.badgeSignIn({ secret: second });
+    const again = await client(YOUNG).badges.signIn({ secret: second });
     expect(again.workspace).toBe("me");
   });
 
@@ -90,10 +94,10 @@ describe("sign-in badges", () => {
     const child = (await api.badges.classBadges({ classId })).students[1];
     if (!child) throw new Error("a young homeroom of one");
     const secret = await badgeFor(api, classId, child.userId);
-    const session = await client(YOUNG).identity.badgeSignIn({ secret });
+    const session = await client(YOUNG).badges.signIn({ secret });
     await api.badges.stopBadge({ classId, studentId: child.userId });
     expect(
-      await rejection(client(YOUNG).identity.badgeSignIn({ secret })),
+      await rejection(client(YOUNG).badges.signIn({ secret })),
     ).toMatchObject({ code: "BAD_REQUEST" });
     expect(
       await rejection(client(YOUNG, session.token).identity.currentUser()),
@@ -111,11 +115,11 @@ describe("sign-in badges", () => {
     if (!child) throw new Error("a young homeroom of two");
     const secret = await badgeFor(api, classId, child.userId);
     expect(
-      await rejection(client("northwind").identity.badgeSignIn({ secret })),
+      await rejection(client("northwind").badges.signIn({ secret })),
     ).toMatchObject({ code: "BAD_REQUEST" });
-    expect(
-      (await client(YOUNG).identity.badgeSignIn({ secret })).workspace,
-    ).toBe("me");
+    expect((await client(YOUNG).badges.signIn({ secret })).workspace).toBe(
+      "me",
+    );
   });
 
   test("older students get no badge, and no one prints for a class they do not teach", async () => {
@@ -154,9 +158,7 @@ describe("sign-in badges", () => {
 
   test("a secret that is not a badge reads like a stopped one", async () => {
     expect(
-      await rejection(
-        client(YOUNG).identity.badgeSignIn({ secret: "x".repeat(43) }),
-      ),
+      await rejection(client(YOUNG).badges.signIn({ secret: "x".repeat(43) })),
     ).toMatchObject({
       code: "BAD_REQUEST",
       message: "auth.invalid_credentials",
@@ -279,5 +281,81 @@ describe("badges at the class screen", () => {
       ...kept,
       expectedVersion: opened.version,
     });
+  });
+});
+
+describe("badges as a school's modules have them", () => {
+  test("a badge signs nobody in where badges or the grades they need are off, and signs in again once they are back", async () => {
+    const { api, classId } = await youngTeacher();
+    const child = (await api.badges.classBadges({ classId })).students[3];
+    if (!child) throw new Error("a young homeroom of three");
+    const secret = await badgeFor(api, classId, child.userId);
+    await withoutModules(YOUNG, ["badges"], async () => {
+      expect(
+        await rejection(client(YOUNG).badges.signIn({ secret })),
+      ).toMatchObject({ code: "NOT_FOUND" });
+    });
+    await withoutModules(YOUNG, ["grade_levels"], async () => {
+      expect(
+        await rejection(client(YOUNG).badges.signIn({ secret })),
+      ).toMatchObject({
+        code: "BAD_REQUEST",
+        message: "auth.invalid_credentials",
+      });
+    });
+    expect((await client(YOUNG).badges.signIn({ secret })).workspace).toBe(
+      "me",
+    );
+  });
+
+  test("a badge printed where there are no school years lasts its days from last use, and one printed in a year stops at its end", async () => {
+    const { api, classId } = await youngTeacher();
+    const child = (await api.badges.classBadges({ classId })).students[4];
+    if (!child) throw new Error("a young homeroom of four");
+    const { cell, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    const untilOf = async () => {
+      const [row] = await cell.withWorker(
+        { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
+        "read",
+        (tx) =>
+          tx.execute<{ until: string | null; expires_at: string }>(sql`
+            select l.metadata ->> 'until' as until, l.expires_at::text as expires_at
+            from core.login_identities l
+            join core.accounts a on a.tenant_id = l.tenant_id and a.id = l.account_id
+            where l.tenant_id = ${tenantId}::uuid and a.user_id = ${child.userId}::uuid
+              and l.kind = 'badge' and l.status = 'active' and l.voided_at is null`),
+      );
+      if (!row?.until) throw new Error("no badge kept");
+      return {
+        until: Date.parse(row.until),
+        expires: Date.parse(row.expires_at),
+      };
+    };
+    const printed = Date.now();
+    await withoutModules(YOUNG, ["school_years"], async () => {
+      await badgeFor(api, classId, child.userId);
+    });
+    const yearless = await untilOf();
+    expect(yearless.until).toBe(yearless.expires);
+    expect(yearless.until - printed).toBeGreaterThan(
+      (BADGE_DAYS - 1) * 86_400_000,
+    );
+    await badgeFor(api, classId, child.userId);
+    const inYear = await untilOf();
+    const school = tenants[0]?.schools.find((row) => row.slug === YOUNG);
+    const years = await cell.withWorker(
+      { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
+      "read",
+      (tx) => schoolYears(tx, tenantId, school?.id ?? ""),
+    );
+    const sliding = new Date(printed + BADGE_DAYS * 86_400_000);
+    const yearEnd = badgeYearEnd(
+      years,
+      new Date(printed).toISOString().slice(0, 10),
+      sliding,
+    );
+    expect(yearEnd).not.toEqual(sliding);
+    expect(inYear.until).toBe(yearEnd.getTime());
   });
 });

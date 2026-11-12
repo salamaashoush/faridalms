@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { allocateReviews } from "./peer-review";
+import { allocateReviews, peerIssue } from "./peer-review";
 import { seededRandom } from "./seeded";
 
 const counts = (
@@ -79,5 +79,36 @@ describe("allocateReviews", () => {
         reviews: 2,
       }),
     ).toEqual([]);
+  });
+});
+
+describe("peer review on a piece of work", () => {
+  const settings = { reviews: 2, anonymous: true, dueAt: "" };
+
+  it("is set on work whose handed-in pages classmates can read, and on no other", () => {
+    expect(
+      peerIssue({ settings, format: "online", workDueAt: null }),
+    ).toBeNull();
+    expect(peerIssue({ settings, format: "none", workDueAt: null })).toBe(
+      "coursework.peer_format",
+    );
+  });
+
+  it("falls due after the work it reviews", () => {
+    const work = "2026-11-20T09:00:00.000Z";
+    expect(
+      peerIssue({
+        settings: { ...settings, dueAt: "2026-11-19T09:00:00.000Z" },
+        format: "both",
+        workDueAt: work,
+      }),
+    ).toBe("coursework.peer_due_early");
+    expect(
+      peerIssue({
+        settings: { ...settings, dueAt: "2026-11-21T09:00:00.000Z" },
+        format: "both",
+        workDueAt: work,
+      }),
+    ).toBeNull();
   });
 });

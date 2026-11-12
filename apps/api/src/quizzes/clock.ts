@@ -1,5 +1,4 @@
 import type { Cell } from "@faridalms/database/context";
-import type { Directory } from "@faridalms/database/directory/client";
 
 import { writeAudit } from "@faridalms/database/audit";
 import {
@@ -17,8 +16,9 @@ import { isLate, QUIZ_GRACE_MS } from "@faridalms/domain/coursework";
 import { schoolDate } from "@faridalms/domain/school";
 
 import type { WorkerModules } from "../core/extension";
+import type { ModuleWorker } from "../core/workers";
 
-import { workerScope } from "../core/extension";
+import { schoolsWith } from "../core/extension";
 import { handInAttempt } from "./quiz";
 
 /**
@@ -37,8 +37,14 @@ export async function handInTimedOut(
     { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
     "write",
     async (tx) => {
+      const schools = new Map(
+        (await schoolsWith(modules, { tx, tenantId }, ["coursework"])).map(
+          (scope) => [scope.schoolId, scope],
+        ),
+      );
       const expired = await expiredSittings(tx, {
         tenantId,
+        orgIds: [...schools.keys()],
         before: new Date(now.getTime() - QUIZ_GRACE_MS),
         limit,
       });
@@ -55,11 +61,7 @@ export async function handInTimedOut(
           schoolProfile(tx, row.orgId),
         ]);
         const endsAt = sittings.get(row.attempt)?.endsAt ?? now;
-        const scope = await workerScope(modules, {
-          tx,
-          tenantId,
-          schoolId: row.orgId,
-        });
+        const scope = schools.get(row.orgId);
         // An attempt handed in another way, or work withdrawn since, only
         // has its clock stopped.
         const result =
@@ -114,51 +116,50 @@ export async function handInTimedOut(
 }
 
 /**
- * Runs the timed-quiz pass tenant by tenant on a timer. Each pass waits for
- * the previous one, and one tenant's failure is logged without stopping the
- * rest.
+ * Hands in timed attempts whose time ran out, tenant by tenant on a timer.
+ * Each pass waits for the previous one, and one tenant's failure is logged
+ * without stopping the rest.
  */
-export function startQuizClock(input: {
-  cell: Cell;
-  directory: Directory;
-  extensions: WorkerModules["extensions"];
-  cellId: string;
-  intervalMs: number;
-}): () => Promise<void> {
-  let stopped = false;
-  let running: Promise<void> | null = null;
-  const pass = async () => {
-    const tenants = await input.directory.tenantsOfCell(input.cellId);
-    for (const tenantId of tenants) {
-      if (stopped) return;
-      try {
-        await handInTimedOut(input.cell, tenantId, new Date(), input);
-      } catch (error) {
-        console.error(
-          JSON.stringify({
-            worker: "quiz-clock",
-            tenantId,
-            error: error instanceof Error ? error.message : String(error),
-          }),
-        );
+export const QUIZ_CLOCK: ModuleWorker = {
+  module: "coursework",
+  name: "quiz.clock",
+  start: (deps) => {
+    let stopped = false;
+    let running: Promise<void> | null = null;
+    const modules = { directory: deps.directory, extensions: deps.extensions };
+    const pass = async () => {
+      const tenants = await deps.directory.tenantsOfCell(deps.cellId);
+      for (const tenantId of tenants) {
+        if (stopped) return;
+        try {
+          await handInTimedOut(deps.cell, tenantId, new Date(), modules);
+        } catch (error) {
+          console.error(
+            JSON.stringify({
+              worker: "quiz-clock",
+              tenantId,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          );
+        }
       }
-    }
-  };
-  const timer = setInterval(() => {
-    if (running || stopped) return;
-    running = pass()
-      .catch((error: unknown) =>
-        console.error(
-          JSON.stringify({ worker: "quiz-clock", error: String(error) }),
-        ),
-      )
-      .finally(() => {
-        running = null;
-      });
-  }, input.intervalMs);
-  return async () => {
-    stopped = true;
-    clearInterval(timer);
-    await running;
-  };
-}
+    };
+    const timer = setInterval(() => {
+      if (running || stopped) return;
+      running = pass()
+        .catch((error: unknown) =>
+          console.error(
+            JSON.stringify({ worker: "quiz-clock", error: String(error) }),
+          ),
+        )
+        .finally(() => {
+          running = null;
+        });
+    }, 30_000);
+    return async () => {
+      stopped = true;
+      clearInterval(timer);
+      await running;
+    };
+  },
+};

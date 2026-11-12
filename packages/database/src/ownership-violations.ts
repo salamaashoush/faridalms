@@ -6,11 +6,4 @@ import type { OwnershipViolations } from "./ownership";
  * on a violation missing here and on an entry that no longer occurs, so the
  * list only shrinks; each group stays sorted.
  */
-export const OWNERSHIP_VIOLATIONS: OwnershipViolations = {
-  website: [
-    "core.broadcasts: broadcasts_tenant_id_category_id_fkey -> core.site_categories",
-  ],
-  sso: [
-    "core.login_identities: login_identities_tenant_id_identity_provider_id_fkey -> core.identity_providers",
-  ],
-};
+export const OWNERSHIP_VIOLATIONS: OwnershipViolations = {};

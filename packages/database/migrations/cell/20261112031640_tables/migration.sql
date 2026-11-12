@@ -574,12 +574,6 @@ CREATE TABLE "core"."assignments" (
 	"grade_after_answers" boolean DEFAULT false NOT NULL,
 	"discussion_post_first" boolean,
 	"discussion_replies" smallint,
-	"peer_reviews" smallint,
-	"peer_anonymous" boolean,
-	"peer_started_at" timestamp with time zone,
-	"peer_released_at" timestamp with time zone,
-	"peer_due_at" timestamp with time zone,
-	"peer_reminded_at" timestamp with time zone,
 	"language" text,
 	"translation_title" text,
 	"translation_reviewed_at" timestamp with time zone,
@@ -608,7 +602,6 @@ CREATE TABLE "core"."assignments" (
 	CONSTRAINT "assignments_language_check" CHECK (language in ('en', 'ar')),
 	CONSTRAINT "assignments_translation_title_check" CHECK (translation_title is null or (language is not null and char_length(translation_title) between 1 and 200)),
 	CONSTRAINT "assignments_translation_review_check" CHECK ((translation_reviewed_at is null) = (translation_reviewed_by_user_id is null) and (translation_reviewed_at is null) = (translation_source_digest is null)),
-	CONSTRAINT "assignments_peer_check" CHECK ((peer_reviews is null) = (peer_anonymous is null) and (peer_reviews is null or (peer_reviews between 1 and 5 and submission_format in ('online', 'files', 'both', 'online_and_files', 'quiz', 'discussion'))) and (peer_started_at is null or peer_reviews is not null) and (peer_released_at is null or peer_started_at is not null) and (peer_due_at is null or peer_reviews is not null) and (peer_reminded_at is null or peer_due_at is not null)),
 	CONSTRAINT "assignments_quiz_check" CHECK ((submission_format = 'quiz') = (quiz_keep is not null and quiz_reveal is not null) and (quiz_attempts is null or quiz_attempts between 1 and 10) and (quiz_keep is null or quiz_keep in ('highest', 'latest', 'average', 'first')) and (quiz_reveal is null or quiz_reveal in ('answers', 'feedback', 'marks', 'returned'))),
 	CONSTRAINT "assignments_quiz_practice_check" CHECK (not quiz_practice or submission_format = 'quiz'),
 	CONSTRAINT "assignments_quiz_bands_check" CHECK (jsonb_typeof(quiz_bands) = 'array' and jsonb_array_length(quiz_bands) <= 6),
@@ -941,7 +934,6 @@ CREATE TABLE "core"."broadcasts" (
 	"state" text DEFAULT 'draft' NOT NULL,
 	"publish_at" timestamp with time zone,
 	"told_at" timestamp with time zone,
-	"visibility" text DEFAULT 'school' NOT NULL,
 	"author_user_id" uuid NOT NULL,
 	"translation_reviewed_at" timestamp with time zone,
 	"translation_reviewed_by_user_id" uuid,
@@ -952,14 +944,11 @@ CREATE TABLE "core"."broadcasts" (
 	"requires_ack" boolean DEFAULT false NOT NULL,
 	"ack_due_on" date,
 	"update_sent_at" timestamp with time zone,
-	"category_id" uuid,
-	"slug" text,
 	"excerpt_en" text DEFAULT '' NOT NULL,
 	"excerpt_ar" text DEFAULT '' NOT NULL,
 	"cover_file_id" uuid,
 	"cover_alt_en" text DEFAULT '' NOT NULL,
 	"cover_alt_ar" text DEFAULT '' NOT NULL,
-	"pinned" boolean DEFAULT false NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
 	"date_last_modified" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
 	"version" integer DEFAULT 1 NOT NULL,
@@ -972,13 +961,10 @@ CREATE TABLE "core"."broadcasts" (
 	CONSTRAINT "broadcasts_state_check" CHECK (state in ('draft', 'published', 'archived')),
 	CONSTRAINT "broadcasts_publish_at_check" CHECK ((state <> 'published' or publish_at is not null) and (state <> 'draft' or publish_at is null)),
 	CONSTRAINT "broadcasts_told_at_check" CHECK (told_at is null or state <> 'draft'),
-	CONSTRAINT "broadcasts_visibility_check" CHECK (visibility in ('public', 'school')),
 	CONSTRAINT "broadcasts_title_check" CHECK (char_length(title_en) <= 200 and char_length(title_ar) <= 200 and (title_en <> '' or title_ar <> '')),
 	CONSTRAINT "broadcasts_translation_review_check" CHECK ((translation_reviewed_at is null) = (translation_reviewed_by_user_id is null) and (translation_reviewed_at is null) = (translation_source_digest is null)),
 	CONSTRAINT "broadcasts_urgency_check" CHECK (urgency in ('normal', 'important', 'urgent')),
 	CONSTRAINT "broadcasts_ack_due_on_check" CHECK (ack_due_on is null or requires_ack),
-	CONSTRAINT "broadcasts_website_check" CHECK (visibility = 'school' or slug is not null),
-	CONSTRAINT "broadcasts_slug_check" CHECK (slug is null or (char_length(slug) <= 80 and slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$')),
 	CONSTRAINT "broadcasts_excerpt_check" CHECK (char_length(excerpt_en) <= 300 and char_length(excerpt_ar) <= 300),
 	CONSTRAINT "broadcasts_cover_alt_check" CHECK (char_length(cover_alt_en) <= 300 and char_length(cover_alt_ar) <= 300)
 );
@@ -2034,6 +2020,27 @@ CREATE TABLE "core"."family_shares" (
 );
 --> statement-breakpoint
 ALTER TABLE "core"."family_shares" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "core"."federated_identities" (
+	"tenant_id" uuid,
+	"id" uuid DEFAULT uuidv7(),
+	"login_identity_id" uuid NOT NULL,
+	"identity_provider_id" uuid NOT NULL,
+	"subject" text NOT NULL,
+	"issuer_tenant" text,
+	"status" text DEFAULT 'active' NOT NULL,
+	"date_last_modified" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL,
+	"metadata" jsonb DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	CONSTRAINT "federated_identities_pkey" PRIMARY KEY("tenant_id","id"),
+	CONSTRAINT "federated_identities_status_check" CHECK (status in ('active', 'tobedeleted')),
+	CONSTRAINT "federated_identities_version_check" CHECK (version > 0),
+	CONSTRAINT "federated_identities_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
+	CONSTRAINT "federated_identities_subject_check" CHECK (char_length(subject) between 1 and 256),
+	CONSTRAINT "federated_identities_issuer_tenant_check" CHECK (char_length(issuer_tenant) between 1 and 256)
+);
+--> statement-breakpoint
+ALTER TABLE "core"."federated_identities" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "core"."file_previews" (
 	"tenant_id" uuid,
 	"id" uuid DEFAULT uuidv7(),
@@ -2979,9 +2986,6 @@ CREATE TABLE "core"."login_identities" (
 	"id" uuid DEFAULT uuidv7(),
 	"account_id" uuid NOT NULL,
 	"kind" text NOT NULL,
-	"identity_provider_id" uuid,
-	"subject" text,
-	"issuer_tenant" text,
 	"login_name" text,
 	"secret_hash" text,
 	"secret_set_at" timestamp with time zone,
@@ -3006,15 +3010,12 @@ CREATE TABLE "core"."login_identities" (
 	CONSTRAINT "login_identities_version_check" CHECK (version > 0),
 	CONSTRAINT "login_identities_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
 	CONSTRAINT "login_identities_kind_check" CHECK (kind in ('password', 'oidc', 'saml', 'clever', 'classlink', 'badge', 'invite', 'handoff')),
-	CONSTRAINT "login_identities_subject_check" CHECK (char_length(subject) between 1 and 256),
-	CONSTRAINT "login_identities_issuer_tenant_check" CHECK (char_length(issuer_tenant) between 1 and 256),
 	CONSTRAINT "login_identities_login_name_check" CHECK (char_length(login_name) between 1 and 254 and login_name = lower(login_name)),
 	CONSTRAINT "login_identities_secret_hash_check" CHECK (char_length(secret_hash) between 20 and 512),
 	CONSTRAINT "login_identities_pin_hash_check" CHECK (char_length(pin_hash) between 20 and 512),
 	CONSTRAINT "login_identities_link_method_check" CHECK (link_method in ('roster_external_id', 'verified_domain', 'invitation', 'admin', 'import', 'self_service')),
 	CONSTRAINT "login_identities_failed_attempts_check" CHECK (failed_attempts between 0 and 100),
 	CONSTRAINT "login_identities_void_reason_check" CHECK (void_reason in ('lost', 'rollover', 'aged_out', 'admin', 'compromised', 'unused', 'merge_pending', 'used')),
-	CONSTRAINT "login_identities_federated_check" CHECK ((kind in ('oidc', 'saml', 'clever', 'classlink')) = (identity_provider_id is not null and subject is not null)),
 	CONSTRAINT "login_identities_password_check" CHECK ((kind = 'password') = (login_name is not null) and (kind <> 'password' or secret_hash is not null)),
 	CONSTRAINT "login_identities_badge_check" CHECK (kind not in ('badge', 'invite', 'handoff') or (secret_hash is not null and expires_at is not null)),
 	CONSTRAINT "login_identities_void_check" CHECK ((voided_at is null) = (void_reason is null))
@@ -3452,6 +3453,30 @@ CREATE TABLE "core"."peer_review_comments" (
 );
 --> statement-breakpoint
 ALTER TABLE "core"."peer_review_comments" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "core"."peer_review_settings" (
+	"tenant_id" uuid,
+	"id" uuid DEFAULT uuidv7(),
+	"assignment_id" uuid NOT NULL,
+	"reviews" smallint NOT NULL,
+	"anonymous" boolean NOT NULL,
+	"due_at" timestamp with time zone,
+	"started_at" timestamp with time zone,
+	"released_at" timestamp with time zone,
+	"reminded_at" timestamp with time zone,
+	"status" text DEFAULT 'active' NOT NULL,
+	"date_last_modified" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL,
+	"metadata" jsonb DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	CONSTRAINT "peer_review_settings_pkey" PRIMARY KEY("tenant_id","id"),
+	CONSTRAINT "peer_review_settings_status_check" CHECK (status in ('active', 'tobedeleted')),
+	CONSTRAINT "peer_review_settings_version_check" CHECK (version > 0),
+	CONSTRAINT "peer_review_settings_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
+	CONSTRAINT "peer_review_settings_reviews_check" CHECK (reviews between 1 and 5),
+	CONSTRAINT "peer_review_settings_stages_check" CHECK ((released_at is null or started_at is not null) and (reminded_at is null or due_at is not null))
+);
+--> statement-breakpoint
+ALTER TABLE "core"."peer_review_settings" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "core"."peer_reviews" (
 	"tenant_id" uuid,
 	"id" uuid DEFAULT uuidv7(),
@@ -4103,6 +4128,27 @@ CREATE TABLE "core"."site_pages" (
 );
 --> statement-breakpoint
 ALTER TABLE "core"."site_pages" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "core"."site_posts" (
+	"tenant_id" uuid,
+	"id" uuid DEFAULT uuidv7(),
+	"org_id" uuid NOT NULL,
+	"broadcast_id" uuid NOT NULL,
+	"slug" text NOT NULL,
+	"category_id" uuid,
+	"pinned" boolean DEFAULT false NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"date_last_modified" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL,
+	"metadata" jsonb DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	CONSTRAINT "site_posts_pkey" PRIMARY KEY("tenant_id","id"),
+	CONSTRAINT "site_posts_status_check" CHECK (status in ('active', 'tobedeleted')),
+	CONSTRAINT "site_posts_version_check" CHECK (version > 0),
+	CONSTRAINT "site_posts_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
+	CONSTRAINT "site_posts_slug_check" CHECK (char_length(slug) <= 80 and slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$')
+);
+--> statement-breakpoint
+ALTER TABLE "core"."site_posts" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "core"."site_published_pages" (
 	"tenant_id" uuid,
 	"id" uuid DEFAULT uuidv7(),
@@ -4992,7 +5038,6 @@ CREATE UNIQUE INDEX "broadcast_grades_key" ON "core"."broadcast_grades" ("tenant
 CREATE INDEX "broadcast_grades_grade_idx" ON "core"."broadcast_grades" ("tenant_id","grade_level_descriptor_id") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "broadcast_recipients_key" ON "core"."broadcast_recipients" ("tenant_id","broadcast_id","user_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "broadcast_recipients_user_idx" ON "core"."broadcast_recipients" ("tenant_id","user_id") WHERE status = 'active';--> statement-breakpoint
-CREATE UNIQUE INDEX "broadcasts_slug_key" ON "core"."broadcasts" ("tenant_id","org_id","slug") WHERE status = 'active' and slug is not null;--> statement-breakpoint
 CREATE INDEX "broadcasts_org_idx" ON "core"."broadcasts" ("tenant_id","org_id","publish_at") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "broadcasts_untold_idx" ON "core"."broadcasts" ("tenant_id","publish_at") WHERE status = 'active' and state = 'published' and told_at is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "calendar_dates_day_key" ON "core"."calendar_dates" ("tenant_id","org_id","day_on") WHERE status = 'active';--> statement-breakpoint
@@ -5055,6 +5100,8 @@ CREATE INDEX "external_ids_user_idx" ON "core"."external_ids" ("tenant_id","user
 CREATE INDEX "external_ids_delta_idx" ON "core"."external_ids" ("tenant_id","date_last_modified");--> statement-breakpoint
 CREATE UNIQUE INDEX "family_shares_key" ON "core"."family_shares" ("tenant_id","attempt_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "family_shares_student_idx" ON "core"."family_shares" ("tenant_id","student_user_id") WHERE status = 'active';--> statement-breakpoint
+CREATE UNIQUE INDEX "federated_identities_login_key" ON "core"."federated_identities" ("tenant_id","login_identity_id") WHERE status = 'active';--> statement-breakpoint
+CREATE UNIQUE INDEX "federated_identities_subject_key" ON "core"."federated_identities" ("tenant_id","identity_provider_id","subject") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "file_previews_key" ON "core"."file_previews" ("tenant_id","storage_key") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "file_previews_queue_idx" ON "core"."file_previews" ("tenant_id","created_at") WHERE status = 'active' and state in ('queued', 'working');--> statement-breakpoint
 CREATE INDEX "file_publications_file_idx" ON "core"."file_publications" ("tenant_id","file_id") WHERE status = 'active' and unpublished_at is null;--> statement-breakpoint
@@ -5106,7 +5153,6 @@ CREATE UNIQUE INDEX "lesson_sittings_key" ON "core"."lesson_sittings" ("tenant_i
 CREATE UNIQUE INDEX "lesson_watches_key" ON "core"."lesson_watches" ("tenant_id","lesson_id","student_user_id","video") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "lessons_module_idx" ON "core"."lessons" ("tenant_id","module_id","position") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "locations_code_key" ON "core"."locations" ("tenant_id","org_id","code") WHERE status = 'active' and code is not null;--> statement-breakpoint
-CREATE UNIQUE INDEX "login_identities_subject_key" ON "core"."login_identities" ("tenant_id","identity_provider_id","subject") WHERE status = 'active' and subject is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX "login_identities_login_name_key" ON "core"."login_identities" ("tenant_id","login_name") WHERE status = 'active' and kind = 'password' and voided_at is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "login_identities_badge_key" ON "core"."login_identities" ("tenant_id","secret_hash") WHERE status = 'active' and kind = 'badge' and voided_at is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "login_identities_invite_key" ON "core"."login_identities" ("tenant_id","secret_hash") WHERE status = 'active' and kind = 'invite' and voided_at is null;--> statement-breakpoint
@@ -5143,6 +5189,7 @@ CREATE INDEX "orgs_delta_idx" ON "core"."orgs" ("tenant_id","date_last_modified"
 CREATE UNIQUE INDEX "paced_lessons_running_key" ON "core"."paced_lessons" ("tenant_id","lesson_id","class_id") WHERE status = 'active' and ended_at is null;--> statement-breakpoint
 CREATE INDEX "passkeys_account_idx" ON "core"."passkeys" ("tenant_id","account_id") WHERE revoked_at is null;--> statement-breakpoint
 CREATE INDEX "peer_review_comments_review_idx" ON "core"."peer_review_comments" ("tenant_id","review_id") WHERE status = 'active';--> statement-breakpoint
+CREATE UNIQUE INDEX "peer_review_settings_assignment_key" ON "core"."peer_review_settings" ("tenant_id","assignment_id") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "peer_reviews_key" ON "core"."peer_reviews" ("tenant_id","assignment_id","reviewer_user_id","author_user_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "peer_reviews_assignment_idx" ON "core"."peer_reviews" ("tenant_id","assignment_id") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "period_grades_key" ON "core"."period_grades" ("tenant_id","class_id","grading_period_id","student_user_id") WHERE status = 'active';--> statement-breakpoint
@@ -5182,6 +5229,8 @@ CREATE UNIQUE INDEX "site_enquiries_thread_key" ON "core"."site_enquiries" ("ten
 CREATE UNIQUE INDEX "site_pages_slug_key" ON "core"."site_pages" ("tenant_id","org_id","slug") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "site_pages_home_key" ON "core"."site_pages" ("tenant_id","org_id") WHERE status = 'active' and is_home;--> statement-breakpoint
 CREATE INDEX "site_pages_tree_idx" ON "core"."site_pages" ("tenant_id","org_id","parent_id","position") WHERE status = 'active';--> statement-breakpoint
+CREATE UNIQUE INDEX "site_posts_broadcast_key" ON "core"."site_posts" ("tenant_id","broadcast_id") WHERE status = 'active';--> statement-breakpoint
+CREATE UNIQUE INDEX "site_posts_slug_key" ON "core"."site_posts" ("tenant_id","org_id","slug") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "site_published_pages_key" ON "core"."site_published_pages" ("tenant_id","page_id","locale") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "site_published_pages_slug_idx" ON "core"."site_published_pages" ("tenant_id","org_id","locale","slug") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "site_published_posts_key" ON "core"."site_published_posts" ("tenant_id","post_id","locale") WHERE status = 'active';--> statement-breakpoint
@@ -5344,7 +5393,6 @@ ALTER TABLE "core"."broadcasts" ADD CONSTRAINT "broadcasts_tenant_id_fkey" FOREI
 ALTER TABLE "core"."broadcasts" ADD CONSTRAINT "broadcasts_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."broadcasts" ADD CONSTRAINT "broadcasts_tenant_id_author_user_id_fkey" FOREIGN KEY ("tenant_id","author_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."broadcasts" ADD CONSTRAINT "broadcasts_tenant_id_translation_reviewed_by_user_id_fkey" FOREIGN KEY ("tenant_id","translation_reviewed_by_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
-ALTER TABLE "core"."broadcasts" ADD CONSTRAINT "broadcasts_tenant_id_category_id_fkey" FOREIGN KEY ("tenant_id","category_id") REFERENCES "core"."site_categories"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."broadcasts" ADD CONSTRAINT "broadcasts_tenant_id_cover_file_id_fkey" FOREIGN KEY ("tenant_id","cover_file_id") REFERENCES "core"."files"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."calendar_dates" ADD CONSTRAINT "calendar_dates_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."calendar_dates" ADD CONSTRAINT "calendar_dates_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
@@ -5487,6 +5535,9 @@ ALTER TABLE "core"."family_shares" ADD CONSTRAINT "family_shares_tenant_id_fkey"
 ALTER TABLE "core"."family_shares" ADD CONSTRAINT "family_shares_tenant_id_attempt_id_fkey" FOREIGN KEY ("tenant_id","attempt_id") REFERENCES "core"."submission_attempts"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."family_shares" ADD CONSTRAINT "family_shares_tenant_id_student_user_id_fkey" FOREIGN KEY ("tenant_id","student_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."family_shares" ADD CONSTRAINT "family_shares_tenant_id_shared_by_user_id_fkey" FOREIGN KEY ("tenant_id","shared_by_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "core"."federated_identities" ADD CONSTRAINT "federated_identities_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
+ALTER TABLE "core"."federated_identities" ADD CONSTRAINT "federated_identities_tenant_id_login_identity_id_fkey" FOREIGN KEY ("tenant_id","login_identity_id") REFERENCES "core"."login_identities"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "core"."federated_identities" ADD CONSTRAINT "federated_identities_tenant_id_identity_provider_id_fkey" FOREIGN KEY ("tenant_id","identity_provider_id") REFERENCES "core"."identity_providers"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."file_previews" ADD CONSTRAINT "file_previews_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."file_publications" ADD CONSTRAINT "file_publications_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."file_publications" ADD CONSTRAINT "file_publications_tenant_id_file_id_file_purpose_fkey" FOREIGN KEY ("tenant_id","file_id","file_purpose") REFERENCES "core"."files"("tenant_id","id","purpose");--> statement-breakpoint
@@ -5610,7 +5661,6 @@ ALTER TABLE "core"."locations" ADD CONSTRAINT "locations_tenant_id_org_id_org_ty
 ALTER TABLE "core"."locations" ADD CONSTRAINT "locations_tenant_id_parent_location_id_fkey" FOREIGN KEY ("tenant_id","parent_location_id") REFERENCES "core"."locations"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."login_identities" ADD CONSTRAINT "login_identities_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."login_identities" ADD CONSTRAINT "login_identities_tenant_id_account_id_fkey" FOREIGN KEY ("tenant_id","account_id") REFERENCES "core"."accounts"("tenant_id","id");--> statement-breakpoint
-ALTER TABLE "core"."login_identities" ADD CONSTRAINT "login_identities_tenant_id_identity_provider_id_fkey" FOREIGN KEY ("tenant_id","identity_provider_id") REFERENCES "core"."identity_providers"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."login_identities" ADD CONSTRAINT "login_identities_tenant_id_linked_by_user_id_fkey" FOREIGN KEY ("tenant_id","linked_by_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."media_folders" ADD CONSTRAINT "media_folders_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."media_folders" ADD CONSTRAINT "media_folders_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
@@ -5664,6 +5714,8 @@ ALTER TABLE "core"."passkeys" ADD CONSTRAINT "passkeys_tenant_id_fkey" FOREIGN K
 ALTER TABLE "core"."passkeys" ADD CONSTRAINT "passkeys_tenant_id_account_id_fkey" FOREIGN KEY ("tenant_id","account_id") REFERENCES "core"."accounts"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."peer_review_comments" ADD CONSTRAINT "peer_review_comments_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."peer_review_comments" ADD CONSTRAINT "peer_review_comments_tenant_id_review_id_fkey" FOREIGN KEY ("tenant_id","review_id") REFERENCES "core"."peer_reviews"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "core"."peer_review_settings" ADD CONSTRAINT "peer_review_settings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
+ALTER TABLE "core"."peer_review_settings" ADD CONSTRAINT "peer_review_settings_tenant_id_assignment_id_fkey" FOREIGN KEY ("tenant_id","assignment_id") REFERENCES "core"."assignments"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."peer_reviews" ADD CONSTRAINT "peer_reviews_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."peer_reviews" ADD CONSTRAINT "peer_reviews_tenant_id_assignment_id_fkey" FOREIGN KEY ("tenant_id","assignment_id") REFERENCES "core"."assignments"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."peer_reviews" ADD CONSTRAINT "peer_reviews_tenant_id_attempt_id_fkey" FOREIGN KEY ("tenant_id","attempt_id") REFERENCES "core"."submission_attempts"("tenant_id","id");--> statement-breakpoint
@@ -5748,6 +5800,10 @@ ALTER TABLE "core"."site_pages" ADD CONSTRAINT "site_pages_tenant_id_fkey" FOREI
 ALTER TABLE "core"."site_pages" ADD CONSTRAINT "site_pages_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."site_pages" ADD CONSTRAINT "site_pages_tenant_id_parent_id_fkey" FOREIGN KEY ("tenant_id","parent_id") REFERENCES "core"."site_pages"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."site_pages" ADD CONSTRAINT "site_pages_tenant_id_author_user_id_fkey" FOREIGN KEY ("tenant_id","author_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "core"."site_posts" ADD CONSTRAINT "site_posts_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
+ALTER TABLE "core"."site_posts" ADD CONSTRAINT "site_posts_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "core"."site_posts" ADD CONSTRAINT "site_posts_tenant_id_broadcast_id_fkey" FOREIGN KEY ("tenant_id","broadcast_id") REFERENCES "core"."broadcasts"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "core"."site_posts" ADD CONSTRAINT "site_posts_tenant_id_category_id_fkey" FOREIGN KEY ("tenant_id","category_id") REFERENCES "core"."site_categories"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."site_published_pages" ADD CONSTRAINT "site_published_pages_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."site_published_pages" ADD CONSTRAINT "site_published_pages_tenant_id_page_id_fkey" FOREIGN KEY ("tenant_id","page_id") REFERENCES "core"."site_pages"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."site_published_pages" ADD CONSTRAINT "site_published_pages_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
@@ -6287,6 +6343,13 @@ CREATE POLICY "owner_all" ON "core"."family_shares" AS PERMISSIVE FOR ALL TO "ce
 CREATE POLICY "p_select" ON "core"."family_shares" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
 CREATE POLICY "p_insert" ON "core"."family_shares" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_update" ON "core"."family_shares" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "core"."federated_identities" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
+CREATE POLICY "owner_all" ON "core"."federated_identities" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_select" ON "core"."federated_identities" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
+CREATE POLICY "p_insert" ON "core"."federated_identities" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_update" ON "core"."federated_identities" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_erase_update" ON "core"."federated_identities" AS PERMISSIVE FOR UPDATE TO "retention" USING (exists (select 1 from core.login_identities l join core.accounts a on a.tenant_id = l.tenant_id and a.id = l.account_id where l.tenant_id = federated_identities.tenant_id and l.id = federated_identities.login_identity_id and app.erasure_approved(a.tenant_id, a.user_id))) WITH CHECK (status = 'tobedeleted');--> statement-breakpoint
+CREATE POLICY "p_erase_delete" ON "core"."federated_identities" AS PERMISSIVE FOR DELETE TO "retention" USING (status = 'tobedeleted' and (exists (select 1 from core.login_identities l join core.accounts a on a.tenant_id = l.tenant_id and a.id = l.account_id where l.tenant_id = federated_identities.tenant_id and l.id = federated_identities.login_identity_id and app.erasure_approved(a.tenant_id, a.user_id))));--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "core"."file_previews" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
 CREATE POLICY "owner_all" ON "core"."file_previews" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_select" ON "core"."file_previews" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
@@ -6594,6 +6657,11 @@ CREATE POLICY "p_insert" ON "core"."peer_review_comments" AS PERMISSIVE FOR INSE
 CREATE POLICY "p_update" ON "core"."peer_review_comments" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_erase_update" ON "core"."peer_review_comments" AS PERMISSIVE FOR UPDATE TO "retention" USING (exists (select 1 from core.peer_reviews r where r.tenant_id = peer_review_comments.tenant_id and r.id = peer_review_comments.review_id and (app.erasure_approved(r.tenant_id, r.reviewer_user_id) or app.erasure_approved(r.tenant_id, r.author_user_id)))) WITH CHECK (status = 'tobedeleted');--> statement-breakpoint
 CREATE POLICY "p_erase_delete" ON "core"."peer_review_comments" AS PERMISSIVE FOR DELETE TO "retention" USING (status = 'tobedeleted' and (exists (select 1 from core.peer_reviews r where r.tenant_id = peer_review_comments.tenant_id and r.id = peer_review_comments.review_id and (app.erasure_approved(r.tenant_id, r.reviewer_user_id) or app.erasure_approved(r.tenant_id, r.author_user_id)))));--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "core"."peer_review_settings" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
+CREATE POLICY "owner_all" ON "core"."peer_review_settings" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_select" ON "core"."peer_review_settings" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
+CREATE POLICY "p_insert" ON "core"."peer_review_settings" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_update" ON "core"."peer_review_settings" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "core"."peer_reviews" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
 CREATE POLICY "owner_all" ON "core"."peer_reviews" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_select" ON "core"."peer_reviews" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
@@ -6733,6 +6801,11 @@ CREATE POLICY "owner_all" ON "core"."site_pages" AS PERMISSIVE FOR ALL TO "cell_
 CREATE POLICY "p_select" ON "core"."site_pages" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
 CREATE POLICY "p_insert" ON "core"."site_pages" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_update" ON "core"."site_pages" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "core"."site_posts" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
+CREATE POLICY "owner_all" ON "core"."site_posts" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_select" ON "core"."site_posts" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
+CREATE POLICY "p_insert" ON "core"."site_posts" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_update" ON "core"."site_posts" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "core"."site_published_pages" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
 CREATE POLICY "owner_all" ON "core"."site_published_pages" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_select" ON "core"."site_published_pages" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint

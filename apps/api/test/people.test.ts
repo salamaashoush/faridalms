@@ -841,7 +841,7 @@ describe("sign-in", () => {
       children.toSorted(),
     );
     for (const badge of printed.badges) {
-      const session = await client("northwind-east").identity.badgeSignIn({
+      const session = await client("northwind-east").badges.signIn({
         secret: badge.secret,
       });
       const me = await client(

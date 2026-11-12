@@ -206,7 +206,7 @@ export const badgeLogin = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<AuthState> => {
     const school = portalSchool();
     const api = backend(school);
-    const session = await api.identity.badgeSignIn({ secret: data.secret });
+    const session = await api.badges.signIn({ secret: data.secret });
     if (getCookie(sessionCookie(school))) {
       try {
         await api.identity.signOut();

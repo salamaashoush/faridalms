@@ -484,6 +484,7 @@ export async function deliveryLog(
 export interface DueDelivery {
   id: string;
   createdAt: string;
+  orgId: string;
   userId: string;
   channel: DeliveryChannel;
   address: string;
@@ -517,11 +518,12 @@ export async function claimDue(
     digest: boolean;
     kind: NotificationKind;
     params: NoticeParams;
+    org_id: string;
     name_en: string | null;
     name_ar: string | null;
     digits: "latn" | "arab";
   }>(sql`
-    select d.id, d.created_at::text as created_at, d.user_id, d.channel, d.address, d.locale,
+    select d.id, d.created_at::text as created_at, n.org_id, d.user_id, d.channel, d.address, d.locale,
            d.attempts, coalesce((d.metadata ->> 'digest')::boolean, false) as digest,
            n.kind, n.params, o.name_en, o.name_ar, o.digits
     from core.notification_deliveries d
@@ -537,6 +539,7 @@ export async function claimDue(
   return rows.map((row) => ({
     id: row.id,
     createdAt: row.created_at,
+    orgId: row.org_id,
     userId: row.user_id,
     channel: row.channel,
     address: row.address,

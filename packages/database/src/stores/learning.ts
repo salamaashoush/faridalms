@@ -2401,8 +2401,9 @@ export interface PendingProgramRemark {
 /** Code exercises waiting for their answers to be run again, oldest first. */
 export async function pendingProgramRemarks(
   tx: Tx,
-  input: { tenantId: string; limit: number },
+  input: { tenantId: string; orgIds: readonly string[]; limit: number },
 ): Promise<PendingProgramRemark[]> {
+  if (input.orgIds.length === 0) return [];
   const rows = await tx.execute<{
     id: string;
     lesson_id: string;
@@ -2410,10 +2411,13 @@ export async function pendingProgramRemarks(
     document_version_id: string;
     version: number;
   }>(sql`
-    select id, lesson_id, block_id, document_version_id, version
-    from core.program_remarks
-    where tenant_id = ${input.tenantId}::uuid and status = 'active' and state = 'pending'
-    order by created_at limit ${input.limit}`);
+    select r.id, r.lesson_id, r.block_id, r.document_version_id, r.version
+    from core.program_remarks r
+    join core.lessons l on l.tenant_id = r.tenant_id and l.id = r.lesson_id
+    join core.learning_modules m on m.tenant_id = l.tenant_id and m.id = l.module_id
+    where r.tenant_id = ${input.tenantId}::uuid and r.status = 'active' and r.state = 'pending'
+      and m.org_id = any(${uuidArray(input.orgIds)})
+    order by r.created_at limit ${input.limit}`);
   return rows.map((row) => ({
     id: row.id,
     lessonId: row.lesson_id,

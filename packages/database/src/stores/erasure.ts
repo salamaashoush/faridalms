@@ -510,6 +510,12 @@ export async function eraseSubject(
     "sessions",
     sql`delete from core.sessions where tenant_id = ${t}::uuid and account_id in ${accounts} returning 1`,
   );
+  await remove(
+    "federated_identities",
+    sql`core.federated_identities`,
+    sql`login_identity_id in (select id from core.login_identities
+      where tenant_id = ${t}::uuid and account_id in ${accounts})`,
+  );
   for (const table of ["login_identities", "passkeys", "devices"] as const)
     await remove(
       table,

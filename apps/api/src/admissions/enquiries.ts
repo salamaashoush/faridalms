@@ -62,6 +62,8 @@ export async function announceEnquiry(
             tx,
             tenantId: school.tenantId,
             schoolId: school.schoolId,
+            school,
+            extensions: context.extensions,
             actorUserId: null,
             now,
             channels: context.channels,

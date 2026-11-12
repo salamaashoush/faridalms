@@ -112,9 +112,14 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "apps/api/src/systems/reading.ts",
   ],
   peer_review: [
+    "packages/database/src/tables/peer-reviews.ts",
     "packages/database/src/stores/peer-reviews.ts",
+    "packages/domain/src/peer-review.ts",
     "apps/api/src/peer/",
     "apps/api/src/systems/peer.ts",
+    "apps/web/src/components/peer/",
+    "apps/web/src/server/peer.ts",
+    "apps/web/src/queries/peer.ts",
   ],
   gradebook: [
     "packages/database/src/stores/gradebook.ts",
@@ -145,6 +150,8 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "apps/api/src/systems/applying.ts",
     "apps/api/src/systems/decisions.ts",
   ],
+  sso: ["packages/database/src/tables/sso.ts"],
+  sms: ["apps/api/src/sms/"],
 };
 
 /**
@@ -158,6 +165,10 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
 export const LINK_FILES: Readonly<
   Record<string, { owner: ModuleId; needs: readonly ModuleId[] }>
 > = {
+  "apps/api/src/badges/years.ts": {
+    owner: "badges",
+    needs: ["school_years"],
+  },
   "apps/api/src/homerooms/years.ts": {
     owner: "homerooms",
     needs: ["school_years"],
@@ -415,17 +426,11 @@ function sameLink(from: string, to: string): boolean {
  * shrinks.
  */
 export const PENDING_IMPORTS: Readonly<Record<string, readonly string[]>> = {
-  badges: ["apps/api/src/core/badges.ts -> school_years"],
   surfaces: [
     "apps/api/src/calendar/lessons.ts -> timetable",
-    "apps/api/src/coding/rerun.ts -> elearning",
     "apps/api/src/files/exports.ts -> coursework",
-    "apps/api/src/index.ts -> admissions",
-    "apps/api/src/index.ts -> coursework",
-    "apps/api/src/index.ts -> peer_review",
     "apps/api/src/systems/calendar.ts -> admissions",
     "apps/api/src/systems/consents.ts -> admissions",
-    "apps/api/src/systems/coursework.ts -> peer_review",
     "apps/api/src/systems/home.ts -> coursework",
     "apps/api/src/systems/home.ts -> elearning",
     "apps/api/src/systems/home.ts -> timetable",

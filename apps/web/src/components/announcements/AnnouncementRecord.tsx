@@ -63,7 +63,7 @@ import {
   URGENCY_LABEL,
   URGENCY_TONE,
 } from "./format";
-import { audienceKinds } from "./slots";
+import { announcementCopyParts, audienceKinds } from "./slots";
 
 type RecordData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof announcementQuery>["queryFn"]>>
@@ -261,6 +261,9 @@ export function AnnouncementRecord({ id }: AnnouncementRecordProps) {
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(announcementQuery(id)).data;
   const kinds = useSlot(audienceKinds);
+  const where = useSlot(announcementCopyParts)
+    .filter((copy) => data.copies.includes(copy.key))
+    .map((copy) => copy.where());
   const viewer: ContentLocale = getLocale() === "ar" ? "ar" : "en";
   const [locale, setLocale] = useState<ContentLocale>(
     data.translation && viewer === otherLocale(data.primaryLocale)
@@ -348,8 +351,8 @@ export function AnnouncementRecord({ id }: AnnouncementRecordProps) {
           },
         ]
       : []),
-    ...(data.visibility === "public"
-      ? [{ label: m.annColWhere(), value: m.annWherePublic() }]
+    ...(where.length
+      ? [{ label: m.annColWhere(), value: formatList(where) }]
       : []),
     ...(data.audiences.length > 0
       ? [

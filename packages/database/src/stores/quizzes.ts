@@ -549,8 +549,14 @@ export interface ExpiredSitting {
  */
 export async function expiredSittings(
   tx: Tx,
-  input: { tenantId: string; before: Date; limit: number },
+  input: {
+    tenantId: string;
+    orgIds: readonly string[];
+    before: Date;
+    limit: number;
+  },
 ): Promise<ExpiredSitting[]> {
+  if (input.orgIds.length === 0) return [];
   const rows = await tx.execute<{
     assignment_id: string;
     org_id: string;
@@ -563,6 +569,7 @@ export async function expiredSittings(
     join core.submissions s on s.tenant_id = q.tenant_id and s.id = q.submission_id
     join core.assignments a on a.tenant_id = s.tenant_id and a.id = s.assignment_id
     where q.tenant_id = ${input.tenantId}::uuid and q.status = 'active'
+      and a.org_id = any(${uuidArray(input.orgIds)})
       and q.closed_at is null and q.ends_at is not null
       and (
         (q.paused_at is null and q.ends_at < ${input.before.toISOString()}::timestamptz)

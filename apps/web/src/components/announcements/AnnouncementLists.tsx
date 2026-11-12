@@ -9,11 +9,20 @@ import { Link } from "@tanstack/react-router";
 import { CircleCheck, Pin } from "lucide-react";
 
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { managedAnnouncementsQuery } from "~/queries/announcements";
-import { formatDate, formatInstant, formatNumber } from "~/utils/datetime";
+import {
+  formatDate,
+  formatInstant,
+  formatList,
+  formatNumber,
+} from "~/utils/datetime";
+
+import type { AnnouncementCopyPart } from "./slots";
 
 import { URGENCY_LABEL, URGENCY_TONE } from "./format";
+import { announcementCopyParts } from "./slots";
 
 type ManagedRow = Awaited<
   ReturnType<
@@ -33,7 +42,8 @@ export interface AnnouncementItemProps {
     urgency: Urgency;
     author: string;
     when: string | null;
-    website: boolean;
+    /** Where it stands besides its readers, by a module that puts it there. */
+    places: readonly string[];
     summary: string;
     /** For one that asks to be acknowledged, whether this reader has. */
     ack: { acknowledgedAt: string | null; ackDueOn: string | null } | null;
@@ -74,7 +84,7 @@ export function AnnouncementItem({ item }: AnnouncementItemProps) {
         {[
           item.author,
           item.when ? formatInstant(item.when) : null,
-          item.website ? m.annOnWebsite() : null,
+          ...item.places,
         ]
           .filter(Boolean)
           .join(" · ")}
@@ -135,7 +145,16 @@ function reach(row: ManagedRow) {
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function managedColumns(): Column<ManagedRow>[] {
+/** How each copy a module keeps of an announcement names where it stands. */
+const whereOf = (
+  copies: readonly AnnouncementCopyPart[],
+  keys: readonly string[],
+) =>
+  copies.filter((copy) => keys.includes(copy.key)).map((copy) => copy.where());
+
+function managedColumns(
+  copies: readonly AnnouncementCopyPart[],
+): Column<ManagedRow>[] {
   return [
     {
       id: "title",
@@ -156,7 +175,7 @@ function managedColumns(): Column<ManagedRow>[] {
       id: "where",
       header: m.annColWhere(),
       cell: (row) =>
-        row.visibility === "public" ? m.annWherePublic() : m.annWhereSchool(),
+        formatList(whereOf(copies, row.copies)) || m.annWhereSchool(),
     },
     {
       id: "when",
@@ -189,11 +208,12 @@ export function ManagedAnnouncements({
   const data = useSuspenseQuery(
     managedAnnouncementsQuery({ tab, q, page }),
   ).data;
+  const copies = useSlot(announcementCopyParts);
   return (
     <DataTable
       caption={m.annManagedCaption()}
       rows={data.rows}
-      columns={managedColumns()}
+      columns={managedColumns(copies)}
       rowLabel={(row) => titleOf(row)}
       card={managedCard}
       pagination={{

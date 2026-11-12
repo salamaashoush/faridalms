@@ -13,7 +13,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
-import { badgeTerm } from "../core/badges";
+import { badgeTerm } from "../badges/term";
 import {
   audit,
   readProcedure,

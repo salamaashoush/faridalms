@@ -37,7 +37,9 @@ import {
   useReaderWidth,
 } from "~/components/system/ReaderWidth";
 import { useAutosave } from "~/hooks/useAutosave";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { myWorkQuery } from "~/queries/coursework";
 import { handInWork, saveMyDraft, undoHandIn } from "~/server/coursework";
@@ -49,8 +51,8 @@ import { resultText } from "../grading/format";
 import { useBriefLanguage } from "./BriefLanguage";
 import { Discussion } from "./Discussion";
 import { STATE_LABEL, STATE_TONE } from "./format";
-import { PeerReviewWork } from "./PeerReview";
 import { QuizWork } from "./QuizWork";
+import { workParts } from "./slots";
 import { Recordings } from "./VoiceFeedback";
 import { CommentedWork, CommentList } from "./WorkComments";
 
@@ -386,6 +388,10 @@ export interface LearnerWorkProps {
 
 export function LearnerWork({ assignmentId }: LearnerWorkProps) {
   const data = useSuspenseQuery(myWorkQuery(assignmentId)).data;
+  const me = useCurrentUser().id;
+  const learnerParts = useSlot(workParts).filter(
+    (part) => part.where === "learner",
+  );
   const width = useReaderWidth();
   const facts: HeaderFact[] = [];
   if (data.assignment.class)
@@ -489,9 +495,9 @@ export function LearnerWork({ assignmentId }: LearnerWorkProps) {
             data={data}
           />
         )}
-        {data.assignment.peer ? (
-          <PeerReviewWork assignmentId={data.assignment.id} />
-        ) : null}
+        {learnerParts.map(({ key, Part }) => (
+          <Part key={key} assignmentId={data.assignment.id} studentId={me} />
+        ))}
         {attempts.length > 0 ? (
           <RecordSection variant="page" title={m.courseworkAttempts()}>
             <RecordList>

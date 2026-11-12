@@ -15,9 +15,9 @@ import { sql } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import { join } from "node:path";
 
-import { rerunPrograms } from "../src/coding/rerun";
 import { createJavaScriptRunner, createPythonRunner } from "../src/coding/run";
 import { sweepTenantFiles } from "../src/files/sweep";
+import { rerunPrograms } from "../src/learning/rerun";
 import {
   login,
   raw,
@@ -26,6 +26,7 @@ import {
   sessionFor,
   setPlan,
   signedIn,
+  withoutModules,
   workerModules,
 } from "./harness";
 
@@ -2696,6 +2697,12 @@ describe("marking again", () => {
       ),
       javascript: createJavaScriptRunner(),
     };
+    // With e-learning off at the school, nothing is marked again there.
+    await withoutModules("northwind", ["elearning"], async () => {
+      expect(
+        await rerunPrograms(cell, runners, tenantId, workerModules()),
+      ).toBe(0);
+    });
     expect(await rerunPrograms(cell, runners, tenantId, workerModules())).toBe(
       1,
     );

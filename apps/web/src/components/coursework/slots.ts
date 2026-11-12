@@ -8,6 +8,8 @@ import { slot } from "~/utils/extension";
 export interface AssignmentEditorPartProps {
   classId: string;
   format: SubmissionFormat;
+  /** The work's due time as its date field holds it, empty for none. */
+  dueAt: string;
   value: string;
   onChange: (value: string) => void;
 }
@@ -19,8 +21,8 @@ export interface AssignmentEditorPartProps {
  */
 export interface AssignmentEditorPart {
   key: string;
-  /** The editor's section it sits in. */
-  section: "grading" | "discussion";
+  /** The editor's section it sits in, or a section of its own it draws itself. */
+  section: "grading" | "discussion" | "own";
   /** What the part keeps for work already written, for the form to start from. */
   initial(assignment: { id: string; classId: string }): SlotQuery<string>;
   /** The value no longer holds once the work moves to another class. */
@@ -29,6 +31,8 @@ export interface AssignmentEditorPart {
   startsAs?: SubmissionFormat;
   /** Who takes part is the module's to decide at this value, rather than the teacher's. */
   decidesAudience?(value: string, format: SubmissionFormat): boolean;
+  /** What is saved for the value at this format, where the format changes it. */
+  sent?(value: string, format: SubmissionFormat): string;
   Field: ComponentType<AssignmentEditorPartProps>;
 }
 
@@ -59,3 +63,41 @@ export interface WorkSharing {
 }
 
 export const workSharing = slot<WorkSharing>("work sharing");
+
+/** A fact a module adds to an assignment's settings, or null where it has none. */
+export interface AssignmentFact {
+  key: string;
+  Fact: ComponentType<{ assignmentId: string }>;
+}
+
+export const assignmentFacts = slot<AssignmentFact>("assignment facts");
+
+/**
+ * A tab a module adds to an assignment's record for its teachers, where
+ * what it reads shows the tab belongs. Methods, so each module types what
+ * it reads.
+ */
+export interface AssignmentRecordTab {
+  value: string;
+  label: () => string;
+  query(assignmentId: string): SlotQuery<unknown>;
+  shows(read: unknown, access: { grade: boolean }): boolean;
+  Tab: ComponentType<{ assignmentId: string }>;
+}
+
+export const assignmentRecordTabs = slot<AssignmentRecordTab>(
+  "assignment record tabs",
+);
+
+/**
+ * What a module shows beside one student's work: to the teacher marking
+ * it, or to the student working on it. It reads what it needs itself and
+ * shows nothing where it has nothing.
+ */
+export interface WorkPart {
+  key: string;
+  where: "grading" | "learner";
+  Part: ComponentType<{ assignmentId: string; studentId: string }>;
+}
+
+export const workParts = slot<WorkPart>("work parts");

@@ -26,6 +26,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  useSuspenseQueries,
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -83,19 +84,13 @@ import {
 } from "./BriefLanguage";
 import { Discussion } from "./Discussion";
 import { PHASE_LABEL, PHASE_TONE, STATE_LABEL, STATE_TONE } from "./format";
-import { PeerReviewPanel } from "./PeerReview";
 import { QuizAnswers } from "./QuizAnswers";
-import { workSharing } from "./slots";
+import { assignmentFacts, assignmentRecordTabs, workSharing } from "./slots";
 import { UseAgainSheet } from "./UseAgain";
 
-export const RECORD_TABS = [
-  "brief",
-  "discussion",
-  "work",
-  "answers",
-  "reviews",
-] as const;
-export type RecordTabValue = (typeof RECORD_TABS)[number];
+/** The record's own tabs; a module's tab rides under its own value. */
+export const RECORD_TABS = ["brief", "discussion", "work", "answers"] as const;
+export type RecordTabValue = (typeof RECORD_TABS)[number] | (string & {});
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof assignmentRecordQuery>["queryFn"]>>
@@ -111,6 +106,7 @@ interface SettingsProps {
 }
 
 function Settings({ data, open, onOpenChange }: SettingsProps) {
+  const facts = useSlot(assignmentFacts);
   const late = {
     accept: m.courseworkLateAccept(),
     deduct: m.courseworkLateDeductBy({
@@ -156,13 +152,9 @@ function Settings({ data, open, onOpenChange }: SettingsProps) {
         <Fact label={m.courseworkResubmission()}>
           {data.resubmission ? m.commonYes() : m.commonNo()}
         </Fact>
-        {data.peerReviews === null ? null : (
-          <Fact label={m.peerSection()}>
-            {data.peerAnonymous
-              ? m.peerHowAnonymous({ count: data.peerReviews })
-              : m.peerHowNamed({ count: data.peerReviews })}
-          </Fact>
-        )}
+        {facts.map(({ key, Fact: Part }) => (
+          <Part key={key} assignmentId={data.id} />
+        ))}
       </Facts>
     </SheetPanel>
   );
@@ -761,28 +753,35 @@ export function AssignmentRecord({
   // A quiz's answers only its teacher can judge are marked question by question.
   const byQuestion = data.submissionFormat === "quiz" && data.access.grade;
   const talking = data.submissionFormat === "discussion" && data.access.grade;
-  const reviewing = data.peerReviews !== null && data.access.grade;
-  const tabs: RecordTab<RecordTabValue>[] = RECORD_TABS.filter(
-    (value) =>
-      (value !== "answers" || byQuestion) &&
-      (value !== "discussion" || talking) &&
-      (value !== "reviews" || reviewing),
-  ).map((value) => ({
-    value,
-    label:
-      value === "brief"
-        ? m.courseworkBrief()
-        : value === "answers"
-          ? m.lrnAnswersTab()
-          : value === "discussion"
-            ? m.discussionSection()
-            : value === "reviews"
-              ? m.peerTab()
+  const moduleTabs = useSlot(assignmentRecordTabs);
+  const moduleReads = useSuspenseQueries({
+    queries: moduleTabs.map((part) => part.query(data.id)),
+  });
+  const shownTabs = moduleTabs.filter((part, index) =>
+    part.shows(moduleReads[index]?.data, { grade: data.access.grade }),
+  );
+  const moduleTab = shownTabs.find((part) => part.value === tab);
+  const tabs: RecordTab<RecordTabValue>[] = [
+    ...RECORD_TABS.filter(
+      (value) =>
+        (value !== "answers" || byQuestion) &&
+        (value !== "discussion" || talking),
+    ).map((value) => ({
+      value,
+      label:
+        value === "brief"
+          ? m.courseworkBrief()
+          : value === "answers"
+            ? m.lrnAnswersTab()
+            : value === "discussion"
+              ? m.discussionSection()
               : m.courseworkStudentWorkCount({
                   count: formatNumber(handedIn),
                   total: formatNumber(data.work.length),
                 }),
-  }));
+    })),
+    ...shownTabs.map((part) => ({ value: part.value, label: part.label() })),
+  ];
   return (
     <Page width={width.wide ? "list" : "form"}>
       <RecordHeader
@@ -882,8 +881,8 @@ export function AssignmentRecord({
           <QuizAnswers assignmentId={data.id} />
         ) : tab === "discussion" && talking ? (
           <Discussion assignmentId={data.id} tab />
-        ) : tab === "reviews" && reviewing ? (
-          <PeerReviewPanel assignmentId={data.id} />
+        ) : moduleTab ? (
+          <moduleTab.Tab assignmentId={data.id} />
         ) : (
           <Brief data={data} />
         )}

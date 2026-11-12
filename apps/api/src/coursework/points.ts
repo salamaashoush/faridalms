@@ -36,6 +36,7 @@ export interface AssignmentPart {
     input: {
       classId: string;
       format: SubmissionFormat;
+      dueAt: string | null;
       stored: AssignmentRow | null;
       value: unknown;
     },
@@ -50,6 +51,11 @@ export interface AssignmentPart {
   reused?(
     context: UnitContext,
     input: { source: AssignmentRow; created: AssignmentRow },
+  ): Promise<void>;
+  /** One part of work shared across classes takes what its lead now says. */
+  follows?(
+    context: UnitContext,
+    input: { lead: AssignmentRow; part: AssignmentRow },
   ): Promise<void>;
 }
 
@@ -112,6 +118,15 @@ export async function partsPublished(
 ): Promise<void> {
   for (const part of await contributionsTo(context, assignmentParts))
     await part.published?.(context, assignment);
+}
+
+/** Tells the parts of the modules on that a part of shared work follows its lead. */
+export async function partsFollow(
+  context: UnitContext,
+  input: { lead: AssignmentRow; part: AssignmentRow },
+): Promise<void> {
+  for (const part of await contributionsTo(context, assignmentParts))
+    await part.follows?.(context, input);
 }
 
 /** Tells the parts of the modules on that work was set again. */
@@ -252,6 +267,11 @@ export interface AttemptReaders {
     context: UnitContext,
     attempt: { attemptId: string; studentId: string },
   ): Promise<boolean>;
+  /** Whether the viewer may read one file of a student's work in progress. */
+  readsFile?(
+    context: UnitContext,
+    input: { submissionId: string; fileId: string },
+  ): Promise<boolean>;
 }
 
 export const attemptReaders = point<AttemptReaders>("attempt readers");
@@ -264,4 +284,37 @@ export async function readsAttempt(
   for (const readers of await contributionsTo(context, attemptReaders))
     if (await readers.reads(context, attempt)) return true;
   return false;
+}
+
+/** Whether a module lets the viewer read one file of a submission. */
+export async function readsSubmissionFile(
+  context: UnitContext,
+  input: { submissionId: string; fileId: string },
+): Promise<boolean> {
+  for (const readers of await contributionsTo(context, attemptReaders))
+    if (await readers.readsFile?.(context, input)) return true;
+  return false;
+}
+
+/**
+ * A module that keeps a handed-in attempt as it stands, so its student may
+ * not take it back: classmates were given it to review, say.
+ */
+export interface AttemptHolds {
+  /** The refusal's message where the module keeps the attempt, or null. */
+  heldBecause(context: UnitContext, attemptId: string): Promise<string | null>;
+}
+
+export const attemptHolds = point<AttemptHolds>("attempt holds");
+
+/** Why a module on keeps the attempt as it was handed in, or null where none does. */
+export async function attemptHeld(
+  context: UnitContext,
+  attemptId: string,
+): Promise<string | null> {
+  for (const holds of await contributionsTo(context, attemptHolds)) {
+    const because = await holds.heldBecause(context, attemptId);
+    if (because) return because;
+  }
+  return null;
 }

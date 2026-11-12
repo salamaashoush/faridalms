@@ -105,23 +105,32 @@ export async function advanceApplication(
  */
 export async function clockDue(
   tx: Tx,
-  input: { tenantId: string; now: Date; limit: number },
+  input: {
+    tenantId: string;
+    orgIds: readonly string[];
+    now: Date;
+    limit: number;
+  },
 ): Promise<{
   releases: { id: string; orgId: string }[];
   lapsed: { id: string; orgId: string }[];
 }> {
+  if (input.orgIds.length === 0) return { releases: [], lapsed: [] };
+  const schools = uuidArray(input.orgIds);
   const today = sql`(${input.now.toISOString()}::timestamptz at time zone coalesce(o.time_zone, 'UTC'))::date`;
   const releases = await tx.execute<{ id: string; org_id: string }>(sql`
     select a.id, a.org_id from core.admission_applications a
     join core.admission_intakes i on i.tenant_id = a.tenant_id and i.id = a.intake_id
     join core.orgs o on o.tenant_id = a.tenant_id and o.id = a.org_id
     where a.tenant_id = ${input.tenantId}::uuid and a.status = 'active' and a.state = 'decided'
+      and a.org_id = any(${schools})
       and i.decisions_on is not null and i.decisions_on <= ${today}
     order by a.decided_at, a.id limit ${input.limit}`);
   const lapsed = await tx.execute<{ id: string; org_id: string }>(sql`
     select a.id, a.org_id from core.admission_applications a
     join core.orgs o on o.tenant_id = a.tenant_id and o.id = a.org_id
     where a.tenant_id = ${input.tenantId}::uuid and a.status = 'active' and a.state = 'offered'
+      and a.org_id = any(${schools})
       and a.offer_expires_on < ${today}
     order by a.offer_expires_on, a.id limit ${input.limit}`);
   return {

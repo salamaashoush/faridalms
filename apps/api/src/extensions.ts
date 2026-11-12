@@ -1,11 +1,14 @@
 import type { ModuleContributions } from "./core/extension";
+import type { ModuleWorker } from "./core/workers";
 
+import { ADMISSIONS_CLOCK } from "./admissions/clock";
 import { ADMISSIONS } from "./admissions/contributions";
 import { ADMISSIONS_WITH_FAMILIES } from "./admissions/families";
 import { ADMISSIONS_BY_GRADE } from "./admissions/grades";
 import { ADMISSIONS_IN_YEARS } from "./admissions/years";
 import { ATTENDANCE } from "./attendance/contributions";
 import { ATTENDANCE_WITH_TIMETABLE } from "./attendance/timetable";
+import { BADGES_IN_YEARS } from "./badges/years";
 import { COURSEWORK } from "./coursework/contributions";
 import { COURSEWORK_WITH_FAMILIES } from "./coursework/family-shares";
 import { FAMILIES_AT_THE_FRONT_DESK } from "./families/attendance";
@@ -20,10 +23,16 @@ import { HOMEROOMS_IN_TIMETABLE } from "./homerooms/timetable";
 import { HOMEROOMS_IN_YEARS } from "./homerooms/years";
 import { ELEARNING_WITH_COURSEWORK } from "./learning/discussions";
 import { ELEARNING_READINGS } from "./learning/reading";
+import { PROGRAM_RERUNS } from "./learning/rerun";
 import { ELEARNING_IN_YEARS } from "./learning/years";
+import { PEER_REVIEW_CLOCK } from "./peer/clock";
+import { PEER_REVIEW } from "./peer/contributions";
+import { QUIZ_CLOCK } from "./quizzes/clock";
+import { SMS } from "./sms/contributions";
 import { STANDARDS_FROM_LESSONS } from "./standards/lessons";
 import { STANDARDS_FROM_WORK } from "./standards/work";
 import { STUDENT_RECORDS_WITH_FAMILIES } from "./student-records/families";
+import { WEBSITE_ANNOUNCEMENTS } from "./website/announcements";
 import { SCHOOL_YEARS } from "./years/contributions";
 
 /**
@@ -37,6 +46,7 @@ export const MODULE_EXTENSIONS: readonly ModuleContributions[] = [
   ADMISSIONS_WITH_FAMILIES,
   ATTENDANCE,
   ATTENDANCE_WITH_TIMETABLE,
+  BADGES_IN_YEARS,
   COURSEWORK,
   COURSEWORK_WITH_FAMILIES,
   ELEARNING_IN_YEARS,
@@ -52,8 +62,22 @@ export const MODULE_EXTENSIONS: readonly ModuleContributions[] = [
   HOMEROOMS_BY_GRADE,
   HOMEROOMS_IN_TIMETABLE,
   HOMEROOMS_IN_YEARS,
+  PEER_REVIEW,
   SCHOOL_YEARS,
+  SMS,
   STANDARDS_FROM_LESSONS,
   STANDARDS_FROM_WORK,
   STUDENT_RECORDS_WITH_FAMILIES,
+  WEBSITE_ANNOUNCEMENTS,
+];
+
+/**
+ * Every module's background worker, which the process starts with its own.
+ * Each acts for a school only where its module is on.
+ */
+export const MODULE_WORKERS: readonly ModuleWorker[] = [
+  ADMISSIONS_CLOCK,
+  PEER_REVIEW_CLOCK,
+  PROGRAM_RERUNS,
+  QUIZ_CLOCK,
 ];

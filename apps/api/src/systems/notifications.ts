@@ -19,6 +19,7 @@ import {
 } from "@faridalms/domain/notifications";
 import { paged, pageWindow } from "@faridalms/domain/paging";
 
+import { channelsOf } from "../core/notify";
 import {
   audit,
   readProcedure,
@@ -96,6 +97,8 @@ export const preferences = readProcedure.handler(async ({ context }) => {
     preferences: preferencesOf(value),
     locale: locale ?? "en",
     channels: context.channels,
+    /** Whether the school sends texts at all; without them nothing offers one. */
+    texts: (await channelsOf(context)).includes("sms"),
   };
 });
 
@@ -126,16 +129,19 @@ export const deliveries = readProcedure
   .input(deliveryLogSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "school:manage");
+    // Texts are a channel only where a module on adds them.
+    const sms = (await channelsOf(context)).includes("sms");
     const result = await deliveryLog(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       state: input.state,
-      channel: input.channel,
+      channel: sms ? input.channel : "email",
       q: input.q,
       ...pageWindow(input.page, PAGE),
     });
     return {
       ...result,
       ...paged(result.rows, result.total, input.page, PAGE),
+      sms,
     };
   });

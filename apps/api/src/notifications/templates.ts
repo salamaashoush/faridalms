@@ -245,13 +245,11 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         ? `Cancelled: ${p.title ?? ""}${p.date ? ` on ${p.date}` : ""}`
         : `${p.updated ? "Event changed" : "Event"}: ${p.title ?? ""}${p.date ? ` on ${p.date}` : ""}`,
     reminder: (p) =>
-      p.peerReview
-        ? `Reminder: your reviews of classmates' work for ${p.title ?? "an assignment"} are due ${p.date ?? "soon"}.`
-        : p.cover
-          ? p.cancelled
-            ? `You no longer cover ${p.className ?? "a lesson"} on ${p.date ?? "today"}${p.periodName ? `, ${p.periodName}` : ""}.`
-            : `You cover ${p.className ?? "a lesson"} on ${p.date ?? "today"}${p.periodName ? `, ${p.periodName}` : ""}.`
-          : `Reminder: the register for ${p.className ?? "your class"} on ${p.date ?? "today"} is not taken yet.`,
+      p.cover
+        ? p.cancelled
+          ? `You no longer cover ${p.className ?? "a lesson"} on ${p.date ?? "today"}${p.periodName ? `, ${p.periodName}` : ""}.`
+          : `You cover ${p.className ?? "a lesson"} on ${p.date ?? "today"}${p.periodName ? `, ${p.periodName}` : ""}.`
+        : `Reminder: the register for ${p.className ?? "your class"} on ${p.date ?? "today"} is not taken yet.`,
     consent: (p) =>
       `The school asks for your permission: ${p.title ?? ""}${p.studentName ? ` (${p.studentName})` : ""}.`,
     mention: (p) =>
@@ -275,9 +273,7 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
           ? `We received the application for ${p.title || p.titleAr || "your child"}${p.intakeName ? ` to ${p.intakeName}` : ""}. Its number is ${p.reference ?? ""}.`
           : `New application for ${p.title || p.titleAr || "a child"}${p.intakeName ? ` to ${p.intakeName}` : ""}.`,
     assignment: (p) =>
-      p.peerReview
-        ? `Classmates' work to review for ${p.title ?? "an assignment"}${p.date ? `, due ${p.date}` : ""}.`
-        : `New work${p.studentName ? ` for ${p.studentName}` : ""}${p.className ? ` in ${p.className}` : ""}: ${p.title ?? ""}${p.date ? `, due ${p.date}` : ""}.`,
+      `New work${p.studentName ? ` for ${p.studentName}` : ""}${p.className ? ` in ${p.className}` : ""}: ${p.title ?? ""}${p.date ? `, due ${p.date}` : ""}.`,
     feedback: (p) =>
       p.gradeShown
         ? `${p.studentName ? `${p.studentName}'s` : "Your"} grade for ${p.title ?? "an assignment"} is now shown.`
@@ -303,6 +299,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         ? `Called off: the ${what.charAt(0).toLowerCase()}${what.slice(1)} on ${when}.`
         : `${p.updated ? "Moved: " : ""}${what} on ${when}${p.location ? `, ${p.location}` : ""}.`;
     },
+    peer_review: (p) =>
+      p.dueSoon
+        ? `Reminder: your reviews of classmates' work for ${p.title ?? "an assignment"} are due ${p.date ?? "soon"}.`
+        : `Classmates' work to review for ${p.title ?? "an assignment"}${p.date ? `, due ${p.date}` : ""}.`,
   },
   ar: {
     announcement: (p) =>
@@ -320,13 +320,11 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         ? `أُلغيت: ${p.title ?? ""}${p.date ? ` يوم ${p.date}` : ""}`
         : `${p.updated ? "تغيّرت فعالية" : "فعالية"}: ${p.title ?? ""}${p.date ? ` يوم ${p.date}` : ""}`,
     reminder: (p) =>
-      p.peerReview
-        ? `تذكير: موعد مراجعاتك لأعمال زملائك في ${p.titleAr || p.title || "الواجب"} ${p.date ?? "قريبًا"}.`
-        : p.cover
-          ? p.cancelled
-            ? `لم تعد تغطي ${p.className ?? "حصة"} يوم ${p.date ?? "اليوم"}${p.periodName ? `، ${p.periodName}` : ""}.`
-            : `تغطي ${p.className ?? "حصة"} يوم ${p.date ?? "اليوم"}${p.periodName ? `، ${p.periodName}` : ""}.`
-          : `تذكير: لم يُسجَّل حضور ${p.className ?? "فصلك"} يوم ${p.date ?? "اليوم"} بعد.`,
+      p.cover
+        ? p.cancelled
+          ? `لم تعد تغطي ${p.className ?? "حصة"} يوم ${p.date ?? "اليوم"}${p.periodName ? `، ${p.periodName}` : ""}.`
+          : `تغطي ${p.className ?? "حصة"} يوم ${p.date ?? "اليوم"}${p.periodName ? `، ${p.periodName}` : ""}.`
+        : `تذكير: لم يُسجَّل حضور ${p.className ?? "فصلك"} يوم ${p.date ?? "اليوم"} بعد.`,
     consent: (p) =>
       `تطلب المدرسة موافقتك: ${p.title ?? ""}${p.studentName ? ` (${p.studentName})` : ""}.`,
     mention: (p) =>
@@ -350,9 +348,7 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
           ? `وصلنا طلب التحاق ${p.titleAr || p.title || "طفلكم"}${p.intakeNameAr || p.intakeName ? ` بـ${p.intakeNameAr || p.intakeName}` : ""}، ورقمه ${p.reference ?? ""}.`
           : `طلب التحاق جديد لـ${p.titleAr || p.title || "أحد الأطفال"}${p.intakeNameAr || p.intakeName ? ` في ${p.intakeNameAr || p.intakeName}` : ""}.`,
     assignment: (p) =>
-      p.peerReview
-        ? `أعمال زملاء لتراجعها في ${p.titleAr || p.title || "الواجب"}${p.date ? `، وموعدها ${p.date}` : ""}.`
-        : `واجب جديد${p.studentName ? ` لـ${p.studentName}` : ""}${p.className ? ` في ${p.className}` : ""}: ${p.title ?? ""}${p.date ? `، وموعد تسليمه ${p.date}` : ""}.`,
+      `واجب جديد${p.studentName ? ` لـ${p.studentName}` : ""}${p.className ? ` في ${p.className}` : ""}: ${p.title ?? ""}${p.date ? `، وموعد تسليمه ${p.date}` : ""}.`,
     feedback: (p) =>
       p.gradeShown
         ? p.studentName
@@ -383,6 +379,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         ? `تغيّر موعد ${kind.the} مع ${name}: يوم ${when}${where}.`
         : `${kind.a} مع ${name} يوم ${when}${where}.`;
     },
+    peer_review: (p) =>
+      p.dueSoon
+        ? `تذكير: موعد مراجعاتك لأعمال زملائك في ${p.titleAr || p.title || "الواجب"} ${p.date ?? "قريبًا"}.`
+        : `أعمال زملاء لتراجعها في ${p.titleAr || p.title || "الواجب"}${p.date ? `، وموعدها ${p.date}` : ""}.`,
   },
 };
 

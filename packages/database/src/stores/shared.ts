@@ -181,7 +181,9 @@ export async function sharedBlockUses(
     live: boolean;
   }>(sql`
     select d.host_type, d.host_id,
-      coalesce(sp.state = 'published', n.visibility = 'public' and n.state = 'published', false)
+      coalesce(sp.state = 'published', n.state = 'published' and exists (select 1
+        from core.site_posts p where p.tenant_id = n.tenant_id and p.broadcast_id = n.id
+          and p.status = 'active'), false)
         as live,
       coalesce(l.title, a.title, m.title, nullif(n.title_en, ''), nullif(sp.title_en, ''))
         as title_en,

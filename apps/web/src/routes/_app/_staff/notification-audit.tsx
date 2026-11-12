@@ -75,6 +75,7 @@ const REASON_LABEL: Record<NonNullable<Row["reason"]>, () => string> = {
   withdrawn: m.ntfReasonWithdrawn,
   provider_error: m.ntfReasonError,
   gave_up: m.ntfReasonGaveUp,
+  module_off: m.ntfReasonModuleOff,
 };
 
 const CHANNEL_LABEL: Record<Row["channel"], () => string> = {
@@ -153,7 +154,7 @@ function DeliveryLogPage() {
       <PageHeader
         title={m.ntfLogTitle()}
         count={data.total}
-        description={m.ntfLogHint()}
+        description={data.sms ? m.ntfLogHint() : m.ntfLogHintEmail()}
       />
       <div className="grid gap-4">
         <IndexToolbar
@@ -178,20 +179,26 @@ function DeliveryLogPage() {
                   state: (state ?? "all") as DeliveryLogQuery["state"],
                 }),
             },
-            {
-              id: "channel",
-              label: m.ntfColChannel(),
-              single: true,
-              selected: search.channel === "all" ? [] : [search.channel],
-              options: DELIVERY_CHANNELS.map((channel) => ({
-                value: channel,
-                label: CHANNEL_LABEL[channel](),
-              })),
-              onChange: ([channel]) =>
-                update({
-                  channel: (channel ?? "all") as DeliveryLogQuery["channel"],
-                }),
-            },
+            // Texts are a channel only where the school has them on.
+            ...(data.sms
+              ? [
+                  {
+                    id: "channel",
+                    label: m.ntfColChannel(),
+                    single: true,
+                    selected: search.channel === "all" ? [] : [search.channel],
+                    options: DELIVERY_CHANNELS.map((channel) => ({
+                      value: channel,
+                      label: CHANNEL_LABEL[channel](),
+                    })),
+                    onChange: ([channel]: string[]) =>
+                      update({
+                        channel: (channel ??
+                          "all") as DeliveryLogQuery["channel"],
+                      }),
+                  },
+                ]
+              : []),
           ]}
           onReset={() => void navigate({ search: {} })}
         />
@@ -212,7 +219,9 @@ function DeliveryLogPage() {
           empty={{
             icon: Send,
             title: m.ntfLogEmpty(),
-            description: m.ntfLogEmptyBody(),
+            description: data.sms
+              ? m.ntfLogEmptyBody()
+              : m.ntfLogEmptyBodyEmail(),
           }}
         />
       </div>

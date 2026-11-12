@@ -27,6 +27,7 @@ import {
   Siren,
   UserPlus,
   UserX,
+  UsersRound,
 } from "lucide-react";
 
 import { EVENT_KIND_LABEL } from "~/components/admissions/application-labels";
@@ -66,6 +67,7 @@ export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   correction: HeartPulse,
   reenrolment: School,
   admission_event: CalendarClock,
+  peer_review: UsersRound,
 };
 
 /** What a notice about an application's move is headed, for the family and for the office. */
@@ -138,14 +140,14 @@ export function noticeText(notice: Notice): { title: string; body: string } {
             : m.ntfEvent(),
         body: [title, date ? formatDate(date) : ""].filter(Boolean).join(" · "),
       };
+    case "peer_review":
+      return {
+        title: params.dueSoon ? m.ntfPeerDue() : m.ntfPeerHandedOut(),
+        body: [title, date ? m.ntfDue({ date: formatDate(date) }) : ""]
+          .filter(Boolean)
+          .join(" · "),
+      };
     case "reminder":
-      if (params.peerReview)
-        return {
-          title: m.ntfPeerDue(),
-          body: [title, date ? m.ntfDue({ date: formatDate(date) }) : ""]
-            .filter(Boolean)
-            .join(" · "),
-        };
       if (params.cover)
         return {
           title: (params.cancelled ? m.ntfCoverOff : m.ntfCover)({
@@ -233,13 +235,6 @@ export function noticeText(notice: Notice): { title: string; body: string } {
               .join(" · "),
           };
     case "assignment":
-      if (params.peerReview)
-        return {
-          title: m.ntfPeerHandedOut(),
-          body: [title, date ? m.ntfDue({ date: formatDate(date) }) : ""]
-            .filter(Boolean)
-            .join(" · "),
-        };
       return {
         title: params.studentName
           ? m.ntfAssignmentFor({
@@ -506,18 +501,18 @@ export function NoticeLink({
           {children}
         </Link>
       );
+    case "peer_review":
+      return (
+        <Link
+          {...rest}
+          to="/assignments/$assignmentId"
+          params={{ assignmentId: id }}
+          search={{ tab: "reviews" }}
+        >
+          {children}
+        </Link>
+      );
     case "reminder":
-      if (notice.params.peerReview)
-        return (
-          <Link
-            {...rest}
-            to="/assignments/$assignmentId"
-            params={{ assignmentId: id }}
-            search={{ tab: "reviews" }}
-          >
-            {children}
-          </Link>
-        );
       if (notice.params.cover && notice.params.cancelled)
         return (
           <Link {...rest} to="/timetable">

@@ -3,7 +3,6 @@ import * as v from "valibot";
 import { contentDocumentSchema } from "./content";
 import { pageField } from "./paging";
 import { CONTENT_LOCALES } from "./translations";
-import { siteSlugSchema } from "./website";
 
 export const URGENCIES = ["normal", "important", "urgent"] as const;
 export type Urgency = (typeof URGENCIES)[number];
@@ -14,13 +13,6 @@ export const AUDIENCE_SCOPES = [
   "class",
 ] as const;
 export type AudienceScope = (typeof AUDIENCE_SCOPES)[number];
-
-/**
- * Where an announcement can be read: only inside the school by its
- * audience, or on the school's website as well.
- */
-export const VISIBILITIES = ["school", "public"] as const;
-export type Visibility = (typeof VISIBILITIES)[number];
 
 const id = v.pipe(v.string(), v.uuid());
 const optionalId = v.optional(v.union([v.literal(""), id]), "");
@@ -91,23 +83,20 @@ export const saveAnnouncementSchema = v.pipe(
     titleAr: words(200),
     body: contentDocumentSchema,
     translation: v.nullable(contentDocumentSchema),
-    /** Who is told when it goes out; only one on the website may tell nobody. */
+    /** Who is told when it goes out; only one a module opens to everyone may tell nobody. */
     audiences: v.pipe(v.array(audienceSchema), v.maxLength(20)),
     urgency: v.optional(v.picklist(URGENCIES), "normal"),
     pinnedUntil: optionalDate,
     expiresOn: optionalDate,
     requiresAck: v.optional(v.boolean(), false),
     ackDueOn: optionalDate,
-    visibility: v.optional(v.picklist(VISIBILITIES), "school"),
     excerptEn: v.optional(words(300), ""),
     excerptAr: v.optional(words(300), ""),
-    slug: v.optional(v.union([v.literal(""), siteSlugSchema]), ""),
-    categoryId: optionalId,
     coverFileId: optionalId,
     coverAltEn: v.optional(words(300), ""),
     coverAltAr: v.optional(words(300), ""),
-    /** First among the website's posts. */
-    pinned: v.optional(v.boolean(), false),
+    /** What modules keep about it, each read by its own schema; null takes one away. */
+    parts: v.optional(v.record(v.string(), v.unknown()), {}),
   }),
   v.forward(
     v.check(
@@ -123,20 +112,6 @@ export const saveAnnouncementSchema = v.pipe(
       "announcements.title",
     ),
     ["titleEn"],
-  ),
-  v.forward(
-    v.check(
-      (input) => input.visibility === "public" || input.audiences.length > 0,
-      "announcements.audience",
-    ),
-    ["audiences"],
-  ),
-  v.forward(
-    v.check(
-      (input) => input.visibility === "school" || input.slug !== "",
-      "announcements.slug",
-    ),
-    ["slug"],
   ),
 );
 export type SaveAnnouncement = v.InferOutput<typeof saveAnnouncementSchema>;

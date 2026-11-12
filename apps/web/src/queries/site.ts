@@ -3,6 +3,7 @@ import type { SiteLocale } from "@faridalms/domain/website";
 import { queryOptions } from "@tanstack/react-query";
 
 import {
+  getAnnouncementSiteOptions,
   getPublicPage,
   getPublicPost,
   getPublicPosts,
@@ -68,3 +69,9 @@ export const publicPostQuery = (
     queryKey: ["public-site", school, locale ?? "", "post", slug],
     queryFn: () => getPublicPost({ data: { school, slug, locale } }),
   });
+
+/** The website's categories and languages an announcement on it is written for. */
+export const announcementSiteOptionsQuery = queryOptions({
+  queryKey: ["site", "announcement-options"],
+  queryFn: () => getAnnouncementSiteOptions(),
+});

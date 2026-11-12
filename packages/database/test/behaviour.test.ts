@@ -1483,3 +1483,68 @@ describe("searching", () => {
     }
   });
 });
+
+describe("what a module keeps of a core record", () => {
+  test("an announcement is on the website once, at an address no other post of its school holds", async () => {
+    const { a } = harness();
+    const again = await probe("app", a.tenantId, [
+      {
+        text: `insert into core.site_posts (tenant_id, org_id, broadcast_id, slug)
+               select tenant_id, org_id, broadcast_id, slug || '-again' from core.site_posts
+               where tenant_id = $1 and status = 'active' order by id limit 1`,
+        params: [a.tenantId],
+      },
+    ]);
+    expect(again.error?.message).toContain("site_posts_broadcast_key");
+    const taken = await probe("app", a.tenantId, [
+      {
+        text: `insert into core.site_posts (tenant_id, org_id, broadcast_id, slug)
+               select p.tenant_id, p.org_id, b.id, p.slug from core.site_posts p
+               join core.broadcasts b on b.tenant_id = p.tenant_id and b.org_id = p.org_id
+                 and b.id <> p.broadcast_id and not exists (select 1 from core.site_posts q
+                   where q.tenant_id = b.tenant_id and q.broadcast_id = b.id and q.status = 'active')
+               where p.tenant_id = $1 and p.status = 'active' order by p.id, b.id limit 1`,
+        params: [a.tenantId],
+      },
+    ]);
+    expect(taken.error?.message).toContain("site_posts_slug_key");
+  });
+
+  test("a provider vouches for one subject once, and a sign-in has one provider", async () => {
+    const { a } = harness();
+    const twice = await probe("app", a.tenantId, [
+      {
+        text: `insert into core.federated_identities (tenant_id, login_identity_id, identity_provider_id, subject)
+               select f.tenant_id, l.id, f.identity_provider_id, f.subject
+               from core.federated_identities f
+               join core.login_identities l on l.tenant_id = f.tenant_id and l.id <> f.login_identity_id
+               where f.tenant_id = $1 order by l.id limit 1`,
+        params: [a.tenantId],
+      },
+    ]);
+    expect(twice.error?.message).toContain("federated_identities_subject_key");
+  });
+
+  test("peer review hands reviews out before it releases them, and an assignment has one way of being reviewed", async () => {
+    const { a } = harness();
+    const early = await probe("app", a.tenantId, [
+      {
+        text: `update core.peer_review_settings set started_at = null, released_at = statement_timestamp()
+               where tenant_id = $1`,
+        params: [a.tenantId],
+      },
+    ]);
+    expect(early.error?.message).toContain("peer_review_settings_stages_check");
+    const twice = await probe("app", a.tenantId, [
+      {
+        text: `insert into core.peer_review_settings (tenant_id, assignment_id, reviews, anonymous)
+               select tenant_id, assignment_id, 2, false from core.peer_review_settings
+               where tenant_id = $1 and status = 'active' limit 1`,
+        params: [a.tenantId],
+      },
+    ]);
+    expect(twice.error?.message).toContain(
+      "peer_review_settings_assignment_key",
+    );
+  });
+});

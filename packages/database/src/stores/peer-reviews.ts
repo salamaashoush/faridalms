@@ -1,11 +1,17 @@
+import type { SQL } from "drizzle-orm";
+
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
-import type { PeerHelpfulness } from "../tables/coursework";
+import type { PeerHelpfulness } from "../tables/peer-reviews";
 
 import { isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
+
+/** An instant to the second, as the work it belongs to reads its own dates. */
+const seconds = (column: SQL) =>
+  sql`to_char(${column} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`;
 
 export interface PeerReviewRow {
   id: string;
@@ -149,6 +155,90 @@ export async function hidePeerReview(
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and status = 'active'`);
 }
 
+export interface PeerSettingsRow {
+  assignmentId: string;
+  reviews: number;
+  anonymous: boolean;
+  dueAt: string | null;
+  startedAt: string | null;
+  releasedAt: string | null;
+}
+
+/** How classmates review each assignment's work, for those that are reviewed. */
+export async function peerSettingsOf(
+  tx: Tx,
+  input: { tenantId: string; assignmentIds: readonly string[] },
+): Promise<Map<string, PeerSettingsRow>> {
+  if (input.assignmentIds.length === 0) return new Map();
+  const rows = await tx.execute<{
+    assignment_id: string;
+    reviews: number;
+    anonymous: boolean;
+    due_at: string | null;
+    started_at: string | null;
+    released_at: string | null;
+  }>(sql`
+    select assignment_id, reviews, anonymous, ${seconds(sql`due_at`)} as due_at,
+      ${seconds(sql`started_at`)} as started_at,
+      ${seconds(sql`released_at`)} as released_at
+    from core.peer_review_settings
+    where tenant_id = ${input.tenantId}::uuid
+      and assignment_id = any(${uuidArray(input.assignmentIds)}) and status = 'active'`);
+  return new Map(
+    rows.map((row) => [
+      row.assignment_id,
+      {
+        assignmentId: row.assignment_id,
+        reviews: row.reviews,
+        anonymous: row.anonymous,
+        dueAt: row.due_at,
+        startedAt: row.started_at,
+        releasedAt: row.released_at,
+      },
+    ]),
+  );
+}
+
+/**
+ * Keeps how an assignment's work is reviewed, or ends its review with null.
+ * The stages it reached stay; a new review date earns its own reminder.
+ */
+export async function keepPeerSettings(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    assignmentId: string;
+    settings: {
+      reviews: number;
+      anonymous: boolean;
+      dueAt: string | null;
+    } | null;
+  },
+): Promise<void> {
+  const { settings } = input;
+  if (!settings) {
+    await tx.execute(sql`
+      update core.peer_review_settings set status = 'tobedeleted'
+      where tenant_id = ${input.tenantId}::uuid and assignment_id = ${input.assignmentId}::uuid
+        and status = 'active'`);
+    return;
+  }
+  const [changed] = await tx.execute<{ id: string }>(sql`
+    update core.peer_review_settings
+    set reviews = ${settings.reviews}, anonymous = ${settings.anonymous},
+        due_at = ${settings.dueAt}::timestamptz,
+        reminded_at = case when due_at is not distinct from ${settings.dueAt}::timestamptz
+          then reminded_at end
+    where tenant_id = ${input.tenantId}::uuid and assignment_id = ${input.assignmentId}::uuid
+      and status = 'active'
+    returning id`);
+  if (changed) return;
+  await tx.execute(sql`
+    insert into core.peer_review_settings (tenant_id, assignment_id, reviews, anonymous, due_at)
+    values (${input.tenantId}::uuid, ${input.assignmentId}::uuid, ${settings.reviews},
+      ${settings.anonymous}, ${settings.dueAt}::timestamptz)`);
+}
+
 /** Marks when an assignment's reviews were first handed out, or released. */
 export async function markPeerReview(
   tx: Tx,
@@ -159,13 +249,13 @@ export async function markPeerReview(
   },
 ): Promise<void> {
   await tx.execute(sql`
-    update core.assignments
+    update core.peer_review_settings
     set ${
       input.stage === "started"
-        ? sql`peer_started_at = coalesce(peer_started_at, statement_timestamp())`
-        : sql`peer_released_at = coalesce(peer_released_at, statement_timestamp())`
+        ? sql`started_at = coalesce(started_at, statement_timestamp())`
+        : sql`released_at = coalesce(released_at, statement_timestamp())`
     }
-    where tenant_id = ${input.tenantId}::uuid and id = ${input.assignmentId}::uuid
+    where tenant_id = ${input.tenantId}::uuid and assignment_id = ${input.assignmentId}::uuid
       and status = 'active'`);
 }
 
@@ -313,8 +403,15 @@ export interface DueReviewRow {
  */
 export async function peerReviewsDueSoon(
   tx: Tx,
-  input: { tenantId: string; now: Date; withinHours: number; limit: number },
+  input: {
+    tenantId: string;
+    orgIds: readonly string[];
+    now: Date;
+    withinHours: number;
+    limit: number;
+  },
 ): Promise<DueReviewRow[]> {
+  if (input.orgIds.length === 0) return [];
   const now = input.now.toISOString();
   const rows = await tx.execute<{
     id: string;
@@ -323,19 +420,22 @@ export async function peerReviewsDueSoon(
     peer_due_at: string;
     reviewer_ids: string[] | null;
   }>(sql`
-    select a.id, a.org_id, a.title, ${isoOf(sql`a.peer_due_at`)} as peer_due_at,
+    select a.id, a.org_id, a.title, ${isoOf(sql`p.due_at`)} as peer_due_at,
       (select array_agg(distinct r.reviewer_user_id) from core.peer_reviews r
         where r.tenant_id = a.tenant_id and r.assignment_id = a.id and r.status = 'active'
           and r.sent_at is null) as reviewer_ids
-    from core.assignments a
-    where a.tenant_id = ${input.tenantId}::uuid and a.status = 'active' and a.state = 'published'
-      and a.peer_started_at is not null and a.peer_released_at is null
-      and a.peer_reminded_at is null
-      and a.peer_due_at > ${now}::timestamptz
-      and a.peer_due_at <= ${now}::timestamptz + make_interval(hours => ${input.withinHours})
-    order by a.peer_due_at
+    from core.peer_review_settings p
+    join core.assignments a on a.tenant_id = p.tenant_id and a.id = p.assignment_id
+    where p.tenant_id = ${input.tenantId}::uuid and p.status = 'active'
+      and a.status = 'active' and a.state = 'published'
+      and a.org_id = any(${uuidArray(input.orgIds)})
+      and p.started_at is not null and p.released_at is null
+      and p.reminded_at is null
+      and p.due_at > ${now}::timestamptz
+      and p.due_at <= ${now}::timestamptz + make_interval(hours => ${input.withinHours})
+    order by p.due_at
     limit ${input.limit}
-    for update of a skip locked`);
+    for update of p skip locked`);
   return rows.map((row) => ({
     id: row.id,
     orgId: row.org_id,
@@ -351,6 +451,7 @@ export async function markPeerReminded(
   input: { tenantId: string; assignmentId: string },
 ): Promise<void> {
   await tx.execute(sql`
-    update core.assignments set peer_reminded_at = statement_timestamp()
-    where tenant_id = ${input.tenantId}::uuid and id = ${input.assignmentId}::uuid`);
+    update core.peer_review_settings set reminded_at = statement_timestamp()
+    where tenant_id = ${input.tenantId}::uuid and assignment_id = ${input.assignmentId}::uuid
+      and status = 'active'`);
 }

@@ -77,6 +77,8 @@ create trigger row_meta before insert or update on core.documents for each row e
 create trigger row_meta before insert or update on core.enrollments for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.external_ids for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.family_shares for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.federated_identities
+  for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.file_previews for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.file_publications for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.file_subjects for each row execute function app.row_meta();
@@ -131,6 +133,8 @@ create trigger row_meta before insert or update on core.paced_lessons for each r
 create trigger row_meta before insert or update on core.passkeys for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.peer_review_comments
   for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.peer_review_settings
+  for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.peer_reviews for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.period_grades for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.privacy_notices for each row execute function app.row_meta();
@@ -155,6 +159,7 @@ create trigger row_meta before insert or update on core.shared_blocks for each r
 create trigger row_meta before insert or update on core.site_categories for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.site_enquiries for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.site_pages for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.site_posts for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.site_published_pages
   for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.site_published_posts

@@ -490,7 +490,7 @@ describe("early learning goals", () => {
       studentIds: [child.userId],
     });
     const secret = badges[0]?.secret ?? "";
-    const { token } = await client(YOUNG).identity.badgeSignIn({ secret });
+    const { token } = await client(YOUNG).badges.signIn({ secret });
     const pupil = client(YOUNG, token);
 
     const saved = await staff.learning.saveModule({
@@ -637,7 +637,7 @@ describe("early learning goals", () => {
       classId: homeroom.id,
       studentIds: [child.userId],
     });
-    const { token } = await client(YOUNG).identity.badgeSignIn({
+    const { token } = await client(YOUNG).badges.signIn({
       secret: badges[0]?.secret ?? "",
     });
     const pupil = client(YOUNG, token);

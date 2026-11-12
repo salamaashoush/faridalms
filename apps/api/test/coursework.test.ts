@@ -20,6 +20,7 @@ import {
   sessionFor,
   signedIn,
   timeHasCome,
+  withoutModules,
   workerModules,
 } from "./harness";
 
@@ -2225,6 +2226,14 @@ describe("quizzes", () => {
     expect(await rejection(answer())).toMatchObject({
       code: "CONFLICT",
       message: "coursework.time_up",
+    });
+    expect(
+      (await student.api.coursework.work({ id: saved.id })).quiz?.timing
+        ?.timeUp,
+    ).toBe(true);
+    // With coursework off at the school, the worker hands nothing in there.
+    await withoutModules("northwind", ["coursework"], async () => {
+      await handInTimedOut(cell, tenantId, new Date(), workerModules());
     });
     expect(
       (await student.api.coursework.work({ id: saved.id })).quiz?.timing

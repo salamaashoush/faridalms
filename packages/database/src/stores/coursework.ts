@@ -52,12 +52,6 @@ export interface AssignmentRow {
   gradeAfterAnswers: boolean;
   discussionPostFirst: boolean | null;
   discussionReplies: number | null;
-  peerReviews: number | null;
-  peerAnonymous: boolean | null;
-  peerStartedAt: string | null;
-  peerReleasedAt: string | null;
-  peerDueAt: string | null;
-  peerRemindedAt: string | null;
   language: ContentLocale | null;
   translationTitle: string | null;
   publishedAt: string | null;
@@ -93,12 +87,6 @@ export type AssignmentRecord = {
   grade_after_answers: boolean;
   discussion_post_first: boolean | null;
   discussion_replies: number | null;
-  peer_reviews: number | null;
-  peer_anonymous: boolean | null;
-  peer_started_at: string | null;
-  peer_released_at: string | null;
-  peer_due_at: string | null;
-  peer_reminded_at: string | null;
   language: ContentLocale | null;
   translation_title: string | null;
   published_at: string | null;
@@ -112,11 +100,6 @@ export const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id,
   a.late_policy, a.late_deduction_percent, a.submission_format, a.max_files, a.resubmission,
   a.points::text as points, a.rubric, a.quiz_attempts, a.quiz_keep, a.quiz_reveal, a.quiz_shuffle,
   a.quiz_time_limit, a.quiz_practice, a.quiz_bands, a.grade_after_answers, a.discussion_post_first, a.discussion_replies,
-  a.peer_reviews, a.peer_anonymous,
-  to_char(a.peer_started_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_started_at,
-  to_char(a.peer_released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_released_at,
-  to_char(a.peer_due_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_due_at,
-  to_char(a.peer_reminded_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_reminded_at,
   a.language, a.translation_title,
   to_char(a.published_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as published_at`;
 
@@ -151,12 +134,6 @@ export function assignmentOf(row: AssignmentRecord): AssignmentRow {
     gradeAfterAnswers: row.grade_after_answers,
     discussionPostFirst: row.discussion_post_first,
     discussionReplies: row.discussion_replies,
-    peerReviews: row.peer_reviews,
-    peerAnonymous: row.peer_anonymous,
-    peerStartedAt: row.peer_started_at,
-    peerReleasedAt: row.peer_released_at,
-    peerDueAt: row.peer_due_at,
-    peerRemindedAt: row.peer_reminded_at,
     language: row.language,
     translationTitle: row.translation_title,
     publishedAt: row.published_at,
@@ -221,9 +198,6 @@ export interface AssignmentFields {
   gradeAfterAnswers: boolean;
   discussionPostFirst: boolean | null;
   discussionReplies: number | null;
-  peerReviews: number | null;
-  peerAnonymous: boolean | null;
-  peerDueAt: string | null;
   language: ContentLocale | null;
   translationTitle: string | null;
 }
@@ -241,8 +215,8 @@ export async function insertAssignment(
     insert into core.assignments (tenant_id, org_id, class_id, author_user_id, title, audience, available_from, due_at, closes_at,
       late_policy, late_deduction_percent, submission_format, max_files, resubmission, points, rubric,
       quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle, quiz_time_limit, quiz_practice, quiz_bands, category_id,
-      grade_after_answers, discussion_post_first, discussion_replies, peer_reviews,
-      peer_anonymous, peer_due_at, language, translation_title)
+      grade_after_answers, discussion_post_first, discussion_replies, language,
+      translation_title)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
       ${input.authorUserId}::uuid, ${input.title},
       ${input.audience}, ${input.availableFrom}::timestamptz, ${input.dueAt}::timestamptz,
@@ -252,7 +226,6 @@ export async function insertAssignment(
       ${input.quizShuffle}, ${input.quizTimeLimit}, ${input.quizPractice},
       ${JSON.stringify(input.quizBands)}::text::jsonb, ${input.categoryId}::uuid,
       ${input.gradeAfterAnswers}, ${input.discussionPostFirst}, ${input.discussionReplies},
-      ${input.peerReviews}, ${input.peerAnonymous}, ${input.peerDueAt}::timestamptz,
       ${input.language}, ${input.translationTitle})
     returning id, version`);
   if (!row) throw new Error("assignment was not created");
@@ -288,11 +261,6 @@ export async function updateAssignment(
         grade_after_answers = ${input.gradeAfterAnswers},
         discussion_post_first = ${input.discussionPostFirst},
         discussion_replies = ${input.discussionReplies},
-        peer_reviews = ${input.peerReviews}, peer_anonymous = ${input.peerAnonymous},
-        peer_due_at = ${input.peerDueAt}::timestamptz,
-        -- A new review date earns its own reminder.
-        peer_reminded_at = case when peer_due_at is not distinct from ${input.peerDueAt}::timestamptz
-          then peer_reminded_at end,
         language = ${input.language}, translation_title = ${input.translationTitle}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active' and state <> 'archived'

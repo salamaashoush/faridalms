@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
-import { commentInPeerReview, removePeerComment } from "~/server/coursework";
+import { commentInPeerReview, removePeerComment } from "~/server/peer";
 import { getMessageFromError } from "~/utils/error";
 
 export interface PeerComment {
@@ -98,8 +98,7 @@ export function PeerPassages({
     words: string;
   } | null>(null);
   const [body, setBody] = useState("");
-  const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: ["coursework"] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["peer"] });
   const save = useMutation({
     mutationFn: (input: { anchor: CommentAnchor; body: string }) =>
       commentInPeerReview({ data: { reviewId, ...input } }),

@@ -1387,6 +1387,8 @@ export const submit = writeProcedure
         tx: context.tx,
         tenantId: context.tenantId,
         schoolId: context.schoolId,
+        school: context.school,
+        extensions: context.extensions,
         actorUserId: null,
         now: context.now,
         channels: context.channels,

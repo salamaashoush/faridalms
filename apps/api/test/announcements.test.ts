@@ -16,6 +16,7 @@ import {
   sessionFor,
   signedIn,
   timeHasCome,
+  withoutModules,
   workerModules,
 } from "./harness";
 
@@ -41,15 +42,11 @@ const draft = (title: string, audiences: AudienceInput[]) => ({
   expiresOn: "",
   requiresAck: false,
   ackDueOn: "",
-  visibility: "school" as const,
   excerptEn: "",
   excerptAr: "",
-  slug: "",
-  categoryId: "",
   coverFileId: "",
   coverAltEn: "",
   coverAltAr: "",
-  pinned: false,
 });
 
 /** The level-two headings of a document, in order. */
@@ -710,9 +707,8 @@ describe("writing announcements with headings", () => {
     ).toMatchObject({ code: "BAD_REQUEST" });
     const open = await office.announcements.save({
       ...story("Open day", "Open day"),
-      visibility: "public",
       audiences: [],
-      slug: "open-day-notice",
+      parts: { website: { slug: "open-day-notice" } },
     });
     expect(open.id).toBeTruthy();
   });
@@ -730,13 +726,13 @@ describe("writing announcements with headings", () => {
 describe("announcements on the website", () => {
   test("one without its translation reads on the website in the original language, marked as such", async () => {
     const office = await principal();
-    const { categories } = await office.announcements.options();
+    const { categories } = await office.site.announcementOptions();
     const saved = await office.announcements.save({
       ...story("Book week", "Book week"),
-      visibility: "public",
       audiences: [],
-      slug: "book-week",
-      categoryId: categories[0]?.id ?? "",
+      parts: {
+        website: { slug: "book-week", categoryId: categories[0]?.id ?? "" },
+      },
       excerptEn: "Dress as your favourite character.",
       body: plainContent("Book week starts on Sunday."),
     });
@@ -755,11 +751,14 @@ describe("announcements on the website", () => {
       tab: "published",
       q: "Book week",
     });
-    expect(rows.map((row) => row.slug)).toEqual(["book-week"]);
+    expect(rows.map((row) => row.copies)).toEqual([["website"]]);
+    expect(await office.site.announcementPost({ id: saved.id })).toMatchObject({
+      slug: "book-week",
+    });
     const family = await mother();
     expect(
       (await family.announcements.feed({})).rows.find(
-        (row) => row.slug === "book-week",
+        (row) => row.id === saved.id,
       )?.recipient,
     ).toBe(false);
   });
@@ -768,9 +767,8 @@ describe("announcements on the website", () => {
     const office = await principal();
     const saved = await office.announcements.save({
       ...story("Choir concert", "Choir concert"),
-      visibility: "public",
       audiences: [],
-      slug: "choir-concert",
+      parts: { website: { slug: "choir-concert" } },
     });
     const sent = await office.announcements.publish({
       id: saved.id,
@@ -783,6 +781,7 @@ describe("announcements on the website", () => {
       ...story("Choir concert", "Choir concert"),
       id: saved.id,
       expectedVersion: sent.version,
+      parts: { website: null },
     });
     await office.announcements.publish({
       id: saved.id,
@@ -792,5 +791,48 @@ describe("announcements on the website", () => {
     });
     const after = await visitor.publicSitePosts({ school: "northwind" });
     expect(after.rows.some((row) => row.slug === "choir-concert")).toBe(false);
+  });
+
+  test("with the website off, one takes no website settings and one on the website reaches only its audience, until the website is back", async () => {
+    const office = await principal();
+    const saved = await office.announcements.save({
+      ...story("Sports day", "Sports day"),
+      audiences: [],
+      parts: { website: { slug: "sports-day-closed" } },
+    });
+    await office.announcements.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const family = await mother();
+    const listed = async () =>
+      (await family.announcements.feed({})).rows.some(
+        (row) => row.id === saved.id,
+      );
+    expect(await listed()).toBe(true);
+    await withoutModules("northwind", ["website"], async () => {
+      expect(
+        await rejection(
+          office.announcements.save({
+            ...story("Fair", "Fair"),
+            parts: { website: { slug: "fair-closed" } },
+          }),
+        ),
+      ).toMatchObject({ message: "announcements.part_unknown" });
+      expect(await listed()).toBe(false);
+      expect(
+        await rejection(family.announcements.record({ id: saved.id })),
+      ).toMatchObject({ code: "NOT_FOUND" });
+      expect(
+        (await office.announcements.record({ id: saved.id })).copies,
+      ).toEqual([]);
+      // The office's list puts nothing first that the website pins.
+      const { rows } = await office.announcements.manage({
+        tab: "published",
+        q: "Sports day",
+      });
+      expect(rows.find((row) => row.id === saved.id)?.copies).toEqual([]);
+    });
+    expect(await listed()).toBe(true);
   });
 });

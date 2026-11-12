@@ -66,6 +66,21 @@ export const siteSlugSchema = v.pipe(
   v.regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "site.slug"),
 );
 
+/**
+ * How an announcement stands on the website, as its editor sends it: the
+ * address it reads at, the category visitors find it under, and whether it
+ * comes first among the posts.
+ */
+export const sitePostSchema = v.object({
+  slug: siteSlugSchema,
+  categoryId: v.optional(
+    v.union([v.literal(""), v.pipe(v.string(), v.uuid())]),
+    "",
+  ),
+  pinned: v.optional(v.boolean(), false),
+});
+export type SitePostInput = v.InferOutput<typeof sitePostSchema>;
+
 /** A path on the school's site or a web address elsewhere; empty for none. */
 const addressSchema = v.pipe(
   v.string(),

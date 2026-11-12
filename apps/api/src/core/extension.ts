@@ -90,3 +90,28 @@ export async function workerScope(
   );
   return school ? { ...input, school, extensions: modules.extensions } : null;
 }
+
+/**
+ * The scopes of a tenant's schools where every module given is on: where a
+ * module's worker looks for work to do.
+ */
+export async function schoolsWith(
+  modules: WorkerModules,
+  input: { tx: CellTransaction; tenantId: string },
+  needed: readonly ModuleId[],
+): Promise<ModuleScope[]> {
+  const found: ModuleScope[] = [];
+  for (const school of await modules.directory.schoolsOfTenant(
+    input.tenantId,
+  )) {
+    const scope = {
+      ...input,
+      schoolId: school.schoolId,
+      school,
+      extensions: modules.extensions,
+    };
+    const on = await modulesOf(scope);
+    if (needed.every((id) => on[id])) found.push(scope);
+  }
+  return found;
+}

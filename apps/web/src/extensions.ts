@@ -12,6 +12,8 @@ import { HOMEROOMS } from "./components/homerooms/contributions";
 import { HOMEROOMS_IN_YEARS } from "./components/homerooms/years";
 import { ELEARNING } from "./components/learning/contributions";
 import { ELEARNING_WITH_COURSEWORK } from "./components/learning/discussions";
+import { PEER_REVIEW } from "./components/peer/contributions";
+import { WEBSITE } from "./components/site/announcements";
 import { TIMETABLE } from "./components/timetable/contributions";
 import { SCHOOL_YEARS } from "./components/years/contributions";
 
@@ -32,6 +34,8 @@ export const MODULE_FILLINGS: readonly ModuleFillings[] = [
   GRADEBOOK_IN_YEARS,
   HOMEROOMS,
   HOMEROOMS_IN_YEARS,
+  PEER_REVIEW,
   SCHOOL_YEARS,
   TIMETABLE,
+  WEBSITE,
 ];

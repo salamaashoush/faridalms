@@ -54,6 +54,7 @@ import { toast } from "sonner";
 
 import { FileList } from "~/components/system/FileList";
 import { useMedia } from "~/hooks/useMedia";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { gradingQuery } from "~/queries/coursework";
@@ -65,8 +66,8 @@ import { resultText } from "../grading/format";
 import { displayName } from "../people/format";
 import { CommentBankPicker } from "./CommentBank";
 import { DiscussionPosts } from "./Discussion";
-import { StudentPeerReviews } from "./PeerReview";
 import { QuizAttempts } from "./QuizWork";
+import { workParts } from "./slots";
 import { VoiceFeedback } from "./VoiceFeedback";
 import { CommentedWork, CommentList } from "./WorkComments";
 
@@ -662,6 +663,9 @@ export interface GradingProps {
  */
 export function Grading({ assignmentId, studentId }: GradingProps) {
   const data = useSuspenseQuery(gradingQuery(assignmentId, studentId)).data;
+  const gradingParts = useSlot(workParts).filter(
+    (part) => part.where === "grading",
+  );
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [grading, setGrading] = useState(false);
@@ -834,12 +838,13 @@ export function Grading({ assignmentId, studentId }: GradingProps) {
             ) : (
               <RecordEmpty>{m.courseworkNothingHandedIn()}</RecordEmpty>
             )}
-            {data.assignment.peer ? (
-              <StudentPeerReviews
+            {gradingParts.map(({ key, Part }) => (
+              <Part
+                key={key}
                 assignmentId={data.assignment.id}
                 studentId={studentId}
               />
-            ) : null}
+            ))}
           </article>
         </Page>
       </div>

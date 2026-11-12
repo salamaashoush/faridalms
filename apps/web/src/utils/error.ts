@@ -61,6 +61,7 @@ export const isErrorCode = (message: string) => CODE.test(message);
 const INTERNAL_CODES: ReadonlySet<string> = new Set([
   "classes.part_unknown",
   "coursework.part_unknown",
+  "announcements.part_unknown",
   "grading.part_unknown",
   "intake.part_unknown",
   "intake.view_unknown",
@@ -473,10 +474,6 @@ export function getMessageFromError(error: unknown): string {
         return m.annBodyNeeded();
       case "announcements.audience":
         return m.annErrAudience();
-      case "announcements.slug":
-        return m.annErrSlug();
-      case "announcements.no_website":
-        return m.annErrNoWebsite();
       case "translation.nothing_to_check":
         return m.translationErrNothingToCheck();
       case "external_id.taken":

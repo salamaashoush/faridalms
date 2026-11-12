@@ -23,6 +23,7 @@ import {
   seeded,
   setPlan,
   signedIn,
+  withoutModules,
   workerModules,
 } from "./harness";
 
@@ -257,6 +258,15 @@ describe("deciding", () => {
       now: new Date("2027-04-09T12:00:00Z"),
       channels,
     });
+    expect((await mineOf(family, id)).state).toBe("in_review");
+    // A school with admissions off has nothing released for it by the clock.
+    await withoutModules("northwind", ["admissions"], () =>
+      runAdmissionsClock(seeded().cell, tenantId(), {
+        modules: workerModules(),
+        now: new Date("2027-04-10T12:00:00Z"),
+        channels,
+      }).then(() => undefined),
+    );
     expect((await mineOf(family, id)).state).toBe("in_review");
     await runAdmissionsClock(seeded().cell, tenantId(), {
       modules: workerModules(),

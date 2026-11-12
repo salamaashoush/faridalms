@@ -3,7 +3,15 @@ import { briefWithQuiz } from "@faridalms/domain/lesson-content";
 import { describe, expect, test } from "bun:test";
 
 import { remindPeerReviews } from "../src/peer/clock";
-import { login, raw, rejection, seeded, sessionFor } from "./harness";
+import {
+  login,
+  raw,
+  rejection,
+  seeded,
+  sessionFor,
+  withoutModules,
+  workerModules,
+} from "./harness";
 
 type Session = Awaited<ReturnType<typeof sessionFor>>;
 
@@ -92,7 +100,7 @@ describe("peer review", () => {
       submissionFormat: "both",
       points: 10,
       rubric,
-      peer: { reviews: 2, anonymous: true },
+      parts: { peer: { reviews: 2, anonymous: true } },
     });
     const published = await teacher.api.coursework.publish({
       id: saved.id,
@@ -193,15 +201,9 @@ describe("peer review", () => {
     expect(overview.given.every((review) => review.sentAt !== null)).toBe(true);
     expect(overview.students).toHaveLength(2);
     // Marking a student, the teacher is told the work was peer reviewed.
-    const author = await first.api.identity.currentUser();
     expect(
-      (
-        await teacher.api.coursework.grading({
-          assignmentId: saved.id,
-          studentId: author.id,
-        })
-      ).assignment.peer,
-    ).toBe(true);
+      await teacher.api.peer.settings({ assignmentId: saved.id }),
+    ).toMatchObject({ reviews: 2, anonymous: true, started: true });
     await teacher.api.peer.hide({ reviewId: back?.id ?? "", hidden: true });
     expect(
       (await second.api.peer.mine({ assignmentId: saved.id })).received,
@@ -250,7 +252,7 @@ describe("peer review", () => {
           submissionFormat: "both",
           points: 10,
           rubric,
-          peer: null,
+          parts: { peer: null },
         }),
       ),
     ).toMatchObject({ message: "coursework.peer_started" });
@@ -276,19 +278,21 @@ describe("peer review", () => {
       await rejection(
         teacher.api.coursework.save({
           ...base,
-          peer: {
-            reviews: 1,
-            anonymous: false,
-            dueAt: new Date(Date.now() + 86_400_000).toISOString(),
+          parts: {
+            peer: {
+              reviews: 1,
+              anonymous: false,
+              dueAt: new Date(Date.now() + 86_400_000).toISOString(),
+            },
           },
         }),
       ),
     ).toMatchObject({ message: "coursework.peer_due_early" });
     const saved = await teacher.api.coursework.save({
       ...base,
-      peer: { reviews: 1, anonymous: false, dueAt: reviewsDue },
+      parts: { peer: { reviews: 1, anonymous: false, dueAt: reviewsDue } },
     });
-    const kept = (await teacher.api.coursework.editor({ id: saved.id })).peer;
+    const kept = await teacher.api.peer.settings({ assignmentId: saved.id });
     expect(Date.parse(kept?.dueAt ?? "")).toBe(
       Math.floor(Date.parse(reviewsDue) / 1000) * 1000,
     );
@@ -313,11 +317,11 @@ describe("peer review", () => {
     await teacher.api.peer.start({ assignmentId: saved.id });
     // Each reviewer hears there is work to review, and by when.
     const handedOut = (await first.api.notifications.list({ tab: "all" })).rows
-      .filter((row) => row.kind === "assignment" && row.subjectId === saved.id)
+      .filter((row) => row.kind === "peer_review" && row.subjectId === saved.id)
       .map((row) => row.params);
-    expect(handedOut).toContainEqual(
-      expect.objectContaining({ peerReview: true }),
-    );
+    expect(handedOut).toEqual([
+      expect.objectContaining({ date: expect.any(String) }),
+    ]);
 
     const mine = await first.api.peer.mine({ assignmentId: saved.id });
     expect(mine.dueAt).not.toBeNull();
@@ -366,17 +370,32 @@ describe("peer review", () => {
     const channels = { email: false, sms: false };
     const later = new Date(Date.parse(reviewsDue) - 12 * 3_600_000);
     expect(
-      await remindPeerReviews(cell, tenantId, { now: new Date(), channels }),
+      await remindPeerReviews(cell, tenantId, {
+        now: new Date(),
+        channels,
+        modules: workerModules(),
+      }),
     ).toBe(0);
     expect(
-      await remindPeerReviews(cell, tenantId, { now: later, channels }),
+      await remindPeerReviews(cell, tenantId, {
+        now: later,
+        channels,
+        modules: workerModules(),
+      }),
     ).toBe(1);
     expect(
-      await remindPeerReviews(cell, tenantId, { now: later, channels }),
+      await remindPeerReviews(cell, tenantId, {
+        now: later,
+        channels,
+        modules: workerModules(),
+      }),
     ).toBe(0);
     const reminded = async (session: Session) =>
       (await session.api.notifications.list({ tab: "all" })).rows.filter(
-        (row) => row.kind === "reminder" && row.subjectId === saved.id,
+        (row) =>
+          row.kind === "peer_review" &&
+          row.subjectId === saved.id &&
+          row.params.dueSoon === true,
       ).length;
     expect(await reminded(second)).toBe(1);
     expect(await reminded(first)).toBe(0);
@@ -449,7 +468,7 @@ describe("peer review", () => {
         reveal: "returned",
         shuffle: false,
       },
-      peer: { reviews: 1, anonymous: true },
+      parts: { peer: { reviews: 1, anonymous: true } },
     });
     await teacher.api.coursework.publish({
       id: quiz.id,
@@ -536,6 +555,12 @@ describe("peer review", () => {
     expect(await opens(first, theirs.sound)).toBe(true);
     expect(await opens(first, theirs.picture)).toBe(true);
     expect(await opens(first, spare)).toBe(false);
+    // With peer review off a review opens nothing, and opens it again once back on.
+    await withoutModules("northwind", ["peer_review"], async () => {
+      expect(await opens(first, theirs.sound)).toBe(false);
+      expect(await opens(first, theirs.picture)).toBe(false);
+    });
+    expect(await opens(first, theirs.sound)).toBe(true);
     // Each opens of the other's only what their own review shows them; and
     // someone reviewing neither opens nothing.
     const mine = files.get(first);
@@ -587,7 +612,7 @@ describe("peer review", () => {
         reveal: "returned",
         shuffle: false,
       },
-      peer: { reviews: 1, anonymous: true },
+      parts: { peer: { reviews: 1, anonymous: true } },
     });
     await teacher.api.coursework.publish({
       id: quiz.id,
@@ -645,7 +670,7 @@ describe("peer review", () => {
       points: 10,
       rubric: null,
       discussion: { postFirst: false, replies: 0 },
-      peer: { reviews: 1, anonymous: true },
+      parts: { peer: { reviews: 1, anonymous: true } },
     });
     await teacher.api.coursework.publish({
       id: discussion.id,
@@ -670,5 +695,84 @@ describe("peer review", () => {
     expect(posts?.map((post) => JSON.stringify(post.content))).toEqual([
       expect.stringContaining("currents are strong"),
     ]);
+  });
+
+  test("with peer review off, work takes no review settings, nothing holds handed-in work, and no reviewer is reminded", async () => {
+    const teacher = await sessionFor("northwind", login("teacher", 0, 1));
+    const { classId, first, second } = await classmates(teacher);
+    const base = {
+      classId,
+      title: "A song for the rain",
+      brief: plainContent("Write the rain a song."),
+      audience: "class" as const,
+      latePolicy: "accept" as const,
+      submissionFormat: "online" as const,
+      points: 10,
+      rubric: null,
+    };
+    const reviewsDue = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    const saved = await teacher.api.coursework.save({
+      ...base,
+      parts: { peer: { reviews: 1, anonymous: true, dueAt: reviewsDue } },
+    });
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    for (const [session, words] of [
+      [first, "The rain taps the window."],
+      [second, "The rain fills the river."],
+    ] as const) {
+      const drafted = await session.api.coursework.saveDraft({
+        assignmentId: saved.id,
+        expectedVersion: 0,
+        content: plainContent(words),
+      });
+      await session.api.coursework.handIn({
+        assignmentId: saved.id,
+        expectedVersion: drafted.version,
+      });
+    }
+    await teacher.api.peer.start({ assignmentId: saved.id });
+    expect((await first.api.coursework.work({ id: saved.id })).canUndo).toBe(
+      false,
+    );
+    const { cell, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    const later = new Date(Date.parse(reviewsDue) - 12 * 3_600_000);
+    const remind = () =>
+      remindPeerReviews(cell, tenantId, {
+        now: later,
+        channels: { email: false, sms: false },
+        modules: workerModules(),
+      });
+
+    await withoutModules("northwind", ["peer_review"], async () => {
+      expect(
+        await rejection(
+          teacher.api.coursework.save({
+            ...base,
+            parts: { peer: { reviews: 1, anonymous: true } },
+          }),
+        ),
+      ).toMatchObject({ message: "coursework.part_unknown" });
+      expect(
+        await rejection(teacher.api.peer.settings({ assignmentId: saved.id })),
+      ).toMatchObject({ code: "NOT_FOUND" });
+      expect(
+        await rejection(first.api.peer.mine({ assignmentId: saved.id })),
+      ).toMatchObject({ code: "NOT_FOUND" });
+      // Nothing of peer review holds the work as handed in.
+      expect((await first.api.coursework.work({ id: saved.id })).canUndo).toBe(
+        true,
+      );
+      expect(await remind()).toBe(0);
+    });
+
+    // Back on, the reviews hold the work again and the reminder goes.
+    expect((await first.api.coursework.work({ id: saved.id })).canUndo).toBe(
+      false,
+    );
+    expect(await remind()).toBe(1);
   });
 });

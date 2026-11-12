@@ -45,6 +45,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
+import { openedAnnouncements } from "../announcements/points";
 import { calendarReach, reachAt } from "../core/audiences";
 import { modulesOf } from "../core/modules";
 import { can, localeOf, readProcedure } from "../core/procedure";
@@ -180,6 +181,7 @@ async function resolverOf(
         ...school,
         viewerId,
         manage: can(context, "announcements:manage"),
+        opened: await openedAnnouncements(context),
       };
       return {
         within: broadcastsReached(access),

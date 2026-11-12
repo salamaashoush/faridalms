@@ -97,6 +97,7 @@ import {
   saveSiteSettings,
   setPageState,
   writePublishedPage,
+  keepSitePost,
   writePublishedPost,
 } from "./stores/site";
 import { uuidArray } from "./stores/sql";
@@ -1747,13 +1748,11 @@ const unsetFields = {
   expiresOn: null,
   requiresAck: false,
   ackDueOn: null,
-  categoryId: null,
   excerptEn: "",
   excerptAr: "",
   coverFileId: null,
   coverAltEn: "",
   coverAltAr: "",
-  pinned: false,
 };
 
 const part = (heading: string, body: string) => ({
@@ -1842,9 +1841,7 @@ export async function insertNewsletters(
       tenantId,
       schoolId,
       authorId: input.authorId,
-      slug: null,
       titleEn: plan.title,
-      visibility: "school",
     });
     await setAudiences(tx, {
       tenantId,
@@ -3911,14 +3908,20 @@ async function seedSite(
       tenantId,
       schoolId,
       authorId: userId,
-      categoryId: news?.id ?? null,
-      slug: plan.slug,
       titleEn: plan.titleEn,
       titleAr: plan.titleAr,
       excerptEn: plan.excerptEn,
       excerptAr: plan.excerptAr,
-      pinned: plan.pinned,
-      visibility: "public",
+    });
+    await keepSitePost(tx, {
+      tenantId,
+      orgId: schoolId,
+      broadcastId: created.id,
+      post: {
+        slug: plan.slug,
+        categoryId: news?.id ?? null,
+        pinned: plan.pinned,
+      },
     });
     const host = { type: "announcement", id: created.id };
     const english = plainContent(plan.bodyEn);

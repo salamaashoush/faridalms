@@ -11,6 +11,7 @@ const DELETE_ALLOWED = new Set([
   "core.relationship_restrictions",
   "health.contact_changes",
   "core.login_identities",
+  "core.federated_identities",
   "core.passkeys",
   "core.devices",
   "core.files",

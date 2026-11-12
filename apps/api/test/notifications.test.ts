@@ -2,7 +2,10 @@ import { plainContent } from "@faridalms/domain/content-conversion";
 import { DEFAULT_PREFERENCES } from "@faridalms/domain/notifications";
 import { MemoryProvider } from "@faridalms/mail/providers";
 import { describe, expect, test } from "bun:test";
+import { sql } from "drizzle-orm";
 
+import { workerScope } from "../src/core/extension";
+import { notifyIn } from "../src/core/notify";
 import { deliverTenant } from "../src/notifications/deliver";
 import {
   login,
@@ -13,6 +16,8 @@ import {
   seeded,
   sessionFor,
   signedIn,
+  withoutModules,
+  workerModules,
 } from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
@@ -156,7 +161,12 @@ describe("reaching people outside the app", () => {
     const office = await principal();
     await announce(office, "Photos day", "urgent");
     const email = new MemoryProvider();
-    const first = await deliverTenant(cell, { email, sms: null }, tenantId);
+    const first = await deliverTenant(
+      cell,
+      { email, sms: null },
+      tenantId,
+      workerModules(),
+    );
     expect(first.sent).toBeGreaterThan(0);
     expect(email.sent.some((row) => row.subject.includes("Photos day"))).toBe(
       true,
@@ -166,7 +176,12 @@ describe("reaching people outside the app", () => {
       q: "Photos day",
     });
     expect(log.rows.length).toBeGreaterThan(0);
-    const again = await deliverTenant(cell, { email, sms: null }, tenantId);
+    const again = await deliverTenant(
+      cell,
+      { email, sms: null },
+      tenantId,
+      workerModules(),
+    );
     expect(again.sent).toBe(0);
   });
 
@@ -314,5 +329,77 @@ describe("absence notices", () => {
       marks: marks("present"),
       correction: "Marked absent by mistake.",
     });
+  });
+});
+
+describe("texts at a school without them", () => {
+  test("plan no text, offer none in the log or the settings, and a text planned before the school turned them off is not sent", async () => {
+    const { cell, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    const school = tenants[0]?.schools.find((row) => row.slug === "northwind");
+    if (!school) throw new Error("no northwind school");
+    const family = await mother();
+    const parent = await family.identity.currentUser();
+    const asWorker = {
+      tenantId,
+      requestId: crypto.randomUUID(),
+      actor: { kind: "system" as const },
+    };
+    /** Tells the parent of an absence as a school with a texting gateway would. */
+    const tell = (title: string) =>
+      cell.withWorker(asWorker, "write", async (tx) => {
+        const scope = await workerScope(workerModules(), {
+          tx,
+          tenantId,
+          schoolId: school.id,
+        });
+        if (!scope) throw new Error("the school is not in the directory");
+        return notifyIn(
+          {
+            ...scope,
+            actorUserId: null,
+            now: new Date(),
+            channels: { email: true, sms: true },
+          },
+          [parent.id],
+          {
+            kind: "absence",
+            subject: { type: "user", id: parent.id },
+            params: { title },
+          },
+        );
+      });
+    const textsOf = (title: string) =>
+      cell.withWorker(asWorker, "read", (tx) =>
+        tx.execute<{ state: string; reason: string | null }>(sql`
+          select d.state, d.reason from core.notification_deliveries d
+          join core.notifications n on n.tenant_id = d.tenant_id and n.id = d.notification_id
+            and n.created_at = d.notification_created_at
+          where d.tenant_id = ${tenantId}::uuid and d.channel = 'sms'
+            and n.params ->> 'title' = ${title}`),
+      );
+
+    await tell("Planned with texts on");
+    expect(await textsOf("Planned with texts on")).toHaveLength(1);
+    const texts = new MemoryProvider();
+    await withoutModules("northwind", ["sms"], async () => {
+      await tell("Planned with texts off");
+      expect(await textsOf("Planned with texts off")).toEqual([]);
+      const office = await principal();
+      expect(
+        (await office.notifications.deliveries({ channel: "sms" })).sms,
+      ).toBe(false);
+      expect((await family.notifications.preferences()).texts).toBe(false);
+      await deliverTenant(
+        cell,
+        { email: null, sms: texts },
+        tenantId,
+        workerModules(),
+      );
+    });
+    expect(texts.sent).toEqual([]);
+    expect(await textsOf("Planned with texts on")).toEqual([
+      { state: "skipped", reason: "module_off" },
+    ]);
   });
 });

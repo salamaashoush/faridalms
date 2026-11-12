@@ -9,10 +9,8 @@ import { createProvider } from "@faridalms/mail/providers";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { startAdmissionsClock } from "./admissions/clock";
 import { createApp } from "./app";
 import { assistantFrom } from "./assistant/anthropic";
-import { startProgramReruns } from "./coding/rerun";
 import { createJavaScriptRunner, createPythonRunner } from "./coding/run";
 import { createKeyRing } from "./core/keys";
 import { createLoginIndex, startLoginIndex } from "./core/login-index";
@@ -20,7 +18,7 @@ import { startPartitionUpkeep } from "./core/partitions";
 import { startPublicationClock } from "./core/publication";
 import { turnstileFrom } from "./core/turnstile";
 import { env } from "./env";
-import { MODULE_EXTENSIONS } from "./extensions";
+import { MODULE_EXTENSIONS, MODULE_WORKERS } from "./extensions";
 import { createFilesHost, linkKey } from "./files/links";
 import { createMakeCode } from "./files/makecode";
 import { createScanner } from "./files/scan";
@@ -37,10 +35,8 @@ import { createHostChecks } from "./hosts/checks";
 import { streamLinkKey } from "./media/streams";
 import { resendInbox } from "./notifications/gateway";
 import { startDelivery } from "./notifications/scheduler";
-import { startPeerReviewClock } from "./peer/clock";
 import { commonsSearcher } from "./pictures/commons";
 import { createProvisioner } from "./provisioning/host";
-import { startQuizClock } from "./quizzes/clock";
 
 const cell = openCell(
   {
@@ -245,6 +241,7 @@ const stopDelivery =
         directory,
         cellId: env.CELL_ID,
         gateways,
+        extensions: MODULE_EXTENSIONS,
         intervalMs: 30_000,
       })
     : null;
@@ -266,22 +263,6 @@ const stopUpkeep = env.CELL_WORKER_URL
 // A timed quiz left open when its time ran out is handed in by the worker.
 const stopPartitions = env.CELL_WORKER_URL ? startPartitionUpkeep(cell) : null;
 
-// Decisions are released on their intake's day and offers lapse after
-// their last one, at each school's own midnight.
-const stopAdmissionsClock = env.CELL_WORKER_URL
-  ? startAdmissionsClock({
-      cell,
-      directory,
-      extensions: MODULE_EXTENSIONS,
-      cellId: env.CELL_ID,
-      channels: {
-        email: gateways.email !== null,
-        sms: Boolean(env.SMS_WEBHOOK_URL),
-      },
-      intervalMs: 5 * 60_000,
-    })
-  : null;
-
 // Whatever was set to go out later is told to its readers once it is out:
 // announcements and work set to open later.
 const stopPublicationClock = env.CELL_WORKER_URL
@@ -298,41 +279,23 @@ const stopPublicationClock = env.CELL_WORKER_URL
     })
   : null;
 
-// Reviewers still writing hear of a review date the day before it.
-const stopPeerReviewClock = env.CELL_WORKER_URL
-  ? startPeerReviewClock({
-      cell,
-      directory,
-      cellId: env.CELL_ID,
-      channels: {
-        email: gateways.email !== null,
-        sms: Boolean(env.SMS_WEBHOOK_URL),
-      },
-      intervalMs: 5 * 60_000,
-    })
-  : null;
-
-const stopQuizClock = env.CELL_WORKER_URL
-  ? startQuizClock({
-      cell,
-      directory,
-      extensions: MODULE_EXTENSIONS,
-      cellId: env.CELL_ID,
-      intervalMs: 30_000,
-    })
-  : null;
-
-// Code answers to mark again run here, where the code runners are.
-const stopProgramReruns = env.CELL_WORKER_URL
-  ? startProgramReruns({
-      cell,
-      directory,
-      extensions: MODULE_EXTENSIONS,
-      cellId: env.CELL_ID,
-      runners,
-      intervalMs: 30_000,
-    })
-  : null;
+// Each module's own workers, which act only for schools that have it on.
+const channels = {
+  email: gateways.email !== null,
+  sms: Boolean(env.SMS_WEBHOOK_URL),
+};
+const stopModuleWorkers = env.CELL_WORKER_URL
+  ? MODULE_WORKERS.map((worker) =>
+      worker.start({
+        cell,
+        directory,
+        cellId: env.CELL_ID,
+        channels,
+        runners,
+        extensions: MODULE_EXTENSIONS,
+      }),
+    )
+  : [];
 
 // Schools' own hosts are checked when due: on request, then hourly. Every
 // replica may run the pass; a host is claimed by one before it is checked.
@@ -358,12 +321,9 @@ async function shutdown() {
   await provisionServer?.stop();
   await stopDelivery?.();
   await stopUpkeep?.();
-  await stopQuizClock?.();
   await stopPublicationClock?.();
-  await stopAdmissionsClock?.();
-  await stopPeerReviewClock?.();
   await stopPartitions?.();
-  await stopProgramReruns?.();
+  await Promise.all(stopModuleWorkers.map((stop) => stop()));
   await stopHostChecks?.();
   await stopLoginIndex?.();
   await directorySync?.close();

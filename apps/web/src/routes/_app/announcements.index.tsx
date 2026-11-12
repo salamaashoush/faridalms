@@ -17,7 +17,9 @@ import {
   AnnouncementItem,
   ManagedAnnouncements,
 } from "~/components/announcements/AnnouncementLists";
+import { announcementCopyParts } from "~/components/announcements/slots";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import {
   announcementFeedQuery,
@@ -78,6 +80,7 @@ interface FeedProps {
 
 function Feed({ tab, q, page, onPage }: FeedProps) {
   const data = useSuspenseQuery(announcementFeedQuery({ tab, q, page })).data;
+  const copies = useSlot(announcementCopyParts);
   const { rows } = data;
   if (rows.length === 0)
     return (
@@ -104,7 +107,9 @@ function Feed({ tab, q, page, onPage }: FeedProps) {
               urgency: row.urgency,
               author: inLocale(row.authorNameEn, row.authorNameAr),
               when: row.publishAt,
-              website: row.visibility === "public",
+              places: copies
+                .filter((copy) => row.copies.includes(copy.key))
+                .map((copy) => copy.on()),
               summary:
                 inLocale(row.excerptEn || null, row.excerptAr || null) ||
                 row.summary,

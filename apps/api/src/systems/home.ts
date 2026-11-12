@@ -63,6 +63,10 @@ import type { RegisterPeriod } from "../attendance/plans";
 import type { UnitContext } from "../core/context";
 import type { RecordLink } from "../core/reach";
 
+import {
+  firstAnnouncements,
+  openedAnnouncements,
+} from "../announcements/points";
 import { dayBoard } from "../attendance/board";
 import { dailyClassIds } from "../attendance/daily-registers";
 import { periodsOn } from "../attendance/plans";
@@ -652,6 +656,7 @@ export const followed = readProcedure
         tenantId: context.tenantId,
         schoolId: context.schoolId,
         viewerId: context.actor.userId,
+        opened: await openedAnnouncements(context),
         today: context.today,
         tab: "current",
         q: "",
@@ -760,6 +765,7 @@ export const student = readProcedure.handler(async ({ context }) => {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       viewerId: studentId,
+      opened: await openedAnnouncements(context),
       today: context.today,
       tab: "current",
       q: "",
@@ -922,6 +928,7 @@ export const admin = readProcedure.handler(async ({ context }) => {
           schoolId: context.schoolId,
           tab: "published",
           q: "",
+          first: await firstAnnouncements(context),
           limit: 3,
           offset: 0,
         })

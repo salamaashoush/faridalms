@@ -94,6 +94,7 @@ import {
   mediaTags,
   siteRedirects,
   identityProviders,
+  federatedIdentities,
   importRows,
   importRuns,
   legalHolds,
@@ -115,6 +116,7 @@ import {
   assistantSettings,
   assistantRequests,
   peerReviewComments,
+  peerReviewSettings,
   peerReviews,
   passkeys,
   quizAnswers,
@@ -301,6 +303,22 @@ export async function completeFixture(
   await tx
     .insert(identityProviderOrgs)
     .values({ tenantId, identityProviderId: providerId, orgId: schoolId });
+  const [federated] = await tx
+    .insert(loginIdentities)
+    .values({
+      tenantId,
+      accountId: account.id,
+      kind: "oidc",
+      linkMethod: "verified_domain",
+    })
+    .returning({ id: loginIdentities.id });
+  if (!federated) throw new Error("no federated sign-in");
+  await tx.insert(federatedIdentities).values({
+    tenantId,
+    loginIdentityId: federated.id,
+    identityProviderId: providerId,
+    subject: `subject-${tenantId}`,
+  });
   const passkeyId = id();
   await tx.insert(passkeys).values({
     tenantId,
@@ -696,6 +714,16 @@ export async function completeFixture(
     .where(eq(submissionAttempts.tenantId, tenantId))
     .limit(1);
   if (!reviewed) throw new Error("the development seed hands nothing in");
+  await tx
+    .insert(peerReviewSettings)
+    .values({
+      tenantId,
+      assignmentId: reviewed.assignmentId,
+      reviews: 1,
+      anonymous: true,
+      startedAt: new Date("2026-09-20T10:00:00Z"),
+    })
+    .onConflictDoNothing();
   const [review] = await tx
     .insert(peerReviews)
     .values({
@@ -1175,6 +1203,13 @@ export async function completeFixture(
   await tx.execute(sql`
     insert into core.broadcast_families (tenant_id, broadcast_id)
     values (${tenantId}::uuid, ${broadcast.id}::uuid) on conflict do nothing`);
+  await tx.execute(sql`
+    insert into core.site_posts (tenant_id, org_id, broadcast_id, slug)
+    select b.tenant_id, b.org_id, b.id, 'fixture-' || left(b.id::text, 8)
+    from core.broadcasts b
+    where b.tenant_id = ${tenantId}::uuid and b.id = ${broadcast.id}::uuid
+      and not exists (select 1 from core.site_posts p
+        where p.tenant_id = b.tenant_id and p.broadcast_id = b.id and p.status = 'active')`);
   await tx.execute(sql`
     insert into core.calendar_event_families (tenant_id, event_id)
     values (${tenantId}::uuid, ${calendarEvent.id}::uuid) on conflict do nothing`);

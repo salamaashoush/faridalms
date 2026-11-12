@@ -1,11 +1,9 @@
+import type { SQL } from "drizzle-orm";
+
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
-import type {
-  PublicationState,
-  Urgency,
-  Visibility,
-} from "../tables/broadcasts";
+import type { PublicationState, Urgency } from "../tables/broadcasts";
 import type { SiteLocale } from "../tables/site";
 
 import { liveSql, scheduledSql } from "./publication";
@@ -24,7 +22,6 @@ export interface BroadcastRow {
   state: PublicationState;
   publishAt: string | null;
   toldAt: string | null;
-  visibility: Visibility;
   authorUserId: string;
   authorNameEn: string | null;
   authorNameAr: string | null;
@@ -34,14 +31,11 @@ export interface BroadcastRow {
   requiresAck: boolean;
   ackDueOn: string | null;
   updateSentAt: string | null;
-  categoryId: string | null;
-  slug: string | null;
   excerptEn: string;
   excerptAr: string;
   coverFileId: string | null;
   coverAltEn: string;
   coverAltAr: string;
-  pinned: boolean;
 }
 
 type BroadcastRecord = {
@@ -54,7 +48,6 @@ type BroadcastRecord = {
   state: PublicationState;
   publish_at: string | null;
   told_at: string | null;
-  visibility: Visibility;
   author_user_id: string;
   author_en: string | null;
   author_ar: string | null;
@@ -64,14 +57,11 @@ type BroadcastRecord = {
   requires_ack: boolean;
   ack_due_on: string | null;
   update_sent_at: string | null;
-  category_id: string | null;
-  slug: string | null;
   excerpt_en: string;
   excerpt_ar: string;
   cover_file_id: string | null;
   cover_alt_en: string;
   cover_alt_ar: string;
-  pinned: boolean;
 };
 
 const columns = sql`b.id, b.version, b.org_id, b.title_en, b.title_ar,
@@ -79,12 +69,21 @@ const columns = sql`b.id, b.version, b.org_id, b.title_en, b.title_ar,
     and d.host_type = 'announcement' and d.host_id = b.id and d.status = 'active'
     and d.translation_of_id is null order by d.date_last_modified desc limit 1) as primary_locale,
   b.state, ${isoOf(sql`b.publish_at`)} as publish_at, ${isoOf(sql`b.told_at`)} as told_at,
-  b.visibility, b.author_user_id, u.full_name_en as author_en, u.full_name_ar as author_ar,
+  b.author_user_id, u.full_name_en as author_en, u.full_name_ar as author_ar,
   b.urgency, to_char(b.pinned_until, 'YYYY-MM-DD') as pinned_until,
   to_char(b.expires_on, 'YYYY-MM-DD') as expires_on, b.requires_ack,
   to_char(b.ack_due_on, 'YYYY-MM-DD') as ack_due_on,
-  ${isoOf(sql`b.update_sent_at`)} as update_sent_at, b.category_id, b.slug,
-  b.excerpt_en, b.excerpt_ar, b.cover_file_id, b.cover_alt_en, b.cover_alt_ar, b.pinned`;
+  ${isoOf(sql`b.update_sent_at`)} as update_sent_at,
+  b.excerpt_en, b.excerpt_ar, b.cover_file_id, b.cover_alt_en, b.cover_alt_ar`;
+
+/** Whether the announcement is among any of the subqueries' ids. */
+const anyOf = (ids: readonly SQL[]) =>
+  ids.length === 0
+    ? sql`false`
+    : sql`(${sql.join(
+        ids.map((query) => sql`b.id in ${query}`),
+        sql` or `,
+      )})`;
 
 const from = sql`core.broadcasts b
   join core.users u on u.tenant_id = b.tenant_id and u.id = b.author_user_id`;
@@ -111,7 +110,6 @@ function rowOf(row: BroadcastRecord): BroadcastRow {
     state: row.state,
     publishAt: row.publish_at,
     toldAt: row.told_at,
-    visibility: row.visibility,
     authorUserId: row.author_user_id,
     authorNameEn: row.author_en,
     authorNameAr: row.author_ar,
@@ -121,14 +119,11 @@ function rowOf(row: BroadcastRecord): BroadcastRow {
     requiresAck: row.requires_ack,
     ackDueOn: row.ack_due_on,
     updateSentAt: row.update_sent_at,
-    categoryId: row.category_id,
-    slug: row.slug,
     excerptEn: row.excerpt_en,
     excerptAr: row.excerpt_ar,
     coverFileId: row.cover_file_id,
     coverAltEn: row.cover_alt_en,
     coverAltAr: row.cover_alt_ar,
-    pinned: row.pinned,
   };
 }
 
@@ -147,20 +142,16 @@ export async function broadcastById(
 export interface BroadcastFields {
   titleEn: string;
   titleAr: string;
-  visibility: Visibility;
   urgency: Urgency;
   pinnedUntil: string | null;
   expiresOn: string | null;
   requiresAck: boolean;
   ackDueOn: string | null;
-  categoryId: string | null;
-  slug: string | null;
   excerptEn: string;
   excerptAr: string;
   coverFileId: string | null;
   coverAltEn: string;
   coverAltAr: string;
-  pinned: boolean;
 }
 
 export async function insertBroadcast(
@@ -172,15 +163,14 @@ export async function insertBroadcast(
   },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.broadcasts (tenant_id, org_id, title_en, title_ar, visibility,
-      author_user_id, urgency, pinned_until, expires_on, requires_ack, ack_due_on, category_id,
-      slug, excerpt_en, excerpt_ar, cover_file_id, cover_alt_en, cover_alt_ar, pinned)
+    insert into core.broadcasts (tenant_id, org_id, title_en, title_ar,
+      author_user_id, urgency, pinned_until, expires_on, requires_ack, ack_due_on,
+      excerpt_en, excerpt_ar, cover_file_id, cover_alt_en, cover_alt_ar)
     values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.titleEn},
-      ${input.titleAr}, ${input.visibility}, ${input.authorId}::uuid, ${input.urgency},
+      ${input.titleAr}, ${input.authorId}::uuid, ${input.urgency},
       ${input.pinnedUntil}::date, ${input.expiresOn}::date, ${input.requiresAck},
-      ${input.ackDueOn}::date, ${input.categoryId}::uuid, ${input.slug}, ${input.excerptEn},
-      ${input.excerptAr}, ${input.coverFileId}::uuid, ${input.coverAltEn}, ${input.coverAltAr},
-      ${input.pinned})
+      ${input.ackDueOn}::date, ${input.excerptEn},
+      ${input.excerptAr}, ${input.coverFileId}::uuid, ${input.coverAltEn}, ${input.coverAltAr})
     returning id, version`);
   if (!row) throw new Error("broadcast was not inserted");
   return row;
@@ -196,13 +186,13 @@ export async function updateBroadcast(
 ): Promise<number | null> {
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.broadcasts
-    set title_en = ${input.titleEn}, title_ar = ${input.titleAr}, visibility = ${input.visibility},
+    set title_en = ${input.titleEn}, title_ar = ${input.titleAr},
         urgency = ${input.urgency}, pinned_until = ${input.pinnedUntil}::date,
         expires_on = ${input.expiresOn}::date, requires_ack = ${input.requiresAck},
-        ack_due_on = ${input.ackDueOn}::date, category_id = ${input.categoryId}::uuid,
-        slug = ${input.slug}, excerpt_en = ${input.excerptEn}, excerpt_ar = ${input.excerptAr},
+        ack_due_on = ${input.ackDueOn}::date,
+        excerpt_en = ${input.excerptEn}, excerpt_ar = ${input.excerptAr},
         cover_file_id = ${input.coverFileId}::uuid, cover_alt_en = ${input.coverAltEn},
-        cover_alt_ar = ${input.coverAltAr}, pinned = ${input.pinned}
+        cover_alt_ar = ${input.coverAltAr}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active'
     returning version`);
@@ -440,7 +430,10 @@ export interface ManagedRow extends BroadcastRow {
   acknowledged: number;
 }
 
-/** A school's announcements on one tab, pinned first then newest, with every tab's count. */
+/**
+ * A school's announcements on one tab, those a module puts first (pinned
+ * on the website, say) then newest, with every tab's count.
+ */
 export async function managedBroadcasts(
   tx: Tx,
   input: {
@@ -448,6 +441,8 @@ export async function managedBroadcasts(
     schoolId: string;
     tab: ManageTab;
     q: string;
+    /** Subqueries of the ids that come first. */
+    first: readonly SQL[];
     limit: number;
     offset: number;
   },
@@ -465,7 +460,7 @@ export async function managedBroadcasts(
       ${reached(sql`and r.acknowledged_at is not null`)} as acknowledged
     from ${from}
     where ${scope} and ${tabFilter[input.tab]} ${search}
-    order by b.pinned desc, coalesce(b.publish_at, b.date_last_modified) desc, b.id
+    order by ${input.first.length ? sql`${anyOf(input.first)} desc, ` : sql``}coalesce(b.publish_at, b.date_last_modified) desc, b.id
     limit ${input.limit} offset ${input.offset}`);
   const [counts] = await tx.execute<Record<ManageTab, number>>(sql`
     select
@@ -487,6 +482,8 @@ export async function managedBroadcasts(
 
 export interface FeedRow extends BroadcastRow {
   summary: string;
+  /** Pinned to the top of the reader's list today. */
+  pinned: boolean;
   /** Whether it reached the reader, rather than only standing on the website. */
   recipient: boolean;
   readAt: string | null;
@@ -494,9 +491,9 @@ export interface FeedRow extends BroadcastRow {
 }
 
 /**
- * The announcements a person can read now: those sent to them and those on
- * the website, pinned first, then newest. Current holds what has not
- * expired; past what has.
+ * The announcements a person can read now: those sent to them and those a
+ * module opens to everyone at the school, pinned first, then newest.
+ * Current holds what has not expired; past what has.
  */
 export async function announcementFeed(
   tx: Tx,
@@ -504,6 +501,8 @@ export async function announcementFeed(
     tenantId: string;
     schoolId: string;
     viewerId: string;
+    /** Subqueries of the ids modules open to everyone at the school. */
+    opened: readonly SQL[];
     today: string;
     tab: "current" | "past";
     q: string;
@@ -532,7 +531,7 @@ export async function announcementFeed(
     cross join lateral (select ${publishedText} as text) t
     where b.tenant_id = ${input.tenantId}::uuid and b.org_id = ${input.schoolId}::uuid
       and b.status = 'active' and ${live}
-      and (r.id is not null or b.visibility = 'public')
+      and (r.id is not null or ${anyOf(input.opened)})
       and (case when ${input.tab === "past"}
                 then b.expires_on < ${input.today}::date
                 else b.expires_on is null or b.expires_on >= ${input.today}::date end)

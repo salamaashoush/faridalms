@@ -824,7 +824,7 @@ test("a reviewer comments on a passage by its review date, and the author says h
     submissionFormat: "online",
     points: 10,
     rubric: null,
-    peer: { reviews: 1, anonymous: true, dueAt: reviewsDue },
+    parts: { peer: { reviews: 1, anonymous: true, dueAt: reviewsDue } },
   });
   await teacher.coursework.publish({
     id: saved.id,

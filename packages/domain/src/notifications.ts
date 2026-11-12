@@ -23,6 +23,7 @@ export const NOTIFICATION_KINDS = [
   "correction",
   "reenrolment",
   "admission_event",
+  "peer_review",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -73,8 +74,8 @@ export interface NoticeParams {
   until?: string;
   /** Work sent back for the student to revise, rather than returned marked. */
   revise?: boolean;
-  /** Classmates' work handed out to review, or a reminder that the reviews are due. */
-  peerReview?: boolean;
+  /** A reminder that what the reader owes, the reviews of classmates' work, is due soon. */
+  dueSoon?: boolean;
   /** A grade held back while its comments waited for answers, now shown. */
   gradeShown?: boolean;
   /** A tour, assessment or interview the reader attends: when, where, and for which application. */
@@ -123,6 +124,7 @@ export const CHOOSABLE_KINDS = [
   "correction",
   "reenrolment",
   "admission_event",
+  "peer_review",
 ] as const;
 export type ChoosableKind = (typeof CHOOSABLE_KINDS)[number];
 
@@ -175,6 +177,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     correction: "instant",
     reenrolment: "instant",
     admission_event: "instant",
+    peer_review: "instant",
   },
   sms: {
     announcement: "off",
@@ -194,6 +197,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     correction: "off",
     reenrolment: "off",
     admission_event: "off",
+    peer_review: "off",
   },
   quietFrom: "21:00",
   quietTo: "07:00",
@@ -251,6 +255,7 @@ export const DELIVERY_STATES = [
   "skipped",
 ] as const;
 export const DELIVERY_CHANNELS = ["email", "sms"] as const;
+export type DeliveryChannel = (typeof DELIVERY_CHANNELS)[number];
 export const deliveryLogSchema = v.object({
   state: v.optional(v.picklist(["all", ...DELIVERY_STATES]), "all"),
   channel: v.optional(v.picklist(["all", ...DELIVERY_CHANNELS]), "all"),

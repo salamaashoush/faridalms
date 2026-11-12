@@ -5,7 +5,6 @@ import type {
 import type { SaveAnnouncement } from "@faridalms/domain/announcements";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { ContentLocale } from "@faridalms/domain/translations";
-import type { SiteLocale } from "@faridalms/domain/website";
 
 import { changeOf } from "@faridalms/database/audit";
 import {
@@ -35,12 +34,6 @@ import {
   readSubject,
 } from "@faridalms/database/stores/notifications";
 import {
-  siteCategories,
-  siteSettings,
-  withdrawPost,
-  writePublishedPost,
-} from "@faridalms/database/stores/site";
-import {
   reviewTranslation,
   translationReview,
 } from "@faridalms/database/stores/translations";
@@ -53,11 +46,7 @@ import {
   saveAnnouncementSchema,
   seenSchema,
 } from "@faridalms/domain/announcements";
-import {
-  contentFileIds,
-  contentPlainText,
-  firstPicture,
-} from "@faridalms/domain/content";
+import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { CONTENT_ISSUE_CODE } from "@faridalms/domain/content-checks";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import { paged, pageWindow } from "@faridalms/domain/paging";
@@ -67,7 +56,6 @@ import {
   otherLocale,
   reviewTranslationSchema,
 } from "@faridalms/domain/translations";
-import { postIssues } from "@faridalms/domain/website";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -75,14 +63,21 @@ import type { UnitContext } from "../core/context";
 import type { LiveScope } from "../core/publication";
 
 import {
+  announcementCopies,
+  copiesFor,
+  copiesOf,
+  firstAnnouncements,
+  openedAnnouncements,
+} from "../announcements/points";
+import {
   audienceChoices,
   audienceInputs,
   audiencePeople,
   audiencesAt,
   saveAudiences,
 } from "../core/audiences";
+import { contributionsTo } from "../core/extension";
 import { refuseIfHeld } from "../core/holds";
-import { modulesOf } from "../core/modules";
 import { notify, notifyIn } from "../core/notify";
 import {
   audit,
@@ -102,7 +97,6 @@ import {
   wordsIssues,
 } from "../core/publication";
 import { sharedInliner } from "../core/shared";
-import { publishMedia, withdrawMedia } from "../core/site";
 import { checkTranslation } from "../core/translation-review";
 import { registerHostReader, registerHostWriter } from "../files/authorize";
 
@@ -165,9 +159,14 @@ async function managed(context: UnitContext, announcementId: string) {
   return ofSchool(context, announcementId);
 }
 
+/** Whether a module on keeps a copy of it beyond its audience. */
+async function opened(context: UnitContext, row: BroadcastRow) {
+  return ((await copiesOf(context, [row.id])).get(row.id) ?? []).length > 0;
+}
+
 /**
  * An announcement the viewer may read: any for those who manage them,
- * otherwise one out that reached them or is on the website.
+ * otherwise one out that reached them or that a module opens to everyone.
  */
 async function readable(context: UnitContext, announcementId: string) {
   const row = await ofSchool(context, announcementId);
@@ -177,7 +176,10 @@ async function readable(context: UnitContext, announcementId: string) {
     userId: context.actor.userId,
   });
   if (can(context, CAPABILITY)) return { row, recipient };
-  if (!isLive(row, context.now) || (row.visibility !== "public" && !recipient))
+  if (
+    !isLive(row, context.now) ||
+    (!recipient && !(await opened(context, row)))
+  )
     throw new ORPCError("NOT_FOUND");
   return { row, recipient };
 }
@@ -222,46 +224,6 @@ function noticeOf(
   };
 }
 
-/** The site's languages, which an announcement on the website is published in. */
-async function siteLanguages(context: UnitContext) {
-  const settings = await siteSettings(
-    context.tx,
-    context.tenantId,
-    context.schoolId,
-  );
-  const primary: SiteLocale = settings?.primaryLocale ?? "en";
-  const bilingual = settings?.bilingual ?? true;
-  return {
-    primaryLocale: primary,
-    bilingual,
-    locales: bilingual ? [primary, otherLocale(primary)] : [primary],
-  };
-}
-
-const postMedia = (body: ContentDocument, coverFileId: string | null) => [
-  ...new Set([...contentFileIds(body), ...(coverFileId ? [coverFileId] : [])]),
-];
-
-/** What stops one on the website going out, per language it is written in. */
-function websiteIssues(
-  row: Pick<BroadcastRow, "coverFileId" | "coverAltEn" | "coverAltAr">,
-  primary: ContentLocale,
-  body: ContentDocument,
-  translation: ContentDocument | null,
-) {
-  const found: Record<ContentLocale, string[]> = { en: [], ar: [] };
-  for (const locale of [primary, otherLocale(primary)]) {
-    const written = locale === primary ? body : translation;
-    if (!written || !documentWritten(written)) continue;
-    found[locale] = postIssues({
-      coverFileId: row.coverFileId,
-      coverAlt: locale === "ar" ? row.coverAltAr : row.coverAltEn,
-      body: written,
-    });
-  }
-  return found;
-}
-
 const fieldsOf = (
   input: Omit<
     SaveAnnouncement,
@@ -275,29 +237,31 @@ const fieldsOf = (
 ): BroadcastFields => ({
   titleEn: input.titleEn,
   titleAr: input.titleAr,
-  visibility: input.visibility,
   urgency: input.urgency,
   pinnedUntil: input.pinnedUntil || null,
   expiresOn: input.expiresOn || null,
   requiresAck: input.requiresAck,
   ackDueOn: input.requiresAck ? input.ackDueOn || null : null,
-  categoryId: input.categoryId || null,
-  slug: input.slug || null,
   excerptEn: input.excerptEn,
   excerptAr: input.excerptAr,
   coverFileId: input.coverFileId || null,
   coverAltEn: input.coverAltEn,
   coverAltAr: input.coverAltAr,
-  pinned: input.pinned,
 });
 
-/** A website copy needs the website; a school without it keeps its announcements inside. */
-async function refuseWithoutWebsite(context: UnitContext) {
-  if (!(await modulesOf(context)).website)
-    throw new ORPCError("FORBIDDEN", { message: "announcements.no_website" });
+/** Rows with the keys of the copies modules keep of each. */
+async function withCopies<T extends BroadcastRow>(
+  context: UnitContext,
+  rows: T[],
+) {
+  const copies = await copiesOf(
+    context,
+    rows.map((row) => row.id),
+  );
+  return rows.map((row) => ({ ...row, copies: copies.get(row.id) ?? [] }));
 }
 
-/** What a person can read: those sent to them and those on the website. */
+/** What a person can read: those sent to them and those a module opens to everyone. */
 export const feed = readProcedure
   .input(feedQuerySchema)
   .handler(async ({ input, context }) => {
@@ -305,13 +269,18 @@ export const feed = readProcedure
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       viewerId: context.actor.userId,
+      opened: await openedAnnouncements(context),
       today: context.today,
       tab: input.tab,
       q: input.q,
       ...pageWindow(input.page),
     });
     return {
-      ...paged(rows.map(titled(context)), total, input.page),
+      ...paged(
+        (await withCopies(context, rows)).map(titled(context)),
+        total,
+        input.page,
+      ),
       canManage: can(context, CAPABILITY),
     };
   });
@@ -325,43 +294,42 @@ export const manage = readProcedure
       schoolId: context.schoolId,
       tab: input.tab,
       q: input.q,
+      first: await firstAnnouncements(context),
       ...pageWindow(input.page),
     });
     return {
-      ...paged(rows.map(titled(context)), counts[input.tab], input.page),
+      ...paged(
+        (await withCopies(context, rows)).map(titled(context)),
+        counts[input.tab],
+        input.page,
+      ),
       counts,
     };
   });
 
-/**
- * Who an announcement can go to and, where the school has a website, the
- * website's categories and languages an announcement on it is written for.
- */
+/** Who an announcement can go to. */
 export const options = readProcedure.handler(async ({ context }) => {
   requireCapability(context, CAPABILITY);
-  const website = (await modulesOf(context)).website;
-  const [choices, categories, languages] = await Promise.all([
-    audienceChoices(context),
-    website
-      ? siteCategories(context.tx, context.tenantId, context.schoolId)
-      : Promise.resolve([]),
-    website ? siteLanguages(context) : Promise.resolve(null),
-  ]);
-  return {
-    ...choices,
-    categories: categories.map((category) => ({
-      id: category.id,
-      nameEn: category.nameEn,
-      nameAr: category.nameAr,
-    })),
-    site: languages
-      ? {
-          primaryLocale: languages.primaryLocale,
-          bilingual: languages.bilingual,
-        }
-      : null,
-  };
+  return audienceChoices(context);
 });
+
+/** What stops the copies modules keep of it going out, in each language. */
+async function copyIssues(
+  context: UnitContext,
+  input: {
+    row: BroadcastRow;
+    body: ContentDocument;
+    other: ContentDocument | null;
+  },
+) {
+  const found: Record<ContentLocale, string[]> = { en: [], ar: [] };
+  for (const copy of await contributionsTo(context, announcementCopies)) {
+    const issues = await copy.issues(context, input);
+    found.en.push(...issues.en);
+    found.ar.push(...issues.ar);
+  }
+  return found;
+}
 
 /** An announcement for its editor: the settings and both languages as they are being written. */
 export const editor = readProcedure
@@ -379,8 +347,9 @@ export const editor = readProcedure
       publishedWords(context, host(row)),
     ]);
     const body = words.body ?? emptyContent();
+    const [shown] = await withCopies(context, [row]);
     return {
-      ...titled(context)(row),
+      ...titled(context)(shown ?? { ...row, copies: [] }),
       primaryLocale: primaryOf(row),
       audiences,
       body,
@@ -391,7 +360,7 @@ export const editor = readProcedure
       sent: published
         ? { body: published.body, translation: published.translation }
         : null,
-      issues: websiteIssues(row, primaryOf(row), body, words.other),
+      issues: await copyIssues(context, { row, body, other: words.other }),
     };
   });
 
@@ -433,13 +402,14 @@ export const record = readProcedure
           }
         : null);
     if (!shown) throw new ORPCError("NOT_FOUND");
+    const [kept] = await withCopies(context, [row]);
     const sends = words.original
       ? (
           await versionsOf(context.tx, context.tenantId, words.original.id)
         ).filter((version) => version.reason === "publish")
       : [];
     return {
-      ...titled(context)(row),
+      ...titled(context)(kept ?? { ...row, copies: [] }),
       primaryLocale: primaryOf(row),
       /** When a copy already out was last replaced for its readers. */
       updatedAt: sends.length > 1 ? (sends[0]?.createdAt ?? null) : null,
@@ -475,7 +445,7 @@ export const save = writeProcedure
   .input(saveAnnouncementSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, CAPABILITY);
-    if (input.visibility === "public") await refuseWithoutWebsite(context);
+    const copies = await copiesFor(context, input.parts);
     const fields = fieldsOf(input);
     let announcementId = input.id;
     let version: number;
@@ -503,6 +473,18 @@ export const save = writeProcedure
       version = created.version;
     }
     const target = { id: announcementId };
+    const saved = await broadcastById(
+      context.tx,
+      context.tenantId,
+      announcementId,
+    );
+    if (!saved) throw conflict();
+    for (const copy of copies)
+      if (copy.key in input.parts)
+        await copy.save(context, { row: saved, value: input.parts[copy.key] });
+    // Only one a module opens to everyone may tell nobody.
+    if (input.audiences.length === 0 && !(await opened(context, saved)))
+      throw new ORPCError("BAD_REQUEST", { message: "announcements.audience" });
     await saveAudiences(context, owner(target), input.audiences);
     const cleared = await saveWords(context, host(target), {
       primaryLocale: input.primaryLocale,
@@ -518,8 +500,9 @@ export const save = writeProcedure
       objectId: announcementId,
       details: {
         title: input.titleEn || input.titleAr,
-        visibility: input.visibility,
-        ...(fields.slug ? { slug: fields.slug } : {}),
+        ...(Object.keys(input.parts).length
+          ? { parts: Object.keys(input.parts) }
+          : {}),
       },
       change: changeOf("core.broadcasts", before, fields),
     });
@@ -539,80 +522,12 @@ async function audienceOfRow(context: UnitContext, row: BroadcastRow) {
   return audiencePeople(context, owner(row), context.today);
 }
 
-/** Writes the website's copy in each of its languages for visitors. */
-async function putOnWebsite(
-  context: UnitContext,
-  row: BroadcastRow,
-  body: ContentDocument,
-  translation: ContentDocument | null,
-  publishedAt: string,
-) {
-  if (row.slug === null)
-    throw new Error(`announcement ${row.id} is on the website without a slug`);
-  const languages = await siteLanguages(context);
-  const primary = primaryOf(row);
-  const { media, pictures } = await publishMedia(
-    context,
-    { tenantId: context.tenantId, hostType: "announcement", hostId: row.id },
-    [
-      ...new Set([
-        ...postMedia(body, row.coverFileId),
-        ...(translation ? postMedia(translation, null) : []),
-      ]),
-    ],
-  );
-  await withdrawPost(context.tx, {
-    tenantId: context.tenantId,
-    postId: row.id,
-  });
-  for (const locale of languages.locales) {
-    const own = locale === primary ? body : translation;
-    const words = (en: string, ar: string) =>
-      (locale === "ar" ? ar : en) || (primary === "ar" ? ar : en);
-    // One without a cover shows its first picture on its card.
-    const picture = row.coverFileId
-      ? {
-          fileId: row.coverFileId,
-          alt: words(row.coverAltEn, row.coverAltAr),
-        }
-      : firstPicture(own ?? body);
-    await writePublishedPost(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      post: { ...row, slug: row.slug },
-      locale,
-      title: titleIn(row, locale),
-      excerpt: words(row.excerptEn, row.excerptAr),
-      coverKey: picture ? (media[picture.fileId] ?? null) : null,
-      coverAlt: picture?.alt ?? "",
-      content: {
-        body: own ?? body,
-        locale: own ? locale : primary,
-        pictures,
-      },
-      media,
-      visibleFrom: publishedAt,
-    });
-  }
-}
-
-async function offWebsite(context: UnitContext, row: BroadcastRow) {
-  await withdrawPost(context.tx, {
-    tenantId: context.tenantId,
-    postId: row.id,
-  });
-  await withdrawMedia(context, {
-    tenantId: context.tenantId,
-    hostType: "announcement",
-    hostId: row.id,
-  });
-}
-
 /**
- * What stops its words going out. On the website they read as a page under
- * its title, and their pictures' consent is checked as they go public;
- * inside the school they meet the one check list and consent to photos
- * shared within the school.
+ * What stops its words going out. Where a module keeps a copy beyond its
+ * audience (the website, where they read as a page under its title and
+ * their pictures' consent is checked as they go public), the module checks
+ * them; inside the school they meet the one check list and consent to
+ * photos shared within the school.
  */
 async function checkWords(
   context: UnitContext,
@@ -623,9 +538,8 @@ async function checkWords(
   if (!documentWritten(body))
     throw new ORPCError("CONFLICT", { message: "announcements.empty" });
   const beside = row.coverFileId ? [row.coverFileId] : [];
-  if (row.visibility === "public") {
-    await refuseWithoutWebsite(context);
-    const issues = websiteIssues(row, primaryOf(row), body, other);
+  if (await opened(context, row)) {
+    const issues = await copyIssues(context, { row, body, other });
     if (issues.en.length + issues.ar.length > 0)
       throw new ORPCError("CONFLICT", { message: "site.issues" });
     return;
@@ -646,9 +560,10 @@ async function checkWords(
 /**
  * Sends an announcement now or at a set time: its words are checked and
  * snapshotted for readers, who it reaches is fixed and told once it is out,
- * and one on the website is written there. Sending an update to one already
- * out replaces what its readers have and reaches anyone newly in its
- * audience; told, it shows unread again, and quietly it does not.
+ * and a copy a module keeps beyond its audience is written. Sending an
+ * update to one already out replaces what its readers have and reaches
+ * anyone newly in its audience; told, it shows unread again, and quietly it
+ * does not.
  */
 export const publish = writeProcedure
   .input(publishAnnouncementSchema)
@@ -667,7 +582,7 @@ export const publish = writeProcedure
     const telling = !later && (!out || !input.quietly);
     const words = await draftWords(context, host(row));
     // Readers see shared blocks as they stand, so they are checked in place,
-    // and a website copy stands on its own with them written into it.
+    // and a copy beyond its audience stands on its own with them written in.
     const inline = await sharedInliner(
       context,
       [words.body, words.other].filter(
@@ -678,7 +593,7 @@ export const publish = writeProcedure
     const other = words.other ? inline(words.other) : null;
     await checkWords(context, row, body, other);
     const users = await audienceOfRow(context, row);
-    if (row.visibility === "school" && users.length === 0)
+    if (users.length === 0 && !(await opened(context, row)))
       throw new ORPCError("CONFLICT", { message: "announcements.nobody" });
     const publishAt =
       out && row.publishAt
@@ -701,9 +616,13 @@ export const publish = writeProcedure
       title: titleIn(row, "en"),
       titleAr: titleIn(row, "ar"),
     });
-    await (row.visibility === "public"
-      ? putOnWebsite(context, row, body, other, publishAt)
-      : offWebsite(context, row));
+    for (const copy of await contributionsTo(context, announcementCopies))
+      await copy.published(context, {
+        row,
+        body,
+        other,
+        publishedAt: publishAt,
+      });
     const added = await addRecipients(context.tx, {
       tenantId: context.tenantId,
       broadcastId: row.id,
@@ -732,7 +651,6 @@ export const publish = writeProcedure
       objectType: "announcement",
       objectId: row.id,
       details: {
-        visibility: row.visibility,
         recipients: users.length,
         added,
         publishAt: input.publishAt || null,
@@ -741,7 +659,7 @@ export const publish = writeProcedure
     return { version, recipients: users.length };
   });
 
-/** Takes an announcement off its readers and the website, back to a draft or into the archive. */
+/** Takes an announcement off its readers and any copy beyond them, back to a draft or into the archive. */
 async function takeDown(
   context: UnitContext,
   input: { id: string; expectedVersion: number },
@@ -757,7 +675,8 @@ async function takeDown(
     told: "keep",
   });
   if (version === null) throw conflict();
-  await offWebsite(context, row);
+  for (const copy of await contributionsTo(context, announcementCopies))
+    await copy.withdrawn(context, row);
   await audit(context, {
     action:
       state === "archived" ? AUDIT_ACTIONS.archive : AUDIT_ACTIONS.unpublish,
@@ -813,23 +732,19 @@ export const duplicate = writeProcedure
       authorId: context.actor.userId,
       titleEn: row.titleEn,
       titleAr: row.titleAr,
-      visibility: row.visibility,
       urgency: row.urgency,
       pinnedUntil: null,
       expiresOn: null,
       requiresAck: row.requiresAck,
       ackDueOn: null,
-      categoryId: row.categoryId,
-      slug: row.slug
-        ? `${row.slug.slice(0, 60)}-${Date.now().toString(36)}`
-        : null,
       excerptEn: row.excerptEn,
       excerptAr: row.excerptAr,
       coverFileId: row.coverFileId,
       coverAltEn: row.coverAltEn,
       coverAltAr: row.coverAltAr,
-      pinned: false,
     });
+    for (const copy of await contributionsTo(context, announcementCopies))
+      await copy.duplicated(context, { source: row, created });
     const target = host(created);
     await saveAudiences(context, owner(created), audienceInputs(audiences));
     if (words.original && words.body) {

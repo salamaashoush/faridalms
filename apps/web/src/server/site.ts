@@ -124,3 +124,11 @@ export const makeSiteHostCanonical = createServerFn({ method: "POST" })
 export const checkSiteHost = createServerFn({ method: "POST" })
   .validator(checked(hostRefSchema))
   .handler(({ data }) => backend().hosts.check(data));
+
+export const getAnnouncementPost = createServerFn({ method: "GET" })
+  .validator(byId)
+  .handler(({ data }) => backend().site.announcementPost(data));
+
+export const getAnnouncementSiteOptions = createServerFn({
+  method: "GET",
+}).handler(() => backend().site.announcementOptions());

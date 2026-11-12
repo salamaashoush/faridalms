@@ -42,7 +42,7 @@ interface Learner {
   fullNameAr: string | null;
 }
 
-interface Assignment {
+export interface NoticeAssignment {
   id: string;
   classId: string;
   title: string;
@@ -52,7 +52,7 @@ interface Assignment {
 }
 
 /** The work's title in each language it has one in, the brief's own first. */
-function titlesOf(assignment: Assignment): NoticeParams {
+export function titlesOf(assignment: NoticeAssignment): NoticeParams {
   const other = assignment.translationTitle || undefined;
   return assignment.language === "ar"
     ? { title: other ?? assignment.title, titleAr: assignment.title }
@@ -127,7 +127,7 @@ async function tellLearners(
 /** Tells everyone the work was set for, and those who hear for them, that it is out. */
 export async function tellAssigned(
   scope: TeachingScope,
-  assignment: Assignment,
+  assignment: NoticeAssignment,
 ): Promise<number> {
   const [learners, names, zone] = await Promise.all([
     studentWork(scope.tx, {
@@ -153,7 +153,7 @@ export async function tellAssigned(
 /** Tells students, and those who hear for them, that their work came back marked or for revision. */
 export async function tellReturned(
   scope: TeachingScope,
-  assignment: Assignment,
+  assignment: NoticeAssignment,
   learners: readonly Learner[],
   revise: boolean,
 ): Promise<number> {
@@ -172,7 +172,7 @@ export async function tellReturned(
 /** Tells students, and those who hear for them, that a grade held back on returned work is now shown. */
 export async function tellGradeShown(
   scope: TeachingScope,
-  assignment: Assignment,
+  assignment: NoticeAssignment,
   learners: readonly Learner[],
 ): Promise<number> {
   if (learners.length === 0) return 0;
@@ -204,32 +204,6 @@ export async function tellPeriodGrades(
       title: input.period.titleEn ?? input.period.titleAr ?? "",
       titleAr: input.period.titleAr ?? input.period.titleEn ?? "",
       ...(await classNames(scope, input.classId)),
-    },
-  });
-}
-
-/**
- * Tells reviewers of a classmate's work to review, as reviews are handed
- * out, or reminds those still writing that the reviews are due. Only the
- * students hear: reviewing is between classmates.
- */
-export async function tellReviewers(
-  scope: NoticeScope,
-  assignment: Assignment & { peerDueAt: string | null },
-  reviewerIds: readonly string[],
-  kind: "assignment" | "reminder",
-): Promise<number> {
-  if (reviewerIds.length === 0) return 0;
-  const zone = await schoolZone(scope.tx, scope.schoolId);
-  return notifyIn(scope, reviewerIds, {
-    kind,
-    subject: { type: "assignment", id: assignment.id },
-    params: {
-      ...titlesOf(assignment),
-      peerReview: true,
-      ...(assignment.peerDueAt
-        ? { date: schoolDate(zone, new Date(assignment.peerDueAt)) }
-        : {}),
     },
   });
 }

@@ -151,7 +151,7 @@ create table core.notifications (
     references core.users (tenant_id, id),
   constraint notifications_kind_check check (kind in ('announcement', 'urgent', 'message', 'absence', 'event',
     'reminder', 'consent', 'mention', 'library', 'reply', 'enquiry', 'application', 'correction', 'assignment',
-    'feedback', 'grades', 'reenrolment', 'admission_event')),
+    'feedback', 'grades', 'reenrolment', 'admission_event', 'peer_review')),
   constraint notifications_subject_type_check check (subject_type ~ '^[a-z][a-z0-9_]{1,62}$'),
   constraint notifications_params_check
     check (jsonb_typeof(params) = 'object' and octet_length(params::text) <= 4096),
@@ -232,7 +232,7 @@ create table core.notification_deliveries (
   constraint notification_deliveries_state_check check (state in ('pending', 'sent', 'failed', 'skipped')),
   constraint notification_deliveries_reason_check
     check (reason is null or reason in ('preference_off', 'no_address', 'unreachable', 'no_provider',
-      'withdrawn', 'provider_error', 'gave_up')),
+      'withdrawn', 'provider_error', 'gave_up', 'module_off')),
   constraint notification_deliveries_reason_state_check check ((state in ('skipped', 'failed')) = (reason is not null)),
   constraint notification_deliveries_address_check check (address is null or char_length(address) between 3 and 320),
   constraint notification_deliveries_attempts_check check (attempts between 0 and 20),

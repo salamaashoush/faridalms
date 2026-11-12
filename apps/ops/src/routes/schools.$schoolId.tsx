@@ -159,7 +159,7 @@ function SchoolPage() {
   const editing = useSheet();
   const addingHost = useSheet();
   const modules = availableModules(school.entitlements);
-  const signIn = ssoDomains.length > 0 || modules.includes("sso");
+  const signIn = modules.includes("sso");
   const counts: Partial<Record<SchoolTab, number>> = {
     modules: modules.length,
     addresses: hosts.length + 2,

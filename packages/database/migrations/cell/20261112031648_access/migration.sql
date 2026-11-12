@@ -368,6 +368,11 @@ grant select, insert, update on core.family_shares to app, worker, cell_io;
 grant select, delete on core.family_shares to retention;
 grant update (status, metadata) on core.family_shares to retention;
 
+alter table core.federated_identities force row level security;
+grant select, insert, update on core.federated_identities to app, worker, cell_io;
+grant select, delete on core.federated_identities to retention;
+grant update (status, metadata) on core.federated_identities to retention;
+
 alter table core.file_previews force row level security;
 grant select, insert, update on core.file_previews to app, worker, cell_io;
 grant select on core.file_previews to retention;
@@ -612,6 +617,10 @@ grant select, insert, update on core.peer_review_comments to app, worker, cell_i
 grant select, delete on core.peer_review_comments to retention;
 grant update (status, metadata) on core.peer_review_comments to retention;
 
+alter table core.peer_review_settings force row level security;
+grant select, insert, update on core.peer_review_settings to app, worker, cell_io;
+grant select on core.peer_review_settings to retention;
+
 alter table core.peer_reviews force row level security;
 grant select, insert, update on core.peer_reviews to app, worker, cell_io;
 grant select, delete on core.peer_reviews to retention;
@@ -710,6 +719,10 @@ grant update (name, email, phone, child_year, message, network_key, status, meta
 alter table core.site_pages force row level security;
 grant select, insert, update on core.site_pages to app, worker, cell_io;
 grant select on core.site_pages to retention;
+
+alter table core.site_posts force row level security;
+grant select, insert, update on core.site_posts to app, worker, cell_io;
+grant select on core.site_posts to retention;
 
 alter table core.site_published_pages force row level security;
 grant select, insert, update on core.site_published_pages to app, worker, cell_io;

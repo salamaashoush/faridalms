@@ -1,6 +1,7 @@
-import type { PeerHelpfulness, Rubric } from "@faridalms/domain/coursework";
+import type { Rubric } from "@faridalms/domain/coursework";
+import type { PeerHelpfulness } from "@faridalms/domain/peer-review";
 
-import { PEER_HELPFULNESS } from "@faridalms/domain/coursework";
+import { PEER_HELPFULNESS } from "@faridalms/domain/peer-review";
 import { StoredImage } from "@faridalms/editor/files";
 import { MediaPlayer } from "@faridalms/editor/media-view";
 import { Button } from "@faridalms/ui/button";
@@ -27,14 +28,14 @@ import { displayName } from "~/components/people/format";
 import { FileList } from "~/components/system/FileList";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { myPeerReviewsQuery, peerOverviewQuery } from "~/queries/coursework";
+import { myPeerReviewsQuery, peerOverviewQuery } from "~/queries/peer";
 import {
   hidePeerReview,
   ratePeerReview,
   releasePeerReviews,
   sendPeerReview,
   startPeerReview,
-} from "~/server/coursework";
+} from "~/server/peer";
 import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -122,8 +123,7 @@ function RateReview({ reviewId, value }: RateReviewProps) {
   const rate = useMutation({
     mutationFn: (helpfulness: PeerHelpfulness) =>
       ratePeerReview({ data: { reviewId, helpfulness } }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["coursework"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["peer"] }),
     onError: (error) => toast.error(getMessageFromError(error)),
   });
   return (
@@ -157,8 +157,7 @@ export function PeerReviewPanel({ assignmentId }: PeerReviewPanelProps) {
   const release = useServerFn(releasePeerReviews);
   const hide = useServerFn(hidePeerReview);
   const [confirming, setConfirming] = useState(false);
-  const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: ["coursework"] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["peer"] });
   const starting = useMutation({
     mutationFn: () => start({ data: { assignmentId } }),
     onSuccess: refresh,
@@ -183,8 +182,8 @@ export function PeerReviewPanel({ assignmentId }: PeerReviewPanelProps) {
     data.students.map((student) => [student.id, displayName(student)]),
   );
   const how = data.anonymous
-    ? m.peerHowAnonymous({ count: data.reviews ?? 1 })
-    : m.peerHowNamed({ count: data.reviews ?? 1 });
+    ? m.peerHowAnonymous({ count: data.reviews })
+    : m.peerHowNamed({ count: data.reviews });
   if (!data.startedAt)
     return (
       <EmptyState
@@ -650,8 +649,8 @@ export function PeerReviewWork({ assignmentId }: PeerReviewWorkProps) {
   const data = useQuery(myPeerReviewsQuery(assignmentId)).data;
   if (!data) return null;
   const how = data.anonymous
-    ? m.peerHowAnonymous({ count: data.reviews ?? 1 })
-    : m.peerHowNamed({ count: data.reviews ?? 1 });
+    ? m.peerHowAnonymous({ count: data.reviews })
+    : m.peerHowNamed({ count: data.reviews });
   return (
     <>
       <RecordSection

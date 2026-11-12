@@ -18,8 +18,6 @@ import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   assignmentPhase,
   MAX_DISCUSSION_REPLIES,
-  MAX_PEER_REVIEWS,
-  PEER_FORMATS,
   MAX_QUIZ_ATTEMPTS,
   QUIZ_KEEPS,
   QUIZ_REVEALS,
@@ -92,6 +90,8 @@ import {
 } from "~/utils/datetime";
 import { getMessageFromError, refusalOf } from "~/utils/error";
 
+import type { AssignmentEditorPart } from "./slots";
+
 import { classChoices, classTitle, defaultClass } from "../classes/format";
 import { FeedbackBands, keptBands } from "../learning/FeedbackBands";
 import { displayName } from "../people/format";
@@ -130,8 +130,6 @@ interface Draft {
   discussion: { postFirst: boolean; replies: string };
   /** What modules keep about the work, by key. */
   parts: Record<string, string>;
-  /** The review date as the date field holds it, empty for none. */
-  peer: { on: boolean; reviews: string; anonymous: boolean; dueAt: string };
   language: ContentLocale | "auto";
   /** The brief in the other language: its title, empty for the original's, and its words. */
   translation: { title: string; content: ContentDocument } | null;
@@ -193,14 +191,8 @@ const REPLY_COUNTS = Array.from(
   (_, index) => String(index),
 );
 
-const PEER_COUNTS = Array.from({ length: MAX_PEER_REVIEWS }, (_, index) =>
-  String(index + 1),
-);
-
 /** The ready-made rubric for reading aloud, offered beside the teacher's own. */
 const READY_PROSODY = "ready:prosody";
-
-const NO_PEER = { on: false, reviews: "2", anonymous: true, dueAt: "" };
 
 const ATTEMPTS = [
   "unlimited",
@@ -298,7 +290,6 @@ function initialDraft(
       quiz: newQuiz(),
       discussion: { postFirst: true, replies: "2" },
       parts,
-      peer: NO_PEER,
       language: "auto",
       translation: null,
     };
@@ -347,14 +338,6 @@ function initialDraft(
         }
       : { postFirst: true, replies: "2" },
     parts,
-    peer: existing.peer
-      ? {
-          on: true,
-          reviews: String(existing.peer.reviews),
-          anonymous: existing.peer.anonymous,
-          dueAt: localInput(existing.peer.dueAt || null),
-        }
-      : NO_PEER,
     language: existing.language ?? "auto",
     translation: existing.translation,
   };
@@ -637,20 +620,19 @@ export function AssignmentEditor({
               replies: Number(value.discussion.replies),
             }
           : null,
-        parts: value.parts,
-        peer:
-          value.peer.on && PEER_FORMATS.includes(value.submissionFormat)
-            ? {
-                reviews: Number(value.peer.reviews),
-                anonymous: value.peer.anonymous,
-                dueAt: instantFromLocal(value.peer.dueAt),
-              }
-            : null,
+        parts: Object.fromEntries(
+          Object.entries(value.parts).map(([key, held]) => [
+            key,
+            parts
+              .find((part) => part.key === key)
+              ?.sent?.(held, value.submissionFormat) ?? held,
+          ]),
+        ),
         language: value.language === "auto" ? null : value.language,
         translation: value.translation,
       };
     },
-    [shared],
+    [shared, parts],
   );
   const { blocking, publishing } = issuesOf(draft, started, ruledIssues(draft));
   const storable = Object.keys(blocking).length === 0;
@@ -691,7 +673,7 @@ export function AssignmentEditor({
   );
   const setQuiz = <K extends keyof QuizDraft>(key: K, value: QuizDraft[K]) =>
     set("quiz", { ...draft.quiz, [key]: value });
-  const partFields = (section: "grading" | "discussion") =>
+  const partFields = (section: AssignmentEditorPart["section"]) =>
     parts
       .filter((part) => part.section === section)
       .map(({ key, Field }) => (
@@ -699,6 +681,7 @@ export function AssignmentEditor({
           key={key}
           classId={draft.classId}
           format={draft.submissionFormat}
+          dueAt={draft.dueAt}
           value={draft.parts[key] ?? ""}
           onChange={(value) => set("parts", { ...draft.parts, [key]: value })}
         />
@@ -1514,58 +1497,7 @@ export function AssignmentEditor({
                 </>
               ) : null}
             </DetailsSection>
-            {PEER_FORMATS.includes(draft.submissionFormat) ? (
-              <DetailsSection title={m.peerSection()}>
-                <CheckboxRow
-                  label={m.peerOn()}
-                  hint={
-                    existing?.peerStarted ? m.peerStartedHint() : m.peerOnHint()
-                  }
-                  checked={draft.peer.on}
-                  disabled={existing?.peerStarted}
-                  onChange={(on) => set("peer", { ...draft.peer, on })}
-                />
-                {draft.peer.on ? (
-                  <>
-                    <SelectField
-                      id="peer-reviews"
-                      label={m.peerReviewsEach()}
-                      value={draft.peer.reviews}
-                      options={PEER_COUNTS.map((value) => ({
-                        value,
-                        label: formatNumber(Number(value)),
-                      }))}
-                      onChange={(reviews) =>
-                        set("peer", { ...draft.peer, reviews })
-                      }
-                    />
-                    <CheckboxRow
-                      label={m.peerAnonymous()}
-                      hint={m.peerAnonymousHint()}
-                      checked={draft.peer.anonymous}
-                      onChange={(anonymous) =>
-                        set("peer", { ...draft.peer, anonymous })
-                      }
-                    />
-                    <TextField
-                      id="peer-due"
-                      label={m.peerDue()}
-                      hint={m.peerDueHint()}
-                      optional
-                      type="datetime-local"
-                      min={draft.dueAt || undefined}
-                      value={draft.peer.dueAt}
-                      onChange={(event) =>
-                        set("peer", {
-                          ...draft.peer,
-                          dueAt: event.target.value,
-                        })
-                      }
-                    />
-                  </>
-                ) : null}
-              </DetailsSection>
-            ) : null}
+            {partFields("own")}
             {isQuiz ? (
               <DetailsSection title={m.quizSection()}>
                 <SelectField

@@ -1,11 +1,7 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { CommentAnchor, Rubric } from "@faridalms/domain/coursework";
 
-import {
-  assignmentById,
-  isRecipient,
-  studentWork,
-} from "@faridalms/database/stores/coursework";
+import { studentWork } from "@faridalms/database/stores/coursework";
 import { documentOf } from "@faridalms/database/stores/documents";
 import {
   hidePeerReview,
@@ -22,15 +18,15 @@ import {
 } from "@faridalms/database/stores/peer-reviews";
 import { namesOf } from "@faridalms/database/stores/persons";
 import { withBlockIds, wordsAt } from "@faridalms/domain/content";
+import { quoteOf } from "@faridalms/domain/document-comments";
 import {
+  allocateReviews,
   hidePeerReviewSchema,
   peerCommentSchema,
   peerReviewInputSchema,
   ratePeerReviewSchema,
   removePeerCommentSchema,
-} from "@faridalms/domain/coursework";
-import { quoteOf } from "@faridalms/domain/document-comments";
-import { allocateReviews } from "@faridalms/domain/peer-review";
+} from "@faridalms/domain/peer-review";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -43,22 +39,14 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { taughtAssignment } from "../coursework/access";
-import { teachingScope, tellReviewers } from "../coursework/notices";
+import { teachingScope } from "../coursework/notices";
+import { tellReviewers } from "../peer/notices";
+import { learnerReviewed, reviewedAssignment } from "../peer/settings";
 import { workUnderReview } from "../peer/work";
 
 const byAssignment = v.object({ assignmentId: v.pipe(v.string(), v.uuid()) });
 
 type Reviews = Awaited<ReturnType<typeof peerReviewsOf>>;
-
-/** An assignment whose work its classmates review, for its teacher. */
-async function reviewedAssignment(context: UnitContext, assignmentId: string) {
-  requireCapability(context, "submissions:grade");
-  const assignment = await taughtAssignment(context, assignmentId);
-  if (assignment.peerReviews === null)
-    throw new ORPCError("BAD_REQUEST", { message: "coursework.peer_off" });
-  return assignment;
-}
 
 /** Each student's latest handed-in attempt, leaving out excused work. */
 async function handedIn(context: UnitContext, assignmentId: string) {
@@ -139,7 +127,10 @@ async function commentsByReview(
 export const overview = readProcedure
   .input(byAssignment)
   .handler(async ({ input, context }) => {
-    const assignment = await reviewedAssignment(context, input.assignmentId);
+    const { assignment, peer } = await reviewedAssignment(
+      context,
+      input.assignmentId,
+    );
     const [reviews, work] = await Promise.all([
       peerReviewsOf(context.tx, {
         tenantId: context.tenantId,
@@ -157,11 +148,11 @@ export const overview = readProcedure
       commentsByReview(context, reviews),
     ]);
     return {
-      reviews: assignment.peerReviews,
-      anonymous: assignment.peerAnonymous ?? true,
-      startedAt: assignment.peerStartedAt,
-      releasedAt: assignment.peerReleasedAt,
-      dueAt: assignment.peerDueAt,
+      reviews: peer.reviews,
+      anonymous: peer.anonymous,
+      startedAt: peer.startedAt,
+      releasedAt: peer.releasedAt,
+      dueAt: peer.dueAt,
       rubric: assignment.rubric as unknown as Rubric | null,
       handedIn: work.length,
       waiting: work.filter((row) => !placed.has(row.studentId)).length,
@@ -188,7 +179,10 @@ export const overview = readProcedure
 export const start = writeProcedure
   .input(byAssignment)
   .handler(async ({ input, context }) => {
-    const assignment = await reviewedAssignment(context, input.assignmentId);
+    const { assignment, peer } = await reviewedAssignment(
+      context,
+      input.assignmentId,
+    );
     await requireUnsettled(context, assignment.classId);
     if (assignment.state !== "published")
       throw new ORPCError("BAD_REQUEST", { message: "coursework.peer_draft" });
@@ -203,9 +197,9 @@ export const start = writeProcedure
     const added = allocateReviews({
       existing: reviews,
       students: work.map((row) => row.studentId),
-      reviews: assignment.peerReviews ?? 1,
+      reviews: peer.reviews,
     });
-    if (added.length === 0 && !assignment.peerStartedAt)
+    if (added.length === 0 && !peer.startedAt)
       throw new ORPCError("BAD_REQUEST", {
         message: "coursework.peer_too_few",
       });
@@ -225,8 +219,9 @@ export const start = writeProcedure
     await tellReviewers(
       teachingScope(context),
       assignment,
+      peer.dueAt,
       [...new Set(added.map((pair) => pair.reviewerId))],
-      "assignment",
+      "handed_out",
     );
     await audit(context, {
       action: "peer_review.start",
@@ -241,9 +236,12 @@ export const start = writeProcedure
 export const release = writeProcedure
   .input(byAssignment)
   .handler(async ({ input, context }) => {
-    const assignment = await reviewedAssignment(context, input.assignmentId);
+    const { assignment, peer } = await reviewedAssignment(
+      context,
+      input.assignmentId,
+    );
     await requireUnsettled(context, assignment.classId);
-    if (!assignment.peerStartedAt)
+    if (!peer.startedAt)
       throw new ORPCError("BAD_REQUEST", {
         message: "coursework.peer_not_started",
       });
@@ -270,7 +268,10 @@ export const hide = writeProcedure
       input.reviewId,
     );
     if (!review) throw new ORPCError("NOT_FOUND");
-    const assignment = await reviewedAssignment(context, review.assignmentId);
+    const { assignment } = await reviewedAssignment(
+      context,
+      review.assignmentId,
+    );
     await requireUnsettled(context, assignment.classId);
     await hidePeerReview(context.tx, {
       tenantId: context.tenantId,
@@ -287,29 +288,6 @@ export const hide = writeProcedure
     return {};
   });
 
-/** An assignment the student was set, whose work classmates review. */
-async function learnerReviewed(context: UnitContext, assignmentId: string) {
-  requireCapability(context, "own-work:read");
-  const assignment = await assignmentById(
-    context.tx,
-    context.tenantId,
-    assignmentId,
-  );
-  if (
-    !assignment ||
-    assignment.state !== "published" ||
-    assignment.peerReviews === null ||
-    !(await isRecipient(
-      context.tx,
-      context.tenantId,
-      assignment.id,
-      context.actor.userId,
-    ))
-  )
-    throw new ORPCError("NOT_FOUND");
-  return assignment;
-}
-
 /**
  * Peer review as a student meets it: the classmates' work they were given
  * to review, with what they wrote and the passages they commented on, and,
@@ -319,15 +297,18 @@ async function learnerReviewed(context: UnitContext, assignmentId: string) {
 export const mine = readProcedure
   .input(byAssignment)
   .handler(async ({ input, context }) => {
-    const assignment = await learnerReviewed(context, input.assignmentId);
+    const { assignment, peer } = await learnerReviewed(
+      context,
+      input.assignmentId,
+    );
     const me = context.actor.userId;
     const reviews = await peerReviewsOf(context.tx, {
       tenantId: context.tenantId,
       assignmentId: assignment.id,
     });
-    const anonymous = assignment.peerAnonymous ?? true;
+    const anonymous = peer.anonymous;
     const toGive = reviews.filter((review) => review.reviewerId === me);
-    const received = assignment.peerReleasedAt
+    const received = peer.releasedAt
       ? reviews.filter(
           (review) =>
             review.authorId === me &&
@@ -349,10 +330,10 @@ export const mine = readProcedure
     const reviewers = numbered(reviews, "authorId");
     return {
       anonymous,
-      reviews: assignment.peerReviews,
-      started: assignment.peerStartedAt !== null,
-      released: assignment.peerReleasedAt !== null,
-      dueAt: assignment.peerDueAt,
+      reviews: peer.reviews,
+      started: peer.startedAt !== null,
+      released: peer.releasedAt !== null,
+      dueAt: peer.dueAt,
       rubric: assignment.rubric as unknown as Rubric | null,
       toGive: await Promise.all(
         toGive.map(async (review) => ({
@@ -387,9 +368,12 @@ async function ownReview(context: UnitContext, reviewId: string) {
   const review = await peerReviewById(context.tx, context.tenantId, reviewId);
   if (!review || review.reviewerId !== context.actor.userId)
     throw new ORPCError("NOT_FOUND");
-  const assignment = await learnerReviewed(context, review.assignmentId);
+  const { assignment, peer } = await learnerReviewed(
+    context,
+    review.assignmentId,
+  );
   await requireUnsettled(context, assignment.classId);
-  if (assignment.peerReleasedAt)
+  if (peer.releasedAt)
     throw new ORPCError("CONFLICT", { message: "coursework.peer_released" });
   return { review, assignment };
 }
@@ -488,8 +472,8 @@ export const rate = writeProcedure
       review.hiddenAt !== null
     )
       throw new ORPCError("NOT_FOUND");
-    const assignment = await learnerReviewed(context, review.assignmentId);
-    if (!assignment.peerReleasedAt) throw new ORPCError("NOT_FOUND");
+    const { peer } = await learnerReviewed(context, review.assignmentId);
+    if (!peer.releasedAt) throw new ORPCError("NOT_FOUND");
     await ratePeerReview(context.tx, {
       tenantId: context.tenantId,
       id: review.id,

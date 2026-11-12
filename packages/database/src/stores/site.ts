@@ -14,7 +14,6 @@ import type {
   SocialLink,
 } from "../tables/site";
 import type { PostalAddress } from "../tables/tenancy";
-import type { BroadcastRow } from "./broadcasts";
 
 import { isoOf, textArray, uuidArray } from "./sql";
 
@@ -464,8 +463,8 @@ export async function siteCategories(
     posts: number;
   }>(sql`
     select c.id, c.version, c.slug, c.name_en, c.name_ar, c.position,
-      (select count(*)::int from core.broadcasts p
-        where p.tenant_id = c.tenant_id and p.category_id = c.id and p.visibility = 'public'
+      (select count(*)::int from core.site_posts p
+        where p.tenant_id = c.tenant_id and p.category_id = c.id
           and p.status = 'active') as posts
     from core.site_categories c
     where c.tenant_id = ${tenantId}::uuid and c.org_id = ${orgId}::uuid and c.status = 'active'
@@ -518,7 +517,7 @@ export async function removeCategory(
   input: { tenantId: string; orgId: string; id: string },
 ): Promise<boolean> {
   await tx.execute(sql`
-    update core.broadcasts set category_id = null
+    update core.site_posts set category_id = null
     where tenant_id = ${input.tenantId}::uuid and category_id = ${input.id}::uuid`);
   await tx.execute(sql`
     update core.site_published_posts set category_id = null
@@ -531,12 +530,92 @@ export async function removeCategory(
   return Boolean(row);
 }
 
+/** How an announcement stands on the website: its address, category and place first. */
+export interface SitePost {
+  slug: string;
+  categoryId: string | null;
+  pinned: boolean;
+}
+
+/** How each of these announcements stands on the website, for those that do. */
+export async function sitePostsOf(
+  tx: Tx,
+  input: { tenantId: string; broadcastIds: readonly string[] },
+): Promise<Map<string, SitePost>> {
+  if (input.broadcastIds.length === 0) return new Map();
+  const rows = await tx.execute<{
+    broadcast_id: string;
+    slug: string;
+    category_id: string | null;
+    pinned: boolean;
+  }>(sql`
+    select broadcast_id, slug, category_id, pinned from core.site_posts
+    where tenant_id = ${input.tenantId}::uuid
+      and broadcast_id = any(${uuidArray(input.broadcastIds)}) and status = 'active'`);
+  return new Map(
+    rows.map((row) => [
+      row.broadcast_id,
+      { slug: row.slug, categoryId: row.category_id, pinned: row.pinned },
+    ]),
+  );
+}
+
+/**
+ * Puts an announcement on the website as these settings say, or takes it
+ * off with null. Its words reach visitors only once it is published.
+ */
+export async function keepSitePost(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    broadcastId: string;
+    post: SitePost | null;
+  },
+): Promise<void> {
+  const { post } = input;
+  if (!post) {
+    await tx.execute(sql`
+      update core.site_posts set status = 'tobedeleted'
+      where tenant_id = ${input.tenantId}::uuid and broadcast_id = ${input.broadcastId}::uuid
+        and status = 'active'`);
+    return;
+  }
+  const [changed] = await tx.execute<{ id: string }>(sql`
+    update core.site_posts
+    set slug = ${post.slug}, category_id = ${post.categoryId}::uuid, pinned = ${post.pinned}
+    where tenant_id = ${input.tenantId}::uuid and broadcast_id = ${input.broadcastId}::uuid
+      and status = 'active'
+    returning id`);
+  if (changed) return;
+  await tx.execute(sql`
+    insert into core.site_posts (tenant_id, org_id, broadcast_id, slug, category_id, pinned)
+    values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.broadcastId}::uuid,
+      ${post.slug}, ${post.categoryId}::uuid, ${post.pinned})`);
+}
+
+/** The announcements a school has on its website, as a subquery of their ids. */
+export const postedAnnouncements = (input: {
+  tenantId: string;
+  schoolId: string;
+}) => sql`(select p.broadcast_id from core.site_posts p
+  where p.tenant_id = ${input.tenantId}::uuid and p.org_id = ${input.schoolId}::uuid
+    and p.status = 'active')`;
+
+/** The announcements pinned first among a school's website posts, as a subquery of their ids. */
+export const pinnedAnnouncements = (input: {
+  tenantId: string;
+  schoolId: string;
+}) => sql`(select p.broadcast_id from core.site_posts p
+  where p.tenant_id = ${input.tenantId}::uuid and p.org_id = ${input.schoolId}::uuid
+    and p.status = 'active' and p.pinned)`;
+
 export async function writePublishedPost(
   tx: Tx,
   input: {
     tenantId: string;
     orgId: string;
-    post: Pick<BroadcastRow, "id" | "categoryId" | "pinned"> & { slug: string };
+    post: SitePost & { id: string };
     locale: SiteLocale;
     title: string;
     excerpt: string;

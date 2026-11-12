@@ -1,5 +1,4 @@
 import type { Cell } from "@faridalms/database/context";
-import type { Directory } from "@faridalms/database/directory/client";
 
 import { clockDue } from "@faridalms/database/stores/admission-decisions";
 import { schoolProfile } from "@faridalms/database/stores/identity";
@@ -7,9 +6,10 @@ import { schoolDate } from "@faridalms/domain/school";
 
 import type { UnitContext } from "../core/context";
 import type { WorkerModules } from "../core/extension";
+import type { ModuleWorker } from "../core/workers";
 import type { AdmissionScope } from "./decisions";
 
-import { workerScope } from "../core/extension";
+import { schoolsWith } from "../core/extension";
 import { everyTenant } from "../files/upkeep";
 import {
   applicationIn,
@@ -38,24 +38,24 @@ export async function runAdmissionsClock(
     { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
     "write",
     async (tx) => {
+      const schools = await schoolsWith(input.modules, { tx, tenantId }, [
+        "admissions",
+      ]);
       const due = await clockDue(tx, {
         tenantId,
+        orgIds: schools.map((scope) => scope.schoolId),
         now: input.now,
         limit: input.limit ?? 200,
       });
-      const schools = new Set([
+      const dueAt = new Set([
         ...due.releases.map((row) => row.orgId),
         ...due.lapsed.map((row) => row.orgId),
       ]);
       let moved = 0;
-      for (const schoolId of schools) {
+      for (const modules of schools) {
+        const { schoolId } = modules;
+        if (!dueAt.has(schoolId)) continue;
         const school = await schoolProfile(tx, schoolId);
-        const modules = await workerScope(input.modules, {
-          tx,
-          tenantId,
-          schoolId,
-        });
-        if (!modules) continue;
         const scope: AdmissionScope = {
           ...modules,
           actorUserId: null,
@@ -95,26 +95,25 @@ export async function runAdmissionsClock(
   );
 }
 
-/** Runs the admissions clock over every tenant of the cell on a timer. */
-export function startAdmissionsClock(input: {
-  cell: Cell;
-  directory: Directory;
-  cellId: string;
-  channels: UnitContext["channels"];
-  extensions: WorkerModules["extensions"];
-  intervalMs: number;
-}): () => Promise<void> {
-  return everyTenant({
-    name: "admissions.clock",
-    directory: input.directory,
-    cellId: input.cellId,
-    intervalMs: input.intervalMs,
-    run: async (tenantId) => {
-      await runAdmissionsClock(input.cell, tenantId, {
-        now: new Date(),
-        channels: input.channels,
-        modules: { directory: input.directory, extensions: input.extensions },
-      });
-    },
-  });
-}
+/**
+ * Releases decisions on their intake's day and lapses offers after their
+ * last one, at each school's own midnight, over every tenant on a timer.
+ */
+export const ADMISSIONS_CLOCK: ModuleWorker = {
+  module: "admissions",
+  name: "admissions.clock",
+  start: (deps) =>
+    everyTenant({
+      name: "admissions.clock",
+      directory: deps.directory,
+      cellId: deps.cellId,
+      intervalMs: 5 * 60_000,
+      run: async (tenantId) => {
+        await runAdmissionsClock(deps.cell, tenantId, {
+          now: new Date(),
+          channels: deps.channels,
+          modules: { directory: deps.directory, extensions: deps.extensions },
+        });
+      },
+    }),
+};

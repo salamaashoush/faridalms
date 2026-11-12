@@ -1,3 +1,11 @@
+import * as v from "valibot";
+
+import type { SubmissionFormat } from "./coursework";
+
+import { anchorSchema } from "./anchors";
+
+const id = v.pipe(v.string(), v.uuid());
+
 /**
  * Peer review: students review classmates' handed-in work against the
  * work's rubric, when it has one, and with two prompts every time: what
@@ -88,3 +96,107 @@ export function allocateReviews(input: {
   }
   return added;
 }
+
+export const MAX_PEER_REVIEWS = 5;
+export const MAX_PEER_COMMENT = 2000;
+/**
+ * The formats whose handed-in work classmates can read and review: written
+ * work and files, a quiz's answers its teacher marks, and a discussion's
+ * posts.
+ */
+export const PEER_FORMATS: readonly SubmissionFormat[] = [
+  "online",
+  "files",
+  "both",
+  "online_and_files",
+  "quiz",
+  "discussion",
+];
+
+/**
+ * How peer review runs: how many classmates' work each student reviews,
+ * and whether reviewer and author stay unnamed to each other, as they do
+ * by default: anonymous reviewers give more critical feedback, and
+ * students value it more (Panadero and Alqassab 2019).
+ */
+export const peerReviewSchema = v.object({
+  reviews: v.pipe(
+    v.number(),
+    v.integer(),
+    v.minValue(1),
+    v.maxValue(MAX_PEER_REVIEWS),
+  ),
+  anonymous: v.boolean(),
+  /** When the reviews are due; reviewers still writing are reminded the day before. */
+  dueAt: v.optional(
+    v.union([v.literal(""), v.pipe(v.string(), v.isoTimestamp())]),
+    "",
+  ),
+});
+export type PeerReviewSettings = v.InferOutput<typeof peerReviewSchema>;
+
+/** What stops peer review being set as asked on work of this format and due date, or null. */
+export function peerIssue(input: {
+  settings: PeerReviewSettings;
+  format: SubmissionFormat;
+  workDueAt: string | null;
+}): "coursework.peer_format" | "coursework.peer_due_early" | null {
+  if (!PEER_FORMATS.includes(input.format)) return "coursework.peer_format";
+  // Reviews follow the work they review.
+  const reviewsDue = input.settings.dueAt
+    ? Date.parse(input.settings.dueAt)
+    : null;
+  const workDue = input.workDueAt ? Date.parse(input.workDueAt) : null;
+  if (reviewsDue !== null && workDue !== null && reviewsDue < workDue)
+    return "coursework.peer_due_early";
+  return null;
+}
+
+const peerComment = v.pipe(
+  v.string(),
+  v.trim(),
+  v.minLength(1),
+  v.maxLength(MAX_PEER_COMMENT),
+);
+
+/**
+ * A student's review of a classmate's work: a level for each criterion of
+ * the rubric, when the work has one, and the two prompts, what works well
+ * and what would make it even better, both asked for every time.
+ */
+export const peerReviewInputSchema = v.object({
+  reviewId: id,
+  rubricScores: v.optional(
+    v.record(
+      v.pipe(v.string(), v.maxLength(40)),
+      v.pipe(v.string(), v.maxLength(40)),
+    ),
+    {},
+  ),
+  strengths: peerComment,
+  suggestion: peerComment,
+});
+export type PeerReviewInput = v.InferOutput<typeof peerReviewInputSchema>;
+
+export const hidePeerReviewSchema = v.object({
+  reviewId: id,
+  hidden: v.boolean(),
+});
+
+/** How helpful an author found a classmate's review of their work. */
+export const PEER_HELPFULNESS = ["very", "somewhat", "not"] as const;
+export type PeerHelpfulness = (typeof PEER_HELPFULNESS)[number];
+
+export const ratePeerReviewSchema = v.object({
+  reviewId: id,
+  helpfulness: v.picklist(PEER_HELPFULNESS),
+});
+
+/** A reviewer's comment on a passage of the work they review. */
+export const peerCommentSchema = v.object({
+  reviewId: id,
+  anchor: anchorSchema,
+  body: peerComment,
+});
+
+export const removePeerCommentSchema = v.object({ id });

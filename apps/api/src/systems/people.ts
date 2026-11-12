@@ -108,9 +108,9 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { badgeTerm } from "../badges/term";
 import { classGroupsOf, classViewOf } from "../classes/points";
 import { guardingAccess, requireGrantable } from "../core/access";
-import { badgeTerm } from "../core/badges";
 import { refreshLoginsAfter } from "../core/login-index";
 import { modulesOf } from "../core/modules";
 import { welcomeLink } from "../core/portal";

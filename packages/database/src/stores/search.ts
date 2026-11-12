@@ -317,13 +317,22 @@ interface BroadcastAccess {
   schoolId: string;
   viewerId: string;
   manage: boolean;
+  /** Subqueries of the ids modules open to everyone at the school. */
+  opened: readonly SQL[];
 }
 
 const broadcastOpen = (input: BroadcastAccess) => sql`(
   b.tenant_id = ${input.tenantId}::uuid and b.org_id = ${input.schoolId}::uuid
   and b.status = 'active'
   and (${input.manage} or (${liveSql(sql`b.state`, sql`b.publish_at`)}
-    and (b.visibility = 'public' or exists (select 1 from core.broadcast_recipients r
+    and (${
+      input.opened.length
+        ? sql`(${sql.join(
+            input.opened.map((query) => sql`b.id in ${query}`),
+            sql` or `,
+          )}) or `
+        : sql``
+    }exists (select 1 from core.broadcast_recipients r
       where r.tenant_id = b.tenant_id and r.broadcast_id = b.id
         and r.user_id = ${input.viewerId}::uuid and r.status = 'active')))))`;
 
@@ -333,7 +342,8 @@ export const broadcastsReached = (input: BroadcastAccess) =>
 
 /**
  * Announcements among `ids`: every one for those who manage them, otherwise
- * those out that reached the viewer or are on the website. Readers are matched against the words as published, never a
+ * those out that reached the viewer or that a module opens to everyone.
+ * Readers are matched against the words as published, never a
  * draft of the next revision.
  */
 export async function broadcastsAmong(tx: Tx, input: Among & BroadcastAccess) {

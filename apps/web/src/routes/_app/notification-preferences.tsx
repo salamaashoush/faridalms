@@ -1,3 +1,4 @@
+import type { ModuleId } from "@faridalms/domain/modules";
 import type {
   ChoosableKind,
   EmailMode,
@@ -59,6 +60,7 @@ const KIND_LABEL: Record<ChoosableKind, () => string> = {
   correction: m.ntfKindCorrection,
   reenrolment: m.ntfKindReenrolment,
   admission_event: m.ntfKindAdmissionEvent,
+  peer_review: m.ntfKindPeerReview,
 };
 
 const EMAIL_LABEL: Record<EmailMode, () => string> = {
@@ -76,15 +78,18 @@ const SMS_LABEL: Record<SmsMode, () => string> = {
  * Absences, consent requests and answers to the changes a family asked for
  * reach families, register reminders and template reviews reach staff,
  * replies those who post in discussions, work set, returned and graded
- * reaches students and their families, and enquiries those who work them;
- * nobody else gets them.
+ * reaches students and their families, classmates' work to review reaches
+ * students where the school has peer review, and enquiries those who work
+ * them; nobody else gets them.
  */
 function kindsFor(
   workspace: Workspace,
   capabilities: readonly string[],
+  modules: Readonly<Record<ModuleId, boolean>>,
 ): readonly ChoosableKind[] {
   return CHOOSABLE_KINDS.filter(
     (kind) =>
+      (kind !== "peer_review" || (workspace === "me" && modules.peer_review)) &&
       ((kind !== "absence" && kind !== "consent" && kind !== "correction") ||
         workspace === "family") &&
       ((kind !== "reminder" && kind !== "library") || workspace === "staff") &&
@@ -139,7 +144,10 @@ function PreferencesPage() {
   };
   return (
     <Page width="form">
-      <PageHeader title={m.notifPreferences()} description={m.ntfPrefsHint()} />
+      <PageHeader
+        title={m.notifPreferences()}
+        description={data.texts ? m.ntfPrefsHint() : m.ntfPrefsHintEmail()}
+      />
       <SettingsPage>
         <SettingsSection
           title={m.ntfSectionChannels()}
@@ -156,58 +164,70 @@ function PreferencesPage() {
                 {m.ntfKindUrgent()}
               </p>
               <p className="text-[13px] leading-[18px] text-muted-foreground">
-                {m.ntfUrgentLocked()}
+                {data.texts ? m.ntfUrgentLocked() : m.ntfUrgentLockedEmail()}
               </p>
             </li>
-            {kindsFor(user.workspace, user.capabilities).map((kind) => {
-              const Icon = KIND_ICON[kind];
-              return (
-                <li
-                  key={kind}
-                  className="grid gap-3 border-t pt-5 @min-[560px]:grid-cols-[minmax(0,1fr)_auto] @min-[560px]:items-end"
-                >
-                  <p className="flex items-center gap-2 text-sm leading-5 font-medium @min-[560px]:self-center">
-                    <Icon
-                      className="size-4 text-muted-foreground"
-                      aria-hidden
-                    />
-                    {KIND_LABEL[kind]()}
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <SelectField
-                      id={`email-${kind}`}
-                      label={m.ntfEmail()}
-                      className="w-40"
-                      value={draft.preferences.email[kind]}
-                      options={EMAIL_MODES.map((mode) => ({
-                        value: mode,
-                        label: EMAIL_LABEL[mode](),
-                      }))}
-                      onChange={(mode) =>
-                        set({
-                          email: { ...draft.preferences.email, [kind]: mode },
-                        })
-                      }
-                    />
-                    <SelectField
-                      id={`sms-${kind}`}
-                      label={m.ntfSms()}
-                      className="w-32"
-                      value={draft.preferences.sms[kind]}
-                      options={SMS_MODES.map((mode) => ({
-                        value: mode,
-                        label: SMS_LABEL[mode](),
-                      }))}
-                      onChange={(mode) =>
-                        set({ sms: { ...draft.preferences.sms, [kind]: mode } })
-                      }
-                    />
-                  </div>
-                </li>
-              );
-            })}
+            {kindsFor(user.workspace, user.capabilities, user.modules).map(
+              (kind) => {
+                const Icon = KIND_ICON[kind];
+                return (
+                  <li
+                    key={kind}
+                    className="grid gap-3 border-t pt-5 @min-[560px]:grid-cols-[minmax(0,1fr)_auto] @min-[560px]:items-end"
+                  >
+                    <p className="flex items-center gap-2 text-sm leading-5 font-medium @min-[560px]:self-center">
+                      <Icon
+                        className="size-4 text-muted-foreground"
+                        aria-hidden
+                      />
+                      {KIND_LABEL[kind]()}
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                      <SelectField
+                        id={`email-${kind}`}
+                        label={m.ntfEmail()}
+                        className="w-40"
+                        value={draft.preferences.email[kind]}
+                        options={EMAIL_MODES.map((mode) => ({
+                          value: mode,
+                          label: EMAIL_LABEL[mode](),
+                        }))}
+                        onChange={(mode) =>
+                          set({
+                            email: { ...draft.preferences.email, [kind]: mode },
+                          })
+                        }
+                      />
+                      {data.texts ? (
+                        <SelectField
+                          id={`sms-${kind}`}
+                          label={m.ntfSms()}
+                          className="w-32"
+                          value={draft.preferences.sms[kind]}
+                          options={SMS_MODES.map((mode) => ({
+                            value: mode,
+                            label: SMS_LABEL[mode](),
+                          }))}
+                          onChange={(mode) =>
+                            set({
+                              sms: { ...draft.preferences.sms, [kind]: mode },
+                            })
+                          }
+                        />
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              },
+            )}
           </ul>
-          {data.channels.email && data.channels.sms ? null : (
+          {!data.texts ? (
+            data.channels.email ? null : (
+              <p className="text-[13px] leading-[18px] text-muted-foreground">
+                {m.ntfNoEmail()}
+              </p>
+            )
+          ) : data.channels.email && data.channels.sms ? null : (
             <p className="text-[13px] leading-[18px] text-muted-foreground">
               {data.channels.email
                 ? m.ntfNoSms()
@@ -261,7 +281,7 @@ function PreferencesPage() {
           />
           <SelectField
             id="notify-language"
-            label={m.ntfLanguage()}
+            label={data.texts ? m.ntfLanguage() : m.ntfLanguageEmail()}
             hint={m.ntfLanguageHint()}
             width="name"
             value={draft.locale}

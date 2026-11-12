@@ -1,8 +1,4 @@
-import type {
-  AudienceInput,
-  Urgency,
-  Visibility,
-} from "@faridalms/domain/announcements";
+import type { AudienceInput, Urgency } from "@faridalms/domain/announcements";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { ContentLocale } from "@faridalms/domain/translations";
 
@@ -17,7 +13,6 @@ import {
   otherLocale,
   translationState,
 } from "@faridalms/domain/translations";
-import { postIssues } from "@faridalms/domain/website";
 import { Button } from "@faridalms/ui/button";
 import {
   Dialog,
@@ -36,7 +31,11 @@ import {
 import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { Textarea } from "@faridalms/ui/textarea";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useQueryClient,
+  useSuspenseQueries,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { Archive, CalendarClock, Send } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -61,15 +60,12 @@ import { TranslatedView } from "~/components/content/TranslatedView";
 import { TranslationNote } from "~/components/content/TranslationNote";
 import { usePicturePeople } from "~/components/files/PicturedPeople";
 import { CheckboxRow } from "~/components/people/fields";
-import { PictureField } from "~/components/site/PictureField";
-import { ISSUE_LABEL } from "~/components/site/studio/labels";
 import {
   DetailsPanel,
   DetailsSection,
   DocumentPage,
   DocumentTitle,
 } from "~/components/system/DocumentPage";
-import { inLocale } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
@@ -85,9 +81,11 @@ import {
 import { instantFromLocal, localInput } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import type { AnnouncementCopyPart } from "./slots";
+
 import { AudienceList, audienceIssue, audienceSummary } from "./AudienceList";
 import { STATE_LABEL, STATE_TONE, URGENCY_LABEL } from "./format";
-import { audienceKinds } from "./slots";
+import { announcementCopyParts, audienceKinds } from "./slots";
 
 type EditorData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof announcementEditorQuery>["queryFn"]>>
@@ -111,19 +109,21 @@ interface Draft {
   expiresOn: string;
   requiresAck: boolean;
   ackDueOn: string;
-  visibility: Visibility;
   excerptEn: string;
   excerptAr: string;
-  slug: string;
-  categoryId: string;
   coverFileId: string;
   coverAltEn: string;
   coverAltAr: string;
-  pinned: boolean;
+  /** What modules keep of it beyond its audience, by key; null for none. */
+  parts: Record<string, unknown>;
 }
 
-function saveOf(draft: Draft, id: string, version: number) {
-  const website = draft.visibility === "public";
+function saveOf(
+  draft: Draft,
+  id: string,
+  version: number,
+  parts: Record<string, unknown>,
+) {
   return saveAnnouncement({
     data: {
       id,
@@ -139,15 +139,12 @@ function saveOf(draft: Draft, id: string, version: number) {
       expiresOn: draft.expiresOn,
       requiresAck: draft.requiresAck,
       ackDueOn: draft.requiresAck ? draft.ackDueOn : "",
-      visibility: draft.visibility,
       excerptEn: draft.excerptEn.trim(),
       excerptAr: draft.excerptAr.trim(),
-      slug: website ? draft.slug : "",
-      categoryId: website ? draft.categoryId : "",
       coverFileId: draft.coverFileId,
       coverAltEn: draft.coverAltEn.trim(),
       coverAltAr: draft.coverAltAr.trim(),
-      pinned: website && draft.pinned,
+      parts,
     },
   });
 }
@@ -183,23 +180,15 @@ const NEWSLETTER_HEADINGS: Record<
   ],
 };
 
-/** A web address from an English title; other titles get one from the clock. */
-function slugOf(title: string) {
-  const slug = title
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-  return slug || `post-${Date.now().toString(36)}`;
-}
-
 const field = (name: string) => `announcement-${name}`;
 
 const pick = <T,>(locale: ContentLocale, en: T, ar: T) =>
   locale === "ar" ? ar : en;
 
-function draftOf(existing: EditorData | null): Draft {
+function draftOf(
+  existing: EditorData | null,
+  parts: Record<string, unknown>,
+): Draft {
   return {
     primaryLocale:
       existing?.primaryLocale ?? (getLocale() === "ar" ? "ar" : "en"),
@@ -220,41 +209,49 @@ function draftOf(existing: EditorData | null): Draft {
     expiresOn: existing?.expiresOn ?? "",
     requiresAck: existing?.requiresAck ?? false,
     ackDueOn: existing?.ackDueOn ?? "",
-    visibility: existing?.visibility ?? "school",
     excerptEn: existing?.excerptEn ?? "",
     excerptAr: existing?.excerptAr ?? "",
-    slug: existing?.slug ?? "",
-    categoryId: existing?.categoryId ?? "",
     coverFileId: existing?.coverFileId ?? "",
     coverAltEn: existing?.coverAltEn ?? "",
     coverAltAr: existing?.coverAltAr ?? "",
-    pinned: existing?.pinned ?? false,
+    parts,
   };
 }
 
-/** What stops the words going out, as the server would refuse them, in the writer's words. */
-function wordsProblems(draft: Draft): string[] {
+const coverOf = (draft: Draft) => ({
+  fileId: draft.coverFileId,
+  altEn: draft.coverAltEn,
+  altAr: draft.coverAltAr,
+});
+
+const same = (a: unknown, b: unknown) =>
+  JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * What stops the words going out, as the server would refuse them, in the
+ * writer's words: a copy beyond its audience checks them as its own, and
+ * inside the school they meet the one check list.
+ */
+function wordsProblems(
+  draft: Draft,
+  opening: readonly AnnouncementCopyPart[],
+): string[] {
   const other = otherLocale(draft.primaryLocale);
   const written = (locale: ContentLocale) =>
     locale === draft.primaryLocale ||
     (draft.bilingual && documentWritten(draft.translation));
-  if (draft.visibility === "school")
+  if (opening.length === 0)
     return [
       ...contentIssueMessages(draft.body),
       ...(written(other) ? contentIssueMessages(draft.translation) : []),
     ];
-  // On the website it reads as a page under its title.
-  return [draft.primaryLocale, other].filter(written).flatMap((locale) =>
-    postIssues({
-      coverFileId: draft.coverFileId || null,
-      coverAlt: pick(locale, draft.coverAltEn, draft.coverAltAr),
-      body: locale === draft.primaryLocale ? draft.body : draft.translation,
-    }).map((code) =>
-      m.siteIssueIn({
-        issue: ISSUE_LABEL[code](),
-        language: LOCALE_NAME[locale](),
-      }),
-    ),
+  return opening.flatMap((copy) =>
+    copy.problems(draft.parts[copy.key] ?? null, {
+      primaryLocale: draft.primaryLocale,
+      body: draft.body,
+      translation: written(other) ? draft.translation : null,
+      cover: coverOf(draft),
+    }),
   );
 }
 
@@ -267,8 +264,8 @@ export interface AnnouncementEditorProps {
 }
 
 /**
- * An announcement written as a document, to its audience, the website or
- * both. The title and words take the page, in its first language and the
+ * An announcement written as a document, to its audience, beyond it where
+ * a module puts it (the website, say), or both. The title and words take the page, in its first language and the
  * other beside it; who it reaches and how it behaves sit beside them.
  * Everything saves itself as it is written, and its readers keep what they
  * were sent until an update goes out, which asks whether to tell them again.
@@ -281,17 +278,32 @@ export function AnnouncementEditor({
 }: AnnouncementEditorProps) {
   const options: Options = useSuspenseQuery(announcementOptionsQuery).data;
   const kinds = useSlot(audienceKinds);
+  const copies = useSlot(announcementCopyParts);
+  const storedParts = useSuspenseQueries({
+    queries: existing ? copies.map((copy) => copy.initial(existing.id)) : [],
+  });
   const queryClient = useQueryClient();
   const documentMedia = useDocumentMedia();
   const id = useRef(existing?.id ?? "");
   const version = useRef(existing?.version ?? 0);
-  const slugTouched = useRef(Boolean(existing));
-  // A post saved before it has an English title keeps one address after.
-  const fallbackSlug = useRef(existing?.slug ?? "");
+  // What a copy follows from the title stops following once the writer sets it.
+  const touched = useRef(
+    new Set<string>(existing ? copies.map((copy) => copy.key) : []),
+  );
   const [storedId, setStoredId] = useState(existing?.id ?? "");
   const stored = storedId !== "";
   const [state, setState] = useState(existing?.shown ?? "draft");
-  const [draft, setDraft] = useState<Draft>(() => draftOf(existing));
+  const [draft, setDraft] = useState<Draft>(() =>
+    draftOf(
+      existing,
+      Object.fromEntries(
+        copies.map((copy, index) => [
+          copy.key,
+          storedParts[index]?.data ?? null,
+        ]),
+      ),
+    ),
+  );
   const [sent, setSent] = useState(existing?.sent ?? null);
   const [changed, setChanged] = useState(existing?.changedSince ?? false);
   const [review, setReview] = useState<Review>(
@@ -320,8 +332,11 @@ export function AnnouncementEditor({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const live = state === "published";
   const other = otherLocale(draft.primaryLocale);
-  const isPublic = draft.visibility === "public";
-  const pictured = usePicturePeople(isPublic ? "website" : "news");
+  const opening = copies.filter((copy) =>
+    copy.opens(draft.parts[copy.key] ?? null),
+  );
+  const isPublic = opening.length > 0;
+  const pictured = usePicturePeople(opening[0]?.pictured ?? "news");
   const media = useMemo(
     () => ({ ...documentMedia, people: pictured.open }),
     [documentMedia, pictured.open],
@@ -333,30 +348,51 @@ export function AnnouncementEditor({
   const persist = useCallback(
     async (value: Draft) => {
       if (!valid) throw new Error("content.invalid");
-      const website = value.visibility === "public";
-      if (website && !value.slug && !fallbackSlug.current)
-        fallbackSlug.current = slugOf(value.titleEn.trim());
-      const send = (slug: string) =>
-        saveOf({ ...value, slug }, id.current, version.current);
-      const slug = value.slug || fallbackSlug.current;
-      // The address follows the title until the writer sets one, and another
-      // post may already stand there; refusing it would refuse every save
-      // of the draft's words after. It takes a free one instead, as a copy
-      // of a post does, and the writer can still change it.
-      const saved = await send(slug).catch(async (error: unknown) => {
-        if (
-          !website ||
-          slugTouched.current ||
-          !(error instanceof Error) ||
-          error.message !== "site.slug_taken"
-        )
-          throw error;
-        const free = `${slug.slice(0, 60)}-${Date.now().toString(36)}`;
-        fallbackSlug.current = free;
-        setDraft((current) =>
-          current.slug === value.slug ? { ...current, slug: free } : current,
+      let parts = Object.fromEntries(
+        copies.map((copy) => [
+          copy.key,
+          copy.sent(value.parts[copy.key] ?? null, value.titleEn),
+        ]),
+      );
+      // What a copy follows from the title may already be taken; refusing
+      // it would refuse every save of the draft's words after. It takes a
+      // free one instead, and the writer can still change it.
+      const saved = await saveOf(
+        value,
+        id.current,
+        version.current,
+        parts,
+      ).catch(async (error: unknown) => {
+        if (!(error instanceof Error)) throw error;
+        const freed = copies.flatMap((copy) => {
+          if (touched.current.has(copy.key)) return [];
+          const free = copy.freed(parts[copy.key], error.message);
+          return free === null ? [] : [[copy.key, free] as const];
+        });
+        if (freed.length === 0) throw error;
+        parts = { ...parts, ...Object.fromEntries(freed) };
+        return saveOf(value, id.current, version.current, parts);
+      });
+      // The draft keeps what was saved for it, so later saves keep it too.
+      setDraft((current) => {
+        const filled = copies.filter(
+          (copy) =>
+            same(
+              current.parts[copy.key] ?? null,
+              value.parts[copy.key] ?? null,
+            ) && !same(parts[copy.key], value.parts[copy.key] ?? null),
         );
-        return send(free);
+        return filled.length === 0
+          ? current
+          : {
+              ...current,
+              parts: {
+                ...current.parts,
+                ...Object.fromEntries(
+                  filled.map((copy) => [copy.key, parts[copy.key]]),
+                ),
+              },
+            };
       });
       const created = !id.current;
       id.current = saved.id;
@@ -367,7 +403,7 @@ export function AnnouncementEditor({
       await queryClient.invalidateQueries({ queryKey: ["announcements"] });
       if (created) onCreated(saved.id);
     },
-    [valid, live, queryClient, onCreated],
+    [valid, live, queryClient, onCreated, copies],
   );
 
   const primaryTitle = pick(draft.primaryLocale, draft.titleEn, draft.titleAr);
@@ -382,8 +418,24 @@ export function AnnouncementEditor({
     enabled: state !== "archived" && primaryTitle.trim() !== "" && reachable,
     version: () => version.current,
     latest: async () => {
-      const data = await getAnnouncementEditor({ data: { id: id.current } });
-      return { value: draftOf(data), version: data.version, data };
+      const [data, parts] = await Promise.all([
+        getAnnouncementEditor({ data: { id: id.current } }),
+        Promise.all(
+          copies.map((copy) =>
+            queryClient.fetchQuery(copy.initial(id.current)),
+          ),
+        ),
+      ]);
+      return {
+        value: draftOf(
+          data,
+          Object.fromEntries(
+            copies.map((copy, index) => [copy.key, parts[index] ?? null]),
+          ),
+        ),
+        version: data.version,
+        data,
+      };
     },
     adopt: ({ value, version: kept, data }) => {
       version.current = kept;
@@ -411,20 +463,48 @@ export function AnnouncementEditor({
     if (!editing.handles(error)) toast.error(getMessageFromError(error));
   };
 
-  const change = useCallback((patch: Partial<Draft>) => {
-    setIssues([]);
-    setDraft((current) => {
-      const next = { ...current, ...patch };
-      if (
-        next.visibility === "public" &&
-        patch.titleEn !== undefined &&
-        !slugTouched.current &&
-        patch.titleEn.trim()
-      )
-        next.slug = slugOf(patch.titleEn);
-      return next;
+  const change = useCallback(
+    (patch: Partial<Draft>) => {
+      setIssues([]);
+      setDraft((current) => {
+        const next = { ...current, ...patch };
+        const { titleEn } = patch;
+        if (titleEn !== undefined)
+          next.parts = Object.fromEntries(
+            Object.entries(next.parts).map(([key, value]) => {
+              const copy = copies.find((part) => part.key === key);
+              return [
+                key,
+                copy && !touched.current.has(key)
+                  ? copy.titled(value, titleEn)
+                  : value,
+              ];
+            }),
+          );
+        return next;
+      });
+    },
+    [copies],
+  );
+  /** A copy's settings changed; with none opening it, it reaches its families again. */
+  const changeCopy = (key: string, value: unknown) => {
+    const parts = { ...draft.parts, [key]: value };
+    const opens = copies.some((copy) => copy.opens(parts[copy.key] ?? null));
+    change({
+      parts,
+      audiences: !opens && !telling ? FAMILIES : draft.audiences,
     });
-  }, []);
+  };
+  const copyProps = (copy: AnnouncementCopyPart) => ({
+    value: draft.parts[copy.key] ?? null,
+    onChange: (value: unknown) => changeCopy(copy.key, value),
+    onTouched: () => touched.current.add(copy.key),
+    shown,
+    cover: coverOf(draft),
+    onCover: (patch: Partial<Draft>) => change(patch),
+    onPeople: pictured.open,
+    problems: wordIssues,
+  });
   const changeBody = useCallback(
     (body: ContentDocument) => change({ body }),
     [change],
@@ -477,7 +557,7 @@ export function AnnouncementEditor({
   );
 
   const later = !live && sendAt !== "";
-  const wordIssues = wordsProblems(draft);
+  const wordIssues = wordsProblems(draft, opening);
 
   const problems = () => {
     const found: string[] = [];
@@ -601,7 +681,6 @@ export function AnnouncementEditor({
   const shown: ContentLocale = translating ? other : draft.primaryLocale;
   const titleKey = shown === "ar" ? "titleAr" : "titleEn";
   const excerptKey = shown === "ar" ? "excerptAr" : "excerptEn";
-  const altKey = shown === "ar" ? "coverAltAr" : "coverAltEn";
 
   return (
     <>
@@ -702,7 +781,7 @@ export function AnnouncementEditor({
             : []
         }
         summary={[
-          ...(isPublic ? [m.annWherePublic()] : []),
+          ...opening.map((copy) => copy.where()),
           telling
             ? audienceSummary(draft.audiences, options, kinds)
             : m.annAudienceNone(),
@@ -764,24 +843,11 @@ export function AnnouncementEditor({
         }
         aside={
           <DetailsPanel title={m.docDetails()}>
-            {options.site || isPublic ? (
+            {copies.length ? (
               <DetailsSection title={m.annColWhere()}>
-                <CheckboxRow
-                  label={m.annOnWebsiteCheck()}
-                  hint={m.annOnWebsiteHint()}
-                  checked={isPublic}
-                  onChange={(checked) =>
-                    change({
-                      visibility: checked ? "public" : "school",
-                      audiences:
-                        !checked && !telling ? FAMILIES : draft.audiences,
-                      slug:
-                        checked && !draft.slug && draft.titleEn.trim()
-                          ? slugOf(draft.titleEn)
-                          : draft.slug,
-                    })
-                  }
-                />
+                {copies.map((copy) => (
+                  <copy.Toggle key={copy.key} {...copyProps(copy)} />
+                ))}
               </DetailsSection>
             ) : null}
             <DetailsSection
@@ -863,19 +929,15 @@ export function AnnouncementEditor({
                 </Button>
               </DetailsSection>
             ) : null}
-            <WebsiteSettings
+            <CardSettings
               draft={draft}
               shown={shown}
               excerptKey={excerptKey}
-              altKey={altKey}
-              options={options}
-              problems={wordIssues}
-              onPeople={pictured.open}
               onChange={change}
-              onSlug={() => {
-                slugTouched.current = true;
-              }}
             />
+            {opening.map((copy) => (
+              <copy.Settings key={copy.key} {...copyProps(copy)} />
+            ))}
             <DetailsSection title={m.annSectionDelivery()}>
               <AnnouncementSettings draft={draft} onChange={change} />
               {live ? (
@@ -1047,124 +1109,39 @@ function AnnouncementSettings({ draft, onChange }: AnnouncementSettingsProps) {
   );
 }
 
-interface WebsiteSettingsProps {
+interface CardSettingsProps {
   draft: Draft;
   shown: ContentLocale;
   excerptKey: "excerptEn" | "excerptAr";
-  altKey: "coverAltEn" | "coverAltAr";
-  options: Options;
-  problems: string[];
-  onPeople: (fileId: string) => void;
   onChange: (patch: Partial<Draft>) => void;
-  onSlug: () => void;
 }
 
-/**
- * What an announcement carries for its cards: a summary, and on the website
- * its picture, category and address. A picture shows only on the website.
- */
-function WebsiteSettings({
+/** What an announcement carries for its cards: a summary in the language being written. */
+function CardSettings({
   draft,
   shown,
   excerptKey,
-  altKey,
-  options,
-  problems,
-  onPeople,
   onChange,
-  onSlug,
-}: WebsiteSettingsProps) {
+}: CardSettingsProps) {
   return (
-    <>
-      <DetailsSection title={m.annSummary()} hint={m.annSummaryHint()}>
-        <FormField
-          id={field("summary")}
-          label={`${m.annSummary()} (${LOCALE_LABEL[shown]()})`}
-          optional
-        >
-          {(control) => (
-            <Textarea
-              {...control}
-              lang={shown}
-              dir={shown === "ar" ? "rtl" : "ltr"}
-              rows={3}
-              maxLength={300}
-              value={draft[excerptKey]}
-              onChange={(event) =>
-                onChange({ [excerptKey]: event.target.value })
-              }
-            />
-          )}
-        </FormField>
-      </DetailsSection>
-      {draft.visibility === "public" ? (
-        <DetailsSection title={m.annPicture()}>
-          <PictureField
-            fileId={draft.coverFileId || null}
-            label={m.annPicture()}
-            onChange={(fileId) => onChange({ coverFileId: fileId ?? "" })}
-            fromMedia
-            onPeople={onPeople}
+    <DetailsSection title={m.annSummary()} hint={m.annSummaryHint()}>
+      <FormField
+        id={field("summary")}
+        label={`${m.annSummary()} (${LOCALE_LABEL[shown]()})`}
+        optional
+      >
+        {(control) => (
+          <Textarea
+            {...control}
+            lang={shown}
+            dir={shown === "ar" ? "rtl" : "ltr"}
+            rows={3}
+            maxLength={300}
+            value={draft[excerptKey]}
+            onChange={(event) => onChange({ [excerptKey]: event.target.value })}
           />
-          {draft.coverFileId ? (
-            <TextField
-              id={field("picture-alt")}
-              label={`${m.annPictureAlt()} (${LOCALE_LABEL[shown]()})`}
-              lang={shown}
-              dir={shown === "ar" ? "rtl" : "ltr"}
-              maxLength={300}
-              value={draft[altKey]}
-              onChange={(event) => onChange({ [altKey]: event.target.value })}
-            />
-          ) : null}
-        </DetailsSection>
-      ) : null}
-      {draft.visibility === "public" ? (
-        <DetailsSection title={m.annOnWebsite()}>
-          <SelectField
-            id={field("category")}
-            label={m.siteCategory()}
-            value={draft.categoryId}
-            options={[
-              { value: "", label: m.siteNoCategory() },
-              ...options.categories.map((category) => ({
-                value: category.id,
-                label: inLocale(
-                  category.nameEn || null,
-                  category.nameAr || null,
-                ),
-              })),
-            ]}
-            onChange={(categoryId) => onChange({ categoryId })}
-          />
-          <TextField
-            id={field("slug")}
-            label={m.siteSlug()}
-            hint={m.sitePostSlugHint({ slug: draft.slug || "…" })}
-            dir="ltr"
-            maxLength={80}
-            autoComplete="off"
-            value={draft.slug}
-            onChange={(event) => {
-              onSlug();
-              onChange({ slug: event.target.value.toLowerCase() });
-            }}
-          />
-          <CheckboxRow
-            label={m.sitePinPost()}
-            hint={m.sitePinPostHint()}
-            checked={draft.pinned}
-            onChange={(pinned) => onChange({ pinned })}
-          />
-          {problems.length ? (
-            <ul className="grid gap-1 text-[13px] leading-[18px] text-destructive">
-              {problems.map((issue) => (
-                <li key={issue}>{issue}</li>
-              ))}
-            </ul>
-          ) : null}
-        </DetailsSection>
-      ) : null}
-    </>
+        )}
+      </FormField>
+    </DetailsSection>
   );
 }

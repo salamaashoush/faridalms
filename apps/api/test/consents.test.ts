@@ -378,35 +378,31 @@ function withPicture(body: ContentDocument, fileId: string): ContentDocument {
   };
 }
 
-/** A post opening with a picture in its words, and no cover. */
-const post = (
-  title: string,
-  pictureId: string,
-  visibility: "public" | "school",
-) => ({
+/** An address for a post on the website, its own each run. */
+const slugOf = (title: string) =>
+  `${title.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}-${crypto.randomUUID().slice(0, 6)}`;
+
+/** A post opening with a picture in its words, and no cover: on the website at `slug`, or inside the school. */
+const post = (title: string, pictureId: string, slug: string | null) => ({
   id: "",
   expectedVersion: 0,
-  visibility,
   primaryLocale: "en" as const,
   titleEn: title,
   titleAr: "",
   excerptEn: "",
   excerptAr: "",
-  slug: `${title.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}-${crypto.randomUUID().slice(0, 6)}`,
-  categoryId: "",
   coverFileId: "",
   coverAltEn: "",
   coverAltAr: "",
-  pinned: false,
+  parts: slug ? { website: { slug } } : {},
   urgency: "normal" as const,
   pinnedUntil: "",
   expiresOn: "",
   requiresAck: false,
   ackDueOn: "",
-  audiences:
-    visibility === "school"
-      ? [{ scope: "families" as const, classId: "", targetId: "" }]
-      : [],
+  audiences: slug
+    ? []
+    : [{ scope: "families" as const, classId: "", targetId: "" }],
   body: withPicture(plainContent(`${title} was a great day.`), pictureId),
   translation: null,
 });
@@ -418,8 +414,10 @@ describe("pictures of students", () => {
     const office = await principal();
     const fileId = await picture();
     // Its own title, apart from the seeded draft the website test keeps hidden.
-    const draft = post("Field day", fileId, "public");
-    const saved = await office.announcements.save(draft);
+    const slug = slugOf("Field day");
+    const saved = await office.announcements.save(
+      post("Field day", fileId, slug),
+    );
     await office.files.tagPictured({ id: fileId, studentIds: [studentId] });
     const { files } = await office.files.pictured({ ids: [fileId] });
     expect(files[0]?.people.map((row) => [row.id, row.website])).toEqual([
@@ -442,7 +440,7 @@ describe("pictures of students", () => {
     const read = await client("northwind").site.publicSitePost({
       school: "northwind",
       locale: "en",
-      slug: draft.slug,
+      slug,
     });
     expect(read.title).toBe("Field day");
     expect(read.coverKey).not.toBeNull();
@@ -461,7 +459,7 @@ describe("pictures of students", () => {
     const office = await principal();
     const fileId = await picture();
     const saved = await office.announcements.save(
-      post("Class assembly", fileId, "school"),
+      post("Class assembly", fileId, null),
     );
     await office.files.tagPictured({ id: fileId, studentIds: [studentId] });
     expect(
@@ -484,7 +482,7 @@ describe("pictures of students", () => {
     const studentId = await answerFor(family, "photo_school_news", false);
     const office = await principal();
     const [first, second] = [await picture(), await picture()];
-    const draft = post("Gallery day", first, "school");
+    const draft = post("Gallery day", first, null);
     const words = plainContent("Gallery day was a great day.");
     const saved = await office.announcements.save({
       ...draft,

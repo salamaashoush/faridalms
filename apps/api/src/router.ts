@@ -7,7 +7,9 @@ import { DecoratedProcedure, ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "./core/context";
 
+import { signIn as badgeSignIn } from "./badges/sign-in";
 import { modulesOf } from "./core/modules";
+import { peerSettings } from "./peer/settings";
 import * as absenceReportsSystem from "./systems/absence-reports";
 import * as accessSystem from "./systems/access";
 import * as admissionsSystem from "./systems/admissions";
@@ -64,6 +66,7 @@ import * as standardsSystem from "./systems/standards";
 import * as templatesSystem from "./systems/templates";
 import * as timetableSystem from "./systems/timetable";
 import * as yearsSystem from "./systems/years";
+import { announcementOptions, announcementPost } from "./website/announcements";
 
 /**
  * A namespace as its module answers it: every procedure of a module that
@@ -121,7 +124,7 @@ export const router = {
   identity: owned("identity", { ...identity, ...discovery }),
   people: owned("people", peopleSystem),
   guardians: owned("guardians", guardiansSystem),
-  badges: owned("badges", badgesSystem),
+  badges: owned("badges", { ...badgesSystem, signIn: badgeSignIn }),
   access: owned("access", accessSystem),
   school: owned("school", schoolSystem),
   billing: owned("billing", billingSystem),
@@ -142,7 +145,7 @@ export const router = {
   assistant: owned("assistant", assistantSystem),
   standards: owned("standards", standardsSystem),
   coursework: owned("coursework", courseworkSystem),
-  peer: owned("peer", peerSystem),
+  peer: owned("peer", { ...peerSystem, settings: peerSettings }),
   reading: owned("reading", readingSystem),
   gradebook: owned("gradebook", gradebookSystem),
   grading: owned("grading", gradingSystem),
@@ -162,7 +165,11 @@ export const router = {
   learning: owned("learning", learningSystem),
   pictures: owned("pictures", picturesSystem),
   media: owned("media", mediaSystem),
-  site: owned("site", siteSystem),
+  site: owned("site", {
+    ...siteSystem,
+    announcementPost,
+    announcementOptions,
+  }),
   admissions: owned("admissions", admissionsSystem),
   intakes: owned("intakes", intakesSystem),
   applications: owned("applications", applicationsSystem),

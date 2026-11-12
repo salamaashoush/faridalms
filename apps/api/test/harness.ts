@@ -364,6 +364,26 @@ export async function setPlan(
   }
 }
 
+/** Runs with a school's plan leaving these modules out, then gives it every module again. */
+export async function withoutModules(
+  slug: string,
+  modules: readonly string[],
+  run: () => Promise<void>,
+) {
+  const school = seeded()
+    .tenants.flatMap((tenant) => tenant.schools)
+    .find((row) => row.slug === slug);
+  if (!school) throw new Error(`no ${slug} school`);
+  await setPlan(school.id, {
+    modules: MODULE_IDS.filter((module) => !modules.includes(module)),
+  });
+  try {
+    await run();
+  } finally {
+    await setPlan(school.id, null);
+  }
+}
+
 /** The same app over the same cell, with some of what it was built with replaced. */
 export function handlerWith(overrides: Partial<ApiDependencies>) {
   return createApp({ ...seeded().dependencies, ...overrides });

@@ -12,7 +12,14 @@ import type { AppRouter } from "../src/router";
 
 import { createTurnstile } from "../src/core/turnstile";
 import { deliverTenant } from "../src/notifications/deliver";
-import { handlerWith, login, rejection, seeded, sessionFor } from "./harness";
+import {
+  handlerWith,
+  login,
+  rejection,
+  seeded,
+  sessionFor,
+  workerModules,
+} from "./harness";
 
 const principal = () => sessionFor("northwind", login("principal"));
 const officer = () => sessionFor("northwind", login("staff"));
@@ -559,6 +566,7 @@ describe("the enquiry inbox", () => {
       dependencies.cell,
       { email: mail, sms: null },
       seeded().tenants[0]?.tenantId ?? "",
+      workerModules(),
     );
     expect(delivered.sent).toBeGreaterThan(0);
     const email = mail.sent.findLast(

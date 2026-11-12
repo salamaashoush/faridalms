@@ -3,7 +3,6 @@ import type { InviteHolder } from "@faridalms/database/stores/invites";
 import type { Workspace } from "@faridalms/domain/workspace";
 
 import { writeAudit } from "@faridalms/database/audit";
-import { bindActor } from "@faridalms/database/context";
 import {
   ensureAccount,
   revokeAccountSessions,
@@ -12,16 +11,10 @@ import {
   updatePasswordSignIn,
 } from "@faridalms/database/stores/accounts";
 import {
-  findBadge,
-  slideBadge,
-  voidBadges,
-} from "@faridalms/database/stores/badges";
-import {
   attemptsSoFar,
   countAttempt,
   createSession,
   findPasswordIdentity,
-  recordSignIn,
   revokeSession,
   schoolProfile,
   sessionExpiresAt,
@@ -29,7 +22,6 @@ import {
 } from "@faridalms/database/stores/identity";
 import { findInvite, redeemInvite } from "@faridalms/database/stores/invites";
 import { confirmEmail } from "@faridalms/database/stores/students";
-import { BADGE_DAYS } from "@faridalms/domain/badges";
 import {
   acceptInviteSchema,
   changePasswordSchema,
@@ -38,7 +30,6 @@ import {
 } from "@faridalms/domain/first-sign-in";
 import { hostOf, placeOf, platformName } from "@faridalms/domain/hosts";
 import {
-  badgeSignInSchema,
   childSessionSchema,
   signInSchema,
   switchContextSchema,
@@ -57,6 +48,7 @@ import type { SchoolContext, UnitContext } from "../core/context";
 
 import { confirmAddress } from "../core/confirmed";
 import { modulesOf } from "../core/modules";
+import { channelsOf } from "../core/notify";
 import { sendPasswordReset } from "../core/password-reset";
 import {
   openSession,
@@ -78,21 +70,19 @@ import {
 import { reachesStudent } from "../core/reach";
 import {
   attemptKey,
+  BADGE_FAILURES,
   badgeHash,
   ipPrefix,
   issueToken,
   LIFETIME,
   SHARED_LIFETIME,
   userAgentSummary,
+  WINDOW_MINUTES,
 } from "../core/session";
 import { claimConversations } from "../messages/conversations";
 import { accessAt, accessAtSchool } from "../people/access";
 
 const PER_NAME = 10;
-// A class signs in together from one network, so only badges that fail
-// count against it.
-const BADGE_FAILURES = 20;
-const WINDOW_MINUTES = 15;
 
 type Outcome =
   | { ok: true; token: string; expiresAt: Date; workspace: Workspace }
@@ -153,136 +143,6 @@ export const signIn = schoolProcedure
             network: proof.network,
             nameKey: proof.nameKey,
           })),
-        };
-      },
-    );
-    if (!outcome.ok)
-      throw new ORPCError(
-        outcome.code === "auth.too_many_attempts"
-          ? "TOO_MANY_REQUESTS"
-          : "BAD_REQUEST",
-        { message: outcome.code },
-      );
-    return {
-      token: outcome.token,
-      expiresAt: outcome.expiresAt,
-      workspace: outcome.workspace,
-    };
-  });
-
-/**
- * Sign-in with a printed badge, for a young child at the school the badge
- * names. Only the secret's hash is looked up; a badge that is unknown,
- * stopped or expired reads the same. A child who has left the young grades
- * has the badge stopped, since older students sign in with a password.
- */
-export const badgeSignIn = schoolProcedure
-  .input(badgeSignInSchema)
-  .handler(async ({ input, context }) => {
-    const { tenantId, schoolId } = context.school;
-    const outcome = await context.cell.withTenant<Outcome>(
-      { tenantId, requestId: context.requestId, actor: { kind: "user" } },
-      "session",
-      async (tx) => {
-        const network = ipPrefix(context.headers, context.trustedProxyHops);
-        const networkKey = network
-          ? attemptKey(context.cellSecret, tenantId, `badge:${network}`)
-          : null;
-        if (
-          networkKey &&
-          (await attemptsSoFar(tx, tenantId, networkKey)) >= BADGE_FAILURES
-        ) {
-          await writeAudit(tx, tenantId, {
-            action: "account.sign_in",
-            outcome: "denied",
-            objectType: "account",
-            objectId: null,
-            details: { method: "badge", reason: "rate_limited" },
-          });
-          return { ok: false, code: "auth.too_many_attempts" };
-        }
-        const holder = await findBadge(tx, badgeHash(input.secret));
-        const today = schoolDate(
-          (await schoolProfile(tx, schoolId))?.timeZone ?? "UTC",
-        );
-        const access =
-          holder && holder.accountState === "active"
-            ? await accessAtSchool(tx, context, {
-                userId: holder.userId,
-                today,
-                context: "student",
-              })
-            : null;
-        const young =
-          access?.contexts.includes("student") &&
-          access.profile === "young_student";
-        if (!holder || !access || !young) {
-          if (networkKey)
-            await countAttempt(tx, tenantId, networkKey, WINDOW_MINUTES);
-          if (holder && access?.contexts.includes("student"))
-            await voidBadges(tx, {
-              tenantId,
-              accountIds: [holder.accountId],
-              reason: "aged_out",
-            });
-          await writeAudit(tx, tenantId, {
-            action: "account.sign_in",
-            outcome: "failed",
-            objectType: "account",
-            objectId: holder?.accountId ?? null,
-            subjectUserId: holder?.userId ?? null,
-            details: { method: "badge" },
-          });
-          return { ok: false, code: "auth.invalid_credentials" };
-        }
-        const { token, tokenHash } = issueToken(tenantId);
-        const session = await createSession(tx, {
-          tenantId,
-          accountId: holder.accountId,
-          tokenHash,
-          loginIdentityId: holder.identityId,
-          context: "student",
-          activeOrgId: schoolId,
-          idleMinutes: SHARED_LIFETIME.idle,
-          absoluteMinutes: SHARED_LIFETIME.absolute,
-          ipPrefix: network,
-          userAgentSummary: userAgentSummary(context.headers),
-          method: "badge",
-          clientKind: "shared_device",
-        });
-        await bindActor(tx, {
-          tenantId,
-          requestId: context.requestId,
-          actor: {
-            kind: "user",
-            userId: holder.userId,
-            accountId: holder.accountId,
-            sessionId: session.id,
-          },
-        });
-        await recordSignIn(tx, {
-          accountId: holder.accountId,
-          identityId: holder.identityId,
-          firstTime: holder.firstAuthenticatedAt === null,
-        });
-        await slideBadge(
-          tx,
-          holder.identityId,
-          new Date(Date.now() + BADGE_DAYS * 86_400_000),
-        );
-        await writeAudit(tx, tenantId, {
-          action: "account.sign_in",
-          objectType: "account",
-          objectId: holder.accountId,
-          orgId: schoolId,
-          subjectUserId: holder.userId,
-          details: { context: "student", method: "badge" },
-        });
-        return {
-          ok: true,
-          token,
-          expiresAt: session.absoluteExpiresAt,
-          workspace: WORKSPACE_OF[access.profile],
         };
       },
     );
@@ -589,6 +449,8 @@ export const currentUser = readProcedure.handler(async ({ context }) => {
     roles: [...context.actor.roles],
     capabilities: [...context.actor.capabilities],
     modules: await modulesOf(context),
+    /** Whether notices also reach people by text at this school. */
+    texts: (await channelsOf(context)).includes("sms"),
     school: {
       id: school.id,
       slug: context.school.slug,

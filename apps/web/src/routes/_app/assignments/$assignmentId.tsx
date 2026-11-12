@@ -6,17 +6,17 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
 
-import {
-  AssignmentRecord,
-  RECORD_TABS,
-} from "~/components/coursework/AssignmentRecord";
+import { AssignmentRecord } from "~/components/coursework/AssignmentRecord";
 import {
   BriefReading,
   readingOf,
   titleRead,
 } from "~/components/coursework/BriefLanguage";
 import { LearnerWork } from "~/components/coursework/LearnerWork";
+import { assignmentRecordTabs } from "~/components/coursework/slots";
 import { assignmentRecordQuery, myWorkQuery } from "~/queries/coursework";
+import { currentUserQuery } from "~/queries/user";
+import { filled } from "~/utils/extension";
 
 const learns = (workspace: string | null) => workspace === "me";
 
@@ -30,7 +30,10 @@ export const Route = createFileRoute("/_app/assignments/$assignmentId")({
     section: ["/assignments", "/me/assignments"],
   },
   validateSearch: v.object({
-    tab: v.fallback(v.optional(v.picklist(RECORD_TABS), "brief"), "brief"),
+    tab: v.fallback(
+      v.optional(v.pipe(v.string(), v.regex(/^[a-z]{1,20}$/)), "brief"),
+      "brief",
+    ),
     /** The language the brief is read in, where it has two. */
     read: v.fallback(v.optional(v.picklist(CONTENT_LOCALES)), undefined),
   }),
@@ -39,10 +42,20 @@ export const Route = createFileRoute("/_app/assignments/$assignmentId")({
       await context.queryClient.ensureQueryData(
         myWorkQuery(params.assignmentId),
       );
-    else
-      await context.queryClient.ensureQueryData(
-        assignmentRecordQuery(params.assignmentId),
-      );
+    else {
+      const user = await context.queryClient.ensureQueryData(currentUserQuery);
+      await Promise.all([
+        context.queryClient.ensureQueryData(
+          assignmentRecordQuery(params.assignmentId),
+        ),
+        ...filled(context.extensions, user.modules, assignmentRecordTabs).map(
+          (part) =>
+            context.queryClient.ensureQueryData(
+              part.query(params.assignmentId),
+            ),
+        ),
+      ]);
+    }
   },
   component: AssignmentPage,
 });

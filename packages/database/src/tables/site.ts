@@ -229,6 +229,51 @@ export const siteCategories = core.table.withRLS(
 );
 
 /**
+ * An announcement the school puts on its website: the address it reads at,
+ * the category visitors find it under, and whether it stands first among
+ * the posts. One without a row stays inside the school.
+ */
+export const sitePosts = core.table.withRLS(
+  "site_posts",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    broadcastId: uuid("broadcast_id").notNull(),
+    slug: text("slug").notNull(),
+    categoryId: uuid("category_id"),
+    pinned: boolean("pinned").notNull().default(false),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("site_posts", t.tenantId, t.id),
+    ...baseConstraints("site_posts", t, tenants),
+    fk("site_posts", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk(
+      "site_posts",
+      [t.tenantId, t.broadcastId],
+      [broadcasts.tenantId, broadcasts.id],
+    ),
+    fk(
+      "site_posts",
+      [t.tenantId, t.categoryId],
+      [siteCategories.tenantId, siteCategories.id],
+    ),
+    ck(
+      "site_posts",
+      "slug",
+      sql`char_length(slug) <= 80 and slug ~ ${slugPattern}`,
+    ),
+    uniqueIndex("site_posts_broadcast_key")
+      .on(t.tenantId, t.broadcastId)
+      .where(sql`status = 'active'`),
+    uniqueIndex("site_posts_slug_key")
+      .on(t.tenantId, t.orgId, t.slug)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
  * An old address of the school's site that visitors and search engines are
  * sent on from, permanently: to a page, followed through renames, or to
  * `to_url`, a path on the site or an address elsewhere. A visitor is sent

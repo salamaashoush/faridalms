@@ -101,10 +101,6 @@ import {
   unlinkFiles,
 } from "@faridalms/database/stores/files";
 import { classCategories } from "@faridalms/database/stores/grading";
-import {
-  attemptUnderReview,
-  reviewsAttempt,
-} from "@faridalms/database/stores/peer-reviews";
 import { namesOf } from "@faridalms/database/stores/persons";
 import {
   keepPracticeAnswer,
@@ -264,6 +260,8 @@ import {
   partsPublished,
   partsReused,
   readsAttempt,
+  readsSubmissionFile,
+  attemptHeld,
 } from "../coursework/points";
 import {
   registerArea,
@@ -273,7 +271,6 @@ import {
   registerLiveRules,
   placeMedia,
 } from "../files/authorize";
-import { reviewerReads } from "../peer/work";
 import {
   answersByAttempt,
   attemptQuizzes,
@@ -411,12 +408,6 @@ async function readable(
   if (host.type === "submission_attempt")
     return (
       owner.studentId === context.actor.userId ||
-      (can(context, "own-work:submit") &&
-        (await reviewsAttempt(context.tx, {
-          tenantId: context.tenantId,
-          attemptId: host.id,
-          reviewerId: context.actor.userId,
-        }))) ||
       (owner.studentId !== null &&
         (await readsAttempt(context, {
           attemptId: host.id,
@@ -507,7 +498,11 @@ registerHostReader(
   "submission",
   async (context, hostId, file) =>
     (await readable(context, { type: "submission", id: hostId })) ||
-    (file !== undefined && (await reviewerReads(context, hostId, file.id))),
+    (file !== undefined &&
+      (await readsSubmissionFile(context, {
+        submissionId: hostId,
+        fileId: file.id,
+      }))),
 );
 registerHostReader("submission_attempt", (context, hostId) =>
   readable(context, { type: "submission_attempt", id: hostId }),
@@ -676,28 +671,12 @@ export const editor = readProcedure
               replies: assignment.discussionReplies,
             }
           : null,
-      peer: peerSettingsOf(assignment),
-      /** Reviews were handed out, so peer review stays on. */
-      peerStarted: assignment.peerStartedAt !== null,
       selection:
         assignment.audience === "selected"
           ? selection
           : { groupIds: [], studentIds: [] },
     };
   });
-
-const peerSettingsOf = (assignment: {
-  peerReviews: number | null;
-  peerAnonymous: boolean | null;
-  peerDueAt: string | null;
-}) =>
-  assignment.peerReviews !== null && assignment.peerAnonymous !== null
-    ? {
-        reviews: assignment.peerReviews,
-        anonymous: assignment.peerAnonymous,
-        dueAt: assignment.peerDueAt ?? "",
-      }
-    : null;
 
 function fieldsOf(input: SaveAssignment) {
   return {
@@ -727,9 +706,6 @@ function fieldsOf(input: SaveAssignment) {
     gradeAfterAnswers: !input.quiz && input.gradeAfterAnswers,
     discussionPostFirst: input.discussion?.postFirst ?? null,
     discussionReplies: input.discussion?.replies ?? null,
-    peerReviews: input.peer?.reviews ?? null,
-    peerAnonymous: input.peer?.anonymous ?? null,
-    peerDueAt: input.peer?.dueAt || null,
   };
 }
 
@@ -801,9 +777,6 @@ export const reuse = writeProcedure
       gradeAfterAnswers: source.gradeAfterAnswers,
       discussionPostFirst: source.discussionPostFirst,
       discussionReplies: source.discussionReplies,
-      peerReviews: source.peerReviews,
-      peerAnonymous: source.peerAnonymous,
-      peerDueAt: null,
       language: source.language,
       translationTitle: source.translationTitle,
     });
@@ -896,6 +869,7 @@ export const save = writeProcedure
       const decided = await part.prepare?.(context, {
         classId: classRow.id,
         format: input.submissionFormat,
+        dueAt: input.dueAt || null,
         stored,
         value: input.parts[part.key],
       });
@@ -963,11 +937,6 @@ export const save = writeProcedure
       )
         throw new ORPCError("CONFLICT", {
           message: "coursework.format_fixed",
-        });
-      // Handed-out reviews belong to the work, so peer review stays on.
-      if (existing.peerStartedAt && !input.peer)
-        throw new ORPCError("CONFLICT", {
-          message: "coursework.peer_started",
         });
       const saved = await updateAssignment(tx, {
         tenantId: context.tenantId,
@@ -1822,8 +1791,6 @@ export const grading = readProcedure
         rubric: assignment.rubric as unknown as Rubric | null,
         latePolicy: assignment.latePolicy,
         lateDeductionPercent: assignment.lateDeductionPercent,
-        /** Classmates review each other's work. */
-        peer: assignment.peerReviews !== null,
       },
       student: row,
       attempts: row.submissionId
@@ -2340,8 +2307,6 @@ export const work = readProcedure
         resubmission: assignment.resubmission,
         points: assignment.points,
         rubric: assignment.rubric as unknown as Rubric | null,
-        /** Classmates review each other's work. */
-        peer: assignment.peerReviews !== null,
         language: assignment.language,
         class: classRow
           ? {
@@ -2395,11 +2360,7 @@ export const work = readProcedure
         assignment.submissionFormat !== "discussion" &&
         row.attemptId !== null &&
         row.assessmentId === null &&
-        !(await attemptUnderReview(
-          context.tx,
-          context.tenantId,
-          row.attemptId,
-        )),
+        (await attemptHeld(context, row.attemptId)) === null,
       now: context.now.toISOString(),
     };
   });
@@ -2853,11 +2814,8 @@ export const undoHandIn = writeProcedure
       row.assessmentId
     )
       throw new ORPCError("CONFLICT", { message: "coursework.cannot_undo" });
-    // Classmates were given it to review, so it stays as handed in.
-    if (await attemptUnderReview(tx, context.tenantId, row.attemptId))
-      throw new ORPCError("CONFLICT", {
-        message: "coursework.peer_handed_out",
-      });
+    const held = await attemptHeld(context, row.attemptId);
+    if (held) throw new ORPCError("CONFLICT", { message: held });
     if (!(await withdrawAttempt(tx, context.tenantId, row.attemptId)))
       throw new ORPCError("CONFLICT", { message: "coursework.cannot_undo" });
     await rehostFiles(tx, {

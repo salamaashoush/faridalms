@@ -16,8 +16,11 @@ import { replyAddress } from "@faridalms/domain/email-replies";
 import { retryDelayMs } from "@faridalms/domain/notifications";
 import { ProviderError } from "@faridalms/mail/providers";
 
+import type { WorkerModules } from "../core/extension";
 import type { FileStore } from "../files/store";
 
+import { workerScope } from "../core/extension";
+import { channelsOf } from "../core/notify";
 import { replyKey, replyToken } from "../messages/reply";
 import { conversationMessage, render } from "./templates";
 
@@ -170,13 +173,15 @@ async function conversationEmail(
  * a lock inside the unit, so two passes never send the same one; a person's
  * digest items leave as one message; a conversation's message to an outside
  * contact leaves whole; a failed send is retried with backoff until the
- * attempts run out. What is due is judged by the database's clock, the one
- * deliveries were made due by.
+ * attempts run out. A text planned before its school turned texts off is not
+ * sent. What is due is judged by the database's clock, the one deliveries
+ * were made due by.
  */
 export async function deliverTenant(
   cell: Cell,
   gateways: Gateways,
   tenantId: string,
+  modules: WorkerModules,
   limit = 200,
 ): Promise<{ sent: number; failed: number }> {
   return cell.withWorker(
@@ -186,6 +191,15 @@ export async function deliverTenant(
       const due = await claimDue(tx, { tenantId, now, limit });
       let sent = 0;
       let failed = 0;
+      const texting = new Map<string, boolean>();
+      const textsAt = async (schoolId: string) => {
+        const known = texting.get(schoolId);
+        if (known !== undefined) return known;
+        const scope = await workerScope(modules, { tx, tenantId, schoolId });
+        const on = scope !== null && (await channelsOf(scope)).includes("sms");
+        texting.set(schoolId, on);
+        return on;
+      };
       for (const group of groups(due)) {
         const [head] = group;
         if (!head) continue;
@@ -199,6 +213,14 @@ export async function deliverTenant(
             tenantId,
             ids,
             outcome: { state: "skipped", reason: "no_provider" },
+          });
+          continue;
+        }
+        if (head.channel === "sms" && !(await textsAt(head.orgId))) {
+          await settleDeliveries(tx, {
+            tenantId,
+            ids,
+            outcome: { state: "skipped", reason: "module_off" },
           });
           continue;
         }

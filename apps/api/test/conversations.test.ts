@@ -21,6 +21,7 @@ import {
   rejection,
   seeded,
   sessionFor,
+  workerModules,
 } from "./harness";
 
 const officer = () => sessionFor("northwind", login("staff"));
@@ -71,6 +72,7 @@ function deliver() {
       conversations: { replyDomain: DOMAIN, cellSecret, files },
     },
     tenantId(),
+    workerModules(),
   );
 }
 

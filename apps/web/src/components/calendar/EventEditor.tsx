@@ -69,7 +69,7 @@ import {
   DocumentPage,
   DocumentTitle,
 } from "~/components/system/DocumentPage";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
@@ -240,6 +240,7 @@ export function EventEditor({
 }: EventEditorProps) {
   const options = useSuspenseQuery(calendarOptionsQuery).data;
   const kinds = useSlot(audienceKinds);
+  const { texts } = useCurrentUser();
   const queryClient = useQueryClient();
   const media = useDocumentMedia();
   const id = useRef(existing?.id ?? "");
@@ -828,7 +829,11 @@ export function EventEditor({
               <DetailsSection title={m.calSectionTelling()}>
                 <CheckboxRow
                   label={m.calTellOnPublish()}
-                  hint={m.calTellOnPublishHint()}
+                  hint={
+                    texts
+                      ? m.calTellOnPublishHint()
+                      : m.calTellOnPublishHintEmail()
+                  }
                   checked={tellOnPublish}
                   onChange={setTellOnPublish}
                 />

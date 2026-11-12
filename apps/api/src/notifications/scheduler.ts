@@ -1,6 +1,7 @@
 import type { Cell } from "@faridalms/database/context";
 import type { Directory } from "@faridalms/database/directory/client";
 
+import type { ModuleContributions } from "../core/extension";
 import type { Gateways } from "./deliver";
 
 import { deliverTenant } from "./deliver";
@@ -14,6 +15,7 @@ export function startDelivery(input: {
   directory: Directory;
   cellId: string;
   gateways: Gateways;
+  extensions: readonly ModuleContributions[];
   intervalMs: number;
 }): () => Promise<void> {
   let stopped = false;
@@ -23,7 +25,10 @@ export function startDelivery(input: {
     for (const tenantId of tenants) {
       if (stopped) return;
       try {
-        await deliverTenant(input.cell, input.gateways, tenantId);
+        await deliverTenant(input.cell, input.gateways, tenantId, {
+          directory: input.directory,
+          extensions: input.extensions,
+        });
       } catch (error) {
         console.error(
           JSON.stringify({

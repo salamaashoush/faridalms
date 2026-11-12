@@ -238,17 +238,26 @@ describe("the ownership gate", () => {
   });
 
   test("refuses a list out of order, or one listing an entry twice", async () => {
-    const [entry] = OWNERSHIP_VIOLATIONS.website ?? [];
-    if (!entry) throw new Error("a violation still listed is needed");
-    const problems = ownershipProblems(await readOwnership(harness().su), {
-      ...registry,
-      violations: { ...OWNERSHIP_VIOLATIONS, website: [entry, entry] },
-    });
-    expect(problems).toEqual([
+    const catalogue = await withProbe();
+    const tables = { ...TABLE_OWNERS, [PROBE]: { owner: "core" as const } };
+    const listed = (school_years: string[]) =>
+      ownershipProblems(catalogue, {
+        ...registry,
+        tables,
+        violations: {
+          ...OWNERSHIP_VIOLATIONS,
+          school_years,
+          grade_levels: [probeNamespace],
+          timetable: [probePeriod],
+        },
+      });
+    const refused = [
       {
-        name: "violations reaching website",
+        name: "violations reaching school_years",
         problem: "are not sorted, or list one twice",
       },
-    ]);
+    ];
+    expect(listed([probeYear, probeKey])).toEqual(refused);
+    expect(listed([probeKey, probeKey, probeYear])).toEqual(refused);
   });
 });

@@ -17,9 +17,7 @@ import {
   getQuizAnswers,
   getQuizPollResults,
   getMyCoursework,
-  getMyPeerReviews,
   getMyWork,
-  getPeerOverview,
   getReusable,
 } from "~/server/coursework";
 
@@ -122,16 +120,4 @@ export const classGroupsQuery = (classId: string) =>
   queryOptions({
     queryKey: ["coursework", "groups", classId],
     queryFn: () => getClassGroups({ data: { classId } }),
-  });
-
-export const peerOverviewQuery = (assignmentId: string) =>
-  queryOptions({
-    queryKey: ["coursework", "peer", assignmentId],
-    queryFn: () => getPeerOverview({ data: { assignmentId } }),
-  });
-
-export const myPeerReviewsQuery = (assignmentId: string) =>
-  queryOptions({
-    queryKey: ["coursework", "peer", "mine", assignmentId],
-    queryFn: () => getMyPeerReviews({ data: { assignmentId } }),
   });

@@ -117,7 +117,8 @@ export type NotificationKind =
   | "grades"
   | "correction"
   | "reenrolment"
-  | "admission_event";
+  | "admission_event"
+  | "peer_review";
 export type DeliveryChannel = "email" | "sms";
 export type DeliveryState = "pending" | "sent" | "failed" | "skipped";
 export type DeliveryReason =
@@ -127,7 +128,8 @@ export type DeliveryReason =
   | "no_provider"
   | "withdrawn"
   | "provider_error"
-  | "gave_up";
+  | "gave_up"
+  | "module_off";
 
 export const notifications = core.table("notifications", {
   tenantId: uuid("tenant_id").notNull(),

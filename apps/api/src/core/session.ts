@@ -110,3 +110,11 @@ export function issueBadgeSecret(): { secret: string; secretHash: string } {
 export function badgeHash(secret: string): string {
   return createHash("sha256").update(secret).digest("hex");
 }
+
+/**
+ * Wrong guesses from one network, within the window, before it is stopped.
+ * A class signs in together from one network, so only badges that fail
+ * count against it.
+ */
+export const BADGE_FAILURES = 20;
+export const WINDOW_MINUTES = 15;

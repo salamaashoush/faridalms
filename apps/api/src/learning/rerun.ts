@@ -1,5 +1,4 @@
 import type { Cell } from "@faridalms/database/context";
-import type { Directory } from "@faridalms/database/directory/client";
 
 import { versionContent } from "@faridalms/database/stores/documents";
 import {
@@ -17,13 +16,14 @@ import {
 import { lessonOfContent } from "@faridalms/domain/lesson-content";
 import * as v from "valibot";
 
-import type { ModuleContributions, WorkerModules } from "../core/extension";
-import type { Remark } from "../learning/remarks";
-import type { CodeRunner } from "./run";
+import type { CodeRunner } from "../coding/run";
+import type { WorkerModules } from "../core/extension";
+import type { ModuleWorker } from "../core/workers";
+import type { Remark } from "./remarks";
 
-import { workerScope } from "../core/extension";
-import { applyRemarks } from "../learning/remarks";
-import { markedProgram } from "./mark";
+import { markedProgram } from "../coding/mark";
+import { schoolsWith, workerScope } from "../core/extension";
+import { applyRemarks } from "./remarks";
 
 type Runners = { python: CodeRunner | null; javascript: CodeRunner };
 
@@ -131,9 +131,14 @@ export async function rerunPrograms(
   modules: WorkerModules,
   limit = 5,
 ): Promise<number> {
-  const asks = await cell.withWorker(asWorker(tenantId), "read", (tx) =>
-    pendingProgramRemarks(tx, { tenantId, limit }),
-  );
+  const asks = await cell.withWorker(asWorker(tenantId), "read", async (tx) => {
+    const schools = await schoolsWith(modules, { tx, tenantId }, ["elearning"]);
+    return pendingProgramRemarks(tx, {
+      tenantId,
+      orgIds: schools.map((scope) => scope.schoolId),
+      limit,
+    });
+  });
   let finished = 0;
   for (const ask of asks)
     try {
@@ -155,38 +160,36 @@ export async function rerunPrograms(
  * Runs the code re-marking pass tenant by tenant on a timer, in the process
  * that holds the code runners. Each pass waits for the previous one.
  */
-export function startProgramReruns(input: {
-  cell: Cell;
-  directory: Directory;
-  extensions: readonly ModuleContributions[];
-  cellId: string;
-  runners: Runners;
-  intervalMs: number;
-}): () => Promise<void> {
-  let stopped = false;
-  let running: Promise<void> | null = null;
-  const pass = async () => {
-    const tenants = await input.directory.tenantsOfCell(input.cellId);
-    for (const tenantId of tenants) {
-      if (stopped) return;
-      await rerunPrograms(input.cell, input.runners, tenantId, input);
-    }
-  };
-  const timer = setInterval(() => {
-    if (running || stopped) return;
-    running = pass()
-      .catch((error: unknown) =>
-        console.error(
-          JSON.stringify({ worker: "program-remarks", error: String(error) }),
-        ),
-      )
-      .finally(() => {
-        running = null;
-      });
-  }, input.intervalMs);
-  return async () => {
-    stopped = true;
-    clearInterval(timer);
-    await running;
-  };
-}
+export const PROGRAM_RERUNS: ModuleWorker = {
+  module: "elearning",
+  name: "program.reruns",
+  start: (deps) => {
+    let stopped = false;
+    let running: Promise<void> | null = null;
+    const modules = { directory: deps.directory, extensions: deps.extensions };
+    const pass = async () => {
+      const tenants = await deps.directory.tenantsOfCell(deps.cellId);
+      for (const tenantId of tenants) {
+        if (stopped) return;
+        await rerunPrograms(deps.cell, deps.runners, tenantId, modules);
+      }
+    };
+    const timer = setInterval(() => {
+      if (running || stopped) return;
+      running = pass()
+        .catch((error: unknown) =>
+          console.error(
+            JSON.stringify({ worker: "program-remarks", error: String(error) }),
+          ),
+        )
+        .finally(() => {
+          running = null;
+        });
+    }, 30_000);
+    return async () => {
+      stopped = true;
+      clearInterval(timer);
+      await running;
+    };
+  },
+};

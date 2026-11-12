@@ -3,6 +3,7 @@ import type { ContentDocument } from "@faridalms/domain/content";
 
 import { classById } from "@faridalms/database/stores/classes";
 import {
+  assignmentById,
   insertAssignment,
   isRecipient,
   setAssignmentState,
@@ -47,7 +48,7 @@ import { can, requireCapability } from "../core/procedure";
 import { requireStudent, teaches } from "../core/reach";
 import { ownSchedule, taughtAssignment } from "../coursework/access";
 import { teachingScope, tellAssigned } from "../coursework/notices";
-import { assignmentParts } from "../coursework/points";
+import { assignmentParts, partsFollow } from "../coursework/points";
 import { placeMedia } from "../files/authorize";
 import { mayEditModule } from "./access";
 import { moduleParts } from "./points";
@@ -127,9 +128,6 @@ function sharedFields(lead: AssignmentRow) {
     gradeAfterAnswers: lead.gradeAfterAnswers,
     discussionPostFirst: lead.discussionPostFirst,
     discussionReplies: lead.discussionReplies,
-    peerReviews: lead.peerReviews,
-    peerAnonymous: lead.peerAnonymous,
-    peerDueAt: lead.peerDueAt,
     language: lead.language,
     translationTitle: lead.translationTitle,
   };
@@ -232,6 +230,10 @@ async function spreadDiscussion(
       categoryId: part.categoryId,
     });
     if (!saved) continue;
+    await partsFollow(context, {
+      lead,
+      part: { ...part, ...sharedFields(lead), version: saved.version },
+    });
     const documentId = await copyWords(context, lead, part.id);
     if (published)
       await publishPart(
@@ -261,6 +263,8 @@ async function spreadDiscussion(
       moduleId,
       group,
     });
+    const made = await assignmentById(tx, tenantId, created.id);
+    if (made) await partsFollow(context, { lead, part: made });
     const documentId = await copyWords(context, lead, created.id);
     if (published)
       await publishPart(
