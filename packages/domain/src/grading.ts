@@ -1,6 +1,6 @@
 import * as v from "valibot";
 
-import { EXAM_BOARDS } from "./exams";
+import { pageField } from "./paging";
 
 /** A grade a scale gives from a percentage up, and its GPA points if any. */
 export interface GradeBand {
@@ -267,9 +267,6 @@ export const saveProgrammeSchema = v.pipe(
     titleAr: title,
     gradeLevelIds: v.pipe(v.array(uuid), v.maxLength(20)),
     scaleId: v.nullable(uuid),
-    /** The board whose sessions its coursework usually counts for. */
-    officialBoard: v.nullable(v.picklist(EXAM_BOARDS)),
-    boardId: v.nullable(uuid),
     /** How work weighs in a term grade; none weighs all work by its points. */
     categories: v.optional(
       v.pipe(v.array(categorySchema), v.maxLength(12)),
@@ -279,10 +276,6 @@ export const saveProgrammeSchema = v.pipe(
   v.check(
     (input) => Boolean(input.titleEn ?? input.titleAr),
     "grading.title_needed",
-  ),
-  v.check(
-    (input) => !(input.officialBoard && input.boardId),
-    "grading.one_board",
   ),
   v.check(
     (input) =>
@@ -295,6 +288,9 @@ export const saveProgrammeSchema = v.pipe(
 );
 
 export const retireProgrammeSchema = v.object({ id: uuid });
+
+/** A page of the changes made to the school's grading. */
+export const gradingHistorySchema = v.object({ page: pageField });
 
 /** A class's programme and its own scale, each empty to follow the default. */
 export const classGradingSchema = v.object({

@@ -1,4 +1,3 @@
-import type { ExamBoard, ExamSeries } from "@faridalms/domain/exams";
 import type { OperatorItem } from "@faridalms/domain/onboarding";
 import type {
   EntitlementsInput,
@@ -6,7 +5,6 @@ import type {
   SchoolEntitlements,
 } from "@faridalms/domain/plans";
 
-import { seriesId } from "@faridalms/domain/exams";
 import { SQL } from "bun";
 import { and, asc, desc, eq, gte, ilike, inArray, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
@@ -27,7 +25,6 @@ import {
 import {
   cells,
   changes,
-  examSeries,
   hosts,
   schoolEntitlements,
   schoolOnboarding,
@@ -707,59 +704,6 @@ export function openDirectoryAdmin(url: string) {
         reason: "Sent the school's administrator a new link",
       });
     },
-    series: async (): Promise<ExamSeries[]> =>
-      db
-        .select({
-          id: examSeries.id,
-          board: examSeries.board,
-          sitsIn: examSeries.sitsIn,
-          keepUntil: examSeries.keepUntil,
-          retired: examSeries.retired,
-        })
-        .from(examSeries)
-        .orderBy(asc(examSeries.sitsIn), asc(examSeries.board)),
-    /** Adds an official session or changes its dates, named by board and month. */
-    saveSeries: async (input: {
-      board: ExamBoard;
-      sitsIn: string;
-      keepUntil: string;
-      retired: boolean;
-      operatorId: string;
-      reason: string;
-    }) =>
-      db.transaction(async (tx) => {
-        const id = seriesId(input.board, input.sitsIn);
-        const [before] = await tx
-          .select()
-          .from(examSeries)
-          .where(eq(examSeries.id, id))
-          .for("update");
-        const after = { keepUntil: input.keepUntil, retired: input.retired };
-        await tx
-          .insert(examSeries)
-          .values({
-            id,
-            board: input.board,
-            sitsIn: input.sitsIn,
-            ...after,
-          })
-          .onConflictDoUpdate({
-            target: examSeries.id,
-            set: { ...after, updatedAt: new Date() },
-          });
-        await tx.insert(changes).values({
-          actor: `operator:${input.operatorId}`,
-          subjectType: "exam_series",
-          subjectId: id,
-          action: before ? "series.update" : "series.create",
-          before: before
-            ? { keepUntil: before.keepUntil, retired: before.retired }
-            : null,
-          after,
-          reason: input.reason,
-        });
-        return id;
-      }),
     changes: async (
       subject: { id?: string; type?: Change["subjectType"] } = {},
     ): Promise<Change[]> => {

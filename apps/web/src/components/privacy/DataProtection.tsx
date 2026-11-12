@@ -21,7 +21,6 @@ import { toast } from "sonner";
 
 import type { getPrivacyOverview } from "~/server/privacy";
 
-import { sessionName } from "~/components/exams/names";
 import { displayName } from "~/components/people/format";
 import { UserText } from "~/components/system/UserText";
 import { inLocale } from "~/hooks/useCurrentUser";
@@ -56,11 +55,6 @@ function standing(
     return {
       tone: "info",
       label: m.privacyRequestOpen({ date: formatDate(row.block.dueOn) }),
-    };
-  if (row.block?.kind === "exam")
-    return {
-      tone: "neutral",
-      label: m.privacyExamUntil({ date: formatDate(row.block.until) }),
     };
   if (row.noBirthDate)
     return { tone: "warning", label: m.privacyNoBirthDate() };
@@ -297,36 +291,6 @@ export function ReviewTable({
           description: m.privacyNoLeaversHint(),
         }}
       />
-      {overview.sessions.length ? (
-        <RecordSection
-          title={m.privacyExamTitle()}
-          description={m.privacyExamHint()}
-        >
-          <ul className="grid divide-y">
-            {overview.sessions.map((row) => (
-              <li
-                key={row.id}
-                className="flex flex-wrap items-start justify-between gap-x-6 gap-y-1 py-3"
-              >
-                <span className="grid min-w-0 gap-0.5">
-                  <bdi className="text-sm leading-5 font-medium">
-                    {sessionName(row)}
-                  </bdi>
-                  <span className="text-[13px] leading-[18px] text-muted-foreground">
-                    {m.privacyExamCounts({
-                      assignments: formatNumber(row.assignments),
-                      handedIn: formatNumber(row.handedIn),
-                    })}
-                  </span>
-                </span>
-                <StatusText tone="warning">
-                  {m.privacyExamPast({ date: formatDate(row.keepUntil) })}
-                </StatusText>
-              </li>
-            ))}
-          </ul>
-        </RecordSection>
-      ) : null}
       <ErasuresSection overview={overview} />
     </div>
   );

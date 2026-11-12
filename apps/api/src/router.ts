@@ -28,7 +28,6 @@ import * as coverSystem from "./systems/cover";
 import * as decisionsSystem from "./systems/decisions";
 import * as discovery from "./systems/discovery";
 import * as documentsSystem from "./systems/documents";
-import * as examsSystem from "./systems/exams";
 import * as filesSystem from "./systems/files";
 import * as followUpSystem from "./systems/follow-up";
 import * as frontDeskSystem from "./systems/front-desk";
@@ -134,7 +133,6 @@ export const router = {
   coursework: owned("coursework", courseworkSystem),
   peer: owned("peer", peerSystem),
   reading: owned("reading", readingSystem),
-  exams: owned("exams", examsSystem),
   gradebook: owned("gradebook", gradebookSystem),
   grading: owned("grading", gradingSystem),
   privacy: owned("privacy", privacySystem),

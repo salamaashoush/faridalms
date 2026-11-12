@@ -1,8 +1,6 @@
-import type { ExamBoard } from "@faridalms/domain/exams";
 import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 import type { ReactNode } from "react";
 
-import { EXAM_BOARDS } from "@faridalms/domain/exams";
 import { Button } from "@faridalms/ui/button";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
 import { DataTable, RowButton } from "@faridalms/ui/system/data-table";
@@ -24,14 +22,12 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { BOARD_LABEL, boardTitle } from "~/components/exams/names";
 import { CheckboxRow } from "~/components/people/fields";
 import { labelOf } from "~/components/people/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { classOptionsQuery } from "~/queries/classes";
-import { examOverviewQuery } from "~/queries/exams";
 import { retireProgramme, saveProgramme } from "~/server/grading";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -49,7 +45,6 @@ const title = (row: { titleEn: string | null; titleAr: string | null }) =>
 
 function useNames(overview: GradingOverview) {
   const grades = useQuery(classOptionsQuery).data?.grades ?? [];
-  const boards = useQuery(examOverviewQuery).data?.boards ?? [];
   const levels = (row: ProgrammeRow) =>
     formatList(
       grades
@@ -60,12 +55,7 @@ function useNames(overview: GradingOverview) {
     const found = overview.scales.find((item) => item.id === row.scaleId);
     return found ? title(found) : m.gradingNoScale();
   };
-  const board = (row: ProgrammeRow) => {
-    if (row.officialBoard) return BOARD_LABEL[row.officialBoard as ExamBoard]();
-    const own = boards.find((item) => item.id === row.boardId);
-    return own ? boardTitle(own) : "";
-  };
-  return { levels, scale, board, grades, boards };
+  return { levels, scale, grades };
 }
 
 function columns(names: ReturnType<typeof useNames>): Column<ProgrammeRow>[] {
@@ -88,11 +78,6 @@ function columns(names: ReturnType<typeof useNames>): Column<ProgrammeRow>[] {
       ),
     },
     { id: "scale", header: m.gradingScale(), cell: (row) => names.scale(row) },
-    {
-      id: "board",
-      header: m.examBoard(),
-      cell: (row) => names.board(row) || m.gradingNoBoard(),
-    },
     {
       id: "classes",
       header: m.gradingClasses(),
@@ -205,7 +190,7 @@ function categoryColumns(
     },
     {
       id: "other",
-      header: ar ? m.examTitleEn() : m.examTitleAr(),
+      header: ar ? m.gradingTitleEn() : m.gradingTitleAr(),
       cell: (row) => (
         <span lang={ar ? "en" : "ar"} dir="auto">
           {ar ? row.titleEn : row.titleAr}
@@ -291,7 +276,7 @@ function CategorySheet({
     >
       <TextField
         id="category-title-en"
-        label={m.examTitleEn()}
+        label={m.gradingTitleEn()}
         width="name"
         lang="en"
         maxLength={60}
@@ -302,7 +287,7 @@ function CategorySheet({
       />
       <TextField
         id="category-title-ar"
-        label={m.examTitleAr()}
+        label={m.gradingTitleAr()}
         width="name"
         lang="ar"
         dir="rtl"
@@ -457,9 +442,6 @@ export function ProgrammeSheet({
     programme?.gradeLevelIds ?? [],
   );
   const [scaleId, setScaleId] = useState(programme?.scaleId ?? NONE);
-  const [board, setBoard] = useState(
-    programme?.officialBoard ?? programme?.boardId ?? NONE,
-  );
   const [categories, setCategories] = useState<CategoryDraft[]>(() =>
     (programme?.categories ?? []).map((row) => ({
       key: row.id,
@@ -472,19 +454,14 @@ export function ProgrammeSheet({
   const [tried, setTried] = useState(false);
   const weightsIssue = weightsProblem(categories);
   const mutation = useMutation({
-    mutationFn: () => {
-      const official = (EXAM_BOARDS as readonly string[]).includes(board)
-        ? (board as ExamBoard)
-        : null;
-      return saveProgramme({
+    mutationFn: () =>
+      saveProgramme({
         data: {
           ...(programme ? { id: programme.id } : {}),
           titleEn: titleEn.trim() || null,
           titleAr: titleAr.trim() || null,
           gradeLevelIds: levels,
           scaleId: scaleId === NONE ? null : scaleId,
-          officialBoard: official,
-          boardId: official || board === NONE ? null : board,
           categories: categories.map((row) => ({
             ...(row.id ? { id: row.id } : {}),
             titleEn: row.titleEn.trim() || null,
@@ -492,8 +469,7 @@ export function ProgrammeSheet({
             weight: row.weight ?? 0,
           })),
         },
-      });
-    },
+      }),
     meta: { inlineError: true },
   });
   const untitled = tried && !titleEn.trim() && !titleAr.trim();
@@ -521,18 +497,18 @@ export function ProgrammeSheet({
     >
       <TextField
         id="programme-title-en"
-        label={m.examTitleEn()}
+        label={m.gradingTitleEn()}
         hint={m.gradingProgrammeTitleHint()}
         width="name"
         lang="en"
         autoComplete="off"
         value={titleEn}
         onChange={(event) => setTitleEn(event.target.value)}
-        errors={untitled ? [m.examTitleNeeded()] : undefined}
+        errors={untitled ? [m.gradingTitleNeeded()] : undefined}
       />
       <TextField
         id="programme-title-ar"
-        label={m.examTitleAr()}
+        label={m.gradingTitleAr()}
         width="name"
         lang="ar"
         dir="rtl"
@@ -578,24 +554,6 @@ export function ProgrammeSheet({
         ]}
         onChange={setScaleId}
       />
-      <SelectField
-        id="programme-board"
-        label={m.examBoard()}
-        hint={m.gradingProgrammeBoardHint()}
-        value={board}
-        options={[
-          { value: NONE, label: m.gradingNoBoard() },
-          ...EXAM_BOARDS.map((key) => ({
-            value: key,
-            label: BOARD_LABEL[key](),
-          })),
-          ...names.boards.map((row) => ({
-            value: row.id,
-            label: boardTitle(row),
-          })),
-        ]}
-        onChange={setBoard}
-      />
       <CategoriesEditor
         value={categories}
         onChange={setCategories}
@@ -626,7 +584,7 @@ export function RetireProgrammeDialog({
       open={open}
       title={m.gradingRetireProgrammeTitle({ name: title(programme) })}
       body={m.gradingRetireProgrammeBody()}
-      confirmLabel={m.examRetire()}
+      confirmLabel={m.gradingRetire()}
       pending={mutation.isPending}
       error={mutation.error ? getMessageFromError(mutation.error) : undefined}
       onCancel={onClose}

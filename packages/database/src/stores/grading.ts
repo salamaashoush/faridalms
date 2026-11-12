@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
-import { uuidArray } from "./sql";
+import { isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -168,8 +168,6 @@ export interface ProgrammeRow {
   titleAr: string | null;
   gradeLevelIds: string[];
   scaleId: string | null;
-  officialBoard: string | null;
-  boardId: string | null;
   classes: number;
   categories: CategoryRow[];
 }
@@ -198,12 +196,10 @@ export async function programmesOf(
     title_ar: string | null;
     grade_level_ids: string[];
     grade_scale_id: string | null;
-    official_board: string | null;
-    board_id: string | null;
     classes: number;
     categories: CategoryRow[];
   }>(sql`
-    select p.id, p.title_en, p.title_ar, p.grade_scale_id, p.official_board, p.board_id,
+    select p.id, p.title_en, p.title_ar, p.grade_scale_id,
       ${categoriesOf} as categories,
       coalesce(array(select l.grade_level_descriptor_id::text from core.programme_grade_levels l
         where l.tenant_id = p.tenant_id and l.programme_id = p.id and l.status = 'active'),
@@ -220,8 +216,6 @@ export async function programmesOf(
     titleAr: row.title_ar,
     gradeLevelIds: row.grade_level_ids,
     scaleId: row.grade_scale_id,
-    officialBoard: row.official_board,
-    boardId: row.board_id,
     classes: row.classes,
     categories: row.categories,
   }));
@@ -237,8 +231,6 @@ export async function saveProgramme(
     titleAr: string | null;
     gradeLevelIds: readonly string[];
     scaleId: string | null;
-    officialBoard: string | null;
-    boardId: string | null;
     categories: readonly {
       id?: string;
       titleEn: string | null;
@@ -250,16 +242,14 @@ export async function saveProgramme(
   const [row] = input.id
     ? await tx.execute<{ id: string }>(sql`
         update core.programmes set title_en = ${input.titleEn}, title_ar = ${input.titleAr},
-          grade_scale_id = ${input.scaleId}::uuid, official_board = ${input.officialBoard},
-          board_id = ${input.boardId}::uuid
+          grade_scale_id = ${input.scaleId}::uuid
         where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
           and id = ${input.id}::uuid and status = 'active'
         returning id`)
     : await tx.execute<{ id: string }>(sql`
-        insert into core.programmes (tenant_id, org_id, title_en, title_ar, grade_scale_id,
-          official_board, board_id)
+        insert into core.programmes (tenant_id, org_id, title_en, title_ar, grade_scale_id)
         values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.titleEn},
-          ${input.titleAr}, ${input.scaleId}::uuid, ${input.officialBoard}, ${input.boardId}::uuid)
+          ${input.titleAr}, ${input.scaleId}::uuid)
         returning id`);
   if (!row) return null;
   await tx.execute(sql`
@@ -452,4 +442,61 @@ export async function classCategories(
     titleAr: row.title_ar,
     weight: Number(row.weight),
   }));
+}
+
+export interface GradingChange {
+  id: string;
+  occurredAt: string;
+  action: string;
+  objectId: string | null;
+  actorEn: string | null;
+  actorAr: string | null;
+  reason: string | null;
+  /** The name the change gave a scale or programme, where it named one. */
+  titleEn: string | null;
+  titleAr: string | null;
+}
+
+/** A page of the changes made to the school's scales, programmes and classes' grading, newest first. */
+export async function gradingChanges(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; limit: number; offset: number },
+): Promise<{ rows: GradingChange[]; total: number }> {
+  const rows = await tx.execute<{
+    id: string;
+    occurred_at: string;
+    action: string;
+    object_id: string | null;
+    actor_en: string | null;
+    actor_ar: string | null;
+    reason: string | null;
+    title_en: string | null;
+    title_ar: string | null;
+    total: number;
+  }>(sql`
+    select l.id, ${isoOf(sql`l.occurred_at`)} as occurred_at, l.action, l.object_id,
+           a.full_name_en as actor_en, a.full_name_ar as actor_ar,
+           l.details ->> 'reason' as reason, l.details -> 'after' ->> 'titleEn' as title_en,
+           l.details -> 'after' ->> 'titleAr' as title_ar,
+           count(*) over ()::int as total
+    from audit.log l
+    left join core.users a on a.tenant_id = l.tenant_id and a.id = l.actor_user_id
+    where l.tenant_id = ${input.tenantId}::uuid and l.org_id = ${input.orgId}::uuid
+      and l.outcome = 'success' and l.action like 'grading\\_%'
+    order by l.occurred_at desc, l.id desc
+    limit ${input.limit} offset ${input.offset}`);
+  return {
+    total: rows[0]?.total ?? 0,
+    rows: rows.map((row) => ({
+      id: row.id,
+      occurredAt: row.occurred_at,
+      action: row.action,
+      objectId: row.object_id,
+      actorEn: row.actor_en,
+      actorAr: row.actor_ar,
+      reason: row.reason,
+      titleEn: row.title_en,
+      titleAr: row.title_ar,
+    })),
+  };
 }

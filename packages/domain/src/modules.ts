@@ -16,7 +16,6 @@ export const MODULE_IDS = [
   "student_records",
   "badges",
   "standards",
-  "exams",
   "elearning",
   "early_years",
   "coding",
@@ -106,12 +105,6 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     basic: false,
     schoolSwitch: false,
     systems: ["standards"],
-  },
-  exams: {
-    requires: [["coursework"]],
-    basic: false,
-    schoolSwitch: false,
-    systems: ["exams"],
   },
   elearning: {
     requires: [],

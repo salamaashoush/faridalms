@@ -142,10 +142,6 @@ export const CONFLICTS: Record<string, string> = {
   document_translations_key: "document_translation.exists",
   document_files_key: "document_file.exists",
   user_preferences_key: "user_preference.exists",
-  exam_sessions_official_key: "exam.session_exists",
-  coursework_assessments_assignment_key: "coursework.assessed_exists",
-  attempt_declarations_attempt_key: "coursework.declared_already",
-  attempt_authentications_attempt_key: "coursework.authenticated_already",
   programme_grade_levels_key: "grading.level_repeated",
   requested_changes_tenant_id_request_id_key: "health_change.exists",
 };

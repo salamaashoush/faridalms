@@ -96,8 +96,6 @@ describe("grade scales", () => {
       titleAr: null,
       gradeLevelIds: record.gradeId ? [record.gradeId] : [],
       scaleId: scale.id,
-      officialBoard: "cambridge",
-      boardId: null,
     });
     expect(
       await officer.grading.classGrading({ classId: target.id }),
@@ -126,7 +124,7 @@ describe("grade scales", () => {
       labelEn: "A",
     });
 
-    const { rows } = await officer.exams.history({});
+    const { rows } = await officer.grading.history({});
     expect(rows.some((row) => row.action === "grading_scale.bands")).toBe(true);
     expect(
       await rejection(
@@ -217,8 +215,6 @@ describe("grade scales", () => {
       titleAr: null,
       gradeLevelIds: [],
       scaleId: scale.id,
-      officialBoard: null,
-      boardId: null,
       categories: [
         { titleEn: "Tests", titleAr: null, weight: 60 },
         { titleEn: "Homework", titleAr: null, weight: 40 },
@@ -231,8 +227,6 @@ describe("grade scales", () => {
           titleAr: null,
           gradeLevelIds: [],
           scaleId: null,
-          officialBoard: null,
-          boardId: null,
           categories: [{ titleEn: "All", titleAr: null, weight: 90 }],
         }),
       ),

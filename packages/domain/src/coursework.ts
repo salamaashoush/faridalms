@@ -7,7 +7,6 @@ import type { CheckBlock, LessonDocument } from "./learning";
 import { anchorSchema } from "./anchors";
 import { contentDocumentSchema, contentPlainText } from "./content";
 import { CONTENT_ISSUE_CODE, publishIssues } from "./content-checks";
-import { declarationSchema } from "./exams";
 import {
   checkBlocks,
   feedbackBandsSchema,
@@ -569,8 +568,6 @@ export type SaveDraftInput = v.InferOutput<typeof saveDraftSchema>;
 export const handInSchema = v.object({
   assignmentId: id,
   expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  /** Asked for when the work is assessed coursework for an exam session. */
-  declaration: v.optional(declarationSchema),
 });
 
 export const assessSchema = v.object({

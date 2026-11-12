@@ -32,10 +32,10 @@ import {
   tenantColumns,
   uq,
 } from "./conventions";
-import { programmeCategories } from "./exams";
 import { gradeScaleVersions } from "./grading";
 import { learningModules } from "./learning";
 import { users } from "./people";
+import { programmeCategories } from "./programmes";
 import { classes } from "./teaching";
 import { tenants } from "./tenancy";
 

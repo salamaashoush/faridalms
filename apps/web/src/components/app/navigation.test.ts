@@ -46,7 +46,7 @@ describe("the staff sidebar", () => {
     const sections = sidebarOf(viewer(BUILTIN_CAPABILITIES.site_administrator));
     expect(count(sections)).toBe(17);
     expect(sections.find((section) => section.id === "teaching")?.more).toEqual(
-      ["/exams", "/standards"],
+      ["/grade-scales", "/standards"],
     );
     expect(sections.find((section) => section.id === "school")).toEqual({
       id: "school",

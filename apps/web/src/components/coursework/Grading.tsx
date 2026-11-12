@@ -35,7 +35,6 @@ import { RubricLevelPicker } from "@faridalms/ui/system/rubric";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
-  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -54,13 +53,11 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { toolGrading, ToolWorkLink } from "~/components/content/lti";
-import { CourseworkStanding } from "~/components/exams/Authentication";
 import { FileList } from "~/components/system/FileList";
 import { useMedia } from "~/hooks/useMedia";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { gradingQuery } from "~/queries/coursework";
-import { workStandingQuery } from "~/queries/exams";
 import { actOnWork, assessAttempt, showHeldGrade } from "~/server/coursework";
 import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -238,8 +235,7 @@ interface GradeSheetProps {
 }
 
 /**
- * The grade for the attempt on screen, in a sheet from the end side: for
- * assessed coursework the declaration and the teacher's word first, then the
+ * The grade for the attempt on screen, in a sheet from the end side: the
  * rubric, score and feedback, which stay drafts until the work is returned.
  */
 function GradeSheet({
@@ -271,14 +267,6 @@ function GradeSheet({
   const [note, setNote] = useState(saved?.privateNote ?? "");
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  const standing = useQuery({
-    ...workStandingQuery(data.assignment.id),
-    enabled: !data.quiz,
-  }).data;
-  // Confirmed coursework is final, so it is never sent back to revise.
-  const final =
-    standing?.students.find((row) => row.studentId === data.student.studentId)
-      ?.authentication?.outcome === "confirmed";
   const assess = useMutation({
     mutationFn: () =>
       assessAttempt({
@@ -327,16 +315,8 @@ function GradeSheet({
     if (!check()) return;
     try {
       await assess.mutateAsync();
-      const acted = then ? await act.mutateAsync(then) : null;
+      if (then) await act.mutateAsync(then);
       await queryClient.invalidateQueries({ queryKey: ["coursework"] });
-      if (acted && "held" in acted) {
-        toast.warning(
-          then === "return"
-            ? m.authenticationNeededToReturn()
-            : m.authenticationFinalNoRevision(),
-        );
-        return;
-      }
       toast.success(
         then === "return"
           ? m.courseworkReturnedDone()
@@ -428,12 +408,6 @@ function GradeSheet({
           <X aria-hidden />
         </SheetClose>
         <div className="grid min-h-0 flex-1 content-start gap-6 overflow-y-auto px-6 py-6">
-          {data.quiz ? null : (
-            <CourseworkStanding
-              assignmentId={data.assignment.id}
-              studentId={data.student.studentId}
-            />
-          )}
           {held ? (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/50 px-3 py-2">
               <p className="text-sm leading-5">{m.courseworkGradeHeld()}</p>
@@ -746,17 +720,15 @@ function GradeSheet({
           >
             {m.courseworkSaveDraftGrade()}
           </Button>
-          {final ? null : (
-            <Button
-              type="button"
-              variant="ghost"
-              className="max-md:h-10"
-              disabled={pending}
-              onClick={() => void run("revise")}
-            >
-              {m.courseworkReturnRevise()}
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="ghost"
+            className="max-md:h-10"
+            disabled={pending}
+            onClick={() => void run("revise")}
+          >
+            {m.courseworkReturnRevise()}
+          </Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

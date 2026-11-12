@@ -43,11 +43,6 @@ import {
   goalReports,
   healthChanges,
   standardObservations,
-  attemptAuthentications,
-  attemptDeclarations,
-  courseworkAssessments,
-  examBoards,
-  examSessions,
   gradeScales,
   readingNorms,
   gradeScaleVersions,
@@ -1160,54 +1155,6 @@ export async function completeFixture(
       "grade_8",
     ),
   });
-  const [examBoard] = await tx
-    .insert(examBoards)
-    .values({ tenantId, orgId: schoolId, titleEn: "Mocks" })
-    .returning();
-  const [examSession] = await tx
-    .insert(examSessions)
-    .values({
-      tenantId,
-      orgId: schoolId,
-      boardId: examBoard?.id,
-      titleEn: "Year 11 mocks",
-      sitsIn: "2027-01-01",
-      keepUntil: "2027-07-31",
-    })
-    .returning();
-  const [handedIn] = await tx
-    .select({ assignmentId: submissions.assignmentId })
-    .from(submissions)
-    .where(
-      and(
-        eq(submissions.tenantId, tenantId),
-        eq(submissions.studentUserId, attempt.studentUserId),
-      ),
-    )
-    .limit(1);
-  if (!examSession || !handedIn) throw new Error("exam fixture rows missing");
-  await tx.insert(courseworkAssessments).values({
-    tenantId,
-    assignmentId: handedIn.assignmentId,
-    sessionId: examSession.id,
-    setByUserId: userId,
-  });
-  await tx.insert(attemptDeclarations).values({
-    tenantId,
-    attemptId: attempt.id,
-    studentUserId: attempt.studentUserId,
-    kind: "student",
-    statement: "2026-10",
-    aiUsed: false,
-    recordedByUserId: attempt.studentUserId,
-  });
-  await tx.insert(attemptAuthentications).values({
-    tenantId,
-    attemptId: attempt.id,
-    outcome: "confirmed",
-    teacherUserId: userId,
-  });
-
   const [lessonSlot] = await tx.execute<{
     class_id: string;
     class_period_id: string;

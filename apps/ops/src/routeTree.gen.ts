@@ -15,7 +15,6 @@ import { Route as ChangesRouteImport } from './routes/changes'
 import { Route as NoRoleRouteImport } from './routes/no-role'
 import { Route as OperatorsRouteImport } from './routes/operators'
 import { Route as ReceivablesRouteImport } from './routes/receivables'
-import { Route as SeriesRouteImport } from './routes/series'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
@@ -72,11 +71,6 @@ const OperatorsRoute = OperatorsRouteImport.update({
 const ReceivablesRoute = ReceivablesRouteImport.update({
   id: '/receivables',
   path: '/receivables',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SeriesRoute = SeriesRouteImport.update({
-  id: '/series',
-  path: '/series',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -223,7 +217,6 @@ export interface FileRoutesByFullPath {
   '/no-role': typeof NoRoleRoute
   '/operators': typeof OperatorsRoute
   '/receivables': typeof ReceivablesRoute
-  '/series': typeof SeriesRoute
   '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -259,7 +252,6 @@ export interface FileRoutesByTo {
   '/no-role': typeof NoRoleRoute
   '/operators': typeof OperatorsRoute
   '/receivables': typeof ReceivablesRoute
-  '/series': typeof SeriesRoute
   '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -296,7 +288,6 @@ export interface FileRoutesById {
   '/no-role': typeof NoRoleRoute
   '/operators': typeof OperatorsRoute
   '/receivables': typeof ReceivablesRoute
-  '/series': typeof SeriesRoute
   '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -334,7 +325,6 @@ export interface FileRouteTypes {
     | '/no-role'
     | '/operators'
     | '/receivables'
-    | '/series'
     | '/settings'
     | '/sign-in'
     | '/auth/callback'
@@ -370,7 +360,6 @@ export interface FileRouteTypes {
     | '/no-role'
     | '/operators'
     | '/receivables'
-    | '/series'
     | '/settings'
     | '/sign-in'
     | '/auth/callback'
@@ -406,7 +395,6 @@ export interface FileRouteTypes {
     | '/no-role'
     | '/operators'
     | '/receivables'
-    | '/series'
     | '/settings'
     | '/sign-in'
     | '/auth/callback'
@@ -443,7 +431,6 @@ export interface RootRouteChildren {
   NoRoleRoute: typeof NoRoleRoute
   OperatorsRoute: typeof OperatorsRoute
   ReceivablesRoute: typeof ReceivablesRoute
-  SeriesRoute: typeof SeriesRoute
   SettingsRoute: typeof SettingsRoute
   SignInRoute: typeof SignInRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
@@ -515,13 +502,6 @@ declare module '@tanstack/react-router' {
       path: '/receivables'
       fullPath: '/receivables'
       preLoaderRoute: typeof ReceivablesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/series': {
-      id: '/series'
-      path: '/series'
-      fullPath: '/series'
-      preLoaderRoute: typeof SeriesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -723,7 +703,6 @@ const rootRouteChildren: RootRouteChildren = {
   NoRoleRoute: NoRoleRoute,
   OperatorsRoute: OperatorsRoute,
   ReceivablesRoute: ReceivablesRoute,
-  SeriesRoute: SeriesRoute,
   SettingsRoute: SettingsRoute,
   SignInRoute: SignInRoute,
   AuthCallbackRoute: AuthCallbackRoute,

@@ -118,7 +118,7 @@ test.describe("a school with Basic alone offers nothing it does not have", () =>
     await untilHydrated(page);
     await offered(page);
     const navigation = page.getByRole("navigation").first();
-    for (const name of ["Admissions", "Website", "Exams and grading"])
+    for (const name of ["Admissions", "Website", "Standards"])
       await expect(
         navigation.getByRole("link", { name, exact: true }),
       ).toHaveCount(0);

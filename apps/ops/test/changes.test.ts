@@ -41,10 +41,10 @@ beforeAll(async () => {
       ],
       [
         "operator:op-sara",
-        "exam_series",
-        "cambridge-2027-06",
-        "series.create",
-        "Board timetable",
+        "sso_domain",
+        "staff.example.org",
+        "sso_domain.add",
+        "Staff sign in with the school's own accounts",
         1,
       ],
     ] as const;
@@ -59,7 +59,7 @@ const page = { offset: 0, limit: 50 };
 const actionsOf = (changes: { action: string; subjectId: string }[]) =>
   changes
     .filter((change) =>
-      [schoolId, tenantId, HOST, "cambridge-2027-06"].includes(
+      [schoolId, tenantId, HOST, "staff.example.org"].includes(
         change.subjectId,
       ),
     )
@@ -70,7 +70,7 @@ describe("the change log", () => {
     const { changes, total } = await directory().changeLog(page);
     expect(total).toBeGreaterThanOrEqual(4);
     expect(actionsOf(changes)).toEqual([
-      "series.create",
+      "sso_domain.add",
       "host.verified",
       "tenant.lifecycle",
       "administrator.invite",
@@ -91,7 +91,7 @@ describe("the change log", () => {
       actors: ["operator:op-sara"],
       since: new Date(Date.now() - 10 * 86_400_000),
     });
-    expect(actionsOf(byActor.changes)).toEqual(["series.create"]);
+    expect(actionsOf(byActor.changes)).toEqual(["sso_domain.add"]);
   });
 
   test("finds a school's changes, and its hosts', by the school's name", async () => {
@@ -122,7 +122,7 @@ describe("the change log", () => {
   test("counts each kind of change and each actor", async () => {
     const counts = await directory().changeCounts();
     expect(counts.actions).toContainEqual({
-      value: "series.create",
+      value: "sso_domain.add",
       count: 1,
     });
     expect(counts.actors).toContainEqual({

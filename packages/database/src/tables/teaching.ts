@@ -20,10 +20,10 @@ import {
   uq,
 } from "./conventions";
 import { descriptors } from "./descriptors";
-import { programmes } from "./exams";
 import { locations } from "./files";
 import { gradeScales } from "./grading";
 import { users } from "./people";
+import { programmes } from "./programmes";
 import { importRuns } from "./records";
 import { orgs, tenants } from "./tenancy";
 

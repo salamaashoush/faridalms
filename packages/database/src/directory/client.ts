@@ -1,11 +1,10 @@
-import type { ExamSeries } from "@faridalms/domain/exams";
 import type { HostRole } from "@faridalms/domain/hosts";
 import type { OnboardingItem } from "@faridalms/domain/onboarding";
 import type { SchoolEntitlements } from "@faridalms/domain/plans";
 
 import { CERTIFIED_STATES } from "@faridalms/domain/hosts";
 import { SQL } from "bun";
-import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
 
 import type { EntitlementColumns } from "./entitlements";
@@ -25,7 +24,6 @@ import {
 } from "./hosts";
 import {
   cells,
-  examSeries,
   hosts,
   loginIndex,
   schoolEntitlements,
@@ -123,7 +121,6 @@ export function openDirectory(url: string, ttlMs = 60_000) {
   });
   const cache = new Map<string, { at: number; value: unknown }>();
   const seenVersions = new Map<string, number>();
-  let series: { at: number; value: ExamSeries[] } | null = null;
   // Moves whenever rows are dropped, so a lookup that began before is not
   // kept: it may have read what the drop was for.
   let generation = 0;
@@ -287,25 +284,8 @@ export function openDirectory(url: string, ttlMs = 60_000) {
         })
         .from(schoolOnboarding)
         .where(eq(schoolOnboarding.schoolId, schoolId)),
-    /** The official exam sessions, kept briefly like the school lookups. */
-    examSeries: async (): Promise<ExamSeries[]> => {
-      if (series && Date.now() - series.at < ttlMs) return series.value;
-      const value = await db
-        .select({
-          id: examSeries.id,
-          board: examSeries.board,
-          sitsIn: examSeries.sitsIn,
-          keepUntil: examSeries.keepUntil,
-          retired: examSeries.retired,
-        })
-        .from(examSeries)
-        .orderBy(asc(examSeries.sitsIn), asc(examSeries.board));
-      series = { at: Date.now(), value };
-      return value;
-    },
     forget: () => {
       cache.clear();
-      series = null;
     },
     /** Liveness of the directory, for readiness probes. */
     ping: async () => {

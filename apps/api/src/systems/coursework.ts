@@ -102,10 +102,6 @@ import {
   translationOf,
 } from "@faridalms/database/stores/documents";
 import {
-  authenticationsOf,
-  insertDeclaration,
-} from "@faridalms/database/stores/exams";
-import {
   adoptFiles,
   fileLineage,
   filesOfHost,
@@ -209,7 +205,6 @@ import {
   sharedWorkQuerySchema,
   teacherListSchema,
 } from "@faridalms/domain/coursework";
-import { DECLARATION_STATEMENT } from "@faridalms/domain/exams";
 import {
   bandFor,
   checkBlocks,
@@ -243,12 +238,6 @@ import type { UnitContext } from "../core/context";
 import type { AttemptQuizzes } from "../quizzes/quiz";
 
 import { markedProgramAt } from "../coding/mark";
-import {
-  assessedRules,
-  attemptMarks,
-  confirmedAttempts,
-  declarationProblem,
-} from "../core/assessed";
 import {
   learnerAssignment,
   ownSchedule,
@@ -1437,30 +1426,20 @@ export const record = readProcedure
       }),
       classById(context.tx, context, assignment.classId),
     ]);
-    const [grade, rules, quiz] = await Promise.all([
+    const [grade, quiz] = await Promise.all([
       gradeReader(
         context,
         work.map((row) => row.gradeScaleVersionId),
       ),
-      assessedRules(context, assignment.id),
       assignment.submissionFormat === "quiz" && assignment.state !== "draft"
         ? publishedQuiz(context, assignment.id)
         : null,
     ]);
-    const marks = rules
-      ? await attemptMarks(
-          context,
-          work.flatMap((row) => (row.attemptId ? [row.attemptId] : [])),
-        )
-      : null;
     const copies = await copiesOf(context, brief, work);
     return {
       ...assignment,
       /** How many files the brief sets aside as each student's copy, when it does. */
       copyFiles: copies?.files ?? null,
-      assessed: rules
-        ? { declarationRequired: rules.declarationRequired }
-        : null,
       rubric: assignment.rubric as unknown as Rubric | null,
       phase: assignmentPhase(assignment, context.now),
       class: classRow
@@ -1482,8 +1461,6 @@ export const record = readProcedure
           row.effectiveScore ?? row.score,
           assignment.points,
         ),
-        coursework:
-          marks && row.attemptId ? (marks.get(row.attemptId) ?? null) : null,
         copy: copies?.students[row.studentId] ?? null,
         learnerState: learnerState(
           {
@@ -1644,19 +1621,6 @@ export const act = writeProcedure
     let changed = 0;
     const returned: typeof chosen = [];
     const released: ReleasedMark[] = [];
-    // Assessed coursework goes back with a grade only once its teacher has
-    // confirmed it, and confirmed work is final, so it is not sent back.
-    let held = 0;
-    const checking =
-      input.action === "return" || input.action === "revise"
-        ? await assessedRules(context, assignment.id)
-        : null;
-    const confirmed = checking
-      ? await confirmedAttempts(
-          context,
-          chosen.flatMap((row) => (row.attemptId ? [row.attemptId] : [])),
-        )
-      : new Set<string>();
     if (input.action === "share" || input.action === "unshare") {
       const handedIn = chosen.flatMap((row) =>
         row.attemptId
@@ -1688,13 +1652,6 @@ export const act = writeProcedure
             row.submissionVersion === null
           )
             continue;
-          if (
-            checking &&
-            confirmed.has(row.attemptId) === (input.action === "revise")
-          ) {
-            held += 1;
-            continue;
-          }
           if (!row.assessmentId)
             await saveAssessment(tx, {
               tenantId: context.tenantId,
@@ -1759,7 +1716,7 @@ export const act = writeProcedure
       objectId: assignment.id,
       details: { students: chosen.map((row) => row.studentId) },
     });
-    return held ? { changed, held } : { changed };
+    return { changed };
   });
 
 /** Moves the due time for some students, or gives them the assignment's again. */
@@ -2923,20 +2880,6 @@ export const handIn = writeProcedure
       files: inAnswer.length > 0,
     });
     if (lacking) throw new ORPCError("BAD_REQUEST", { message: lacking });
-    const rules = await assessedRules(context, assignment.id);
-    const declaration = rules?.declarationRequired ? input.declaration : null;
-    if (rules?.declarationRequired) {
-      if (!declaration)
-        throw new ORPCError("BAD_REQUEST", {
-          message: "coursework.declaration_needed",
-        });
-      const problem = declarationProblem(
-        (draft?.content as unknown as ContentDocument | undefined) ?? null,
-        declaration.aiUsed,
-        rules.aiEvidenceRequired,
-      );
-      if (problem) throw new ORPCError("BAD_REQUEST", { message: problem });
-    }
     const attemptId = await insertAttempt(tx, {
       tenantId: context.tenantId,
       submissionId: submission.id,
@@ -2946,16 +2889,6 @@ export const handIn = writeProcedure
       userId: context.actor.userId,
       fromVersion: input.expectedVersion,
     });
-    if (declaration)
-      await insertDeclaration(tx, {
-        tenantId: context.tenantId,
-        attemptId,
-        studentId: context.actor.userId,
-        kind: "student",
-        statement: DECLARATION_STATEMENT,
-        aiUsed: declaration.aiUsed,
-        userId: context.actor.userId,
-      });
     const attemptHost = { type: "submission_attempt", id: attemptId };
     if (draft)
       await freezeCopy(tx, {
@@ -3088,12 +3021,6 @@ export const undoHandIn = writeProcedure
       row.assessmentId
     )
       throw new ORPCError("CONFLICT", { message: "coursework.cannot_undo" });
-    const authenticated = await authenticationsOf(tx, {
-      tenantId: context.tenantId,
-      attemptIds: [row.attemptId],
-    });
-    if (authenticated.length)
-      throw new ORPCError("CONFLICT", { message: "coursework.final" });
     // Classmates were given it to review, so it stays as handed in.
     if (await attemptUnderReview(tx, context.tenantId, row.attemptId))
       throw new ORPCError("CONFLICT", {

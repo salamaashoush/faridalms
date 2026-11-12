@@ -140,10 +140,10 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           capability: ["timetable:read", "timetable:manage"],
         },
         {
-          to: "/exams",
-          label: m.navExams,
+          to: "/grade-scales",
+          label: m.navGrading,
           icon: Award,
-          capability: "exams:manage",
+          capability: "grading:manage",
           more: true,
         },
         {

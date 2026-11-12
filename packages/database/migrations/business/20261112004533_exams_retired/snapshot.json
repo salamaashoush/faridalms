@@ -1,0 +1,90 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "f3088bc0-924d-4a57-8cea-fb3c11729e18",
+  "prevIds": [
+    "6a932335-82e2-4d4e-ba08-ecb99bb0b7e7"
+  ],
+  "footprints": [
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "add_on_versions"
+      ],
+      "writes": [
+        "s|ck|public.add_on_versions.add_on_versions_module_check"
+      ],
+      "reads": [
+        "n|tbl|public.add_on_versions",
+        "n|sch|public",
+        "n|col|public.add_on_versions.module",
+        "e|col|public.add_on_versions.module"
+      ],
+      "sqlHash": "5a88645d2ddf3ded"
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "plan_versions"
+      ],
+      "writes": [
+        "s|ck|public.plan_versions.plan_versions_modules_check"
+      ],
+      "reads": [
+        "n|tbl|public.plan_versions",
+        "n|sch|public",
+        "n|col|public.plan_versions.modules",
+        "n|col|public.plan_versions.custom_domains",
+        "e|col|public.plan_versions.modules",
+        "e|col|public.plan_versions.custom_domains"
+      ],
+      "sqlHash": "12ce5a437ceb6656"
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "subscription_overrides"
+      ],
+      "writes": [
+        "s|ck|public.subscription_overrides.subscription_overrides_module_check"
+      ],
+      "reads": [
+        "n|tbl|public.subscription_overrides",
+        "n|sch|public",
+        "n|col|public.subscription_overrides.module",
+        "e|col|public.subscription_overrides.module"
+      ],
+      "sqlHash": "caae1cd7d462d384"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"add_on_versions\",\"add_on_versions_module_check\"]",
+      "set": {
+        "value": "module is null or module = any (array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[])"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"plan_versions\",\"plan_versions_modules_check\"]",
+      "set": {
+        "value": "modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[]"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"subscription_overrides\",\"subscription_overrides_module_check\"]",
+      "set": {
+        "value": "module is null or module = any (array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[])"
+      }
+    }
+  ]
+}

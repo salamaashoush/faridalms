@@ -151,12 +151,12 @@ describe("a school's entitlements from its subscription", () => {
         override({ module: "badges", granted: true }),
         override({ limitKey: "students", value: null }),
         override({ limitKey: "poolBytes", value: null }),
-        override({ module: "exams", granted: true, endsOn: "2026-10-01" }),
+        override({ module: "standards", granted: true, endsOn: "2026-10-01" }),
       ],
     });
     expect(entitled.modules).toContain("website");
     expect(entitled.modules).toContain("badges");
-    expect(entitled.modules).not.toContain("exams");
+    expect(entitled.modules).not.toContain("standards");
     expect(entitled.students).toBeNull();
     expect(entitled.poolBytes).toBe(100 * GIB);
   });

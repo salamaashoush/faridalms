@@ -19,7 +19,6 @@ import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as AppStaffRouteImport } from './routes/_app/_staff'
 import { Route as AppConsentFormEditorRouteImport } from './routes/_app/consent-form-editor'
 import { Route as AppEventEditorRouteImport } from './routes/_app/event-editor'
-import { Route as AppExamsRouteImport } from './routes/_app/exams'
 import { Route as AppFamilyRouteImport } from './routes/_app/family'
 import { Route as AppHealthChangesRouteImport } from './routes/_app/health-changes'
 import { Route as AppMeRouteImport } from './routes/_app/me'
@@ -60,6 +59,7 @@ import { Route as AppStaffAttendanceRouteImport } from './routes/_app/_staff/att
 import { Route as AppStaffBillingRouteImport } from './routes/_app/_staff/billing'
 import { Route as AppStaffClassEditorRouteImport } from './routes/_app/_staff/class-editor'
 import { Route as AppStaffClassesRouteImport } from './routes/_app/_staff/classes'
+import { Route as AppStaffGradeScalesRouteImport } from './routes/_app/_staff/grade-scales'
 import { Route as AppStaffGradebookRouteImport } from './routes/_app/_staff/gradebook'
 import { Route as AppStaffGradingRouteImport } from './routes/_app/_staff/grading'
 import { Route as AppStaffLessonEditorRouteImport } from './routes/_app/_staff/lesson-editor'
@@ -196,11 +196,6 @@ const AppConsentFormEditorRoute = AppConsentFormEditorRouteImport.update({
 const AppEventEditorRoute = AppEventEditorRouteImport.update({
   id: '/event-editor',
   path: '/event-editor',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppExamsRoute = AppExamsRouteImport.update({
-  id: '/exams',
-  path: '/exams',
   getParentRoute: () => AppRoute,
 } as any)
 const AppFamilyRoute = AppFamilyRouteImport.update({
@@ -405,6 +400,11 @@ const AppStaffClassEditorRoute = AppStaffClassEditorRouteImport.update({
 const AppStaffClassesRoute = AppStaffClassesRouteImport.update({
   id: '/classes',
   path: '/classes',
+  getParentRoute: () => AppStaffRoute,
+} as any)
+const AppStaffGradeScalesRoute = AppStaffGradeScalesRouteImport.update({
+  id: '/grade-scales',
+  path: '/grade-scales',
   getParentRoute: () => AppStaffRoute,
 } as any)
 const AppStaffGradebookRoute = AppStaffGradebookRouteImport.update({
@@ -879,7 +879,6 @@ export interface FileRoutesByFullPath {
   '/welcome': typeof WelcomeRoute
   '/consent-form-editor': typeof AppConsentFormEditorRoute
   '/event-editor': typeof AppEventEditorRoute
-  '/exams': typeof AppExamsRoute
   '/family': typeof AppFamilyRouteWithChildren
   '/health-changes': typeof AppHealthChangesRoute
   '/me': typeof AppMeRouteWithChildren
@@ -920,6 +919,7 @@ export interface FileRoutesByFullPath {
   '/billing': typeof AppStaffBillingRoute
   '/class-editor': typeof AppStaffClassEditorRoute
   '/classes': typeof AppStaffClassesRoute
+  '/grade-scales': typeof AppStaffGradeScalesRoute
   '/gradebook': typeof AppStaffGradebookRoute
   '/grading': typeof AppStaffGradingRoute
   '/lesson-editor': typeof AppStaffLessonEditorRoute
@@ -1019,7 +1019,6 @@ export interface FileRoutesByTo {
   '/welcome': typeof WelcomeRoute
   '/consent-form-editor': typeof AppConsentFormEditorRoute
   '/event-editor': typeof AppEventEditorRoute
-  '/exams': typeof AppExamsRoute
   '/health-changes': typeof AppHealthChangesRoute
   '/notification-preferences': typeof AppNotificationPreferencesRoute
   '/notifications': typeof AppNotificationsRoute
@@ -1057,6 +1056,7 @@ export interface FileRoutesByTo {
   '/billing': typeof AppStaffBillingRoute
   '/class-editor': typeof AppStaffClassEditorRoute
   '/classes': typeof AppStaffClassesRoute
+  '/grade-scales': typeof AppStaffGradeScalesRoute
   '/gradebook': typeof AppStaffGradebookRoute
   '/grading': typeof AppStaffGradingRoute
   '/lesson-editor': typeof AppStaffLessonEditorRoute
@@ -1160,7 +1160,6 @@ export interface FileRoutesById {
   '/_app/_staff': typeof AppStaffRouteWithChildren
   '/_app/consent-form-editor': typeof AppConsentFormEditorRoute
   '/_app/event-editor': typeof AppEventEditorRoute
-  '/_app/exams': typeof AppExamsRoute
   '/_app/family': typeof AppFamilyRouteWithChildren
   '/_app/health-changes': typeof AppHealthChangesRoute
   '/_app/me': typeof AppMeRouteWithChildren
@@ -1201,6 +1200,7 @@ export interface FileRoutesById {
   '/_app/_staff/billing': typeof AppStaffBillingRoute
   '/_app/_staff/class-editor': typeof AppStaffClassEditorRoute
   '/_app/_staff/classes': typeof AppStaffClassesRoute
+  '/_app/_staff/grade-scales': typeof AppStaffGradeScalesRoute
   '/_app/_staff/gradebook': typeof AppStaffGradebookRoute
   '/_app/_staff/grading': typeof AppStaffGradingRoute
   '/_app/_staff/lesson-editor': typeof AppStaffLessonEditorRoute
@@ -1302,7 +1302,6 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/consent-form-editor'
     | '/event-editor'
-    | '/exams'
     | '/family'
     | '/health-changes'
     | '/me'
@@ -1343,6 +1342,7 @@ export interface FileRouteTypes {
     | '/billing'
     | '/class-editor'
     | '/classes'
+    | '/grade-scales'
     | '/gradebook'
     | '/grading'
     | '/lesson-editor'
@@ -1442,7 +1442,6 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/consent-form-editor'
     | '/event-editor'
-    | '/exams'
     | '/health-changes'
     | '/notification-preferences'
     | '/notifications'
@@ -1480,6 +1479,7 @@ export interface FileRouteTypes {
     | '/billing'
     | '/class-editor'
     | '/classes'
+    | '/grade-scales'
     | '/gradebook'
     | '/grading'
     | '/lesson-editor'
@@ -1582,7 +1582,6 @@ export interface FileRouteTypes {
     | '/_app/_staff'
     | '/_app/consent-form-editor'
     | '/_app/event-editor'
-    | '/_app/exams'
     | '/_app/family'
     | '/_app/health-changes'
     | '/_app/me'
@@ -1623,6 +1622,7 @@ export interface FileRouteTypes {
     | '/_app/_staff/billing'
     | '/_app/_staff/class-editor'
     | '/_app/_staff/classes'
+    | '/_app/_staff/grade-scales'
     | '/_app/_staff/gradebook'
     | '/_app/_staff/grading'
     | '/_app/_staff/lesson-editor'
@@ -1822,13 +1822,6 @@ declare module '@tanstack/react-router' {
       path: '/event-editor'
       fullPath: '/event-editor'
       preLoaderRoute: typeof AppEventEditorRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/exams': {
-      id: '/_app/exams'
-      path: '/exams'
-      fullPath: '/exams'
-      preLoaderRoute: typeof AppExamsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/family': {
@@ -2109,6 +2102,13 @@ declare module '@tanstack/react-router' {
       path: '/classes'
       fullPath: '/classes'
       preLoaderRoute: typeof AppStaffClassesRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/grade-scales': {
+      id: '/_app/_staff/grade-scales'
+      path: '/grade-scales'
+      fullPath: '/grade-scales'
+      preLoaderRoute: typeof AppStaffGradeScalesRouteImport
       parentRoute: typeof AppStaffRoute
     }
     '/_app/_staff/gradebook': {
@@ -2754,6 +2754,7 @@ interface AppStaffRouteChildren {
   AppStaffBillingRoute: typeof AppStaffBillingRoute
   AppStaffClassEditorRoute: typeof AppStaffClassEditorRoute
   AppStaffClassesRoute: typeof AppStaffClassesRoute
+  AppStaffGradeScalesRoute: typeof AppStaffGradeScalesRoute
   AppStaffGradebookRoute: typeof AppStaffGradebookRoute
   AppStaffGradingRoute: typeof AppStaffGradingRoute
   AppStaffLessonEditorRoute: typeof AppStaffLessonEditorRoute
@@ -2786,6 +2787,7 @@ const AppStaffRouteChildren: AppStaffRouteChildren = {
   AppStaffBillingRoute: AppStaffBillingRoute,
   AppStaffClassEditorRoute: AppStaffClassEditorRoute,
   AppStaffClassesRoute: AppStaffClassesRoute,
+  AppStaffGradeScalesRoute: AppStaffGradeScalesRoute,
   AppStaffGradebookRoute: AppStaffGradebookRoute,
   AppStaffGradingRoute: AppStaffGradingRoute,
   AppStaffLessonEditorRoute: AppStaffLessonEditorRoute,
@@ -2872,7 +2874,6 @@ interface AppRouteChildren {
   AppStaffRoute: typeof AppStaffRouteWithChildren
   AppConsentFormEditorRoute: typeof AppConsentFormEditorRoute
   AppEventEditorRoute: typeof AppEventEditorRoute
-  AppExamsRoute: typeof AppExamsRoute
   AppFamilyRoute: typeof AppFamilyRouteWithChildren
   AppHealthChangesRoute: typeof AppHealthChangesRoute
   AppMeRoute: typeof AppMeRouteWithChildren
@@ -2920,7 +2921,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppStaffRoute: AppStaffRouteWithChildren,
   AppConsentFormEditorRoute: AppConsentFormEditorRoute,
   AppEventEditorRoute: AppEventEditorRoute,
-  AppExamsRoute: AppExamsRoute,
   AppFamilyRoute: AppFamilyRouteWithChildren,
   AppHealthChangesRoute: AppHealthChangesRoute,
   AppMeRoute: AppMeRouteWithChildren,

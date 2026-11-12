@@ -47,10 +47,6 @@ import { useContext, useState } from "react";
 import { toast } from "sonner";
 
 import { ContentView } from "~/components/content/ContentView";
-import {
-  CourseworkMarks,
-  courseworkStep,
-} from "~/components/exams/Authentication";
 import { resultText } from "~/components/grading/format";
 import { usePrint } from "~/components/print/usePrint";
 import {
@@ -372,7 +368,6 @@ function CopyCell({ row, files }: CopyCellProps) {
 // array would fix at whichever language first loaded the module on the server.
 function workColumns(
   points: number | null,
-  assessed: { declarationRequired: boolean } | null,
   copyFiles: number | null,
 ): Column<WorkRow>[] {
   return [
@@ -406,32 +401,10 @@ function workColumns(
       header: m.courseworkScore(),
       cell: (row) => <Score row={row} points={points} />,
     },
-    ...(assessed
-      ? [
-          {
-            id: "coursework",
-            header: m.courseworkAuthenticationColumn(),
-            cell: (row: WorkRow) => (
-              <CourseworkMarks
-                student={{
-                  attemptId: row.attemptId,
-                  declaration: row.coursework?.declaration ?? null,
-                  authentication: row.coursework?.authentication ?? null,
-                }}
-                declarationRequired={assessed.declarationRequired}
-              />
-            ),
-          },
-        ]
-      : []),
   ];
 }
 
-function workCard(
-  points: number | null,
-  assessed: { declarationRequired: boolean } | null,
-  copyFiles: number | null,
-) {
+function workCard(points: number | null, copyFiles: number | null) {
   return {
     title: (row: WorkRow) => <StudentName row={row} />,
     status: (row: WorkRow) => <StateCell row={row} />,
@@ -446,16 +419,6 @@ function workCard(
               points,
               "teacher",
             ),
-        assessed
-          ? courseworkStep(
-              {
-                attemptId: row.attemptId,
-                declaration: row.coursework?.declaration ?? null,
-                authentication: row.coursework?.authentication ?? null,
-              },
-              assessed.declarationRequired,
-            )?.label
-          : null,
       ].filter(Boolean);
       return facts.length ? facts.join(" · ") : null;
     },
@@ -627,11 +590,11 @@ function Work({ data }: WorkProps) {
       <DataTable
         caption={m.courseworkWorkCaption()}
         rows={rows}
-        columns={workColumns(data.points, data.assessed, data.copyFiles)}
+        columns={workColumns(data.points, data.copyFiles)}
         rowLabel={(row) => displayName(row)}
         rowActions={rowActions}
         batchActions={batch}
-        card={workCard(data.points, data.assessed, data.copyFiles)}
+        card={workCard(data.points, data.copyFiles)}
         empty={{
           title: m.courseworkNoRecipients(),
           description: m.courseworkNoRecipientsBody(),

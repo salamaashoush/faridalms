@@ -388,13 +388,13 @@ function DatedFields({
         width="date"
         value={from}
         onChange={(event) => onFrom(event.target.value)}
-        errors={tried && !from ? [m.examMonthNeeded()] : undefined}
+        errors={tried && !from ? [m.gradingMonthNeeded()] : undefined}
       />
       <FormField
         id="grading-reason"
-        label={m.examReason()}
-        hint={m.examReasonHint()}
-        errors={tried && !reason.trim() ? [m.examReasonNeeded()] : undefined}
+        label={m.gradingReason()}
+        hint={m.gradingReasonHint()}
+        errors={tried && !reason.trim() ? [m.gradingReasonNeeded()] : undefined}
       >
         {(control) => (
           <Textarea
@@ -818,17 +818,17 @@ export function ScaleSheet({
         )}
         <TextField
           id="grading-title-en"
-          label={m.examTitleEn()}
+          label={m.gradingTitleEn()}
           width="name"
           lang="en"
           autoComplete="off"
           value={titleEn}
           onChange={(event) => setTitleEn(event.target.value)}
-          errors={untitled ? [m.examTitleNeeded()] : undefined}
+          errors={untitled ? [m.gradingTitleNeeded()] : undefined}
         />
         <TextField
           id="grading-title-ar"
-          label={m.examTitleAr()}
+          label={m.gradingTitleAr()}
           width="name"
           lang="ar"
           dir="rtl"
@@ -934,7 +934,7 @@ export function RetireScaleSheet({
         if (!next) onClose();
       }}
       title={m.gradingRetireScale()}
-      submitLabel={m.examRetire()}
+      submitLabel={m.gradingRetire()}
       pending={mutation.isPending}
       error={mutation.error ? getMessageFromError(mutation.error) : null}
       onSubmit={async () => {
@@ -958,8 +958,8 @@ export function RetireScaleSheet({
       </p>
       <FormField
         id="grading-retire-reason"
-        label={m.examReason()}
-        errors={tried && !reason.trim() ? [m.examReasonNeeded()] : undefined}
+        label={m.gradingReason()}
+        errors={tried && !reason.trim() ? [m.gradingReasonNeeded()] : undefined}
       >
         {(control) => (
           <Textarea

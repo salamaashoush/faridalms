@@ -49,10 +49,6 @@ function RecordCell({ record }: RecordCellProps) {
     >
       {record.name}
     </RowLink>
-  ) : record.session ? (
-    <RowLink to="/series" className="whitespace-normal">
-      {record.name}
-    </RowLink>
   ) : (
     <span dir="auto" className="block font-medium">
       {record.name}

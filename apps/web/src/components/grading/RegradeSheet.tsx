@@ -77,9 +77,9 @@ export function RegradeSheet({ open, onClose }: RegradeSheetProps) {
       />
       <FormField
         id="regrade-reason"
-        label={m.examReason()}
-        hint={m.examReasonHint()}
-        errors={tried && !reason.trim() ? [m.examReasonNeeded()] : undefined}
+        label={m.gradingReason()}
+        hint={m.gradingReasonHint()}
+        errors={tried && !reason.trim() ? [m.gradingReasonNeeded()] : undefined}
       >
         {(control) => (
           <Textarea

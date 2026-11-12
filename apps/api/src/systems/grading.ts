@@ -1,8 +1,8 @@
 import { classById } from "@faridalms/database/stores/classes";
-import { examBoardsOf } from "@faridalms/database/stores/exams";
 import {
   classCategories as classCategoriesOf,
   classGrading as classGradingOf,
+  gradingChanges,
   insertScaleVersion,
   programmeInUse,
   programmesOf,
@@ -17,6 +17,7 @@ import {
 } from "@faridalms/database/stores/grading";
 import {
   classGradingSchema,
+  gradingHistorySchema,
   retireProgrammeSchema,
   retireScaleSchema,
   saveBandsSchema,
@@ -24,6 +25,7 @@ import {
   saveScaleSchema,
   SCALE_PRESETS,
 } from "@faridalms/domain/grading";
+import { paged, pageWindow } from "@faridalms/domain/paging";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -47,9 +49,9 @@ function scopeOf(context: UnitContext) {
   return { tenantId: context.tenantId, orgId: context.schoolId };
 }
 
-/** Exams officers keep scales and programmes; office staff place classes in them. */
+/** Those who set up grading keep scales and programmes; office staff place classes in them. */
 function requireReader(context: UnitContext) {
-  if (!can(context, "exams:manage"))
+  if (!can(context, "grading:manage"))
     requireCapability(context, "classes:manage");
 }
 
@@ -72,7 +74,7 @@ export const overview = readProcedure.handler(async ({ context }) => {
 export const saveScale = writeProcedure
   .input(saveScaleSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "exams:manage");
+    requireCapability(context, "grading:manage");
     if (!input.id && !input.bands) refuse("grading.bands_needed");
     const saved = await saveScaleOf(context.tx, {
       ...scopeOf(context),
@@ -113,7 +115,7 @@ export const saveScale = writeProcedure
 export const saveBands = writeProcedure
   .input(saveBandsSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "exams:manage");
+    requireCapability(context, "grading:manage");
     const scales = await scalesOf(context.tx, scopeOf(context));
     if (!scales.some((row) => row.id === input.scaleId))
       throw new ORPCError("NOT_FOUND");
@@ -137,7 +139,7 @@ export const saveBands = writeProcedure
 export const retireScale = writeProcedure
   .input(retireScaleSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "exams:manage");
+    requireCapability(context, "grading:manage");
     if (
       await scaleInUse(context.tx, { tenantId: context.tenantId, id: input.id })
     )
@@ -158,15 +160,10 @@ export const retireScale = writeProcedure
 export const saveProgramme = writeProcedure
   .input(saveProgrammeSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "exams:manage");
-    const [scales, boards] = await Promise.all([
-      scalesOf(context.tx, scopeOf(context)),
-      examBoardsOf(context.tx, scopeOf(context)),
-    ]);
+    requireCapability(context, "grading:manage");
+    const scales = await scalesOf(context.tx, scopeOf(context));
     if (input.scaleId && !scales.some((row) => row.id === input.scaleId))
       refuse("grading.scale_unknown");
-    if (input.boardId && !boards.some((row) => row.id === input.boardId))
-      refuse("exam.board_unknown");
     const saved = await saveProgrammeOf(context.tx, {
       ...scopeOf(context),
       ...input,
@@ -193,7 +190,7 @@ export const saveProgramme = writeProcedure
 export const retireProgramme = writeProcedure
   .input(retireProgrammeSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "exams:manage");
+    requireCapability(context, "grading:manage");
     if (
       await programmeInUse(context.tx, {
         tenantId: context.tenantId,
@@ -280,7 +277,7 @@ export const regradeTerm = writeProcedure
     }),
   )
   .handler(async ({ input, context }) => {
-    requireCapability(context, "exams:manage");
+    requireCapability(context, "grading:manage");
     const counts = await regradeTermOf(context.tx, {
       ...scopeOf(context),
       periodId: input.periodId,
@@ -297,13 +294,13 @@ export const regradeTerm = writeProcedure
 
 /**
  * What a class grades by, for everyone who teaches or keeps it: its
- * programme and that programme's board, the scale and bands in force, and
- * the categories its work counts in.
+ * programme, the scale and bands in force, and the categories its work
+ * counts in.
  */
 export const classPlan = readProcedure
   .input(v.object({ classId: uuid }))
   .handler(async ({ input, context }) => {
-    if (!can(context, "exams:manage") && !can(context, "classes:manage"))
+    if (!can(context, "grading:manage") && !can(context, "classes:manage"))
       requireCapability(context, "assignments:author");
     const row = await schoolClass(context, input.classId);
     const [grading, programmes, scales, categories] = await Promise.all([
@@ -334,8 +331,6 @@ export const classPlan = readProcedure
             id: programme.id,
             titleEn: programme.titleEn,
             titleAr: programme.titleAr,
-            officialBoard: programme.officialBoard,
-            boardId: programme.boardId,
             byGradeLevel: !grading?.programmeId,
           }
         : null,
@@ -352,4 +347,17 @@ export const classPlan = readProcedure
           : null,
       categories,
     };
+  });
+
+/** The changes made to the school's grading, for those who set it up. */
+export const history = readProcedure
+  .input(gradingHistorySchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "grading:manage");
+    const { rows, total } = await gradingChanges(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      ...pageWindow(input.page),
+    });
+    return paged(rows, total, input.page);
   });

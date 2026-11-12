@@ -459,7 +459,7 @@ export async function retireTrashedMedia(
           and f.host_type is distinct from 'media_library'
           and f.created_at < ${before}::timestamptz
           -- Only what a document once held and has dropped: a file kept by
-          -- a record of its own, as a declaration keeps its scan, stays.
+          -- a record of its own, as a consent answered on paper keeps its scan, stays.
           and exists (
             select 1 from core.document_files l
             where l.tenant_id = f.tenant_id and l.file_id = f.id)

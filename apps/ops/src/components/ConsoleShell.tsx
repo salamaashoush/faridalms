@@ -24,7 +24,6 @@ import {
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Building2,
-  CalendarClock,
   History,
   LayoutDashboard,
   LogOut,
@@ -75,12 +74,6 @@ const NAVIGATION: ConsoleNavSection[] = [
     title: "Schools",
     items: [
       { to: "/schools", label: "Schools", icon: School, area: "readTenants" },
-      {
-        to: "/series",
-        label: "Exam sessions",
-        icon: CalendarClock,
-        area: "readTenants",
-      },
       { to: "/changes", label: "Changes", icon: History, area: "readTenants" },
     ],
   },

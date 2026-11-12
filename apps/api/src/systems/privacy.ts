@@ -21,7 +21,6 @@ import {
   breachesOf,
   closeBreach as closeBreachOf,
   closeRequest as closeRequestOf,
-  examWorkOf,
   extendRequest as extendRequestOf,
   hadAtSchool,
   holdsOf,
@@ -34,7 +33,6 @@ import {
   requestsOf,
   retentionOf,
   saveRetention as saveRetentionOf,
-  sessionWorkOf,
   setBreachNotices,
   updateBreach,
   updateRequest,
@@ -81,7 +79,6 @@ import {
 } from "../core/procedure";
 import { scopeFor } from "../core/reach";
 import { dayKinds, logFamilyRequest } from "../core/records-requests";
-import { sessionViews } from "../exams/sessions";
 
 function scopeOf(context: UnitContext) {
   return { tenantId: context.tenantId, orgId: context.schoolId };
@@ -90,8 +87,7 @@ function scopeOf(context: UnitContext) {
 /** What keeps a leaver's records from being destroyed today, if anything. */
 export type Block =
   | { kind: "hold"; reason: string }
-  | { kind: "request"; dueOn: string }
-  | { kind: "exam"; until: string };
+  | { kind: "request"; dueOn: string };
 
 /** Each breach with who must be told and by when. */
 async function breachClocks(context: UnitContext, rows: BreachRow[]) {
@@ -122,15 +118,13 @@ async function breachClocks(context: UnitContext, rows: BreachRow[]) {
  */
 async function reviewOf(context: UnitContext, fulfilling: string | null) {
   const scope = scopeOf(context);
-  const [rules, people, applicants, holds, requests, sessions] =
-    await Promise.all([
-      retentionOf(context.tx, scope),
-      leaversOf(context.tx, { ...scope, today: context.today }),
-      unsuccessfulApplicants(context.tx, scope),
-      holdsOf(context.tx, scope),
-      requestsOf(context.tx, scope),
-      sessionViews(context),
-    ]);
+  const [rules, people, applicants, holds, requests] = await Promise.all([
+    retentionOf(context.tx, scope),
+    leaversOf(context.tx, { ...scope, today: context.today }),
+    unsuccessfulApplicants(context.tx, scope),
+    holdsOf(context.tx, scope),
+    requestsOf(context.tx, scope),
+  ]);
   const leavers: LeaverRow[] = [
     ...people,
     ...applicants.map((row) => ({
@@ -149,32 +143,15 @@ async function reviewOf(context: UnitContext, fulfilling: string | null) {
     const known = openRequest.get(row.subjectUserId);
     if (!known || due < known) openRequest.set(row.subjectUserId, due);
   }
-  const examWork = await examWorkOf(context.tx, {
-    tenantId: context.tenantId,
-    studentIds: leavers
-      .filter((row) => row.kind === "student")
-      .map((row) => row.userId),
-  });
-  const keepUntil = new Map(sessions.map((row) => [row.id, row.keepUntil]));
-  const examUntil = new Map<string, string>();
-  for (const row of examWork) {
-    const until = keepUntil.get(row.sessionId);
-    if (!until || until < context.today) continue;
-    const known = examUntil.get(row.studentId);
-    if (!known || until > known) examUntil.set(row.studentId, until);
-  }
   const holdOf = new Map(holds.map((row) => [row.subjectUserId, row]));
   const review = leavers.map((row) => {
     const hold = holdOf.get(row.userId);
     const asked = openRequest.get(row.userId);
-    const until = examUntil.get(row.userId);
     const block: Block | null = hold
       ? { kind: "hold", reason: hold.reason }
       : asked
         ? { kind: "request", dueOn: asked }
-        : until
-          ? { kind: "exam", until }
-          : null;
+        : null;
     return {
       ...row,
       id: `${row.kind}:${row.userId}`,
@@ -186,30 +163,23 @@ async function reviewOf(context: UnitContext, fulfilling: string | null) {
       block,
     };
   });
-  return { rules, review, holds, requests, sessions };
+  return { rules, review, holds, requests };
 }
 
 /**
  * The school's retention rules, the leavers they bring up for review with
- * whatever blocks each, the registers of holds, requests, breaches and
- * erasures, and the exam sessions whose coursework has passed its keep-until
- * date.
+ * whatever blocks each, and the registers of holds, requests, breaches and
+ * erasures.
  */
 export const overview = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "privacy:manage");
   const scope = scopeOf(context);
-  const [
-    { rules, review, holds, requests, sessions },
-    sessionWork,
-    breaches,
-    erasures,
-  ] = await Promise.all([
-    reviewOf(context, null),
-    sessionWorkOf(context.tx, scope),
-    breachesOf(context.tx, scope),
-    erasuresOf(context.tx, scope),
-  ]);
-  const work = new Map(sessionWork.map((row) => [row.sessionId, row]));
+  const [{ rules, review, holds, requests }, breaches, erasures] =
+    await Promise.all([
+      reviewOf(context, null),
+      breachesOf(context.tx, scope),
+      erasuresOf(context.tx, scope),
+    ]);
   return {
     today: context.today,
     rules,
@@ -222,14 +192,6 @@ export const overview = readProcedure.handler(async ({ context }) => {
       approve: can(context, "erasure:approve"),
       available: context.cell.canErase(),
     },
-    sessions: sessions
-      .filter((row) => row.keepUntil < context.today)
-      .map((row) => ({
-        ...row,
-        assignments: work.get(row.id)?.assignments ?? 0,
-        handedIn: work.get(row.id)?.handedIn ?? 0,
-      }))
-      .filter((row) => row.assignments > 0),
   };
 });
 
@@ -582,7 +544,6 @@ export const closeBreach = writeProcedure
 const BLOCK_ERROR: Record<Block["kind"], string> = {
   hold: "privacy.erasure_held",
   request: "privacy.erasure_requested",
-  exam: "privacy.erasure_exam",
 };
 
 /**

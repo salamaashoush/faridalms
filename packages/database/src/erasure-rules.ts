@@ -47,16 +47,6 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     why: "Who sent a document's words to the school's language model, and how much; the school's record of what left it, without the words.",
     reviewed: false,
   },
-  "core.attempt_authentications": {
-    rule: "kept",
-    why: "Names the member of staff who did it; the record belongs to the school.",
-    reviewed: false,
-  },
-  "core.attempt_declarations": {
-    rule: "to_erase",
-    why: "A student's declaration on their own work; held with the work while an exam session keeps it.",
-    reviewed: false,
-  },
   "core.attendance_events": {
     rule: "kept",
     why: "The statutory attendance record.",
@@ -116,11 +106,6 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     reviewed: false,
   },
   "core.contact_points": { rule: "erased" },
-  "core.coursework_assessments": {
-    rule: "kept",
-    why: "Names the member of staff who did it; the record belongs to the school.",
-    reviewed: false,
-  },
   "core.demographics": { rule: "erased" },
   "core.discussion_likes": { rule: "erased" },
   "core.discussion_posts": { rule: "erased" },
@@ -276,12 +261,12 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
   "core.student_school_years": { rule: "erased" },
   "core.submission_attempts": {
     rule: "to_erase",
-    why: "A student's own work; held while an exam session keeps it.",
+    why: "A student's own work.",
     reviewed: false,
   },
   "core.submissions": {
     rule: "to_erase",
-    why: "A student's own work; held while an exam session keeps it.",
+    why: "A student's own work.",
     reviewed: false,
   },
   "core.thread_members": { rule: "erased" },

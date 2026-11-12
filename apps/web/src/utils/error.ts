@@ -91,7 +91,6 @@ const INTERNAL_CODES: ReadonlySet<string> = new Set([
   "document_translation.exists",
   "document_version.exists",
   "documents.frozen",
-  "exam.sits_in_month",
   "external_id.must_be_sealed",
   "external_id.suffix_forbidden",
   "family_share.exists",
@@ -103,7 +102,6 @@ const INTERNAL_CODES: ReadonlySet<string> = new Set([
   "file_publication.key_taken",
   "form.questions",
   "grading.bands_needed",
-  "grading.one_board",
   "health_change.exists",
   "hosts.lookup_failed",
   "hosts.route_missing",
@@ -651,42 +649,6 @@ export function getMessageFromError(error: unknown): string {
         return m.errorModuleInPlan();
       case "intake.not_sent":
         return m.errorIntakeNotSent();
-      case "exam.series_unknown":
-        return m.examErrSeriesUnknown();
-      case "exam.board_unknown":
-        return m.examErrBoardUnknown();
-      case "exam.keep_until_early":
-        return m.examErrKeepUntilEarly();
-      case "exam.keep_until_needed":
-        return m.examKeepUntilNeeded();
-      case "exam.title_needed":
-        return m.examTitleNeeded();
-      case "exam.reason_needed":
-        return m.examReasonNeeded();
-      case "exam.below_board":
-        return m.examErrBelowBoard();
-      case "exam.session_exists":
-        return m.examErrSessionExists();
-      case "exam.session_unknown":
-        return m.examErrSeriesUnknown();
-      case "coursework.declaration_needed":
-        return m.courseworkErrDeclarationNeeded();
-      case "coursework.ai_use_missing":
-        return m.courseworkErrAiMissing();
-      case "coursework.ai_use_incomplete":
-        return m.courseworkErrAiIncomplete();
-      case "coursework.ai_use_in_work":
-        return m.courseworkErrAiInWork();
-      case "coursework.declaration_outstanding":
-        return m.courseworkErrDeclarationOutstanding();
-      case "coursework.final":
-        return m.courseworkErrFinal();
-      case "coursework.declared_already":
-        return m.courseworkErrDeclaredAlready();
-      case "coursework.not_for_quiz":
-        return m.courseworkErrNotForQuiz();
-      case "coursework.reason_needed":
-        return m.authenticationReasonNeeded();
       case "grading.scale_in_use":
         return m.courseworkErrScaleInUse();
       case "grading.programme_in_use":
@@ -722,7 +684,7 @@ export function getMessageFromError(error: unknown): string {
       case "grading.programme_unknown":
         return m.gradingErrProgrammeUnknown();
       case "grading.title_needed":
-        return m.examTitleNeeded();
+        return m.gradingTitleNeeded();
       case "privacy.person_unknown":
         return m.privacyErrPersonUnknown();
       case "privacy.hold_unknown":
@@ -747,8 +709,6 @@ export function getMessageFromError(error: unknown): string {
         return m.privacyErrErasureHeld();
       case "privacy.erasure_requested":
         return m.privacyErrErasureRequested();
-      case "privacy.erasure_exam":
-        return m.privacyErrErasureExam();
       case "privacy.not_a_leaver":
         return m.privacyErrNotLeaver();
       case "privacy.not_yet_due":
@@ -1005,14 +965,8 @@ export function getMessageFromError(error: unknown): string {
       case "learning.unreviewed":
       case "coursework.unreviewed":
         return m.lrnErrUnreviewed();
-      case "coursework.assessed_exists":
-      case "coursework.authenticated_already":
       case "coursework.class_fixed":
         return m.errorConflictVersion();
-      case "coursework.no_declaration":
-        return m.courseworkErrNoDeclaration();
-      case "coursework.not_assessed":
-        return m.courseworkErrNotAssessed();
       case "learning.option":
         return m.lrnErrOption();
       case "learning.pass_score":

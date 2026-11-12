@@ -6,7 +6,6 @@ import {
   soldInForce,
 } from "@faridalms/database/business/subscriptions";
 import { HostRefusedError } from "@faridalms/database/directory/hosts";
-import { saveSeriesSchema } from "@faridalms/domain/exams";
 import {
   addHostSchema,
   customHostProblem,
@@ -33,7 +32,6 @@ import {
   changeLogQuery,
   CHANGES_PER_PAGE,
 } from "../change-log";
-import { seriesName } from "../format";
 import { currentAccess, requireArea, requireFreshSignIn } from "./access";
 import { businessDb } from "./business";
 import { activateSchool, beginSchool, provisionSchool } from "./creation";
@@ -184,8 +182,6 @@ export interface ChangeRecord {
   detail: string | null;
   /** The school whose History holds the change. */
   schoolId: string | null;
-  /** An exam session, which the Exam sessions page holds. */
-  session: boolean;
 }
 
 const contains = (needle: string) => (text: string | null) =>
@@ -193,8 +189,8 @@ const contains = (needle: string) => (text: string | null) =>
 
 /**
  * The directory's change log, a page at a time, filtered on the server so a
- * filter reaches the whole log. A school's, a group's or a session's name
- * matches its changes, and its hosts' and sign-in domains' too.
+ * filter reaches the whole log. A school's or a group's name matches its
+ * changes, and its hosts' and sign-in domains' too.
  */
 export const listChanges = createServerFn({ method: "GET" })
   .validator((input: v.InferInput<typeof changeLogQuery>) =>
@@ -202,9 +198,8 @@ export const listChanges = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireArea("readTenants");
-    const [schools, series, names, counts] = await Promise.all([
+    const [schools, names, counts] = await Promise.all([
       directory().schools(),
-      directory().series(),
       actorNames(),
       directory().changeCounts(),
     ]);
@@ -236,9 +231,6 @@ export const listChanges = createServerFn({ method: "GET" })
     const namedTenants = [...tenants]
       .filter(([, tenant]) => matches(tenant.name))
       .map(([id]) => id);
-    const namedSeries = series
-      .filter((one) => matches(seriesName(one)))
-      .map((one) => one.id);
     const since =
       data.when === "all"
         ? undefined
@@ -252,14 +244,13 @@ export const listChanges = createServerFn({ method: "GET" })
         ? {
             schools: namedSchools,
             tenants: namedTenants,
-            subjects: [...namedSchools, ...namedTenants, ...namedSeries],
+            subjects: [...namedSchools, ...namedTenants],
           }
         : undefined,
       offset: (data.page - 1) * CHANGES_PER_PAGE,
       limit: CHANGES_PER_PAGE,
     });
     const schoolsById = new Map(schools.map((school) => [school.id, school]));
-    const seriesById = new Map(series.map((one) => [one.id, one]));
     const schoolNamed = (id: string | null) => {
       const school = id ? schoolsById.get(id) : undefined;
       return school ? (school.nameEn ?? school.nameAr ?? school.slug) : null;
@@ -272,13 +263,11 @@ export const listChanges = createServerFn({ method: "GET" })
           name: only.nameEn ?? only.nameAr ?? only.slug,
           detail,
           schoolId: only.id,
-          session: false,
         };
       return {
         name: tenant?.name ?? "A school group no longer listed",
         detail: detail ?? "School group",
         schoolId: null,
-        session: false,
       };
     };
     const recordOf = (change: (typeof changes)[number]): ChangeRecord => {
@@ -290,41 +279,28 @@ export const listChanges = createServerFn({ method: "GET" })
             schoolId: schoolsById.has(change.subjectId)
               ? change.subjectId
               : null,
-            session: false,
           };
         case "host":
           return {
             name: schoolNamed(change.schoolId) ?? change.subjectId,
             detail: change.schoolId ? change.subjectId : "Web address",
             schoolId: change.schoolId,
-            session: false,
           };
         case "tenant":
           return tenantRecord(change.subjectId, null);
         case "sso_domain":
           return tenantRecord(change.tenantId, change.subjectId);
-        case "exam_series": {
-          const one = seriesById.get(change.subjectId);
-          return {
-            name: one ? seriesName(one) : change.subjectId,
-            detail: "Exam session",
-            schoolId: null,
-            session: true,
-          };
-        }
         case "cell":
           return {
             name: `Cell ${change.subjectId}`,
             detail: null,
             schoolId: null,
-            session: false,
           };
         default:
           return {
             name: change.subjectId,
             detail: "Integration",
             schoolId: null,
-            session: false,
           };
       }
     };
@@ -344,28 +320,6 @@ export const listChanges = createServerFn({ method: "GET" })
       ),
       pages: Math.max(1, Math.ceil(total / CHANGES_PER_PAGE)),
     };
-  });
-
-export const listSeries = createServerFn({ method: "GET" }).handler(
-  async () => {
-    await requireArea("readTenants");
-    return { series: await directory().series(), today: businessToday() };
-  },
-);
-
-export const saveSeries = createServerFn({ method: "POST" })
-  .validator((input: v.InferInput<typeof saveSeriesSchema>) =>
-    v.parse(saveSeriesSchema, input),
-  )
-  .handler(async ({ data }) => {
-    const { operator } = await requireArea("tenants");
-    const { reason, ...series } = data;
-    const id = await directory().saveSeries({
-      ...series,
-      operatorId: operator.id,
-      reason,
-    });
-    return { id };
   });
 
 export const listCells = createServerFn({ method: "GET" }).handler(async () => {

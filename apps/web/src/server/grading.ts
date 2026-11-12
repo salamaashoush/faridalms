@@ -1,5 +1,6 @@
 import {
   classGradingSchema,
+  gradingHistorySchema,
   retireProgrammeSchema,
   retireScaleSchema,
   saveBandsSchema,
@@ -57,3 +58,7 @@ export const getClassPlan = createServerFn({ method: "GET" })
 export const regradeTerm = createServerFn({ method: "POST" })
   .validator(checked(regrade))
   .handler(({ data }) => backend().grading.regradeTerm(data));
+
+export const getGradingHistory = createServerFn({ method: "GET" })
+  .validator(checked(gradingHistorySchema))
+  .handler(({ data }) => backend().grading.history(data));

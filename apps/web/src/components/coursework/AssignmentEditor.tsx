@@ -61,7 +61,6 @@ import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { LtiHostProvider } from "~/components/content/lti";
 import { useStartFrom } from "~/components/content/Templates";
 import { TranslationNote } from "~/components/content/TranslationNote";
-import { CourseworkSetting } from "~/components/exams/CourseworkSetting";
 import { blockIssue } from "~/components/learning/issues";
 import { CheckboxRow } from "~/components/people/fields";
 import {
@@ -1398,16 +1397,6 @@ export function AssignmentEditor({
                 />
               )}
             </DetailsSection>
-            {isQuiz || isDiscussion ? null : (
-              <CourseworkSetting
-                assignmentId={storedId}
-                board={
-                  plan?.programme
-                    ? (plan.programme.officialBoard ?? plan.programme.boardId)
-                    : null
-                }
-              />
-            )}
             {isDiscussion ? (
               <DetailsSection title={m.discussionSection()}>
                 <CheckboxRow

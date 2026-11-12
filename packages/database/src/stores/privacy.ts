@@ -19,7 +19,6 @@ import {
   recordsRequests,
   retentionSettings,
 } from "../tables/privacy";
-import { uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -144,56 +143,6 @@ export async function leaversOf(
     fullNameAr: row.full_name_ar,
     birthDate: row.birth_date,
     leftOn: row.left_on,
-  }));
-}
-
-/** The exam sessions whose coursework each student handed in. */
-export async function examWorkOf(
-  tx: Tx,
-  input: { tenantId: string; studentIds: string[] },
-): Promise<{ studentId: string; sessionId: string }[]> {
-  if (input.studentIds.length === 0) return [];
-  const rows = await tx.execute<{ student_id: string; session_id: string }>(sql`
-    select distinct s.student_user_id as student_id, k.session_id
-    from core.submissions s
-    join core.coursework_assessments k on k.tenant_id = s.tenant_id
-      and k.assignment_id = s.assignment_id and k.status = 'active'
-    where s.tenant_id = ${input.tenantId}::uuid and s.status = 'active'
-      and s.student_user_id = any(${uuidArray(input.studentIds)})
-      and exists (select 1 from core.submission_attempts t
-                  where t.tenant_id = s.tenant_id and t.submission_id = s.id and t.status = 'active')`);
-  return rows.map((row) => ({
-    studentId: row.student_id,
-    sessionId: row.session_id,
-  }));
-}
-
-/** How much assessed coursework each of the school's exam sessions holds. */
-export async function sessionWorkOf(
-  tx: Tx,
-  scope: OrgScope,
-): Promise<{ sessionId: string; assignments: number; handedIn: number }[]> {
-  const rows = await tx.execute<{
-    session_id: string;
-    assignments: number;
-    handed_in: number;
-  }>(sql`
-    select k.session_id,
-           count(distinct k.assignment_id)::int as assignments,
-           count(distinct s.id) filter (where exists (
-             select 1 from core.submission_attempts t
-             where t.tenant_id = s.tenant_id and t.submission_id = s.id and t.status = 'active'))::int as handed_in
-    from core.coursework_assessments k
-    join core.assignments a on a.tenant_id = k.tenant_id and a.id = k.assignment_id
-      and a.org_id = ${scope.orgId}::uuid and a.status = 'active'
-    left join core.submissions s on s.tenant_id = k.tenant_id and s.assignment_id = k.assignment_id
-      and s.status = 'active'
-    where k.tenant_id = ${scope.tenantId}::uuid and k.status = 'active'
-    group by k.session_id`);
-  return rows.map((row) => ({
-    sessionId: row.session_id,
-    assignments: row.assignments,
-    handedIn: row.handed_in,
   }));
 }
 

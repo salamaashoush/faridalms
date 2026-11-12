@@ -445,7 +445,6 @@ function Modules() {
     m.productModuleCoursework(),
     m.productModuleQuizzes(),
     m.productModuleGradebook(),
-    m.productModuleExams(),
     m.productModuleAttendance(),
     m.productModuleTimetables(),
     m.productModuleCalendar(),

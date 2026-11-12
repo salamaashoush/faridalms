@@ -44,7 +44,7 @@ export function erasureRequestOf(
 
 /** Whether an approver may start erasing this leaver today. */
 export function erasable(overview: PrivacyOverview, row: ReviewRow): boolean {
-  if (row.block?.kind === "hold" || row.block?.kind === "exam") return false;
+  if (row.block?.kind === "hold") return false;
   const asked = erasureRequestOf(overview, row.userId);
   if (row.block?.kind === "request" && !asked) return false;
   return (

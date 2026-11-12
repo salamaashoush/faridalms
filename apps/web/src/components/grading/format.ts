@@ -1,10 +1,25 @@
 import type { GradeBand, GradeView } from "@faridalms/domain/grading";
 
 import { formatScore } from "~/components/coursework/format";
-import { isolatedLine } from "~/components/exams/names";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
+
+// First-strong isolates, built from code points since the formatter turns
+// escapes into invisible literal characters.
+const FSI = String.fromCodePoint(0x2068);
+const PDI = String.fromCodePoint(0x2069);
+
+/**
+ * Parts such as a grade and its points, each kept in its own direction so a
+ * mixed line reads in order in either language.
+ */
+function isolatedLine(parts: readonly (string | null | undefined)[]) {
+  return parts
+    .filter((part): part is string => Boolean(part))
+    .map((part) => `${FSI}${part}${PDI}`)
+    .join(" · ");
+}
 
 export function gradeLabel(grade: GradeView): string {
   return inLocale(grade.labelEn, grade.labelAr);

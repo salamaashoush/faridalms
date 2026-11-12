@@ -18,7 +18,6 @@ import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
 import {
   useMutation,
-  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -30,13 +29,6 @@ import type { Locale } from "~/i18n/runtime";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
-import {
-  DeclarationFields,
-  declarationReady,
-  DeclareSheet,
-  NO_DECLARATION,
-} from "~/components/exams/Declaration";
-import { isolatedLine, sessionName } from "~/components/exams/names";
 import { usePrint } from "~/components/print/usePrint";
 import { SaveIndicator } from "~/components/system/DocumentPage";
 import { FileList } from "~/components/system/FileList";
@@ -48,7 +40,6 @@ import { useAutosave } from "~/hooks/useAutosave";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { myWorkQuery } from "~/queries/coursework";
-import { myStandingQuery } from "~/queries/exams";
 import { handInWork, saveMyDraft, undoHandIn } from "~/server/coursework";
 import { formatInstant } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -226,15 +217,8 @@ function YourWork({ data }: YourWorkProps) {
   const [uploading, setUploading] = useState(false);
   const version = useRef(data.submission.version);
   const [confirming, setConfirming] = useState(false);
-  const standing = useQuery(myStandingQuery(data.assignment.id)).data;
-  const declaring = Boolean(standing?.declarationRequired);
-  const [declaration, setDeclaration] = useState(NO_DECLARATION);
-  const [tried, setTried] = useState(false);
   const refresh = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["coursework"] }),
-      queryClient.invalidateQueries({ queryKey: ["exams"] }),
-    ]);
+    queryClient.invalidateQueries({ queryKey: ["coursework"] });
   const persist = useCallback(
     async (value: ContentDocument) => {
       const saved = await saveMyDraft({
@@ -261,9 +245,6 @@ function YourWork({ data }: YourWorkProps) {
         data: {
           assignmentId: data.assignment.id,
           expectedVersion: version.current,
-          ...(declaring && declarationReady(declaration)
-            ? { declaration }
-            : {}),
         },
       });
     },
@@ -379,8 +360,6 @@ function YourWork({ data }: YourWorkProps) {
         pending={handIn.isPending}
         error={handIn.error ? getMessageFromError(handIn.error) : null}
         onSubmit={async () => {
-          setTried(true);
-          if (declaring && !declarationReady(declaration)) return;
           await handIn.mutateAsync().then(
             async () => {
               await refresh();
@@ -396,50 +375,8 @@ function YourWork({ data }: YourWorkProps) {
             ? m.courseworkHandInBodyAgain()
             : m.courseworkHandInBody()}
         </p>
-        {declaring && standing ? (
-          <DeclarationFields
-            value={declaration}
-            onChange={setDeclaration}
-            evidenceRequired={standing.aiEvidenceRequired}
-            tried={tried}
-          />
-        ) : null}
       </SheetForm>
     </RecordSection>
-  );
-}
-
-interface OutstandingDeclarationProps {
-  data: Data;
-}
-
-/** Work a teacher handed in for the student still waits for their declaration. */
-function OutstandingDeclaration({ data }: OutstandingDeclarationProps) {
-  const standing = useQuery(myStandingQuery(data.assignment.id)).data;
-  const [open, setOpen] = useState(false);
-  if (
-    !standing?.declarationRequired ||
-    !standing.latestAttemptId ||
-    standing.latestDeclared
-  )
-    return null;
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4">
-      <p className="text-sm leading-5">{m.declarationOutstanding()}</p>
-      <Button
-        type="button"
-        className="max-md:h-10"
-        onClick={() => setOpen(true)}
-      >
-        {m.declarationSign()}
-      </Button>
-      <DeclareSheet
-        open={open}
-        attemptId={standing.latestAttemptId}
-        evidenceRequired={standing.aiEvidenceRequired}
-        onClose={() => setOpen(false)}
-      />
-    </div>
   );
 }
 
@@ -450,7 +387,6 @@ export interface LearnerWorkProps {
 export function LearnerWork({ assignmentId }: LearnerWorkProps) {
   const data = useSuspenseQuery(myWorkQuery(assignmentId)).data;
   const width = useReaderWidth();
-  const standing = useQuery(myStandingQuery(assignmentId)).data;
   const facts: HeaderFact[] = [];
   if (data.assignment.class)
     facts.push({
@@ -468,11 +404,6 @@ export function LearnerWork({ assignmentId }: LearnerWorkProps) {
     facts.push({
       label: m.courseworkPoints(),
       value: m.courseworkPointsCount({ count: data.assignment.points }),
-    });
-  if (standing?.session)
-    facts.push({
-      label: m.courseworkExamFact(),
-      value: isolatedLine([sessionName(standing.session), standing.component]),
     });
   // A discussion's posts are its work, shown above; its attempt carries only the grade.
   const attempts =
@@ -558,7 +489,6 @@ export function LearnerWork({ assignmentId }: LearnerWorkProps) {
             data={data}
           />
         )}
-        {data.quiz ? null : <OutstandingDeclaration data={data} />}
         {data.assignment.peer ? (
           <PeerReviewWork assignmentId={data.assignment.id} />
         ) : null}

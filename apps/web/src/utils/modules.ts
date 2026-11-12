@@ -15,7 +15,7 @@ const PAGES: Partial<Record<ModuleId, readonly string[]>> = {
     "/me/assignments",
     "/family/assignments",
   ],
-  gradebook: ["/gradebook", "/me/grades", "/family/grades"],
+  gradebook: ["/gradebook", "/grade-scales", "/me/grades", "/family/grades"],
   attendance: [
     "/attendance",
     "/me/attendance",
@@ -28,7 +28,6 @@ const PAGES: Partial<Record<ModuleId, readonly string[]>> = {
   student_records: ["/health-changes", "/family/health"],
   badges: ["/badges"],
   standards: ["/standards"],
-  exams: ["/exams"],
   elearning: [
     "/modules",
     "/module-editor",
@@ -78,7 +77,6 @@ export const MODULE_LABEL: Record<ModuleId, () => string> = {
   student_records: m.moduleStudentRecords,
   badges: m.moduleBadges,
   standards: m.moduleStandards,
-  exams: m.moduleExams,
   elearning: m.moduleElearning,
   early_years: m.moduleEarlyYears,
   coding: m.moduleCoding,

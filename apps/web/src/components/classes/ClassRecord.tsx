@@ -439,11 +439,11 @@ export function ClassRecord({
   const modules = useCurrentUser().modules;
   const seesAttendance = useCapability("attendance:read") && modules.attendance;
   const seesTimetable = useCapability("timetable:read") && modules.timetable;
-  const keepsExams = useCapability("exams:manage");
+  const setsUpGrading = useCapability("grading:manage");
   const keepsClasses = useCapability("classes:manage");
   const teaches = useCapability("assignments:author");
   const grades = useCapability("submissions:grade");
-  const keepsGrading = keepsExams || keepsClasses;
+  const keepsGrading = setsUpGrading || keepsClasses;
   const youngClass = (
     YOUNG_STUDENT_GRADES as readonly (string | null | undefined)[]
   ).includes(options.grades.find((row) => row.id === data.gradeId)?.meaning);

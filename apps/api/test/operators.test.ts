@@ -139,53 +139,6 @@ describe("the operator console's directory access", () => {
   });
 });
 
-describe("official exam sessions", () => {
-  test("an operator adds a session and moves its date, and cells read it", async () => {
-    const { directory } = seeded();
-    const admin = openDirectoryAdmin(testDirectory().operatorUrl);
-    try {
-      const official = {
-        board: "jcq" as const,
-        sitsIn: "2031-06-01",
-        retired: false,
-        operatorId: "salama-test",
-      };
-      const id = await admin.saveSeries({
-        ...official,
-        keepUntil: "2031-10-31",
-        reason: "Published in the 2030-31 regulations",
-      });
-      expect(id).toBe("jcq-2031-06");
-      await admin.saveSeries({
-        ...official,
-        keepUntil: "2031-11-14",
-        reason: "Board moved the review deadline",
-      });
-      directory.forget();
-      expect(
-        (await directory.examSeries()).find((row) => row.id === id),
-      ).toEqual({
-        id,
-        board: "jcq",
-        sitsIn: "2031-06-01",
-        keepUntil: "2031-11-14",
-        retired: false,
-      });
-      const [moved, added] = await admin.changes({ type: "exam_series" });
-      expect(moved).toMatchObject({
-        subjectId: id,
-        action: "series.update",
-        before: { keepUntil: "2031-10-31", retired: false },
-        after: { keepUntil: "2031-11-14", retired: false },
-        reason: "Board moved the review deadline",
-      });
-      expect(added).toMatchObject({ action: "series.create", before: null });
-    } finally {
-      await admin.close();
-    }
-  });
-});
-
 describe("modules a plan offers", () => {
   test("a school switches on only what its plan includes, and loses what the plan drops", async () => {
     const school = seeded().tenants[0]?.schools.find(

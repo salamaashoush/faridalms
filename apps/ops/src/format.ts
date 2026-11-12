@@ -1,6 +1,5 @@
 import type { DirectoryTenantState } from "@faridalms/database/directory/schema";
 import type { AgingBucket, DunningStep } from "@faridalms/domain/dunning";
-import type { ExamBoard } from "@faridalms/domain/exams";
 import type { HostRole, HostState } from "@faridalms/domain/hosts";
 import type {
   InvoiceKind,
@@ -32,11 +31,7 @@ import type {
 } from "@faridalms/domain/subscriptions";
 import type { Tone } from "@faridalms/ui/system/status";
 
-import {
-  formatDayIn,
-  formatInstantIn,
-  formatMonthIn,
-} from "@faridalms/domain/date-text";
+import { formatDayIn, formatInstantIn } from "@faridalms/domain/date-text";
 import { HOST_ROLES } from "@faridalms/domain/hosts";
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import {
@@ -75,7 +70,6 @@ export const MODULE_NAMES: Record<ModuleId, string> = {
   student_records: "Student records",
   badges: "Badges",
   standards: "Standards",
-  exams: "Exams",
   elearning: "E-learning",
   early_years: "Early years",
   coding: "Coding and blocks",
@@ -98,7 +92,6 @@ export const MODULE_HINTS: Record<ModuleId, string> = {
   student_records: "Each student's full record beyond their profile",
   badges: "Young children sign in by showing a printed badge",
   standards: "Curriculum standards that work and marks are tagged with",
-  exams: "Exam entries and sessions with external boards",
   elearning: "Self-paced courses and lessons students work through",
   early_years: "Observations and learning journeys for the early years",
   coding: "Block and text coding projects that run in the browser",
@@ -112,23 +105,6 @@ export const MODULE_HINTS: Record<ModuleId, string> = {
 export function moduleName(id: string): string {
   const known = MODULE_IDS.find((module) => module === id);
   return known ? MODULE_NAMES[known] : id;
-}
-
-export const BOARD_NAMES: Record<ExamBoard, string> = {
-  cambridge: "Cambridge International",
-  pearson: "Pearson Edexcel",
-  ib: "International Baccalaureate",
-  jcq: "UK boards (JCQ: AQA, OCR, WJEC)",
-};
-
-/** A month with its year: "September 2026". */
-export function formatMonth(isoDate: string): string {
-  return formatMonthIn(isoDate, "label", "en");
-}
-
-/** An official exam session as people name it: "Cambridge International, June 2027". */
-export function seriesName(series: { board: ExamBoard; sitsIn: string }) {
-  return `${BOARD_NAMES[series.board]}, ${formatMonth(series.sitsIn)}`;
 }
 
 /** An instant's day on the business's clock: "Nov 7, 2026". */
@@ -564,8 +540,6 @@ export const CHANGE_ACTION_NAMES: Record<string, string> = {
   "onboarding.undone": "Onboarding step reopened",
   "sso_domain.add": "Sign-in domain added",
   "administrator.invite": "Administrator sent a new link",
-  "series.create": "Session added",
-  "series.update": "Session changed",
   "host.add": "Host added",
   "host.remove": "Host removed",
   "host.canonical": "Main host changed",
@@ -634,7 +608,6 @@ export const MODULE_GROUPS: readonly ModuleGroup[] = [
       "peer_review",
       "gradebook",
       "standards",
-      "exams",
       "elearning",
       "early_years",
       "coding",
