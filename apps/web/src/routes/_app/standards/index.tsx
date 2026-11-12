@@ -7,30 +7,13 @@ import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  FileUp,
-  Flag,
-  Grid3x3,
-  Lightbulb,
-  ListTree,
-  Plus,
-  Sprout,
-} from "lucide-react";
+import { Flag, Grid3x3, ListTree, Plus, Sprout } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
-import {
-  FrameworkSheet,
-  ImportCaseSheet,
-  sourceOf,
-} from "~/components/standards/Standards";
+import { FrameworkSheet, sourceOf } from "~/components/standards/Standards";
 import * as m from "~/i18n/messages";
 import { frameworksQuery } from "~/queries/standards";
-import {
-  addDevelopmentMatters,
-  addEarlyGoals,
-  addIbConcepts,
-} from "~/server/standards";
+import { addDevelopmentMatters, addEarlyGoals } from "~/server/standards";
 import { formatNumber } from "~/utils/datetime";
 
 type Data = Awaited<
@@ -97,10 +80,9 @@ function FrameworksPage() {
   const queryClient = useQueryClient();
   const addGoals = useServerFn(addEarlyGoals);
   const addMatters = useServerFn(addDevelopmentMatters);
-  const addConcepts = useServerFn(addIbConcepts);
-  const [sheet, setSheet] = useState<"new" | "import" | null>(null);
+  const [sheet, setSheet] = useState<"new" | null>(null);
   const [key, setKey] = useState(0);
-  const open = (next: "new" | "import") => {
+  const open = (next: "new") => {
     setKey((current) => current + 1);
     setSheet(next);
   };
@@ -133,11 +115,6 @@ function FrameworksPage() {
           ...(data.canManage
             ? [
                 {
-                  label: m.standardsImportCase(),
-                  icon: FileUp,
-                  onSelect: () => open("import"),
-                },
-                {
                   label: m.goalsAddEyfs(),
                   icon: Flag,
                   onSelect: async () => {
@@ -159,17 +136,6 @@ function FrameworksPage() {
                     await go(added.id);
                   },
                 },
-                {
-                  label: m.standardsAddIbConcepts(),
-                  icon: Lightbulb,
-                  onSelect: async () => {
-                    await addConcepts();
-                    await queryClient.invalidateQueries({
-                      queryKey: ["standards"],
-                    });
-                    toast.success(m.standardsIbConceptsAdded());
-                  },
-                },
               ]
             : []),
         ]}
@@ -187,22 +153,13 @@ function FrameworksPage() {
         }}
       />
       {data.canManage ? (
-        <>
-          <FrameworkSheet
-            key={`new-${key}`}
-            open={sheet === "new"}
-            onClose={() => setSheet(null)}
-            framework={null}
-            onSaved={go}
-          />
-          <ImportCaseSheet
-            key={`import-${key}`}
-            open={sheet === "import"}
-            onClose={() => setSheet(null)}
-            frameworkId=""
-            onImported={go}
-          />
-        </>
+        <FrameworkSheet
+          key={`new-${key}`}
+          open={sheet === "new"}
+          onClose={() => setSheet(null)}
+          framework={null}
+          onSaved={go}
+        />
       ) : null}
     </Page>
   );

@@ -268,7 +268,6 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "standards.judge": m.auditStandardsJudge,
   "standards.goals_report_share": m.auditStandardsGoalsReportShare,
   "standards.goals_report_withdraw": m.auditStandardsGoalsReportWithdraw,
-  "standards.goals_return_exported": m.auditStandardsGoalsReturnExported,
   "standards.judgement_clear": m.auditStandardsJudgementClear,
   "standards.remove": m.auditStandardsRemove,
   "standards.update": m.auditStandardsUpdate,

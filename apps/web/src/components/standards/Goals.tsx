@@ -1,4 +1,3 @@
-import type { ReturnGap } from "@faridalms/domain/eyfsp";
 import type { GoalLevel } from "@faridalms/domain/standards";
 import type { LucideIcon } from "lucide-react";
 
@@ -16,11 +15,7 @@ import {
   SelectValue,
 } from "@faridalms/ui/select";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
-import {
-  FormField,
-  SelectField,
-  TextField,
-} from "@faridalms/ui/system/form-field";
+import { FormField, SelectField } from "@faridalms/ui/system/form-field";
 import { Segmented } from "@faridalms/ui/system/panel";
 import {
   phoneLink,
@@ -28,8 +23,6 @@ import {
   RecordList,
   RecordSection,
 } from "@faridalms/ui/system/record-page";
-import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
-import { Value } from "@faridalms/ui/system/value";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -44,7 +37,6 @@ import {
   CircleCheck,
   CircleDashed,
   CircleSlash,
-  FileDown,
   Flag,
   NotebookPen,
   Share2,
@@ -62,7 +54,6 @@ import {
   addDevelopmentMatters,
   addEarlyGoals,
   judgeGoal,
-  makeGoalsReturn,
   shareGoalsReport,
 } from "~/server/standards";
 import { formatAgo, formatNumber } from "~/utils/datetime";
@@ -597,117 +588,6 @@ function ShareReport({
   );
 }
 
-const GAP_LABEL: Record<ReturnGap, () => string> = {
-  upn: m.goalsReturnNoUpn,
-  surname: m.goalsReturnNoSurname,
-  forename: m.goalsReturnNoForename,
-  dob: m.goalsReturnNoBirthDate,
-  results: m.goalsReturnNoResults,
-};
-
-/** Saves text as a file on the teacher's device. */
-function saveFile(fileName: string, text: string, type: string) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-interface GoalsReturnSheetProps {
-  classId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-/**
- * The end-of-year EYFS profile return: where the local authority knows the
- * school from, then the transfer file it takes, with what each child's
- * record still lacks for it to be accepted.
- */
-function GoalsReturnSheet({
-  classId,
-  open,
-  onOpenChange,
-}: GoalsReturnSheetProps) {
-  const make = useServerFn(makeGoalsReturn);
-  const [la, setLa] = useState("");
-  const [estab, setEstab] = useState("");
-  const [urn, setUrn] = useState("");
-  const making = useMutation({
-    mutationFn: () => make({ data: { classId, la, estab, urn } }),
-    onSuccess: (made) => saveFile(made.fileName, made.file, "application/xml"),
-  });
-  const gaps = making.data?.gaps ?? [];
-  return (
-    <SheetForm
-      open={open}
-      onOpenChange={onOpenChange}
-      title={m.goalsReturnTitle()}
-      submitLabel={m.goalsReturnDownload()}
-      pending={making.isPending}
-      error={making.error ? getMessageFromError(making.error) : null}
-      onSubmit={() => making.mutate()}
-    >
-      <p className="text-sm leading-5 text-muted-foreground">
-        {m.goalsReturnHint()}
-      </p>
-      <TextField
-        label={m.goalsReturnLa()}
-        hint={m.goalsReturnLaHint()}
-        dir="ltr"
-        inputMode="numeric"
-        maxLength={3}
-        value={la}
-        onChange={(event) => setLa(event.target.value)}
-      />
-      <TextField
-        label={m.goalsReturnEstab()}
-        hint={m.goalsReturnEstabHint()}
-        dir="ltr"
-        inputMode="numeric"
-        maxLength={4}
-        value={estab}
-        onChange={(event) => setEstab(event.target.value)}
-      />
-      <TextField
-        label={m.goalsReturnUrn()}
-        optional
-        dir="ltr"
-        inputMode="numeric"
-        maxLength={6}
-        value={urn}
-        onChange={(event) => setUrn(event.target.value)}
-      />
-      {making.isSuccess ? (
-        <output className="grid gap-2">
-          <p className="text-sm leading-5 font-medium">
-            {gaps.length === 0
-              ? m.goalsReturnComplete()
-              : m.goalsReturnGaps({ count: formatNumber(gaps.length) })}
-          </p>
-          {gaps.length > 0 ? (
-            <ul className="grid gap-1.5">
-              {gaps.map((row) => (
-                <li key={row.studentId} className="text-sm leading-5">
-                  <bdi className="font-medium">
-                    <Value>{row.name}</Value>
-                  </bdi>
-                  <span className="text-muted-foreground">
-                    {" · "}
-                    {row.gaps.map((gap) => GAP_LABEL[gap]()).join(", ")}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </output>
-      ) : null}
-    </SheetForm>
-  );
-}
-
 export interface ClassGoalsProps {
   classId: string;
 }
@@ -723,7 +603,6 @@ export function ClassGoals({ classId }: ClassGoalsProps) {
   const groups = goalGroups(data.goals);
   const goals = groups.flatMap((group) => group.goals);
   const [picked, setPicked] = useState("");
-  const returning = useSheet();
   const goal = goals.find((row) => row.id === picked) ?? goals[0];
   if (!data.frameworkId || !goal)
     return <NoGoals canAdd={data.canAddGoals} classId={classId} />;
@@ -740,14 +619,6 @@ export function ClassGoals({ classId }: ClassGoalsProps) {
   );
   return (
     <div className="grid gap-4">
-      {data.returnable ? (
-        <GoalsReturnSheet
-          key={returning.key}
-          classId={classId}
-          open={returning.open}
-          onOpenChange={returning.onOpenChange}
-        />
-      ) : null}
       <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
         {data.frameworks.length > 1 ? (
           <SelectField
@@ -790,18 +661,6 @@ export function ClassGoals({ classId }: ClassGoalsProps) {
             report={data.report}
             total={data.students.length}
           />
-          {data.returnable ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="max-md:h-10"
-              onClick={returning.show}
-            >
-              <FileDown aria-hidden />
-              {m.goalsReturnOpen()}
-            </Button>
-          ) : null}
         </div>
       </div>
       <RecordSection

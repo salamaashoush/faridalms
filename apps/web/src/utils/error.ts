@@ -223,8 +223,6 @@ export function getMessageFromError(error: unknown): string {
         return m.errorClassCodeTaken();
       case "standards.move":
         return m.errorStandardsMove();
-      case "standards.case_title":
-        return m.errorStandardsCaseTitle();
       case "standards.framework_exists":
         return m.errorStandardsFrameworkExists();
       case "standards.exists":

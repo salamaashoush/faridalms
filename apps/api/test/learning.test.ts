@@ -5274,20 +5274,30 @@ describe("a module's unit plan", () => {
     await office.standards.removeFramework({ id: framework.id });
   });
 
-  test("the IB's key concepts frame plans unassessed, and the curriculum map reads them across the year's units", async () => {
+  test("a school's own key concepts frame plans unassessed, and the curriculum map reads them across the year's units", async () => {
     const office = await signedIn("northwind", login("principal"));
-    const added = await office.standards.addIbConcepts();
-    expect(added.ids).toHaveLength(4);
-    // Adding them again brings the same frameworks back, not second ones.
-    expect((await office.standards.addIbConcepts()).ids).toEqual(added.ids);
-    const keyConcepts = added.ids[0] ?? "";
+    const made = await office.standards.saveFramework({
+      expectedVersion: 0,
+      title: "Key concepts",
+      description: "",
+      assessed: false,
+    });
+    const keyConcepts = made.id;
+    for (const statement of ["Change", "Form", "Systems"])
+      await office.standards.saveStandard({
+        frameworkId: keyConcepts,
+        expectedVersion: 0,
+        code: "",
+        statement,
+        itemType: "Key concept",
+      });
     const { framework: concepts, standards: items } =
       await office.standards.framework({ id: keyConcepts });
     expect(concepts).toMatchObject({
-      title: "IB MYP key concepts",
+      title: "Key concepts",
       assessed: false,
     });
-    expect(items).toHaveLength(16);
+    expect(items).toHaveLength(3);
     const change = items.find((row) => row.statement === "Change");
     if (!change) throw new Error("no key concept Change");
 
@@ -5328,7 +5338,7 @@ describe("a module's unit plan", () => {
       frameworkId: keyConcepts,
     });
     expect(map.frameworkId).toBe(keyConcepts);
-    expect(map.items).toHaveLength(16);
+    expect(map.items).toHaveLength(3);
     expect(map.units.find((row) => row.id === saved.id)).toMatchObject({
       title: "Seasons change",
       items: [change.id],
@@ -5348,8 +5358,7 @@ describe("a module's unit plan", () => {
       id: saved.id,
       expectedVersion: saved.version,
     });
-    for (const frameworkId of added.ids)
-      await office.standards.removeFramework({ id: frameworkId });
+    await office.standards.removeFramework({ id: keyConcepts });
   });
 });
 

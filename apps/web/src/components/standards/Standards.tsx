@@ -1,14 +1,10 @@
-import type { CasePackage } from "@faridalms/domain/standards";
 import type { ActionItem } from "@faridalms/ui/system/action-menu";
 
 import {
   DEVELOPMENT_MATTERS_IDENTIFIER,
   EYFS_GOALS,
 } from "@faridalms/domain/early-goals";
-import { IB_CONCEPTS } from "@faridalms/domain/ib-concepts";
 import {
-  casePackageSchema,
-  caseOutline,
   MAX_FRAMEWORK_DESCRIPTION,
   MAX_FRAMEWORK_TITLE,
   MAX_ITEM_TYPE,
@@ -33,15 +29,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import * as v from "valibot";
 
 import type { frameworkQuery } from "~/queries/standards";
 
 import { CheckboxRow } from "~/components/people/fields";
 import * as m from "~/i18n/messages";
 import {
-  importCase,
   moveStandard,
   removeStandard,
   saveFramework,
@@ -57,19 +50,15 @@ export type StandardRow = FrameworkData["standards"][number];
 type FrameworkRow = FrameworkData["framework"];
 
 /**
- * Where a framework came from: the EYFS goals, Development Matters, the
- * IB's concepts, a CASE package, or the school.
+ * Where a framework came from: the EYFS goals, Development Matters, or the
+ * school.
  */
-export const sourceOf = (framework: { caseIdentifier: string | null }) =>
-  framework.caseIdentifier === EYFS_GOALS.identifier
+export const sourceOf = (framework: { sourceIdentifier: string | null }) =>
+  framework.sourceIdentifier === EYFS_GOALS.identifier
     ? m.standardsSourceEyfs()
-    : framework.caseIdentifier === DEVELOPMENT_MATTERS_IDENTIFIER
+    : framework.sourceIdentifier === DEVELOPMENT_MATTERS_IDENTIFIER
       ? m.standardsSourceMatters()
-      : IB_CONCEPTS.some((row) => row.identifier === framework.caseIdentifier)
-        ? m.standardsSourceIb()
-        : framework.caseIdentifier
-          ? m.standardsSourceCase()
-          : m.standardsSourceOwn();
+      : m.standardsSourceOwn();
 
 export interface FrameworkSheetProps {
   open: boolean;
@@ -148,106 +137,6 @@ export function FrameworkSheet({
         checked={assessed}
         onChange={setAssessed}
       />
-    </SheetForm>
-  );
-}
-
-export interface ImportCaseSheetProps {
-  open: boolean;
-  onClose: () => void;
-  /** The framework to update, or none to make a new one. */
-  frameworkId: string;
-  onImported: (id: string) => void | Promise<unknown>;
-}
-
-/**
- * A CASE package read from a file, checked and counted before anything is
- * sent: what CASE editors and the CASE Network export as JSON.
- */
-export function ImportCaseSheet({
-  open,
-  onClose,
-  frameworkId,
-  onImported,
-}: ImportCaseSheetProps) {
-  const [found, setFound] = useState<{
-    casePackage: CasePackage;
-    title: string;
-    items: number;
-  } | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
-  const run = useMutation({
-    mutationFn: () => {
-      if (!found) throw new Error(m.standardsCaseChoose());
-      return importCase({
-        data: { frameworkId, casePackage: found.casePackage },
-      });
-    },
-    meta: { inlineError: true },
-  });
-  const read = async (file: File) => {
-    setFound(null);
-    setProblem(null);
-    try {
-      const parsed = v.safeParse(
-        casePackageSchema,
-        JSON.parse(await file.text()),
-      );
-      if (!parsed.success) throw new Error("not a package");
-      const outline = caseOutline(parsed.output);
-      setFound({
-        casePackage: parsed.output,
-        title: outline.title,
-        items: outline.items.length,
-      });
-    } catch {
-      setProblem(m.standardsCaseUnreadable());
-    }
-  };
-  return (
-    <SheetForm
-      open={open}
-      onOpenChange={(next) => (next ? undefined : onClose())}
-      title={m.standardsImportCase()}
-      submitLabel={m.standardsImport()}
-      pending={run.isPending}
-      error={problem ?? (run.error ? getMessageFromError(run.error) : null)}
-      onSubmit={async () => {
-        await run.mutateAsync().then(
-          async (done) => {
-            toast.success(m.standardsImported({ count: done.imported }));
-            await onImported(done.id);
-            onClose();
-          },
-          () => undefined,
-        );
-      }}
-    >
-      <p className="text-sm leading-5 text-muted-foreground">
-        {m.standardsCaseHint()}
-      </p>
-      <FormField id="case-file" label={m.standardsCaseFile()}>
-        {(control) => (
-          <input
-            {...control}
-            type="file"
-            accept="application/json,.json"
-            className="text-sm file:me-3 file:rounded-md file:border file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) void read(file);
-            }}
-          />
-        )}
-      </FormField>
-      {found ? (
-        <p className="text-sm leading-5" dir="auto">
-          {m.standardsCaseFound({
-            title: found.title,
-            count: found.items,
-          })}
-        </p>
-      ) : null}
     </SheetForm>
   );
 }

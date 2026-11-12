@@ -4,8 +4,6 @@ import {
   curriculumMapSchema,
   describeStandardsSchema,
   goalsReportSchema,
-  goalsReturnSchema,
-  importCaseSchema,
   judgeGoalSchema,
   moveStandardSchema,
   observeSchema,
@@ -50,17 +48,9 @@ export const removeStandard = createServerFn({ method: "POST" })
   .validator(checked(refSchema))
   .handler(({ data }) => backend().standards.remove(data));
 
-export const addIbConcepts = createServerFn({ method: "POST" }).handler(() =>
-  backend().standards.addIbConcepts(),
-);
-
 export const getCurriculumMap = createServerFn({ method: "GET" })
   .validator(checked(curriculumMapSchema))
   .handler(({ data }) => backend().standards.curriculumMap(data));
-
-export const importCase = createServerFn({ method: "POST" })
-  .validator(checked(importCaseSchema))
-  .handler(({ data }) => backend().standards.importCase(data));
 
 export const searchStandards = createServerFn({ method: "GET" })
   .validator(checked(searchStandardsSchema))
@@ -113,7 +103,3 @@ export const shareGoalsReport = createServerFn({ method: "POST" })
 export const getGoalsReport = createServerFn({ method: "GET" })
   .validator(checked(goalsReportSchema))
   .handler(({ data }) => record(backend().standards.goalsReport(data)));
-
-export const makeGoalsReturn = createServerFn({ method: "POST" })
-  .validator(checked(goalsReturnSchema))
-  .handler(({ data }) => backend().standards.goalsReturn(data));

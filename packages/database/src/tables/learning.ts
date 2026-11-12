@@ -1072,9 +1072,10 @@ export const bankQuestions = core.table.withRLS(
 );
 
 /**
- * A set of standards a school teaches to: an IB subject's objectives, a
- * curriculum framework, Common Core, or the school's own. One imported from
- * CASE keeps the package's identifier, so importing it again updates it.
+ * A set of standards a school teaches to: a curriculum framework, Common
+ * Core, or the school's own. One added from a ready-made framework keeps
+ * that framework's identifier, so adding it again brings the school's copy
+ * back to it rather than making a second.
  */
 export const standardFrameworks = core.table.withRLS(
   "standard_frameworks",
@@ -1083,7 +1084,7 @@ export const standardFrameworks = core.table.withRLS(
     orgId: uuid("org_id").notNull(),
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
-    caseIdentifier: uuid("case_identifier"),
+    sourceIdentifier: uuid("source_identifier"),
     /**
      * Its items are what work is assessed against; false for ideas that frame
      * units rather than being assessed, such as key concepts or global
@@ -1106,9 +1107,9 @@ export const standardFrameworks = core.table.withRLS(
       "description",
       sql`char_length(description) <= 2000`,
     ),
-    uniqueIndex("standard_frameworks_case_key")
-      .on(t.tenantId, t.orgId, t.caseIdentifier)
-      .where(sql`status = 'active' and case_identifier is not null`),
+    uniqueIndex("standard_frameworks_source_key")
+      .on(t.tenantId, t.orgId, t.sourceIdentifier)
+      .where(sql`status = 'active' and source_identifier is not null`),
     index("standard_frameworks_org_idx")
       .on(t.tenantId, t.orgId)
       .where(sql`status = 'active'`),
@@ -1133,7 +1134,7 @@ export const standards = core.table.withRLS(
     statementAr: text("statement_ar"),
     itemType: text("item_type").notNull().default(""),
     position: integer("position").notNull(),
-    caseIdentifier: uuid("case_identifier"),
+    sourceIdentifier: uuid("source_identifier"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -1159,9 +1160,9 @@ export const standards = core.table.withRLS(
     ck("standards", "item_type", sql`char_length(item_type) <= 60`),
     ck("standards", "position", sql`position >= 0`),
     ck("standards", "parent", sql`parent_id is distinct from id`),
-    uniqueIndex("standards_case_key")
-      .on(t.tenantId, t.frameworkId, t.caseIdentifier)
-      .where(sql`status = 'active' and case_identifier is not null`),
+    uniqueIndex("standards_source_key")
+      .on(t.tenantId, t.frameworkId, t.sourceIdentifier)
+      .where(sql`status = 'active' and source_identifier is not null`),
     index("standards_framework_idx")
       .on(t.tenantId, t.frameworkId, t.parentId, t.position)
       .where(sql`status = 'active'`),

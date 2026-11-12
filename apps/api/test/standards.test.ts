@@ -16,73 +16,6 @@ import {
 const principal = () => signedIn("northwind", login("principal"));
 const teacher = () => signedIn("northwind", login("teacher", 0, 1));
 
-const node = (identifier: string) => ({
-  identifier,
-  uri: `https://case.example.com/uri/${identifier}`,
-  title: "",
-});
-
-/** A small CASE package: a strand with two standards under it. */
-function casePackage(document: string, items: string[], extra = false) {
-  const [strand, first, second, third] = items as [
-    string,
-    string,
-    string,
-    string,
-  ];
-  return {
-    CFDocument: {
-      identifier: document,
-      title: "Example science",
-      description: "Shared by an example board.",
-      creator: "Example board",
-    },
-    CFItems: [
-      {
-        identifier: strand,
-        fullStatement: "Living things",
-        CFItemType: "Strand",
-      },
-      {
-        identifier: first,
-        fullStatement: "Name the parts of a plant.",
-        humanCodingScheme: "SC.1",
-      },
-      {
-        identifier: second,
-        fullStatement: extra
-          ? "Explain what roots and leaves do."
-          : "Say what roots do.",
-        humanCodingScheme: "SC.2",
-      },
-      ...(extra
-        ? [
-            {
-              identifier: third,
-              fullStatement: "Sort animals by what they eat.",
-              humanCodingScheme: "SC.3",
-            },
-          ]
-        : []),
-    ],
-    CFAssociations: [
-      {
-        identifier: crypto.randomUUID(),
-        associationType: "isChildOf",
-        originNodeURI: node(strand),
-        destinationNodeURI: node(document),
-      },
-      ...[first, second, ...(extra ? [third] : [])].map((item, index) => ({
-        identifier: crypto.randomUUID(),
-        associationType: "isChildOf",
-        originNodeURI: node(item),
-        destinationNodeURI: node(strand),
-        sequenceNumber: index + 1,
-      })),
-    ],
-  };
-}
-
 describe("standards", () => {
   test("a school keeps its own framework, and teachers find its standards to tag", async () => {
     const office = await principal();
@@ -367,39 +300,6 @@ describe("standards", () => {
     });
     expect(await masteryOf(staff, me.id)).toBeUndefined();
     await office.standards.removeFramework({ id: framework.id });
-  });
-
-  test("a CASE package imports as a framework, and importing it again updates it in place", async () => {
-    const office = await principal();
-    const document = crypto.randomUUID();
-    const items = [1, 2, 3, 4].map(() => crypto.randomUUID());
-    const first = await office.standards.importCase({
-      frameworkId: "",
-      casePackage: casePackage(document, items),
-    });
-    expect(first.imported).toBe(3);
-    const before = await office.standards.framework({ id: first.id });
-    expect(before.framework).toMatchObject({
-      title: "Example science",
-      caseIdentifier: document,
-    });
-    const sc2 = before.standards.find((row) => row.code === "SC.2");
-    const strand = before.standards.find((row) => row.itemType === "Strand");
-    expect(sc2?.parentId).toBe(strand?.id ?? "");
-
-    const again = await office.standards.importCase({
-      frameworkId: "",
-      casePackage: casePackage(document, items, true),
-    });
-    expect(again).toMatchObject({ id: first.id, imported: 4 });
-    const after = await office.standards.framework({ id: first.id });
-    const sc2After = after.standards.find((row) => row.code === "SC.2");
-    expect(sc2After).toMatchObject({
-      id: sc2?.id,
-      statement: "Explain what roots and leaves do.",
-    });
-    expect(after.standards.map((row) => row.code)).toContain("SC.3");
-    await office.standards.removeFramework({ id: first.id });
   });
 });
 
@@ -859,7 +759,7 @@ describe("early learning goals", () => {
     });
   });
 
-  test("an exemption, a report the family reads in their language, and the end-of-year return", async () => {
+  test("an exemption, and a report the family reads in their language", async () => {
     const { office, added, goal } = await earlyGoals(
       "northwind",
       login("principal"),
@@ -890,7 +790,6 @@ describe("early learning goals", () => {
       office.standards.classGoals({ classId: theirs, frameworkId: added.id });
     const before = await goals();
     expect(before).toMatchObject({
-      returnable: true,
       report: { shared: 0, sharedAt: null },
     });
     expect(
@@ -934,35 +833,6 @@ describe("early learning goals", () => {
     expect(
       arabic.reports[0]?.goals.find((row) => row.id === speaking)?.statement,
     ).toBe("التحدّث");
-
-    // The return codes each goal as the local authority reads it.
-    const made = await office.standards.goalsReturn({
-      classId: theirs,
-      la: "801",
-      estab: "2000",
-      urn: "",
-    });
-    expect(made.fileName).toBe("8012000_FSP_801LLLL_001.xml");
-    expect(made.file).toContain("<DataQualifier>FSP</DataQualifier>");
-    expect(made.file).toMatch(
-      /<Component>E02<\/Component>\s*<ResultStatus>R<\/ResultStatus>\s*<ResultQualifier>FD<\/ResultQualifier>\s*<Result>2<\/Result>/,
-    );
-    expect(made.file).toMatch(
-      /<Component>E10<\/Component>[\s\S]*?<Result>A<\/Result>/,
-    );
-    expect(made.gaps.find((row) => row.studentId === own)?.gaps).toContain(
-      "results",
-    );
-    expect(
-      await rejection(
-        office.standards.goalsReturn({
-          classId: theirs,
-          la: "80",
-          estab: "2000",
-          urn: "",
-        }),
-      ),
-    ).toMatchObject({ code: "BAD_REQUEST" });
 
     await office.standards.shareGoalsReport({
       classId: theirs,

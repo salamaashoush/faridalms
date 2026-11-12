@@ -3,14 +3,13 @@ import { Page } from "@faridalms/ui/system/page";
 import { RecordEmpty, RecordHeader } from "@faridalms/ui/system/record-page";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FileUp, Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import type { StandardRow } from "~/components/standards/Standards";
 
 import {
   FrameworkSheet,
-  ImportCaseSheet,
   sourceOf,
   StandardSheet,
   StandardsTree,
@@ -37,7 +36,6 @@ function FrameworkTrail() {
 
 type Sheet =
   | { kind: "framework" }
-  | { kind: "import" }
   | { kind: "standard"; standard: StandardRow | null; parentId: string };
 
 function FrameworkPage() {
@@ -85,11 +83,6 @@ function FrameworkPage() {
                   label: m.standardsEditFramework(),
                   icon: Pencil,
                   onSelect: () => open({ kind: "framework" }),
-                },
-                {
-                  label: m.standardsImportCaseInto(),
-                  icon: FileUp,
-                  onSelect: () => open({ kind: "import" }),
                 },
                 {
                   label: m.standardsRemoveFramework(),
@@ -143,13 +136,6 @@ function FrameworkPage() {
             onClose={() => setSheet(null)}
             framework={framework}
             onSaved={refresh}
-          />
-          <ImportCaseSheet
-            key={`import-${key}`}
-            open={sheet?.kind === "import"}
-            onClose={() => setSheet(null)}
-            frameworkId={framework.id}
-            onImported={refresh}
           />
           <StandardSheet
             key={`standard-${key}`}

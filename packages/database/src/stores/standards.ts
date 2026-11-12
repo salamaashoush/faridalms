@@ -14,7 +14,7 @@ export interface FrameworkRow {
   version: number;
   title: string;
   description: string;
-  caseIdentifier: string | null;
+  sourceIdentifier: string | null;
   assessed: boolean;
   standards: number;
 }
@@ -24,7 +24,7 @@ type FrameworkRecord = {
   version: number;
   title: string;
   description: string;
-  case_identifier: string | null;
+  source_identifier: string | null;
   assessed: boolean;
   standards: number;
 };
@@ -34,12 +34,12 @@ const frameworkOf = (row: FrameworkRecord): FrameworkRow => ({
   version: row.version,
   title: row.title,
   description: row.description,
-  caseIdentifier: row.case_identifier,
+  sourceIdentifier: row.source_identifier,
   assessed: row.assessed,
   standards: row.standards,
 });
 
-const frameworkColumns = sql`f.id, f.version, f.title, f.description, f.case_identifier, f.assessed,
+const frameworkColumns = sql`f.id, f.version, f.title, f.description, f.source_identifier, f.assessed,
   (select count(*)::int from core.standards s
     where s.tenant_id = f.tenant_id and s.framework_id = f.id and s.status = 'active') as standards`;
 
@@ -69,15 +69,15 @@ export async function frameworkById(
   return row ? frameworkOf(row) : null;
 }
 
-/** The framework a CASE package made before, to import it over again. */
-export async function frameworkOfCase(
+/** The school's copy of a ready-made framework, to add it over again. */
+export async function frameworkOfSource(
   tx: Tx,
-  input: { tenantId: string; orgId: string; caseIdentifier: string },
+  input: { tenantId: string; orgId: string; sourceIdentifier: string },
 ): Promise<string | null> {
   const [row] = await tx.execute<{ id: string }>(sql`
     select id from core.standard_frameworks
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
-      and case_identifier = ${input.caseIdentifier}::uuid and status = 'active'`);
+      and source_identifier = ${input.sourceIdentifier}::uuid and status = 'active'`);
   return row?.id ?? null;
 }
 
@@ -88,15 +88,15 @@ export async function insertFramework(
     orgId: string;
     title: string;
     description: string;
-    caseIdentifier: string | null;
+    sourceIdentifier: string | null;
     assessed: boolean;
   },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.standard_frameworks (tenant_id, org_id, title, description, case_identifier,
+    insert into core.standard_frameworks (tenant_id, org_id, title, description, source_identifier,
       assessed)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.title}, ${input.description},
-      ${input.caseIdentifier}::uuid, ${input.assessed})
+      ${input.sourceIdentifier}::uuid, ${input.assessed})
     returning id, version`);
   if (!row) throw new Error("framework was not created");
   return row;
@@ -148,8 +148,8 @@ export interface StandardRow {
   statementAr: string | null;
   itemType: string;
   position: number;
-  /** The CASE identifier of an imported or ready-made item. */
-  caseIdentifier: string | null;
+  /** The identifier of a ready-made framework's item. */
+  sourceIdentifier: string | null;
 }
 
 type StandardRecord = {
@@ -162,7 +162,7 @@ type StandardRecord = {
   statement_ar: string | null;
   item_type: string;
   position: number;
-  case_identifier: string | null;
+  source_identifier: string | null;
 };
 
 const standardOf = (row: StandardRecord): StandardRow => ({
@@ -175,11 +175,11 @@ const standardOf = (row: StandardRecord): StandardRow => ({
   statementAr: row.statement_ar,
   itemType: row.item_type,
   position: row.position,
-  caseIdentifier: row.case_identifier,
+  sourceIdentifier: row.source_identifier,
 });
 
 const standardColumns = sql`id, version, framework_id, parent_id, code, statement, statement_ar,
-  item_type, position, case_identifier`;
+  item_type, position, source_identifier`;
 
 /** Every standard of a framework, siblings in order. */
 export async function standardsOf(
@@ -397,13 +397,13 @@ export async function standardsByIds(
 }
 
 /**
- * Writes a CASE package's items into a framework: each item kept by its
- * CASE identifier, so one imported before is updated where it is, and
- * items the package no longer has taken out of use. Items given parents
+ * Writes a ready-made framework's items into the school's copy: each item
+ * kept by its identifier, so one added before is updated where it is, and
+ * items the framework no longer has taken out of use. Items given parents
  * before their children.
  *
- * An item the package leaves as it was is not written at all. Every write
- * moves a standard's version on, so importing a framework again unchanged
+ * An item the framework leaves as it was is not written at all. Every write
+ * moves a standard's version on, so adding a framework again unchanged
  * would otherwise turn away the save of anyone wording one of its
  * standards meanwhile.
  */
@@ -428,7 +428,7 @@ export async function importStandards(
     const chunk = input.items.slice(start, start + CHUNK);
     await tx.execute(sql`
       insert into core.standards as s (tenant_id, framework_id, parent_id, code, statement,
-        item_type, position, case_identifier)
+        item_type, position, source_identifier)
       values ${sql.join(
         chunk.map(
           (
@@ -439,18 +439,21 @@ export async function importStandards(
         ),
         sql`, `,
       )}
-      on conflict (tenant_id, framework_id, case_identifier)
-        where status = 'active' and case_identifier is not null
+      on conflict (tenant_id, framework_id, source_identifier)
+        where status = 'active' and source_identifier is not null
       do update set code = excluded.code, statement = excluded.statement,
         item_type = excluded.item_type, position = excluded.position
       where (s.code, s.statement, s.item_type, s.position)
         is distinct from (excluded.code, excluded.statement, excluded.item_type, excluded.position)`);
-    const rows = await tx.execute<{ id: string; case_identifier: string }>(sql`
-      select id, case_identifier from core.standards
+    const rows = await tx.execute<{
+      id: string;
+      source_identifier: string;
+    }>(sql`
+      select id, source_identifier from core.standards
       where tenant_id = ${input.tenantId}::uuid and framework_id = ${input.frameworkId}::uuid
         and status = 'active'
-        and case_identifier = any(${uuidArray(chunk.map((item) => item.identifier))})`);
-    for (const row of rows) ids.set(row.case_identifier, row.id);
+        and source_identifier = any(${uuidArray(chunk.map((item) => item.identifier))})`);
+    for (const row of rows) ids.set(row.source_identifier, row.id);
   }
   const placed = input.items.flatMap((item) => {
     const id = ids.get(item.identifier);
@@ -477,7 +480,7 @@ export async function importStandards(
   await tx.execute(sql`
     update core.standards set status = 'tobedeleted'
     where tenant_id = ${input.tenantId}::uuid and framework_id = ${input.frameworkId}::uuid
-      and status = 'active' and case_identifier is not null
+      and status = 'active' and source_identifier is not null
       and not (id = any(${uuidArray([...ids.values()])}))`);
   return ids.size;
 }
@@ -1145,53 +1148,5 @@ export async function reportsOf(
     studentId: row.student_user_id,
     frameworkId: row.framework_id,
     sharedAt: row.shared_at,
-  }));
-}
-
-/** What the EYFS profile return carries of a child, as their record holds it. */
-export interface ReturnPupilRow {
-  id: string;
-  givenName: string | null;
-  familyName: string | null;
-  fullName: string | null;
-  birthDate: string | null;
-  /** female, male or not_selected, as the sex descriptor means it. */
-  sex: string | null;
-  /** The number the education ministry gives them: in England, the UPN. */
-  ministryId: string | null;
-}
-
-export async function returnPupilsOf(
-  tx: Tx,
-  input: { tenantId: string; studentIds: readonly string[]; on: string },
-): Promise<ReturnPupilRow[]> {
-  if (input.studentIds.length === 0) return [];
-  const rows = await tx.execute<{
-    id: string;
-    given_name_en: string | null;
-    family_name_en: string | null;
-    full_name_en: string | null;
-    birth_date: string | null;
-    sex: string | null;
-    ministry_id: string | null;
-  }>(sql`
-    select u.id, u.given_name_en, u.family_name_en, u.full_name_en,
-      u.birth_date::text as birth_date, d.system_meaning as sex,
-      (select x.identifier from core.external_ids x
-        where x.tenant_id = u.tenant_id and x.user_id = u.id and x.status = 'active'
-          and x.system_meaning = 'ministry_id' and x.valid_during @> ${input.on}::date
-        order by lower(x.valid_during) desc limit 1) as ministry_id
-    from core.users u
-    left join core.descriptors d on d.tenant_id = u.tenant_id and d.id = u.sex_descriptor_id
-    where u.tenant_id = ${input.tenantId}::uuid and u.id = any(${uuidArray(input.studentIds)})
-    order by u.family_name_en, u.given_name_en, u.full_name_en, u.id`);
-  return rows.map((row) => ({
-    id: row.id,
-    givenName: row.given_name_en,
-    familyName: row.family_name_en,
-    fullName: row.full_name_en,
-    birthDate: row.birth_date,
-    sex: row.sex,
-    ministryId: row.ministry_id,
   }));
 }

@@ -6,7 +6,7 @@
  * than making a second.
  */
 
-/** An item of a ready-made framework, as a CASE import brings one. */
+/** An item of a ready-made framework, under its parent by identifier. */
 export interface GoalItem {
   identifier: string;
   parentIdentifier: string | null;

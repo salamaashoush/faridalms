@@ -183,7 +183,7 @@ test("a Reception teacher judges each child against an early learning goal", asy
   await context.close();
 });
 
-test("a Reception teacher records an exemption, shares the goals report and makes the return", async ({
+test("a Reception teacher records an exemption and shares the goals report", async ({
   browser,
   page,
 }, testInfo) => {
@@ -251,22 +251,6 @@ test("a Reception teacher records an exemption, shares the goals report and make
   await expect(
     teacher.getByText(/^Families of \d+ of \d+ children see this report/),
   ).toBeVisible();
-
-  await teacher.getByRole("button", { name: "End-of-year return" }).click();
-  const sheet = teacher.getByRole("dialog", { name: "EYFS profile return" });
-  await sheet
-    .getByRole("textbox", { name: "Local authority number" })
-    .fill("801");
-  await sheet
-    .getByRole("textbox", { name: "Establishment number" })
-    .fill("2000");
-  const download = teacher.waitForEvent("download");
-  await sheet.getByRole("button", { name: "Download the return" }).click();
-  expect((await download).suggestedFilename()).toBe(
-    "8012000_FSP_801LLLL_001.xml",
-  );
-  await expect(sheet.getByRole("status")).toBeVisible();
-  await teacher.keyboard.press("Escape");
 
   // The family reads the report, in the goals' own words, without the notes.
   const home = await browser.newContext();
