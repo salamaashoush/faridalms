@@ -58,7 +58,7 @@ in `decisions.md`; a choice below changes only with new evidence.
 - Gradebook and coursework: assignments, submissions, attempts, rubrics,
   categories, line items, score scales, results, period grades.
 - Attendance: attendance events, attendance taken, registers.
-- Communication: threads, messages, announcements, news posts, calendar
+- Communication: threads, messages, announcements, calendar
   events, notifications, delivery ledger, preferences, the office inbox.
 - Learning: modules, lessons, lesson progress, assessment items.
 - Website: pages, posts, post categories and revisions, site settings, the
@@ -2562,7 +2562,7 @@ create index file_subjects_user_idx on core.file_subjects (tenant_id, user_id) w
   the object into the `h/` prefix, deletes the quarantine copy and verifies the
   deletion.
 - **Publication.** A private file is never served publicly. When a website
-  page or a news post is published, the worker copies the derivatives it
+  page or an announcement on the website is published, the worker copies the derivatives it
   shows to the cell's public-media bucket under an unguessable `public_key`
   and records a `file_publications` row; the public-media domain serves them
   long-lived and cacheable, so the pictures of a post that went out by email
@@ -2571,7 +2571,7 @@ create index file_subjects_user_idx on core.file_subjects (tenant_id, user_id) w
   public object. Only `site_media`, `logo` and `document_media` files are
   publishable (the purpose pin).
 - **Subjects.** `file_subjects` records which students a picture shows; whoever
-  writes news or website pages names them from the picture itself (the
+  writes announcements or website pages names them from the picture itself (the
   editor's floating bar through `EditorMedia.people` for a picture in the
   words, the picture control for a post's cover or a website section's
   picture), which also shows each family's answer. Publishing checks that every tagged subject has
@@ -3895,8 +3895,8 @@ create index documents_translation_idx on core.documents (tenant_id, translation
   its version. `content` is the canonical JSON the server validated; HTML is
   only ever rendered output (content-editor.md). Every block carries a stable
   id, which is what aligns the two languages of bilingual content.
-- **Bilingual content** (a website page edited side by side, a news post
-  in both languages, an announcement previewed in both) is two
+- **Bilingual content** (a website page edited side by side, an
+  announcement in both languages and previewed in both) is two
   documents: the second names the first in `translation_of_id`. A block's
   "reviewed" and "missing translation" state lives in the second document's
   content, keyed by block id; the content schema defines it.
@@ -4034,7 +4034,7 @@ create index document_links_target_idx on core.document_links (tenant_id, target
 ```
 
 - **Versions** are snapshots: at publish (the website's pages and school
-  news read a `publish` version, so later edits stay private),
+  announcements read a `publish` version, so later edits stay private),
   at collaboration checkpoints (every ten minutes of activity and when the last
   editor leaves), before a restore, and at import. Restoring writes a
   `before_restore` snapshot and then the chosen content as a new revision;
@@ -4145,7 +4145,7 @@ authority; records of requests and disclosures ([R3] finding 6).
   version of a school's form for a purpose, hosting its words as an editor
   document (`host_type = 'privacy_notice'`) in the language it was written
   in, with its translation as the document's translation and the same
-  translation check as news and announcements. A school has at most one
+  translation check as announcements. A school has at most one
   draft per purpose; publishing sets `published_at`, freezes both documents
   and asks the guardians, and later edits open a new draft that
   `supersedes_id` the published one. `locale` is the language written first;

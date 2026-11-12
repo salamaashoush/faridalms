@@ -9,20 +9,20 @@ larger than a few days of work gets its own plan beside this file.
 From `foundations.md`. W1 to W5 are merged.
 
 - **W6, conventions and records** (findings 13 to 18 and the P2 items):
-  - erasure for the tables `erasure-rules.ts` marks `to_erase`, and the
-    owner's and the lawyer's review of every proposed rule (the list is in
-    the ops repository, `plans/legal/erasure-registry.md`). Every table
-    that names a person now declares one, and `db:verify` refuses a new
-    table that does not;
-  - one question and answer model shared by quizzes, forms and admission
-    forms;
-  - saved sections on the templates and shared-block systems. A page
-    keeps its sections as section JSON in each language, not as a content
-    document, so neither system holds one as it stands: either each learns
-    a section kind (a template whose body is a section in both languages,
-    and a shared section a page names and draws when it is shown), or
-    sections get a small store of their own. The owner's call before it
-    is built;
+  - erasure for the six tables `erasure-rules.ts` still marks `to_erase`,
+    each needing a decision first, and the owner's and the lawyer's review
+    of every rule (the list is in the ops repository,
+    `plans/legal/erasure-registry.md`):
+    - `submissions`, `submission_attempts` and `attempt_declarations` are
+      held while an exam session keeps the work, which erasure does not
+      yet consult;
+    - `work_comments` are a teacher's words on a student's work, with the
+      student's answers and replies hung under them;
+    - `paced_lessons` name the student whose work was shown, which would
+      need its column emptied rather than the row removed;
+    - `notifications` is partitioned and carries no erase policy;
+  - consents asking questions through the form question model
+    (`domain/questions.ts`), which the website form and admissions use;
   - a shared person-name type in place of about 20 differently named
     field pairs;
 - **Finding 21** (plan modules and feature switches): one module
@@ -57,6 +57,27 @@ From `foundations.md`. W1 to W5 are merged.
   entitlements are its subscription's, published at once or by the daily
   round, which also grandfathers tenants from before and pauses a trial
   that is over.
+
+## Architecture leftovers
+
+From `architecture-audit.md`, as checked against the code on 2026-11-12.
+
+- **Lesson blocks** (finding 7): `LessonBlock`/`LessonDocument` is still a
+  live shape between the editor document and starters, patterns, print,
+  Common Cartridge, QTI and the young checks. Size L.
+- **Forms convention** (finding 22): AGENTS.md asks for
+  `@tanstack/react-form`, which three files use; six editors keep their own
+  `FIELD_ERRORS` map. Change the doc or the code: the owner's call.
+- **Enquiries** (finding 6): the child's year is free text, not a grade
+  from the school's list, and the website's enquiry form shows no privacy
+  notice, whose wording the owner and the lawyer approve.
+- **Translations** (finding 18): review state still sits in three columns
+  on each of five host tables; `core.document_translations` serves only
+  erasure. Size M.
+- **Audit changes** (finding 16): about 66 of 297 audit calls pass `change`,
+  so most history entries show no before and after.
+- **Error parameters** (finding 15): `enrollment.registers_after:<date>`
+  and its kin carry their date in the message, which the web parses.
 
 ## Bugs found and not yet fixed
 
