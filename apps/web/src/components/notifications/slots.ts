@@ -34,6 +34,8 @@ export interface NoticeLinkProps extends Omit<
  */
 export interface NoticeWords {
   kind: NotificationKind;
+  /** Of a kind several send, the notices this module words. */
+  sends?(notice: Notice): boolean;
   icon: LucideIcon;
   /** The kind as the preferences page names it, where a person chooses it. */
   label?: () => string;

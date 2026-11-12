@@ -6,7 +6,6 @@ import {
   getSummary,
   getHealth,
   getHealthChanges,
-  getIdentifiers,
 } from "~/server/records";
 
 export const healthQuery = (studentId: string) =>
@@ -37,10 +36,4 @@ export const healthChangesQuery = (open: boolean) =>
   queryOptions({
     queryKey: ["health-changes", open],
     queryFn: () => getHealthChanges({ data: { open } }),
-  });
-
-export const identifiersQuery = (studentId: string) =>
-  queryOptions({
-    queryKey: ["people", "student", studentId, "identifiers"],
-    queryFn: () => getIdentifiers({ data: { studentId } }),
   });

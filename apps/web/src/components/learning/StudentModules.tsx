@@ -18,7 +18,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { CircleCheck, Lock, MessagesSquare, Play, Shuffle } from "lucide-react";
 
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import {
   moduleDiscussionsQuery,
@@ -29,6 +30,7 @@ import { formatInstant, formatNumber } from "~/utils/datetime";
 
 import { LESSON_STATE_LABEL, lockedText } from "./format";
 import { ModuleGlossary } from "./ModuleGlossary";
+import { moduleDiscussions } from "./slots";
 
 type Mine = Awaited<
   ReturnType<NonNullable<ReturnType<typeof myModulesQuery>["queryFn"]>>
@@ -197,7 +199,7 @@ function OutlineDiscussions({ moduleId, studentId }: OutlineDiscussionsProps) {
 /** A module as its student meets it: which lessons are done, which open, which wait. */
 export function ModuleOutline({ moduleId, studentId }: ModuleOutlineProps) {
   const data = useSuspenseQuery(moduleOutlineQuery(moduleId, studentId)).data;
-  const { modules } = useCurrentUser();
+  const discussions = useSlot(moduleDiscussions).length > 0;
   const navigate = useNavigate();
   const done = data.lessons.filter((lesson) => lesson.state === "done").length;
   const next = data.lessons.find((lesson) => lesson.state === "open");
@@ -321,7 +323,7 @@ export function ModuleOutline({ moduleId, studentId }: ModuleOutlineProps) {
                 })}
               </ol>
             </RecordSection>
-            {modules.coursework ? (
+            {discussions ? (
               <OutlineDiscussions moduleId={moduleId} studentId={studentId} />
             ) : null}
           </RecordStack>

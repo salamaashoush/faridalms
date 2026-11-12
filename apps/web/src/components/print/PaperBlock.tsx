@@ -11,9 +11,10 @@ import { useEffect, useState } from "react";
 
 import type { Locale } from "~/i18n/runtime";
 
-import { QrCode } from "~/components/badges/QrCode";
 import * as m from "~/i18n/messages";
 import { formatDate } from "~/utils/datetime";
+
+import { QrCode } from "./QrCode";
 
 /** What a block's paper form reads from the paper it is on. */
 export interface PaperFacts {

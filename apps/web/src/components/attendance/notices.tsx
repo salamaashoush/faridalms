@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { UserX } from "lucide-react";
+import { ClipboardCheck, UserX } from "lucide-react";
 
 import type { NoticeLinkProps } from "~/components/notifications/slots";
 
@@ -49,4 +49,31 @@ export const ATTENDANCE_NOTICES = fill(noticeWords, {
     };
   },
   Link: AbsenceLink,
+});
+
+function RegisterLink({
+  notice,
+  workspace: _workspace,
+  ...rest
+}: NoticeLinkProps) {
+  return (
+    <Link
+      {...rest}
+      to="/registers/$classId"
+      params={{ classId: notice.subjectId }}
+      search={{ date: notice.params.date ?? "" }}
+    />
+  );
+}
+
+/** A register still to take, for the class's teacher. */
+export const REGISTER_REMINDERS = fill(noticeWords, {
+  kind: "reminder",
+  icon: ClipboardCheck,
+  sends: (notice) => !notice.params.cover,
+  text: ({ params }) => ({
+    title: m.ntfReminder({ name: both(params.className, params.classNameAr) }),
+    body: params.date ? formatDate(params.date) : "",
+  }),
+  Link: RegisterLink,
 });

@@ -12,6 +12,7 @@ import {
   today as attendanceToday,
 } from "./attendance/today";
 import { signIn as badgeSignIn } from "./badges/sign-in";
+import * as classGroups from "./classes/groups";
 import { modulesOf } from "./core/modules";
 import { today as courseworkToday } from "./coursework/today";
 import { today as learningToday } from "./learning/today";
@@ -136,7 +137,7 @@ export const router = {
   school: owned("school", schoolSystem),
   billing: owned("billing", billingSystem),
   records: owned("records", recordsSystem),
-  classes: owned("classes", classesSystem),
+  classes: owned("classes", { ...classesSystem, ...classGroups }),
   homerooms: owned("homerooms", homeroomsSystem),
   gradeLevels: owned("gradeLevels", gradeLevelsSystem),
   consents: owned("consents", consentsSystem),

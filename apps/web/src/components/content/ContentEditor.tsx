@@ -2,28 +2,28 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import type { ContentLocale } from "@faridalms/domain/translations";
 import type { EditorCollaboration, EditorMedia } from "@faridalms/editor";
 import type { EditorVariant } from "@faridalms/editor/view";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 import { contentPlainText } from "@faridalms/domain/content";
 import { editorFrame } from "@faridalms/editor/view";
 import { useHydrated } from "@tanstack/react-router";
 import { lazy, Suspense, useCallback, useMemo, useState } from "react";
 
-import { useEditorStudio } from "~/components/coding/useEditorStudio";
 import { useEditorAssistant } from "~/components/content/assistant";
 import { useEditorComments } from "~/components/content/comments/DocumentComments";
 import {
   useEditorMentions,
   useMentionNames,
 } from "~/components/content/mentions";
-import { useEditorBank } from "~/components/content/QuestionBank";
 import { useEditorShared } from "~/components/content/SharedBlocks";
-import { useEditorPuzzles } from "~/components/puzzles/useEditorPuzzles";
-import { useEditorStandards } from "~/components/standards/editor";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import { digits } from "~/utils/digits";
 
+import type { EditorHelp, EditorPartProps } from "./slots";
+
 import { ContentView } from "./ContentView";
+import { editorParts } from "./slots";
 import { editorStrings } from "./strings";
 
 const loadEditor = () => import("@faridalms/editor/Editor");
@@ -32,6 +32,26 @@ const Editor = lazy(loadEditor);
 // The editor's code is fetched as soon as a page that writes documents loads,
 // alongside the rest of its script, rather than once that page has hydrated.
 if (typeof window !== "undefined") void loadEditor();
+
+interface EditorPartsProps extends Omit<EditorPartProps, "children"> {
+  parts: readonly ComponentType<EditorPartProps>[];
+  children: (help: EditorHelp) => ReactNode;
+}
+
+/** Each module's part in turn, gathering what they lend the editor. */
+function EditorParts({ parts, children, ...props }: EditorPartsProps) {
+  const [Part, ...rest] = parts;
+  if (!Part) return children({});
+  return (
+    <Part {...props}>
+      {(help) => (
+        <EditorParts parts={rest} {...props}>
+          {(more) => children({ ...help, ...more })}
+        </EditorParts>
+      )}
+    </Part>
+  );
+}
 
 export interface ContentEditorProps {
   id: string;
@@ -113,10 +133,7 @@ export function ContentEditor({
   const hydrated = useHydrated();
   // A form asks only what a family answers in words, a choice or a number.
   const teaching = Boolean(questions) && !forms;
-  const coding = useEditorStudio(teaching ? media : undefined);
-  const designing = useEditorPuzzles(teaching);
-  const banking = useEditorBank(teaching);
-  const tagging = useEditorStandards(teaching || standards);
+  const parts = useSlot(editorParts);
   const sharing = useEditorShared(sharedBlocks ?? (teaching || standards));
   const mentions = useEditorMentions(useMentionNames(value));
   const comments = useEditorComments(id);
@@ -163,52 +180,58 @@ export function ContentEditor({
     <Suspense fallback={placeholderBox}>
       {waiting ? placeholderBox : null}
       <div className={waiting ? "hidden" : "contents"}>
-        <Editor
-          id={id}
-          label={label}
-          value={value}
-          onChange={onChange}
-          onValidityChange={onValidityChange}
-          disabled={disabled}
-          variant={variant}
-          actions={actions}
-          toolbar={toolbar}
+        <EditorParts
+          parts={parts}
+          teaching={teaching}
+          standards={standards}
           media={media}
-          studio={coding.studio}
-          puzzles={designing.puzzles}
-          bank={banking.bank}
-          standards={tagging}
-          shared={sharing.shared}
-          mentions={mentions}
-          comments={comments}
-          assistant={helping}
-          placeholder={placeholder}
-          initialFocus={initialFocus}
-          strings={strings}
-          collaboration={collaboration}
-          digits={digits()}
-          replace={replace}
-          onUploadingChange={onUploadingChange}
-          questions={questions}
-          forms={forms}
-          gates={gates}
-          draws={draws}
-          lockQuestions={lockQuestions}
-          starter={starter}
-          aiUse={aiUse}
-          narration={narration}
-          lessonActivities={lessonActivities}
-          modules={modules}
-          feedbackTiming={feedbackTiming}
-          arabicMath={arabicMath}
-          language={language}
-          young={young}
-          onSynced={collaboration ? onSynced : undefined}
-        />
+        >
+          {(help) => (
+            <Editor
+              id={id}
+              label={label}
+              value={value}
+              onChange={onChange}
+              onValidityChange={onValidityChange}
+              disabled={disabled}
+              variant={variant}
+              actions={actions}
+              toolbar={toolbar}
+              media={media}
+              studio={help.studio}
+              puzzles={help.puzzles}
+              bank={help.bank}
+              standards={help.standards}
+              shared={sharing.shared}
+              mentions={mentions}
+              comments={comments}
+              assistant={helping}
+              placeholder={placeholder}
+              initialFocus={initialFocus}
+              strings={strings}
+              collaboration={collaboration}
+              digits={digits()}
+              replace={replace}
+              onUploadingChange={onUploadingChange}
+              questions={questions}
+              forms={forms}
+              gates={gates}
+              draws={draws}
+              lockQuestions={lockQuestions}
+              starter={starter}
+              aiUse={aiUse}
+              narration={narration}
+              lessonActivities={lessonActivities}
+              modules={modules}
+              feedbackTiming={feedbackTiming}
+              arabicMath={arabicMath}
+              language={language}
+              young={young}
+              onSynced={collaboration ? onSynced : undefined}
+            />
+          )}
+        </EditorParts>
       </div>
-      {coding.dialog}
-      {designing.dialog}
-      {banking.dialog}
       {sharing.dialog}
     </Suspense>
   );

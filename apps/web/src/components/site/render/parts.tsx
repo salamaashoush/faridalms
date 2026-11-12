@@ -51,7 +51,7 @@ import { createContext, useContext, useRef, useState } from "react";
 
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
-import { sitePath } from "~/utils/host";
+import { publicMediaUrl, sitePath } from "~/utils/host";
 
 import type { ArtSet } from "./art";
 
@@ -128,8 +128,6 @@ export interface RenderContext {
   /** The public key a form's Cloudflare challenge renders with; none where forms take no challenge. */
   turnstileKey?: string | null;
 }
-
-export const publicMediaUrl = (key: string) => `/public-media/${key}`;
 
 /**
  * A link a page author wrote: a path inside the site lands at the school's

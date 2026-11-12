@@ -4,11 +4,13 @@ import type { ModuleFillings } from "~/utils/extension";
 
 import { navItems } from "~/components/app/navigation";
 import { classRecordTabs } from "~/components/classes/slots";
+import { editorParts } from "~/components/content/slots";
 import { studentRecordTabs } from "~/components/people/slots";
 import * as m from "~/i18n/messages";
 import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 
+import { StandardsEditorPart } from "./editor";
 import { ClassGoals } from "./Goals";
 import { ClassSkills, StudentSkills } from "./Progress";
 
@@ -16,6 +18,7 @@ import { ClassSkills, StudentSkills } from "./Progress";
 export const STANDARDS: ModuleFillings = {
   module: "standards",
   fillings: [
+    fill(editorParts, StandardsEditorPart),
     fill(studentRecordTabs, {
       value: "skills",
       label: m.skillsTab,

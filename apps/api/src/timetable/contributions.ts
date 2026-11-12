@@ -7,6 +7,7 @@ import { contribute } from "../core/extension";
 import { can } from "../core/procedure";
 import { setupMeasures } from "../core/setup";
 import { studentRecordAccess } from "../people/points";
+import { TIMETABLE_LINES } from "./notice-lines";
 import { learnerClassesToday } from "./today";
 
 /**
@@ -16,6 +17,7 @@ import { learnerClassesToday } from "./today";
 export const TIMETABLE: ModuleContributions = {
   module: "timetable",
   contributions: [
+    ...TIMETABLE_LINES,
     contribute(studentRecordAccess, {
       key: "timetable",
       may: (context) => can(context, "timetable:read"),

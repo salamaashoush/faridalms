@@ -5,13 +5,11 @@ import * as v from "valibot";
 
 import { areaViewSearch } from "~/components/files/AreaFiles";
 import { MODULE_TABS, ModuleRecord } from "~/components/learning/ModuleRecord";
+import { moduleDiscussions } from "~/components/learning/slots";
 import { ModuleOutline } from "~/components/learning/StudentModules";
-import {
-  moduleDiscussionsQuery,
-  moduleOutlineQuery,
-  moduleRecordQuery,
-} from "~/queries/learning";
+import { moduleOutlineQuery, moduleRecordQuery } from "~/queries/learning";
 import { currentUserQuery } from "~/queries/user";
+import { filled } from "~/utils/extension";
 
 const searchSchema = v.object({
   tab: v.fallback(v.optional(v.picklist(MODULE_TABS), "lessons"), "lessons"),
@@ -49,11 +47,12 @@ export const Route = createFileRoute("/_app/modules/$moduleId")({
         context.queryClient.ensureQueryData(
           moduleOutlineQuery(params.moduleId, deps.studentId),
         ),
-        user.modules.coursework
-          ? context.queryClient.ensureQueryData(
-              moduleDiscussionsQuery(params.moduleId, deps.studentId),
-            )
-          : null,
+        ...filled(context.extensions, user.modules, moduleDiscussions).map(
+          (discussions) =>
+            context.queryClient.ensureQueryData(
+              discussions.query(params.moduleId, deps.studentId),
+            ),
+        ),
       ]);
     } else
       await context.queryClient.ensureQueryData(

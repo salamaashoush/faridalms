@@ -22,16 +22,16 @@ import { toast } from "sonner";
 
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { identifiersQuery } from "~/queries/records";
+import { identifiersQuery } from "~/queries/identifiers";
 import {
   removeIdentifier,
   revealIdentifier,
   saveIdentifier,
-} from "~/server/records";
+} from "~/server/identifiers";
 import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import { matching } from "./RecordSections";
+import { matching } from "./format";
 import { COUNTRY_CODES, countryName } from "./regions";
 
 type Data = Awaited<

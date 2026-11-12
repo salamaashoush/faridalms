@@ -36,11 +36,10 @@ export const classProgressQuery = (classId: string) =>
     queryFn: () => getClassProgress({ data: { classId } }),
   });
 
-export const studentProgressQuery = (studentId: string) =>
-  queryOptions({
-    queryKey: ["standards", "student", studentId],
-    queryFn: () => getStudentProgress({ data: { studentId } }),
-  });
+export const studentProgressQuery = (studentId: string) => ({
+  queryKey: ["standards", "student", studentId],
+  queryFn: () => getStudentProgress({ data: { studentId } }),
+});
 
 /** The sittings one student's mastery of a standard was worked out from. */
 export const standardSittingsQuery = (studentId: string, standardId: string) =>
@@ -50,11 +49,10 @@ export const standardSittingsQuery = (studentId: string, standardId: string) =>
   });
 
 /** One child's goals reports, as their family reads them. */
-export const goalsReportQuery = (studentId: string) =>
-  queryOptions({
-    queryKey: ["standards", "report", studentId],
-    queryFn: () => getGoalsReport({ data: { studentId } }),
-  });
+export const goalsReportQuery = (studentId: string) => ({
+  queryKey: ["standards", "report", studentId],
+  queryFn: () => getGoalsReport({ data: { studentId } }),
+});
 
 export const classGoalsQuery = (classId: string, frameworkId: string) =>
   queryOptions({

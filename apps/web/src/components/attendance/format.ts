@@ -1,5 +1,6 @@
 import type {
   AttendanceMeaning,
+  ContactOutcome,
   RegisterState,
 } from "@faridalms/domain/attendance";
 import type { Tone } from "@faridalms/ui/system/status";
@@ -8,6 +9,14 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { formatInstant, schoolDayOf } from "~/utils/datetime";
 import { numberLocale } from "~/utils/digits";
+
+/** What a follow-up call came to. */
+export const OUTCOME_LABEL: Record<ContactOutcome, () => string> = {
+  reached: m.fupReached,
+  no_answer: m.fupNoAnswer,
+  left_message: m.fupLeftMessage,
+  messaged: m.fupMessaged,
+};
 
 export const MEANING_LABEL: Record<AttendanceMeaning, () => string> = {
   present: m.attPresent,

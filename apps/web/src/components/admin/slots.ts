@@ -1,7 +1,9 @@
 import type { Capability } from "@faridalms/domain/capabilities";
+import type { SwitchedModule } from "@faridalms/domain/modules";
 import type { ComponentType } from "react";
 
 import type { SlotQuery } from "~/utils/extension";
+import type { Sentence } from "~/utils/words";
 
 import { slot } from "~/utils/extension";
 
@@ -30,3 +32,17 @@ export interface SettingsTab {
 }
 
 export const settingsTabs = slot<SettingsTab>("settings tabs");
+
+/**
+ * A module the school's administrators switch on themselves, as it asks to
+ * be offered. The switch shows whether the module is on or off, so it is
+ * read from every module's fillings.
+ */
+export interface ModuleSwitch {
+  module: SwitchedModule;
+  place: number;
+  name: () => string;
+  hint: Sentence;
+}
+
+export const moduleSwitches = slot<ModuleSwitch>("module switches");

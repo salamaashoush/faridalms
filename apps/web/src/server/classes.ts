@@ -52,3 +52,7 @@ export const getSubjects = createServerFn({ method: "GET" }).handler(() =>
 export const saveSubject = createServerFn({ method: "POST" })
   .validator(checked(saveSubjectSchema))
   .handler(({ data }) => backend().classes.saveSubject(data));
+
+export const getClassGroups = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ classId: v.pipe(v.string(), v.uuid()) })))
+  .handler(({ data }) => record(backend().classes.groups(data)));

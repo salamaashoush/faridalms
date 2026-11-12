@@ -57,11 +57,12 @@ import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { DocumentHostProvider } from "~/components/content/document-host";
+import { blockIssue } from "~/components/content/issues";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { useStartFrom } from "~/components/content/Templates";
 import { TranslationNote } from "~/components/content/TranslationNote";
-import { blockIssue } from "~/components/learning/issues";
 import { CheckboxRow } from "~/components/people/fields";
+import { FeedbackBands, keptBands } from "~/components/questions/FeedbackBands";
 import {
   DetailsPanel,
   DetailsSection,
@@ -73,7 +74,8 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
-import { classGroupsQuery, courseworkOptionsQuery } from "~/queries/coursework";
+import { classGroupsQuery } from "~/queries/classes";
+import { courseworkOptionsQuery } from "~/queries/coursework";
 import { classPlanQuery } from "~/queries/grading";
 import {
   archiveAssignment,
@@ -93,7 +95,6 @@ import { getMessageFromError, refusalOf } from "~/utils/error";
 import type { AssignmentEditorPart } from "./slots";
 
 import { classChoices, classTitle, defaultClass } from "../classes/format";
-import { FeedbackBands, keptBands } from "../learning/FeedbackBands";
 import { displayName } from "../people/format";
 import { PHASE_LABEL, PHASE_TONE } from "./format";
 import { prosodyRubric } from "./readyRubrics";

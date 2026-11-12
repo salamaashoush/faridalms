@@ -8,11 +8,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Radio, Users } from "lucide-react";
 
 import { displayName } from "~/components/people/format";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { moduleLiveQuery } from "~/queries/learning";
 import { formatList, formatNumber } from "~/utils/datetime";
 
-import { LiveProjects } from "./LiveProjects";
+import { liveProjects } from "./slots";
 
 const LABEL: Record<LiveState, () => string> = {
   help: m.liveHelp,
@@ -81,6 +82,7 @@ export interface ClassLiveProps {
  */
 export function ClassLive({ moduleId, classId }: ClassLiveProps) {
   const data = useQuery(moduleLiveQuery(moduleId, classId)).data;
+  const Projects = useSlot(liveProjects)[0];
   if (!data) return null;
   if (data.students.length === 0)
     return (
@@ -166,19 +168,23 @@ export function ClassLive({ moduleId, classId }: ClassLiveProps) {
           </RecordSection>
         );
       })}
-      <LiveProjects
-        projects={data.projects}
-        studios={data.studios}
-        names={names}
-        here={
-          new Set(
-            data.rows
-              .filter((row) => row.state !== "away" && row.state !== "finished")
-              .map((row) => row.studentId),
-          )
-        }
-        now={data.now}
-      />
+      {Projects ? (
+        <Projects
+          projects={data.projects}
+          studios={data.studios}
+          names={names}
+          here={
+            new Set(
+              data.rows
+                .filter(
+                  (row) => row.state !== "away" && row.state !== "finished",
+                )
+                .map((row) => row.studentId),
+            )
+          }
+          now={data.now}
+        />
+      ) : null}
       {away.length > 0 ? (
         <RecordSection
           title={`${m.liveAway()} ${formatNumber(away.length)}`}

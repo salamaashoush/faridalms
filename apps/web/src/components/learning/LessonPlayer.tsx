@@ -65,23 +65,30 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
-import type { OwnCode, OwnProjects } from "~/components/coding/own-code";
+import type { OwnCode, OwnProjects } from "~/components/code/own-code";
+import type {
+  CheckDriver,
+  CheckStudentBlock,
+} from "~/components/questions/Checks";
 
-import {
-  OwnCodeContext,
-  OwnProjectsContext,
-} from "~/components/coding/own-code";
+import { OwnCodeContext, OwnProjectsContext } from "~/components/code/own-code";
 import { ContentView, WholeDocument } from "~/components/content/ContentView";
 import { LOCALE_LABEL } from "~/components/content/languages";
 import { Media } from "~/components/learning/LessonMedia";
+import { paperBlock } from "~/components/print/paper-blocks";
+import { usePrint } from "~/components/print/usePrint";
+import { CheckLanguage } from "~/components/questions/checkLanguage";
+import {
+  CheckBlockView,
+  isCheckBlock,
+  isSettled,
+} from "~/components/questions/Checks";
 import {
   ReadAloud,
   ReaderContext,
   YoungContext,
-} from "~/components/learning/ReadAloud";
-import { paperBlock } from "~/components/print/paper-blocks";
-import { usePrint } from "~/components/print/usePrint";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
+} from "~/components/questions/ReadAloud";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import {
@@ -108,11 +115,8 @@ import {
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import type { CheckDriver, CheckStudentBlock } from "./Checks";
-
-import { CheckLanguage } from "./checkLanguage";
-import { CheckBlockView, isCheckBlock, isSettled } from "./Checks";
 import { usePacingChannel } from "./pacingChannel";
+import { youngLessons } from "./slots";
 import { YoungLesson } from "./young/YoungLesson";
 
 type Played = Awaited<
@@ -824,7 +828,7 @@ export function LessonPlayer({ lessonId }: LessonPlayerProps) {
       ...pacingQuery(lessonId, pushed),
       initialData: { paced: data.paced },
     }).data.paced ?? null;
-  const earlyYears = useCurrentUser().modules.early_years;
+  const earlyYears = useSlot(youngLessons).length > 0;
   const navigate = useNavigate();
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["learning"] });
@@ -1421,7 +1425,7 @@ export function LessonPreview({ lessonId, framed }: LessonPreviewProps) {
   // screen and in the language chosen; the computer reader speaks in the
   // browser, so it is tried in the teacher's own view.
   const elsewhere = !framed && (screen !== "desktop" || language !== own);
-  const earlyYears = useCurrentUser().modules.early_years;
+  const earlyYears = useSlot(youngLessons).length > 0;
   const navigate = useNavigate();
   const [rows, setRows] = useState<StoredTry[]>([]);
   const [round, setRound] = useState(0);

@@ -160,8 +160,9 @@ authorisation, school isolation or database ownership.
   `NOT_FOUND` at a school that does not have it, through the router, so
   a new procedure is gated without being told; a reader that gathers from
   several modules (home pages, search) asks `modulesOf` itself. The web's
-  pages of a module are listed once in `apps/web/src/utils/modules.ts`,
-  which both the navigation and the route guard read. `MODULES` also
+  pages of a module are declared once, by the module's `modulePages`
+  filling (`apps/web/src/utils/pages.ts`), which both the navigation and
+  the route guard read. `MODULES` also
   states what each module requires, and every table belongs to core or one
   module as well (see "The database"), so a module may own tables and no
   namespace.
@@ -174,8 +175,10 @@ authorisation, school isolation or database ownership.
   yields only those of modules on at the school. A carved module lists its
   files in `scripts/module-files.ts`, and the source checks refuse an import
   of them from anywhere but the module, a module that requires it and the
-  composition roots. Name a point for what its consumer needs, and add none
-  that nothing consumes.
+  composition roots, and a web file asking `modules.<id>` of a module it
+  may not import; only the files in `MODULE_CATALOGUES` list every module.
+  Name a point for what its consumer needs, and add none that nothing
+  consumes.
 - **What two modules do together lives in a link file.** A module that adds
   to a point or slot of a module it does not require (homerooms carried by
   the school-year rollover, say) does so from a file of its own listed in

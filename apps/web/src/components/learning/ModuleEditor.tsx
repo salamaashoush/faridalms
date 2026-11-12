@@ -22,14 +22,13 @@ import type { moduleRecordQuery } from "~/queries/learning";
 import { classChoices } from "~/components/classes/format";
 import { CheckboxRow } from "~/components/people/fields";
 import { displayName } from "~/components/people/format";
+import { FeedbackBands, keptBands } from "~/components/questions/FeedbackBands";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { classGroupsQuery } from "~/queries/coursework";
+import { classGroupsQuery } from "~/queries/classes";
 import { learningOptionsQuery } from "~/queries/learning";
 import { saveModule } from "~/server/learning";
 import { getMessageFromError } from "~/utils/error";
-
-import { FeedbackBands, keptBands } from "./FeedbackBands";
 
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof moduleRecordQuery>["queryFn"]>>

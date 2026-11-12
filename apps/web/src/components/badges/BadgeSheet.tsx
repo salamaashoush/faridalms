@@ -3,11 +3,10 @@ import { initialsOf } from "@faridalms/ui/system/app-shell";
 import { Camera, Nfc } from "lucide-react";
 import { toast } from "sonner";
 
-import { nfcAvailable, writeBadgeCard } from "~/components/attendance/nfc";
+import { nfcAvailable, writeBadgeCard } from "~/components/auth/nfc";
+import { QrCode } from "~/components/print/QrCode";
 import { PaperSheet } from "~/components/system/PaperSheet";
 import * as m from "~/i18n/messages";
-
-import { QrCode } from "./QrCode";
 
 export interface PrintedBadge {
   studentId: string;

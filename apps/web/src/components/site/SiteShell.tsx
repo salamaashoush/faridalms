@@ -10,7 +10,12 @@ import { useEffect, useRef } from "react";
 import type { publicSiteQuery } from "~/queries/site";
 
 import * as m from "~/i18n/messages";
-import { hostHref, insideWebsite, publicPath } from "~/utils/host";
+import {
+  hostHref,
+  insideWebsite,
+  publicMediaUrl,
+  publicPath,
+} from "~/utils/host";
 
 import type { SiteFrameModel } from "./render/frame";
 import type {
@@ -22,7 +27,7 @@ import type {
 
 import { SiteFrame } from "./render/frame";
 import { withNews } from "./render/frame-model";
-import { publicMediaUrl, publishedSource } from "./render/parts";
+import { publishedSource } from "./render/parts";
 
 export type PublicSite = Awaited<
   ReturnType<NonNullable<ReturnType<typeof publicSiteQuery>["queryFn"]>>

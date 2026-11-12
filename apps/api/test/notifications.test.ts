@@ -413,3 +413,72 @@ describe("texts at a school without them", () => {
     });
   });
 });
+
+describe("notices of a module the school turned off", () => {
+  test("are not sent, though they were planned while it was on", async () => {
+    const { cell, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    const school = tenants[0]?.schools.find((row) => row.slug === "northwind");
+    if (!school) throw new Error("no northwind school");
+    const family = await mother();
+    const parent = await family.identity.currentUser();
+    const asWorker = {
+      tenantId,
+      requestId: crypto.randomUUID(),
+      actor: { kind: "system" as const },
+    };
+    const title = "Planned with attendance on";
+    // Quiet hours would hold the text past the run, whatever time it is.
+    const kept = await family.notifications.preferences();
+    await family.notifications.savePreferences({
+      preferences: { ...kept.preferences, quietFrom: "", quietTo: "" },
+      locale: kept.locale,
+    });
+    await cell.withWorker(asWorker, "write", async (tx) => {
+      const scope = await workerScope(workerModules(), {
+        tx,
+        tenantId,
+        schoolId: school.id,
+      });
+      if (!scope) throw new Error("the school is not in the directory");
+      return notifyIn(
+        {
+          ...scope,
+          actorUserId: null,
+          // Planned a minute ago, so it is due by the database's clock too.
+          now: new Date(Date.now() - 60_000),
+          channels: { email: true, sms: true },
+        },
+        [parent.id],
+        {
+          kind: "absence",
+          subject: { type: "user", id: parent.id },
+          params: { title },
+        },
+      );
+    });
+    const texts = () =>
+      cell.withWorker(asWorker, "read", (tx) =>
+        tx.execute<{ state: string; reason: string | null }>(sql`
+          select d.state, d.reason from core.notification_deliveries d
+          join core.notifications n on n.tenant_id = d.tenant_id and n.id = d.notification_id
+            and n.created_at = d.notification_created_at
+          where d.tenant_id = ${tenantId}::uuid and d.channel = 'sms'
+            and n.params ->> 'title' = ${title}`),
+      );
+    const sms = new MemoryProvider();
+    await withoutModules("northwind", ["attendance"], async () => {
+      await deliverTenant(
+        cell,
+        { email: null, sms },
+        tenantId,
+        workerModules(),
+      );
+    });
+    await family.notifications.savePreferences({
+      preferences: kept.preferences,
+      locale: kept.locale,
+    });
+    expect(await texts()).toEqual([{ state: "skipped", reason: "module_off" }]);
+  });
+});

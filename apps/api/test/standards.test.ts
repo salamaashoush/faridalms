@@ -197,7 +197,7 @@ describe("standards", () => {
     let classId = "";
     for (const row of classes)
       if (
-        (await staff.coursework.groups({ classId: row.id })).roster.some(
+        (await staff.classes.groups({ classId: row.id })).roster.some(
           (student) => student.id === me.id,
         )
       )

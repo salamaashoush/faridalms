@@ -12,6 +12,7 @@ import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 
 import { timetableDayPart } from "./DayParts";
+import { COVER_NOTICES } from "./notices";
 import { StudentToday } from "./StudentToday";
 import { TIMETABLE_TODAY } from "./today";
 import { ClassWeek } from "./Weeks";
@@ -20,6 +21,7 @@ import { ClassWeek } from "./Weeks";
 export const TIMETABLE: ModuleFillings = {
   module: "timetable",
   fillings: [
+    COVER_NOTICES,
     fill(setupStepWords, {
       id: "timetable",
       title: m.setupTimetableTitle,

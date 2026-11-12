@@ -2,12 +2,13 @@ import type { TeacherListQuery } from "@faridalms/domain/coursework";
 
 import { queryOptions } from "@tanstack/react-query";
 
+import type { PollCounts } from "~/components/questions/Checks";
+
 import {
   getAssignmentEditor,
   getAssignmentRecord,
   getChildBrief,
   getChildCoursework,
-  getClassGroups,
   getCommentBank,
   getCoursework,
   getCourseworkOptions,
@@ -22,8 +23,6 @@ import {
   getStudentCoursework,
 } from "~/server/coursework";
 
-import type { PollCounts } from "./learning";
-
 /** How a student's class answered a quiz's poll, asked again now and then as others answer. */
 export const quizPollResultsQuery = (assignmentId: string, blockId: string) =>
   queryOptions<PollCounts>({
@@ -33,10 +32,10 @@ export const quizPollResultsQuery = (assignmentId: string, blockId: string) =>
     refetchInterval: 15_000,
   });
 
-export const courseworkOptionsQuery = queryOptions({
+export const courseworkOptionsQuery = {
   queryKey: ["coursework", "options"],
   queryFn: () => getCourseworkOptions(),
-});
+};
 
 export const reusableQuery = (q: string) =>
   queryOptions({
@@ -115,12 +114,6 @@ export const studentCourseworkQuery = (studentId: string) =>
   queryOptions({
     queryKey: ["coursework", "student", studentId],
     queryFn: () => getStudentCoursework({ data: { studentId } }),
-  });
-
-export const classGroupsQuery = (classId: string) =>
-  queryOptions({
-    queryKey: ["coursework", "groups", classId],
-    queryFn: () => getClassGroups({ data: { classId } }),
   });
 
 /** What coursework says of today for Today: the viewer's own, or a learner's they follow. */

@@ -39,17 +39,18 @@ import {
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type * as CodeEditor from "~/components/code/code-editor";
+
+import { linkedPage, playedPage } from "~/components/code/project-page";
+import { WebPreview } from "~/components/code/WebPreview";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
-import type * as CodeEditor from "./code-editor";
 import type { ProgramHandle } from "./ProjectProgram";
 
 import { SaveStatus } from "./CodingStudio";
-import { linkedPage, playedPage } from "./project-page";
 import { ProjectProgram } from "./ProjectProgram";
 import { useKeptFiles } from "./useKeptFiles";
-import { WebPreview } from "./WebPreview";
 
 /** Quiet time after the last change before a project keeps itself. */
 /** How long typing pauses before the page is drawn again. */
@@ -231,7 +232,7 @@ export function WebProjectStudio({
   );
   useEffect(() => {
     let cancelled = false;
-    void import("./code-editor").then((loaded) => {
+    void import("~/components/code/code-editor").then((loaded) => {
       if (!cancelled && host.current) mount(loaded, host.current);
     });
     return () => {

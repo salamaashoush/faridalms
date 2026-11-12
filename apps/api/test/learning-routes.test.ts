@@ -56,7 +56,7 @@ async function teacherAndClass() {
     const source = rows.find((row) => row.title === TITLE);
     if (!source) continue;
     for (const item of source.classes) {
-      const { roster } = await api.coursework.groups({ classId: item.id });
+      const { roster } = await api.classes.groups({ classId: item.id });
       if (roster.some((row) => row.id === me.id))
         return { keeper: api, classId: item.id, pupil, me };
     }

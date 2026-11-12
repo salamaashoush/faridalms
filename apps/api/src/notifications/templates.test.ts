@@ -1,6 +1,24 @@
 import { describe, expect, it } from "vitest";
 
+import type { NoticeLines } from "./points";
+
+import { ATTENDANCE_LINES } from "../attendance/notice-lines";
+import { COURSEWORK_LINES } from "../coursework/notice-lines";
+import { TIMETABLE_LINES } from "../timetable/notice-lines";
 import { render } from "./templates";
+
+const LINES = [
+  ...ATTENDANCE_LINES,
+  ...COURSEWORK_LINES,
+  ...TIMETABLE_LINES,
+].map((contribution) => contribution.value as NoticeLines);
+
+/** A notice's message at a school where attendance, coursework and the timetable are on. */
+function rendered(input: Omit<Parameters<typeof render>[0], "lines">) {
+  const message = render({ ...input, lines: LINES });
+  if (!message) throw new Error("nothing was rendered");
+  return message;
+}
 
 const absence = {
   kind: "absence" as const,
@@ -9,7 +27,7 @@ const absence = {
 
 describe("notice emails", () => {
   it("write the day in the reader's language, not as the database stores it", () => {
-    const english = render({
+    const english = rendered({
       locale: "en",
       digits: "latn",
       channel: "email",
@@ -23,7 +41,7 @@ describe("notice emails", () => {
   });
 
   it("write the day in Arabic in the school's digits", () => {
-    const arab = render({
+    const arab = rendered({
       locale: "ar",
       digits: "arab",
       channel: "email",
@@ -31,7 +49,7 @@ describe("notice emails", () => {
       items: [absence],
     });
     expect(arab.text).toContain("سُجّل غياب سلامة يوم ١٤ سبتمبر ٢٠٢٦");
-    const western = render({
+    const western = rendered({
       locale: "ar",
       digits: "latn",
       channel: "sms",
@@ -43,7 +61,7 @@ describe("notice emails", () => {
 });
 
 const feedbackLine = (params: Record<string, unknown>, locale: "en" | "ar") =>
-  render({
+  rendered({
     locale,
     digits: "latn",
     channel: "sms",
@@ -64,7 +82,7 @@ describe("teaching notices", () => {
   };
 
   it("tell a student and a family about new work, naming the child to the family", () => {
-    const student = render({
+    const student = rendered({
       locale: "en",
       digits: "latn",
       channel: "email",
@@ -74,7 +92,7 @@ describe("teaching notices", () => {
     expect(student.subject).toBe(
       "Acme School: New work in Arabic 5A: Letters home, due November 12, 2026.",
     );
-    const family = render({
+    const family = rendered({
       locale: "ar",
       digits: "latn",
       channel: "email",
@@ -113,7 +131,7 @@ describe("teaching notices", () => {
       params: { title: "Term 1", titleAr: "الفصل الأول", className: "Science" },
     };
     expect(
-      render({
+      rendered({
         locale: "ar",
         digits: "latn",
         channel: "sms",
@@ -135,7 +153,7 @@ describe("teaching notices", () => {
       },
     };
     expect(
-      render({
+      rendered({
         locale: "en",
         digits: "latn",
         channel: "email",
@@ -146,7 +164,7 @@ describe("teaching notices", () => {
       'Salama Ashoush mentioned you in a comment on "The Nile floods": Could you check this?',
     );
     expect(
-      render({
+      rendered({
         locale: "ar",
         digits: "latn",
         channel: "email",
@@ -154,5 +172,44 @@ describe("teaching notices", () => {
         items: [comment],
       }).text,
     ).toContain("ذكرك سلامة عشوش في تعليق على «The Nile floods»");
+  });
+});
+
+/** A reminder's text, a register's or, with `cover`, a covered lesson's. */
+const reminder = (params: Record<string, unknown>) =>
+  rendered({
+    locale: "en",
+    digits: "latn",
+    channel: "sms",
+    school: "Acme",
+    items: [
+      {
+        kind: "reminder",
+        params: { className: "Science", date: "2026-11-12", ...params },
+      },
+    ],
+  }).text;
+
+describe("notices of modules", () => {
+  it("are worded by the module that sends them, a reminder by its sender", () => {
+    expect(reminder({})).toBe(
+      "Acme: Reminder: the register for Science on November 12, 2026 is not taken yet.",
+    );
+    expect(reminder({ cover: true })).toBe(
+      "Acme: You cover Science on November 12, 2026.",
+    );
+  });
+
+  it("render nothing where the module that sends them is off", () => {
+    expect(
+      render({
+        locale: "en",
+        digits: "latn",
+        channel: "email",
+        school: "Acme School",
+        items: [absence],
+        lines: [],
+      }),
+    ).toBeNull();
   });
 });

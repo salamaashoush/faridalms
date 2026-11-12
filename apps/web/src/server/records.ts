@@ -3,10 +3,6 @@ import {
   saveArrangementsSchema,
 } from "@faridalms/domain/arrangements";
 import {
-  identifierRefSchema,
-  saveIdentifierSchema,
-} from "@faridalms/domain/identifiers";
-import {
   askHealthChangeSchema,
   attachHealthReportSchema,
   decideHealthChangeSchema,
@@ -64,22 +60,6 @@ export const getDemographics = createServerFn({ method: "GET" })
 export const saveDemographics = createServerFn({ method: "POST" })
   .validator(checked(saveDemographicsSchema))
   .handler(({ data }) => backend().records.saveDemographics(data));
-
-export const getIdentifiers = createServerFn({ method: "GET" })
-  .validator(checked(student))
-  .handler(({ data }) => record(backend().identifiers.list(data)));
-
-export const revealIdentifier = createServerFn({ method: "POST" })
-  .validator(checked(v.object({ id: v.pipe(v.string(), v.uuid()) })))
-  .handler(({ data }) => backend().identifiers.reveal(data));
-
-export const saveIdentifier = createServerFn({ method: "POST" })
-  .validator(checked(saveIdentifierSchema))
-  .handler(({ data }) => backend().identifiers.save(data));
-
-export const removeIdentifier = createServerFn({ method: "POST" })
-  .validator(checked(identifierRefSchema))
-  .handler(({ data }) => backend().identifiers.remove(data));
 
 export const getSummary = createServerFn({ method: "GET" })
   .validator(checked(student))

@@ -43,7 +43,7 @@ async function recording(session: Session) {
 async function classOfStudent(teacher: Session, studentId: string) {
   const { classes } = await teacher.api.coursework.options();
   for (const row of classes.filter((item) => item.subjectId !== null)) {
-    const { roster } = await teacher.api.coursework.groups({ classId: row.id });
+    const { roster } = await teacher.api.classes.groups({ classId: row.id });
     if (roster.some((pupil) => pupil.id === studentId)) return row.id;
   }
   throw new Error("the seeded student takes no Arabic class");

@@ -15,6 +15,7 @@ import { mailboxHooks } from "../messages/conversations";
 import { contextOpeners } from "../people/access";
 import { admissionsCalendar } from "./calendar";
 import { ADMISSIONS_HOSTS, ADMISSIONS_MAILBOXES } from "./hosts";
+import { ADMISSIONS_LINES } from "./notice-lines";
 import { confirmApplicant } from "./registration";
 import { ADMISSIONS_RETENTION } from "./retention";
 
@@ -22,6 +23,7 @@ import { ADMISSIONS_RETENTION } from "./retention";
 export const ADMISSIONS: ModuleContributions = {
   module: "admissions",
   contributions: [
+    ...ADMISSIONS_LINES,
     admissionsCalendar,
     contribute(fileHosts, ADMISSIONS_HOSTS),
     contribute(portalDoors, { door: "apply" }),

@@ -55,10 +55,13 @@ import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { DocumentHostProvider } from "~/components/content/document-host";
+import { blockIssue } from "~/components/content/issues";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
+import { sayIn } from "~/components/content/starters";
 import { useStartFrom } from "~/components/content/Templates";
 import { TranslationNote } from "~/components/content/TranslationNote";
 import { CheckboxRow } from "~/components/people/fields";
+import { FeedbackBands, keptBands } from "~/components/questions/FeedbackBands";
 import {
   DetailsPanel,
   DetailsSection,
@@ -66,8 +69,8 @@ import {
   DocumentTitle,
 } from "~/components/system/DocumentPage";
 import { useAutosave } from "~/hooks/useAutosave";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { moduleRecordQuery, routeChoicesQuery } from "~/queries/learning";
@@ -80,11 +83,9 @@ import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { CopyLessonSheet } from "./CopyLesson";
-import { FeedbackBands, keptBands } from "./FeedbackBands";
 import { COMPLETION_LABEL, conditionText } from "./format";
-import { blockIssue } from "./issues";
 import { PATTERNS } from "./patterns";
-import { sayIn } from "./starters";
+import { youngLessons } from "./slots";
 import { YoungAdviceList } from "./YoungAdvice";
 
 /** The teaching patterns, in the language the teacher works in. */
@@ -184,7 +185,7 @@ export function LessonEditor({
   const queryClient = useQueryClient();
   const module = useSuspenseQuery(moduleRecordQuery(moduleId)).data;
   const elsewhere = useSuspenseQuery(routeChoicesQuery(moduleId)).data.lessons;
-  const earlyYears = useCurrentUser().modules.early_years;
+  const earlyYears = useSlot(youngLessons).length > 0;
   const open = module.state === "published";
   const media = useDocumentMedia({ type: "module", id: moduleId });
   // Co-teachers write a lesson together once it exists; a new one starts alone.

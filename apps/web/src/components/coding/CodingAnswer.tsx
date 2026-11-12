@@ -1,6 +1,3 @@
-import type { CheckView, StudentBlock } from "@faridalms/domain/learning";
-import type { ReactNode } from "react";
-
 import { Button } from "@faridalms/ui/button";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,30 +5,18 @@ import { Puzzle } from "lucide-react";
 import { useContext, useState } from "react";
 import { toast } from "sonner";
 
-import type { CheckDriver, CheckMode } from "~/components/learning/Checks";
+import type { StudioAnswerProps } from "~/components/questions/slots";
 
+import { OwnProjectsContext } from "~/components/code/own-code";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
-import { galleryQuery } from "~/queries/learning";
 import { playQuery } from "~/queries/play";
 
 import { CodingStudio, PROJECT_TYPE } from "./CodingStudio";
-import { OwnProjectsContext } from "./own-code";
 import { ProjectChecks, ProjectNotes } from "./ProjectChecks";
-import { ProjectGallery } from "./ProjectGallery";
 import { ProjectPlayer } from "./ProjectPlayer";
-
-type Coding = Extract<StudentBlock, { type: "scratch" }>;
-
-export interface CodingAnswerProps {
-  block: Coding;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-  mode: CheckMode;
-  locked: boolean;
-  /** Where the answer stands with the teacher, said above the class gallery. */
-  status: ReactNode;
-}
+import { classGalleries } from "./slots";
 
 /**
  * A coding question as its student meets it: their project's stage as they
@@ -48,7 +33,7 @@ export function CodingAnswer({
   mode,
   locked,
   status,
-}: CodingAnswerProps) {
+}: StudioAnswerProps<"scratch">) {
   const media = useDocumentMedia();
   const own = useContext(OwnProjectsContext);
   const queryClient = useQueryClient();
@@ -67,9 +52,10 @@ export function CodingAnswer({
   } | null>(null);
   const [builtOn, setBuiltOn] = useState(stored?.remixOf);
   // The gallery is a lesson's: a quiz's answers are nobody's to see.
+  const classGallery = useSlot(classGalleries)[0];
   const gallery =
-    block.gallery && mode !== "quiz" && own
-      ? { lessonId: own.lessonId, blockId: block.id }
+    classGallery && block.gallery && mode !== "quiz" && own
+      ? { ...classGallery, lessonId: own.lessonId, blockId: block.id }
       : null;
   const project =
     mine?.project ??
@@ -125,7 +111,7 @@ export function CodingAnswer({
       <ProjectNotes notes={stored?.notes} />
       <output className="grid gap-2 empty:hidden">{status}</output>
       {gallery ? (
-        <ProjectGallery
+        <gallery.Gallery
           lessonId={gallery.lessonId}
           blockId={gallery.blockId}
           settled={locked}
@@ -171,8 +157,10 @@ export function CodingAnswer({
                   // A save is a newer project to offer, and the first opens the gallery.
                   if (gallery)
                     void queryClient.invalidateQueries({
-                      queryKey: galleryQuery(gallery.lessonId, gallery.blockId)
-                        .queryKey,
+                      queryKey: gallery.queryKey(
+                        gallery.lessonId,
+                        gallery.blockId,
+                      ),
                     });
                 }
           }

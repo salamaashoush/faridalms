@@ -101,7 +101,7 @@ async function cast() {
     const source = rows.find((row) => row.title === TITLE);
     if (!source) continue;
     for (const item of source.classes) {
-      const { roster } = await keeper.coursework.groups({ classId: item.id });
+      const { roster } = await keeper.classes.groups({ classId: item.id });
       if (!roster.some((row) => row.id === me.id)) continue;
       const other = (await keeper.learning.options()).classes.find(
         (row) => row.id !== item.id,

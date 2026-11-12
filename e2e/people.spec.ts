@@ -273,6 +273,13 @@ test("the office opens sign-ins for the students it picks, and a student signs i
   await expect(
     sheet.getByRole("radio", { name: "Printed slips" }),
   ).toBeChecked();
+  await expect(sheet.getByRole("radio")).toHaveCount(3);
+  await expect(
+    sheet.getByRole("radio", { name: "Sign-in badges" }),
+  ).toBeVisible();
+  await expect(
+    sheet.getByRole("radio", { name: "Email to guardians" }),
+  ).toBeVisible();
   await expect(
     sheet.getByText(
       "1 student gets a slip with a sign-in name and a first password.",

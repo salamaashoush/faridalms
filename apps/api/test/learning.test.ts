@@ -5449,7 +5449,7 @@ describe("module audiences", () => {
     let classId = "";
     let classmate = "";
     for (const item of source.classes) {
-      const { roster } = await keeper.coursework.groups({ classId: item.id });
+      const { roster } = await keeper.classes.groups({ classId: item.id });
       if (roster.some((row) => row.id === me.id)) {
         classId = item.id;
         classmate = roster.find((row) => row.id !== me.id)?.id ?? "";
@@ -5667,7 +5667,7 @@ describe("paths by score", () => {
     ).toMatchObject({ code: "NOT_FOUND" });
     let classId = "";
     for (const item of source.classes) {
-      const { roster } = await keeper.coursework.groups({ classId: item.id });
+      const { roster } = await keeper.classes.groups({ classId: item.id });
       if (roster.some((row) => row.id === me.id)) classId = item.id;
     }
     const matrix = await keeper.learning.progress({
@@ -5756,7 +5756,7 @@ describe("leading a lesson live", () => {
     const me = await pupil.identity.currentUser();
     let classId = "";
     for (const item of source.classes) {
-      const { roster } = await keeper.coursework.groups({ classId: item.id });
+      const { roster } = await keeper.classes.groups({ classId: item.id });
       if (roster.some((row) => row.id === me.id)) classId = item.id;
     }
     const saved = await keeper.learning.saveModule({
@@ -5903,7 +5903,7 @@ describe("leading a lesson live", () => {
     const me = await pupil.identity.currentUser();
     let classId = "";
     for (const item of source.classes) {
-      const { roster } = await keeper.coursework.groups({ classId: item.id });
+      const { roster } = await keeper.classes.groups({ classId: item.id });
       if (roster.some((row) => row.id === me.id)) classId = item.id;
     }
     const saved = await keeper.learning.saveModule({

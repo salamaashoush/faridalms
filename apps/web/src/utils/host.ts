@@ -111,3 +111,6 @@ export function insideWebsite(href: string, school: string): boolean {
   const base = `${WEBSITE}${school}`;
   return href.startsWith(base) && /^(?:$|[/?#])/.test(href.slice(base.length));
 }
+
+/** Where a picture the school published is served, on any host. */
+export const publicMediaUrl = (key: string) => `/public-media/${key}`;

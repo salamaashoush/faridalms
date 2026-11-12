@@ -101,3 +101,23 @@ export interface WorkPart {
 }
 
 export const workParts = slot<WorkPart>("work parts");
+
+/** A section a module adds under a student's work on their record, such as their term results. */
+export interface StudentWorkSection {
+  key: string;
+  Section: ComponentType<{ studentId: string }>;
+}
+
+export const studentWorkSections = slot<StudentWorkSection>(
+  "student work sections",
+);
+
+export interface CriterionStandardsProps {
+  value: readonly string[];
+  onChange: (value: string[]) => void;
+}
+
+/** What a rubric's criterion counts toward, where the school keeps standards. */
+export const criterionStandards = slot<ComponentType<CriterionStandardsProps>>(
+  "criterion standards",
+);

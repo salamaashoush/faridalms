@@ -13,8 +13,9 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { GrownUpQuestion } from "~/components/app/GrownUpQuestion";
+import { nfcAvailable } from "~/components/auth/nfc";
 import { classTitle } from "~/components/classes/format";
-import { playSound } from "~/components/learning/young/sounds";
+import { playSound } from "~/components/questions/young/sounds";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { registerQuery } from "~/queries/attendance";
@@ -24,7 +25,6 @@ import { getMessageFromError } from "~/utils/error";
 
 import { BadgeCamera } from "./BadgeCamera";
 import { CardReader } from "./CardReader";
-import { nfcAvailable } from "./nfc";
 
 /** How long a child has to say a tap was not them. */
 const UNDO_MS = 6000;

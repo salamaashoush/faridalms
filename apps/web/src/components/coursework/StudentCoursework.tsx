@@ -2,12 +2,13 @@ import { Button } from "@faridalms/ui/button";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { studentCourseworkQuery } from "~/queries/coursework";
 
 import { StudentReading } from "../reading/StudentReading";
 import { TO_DO, WorkSection } from "./LearnerList";
-import { StudentGrades } from "./StudentGrades";
+import { studentWorkSections } from "./slots";
 
 export interface StudentCourseworkProps {
   studentId: string;
@@ -17,6 +18,7 @@ export interface StudentCourseworkProps {
 export function StudentCoursework({ studentId }: StudentCourseworkProps) {
   const { rows } = useSuspenseQuery(studentCourseworkQuery(studentId)).data;
   const props = { linked: false };
+  const sections = useSlot(studentWorkSections);
   return (
     <div className="grid gap-6">
       <Button
@@ -54,7 +56,9 @@ export function StudentCoursework({ studentId }: StudentCourseworkProps) {
         empty={m.courseworkNothingReturned()}
         {...props}
       />
-      <StudentGrades studentId={studentId} />
+      {sections.map(({ key, Section }) => (
+        <Section key={key} studentId={studentId} />
+      ))}
       <StudentReading studentId={studentId} />
     </div>
   );

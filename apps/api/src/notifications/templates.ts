@@ -10,6 +10,8 @@ import { formatDayIn } from "@faridalms/domain/date-text";
 import { REPLY_MARKER } from "@faridalms/domain/email-replies";
 import { formattingLocale } from "@faridalms/domain/school";
 
+import type { NoticeLines } from "./points";
+
 export interface Rendered {
   subject: string;
   text: string;
@@ -167,68 +169,8 @@ export function conversationMessage(input: {
 
 type Line = (params: NoticeParams) => string;
 
-const ENQUIRY_EN = {
-  enquiry: "New enquiry",
-  visit: "New visit request",
-  general: "New message",
-};
-const ENQUIRY_AR = {
-  enquiry: "استفسار جديد",
-  visit: "طلب زيارة جديد",
-  general: "رسالة جديدة",
-};
-
-/** What the school tells a family as their application moves, and the office of the family's answer. */
-const OUTCOME_EN: Record<NonNullable<NoticeParams["outcome"]>, Line> = {
-  offered: (p) =>
-    `${p.title || p.titleAr || "Your child"} is offered a place${p.intakeName ? ` in ${p.intakeName}` : ""}. Please answer by ${p.until ?? "the date in the letter"}.`,
-  waitlisted: (p) =>
-    `${p.title || p.titleAr || "Your child"} is on the waiting list${p.intakeName ? ` for ${p.intakeName}` : ""}.`,
-  declined_by_school: (p) =>
-    `The school has written to you about the application for ${p.title || p.titleAr || "your child"}.`,
-  enrolled: (p) =>
-    `${p.title || p.titleAr || "Your child"} is enrolled${p.intakeName ? ` in ${p.intakeName}` : ""}. Welcome to the school.`,
-  offer_expired: (p) =>
-    `The offer of a place for ${p.title || p.titleAr || "your child"} has lapsed.`,
-  deferred: (p) =>
-    `The application for ${p.title || p.titleAr || "your child"} has moved to ${p.intakeName ?? "a later intake"}.`,
-  accepted: (p) =>
-    `${p.actorName || "The family"} accepted the offer for ${p.title || p.titleAr || "a child"}.`,
-  offer_declined: (p) =>
-    `${p.actorName || "The family"} declined the offer for ${p.title || p.titleAr || "a child"}.`,
-};
-const OUTCOME_AR: Record<NonNullable<NoticeParams["outcome"]>, Line> = {
-  offered: (p) =>
-    `عُرض على ${p.titleAr || p.title || "طفلكم"} مقعد${p.intakeNameAr || p.intakeName ? ` في ${p.intakeNameAr || p.intakeName}` : ""}، ونرجو الرد قبل ${p.until ?? "الموعد المذكور في الخطاب"}.`,
-  waitlisted: (p) =>
-    `أُدرج ${p.titleAr || p.title || "طفلكم"} في قائمة الانتظار${p.intakeNameAr || p.intakeName ? ` لـ${p.intakeNameAr || p.intakeName}` : ""}.`,
-  declined_by_school: (p) =>
-    `أرسلت إليكم المدرسة خطابًا بشأن طلب التحاق ${p.titleAr || p.title || "طفلكم"}.`,
-  enrolled: (p) =>
-    `أصبح ${p.titleAr || p.title || "طفلكم"} مقيدًا${p.intakeNameAr || p.intakeName ? ` في ${p.intakeNameAr || p.intakeName}` : ""}، مرحبًا بكم في المدرسة.`,
-  offer_expired: (p) =>
-    `انتهت مدة عرض المقعد المقدَّم لـ${p.titleAr || p.title || "طفلكم"}.`,
-  deferred: (p) =>
-    `نُقل طلب التحاق ${p.titleAr || p.title || "طفلكم"} إلى ${p.intakeNameAr || p.intakeName || "قبول لاحق"}.`,
-  accepted: (p) =>
-    `قبلت ${p.actorNameAr || p.actorName || "الأسرة"} عرض المقعد المقدَّم لـ${p.titleAr || p.title || "أحد الأطفال"}.`,
-  offer_declined: (p) =>
-    `اعتذرت ${p.actorNameAr || p.actorName || "الأسرة"} عن عرض المقعد المقدَّم لـ${p.titleAr || p.title || "أحد الأطفال"}.`,
-};
-
-/** One line per notice in the reader's language; the app writes its own from the same params. */
-const EVENT_EN = {
-  tour: "Tour",
-  assessment: "Assessment",
-  interview: "Interview",
-} as const;
-const EVENT_AR = {
-  tour: { a: "جولة", the: "الجولة", cancelled: "أُلغيت الجولة" },
-  assessment: { a: "تقييم", the: "التقييم", cancelled: "أُلغي التقييم" },
-  interview: { a: "مقابلة", the: "المقابلة", cancelled: "أُلغيت المقابلة" },
-} as const;
-
-const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
+/** One line per notice of core's in the reader's language; the app writes its own from the same params. */
+const LINES: Record<"en" | "ar", Partial<Record<NotificationKind, Line>>> = {
   en: {
     announcement: (p) =>
       `${p.updated ? "Updated" : "Announcement"}: ${p.title ?? ""}${p.preview ? `. ${p.preview}` : ""}`,
@@ -236,20 +178,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       `Urgent: ${p.title ?? ""}${p.preview ? `. ${p.preview}` : ""}`,
     message: (p) =>
       `New message from ${p.actorName ?? "the school"}${p.preview ? `: ${p.preview}` : ""}`,
-    absence: (p) =>
-      p.report
-        ? `The school ${p.report === "accepted" ? "accepted" : "declined"} your report for ${p.studentName ?? "your child"} from ${p.date ?? "today"}.`
-        : `${p.studentName ?? "Your child"} was marked absent on ${p.date ?? "today"}${p.className ? ` (${p.className})` : ""}.`,
     event: (p) =>
       p.cancelled
         ? `Cancelled: ${p.title ?? ""}${p.date ? ` on ${p.date}` : ""}`
         : `${p.updated ? "Event changed" : "Event"}: ${p.title ?? ""}${p.date ? ` on ${p.date}` : ""}`,
-    reminder: (p) =>
-      p.cover
-        ? p.cancelled
-          ? `You no longer cover ${p.className ?? "a lesson"} on ${p.date ?? "today"}${p.periodName ? `, ${p.periodName}` : ""}.`
-          : `You cover ${p.className ?? "a lesson"} on ${p.date ?? "today"}${p.periodName ? `, ${p.periodName}` : ""}.`
-        : `Reminder: the register for ${p.className ?? "your class"} on ${p.date ?? "today"} is not taken yet.`,
     consent: (p) =>
       `The school asks for your permission: ${p.title ?? ""}${p.studentName ? ` (${p.studentName})` : ""}.`,
     mention: (p) =>
@@ -260,49 +192,6 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       p.shared
         ? `${p.title ?? "Your piece"} is now one of the school's templates.`
         : `${p.actorName || "A reviewer"} sent ${p.title ?? "your piece"} back with a note.`,
-    reply: (p) =>
-      `${p.actorName || "Someone in your class"} replied to your post in ${p.title ?? "a discussion"}.`,
-    enquiry: (p) =>
-      p.assigned
-        ? `${p.actorName || "A colleague"} handed you the enquiry from ${p.title ?? "a family"}.`
-        : `${ENQUIRY_EN[p.purpose ?? "enquiry"]} from ${p.title ?? "a family"}${p.preview ? `: ${p.preview}` : ""}`,
-    application: (p) =>
-      p.outcome
-        ? OUTCOME_EN[p.outcome](p)
-        : p.received
-          ? `We received the application for ${p.title || p.titleAr || "your child"}${p.intakeName ? ` to ${p.intakeName}` : ""}. Its number is ${p.reference ?? ""}.`
-          : `New application for ${p.title || p.titleAr || "a child"}${p.intakeName ? ` to ${p.intakeName}` : ""}.`,
-    assignment: (p) =>
-      `New work${p.studentName ? ` for ${p.studentName}` : ""}${p.className ? ` in ${p.className}` : ""}: ${p.title ?? ""}${p.date ? `, due ${p.date}` : ""}.`,
-    feedback: (p) =>
-      p.gradeShown
-        ? `${p.studentName ? `${p.studentName}'s` : "Your"} grade for ${p.title ?? "an assignment"} is now shown.`
-        : p.studentName
-          ? p.revise
-            ? `${p.studentName}'s work on ${p.title ?? "an assignment"} came back to revise.`
-            : `${p.studentName}'s work on ${p.title ?? "an assignment"} was marked and returned.`
-          : p.revise
-            ? `Your work on ${p.title ?? "an assignment"} came back for you to revise.`
-            : `Your work on ${p.title ?? "an assignment"} came back with your teacher's feedback.`,
-    grades: (p) =>
-      `${p.studentName ? `${p.studentName}'s` : "Your"} grades for ${p.title ?? "the term"}${p.className ? ` in ${p.className}` : ""} are out.`,
-    correction: (p) =>
-      p.report === "accepted"
-        ? `The school updated ${p.studentName ?? "your child"}'s medical summary with the change you asked for.`
-        : `The school answered the change you asked for in ${p.studentName ?? "your child"}'s medical summary and did not make it.`,
-    reenrolment: (p) =>
-      `Will ${p.studentName ?? "your child"} return to school${p.title ? ` in ${p.title}` : " next year"}? Tell the school in the family app.`,
-    admission_event: (p) => {
-      const what = `${EVENT_EN[p.eventKind ?? "tour"]} with ${p.title || p.titleAr || "an applicant"}`;
-      const when = `${p.date ?? ""}${p.startTime ? ` at ${p.startTime}` : ""}`;
-      return p.cancelled
-        ? `Called off: the ${what.charAt(0).toLowerCase()}${what.slice(1)} on ${when}.`
-        : `${p.updated ? "Moved: " : ""}${what} on ${when}${p.location ? `, ${p.location}` : ""}.`;
-    },
-    peer_review: (p) =>
-      p.dueSoon
-        ? `Reminder: your reviews of classmates' work for ${p.title ?? "an assignment"} are due ${p.date ?? "soon"}.`
-        : `Classmates' work to review for ${p.title ?? "an assignment"}${p.date ? `, due ${p.date}` : ""}.`,
   },
   ar: {
     announcement: (p) =>
@@ -311,20 +200,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       `عاجل: ${p.titleAr || p.title || ""}${p.preview ? `. ${p.preview}` : ""}`,
     message: (p) =>
       `رسالة جديدة من ${p.actorName ?? "المدرسة"}${p.preview ? `: ${p.preview}` : ""}`,
-    absence: (p) =>
-      p.report
-        ? `${p.report === "accepted" ? "قبلت" : "رفضت"} المدرسة بلاغك عن ${p.studentName ?? "طفلك"} بدءًا من ${p.date ?? "اليوم"}.`
-        : `سُجّل غياب ${p.studentName ?? "طفلك"} يوم ${p.date ?? "اليوم"}${p.className ? ` (${p.className})` : ""}.`,
     event: (p) =>
       p.cancelled
         ? `أُلغيت: ${p.title ?? ""}${p.date ? ` يوم ${p.date}` : ""}`
         : `${p.updated ? "تغيّرت فعالية" : "فعالية"}: ${p.title ?? ""}${p.date ? ` يوم ${p.date}` : ""}`,
-    reminder: (p) =>
-      p.cover
-        ? p.cancelled
-          ? `لم تعد تغطي ${p.className ?? "حصة"} يوم ${p.date ?? "اليوم"}${p.periodName ? `، ${p.periodName}` : ""}.`
-          : `تغطي ${p.className ?? "حصة"} يوم ${p.date ?? "اليوم"}${p.periodName ? `، ${p.periodName}` : ""}.`
-        : `تذكير: لم يُسجَّل حضور ${p.className ?? "فصلك"} يوم ${p.date ?? "اليوم"} بعد.`,
     consent: (p) =>
       `تطلب المدرسة موافقتك: ${p.title ?? ""}${p.studentName ? ` (${p.studentName})` : ""}.`,
     mention: (p) =>
@@ -335,54 +214,6 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       p.shared
         ? `أصبح ${p.title ?? "ما شاركته"} من قوالب المدرسة.`
         : `أعاد ${p.actorNameAr || p.actorName || "المراجع"} ${p.title ?? "ما شاركته"} إليك مع ملاحظة.`,
-    reply: (p) =>
-      `ردّ ${p.actorNameAr || p.actorName || "أحد زملائك"} على مشاركتك في ${p.title ?? "النقاش"}.`,
-    enquiry: (p) =>
-      p.assigned
-        ? `أحال إليك ${p.actorName || "أحد الزملاء"} الاستفسار الوارد من ${p.title ?? "إحدى الأسر"}.`
-        : `${ENQUIRY_AR[p.purpose ?? "enquiry"]} من ${p.title ?? "إحدى الأسر"}${p.preview ? `: ${p.preview}` : ""}`,
-    application: (p) =>
-      p.outcome
-        ? OUTCOME_AR[p.outcome](p)
-        : p.received
-          ? `وصلنا طلب التحاق ${p.titleAr || p.title || "طفلكم"}${p.intakeNameAr || p.intakeName ? ` بـ${p.intakeNameAr || p.intakeName}` : ""}، ورقمه ${p.reference ?? ""}.`
-          : `طلب التحاق جديد لـ${p.titleAr || p.title || "أحد الأطفال"}${p.intakeNameAr || p.intakeName ? ` في ${p.intakeNameAr || p.intakeName}` : ""}.`,
-    assignment: (p) =>
-      `واجب جديد${p.studentName ? ` لـ${p.studentName}` : ""}${p.className ? ` في ${p.className}` : ""}: ${p.title ?? ""}${p.date ? `، وموعد تسليمه ${p.date}` : ""}.`,
-    feedback: (p) =>
-      p.gradeShown
-        ? p.studentName
-          ? `ظهرت درجة ${p.studentNameAr || p.studentName} في ${p.titleAr || p.title || "الواجب"}.`
-          : `ظهرت درجتك في ${p.titleAr || p.title || "الواجب"}.`
-        : p.studentName
-          ? p.revise
-            ? `أُعيد عمل ${p.studentName} في ${p.title ?? "الواجب"} ليراجعه.`
-            : `صُحِّح عمل ${p.studentName} في ${p.title ?? "الواجب"} وأُعيد إليه.`
-          : p.revise
-            ? `أُعيد إليك عملك في ${p.title ?? "الواجب"} لتراجعه.`
-            : `أُعيد إليك عملك في ${p.title ?? "الواجب"} مع ملاحظات معلمك.`,
-    grades: (p) =>
-      `صدرت ${p.studentName ? `درجات ${p.studentName}` : "درجاتك"} عن ${p.title ?? "الفصل الدراسي"}${p.className ? ` في ${p.className}` : ""}.`,
-    correction: (p) =>
-      p.report === "accepted"
-        ? `حدّثت المدرسة ملخص ${p.studentName ?? "طفلك"} الطبي بالتعديل الذي طلبته.`
-        : `لم تعتمد المدرسة التعديل الذي طلبته على ملخص ${p.studentName ?? "طفلك"} الطبي.`,
-    reenrolment: (p) =>
-      `هل يعود ${p.studentNameAr || p.studentName || "طفلك"} إلى المدرسة${p.titleAr || p.title ? ` في ${p.titleAr || p.title}` : " في العام القادم"}؟ أخبروا المدرسة في تطبيق الأسرة.`,
-    admission_event: (p) => {
-      const kind = EVENT_AR[p.eventKind ?? "tour"];
-      const name = p.titleAr || p.title || "متقدّم";
-      const when = `${p.date ?? ""}${p.startTime ? ` الساعة ${p.startTime}` : ""}`;
-      if (p.cancelled) return `${kind.cancelled} مع ${name} يوم ${when}.`;
-      const where = p.location ? `، ${p.location}` : "";
-      return p.updated
-        ? `تغيّر موعد ${kind.the} مع ${name}: يوم ${when}${where}.`
-        : `${kind.a} مع ${name} يوم ${when}${where}.`;
-    },
-    peer_review: (p) =>
-      p.dueSoon
-        ? `تذكير: موعد مراجعاتك لأعمال زملائك في ${p.titleAr || p.title || "الواجب"} ${p.date ?? "قريبًا"}.`
-        : `أعمال زملاء لتراجعها في ${p.titleAr || p.title || "الواجب"}${p.date ? `، وموعدها ${p.date}` : ""}.`,
   },
 };
 
@@ -420,13 +251,22 @@ function paramsOf(
   };
 }
 
+/**
+ * A notice's line in the reader's language: core's own, or the line the
+ * module that sends it gave; none where that module is off.
+ */
 export function lineFor(
   locale: "en" | "ar",
   digits: Digits,
-  kind: NotificationKind,
-  params: NoticeParams,
-): string {
-  return LINES[locale][kind](paramsOf(locale, digits, params));
+  item: { kind: NotificationKind; params: NoticeParams },
+  lines: readonly NoticeLines[],
+): string | null {
+  const given = lines.find(
+    (each) =>
+      each.kind === item.kind && (!each.sends || each.sends(item.params)),
+  );
+  const line = given?.[locale] ?? LINES[locale][item.kind];
+  return line ? line(paramsOf(locale, digits, item.params)) : null;
 }
 
 /**
@@ -439,10 +279,13 @@ export function render(input: {
   channel: "email" | "sms";
   school: string;
   items: readonly { kind: NotificationKind; params: NoticeParams }[];
-}): Rendered {
-  const lines = input.items.map((item) =>
-    lineFor(input.locale, input.digits, item.kind, item.params),
+  /** The lines of the modules on at the school. */
+  lines: readonly NoticeLines[];
+}): Rendered | null {
+  const lines = input.items.flatMap(
+    (item) => lineFor(input.locale, input.digits, item, input.lines) ?? [],
   );
+  if (lines.length === 0) return null;
   const [first] = lines;
   if (input.channel === "sms")
     return {

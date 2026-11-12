@@ -4,18 +4,29 @@ import type { ModuleFillings } from "~/utils/extension";
 
 import { navItems } from "~/components/app/navigation";
 import {
-  ArrangementsSection,
-  HealthSection,
-} from "~/components/people/RecordSections";
-import { studentRecordTabs } from "~/components/people/slots";
+  studentDetailsSections,
+  studentRecordTabs,
+} from "~/components/people/slots";
 import * as m from "~/i18n/messages";
 import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
+
+import {
+  ArrangementsSection,
+  DemographicsSection,
+  HealthSection,
+} from "./RecordSections";
 
 /** Student records' pages and links. */
 export const STUDENT_RECORDS: ModuleFillings = {
   module: "student_records",
   fillings: [
+    fill(studentDetailsSections, {
+      key: "demographics",
+      place: 20,
+      shows: (access) => access.demographics === true,
+      Section: DemographicsSection,
+    }),
     fill(studentRecordTabs, {
       value: "health",
       label: m.studentTabHealth,

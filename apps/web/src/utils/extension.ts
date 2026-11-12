@@ -65,7 +65,8 @@ export const NOTHING_READ: SlotQuery<null> = {
 /**
  * Every module's fillings of a slot, on or off at the school: only for a
  * page before sign-in, which knows nothing of the school's modules and
- * picks among them by what the server says the school shows strangers.
+ * picks among them by what the server says the school shows strangers, and
+ * for the switch that turns a module on, which shows while it is off.
  */
 export function everyFilling<T>(
   extensions: readonly ModuleFillings[],

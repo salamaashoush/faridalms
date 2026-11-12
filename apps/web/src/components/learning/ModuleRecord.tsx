@@ -58,6 +58,7 @@ import { SaveTemplateDialog } from "~/components/content/Templates";
 import { AreaFiles } from "~/components/files/AreaFiles";
 import { displayName } from "~/components/people/format";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import {
   moduleProgressQuery,
@@ -72,6 +73,7 @@ import {
   overrideLesson,
   publishModule,
   removeLesson,
+  shareModule,
   unpublishModule,
 } from "~/server/learning";
 import { formatList, formatNumber } from "~/utils/datetime";
@@ -90,8 +92,8 @@ import { ClassLive } from "./Live";
 import { ModuleDiscussions } from "./ModuleDiscussions";
 import { ModuleGlossary } from "./ModuleGlossary";
 import { TeachLiveDialog } from "./PacedLesson";
-import { PlanCoverage } from "./PlanEditor";
 import { ClassQuestions } from "./Questions";
+import { moduleDiscussions, planCoverage } from "./slots";
 import { ClassVideos } from "./Videos";
 
 export const MODULE_TABS = [
@@ -794,6 +796,7 @@ interface ModulePlanProps {
 function ModulePlan({ moduleId }: ModulePlanProps) {
   const query = useQuery(planQuery(moduleId));
   const navigate = useNavigate();
+  const coverage = useSlot(planCoverage)[0];
   if (!query.data) return <div aria-busy="true" className="min-h-40" />;
   const { content, covered } = query.data;
   const edit = () =>
@@ -834,7 +837,11 @@ function ModulePlan({ moduleId }: ModulePlanProps) {
           </div>
         </RecordSection>
       }
-      aside={<PlanCoverage content={content} covered={covered} />}
+      aside={
+        coverage ? (
+          <coverage.Coverage content={content} covered={covered} />
+        ) : undefined
+      }
     />
   );
 }
@@ -866,7 +873,8 @@ export function ModuleRecord({
   const user = useCurrentUser();
   // Its discussions are coursework, there where the school sets coursework.
   const discusses =
-    user.modules.coursework && user.capabilities.includes("assignments:author");
+    useSlot(moduleDiscussions).length > 0 &&
+    user.capabilities.includes("assignments:author");
   const shown = tab === "discussions" && !discusses ? "lessons" : tab;
   const state = shownState(data);
   // The word that it worked comes as the server says so, not once the
@@ -1008,7 +1016,10 @@ export function ModuleRecord({
         <SaveTemplateDialog
           open={sharing}
           onOpenChange={setSharing}
-          piece={{ kind: "module", moduleId: data.id }}
+          piece={{
+            keep: (about) =>
+              shareModule({ data: { ...about, moduleId: data.id } }),
+          }}
           suggestedTitle={data.title}
         />
       ) : null}

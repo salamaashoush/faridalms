@@ -1,8 +1,7 @@
-import { MODULE_IDS } from "@faridalms/domain/modules";
+import { askAboutModuleSchema } from "@faridalms/domain/modules";
 import { saveSchoolSchema, setFeatureSchema } from "@faridalms/domain/people";
 import { commonsSwitchSchema } from "@faridalms/domain/pictures";
 import { createServerFn } from "@tanstack/react-start";
-import * as v from "valibot";
 
 import { backend } from "./backend";
 import { checked } from "./input";
@@ -35,9 +34,7 @@ export const setCommonsPictures = createServerFn({ method: "POST" })
   .validator(checked(commonsSwitchSchema))
   .handler(({ data }) => backend().school.setCommonsPictures(data));
 
-const askSchema = v.object({ module: v.picklist(MODULE_IDS) });
-
 /** Asks the platform about a module the school's plan does not have. */
 export const askAboutModule = createServerFn({ method: "POST" })
-  .validator(checked(askSchema))
+  .validator(checked(askAboutModuleSchema))
   .handler(({ data }) => backend().school.askAboutModule(data));

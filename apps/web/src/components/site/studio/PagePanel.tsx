@@ -14,12 +14,12 @@ import { Textarea } from "@faridalms/ui/textarea";
 import { History } from "lucide-react";
 
 import { LOCALE_NAME } from "~/components/content/languages";
+import { PictureField } from "~/components/media/PictureField";
 import { CheckboxRow } from "~/components/people/fields";
 import * as m from "~/i18n/messages";
 
 import type { Languages, PageDraft } from "./draft";
 
-import { PictureField } from "../PictureField";
 import { StudioField } from "./controls";
 import { canonicalValid } from "./draft";
 

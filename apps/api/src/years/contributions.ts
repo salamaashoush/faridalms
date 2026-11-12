@@ -49,6 +49,7 @@ import { scopeFor } from "../core/reach";
 import { setupMeasures } from "../core/setup";
 import { reportingSpans } from "../core/spans";
 import { leavingParts, studentViews } from "../people/points";
+import { YEARS_LINES } from "./notice-lines";
 import { openYear } from "./years";
 
 function parsed<T extends v.GenericSchema>(
@@ -172,6 +173,7 @@ async function yearSpans(
 export const SCHOOL_YEARS: ModuleContributions = {
   module: "school_years",
   contributions: [
+    ...YEARS_LINES,
     contribute(setupMeasures, {
       item: "year_ready",
       seen: (scope) =>

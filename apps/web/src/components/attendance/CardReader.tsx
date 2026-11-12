@@ -2,9 +2,8 @@ import { Button } from "@faridalms/ui/button";
 import { Nfc } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
+import { readBadgeCards } from "~/components/auth/nfc";
 import * as m from "~/i18n/messages";
-
-import { readBadgeCards } from "./nfc";
 
 /** A card still on the device is not read twice in this time. */
 const AGAIN_MS = 5000;

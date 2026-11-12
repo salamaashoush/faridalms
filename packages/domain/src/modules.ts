@@ -1,3 +1,5 @@
+import * as v from "valibot";
+
 import type { Capability } from "./capabilities";
 import type { NotificationKind } from "./notifications";
 import type { OnboardingItem } from "./onboarding";
@@ -240,6 +242,11 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
   sso: { requires: [], basic: false, schoolSwitch: false, systems: [] },
   sms: { requires: [], basic: false, schoolSwitch: false, systems: [] },
 };
+
+/** A school's administrator asking about a module its plan does not have. */
+export const askAboutModuleSchema = v.object({
+  module: v.picklist(MODULE_IDS),
+});
 
 /** The API namespaces every school answers, whatever its plan. */
 export const CORE_SYSTEMS = [

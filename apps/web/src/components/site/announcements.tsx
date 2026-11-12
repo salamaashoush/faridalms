@@ -16,8 +16,10 @@ import { announcementCopyParts } from "~/components/announcements/slots";
 import { navItems } from "~/components/app/navigation";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { setupItemWords, setupStepWords } from "~/components/home/slots";
+import { PictureField } from "~/components/media/PictureField";
 import { CheckboxRow } from "~/components/people/fields";
 import { DetailsSection } from "~/components/system/DocumentPage";
+import { templateUses } from "~/components/templates/slots";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { announcementSiteOptionsQuery } from "~/queries/site";
@@ -25,8 +27,8 @@ import { getAnnouncementPost } from "~/server/site";
 import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 
-import { PictureField } from "./PictureField";
 import { ISSUE_LABEL } from "./studio/labels";
+import { SECTION_TEMPLATE } from "./templates";
 
 /** How an announcement stands on the website, as its editor holds it. */
 interface Post {
@@ -178,6 +180,7 @@ function WebsitePost({
 export const WEBSITE: ModuleFillings = {
   module: "website",
   fillings: [
+    fill(templateUses, SECTION_TEMPLATE),
     fill(setupStepWords, {
       id: "website",
       title: m.setupWebsiteTitle,

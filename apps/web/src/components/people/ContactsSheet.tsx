@@ -10,7 +10,7 @@ import * as m from "~/i18n/messages";
 import { saveContacts } from "~/server/students";
 import { getMessageFromError } from "~/utils/error";
 
-import { matching } from "./RecordSections";
+import { matching } from "./format";
 import { COUNTRY_CODES, countryName } from "./regions";
 
 export interface HeldContact {

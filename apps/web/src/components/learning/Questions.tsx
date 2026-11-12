@@ -31,13 +31,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { ProgramReplay } from "~/components/coding/ProgramReplay";
 import { displayName } from "~/components/people/format";
 import * as m from "~/i18n/messages";
 import { classQuestionsQuery } from "~/queries/learning";
 import { releaseLesson } from "~/server/learning";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+
+import { ProgramReplay } from "./ProgramReplay";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classQuestionsQuery>["queryFn"]>>

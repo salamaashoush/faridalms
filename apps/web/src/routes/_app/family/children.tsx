@@ -18,6 +18,7 @@ import {
 
 import { displayName } from "~/components/people/format";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { usePageOn } from "~/hooks/usePageOn";
 import * as m from "~/i18n/messages";
 import { childrenQuery } from "~/queries/families";
 import { currentUserQuery } from "~/queries/user";
@@ -33,11 +34,22 @@ export const Route = createFileRoute("/_app/family/children")({
 const link =
   "inline-flex min-h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted";
 
+/** The pages a family follows a child on, each where the school has it. */
+const CHILD_PAGES = [
+  { to: "/family/assignments", icon: ClipboardList, label: m.navCoursework },
+  { to: "/family/grades", icon: BookOpen, label: m.navGrades },
+  { to: "/family/attendance", icon: UserCheck, label: m.navAttendance },
+  { to: "/family/timetable", icon: Table2, label: m.navTimetable },
+  { to: "/family/details", icon: IdCard, label: m.familyDetails },
+  { to: "/family/health", icon: HeartPulse, label: m.medicalTitleShort },
+  { to: "/family/modules", icon: Layers, label: m.navModules },
+] as const;
+
 /** Each child with the places a family follows them: work, grades, attendance, week and modules. */
 function ChildrenPage() {
   const user = useCurrentUser();
   const children = useSuspenseQuery(childrenQuery(user.id)).data;
-  const modules = user.modules.elearning;
+  const opens = usePageOn();
   return (
     <Page width="list">
       <PageHeader title={m.navChildren()} description={m.homeChildrenHint()} />
@@ -62,78 +74,20 @@ function ChildrenPage() {
                 }
               >
                 <ul className="flex flex-wrap gap-2">
-                  <li>
-                    <Link
-                      to="/family/assignments"
-                      search={search}
-                      className={cn(link, phoneLink)}
-                    >
-                      <ClipboardList aria-hidden className="size-4" />
-                      {m.navCoursework()}
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/family/grades"
-                      search={search}
-                      className={cn(link, phoneLink)}
-                    >
-                      <BookOpen aria-hidden className="size-4" />
-                      {m.navGrades()}
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/family/attendance"
-                      search={search}
-                      className={cn(link, phoneLink)}
-                    >
-                      <UserCheck aria-hidden className="size-4" />
-                      {m.navAttendance()}
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/family/timetable"
-                      search={search}
-                      className={cn(link, phoneLink)}
-                    >
-                      <Table2 aria-hidden className="size-4" />
-                      {m.navTimetable()}
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/family/details"
-                      search={search}
-                      className={cn(link, phoneLink)}
-                    >
-                      <IdCard aria-hidden className="size-4" />
-                      {m.familyDetails()}
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/family/health"
-                      search={search}
-                      className={cn(link, phoneLink)}
-                    >
-                      <HeartPulse aria-hidden className="size-4" />
-                      {m.medicalTitleShort()}
-                    </Link>
-                  </li>
-                  {modules ? (
-                    <li>
-                      <Link
-                        to="/family/modules"
-                        search={search}
-                        className={cn(link, phoneLink)}
-                      >
-                        <Layers aria-hidden className="size-4" />
-                        {m.navModules()}
-                      </Link>
-                    </li>
-                  ) : null}
+                  {CHILD_PAGES.filter((page) => opens(page.to)).map(
+                    ({ to, icon: Icon, label }) => (
+                      <li key={to}>
+                        <Link
+                          to={to}
+                          search={search}
+                          className={cn(link, phoneLink)}
+                        >
+                          <Icon aria-hidden className="size-4" />
+                          {label()}
+                        </Link>
+                      </li>
+                    ),
+                  )}
                 </ul>
               </RecordSection>
             );

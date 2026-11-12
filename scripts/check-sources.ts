@@ -20,6 +20,7 @@ import { migrationProblems } from "./migration-checks";
 import {
   functionBodyProblems,
   moduleImportProblems,
+  moduleNameProblems,
   sqlNameProblems,
 } from "./module-files";
 
@@ -83,6 +84,7 @@ const REACH_STORE =
 
 const files = await sources();
 problems.push(...moduleImportProblems(files));
+problems.push(...moduleNameProblems(files));
 problems.push(...sqlNameProblems(files));
 for (const { path, text } of files) {
   if (path === "scripts/check-sources.ts") continue;

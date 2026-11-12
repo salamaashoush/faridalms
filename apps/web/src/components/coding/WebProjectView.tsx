@@ -5,13 +5,13 @@ import { Button } from "@faridalms/ui/button";
 import { CodeXml } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { linkedPage, playedPage } from "~/components/code/project-page";
+import { WebPreview } from "~/components/code/WebPreview";
 import * as m from "~/i18n/messages";
 
 import { DeviceProgram } from "./DeviceProgram";
-import { linkedPage, playedPage } from "./project-page";
 import { ProjectProgram } from "./ProjectProgram";
 import { ProjectStudio } from "./ProjectStudio";
-import { WebPreview } from "./WebPreview";
 
 export interface WebProjectViewProps {
   files: readonly ProjectFile[];

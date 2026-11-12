@@ -2,9 +2,8 @@ import { Button } from "@faridalms/ui/button";
 import { SwitchCamera, VideoOff } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
+import { badgeSecret, qrReader } from "~/components/auth/badgeReader";
 import * as m from "~/i18n/messages";
-
-import { badgeSecret, qrReader } from "./badgeReader";
 
 /** How often a frame is read; enough for a badge held up, light on a tablet. */
 const EVERY_MS = 300;

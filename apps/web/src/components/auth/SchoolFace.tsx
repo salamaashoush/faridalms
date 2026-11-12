@@ -19,11 +19,10 @@ import {
 import type { PortalFace } from "~/queries/portal";
 
 import { LICENCE, SECURITY } from "~/components/product/links";
-import { publicMediaUrl } from "~/components/site/render/parts";
 import { LocaleToggle } from "~/components/theme/LocaleToggle";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { hostHref } from "~/utils/host";
+import { hostHref, publicMediaUrl } from "~/utils/host";
 
 import { usePortalWords } from "./portal-words";
 

@@ -2,9 +2,9 @@ import type { RefObject } from "react";
 
 import { useEffect } from "react";
 
-import type { SpokenWord } from "../ReadAloud";
+import type { SpokenWord } from "~/components/questions/ReadAloud";
 
-import { onSpokenWord } from "../ReadAloud";
+import { onSpokenWord } from "~/components/questions/ReadAloud";
 
 const NAME = "read-along";
 

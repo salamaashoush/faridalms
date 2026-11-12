@@ -137,6 +137,23 @@ test("a school of core, coursework, attendance and e-learning names no year, gra
     "Language model",
   ]);
 
+  // Badges and families each give a way to a first sign-in; without them, slips.
+  await page.goto(`${at}/students`);
+  await untilHydrated(page);
+  await page
+    .getByRole("table")
+    .getByRole("checkbox", { name: "Select Salama Pupil", exact: true })
+    .check();
+  await page
+    .getByRole("group", { name: "Actions for the selected rows" })
+    .getByRole("button", { name: "Create sign-ins" })
+    .click();
+  const ways = page.getByRole("dialog", { name: "Create sign-ins" });
+  await expect(ways.getByRole("radio")).toHaveCount(1);
+  await expect(
+    ways.getByRole("radio", { name: "Printed slips" }),
+  ).toBeChecked();
+
   await page
     .context()
     .addCookies([{ name: "language-tag", value: "ar", url: at }]);

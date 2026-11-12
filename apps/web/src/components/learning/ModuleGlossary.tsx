@@ -15,12 +15,11 @@ import { Link } from "@tanstack/react-router";
 import { BookA, Search } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
+import { ReadAloud } from "~/components/questions/ReadAloud";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { moduleGlossaryQuery } from "~/queries/learning";
 import { formatNumber } from "~/utils/datetime";
-
-import { ReadAloud } from "./ReadAloud";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 

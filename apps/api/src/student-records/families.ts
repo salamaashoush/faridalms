@@ -11,6 +11,7 @@ import type { ModuleContributions } from "../core/extension";
 
 import { contribute } from "../core/extension";
 import { scopeFor } from "../core/reach";
+import { noticeLines } from "../notifications/points";
 import { learnersActedFor } from "../people/acting";
 import { emergencyContacts, summaryReaders } from "./points";
 
@@ -55,6 +56,17 @@ export const STUDENT_RECORDS_WITH_FAMILIES: ModuleContributions = {
   module: "student_records",
   needs: ["families"],
   contributions: [
+    contribute(noticeLines, {
+      kind: "correction",
+      en: (p) =>
+        p.report === "accepted"
+          ? `The school updated ${p.studentName ?? "your child"}'s medical summary with the change you asked for.`
+          : `The school answered the change you asked for in ${p.studentName ?? "your child"}'s medical summary and did not make it.`,
+      ar: (p) =>
+        p.report === "accepted"
+          ? `حدّثت المدرسة ملخص ${p.studentName ?? "طفلك"} الطبي بالتعديل الذي طلبته.`
+          : `لم تعتمد المدرسة التعديل الذي طلبته على ملخص ${p.studentName ?? "طفلك"} الطبي.`,
+    }),
     contribute(summaryReaders, {
       readerOf: async (context, studentId) => {
         const follows = await learnersActedFor(context, {

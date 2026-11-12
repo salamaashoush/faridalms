@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { AnswerBoard } from "~/components/learning/Answers";
+import { AnswerBoard } from "~/components/questions/AnswerBoard";
 import * as m from "~/i18n/messages";
 import { quizAnswersQuery } from "~/queries/coursework";
 import { markQuizAnswer } from "~/server/coursework";

@@ -23,7 +23,6 @@ import { bankTagCounts } from "@faridalms/database/stores/bank";
 import {
   classById,
   classesKeptBy,
-  rosterOf,
   groupsOf,
 } from "@faridalms/database/stores/classes";
 import {
@@ -2878,27 +2877,6 @@ export const student = readProcedure
     requireCapability(context, "people:read");
     requireCapability(context, "assignments:read");
     return workOf(context, input);
-  });
-
-/** A class's groups and roster, for choosing who gets work. */
-export const groups = readProcedure
-  .input(v.object({ classId: id }))
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "assignments:author");
-    const classRow = await classById(context.tx, context, input.classId);
-    if (!classRow || !(await teaches(context, "teaching", classRow.id)))
-      throw new ORPCError("NOT_FOUND");
-    const roster = await rosterOf(
-      context.tx,
-      context.tenantId,
-      classRow.id,
-      dayWithin(classRow.runs, context.today),
-    );
-    const names = await namesOf(context.tx, context.tenantId, roster);
-    return {
-      groups: await groupsOf(context.tx, context.tenantId, classRow.id),
-      roster: names,
-    };
   });
 
 export const saveClassGroup = writeProcedure

@@ -6,13 +6,15 @@ import { cn } from "@faridalms/ui/cn";
 import { Check, Mic, Pause, Play, RotateCcw, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import type { CheckDriver } from "~/components/questions/Checks";
+
+import { stopSounds } from "~/components/questions/ReadAloud";
+import {
+  recordingUrl,
+  useSpokenAnswer,
+} from "~/components/questions/SpokenAnswer";
+import { playSound } from "~/components/questions/young/sounds";
 import * as m from "~/i18n/messages";
-
-import type { CheckDriver } from "../Checks";
-
-import { stopSounds } from "../ReadAloud";
-import { recordingUrl, useSpokenAnswer } from "../SpokenAnswer";
-import { playSound } from "./sounds";
 
 type Written = Extract<StudentBlock, { type: "written" }>;
 

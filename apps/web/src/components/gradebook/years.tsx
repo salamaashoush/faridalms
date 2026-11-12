@@ -4,16 +4,21 @@ import { useQuery } from "@tanstack/react-query";
 import type { AssignmentEditorPartProps } from "~/components/coursework/slots";
 import type { ModuleFillings } from "~/utils/extension";
 
-import { assignmentEditorParts } from "~/components/coursework/slots";
+import {
+  assignmentEditorParts,
+  studentWorkSections,
+} from "~/components/coursework/slots";
 import { gradingScaleActions } from "~/components/grading/slots";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { workTermQuery } from "~/queries/gradebook";
+import { studentGradesQuery, workTermQuery } from "~/queries/gradebook";
 import { getWorkTerm } from "~/server/gradebook";
 import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 
 import { RegradeAction } from "./RegradeSheet";
+import { gradesSections } from "./slots";
+import { StudentGrades } from "./StudentGrades";
 
 /** The term a piece of work counts toward, among its class's year's terms. */
 function TermField({ classId, value, onChange }: AssignmentEditorPartProps) {
@@ -45,6 +50,13 @@ export const GRADEBOOK_IN_YEARS: ModuleFillings = {
   needs: ["school_years"],
   fillings: [
     fill(modulePages, ["/me/grades", "/family/grades"]),
+    fill(gradesSections, {
+      key: "terms",
+      place: 20,
+      query: (studentId) => studentGradesQuery(studentId),
+      Section: StudentGrades,
+    }),
+    fill(studentWorkSections, { key: "terms", Section: StudentGrades }),
     fill(assignmentEditorParts, {
       key: "term",
       section: "grading",

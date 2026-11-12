@@ -1,4 +1,3 @@
-import type { ContactOutcome } from "@faridalms/domain/attendance";
 import type { EntryKind, Mailbox } from "@faridalms/domain/messages";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -16,10 +15,13 @@ import {
 import type { RecordLink } from "~/components/people/PersonLink";
 import type { InWords } from "~/utils/words";
 
-import { enquiryEventText } from "~/components/admissions/labels";
 import { PersonLink } from "~/components/people/PersonLink";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
+
+import type { MailboxWords } from "./slots";
+
+import { mailboxWords } from "./slots";
 
 /** The internal entries a team reads in its mailbox's conversations, by kind. */
 export const ENTRY_ICON: Record<Exclude<EntryKind, "message">, LucideIcon> = {
@@ -43,37 +45,28 @@ export const ENTRY_LABEL: Record<
   held: m.msgEntryHeld,
 };
 
-const OUTCOME_LABEL: Record<ContactOutcome, () => string> = {
-  reached: m.fupReached,
-  no_answer: m.fupNoAnswer,
-  left_message: m.fupLeftMessage,
-  messaged: m.fupMessaged,
-};
-
-/** What a recorded change says, by the system that owns the mailbox. */
-const EVENTS: Record<
-  Mailbox,
-  (details: Record<string, unknown>, words: InWords) => string | null
-> = {
-  admissions: (details, words) => enquiryEventText(details, inLocale, words),
-  attendance: () => null,
-};
+/** The words of a conversation's mailbox, from the module that owns it. */
+export function useMailboxWords(
+  mailbox: Mailbox | null,
+): MailboxWords | undefined {
+  const all = useSlot(mailboxWords);
+  return mailbox ? all.find((each) => each.mailbox === mailbox) : undefined;
+}
 
 /** The line an internal entry is titled by: a change in words, a call's outcome, or its kind. */
 export function entryTitle(
-  mailbox: Mailbox | null,
+  mailbox: MailboxWords | undefined,
   kind: Exclude<EntryKind, "message">,
   details: Record<string, unknown>,
   words: InWords,
 ): string {
   if (kind === "event")
-    return (mailbox && EVENTS[mailbox](details, words)) ?? ENTRY_LABEL.event();
-  if (
-    kind === "call" &&
-    typeof details.outcome === "string" &&
-    details.outcome in OUTCOME_LABEL
-  )
-    return `${ENTRY_LABEL.call()}: ${OUTCOME_LABEL[details.outcome as ContactOutcome]()}`;
+    return mailbox?.event(details, words) ?? ENTRY_LABEL.event();
+  const outcome =
+    kind === "call" && typeof details.outcome === "string"
+      ? mailbox?.outcomes?.[details.outcome]
+      : undefined;
+  if (outcome) return `${ENTRY_LABEL.call()}: ${outcome()}`;
   if (kind === "held") {
     const from = typeof details.from === "string" ? details.from : "";
     return details.reason === "unauthenticated"

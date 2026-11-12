@@ -1,6 +1,6 @@
 import type { StaticDataRouteOption } from "@tanstack/react-router";
 
-import { publicMediaUrl } from "~/components/site/render/parts";
+import { publicMediaUrl } from "./host";
 
 const PLATFORM_ICONS = [
   { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },

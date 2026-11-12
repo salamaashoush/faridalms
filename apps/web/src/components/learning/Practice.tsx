@@ -14,16 +14,21 @@ import { useServerFn } from "@tanstack/react-start";
 import { Shuffle } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { useCurrentUser } from "~/hooks/useCurrentUser";
+import type { CheckDriver } from "~/components/questions/Checks";
+
+import {
+  CheckBlockView,
+  isCheckBlock,
+  isSettled,
+} from "~/components/questions/Checks";
+import { YoungContext } from "~/components/questions/ReadAloud";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { practiceSetQuery } from "~/queries/learning";
 import { checkPractice } from "~/server/learning";
 import { formatNumber } from "~/utils/datetime";
 
-import type { CheckDriver } from "./Checks";
-
-import { CheckBlockView, isCheckBlock, isSettled } from "./Checks";
-import { YoungContext } from "./ReadAloud";
+import { youngLessons } from "./slots";
 import { YoungLesson } from "./young/YoungLesson";
 
 export interface PracticePlayerProps {
@@ -43,7 +48,7 @@ export function PracticePlayer({
   onRound,
 }: PracticePlayerProps) {
   const data = useSuspenseQuery(practiceSetQuery(moduleId, round)).data;
-  const earlyYears = useCurrentUser().modules.early_years;
+  const earlyYears = useSlot(youngLessons).length > 0;
   const navigate = useNavigate();
   const check = useServerFn(checkPractice);
   // A question's id in the review carries its lesson's, since two lessons

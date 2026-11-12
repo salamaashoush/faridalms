@@ -65,13 +65,13 @@ import { IdentitySection } from "./IdentitySection";
 import { LeaveSchool } from "./LeaveSchool";
 import { PhotoDialog } from "./PhotoDialog";
 import { Deferred, HistoryFeed } from "./record-parts";
-import { DemographicsSection } from "./RecordSections";
 import { SignInSection } from "./SignInSection";
 import {
   studentClassesParts,
   studentFamilyParts,
   studentOverviewParts,
   studentRecordParts,
+  studentDetailsSections,
   studentRecordTabs,
 } from "./slots";
 import { StudentSheets } from "./StudentSheets";
@@ -254,6 +254,9 @@ export function StudentRecord({
   const [leaving, setLeaving] = useState(false);
   const family = useSlot(studentFamilyParts)[0];
   const addedTabs = useSlot(studentRecordTabs);
+  const detailsSections = useSlot(studentDetailsSections).toSorted(
+    (a, b) => a.place - b.place,
+  );
   const overviewParts = useSlot(studentOverviewParts)
     .filter((each) => each.shows(data.access))
     .toSorted((a, b) => a.place - b.place);
@@ -445,11 +448,13 @@ export function StudentRecord({
                   <IdentitySection studentId={studentId} />
                 </Deferred>
               ) : null}
-              {access.demographics ? (
-                <Deferred>
-                  <DemographicsSection studentId={studentId} />
-                </Deferred>
-              ) : null}
+              {detailsSections
+                .filter((section) => section.shows(access))
+                .map(({ key, Section }) => (
+                  <Deferred key={key}>
+                    <Section studentId={studentId} />
+                  </Deferred>
+                ))}
             </>
           }
         />

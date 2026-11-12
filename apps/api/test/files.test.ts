@@ -309,7 +309,7 @@ describe("files in documents", () => {
     const { classes } = await teacher.api.coursework.options();
     let classId = "";
     for (const row of classes.filter((item) => item.subjectId !== null)) {
-      const { roster } = await teacher.api.coursework.groups({
+      const { roster } = await teacher.api.classes.groups({
         classId: row.id,
       });
       if (roster.some((pupil) => pupil.id === me.id)) classId = row.id;
@@ -536,7 +536,7 @@ describe("replacing a file in a class's files", () => {
     let classId = "";
     for (const row of classes.filter((item) => item.subjectId !== null))
       if (
-        (await teacher.api.coursework.groups({ classId: row.id })).roster.some(
+        (await teacher.api.classes.groups({ classId: row.id })).roster.some(
           (pupil) => pupil.id === me.id,
         )
       )
@@ -638,7 +638,7 @@ describe("storage caps", () => {
     let target: (typeof classes)[number] | undefined;
     for (const row of classes.filter((item) => item.subjectId !== null))
       if (
-        (await teacher.api.coursework.groups({ classId: row.id })).roster.some(
+        (await teacher.api.classes.groups({ classId: row.id })).roster.some(
           (pupil) => pupil.id === me.id,
         )
       )

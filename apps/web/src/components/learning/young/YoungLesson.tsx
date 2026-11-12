@@ -28,31 +28,56 @@ import {
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type {
+  CheckDriver,
+  CheckStudentBlock,
+} from "~/components/questions/Checks";
+import type { Voice } from "~/components/questions/ReadAloud";
+
 import { ContentView, WholeDocument } from "~/components/content/ContentView";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
+import {
+  CheckBlockView,
+  isCheckBlock,
+  isSettled,
+} from "~/components/questions/Checks";
+import { PictureAnswer } from "~/components/questions/PictureAnswer";
+import {
+  ReadAloud,
+  sayAloud,
+  sayInOrder,
+  stopSounds,
+} from "~/components/questions/ReadAloud";
+import { Burst } from "~/components/questions/young/motion";
+import {
+  playSound,
+  setClassSounds,
+  setSoundsOn,
+  soundsOn,
+} from "~/components/questions/young/sounds";
+import {
+  FoundContext,
+  YoungChoice,
+  youngHint,
+} from "~/components/questions/young/YoungChoice";
+import { YoungCounting } from "~/components/questions/young/YoungCounting";
+import { YoungHotspot } from "~/components/questions/young/YoungHotspot";
+import { YoungMemory } from "~/components/questions/young/YoungMemory";
+import {
+  YoungMatching,
+  YoungOrdering,
+  YoungSorting,
+} from "~/components/questions/young/YoungPlace";
+import { YoungSpelling } from "~/components/questions/young/YoungSpelling";
+import { YoungTracing } from "~/components/questions/young/YoungTracing";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import type { CheckDriver, CheckStudentBlock } from "../Checks";
-import type { Voice } from "../ReadAloud";
-
-import { CheckBlockView, isCheckBlock, isSettled } from "../Checks";
 import { Media } from "../LessonMedia";
-import { PictureAnswer } from "../PictureAnswer";
-import { ReadAloud, sayAloud, sayInOrder, stopSounds } from "../ReadAloud";
-import { Burst } from "./motion";
 import { useReadAlong } from "./readAlong";
-import { playSound, setClassSounds, setSoundsOn, soundsOn } from "./sounds";
-import { FoundContext, YoungChoice, youngHint } from "./YoungChoice";
-import { YoungCounting } from "./YoungCounting";
-import { YoungHotspot } from "./YoungHotspot";
-import { YoungMemory } from "./YoungMemory";
-import { YoungMatching, YoungOrdering, YoungSorting } from "./YoungPlace";
-import { YoungSpelling } from "./YoungSpelling";
 import { YoungSpoken } from "./YoungSpoken";
-import { YoungTracing } from "./YoungTracing";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 

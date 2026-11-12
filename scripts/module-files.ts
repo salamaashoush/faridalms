@@ -2,7 +2,7 @@ import type { ModuleId } from "@faridalms/domain/modules";
 import type { Ownership } from "@faridalms/domain/ownership";
 
 import { TABLE_OWNERS } from "@faridalms/database/ownership";
-import { MODULES } from "@faridalms/domain/modules";
+import { MODULE_IDS, MODULES } from "@faridalms/domain/modules";
 import { guaranteedBy, presentWith } from "@faridalms/domain/ownership";
 import { dirname, join, normalize } from "node:path";
 
@@ -111,6 +111,23 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "apps/api/src/systems/grading.ts",
     "apps/api/src/systems/bank.ts",
     "apps/api/src/systems/reading.ts",
+    "apps/web/src/components/coursework/",
+    "apps/web/src/components/grading/",
+    "apps/web/src/components/reading/",
+    "apps/web/src/server/coursework.ts",
+    "apps/web/src/server/grading.ts",
+    "apps/web/src/server/reading.ts",
+    "apps/web/src/server/bank.ts",
+    "apps/web/src/queries/coursework.ts",
+    "apps/web/src/queries/grading.ts",
+    "apps/web/src/queries/reading.ts",
+    "apps/web/src/routes/_app/_staff/assignments.tsx",
+    "apps/web/src/routes/_app/_staff/assignment-editor.tsx",
+    "apps/web/src/routes/_app/_staff/grading.tsx",
+    "apps/web/src/routes/_app/assignments/",
+    "apps/web/src/routes/_app/me/assignments.tsx",
+    "apps/web/src/routes/exports/assignments.$assignmentId.ts",
+    "apps/web/src/routes/exports/students.$studentId.ts",
   ],
   peer_review: [
     "packages/database/src/tables/peer-reviews.ts",
@@ -126,6 +143,11 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "packages/database/src/stores/gradebook.ts",
     "apps/api/src/gradebook/",
     "apps/api/src/systems/gradebook.ts",
+    "apps/web/src/components/gradebook/",
+    "apps/web/src/server/gradebook.ts",
+    "apps/web/src/queries/gradebook.ts",
+    "apps/web/src/routes/_app/_staff/gradebook.tsx",
+    "apps/web/src/routes/_app/me/grades.tsx",
   ],
   elearning: [
     "packages/database/src/tables/learning.ts",
@@ -133,12 +155,30 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "packages/database/src/stores/learning-search.ts",
     "apps/api/src/learning/",
     "apps/api/src/systems/learning.ts",
+    "apps/web/src/components/learning/",
+    "apps/web/src/server/learning.ts",
+    "apps/web/src/queries/learning.ts",
+    "apps/web/src/routes/_app/_staff/modules.tsx",
+    "apps/web/src/routes/_app/_staff/module-editor.tsx",
+    "apps/web/src/routes/_app/_staff/module-plan.tsx",
+    "apps/web/src/routes/_app/_staff/lesson-editor.tsx",
+    "apps/web/src/routes/_app/_staff/board.$pacedId.tsx",
+    "apps/web/src/routes/_app/_staff/live.$pacedId.tsx",
+    "apps/web/src/routes/_app/modules/",
+    "apps/web/src/routes/_app/me/modules.tsx",
+    "apps/web/src/routes/_app/lessons.$lessonId.tsx",
+    "apps/web/src/routes/_app/lesson-frame.$lessonId.tsx",
+    "apps/web/src/routes/_app/practice.$moduleId.tsx",
   ],
   standards: [
     "packages/database/src/tables/standards.ts",
     "packages/database/src/stores/standards.ts",
     "apps/api/src/standards/",
     "apps/api/src/systems/standards.ts",
+    "apps/web/src/components/standards/",
+    "apps/web/src/server/standards.ts",
+    "apps/web/src/queries/standards.ts",
+    "apps/web/src/routes/_app/standards/",
   ],
   admissions: [
     "packages/database/src/tables/admissions.ts",
@@ -151,6 +191,14 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "apps/api/src/systems/applications.ts",
     "apps/api/src/systems/applying.ts",
     "apps/api/src/systems/decisions.ts",
+    "apps/web/src/components/admissions/",
+    "apps/web/src/server/admissions.ts",
+    "apps/web/src/queries/admissions.ts",
+    "apps/web/src/routes/_app/admissions/",
+    "apps/web/src/routes/_app/me/applications.tsx",
+    "apps/web/src/routes/_app/family/applications.tsx",
+    "apps/web/src/routes/apply.tsx",
+    "apps/web/src/routes/_auth/register.tsx",
   ],
   attendance: [
     "packages/database/src/tables/attendance.ts",
@@ -161,12 +209,24 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "apps/api/src/systems/attendance.ts",
     "apps/api/src/systems/absence-reports.ts",
     "apps/api/src/systems/front-desk.ts",
+    "apps/web/src/components/attendance/",
+    "apps/web/src/server/attendance.ts",
+    "apps/web/src/queries/attendance.ts",
+    "apps/web/src/routes/_app/_staff/attendance.tsx",
+    "apps/web/src/routes/_app/registers.$classId.tsx",
+    "apps/web/src/routes/_app/me/attendance.tsx",
   ],
   website: [
     "packages/database/src/tables/site.ts",
     "packages/database/src/stores/site.ts",
     "apps/api/src/website/",
     "apps/api/src/systems/site.ts",
+    "apps/web/src/components/site/",
+    "apps/web/src/server/site.ts",
+    "apps/web/src/queries/site.ts",
+    "apps/web/src/routes/_app/_staff/website.tsx",
+    "apps/web/src/routes/_app/_staff/site-page-editor.tsx",
+    "apps/web/src/routes/site/",
   ],
   student_records: [
     "packages/database/src/tables/student-records.ts",
@@ -174,12 +234,25 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "packages/database/src/stores/arrangements.ts",
     "apps/api/src/student-records/",
     "apps/api/src/systems/records.ts",
+    "apps/web/src/components/health/",
+    "apps/web/src/server/records.ts",
+    "apps/web/src/queries/records.ts",
+    "apps/web/src/routes/_app/health-changes.tsx",
+    "apps/web/src/routes/_app/me/health.tsx",
   ],
   badges: [
     "packages/database/src/stores/badges.ts",
     "apps/api/src/badges/",
     "apps/api/src/systems/badges.ts",
+    "apps/web/src/components/badges/",
+    "apps/web/src/server/badges.ts",
+    "apps/web/src/queries/badges.ts",
+    "apps/web/src/routes/_app/badges.$classId.tsx",
+    "apps/web/src/routes/badge.tsx",
   ],
+  early_years: ["apps/web/src/components/early-years/"],
+  coding: ["apps/web/src/components/coding/"],
+  custom_domains: ["apps/web/src/components/custom-domains/"],
   sso: ["packages/database/src/tables/sso.ts"],
   sms: ["apps/api/src/sms/"],
 };
@@ -339,6 +412,10 @@ export const LINK_FILES: Readonly<
     owner: "grade_levels",
     needs: ["school_years"],
   },
+  "apps/web/src/components/grade-levels/website.tsx": {
+    owner: "grade_levels",
+    needs: ["website"],
+  },
   "apps/api/src/homerooms/grades.ts": {
     owner: "homerooms",
     needs: ["grade_levels"],
@@ -423,6 +500,10 @@ export const LINK_FILES: Readonly<
     owner: "student_records",
     needs: ["families"],
   },
+  "apps/web/src/components/health/families.tsx": {
+    owner: "student_records",
+    needs: ["families"],
+  },
   "apps/web/src/routes/_app/family/health.tsx": {
     owner: "student_records",
     needs: ["families"],
@@ -444,8 +525,12 @@ export const LINK_FILES: Readonly<
     needs: ["families"],
   },
   "apps/web/src/routes/_app/family/grades.tsx": {
-    owner: "coursework",
+    owner: "gradebook",
     needs: ["families"],
+  },
+  "apps/web/src/components/gradebook/standards.tsx": {
+    owner: "gradebook",
+    needs: ["standards"],
   },
   "apps/web/src/routes/_app/family/timetable.tsx": {
     owner: "timetable",
@@ -458,6 +543,30 @@ export const LINK_FILES: Readonly<
   "apps/web/src/routes/_app/family/modules.tsx": {
     owner: "elearning",
     needs: ["families"],
+  },
+  "apps/web/src/components/standards/lessons.tsx": {
+    owner: "standards",
+    needs: ["elearning"],
+  },
+  "apps/web/src/components/standards/PlanCoverage.tsx": {
+    owner: "standards",
+    needs: ["elearning"],
+  },
+  "apps/web/src/components/standards/work.tsx": {
+    owner: "standards",
+    needs: ["coursework"],
+  },
+  "apps/web/src/components/coding/learning.tsx": {
+    owner: "coding",
+    needs: ["elearning"],
+  },
+  "apps/web/src/components/coding/ProjectGallery.tsx": {
+    owner: "coding",
+    needs: ["elearning"],
+  },
+  "apps/web/src/components/coding/LiveProjects.tsx": {
+    owner: "coding",
+    needs: ["elearning"],
   },
 };
 
@@ -591,6 +700,52 @@ export function moduleImportProblems(
   for (const entry of pending)
     if (!seen.has(entry))
       problems.push(`${entry}: listed as pending but no longer imported`);
+  return problems;
+}
+
+/**
+ * Web files that may name every module the product has, each with why. A
+ * file that names one module may only where it may import that module's
+ * files.
+ */
+export const MODULE_CATALOGUES: Readonly<Record<string, string>> = {
+  "apps/web/src/components/admin/FeaturesCard.tsx":
+    "A school's plan lists every module, on or off, so its administrators know what exists and can ask about one they lack.",
+};
+
+const NAMED_MODULE = new RegExp(
+  String.raw`\bmodules\??\.(${MODULE_IDS.join("|")})\b|\bmodules\[["'](${MODULE_IDS.join("|")})["']\]`,
+  "g",
+);
+const EVERY_MODULE = /\b(?:MODULE_IDS|SWITCHED_MODULES|MODULE_LABEL)\b/;
+
+/**
+ * Web files that ask whether a module is on, or list every module, where
+ * they may not: a module's word is read through the slot it fills.
+ */
+export function moduleNameProblems(
+  files: readonly { path: string; text: string }[],
+): string[] {
+  const problems: string[] = [];
+  for (const { path, text } of files) {
+    if (
+      !path.startsWith("apps/web/src/") ||
+      COMPOSITION_ROOTS.includes(path) ||
+      TESTS.test(path)
+    )
+      continue;
+    if (path in MODULE_CATALOGUES) continue;
+    if (EVERY_MODULE.test(text))
+      problems.push(`${path}: lists every module, which only a catalogue may`);
+    const allowed = allowedFor(path);
+    for (const match of text.matchAll(NAMED_MODULE)) {
+      const id = (match[1] ?? match[2]) as ModuleId;
+      if (!allowed.has(id))
+        problems.push(
+          `${path}: asks whether the ${id} module is on; read it through a slot the module fills`,
+        );
+    }
+  }
   return problems;
 }
 

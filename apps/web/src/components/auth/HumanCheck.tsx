@@ -2,9 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useState } from "react";
 
-import { TurnstileWidget } from "~/components/site/render/turnstile";
 import { getLocale } from "~/i18n/runtime";
 import { getHumanCheck } from "~/server/auth";
+
+import { TurnstileWidget } from "./turnstile";
 
 /**
  * The bare domain's human check, when the platform runs one, for its

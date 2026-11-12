@@ -1101,7 +1101,7 @@ async function returnedAndWaiting(unique: string) {
       .filter((row) => row.subjectId !== null)
       .map(async (row) => ({
         id: row.id,
-        roster: (await teacher.coursework.groups({ classId: row.id })).roster,
+        roster: (await teacher.classes.groups({ classId: row.id })).roster,
       })),
   );
   const classId = rosters.find((row) =>

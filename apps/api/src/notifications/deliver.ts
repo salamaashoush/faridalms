@@ -18,10 +18,12 @@ import { ProviderError } from "@faridalms/mail/providers";
 
 import type { WorkerModules } from "../core/extension";
 import type { FileStore } from "../files/store";
+import type { NoticeLines } from "./points";
 
-import { workerScope } from "../core/extension";
+import { contributionsTo, workerScope } from "../core/extension";
 import { channelsOf } from "../core/notify";
 import { replyKey, replyToken } from "../messages/reply";
+import { noticeLines } from "./points";
 import { conversationMessage, render } from "./templates";
 
 /** What a conversation's email needs beyond a provider: where replies come back, and the files it carries. */
@@ -174,7 +176,7 @@ async function conversationEmail(
  * digest items leave as one message; a conversation's message to an outside
  * contact leaves whole; a failed send is retried with backoff until the
  * attempts run out. A text planned before its school turned texts off is not
- * sent. What is due is judged by the database's clock, the one deliveries
+ * sent, nor a notice of a module the school has since turned off. What is due is judged by the database's clock, the one deliveries
  * were made due by.
  */
 export async function deliverTenant(
@@ -199,6 +201,15 @@ export async function deliverTenant(
         const on = scope !== null && (await channelsOf(scope)).includes("sms");
         texting.set(schoolId, on);
         return on;
+      };
+      const worded = new Map<string, readonly NoticeLines[]>();
+      const linesAt = async (schoolId: string) => {
+        const known = worded.get(schoolId);
+        if (known) return known;
+        const scope = await workerScope(modules, { tx, tenantId, schoolId });
+        const lines = scope ? await contributionsTo(scope, noticeLines) : [];
+        worded.set(schoolId, lines);
+        return lines;
       };
       for (const group of groups(due)) {
         const [head] = group;
@@ -234,7 +245,16 @@ export async function deliverTenant(
           channel: head.channel,
           school,
           items: group.map((row) => ({ kind: row.kind, params: row.params })),
+          lines: await linesAt(head.orgId),
         });
+        if (!message) {
+          await settleDeliveries(tx, {
+            tenantId,
+            ids,
+            outcome: { state: "skipped", reason: "module_off" },
+          });
+          continue;
+        }
         if (
           await sendFor(tx, {
             tenantId,

@@ -31,12 +31,14 @@ import { toast } from "sonner";
 import * as v from "valibot";
 
 import { CheckboxRow } from "~/components/people/fields";
-import { StandardsField } from "~/components/standards/StandardsField";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { courseworkOptionsQuery } from "~/queries/coursework";
 import { removeRubric, saveRubric } from "~/server/coursework";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+
+import { criterionStandards } from "./slots";
 
 interface CriterionDraft {
   id: string;
@@ -187,6 +189,7 @@ export function RubricSheet({
 }: RubricSheetProps) {
   const queryClient = useQueryClient();
   const focusLater = useFocusAfterRender();
+  const Standards = useSlot(criterionStandards)[0];
   const [criteria, setCriteria] = useState(() => draftOf(rubric));
   const [writing, setWriting] = useState<Writing | null>(() =>
     rubric ? null : { id: criteria[0]?.id ?? "", before: null },
@@ -450,14 +453,14 @@ export function RubricSheet({
                         maxDescription={MAX_LEVEL_DESCRIPTION}
                         errors={shown ? problemsOf(current).levels : undefined}
                       />
-                      <StandardsField
-                        label={m.rubricStandards()}
-                        hint={m.rubricStandardsHint()}
-                        value={current.standards}
-                        onChange={(standards) =>
-                          change(current.id, { standards })
-                        }
-                      />
+                      {Standards ? (
+                        <Standards
+                          value={current.standards}
+                          onChange={(standards) =>
+                            change(current.id, { standards })
+                          }
+                        />
+                      ) : null}
                     </>
                   ),
                 }

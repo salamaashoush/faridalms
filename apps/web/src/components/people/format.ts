@@ -76,3 +76,14 @@ export function lastDay(endsBefore: string) {
   date.setUTCDate(date.getUTCDate() - 1);
   return date.toISOString().slice(0, 10);
 }
+
+/** The options whose label holds what is searched for, as typed. */
+export function matching(
+  search: string,
+  list: { value: string; label: string }[],
+) {
+  const needle = search.trim().toLocaleLowerCase();
+  return list.filter((option) =>
+    option.label.toLocaleLowerCase().includes(needle),
+  );
+}

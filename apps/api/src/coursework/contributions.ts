@@ -17,12 +17,14 @@ import { DUE_FOLLOWS, dueByAllowances } from "./allowances";
 import { COURSEWORK_EXPORTS } from "./exports";
 import { WORK_HOSTS } from "./host-rules";
 import { COURSEWORK_GO_LIVES, COURSEWORK_HOSTS } from "./hosts";
+import { COURSEWORK_LINES } from "./notice-lines";
 import { ASSIGNMENT_SEARCH } from "./search";
 
 /** What coursework keeps in step with the classes it is set in. */
 export const COURSEWORK: ModuleContributions = {
   module: "coursework",
   contributions: [
+    ...COURSEWORK_LINES,
     contribute(studentRecordAccess, {
       key: "coursework",
       may: (context) =>

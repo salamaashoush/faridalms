@@ -9,7 +9,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { MailCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { TurnstileWidget } from "~/components/site/render/turnstile";
+import { TurnstileWidget } from "~/components/auth/turnstile";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { registerFamily } from "~/server/admissions";

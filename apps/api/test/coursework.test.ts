@@ -47,7 +47,7 @@ async function classOfStudent(
 ) {
   const { classes } = await api.coursework.options();
   for (const row of classes.filter((item) => item.subjectId !== null)) {
-    const { roster } = await api.coursework.groups({ classId: row.id });
+    const { roster } = await api.classes.groups({ classId: row.id });
     if (roster.some((pupil) => pupil.id === studentId)) return row;
   }
   throw new Error("the seeded student takes no Arabic class");
@@ -132,7 +132,7 @@ describe("coursework for a teacher", () => {
     const { classes } = await api.coursework.options();
     const target = classes.find((row) => row.subjectId !== null);
     if (!target) throw new Error("seed class");
-    const { groups } = await api.coursework.groups({ classId: target.id });
+    const { groups } = await api.classes.groups({ classId: target.id });
     const group = groups[0];
     if (!group) throw new Error("seed group");
     const saved = await api.coursework.save(
@@ -214,7 +214,7 @@ describe("coursework for a teacher", () => {
     const { classes } = await api.coursework.options();
     const target = classes.find((row) => row.subjectId !== null);
     if (!target) throw new Error("seed class");
-    const { roster, groups } = await api.coursework.groups({
+    const { roster, groups } = await api.classes.groups({
       classId: target.id,
     });
     const grouped = new Set(groups.flatMap((group) => group.studentIds));
@@ -3295,7 +3295,7 @@ describe("discussions", () => {
     const first = await sessionFor("northwind", login("student"));
     const me = await first.api.identity.currentUser();
     const target = await classOfStudent(teacher.api, me.id);
-    const { roster } = await teacher.api.coursework.groups({
+    const { roster } = await teacher.api.classes.groups({
       classId: target.id,
     });
     let second: Awaited<ReturnType<typeof sessionFor>> | null = null;
@@ -3907,5 +3907,18 @@ describe("a brief in two languages", () => {
     });
     const marked = await student.api.coursework.work({ id: saved.id });
     expect(marked.quiz?.results[0]).toMatchObject({ score: 2 });
+  });
+});
+
+describe("a class's groups", () => {
+  test("are read through classes, so a module set to a group needs no coursework", async () => {
+    const { api } = await arabicTeacher();
+    const { classes } = await api.coursework.options();
+    const taught = classes.find((row) => row.subjectId !== null);
+    if (!taught) throw new Error("the teacher teaches no subject class");
+    const kept = await api.classes.groups({ classId: taught.id });
+    await withoutModules("northwind", ["coursework"], async () => {
+      expect(await api.classes.groups({ classId: taught.id })).toEqual(kept);
+    });
   });
 });

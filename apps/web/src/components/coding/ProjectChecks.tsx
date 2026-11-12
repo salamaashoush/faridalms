@@ -2,10 +2,9 @@ import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
 import { Circle, CircleCheck, Lightbulb } from "lucide-react";
 
+import { featureNames } from "~/components/questions/scratch-checks";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
-
-import { featureNames } from "./scratch-checks";
 
 export interface ProjectChecksProps {
   asked: readonly ScratchFeature[];

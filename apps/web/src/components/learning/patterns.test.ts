@@ -7,8 +7,9 @@ import {
 } from "@faridalms/domain/lesson-content";
 import { describe, expect, it } from "vitest";
 
+import { sayIn } from "~/components/content/starters";
+
 import { PATTERNS } from "./patterns";
-import { sayIn } from "./starters";
 
 describe("teaching patterns", () => {
   for (const pattern of PATTERNS)

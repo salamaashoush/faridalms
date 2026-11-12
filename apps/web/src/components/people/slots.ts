@@ -1,3 +1,4 @@
+import type { SignInRefusal, SignInWay } from "@faridalms/domain/first-sign-in";
 import type { StudentStatus } from "@faridalms/domain/people";
 import type { Facet } from "@faridalms/ui/system/index-toolbar";
 import type { HeaderFact, RecordAlert } from "@faridalms/ui/system/record-page";
@@ -5,6 +6,7 @@ import type { Tone } from "@faridalms/ui/system/status";
 import type { ComponentType, ReactNode } from "react";
 
 import type { ViewValue } from "~/components/classes/slots";
+import type { createSignIns } from "~/server/students";
 import type { SlotQuery } from "~/utils/extension";
 
 import { slot } from "~/utils/extension";
@@ -223,6 +225,18 @@ export interface StudentRecordTab {
 
 export const studentRecordTabs = slot<StudentRecordTab>("student record tabs");
 
+/** A section a module adds to a student's details, under their own. */
+export interface StudentDetailsSection {
+  key: string;
+  place: number;
+  shows(access: StudentAccess): boolean;
+  Section: ComponentType<{ studentId: string }>;
+}
+
+export const studentDetailsSections = slot<StudentDetailsSection>(
+  "student details sections",
+);
+
 /** What a module shows first on a student's overview: their lessons today, say. */
 export interface StudentOverviewPart {
   key: string;
@@ -238,3 +252,36 @@ export interface StudentOverviewPart {
 export const studentOverviewParts = slot<StudentOverviewPart>(
   "student overview parts",
 );
+
+/** What opening sign-ins made, for a way to print or say. */
+export type OpenedSignIns = Awaited<ReturnType<typeof createSignIns>>;
+
+export interface MadeSignInsProps {
+  opened: OpenedSignIns;
+  /** A student's name and class as the office picked them. */
+  student: (studentId: string) => { name: string; className: string | null };
+  schoolName: string;
+  notes: readonly string[];
+  warnings: readonly string[];
+  onDone: () => void;
+}
+
+/** A way a module gives students their first sign-in, beside the printed slips every school has. */
+export interface SignInWayOption {
+  way: Exclude<SignInWay, "slips">;
+  place: number;
+  label: () => string;
+  hint: () => string;
+  /** Who is ready to be given one this way. */
+  ready: (count: { count: number; value: string }) => string;
+  /** Why a student was left without one this way. */
+  refused: Partial<Record<SignInRefusal, (input: { names: string }) => string>>;
+  /** What the way makes is printed from here; otherwise it is sent. */
+  Made?: ComponentType<MadeSignInsProps>;
+  sent?: {
+    submit: () => string;
+    done: (count: { count: number; value: string }) => string;
+  };
+}
+
+export const signInWays = slot<SignInWayOption>("sign-in ways");

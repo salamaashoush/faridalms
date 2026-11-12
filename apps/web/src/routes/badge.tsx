@@ -8,7 +8,7 @@ import { useEffect, useEffectEvent, useRef } from "react";
 import * as v from "valibot";
 
 import { PortalLayout } from "~/components/auth/SchoolFace";
-import { ReadAloud } from "~/components/learning/ReadAloud";
+import { ReadAloud } from "~/components/questions/ReadAloud";
 import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
 import { faceQueryFor } from "~/queries/portal";

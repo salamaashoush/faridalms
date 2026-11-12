@@ -50,7 +50,7 @@ import { getMessageFromError } from "~/utils/error";
 import { useWords } from "~/utils/words";
 
 import { useMessageDraft } from "./draft";
-import { ENTRY_ICON, entryTitle, NameLink } from "./entries";
+import { ENTRY_ICON, entryTitle, NameLink, useMailboxWords } from "./entries";
 import { dayHeading, nameOf, threadTitle } from "./format";
 import { MembersSheet } from "./MembersSheet";
 import { useReplying } from "./presence";
@@ -249,8 +249,9 @@ function InternalEntry({
   contacts,
 }: InternalEntryProps) {
   const words = useWords();
+  const owner = useMailboxWords(mailbox);
   const Icon = ENTRY_ICON[entry.kind];
-  const title = entryTitle(mailbox, entry.kind, entry.details, words);
+  const title = entryTitle(owner, entry.kind, entry.details, words);
   const author = nameOf({
     fullNameEn: entry.authorNameEn,
     fullNameAr: entry.authorNameAr,
@@ -338,6 +339,7 @@ interface ComposerProps {
  */
 function Composer({ thread, fields }: ComposerProps) {
   const words = useWords();
+  const owner = useMailboxWords(thread.mailbox);
   const hydrated = useHydrated();
   const user = useCurrentUser();
   const queryClient = useQueryClient();
@@ -487,13 +489,13 @@ function Composer({ thread, fields }: ComposerProps) {
                 className="h-10"
               >
                 <SelectValue>
-                  {entryTitle(thread.mailbox, logged, {}, words)}
+                  {entryTitle(owner, logged, {}, words)}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {LOGGED_CONTACTS.map((value) => (
                   <SelectItem key={value} value={value}>
-                    {entryTitle(thread.mailbox, value, {}, words)}
+                    {entryTitle(owner, value, {}, words)}
                   </SelectItem>
                 ))}
               </SelectContent>

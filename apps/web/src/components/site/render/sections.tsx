@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
+import { TurnstileWidget } from "~/components/auth/turnstile";
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { submitSiteEnquiry } from "~/server/site";
@@ -73,7 +74,6 @@ import {
   TextLink,
 } from "./parts";
 import { overMediaStyle } from "./theme";
-import { TurnstileWidget } from "./turnstile";
 
 type Props<T extends PageSection["type"]> = {
   section: SectionOf<T>;

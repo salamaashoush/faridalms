@@ -12,11 +12,12 @@ import type {
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { formatInstant } from "~/utils/datetime";
+import { publicMediaUrl } from "~/utils/host";
 
 import type { PublicSite } from "./SiteShell";
 
 import { opensOnPicture, PageSections } from "./render/page";
-import { Actions, PostCover, publicMediaUrl } from "./render/parts";
+import { Actions, PostCover } from "./render/parts";
 import { schemeStyle } from "./render/theme";
 import { langSearch, publicContext, SiteShell } from "./SiteShell";
 

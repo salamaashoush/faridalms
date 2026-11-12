@@ -34,7 +34,7 @@ import { formatDate, formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { DayNav } from "./DayNav";
-import { formatRate } from "./format";
+import { formatRate, OUTCOME_LABEL } from "./format";
 
 type FollowUpData = NonNullable<
   Awaited<
@@ -44,13 +44,6 @@ type FollowUpData = NonNullable<
 type Call = FollowUpData["calls"][number];
 type Overdue = FollowUpData["overdue"]["rows"][number] & { id: string };
 type Support = FollowUpData["support"]["rows"][number] & { id: string };
-
-const OUTCOME_LABEL: Record<ContactOutcome, () => string> = {
-  reached: m.fupReached,
-  no_answer: m.fupNoAnswer,
-  left_message: m.fupLeftMessage,
-  messaged: m.fupMessaged,
-};
 
 const nameOf = (row: {
   fullNameEn: string | null;

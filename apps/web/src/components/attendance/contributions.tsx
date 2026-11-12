@@ -7,6 +7,7 @@ import { settingsTabs } from "~/components/admin/slots";
 import { navItems } from "~/components/app/navigation";
 import { classRecordTabs } from "~/components/classes/slots";
 import { setupItemWords } from "~/components/home/slots";
+import { mailboxWords } from "~/components/messages/slots";
 import {
   studentOverviewParts,
   studentRecordTabs,
@@ -18,7 +19,8 @@ import { modulePages } from "~/utils/pages";
 
 import { AttendanceRules } from "./AttendanceRules";
 import { ClassAttendance } from "./ClassAttendance";
-import { ATTENDANCE_NOTICES } from "./notices";
+import { OUTCOME_LABEL } from "./format";
+import { ATTENDANCE_NOTICES, REGISTER_REMINDERS } from "./notices";
 import { StudentAttendance } from "./StudentAttendance";
 import { StudentAttendanceSummary } from "./StudentSummary";
 import { ATTENDANCE_TODAY } from "./today";
@@ -27,7 +29,13 @@ import { ATTENDANCE_TODAY } from "./today";
 export const ATTENDANCE: ModuleFillings = {
   module: "attendance",
   fillings: [
+    fill(mailboxWords, {
+      mailbox: "attendance",
+      event: () => null,
+      outcomes: OUTCOME_LABEL,
+    }),
     ATTENDANCE_NOTICES,
+    REGISTER_REMINDERS,
     fill(setupItemWords, {
       item: "first_register",
       label: m.onboardingFirstRegister,

@@ -12,11 +12,10 @@ export const classBookQuery = (classId: string, periodId = "") =>
     queryFn: () => getClassBook({ data: { classId, periodId } }),
   });
 
-export const studentGradesQuery = (studentId = "") =>
-  queryOptions({
-    queryKey: ["gradebook", "student", studentId],
-    queryFn: () => getStudentGrades({ data: studentId ? { studentId } : {} }),
-  });
+export const studentGradesQuery = (studentId = "") => ({
+  queryKey: ["gradebook", "student", studentId],
+  queryFn: () => getStudentGrades({ data: studentId ? { studentId } : {} }),
+});
 
 /** The terms work in a class counts toward, and the one an assignment counts toward. */
 export const workTermQuery = (classId: string, assignmentId = "") =>

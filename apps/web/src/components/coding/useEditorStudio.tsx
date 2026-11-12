@@ -6,7 +6,6 @@ import { blankOf } from "@faridalms/domain/project";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 
-import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { playQuery } from "~/queries/play";
@@ -25,8 +24,7 @@ export function useEditorStudio(media: EditorMedia | undefined): {
   studio: EditorStudio | undefined;
   dialog: ReactNode;
 } {
-  const coding = useCurrentUser().modules.coding;
-  const configured = Boolean(useQuery(playQuery).data) && coding;
+  const configured = Boolean(useQuery(playQuery).data);
   const [open, setOpen] = useState<{
     fileId: string | null;
     resolve: (fileId: string | null | undefined) => void;

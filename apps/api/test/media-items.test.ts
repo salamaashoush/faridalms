@@ -162,7 +162,7 @@ describe("the school's media", () => {
     const { classes } = await teacher.api.coursework.options();
     let classId = "";
     for (const row of classes.filter((item) => item.subjectId !== null)) {
-      const { roster } = await teacher.api.coursework.groups({
+      const { roster } = await teacher.api.classes.groups({
         classId: row.id,
       });
       if (roster.some((pupil) => pupil.id === me.id)) classId = row.id;

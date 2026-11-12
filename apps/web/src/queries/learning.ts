@@ -2,6 +2,8 @@ import type { Views } from "@faridalms/domain/classes";
 
 import { queryOptions } from "@tanstack/react-query";
 
+import type { PollCounts } from "~/components/questions/Checks";
+
 import {
   getClassQuestions,
   getClassSounds,
@@ -31,10 +33,10 @@ import {
   openLesson,
 } from "~/server/learning";
 
-export const learningOptionsQuery = queryOptions({
+export const learningOptionsQuery = {
   queryKey: ["learning", "options"],
   queryFn: () => getLearningOptions(),
-});
+};
 
 /** The modules of the viewer's classes: one class's, those in the views given, or with `ended` those over. */
 export const teachingModulesQuery = (
@@ -57,11 +59,10 @@ export const unitPlanQuery = (classId: string) =>
     placeholderData: (previous) => previous,
   });
 
-export const moduleDiscussionsQuery = (moduleId: string, studentId = "") =>
-  queryOptions({
-    queryKey: ["learning", "discussions", moduleId, studentId],
-    queryFn: () => getModuleDiscussions({ data: { moduleId, studentId } }),
-  });
+export const moduleDiscussionsQuery = (moduleId: string, studentId = "") => ({
+  queryKey: ["learning", "discussions", moduleId, studentId],
+  queryFn: () => getModuleDiscussions({ data: { moduleId, studentId } }),
+});
 
 export const moduleRecordQuery = (id: string) =>
   queryOptions({
@@ -128,11 +129,6 @@ export const pacingQuery = (lessonId: string, pushed = false) =>
   });
 
 /** How a class answered a poll: how many answered, and how many chose each option. */
-export interface PollCounts {
-  answered: number;
-  counts: Record<string, number>;
-}
-
 /** How a student's class answered a poll, asked again now and then as others answer. */
 export const pollResultsQuery = (lessonId: string, blockId: string) =>
   queryOptions<PollCounts>({

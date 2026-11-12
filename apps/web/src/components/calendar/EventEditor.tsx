@@ -59,9 +59,9 @@ import {
 } from "~/components/content/held-document";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { sectionsContent } from "~/components/content/shapes";
+import { sayIn } from "~/components/content/starters";
 import { useStartFrom } from "~/components/content/Templates";
 import { TranslationNote } from "~/components/content/TranslationNote";
-import { sayIn } from "~/components/learning/starters";
 import { CheckboxRow } from "~/components/people/fields";
 import {
   DetailsPanel,

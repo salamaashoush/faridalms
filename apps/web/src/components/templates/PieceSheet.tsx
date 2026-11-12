@@ -19,19 +19,21 @@ import { toast } from "sonner";
 
 import type { templatesQuery } from "~/queries/templates";
 
-import { classTitle } from "~/components/classes/format";
 import { ContentView } from "~/components/content/ContentView";
-import { SavedSectionPreview } from "~/components/site/studio/SavedSections";
 import { inLocale, useCapability } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { consentFormsQuery } from "~/queries/consents";
-import { courseworkOptionsQuery } from "~/queries/coursework";
-import { learningOptionsQuery } from "~/queries/learning";
-import { sectionTemplateQuery, templateQuery } from "~/queries/templates";
-import { moduleFromTemplate } from "~/server/learning";
+import { templateQuery } from "~/queries/templates";
+import { getConsentForms } from "~/server/consents";
 import { reviewTemplate } from "~/server/templates";
 import { getMessageFromError } from "~/utils/error";
+import { NOTHING_READ } from "~/utils/extension";
+
+import type { TemplateUse } from "./slots";
+
+import { templateUses } from "./slots";
 
 export const KIND_LABEL: Record<TemplateKind, () => string> = {
   lesson: m.templateKindLesson,
@@ -49,6 +51,58 @@ export const KIND_LABEL: Record<TemplateKind, () => string> = {
 export type Piece = Awaited<
   ReturnType<NonNullable<ReturnType<typeof templatesQuery>["queryFn"]>>
 >["rows"][number];
+
+type ConsentForms = Awaited<ReturnType<typeof getConsentForms>>;
+
+/** What the kinds every school has are used for. */
+const CORE_USES: readonly TemplateUse[] = [
+  {
+    kind: "announcement",
+    start: {
+      run: ({ templateId, navigate }) =>
+        void navigate({
+          to: "/announcement-editor",
+          search: { template: templateId },
+        }),
+    },
+  },
+  {
+    kind: "event",
+    start: {
+      run: ({ templateId, navigate }) =>
+        void navigate({
+          to: "/event-editor",
+          search: { template: templateId },
+        }),
+    },
+  },
+  {
+    kind: "consent_form",
+    places: {
+      query: () => ({
+        queryKey: consentFormsQuery.queryKey,
+        queryFn: () => getConsentForms(),
+      }),
+      options: (read) =>
+        (read as ConsentForms).purposes.map((row) => ({
+          value: row.id,
+          label: inLocale(row.labelEn, row.labelAr),
+        })),
+      label: m.templatesPurpose,
+      hint: m.templatesPurposeHint,
+      required: true,
+    },
+    start: {
+      run: ({ templateId, place, navigate }) =>
+        void navigate({
+          to: "/consent-form-editor",
+          search: { purpose: place, template: templateId },
+        }),
+    },
+  },
+  // A reply is used from inside a message.
+  { kind: "message", elsewhere: m.templatesReplyHint },
+];
 
 export interface PieceSheetProps {
   piece: Piece;
@@ -71,46 +125,24 @@ export function PieceSheet({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const reviews = useCapability("templates:review");
-  const section = piece.kind === "section";
-  // A reply is used from inside a message, and a letter of admission is
-  // the school's own to edit; neither starts a document of its own here.
-  const reply = piece.kind === "message";
-  const letter = piece.kind === "admission_letter";
-  const opened = useQuery({ ...templateQuery(piece.id), enabled: !section });
-  const kept = useQuery({
-    ...sectionTemplateQuery(piece.id),
-    enabled: section,
-  }).data;
+  const use = [...CORE_USES, ...useSlot(templateUses)].find(
+    (each) => each.kind === piece.kind,
+  );
+  const Preview = use?.Preview;
+  const opened = useQuery({
+    ...templateQuery(piece.id),
+    enabled: Preview === undefined,
+  });
   const [target, setTarget] = useState("");
   const [note, setNote] = useState("");
-  const modules = useQuery({
-    ...learningOptionsQuery,
-    enabled: piece.kind === "lesson" || piece.kind === "unit_plan",
-  }).data?.modules;
-  const classes = useQuery({
-    ...courseworkOptionsQuery,
-    enabled: piece.kind === "assignment" || piece.kind === "module",
-  }).data?.classes;
-  const purposes = useQuery({
-    ...consentFormsQuery,
-    enabled: piece.kind === "consent_form",
-  }).data?.purposes;
-  // A lesson or plan starts in a module, an assignment in a class, and a
-  // consent form as the form of one purpose.
+  const placesQuery = use?.places?.query() ?? NOTHING_READ;
+  const offered = useQuery({
+    queryKey: placesQuery.queryKey,
+    queryFn: placesQuery.queryFn,
+    enabled: use?.places !== undefined,
+  }).data;
   const places =
-    piece.kind === "assignment" || piece.kind === "module"
-      ? (classes ?? []).map((row) => ({
-          value: row.id,
-          label: classTitle(row),
-        }))
-      : piece.kind === "lesson" || piece.kind === "unit_plan"
-        ? (modules ?? []).map((row) => ({ value: row.id, label: row.title }))
-        : piece.kind === "consent_form"
-          ? (purposes ?? []).map((row) => ({
-              value: row.id,
-              label: inLocale(row.labelEn, row.labelAr),
-            }))
-          : [];
+    use?.places && offered !== undefined ? use.places.options(offered) : [];
   const chosen = target || (places[0]?.value ?? "");
   const decide = useMutation({
     mutationFn: (share: boolean) =>
@@ -121,55 +153,18 @@ export function PieceSheet({
       onClose();
     },
   });
-  const startModule = useMutation({
-    mutationFn: () =>
-      moduleFromTemplate({ data: { id: piece.id, classId: chosen } }),
-    onSuccess: async ({ id }) => {
-      await queryClient.invalidateQueries({ queryKey: ["learning"] });
-      onClose();
-      void navigate({ to: "/modules/$moduleId", params: { moduleId: id } });
+  const start = useMutation({
+    mutationFn: async () => {
+      await use?.start?.run({
+        templateId: piece.id,
+        place: chosen,
+        navigate,
+        queryClient,
+      });
     },
+    onSuccess: onClose,
     onError: (error) => toast.error(getMessageFromError(error)),
   });
-  const use = () => {
-    if (piece.kind === "module") {
-      startModule.mutate();
-      return;
-    }
-    onClose();
-    if (piece.kind === "lesson")
-      void navigate({
-        to: "/lesson-editor",
-        search: { moduleId: chosen, template: piece.id },
-      });
-    else if (piece.kind === "unit_plan")
-      void navigate({
-        to: "/module-plan",
-        search: { moduleId: chosen, template: piece.id },
-      });
-    else if (piece.kind === "announcement")
-      void navigate({
-        to: "/announcement-editor",
-        search: { template: piece.id },
-      });
-    else if (piece.kind === "event")
-      void navigate({ to: "/event-editor", search: { template: piece.id } });
-    else if (piece.kind === "consent_form")
-      void navigate({
-        to: "/consent-form-editor",
-        search: { purpose: chosen, template: piece.id },
-      });
-    else if (letter)
-      void navigate({
-        to: "/admissions/letter-editor",
-        search: { id: piece.id },
-      });
-    else
-      void navigate({
-        to: "/assignment-editor",
-        search: { template: piece.id, ...(chosen ? { classId: chosen } : {}) },
-      });
-  };
   const side = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
   const facts = [
     KIND_LABEL[piece.kind](),
@@ -202,12 +197,8 @@ export function PieceSheet({
           ) : null}
         </SheetHeader>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-          {section ? (
-            kept ? (
-              <SavedSectionPreview saved={kept.section} />
-            ) : (
-              <div aria-busy="true" className="min-h-40" />
-            )
+          {Preview ? (
+            <Preview templateId={piece.id} />
           ) : opened.data ? (
             <ContentView document={opened.data.content} />
           ) : (
@@ -264,51 +255,35 @@ export function PieceSheet({
             </>
           ) : (
             <>
-              {places.length > 0 ? (
+              {use?.places && places.length > 0 ? (
                 <SelectField
                   id="template-use-in"
-                  label={
-                    piece.kind === "assignment" || piece.kind === "module"
-                      ? m.templatesClass()
-                      : piece.kind === "consent_form"
-                        ? m.templatesPurpose()
-                        : m.templatesModule()
-                  }
-                  hint={
-                    piece.kind === "unit_plan"
-                      ? m.templatesPlanHint()
-                      : piece.kind === "consent_form"
-                        ? m.templatesPurposeHint()
-                        : undefined
-                  }
+                  label={use.places.label()}
+                  hint={use.places.hint?.()}
                   value={chosen}
                   options={places}
                   onChange={setTarget}
                 />
               ) : null}
-              {section || reply ? (
+              {use?.elsewhere ? (
                 <p className="text-sm leading-5 text-muted-foreground">
-                  {section ? m.templatesSectionHint() : m.templatesReplyHint()}
+                  {use.elsewhere()}
                 </p>
               ) : null}
               <div className="flex flex-wrap gap-2">
-                {section || reply ? null : (
+                {use?.start ? (
                   <Button
                     type="button"
                     className="max-md:h-10"
                     disabled={
-                      startModule.isPending ||
-                      ((piece.kind === "lesson" ||
-                        piece.kind === "unit_plan" ||
-                        piece.kind === "consent_form" ||
-                        piece.kind === "module") &&
-                        !chosen)
+                      start.isPending ||
+                      (use.places?.required === true && !chosen)
                     }
-                    onClick={use}
+                    onClick={() => start.mutate()}
                   >
-                    {letter ? m.templatesEditLetter() : m.templatesUse()}
+                    {use.start.label?.() ?? m.templatesUse()}
                   </Button>
-                )}
+                ) : null}
                 <Button
                   type="button"
                   variant="outline"

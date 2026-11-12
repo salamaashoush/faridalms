@@ -3,7 +3,7 @@ import { useSuspenseQueries } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Play, Star } from "lucide-react";
 
-import { ReadAloud } from "~/components/learning/ReadAloud";
+import { ReadAloud } from "~/components/questions/ReadAloud";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";

@@ -1,6 +1,4 @@
-import type { CheckView, StudentBlock } from "@faridalms/domain/learning";
 import type { ProjectFile } from "@faridalms/domain/project";
-import type { ReactNode } from "react";
 
 import { blankOf, languageOf, sameFiles } from "@faridalms/domain/project";
 import { Button } from "@faridalms/ui/button";
@@ -9,32 +7,20 @@ import { CodeXml, Info, LoaderCircle, Send } from "lucide-react";
 import { useContext, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import type { CheckDriver, CheckMode } from "~/components/learning/Checks";
+import type { StudioAnswerProps } from "~/components/questions/slots";
 
+import { OwnProjectsContext } from "~/components/code/own-code";
+import { linkedPage, playedPage } from "~/components/code/project-page";
+import { WebPreview } from "~/components/code/WebPreview";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
-import { galleryQuery } from "~/queries/learning";
 import { getMessageFromError } from "~/utils/error";
 
 import { DeviceProgram } from "./DeviceProgram";
-import { OwnProjectsContext } from "./own-code";
-import { linkedPage, playedPage } from "./project-page";
-import { ProjectGallery } from "./ProjectGallery";
 import { ProjectProgram } from "./ProjectProgram";
 import { ProjectStudio } from "./ProjectStudio";
-import { WebPreview } from "./WebPreview";
-
-type Project = Extract<StudentBlock, { type: "project" }>;
-
-export interface WebProjectAnswerProps {
-  block: Project;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-  mode: CheckMode;
-  locked: boolean;
-  /** Where the answer stands with the teacher, said under its own buttons. */
-  status: ReactNode;
-}
+import { classGalleries } from "./slots";
 
 /**
  * A web project as its student meets it: the page their files make, and
@@ -50,7 +36,7 @@ export function WebProjectAnswer({
   mode,
   locked,
   status,
-}: WebProjectAnswerProps) {
+}: StudioAnswerProps<"project">) {
   const own = useContext(OwnProjectsContext);
   const queryClient = useQueryClient();
   const sent = view?.response?.type === "project" ? view.response.files : null;
@@ -68,9 +54,10 @@ export function WebProjectAnswer({
   const [open, setOpen] = useState(false);
   const drawn = useMemo(() => playedPage(files, page), [files, page]);
   // The gallery is a lesson's: a quiz's answers are nobody's to see.
+  const classGallery = useSlot(classGalleries)[0];
   const gallery =
-    block.gallery && mode !== "quiz" && own
-      ? { lessonId: own.lessonId, blockId: block.id }
+    classGallery && block.gallery && mode !== "quiz" && own
+      ? { ...classGallery, lessonId: own.lessonId, blockId: block.id }
       : null;
   const handIn = useMutation({
     mutationFn: () =>
@@ -79,7 +66,7 @@ export function WebProjectAnswer({
     onSuccess: () =>
       gallery
         ? queryClient.invalidateQueries({
-            queryKey: galleryQuery(gallery.lessonId, gallery.blockId).queryKey,
+            queryKey: gallery.queryKey(gallery.lessonId, gallery.blockId),
           })
         : undefined,
     onError: (error) => toast.error(getMessageFromError(error)),
@@ -161,7 +148,7 @@ export function WebProjectAnswer({
       </div>
       <output className="grid gap-2 empty:hidden">{status}</output>
       {gallery ? (
-        <ProjectGallery
+        <gallery.Gallery
           lessonId={gallery.lessonId}
           blockId={gallery.blockId}
           settled={view?.marked ?? false}

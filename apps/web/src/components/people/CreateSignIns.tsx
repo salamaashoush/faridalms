@@ -1,21 +1,24 @@
 import type { SignInRefusal, SignInWay } from "@faridalms/domain/first-sign-in";
 
-import { INVITE_DAYS, SIGN_IN_REFUSALS } from "@faridalms/domain/first-sign-in";
+import { SIGN_IN_REFUSALS } from "@faridalms/domain/first-sign-in";
 import { ChoiceField } from "@faridalms/ui/system/form-field";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { BadgeSheet } from "~/components/badges/BadgeSheet";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { signInsPlanQuery } from "~/queries/students";
 import { createSignIns } from "~/server/students";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import type { OpenedSignIns } from "./slots";
+
 import { SignInSlips } from "./SignInSlips";
+import { signInWays } from "./slots";
 
 interface Picked {
   id: string;
@@ -23,14 +26,13 @@ interface Picked {
   className: string | null;
 }
 
-type Opened = Awaited<ReturnType<typeof createSignIns>>;
+type Refused = Partial<
+  Record<SignInRefusal, (input: { names: string }) => string>
+>;
 
-const REFUSED: Record<SignInRefusal, (input: { names: string }) => string> = {
+const REFUSED: Refused = {
   no_name: m.signInsRefusedNoName,
   disabled: m.signInsRefusedDisabled,
-  not_young: m.signInsRefusedNotYoung,
-  no_email: m.signInsRefusedNoEmail,
-  not_sent: m.signInsRefusedNotSent,
 };
 
 /**
@@ -40,7 +42,8 @@ const REFUSED: Record<SignInRefusal, (input: { names: string }) => string> = {
  */
 function leftOut(
   students: readonly Picked[],
-  outcome: Pick<Opened, "had" | "refused">,
+  outcome: Pick<OpenedSignIns, "had" | "refused">,
+  refused: Refused,
 ): { notes: string[]; warnings: string[] } {
   const named = (ids: readonly string[]) =>
     formatList(
@@ -57,7 +60,8 @@ function leftOut(
       const ids = outcome.refused
         .filter((refusal) => refusal.reason === reason)
         .map((refusal) => refusal.studentId);
-      return ids.length > 0 ? [REFUSED[reason]({ names: named(ids) })] : [];
+      const words = refused[reason];
+      return ids.length > 0 && words ? [words({ names: named(ids) })] : [];
     }),
   };
 }
@@ -75,9 +79,15 @@ export interface CreateSignInsProps {
 export function CreateSignIns({ students, onClose }: CreateSignInsProps) {
   const user = useCurrentUser();
   const queryClient = useQueryClient();
+  const ways = useSlot(signInWays).toSorted((a, b) => a.place - b.place);
+  const refused = ways.reduce<Refused>(
+    (all, option) => ({ ...all, ...option.refused }),
+    REFUSED,
+  );
   const [way, setWay] = useState<SignInWay>("slips");
+  const chosen = ways.find((option) => option.way === way);
   const [nothing, setNothing] = useState(false);
-  const [opened, setOpened] = useState<Opened | null>(null);
+  const [opened, setOpened] = useState<OpenedSignIns | null>(null);
   const input = { studentIds: students.map((student) => student.id), way };
   const plan = useQuery(signInsPlanQuery(input));
   const mutation = useMutation({
@@ -87,19 +97,18 @@ export function CreateSignIns({ students, onClose }: CreateSignInsProps) {
   const failure = mutation.error ?? plan.error;
 
   if (opened) {
-    const left = leftOut(students, opened);
+    const left = leftOut(students, opened, refused);
     const schoolName = inLocale(user.school.nameEn, user.school.nameAr);
     const of = (studentId: string) =>
       students.find((student) => student.id === studentId);
-    return opened.badges.length > 0 ? (
-      <BadgeSheet
-        badges={opened.badges.map((badge) => ({
-          ...badge,
-          name: of(badge.studentId)?.name ?? "",
-          className: of(badge.studentId)?.className,
-        }))}
+    return chosen?.Made ? (
+      <chosen.Made
+        opened={opened}
+        student={(studentId) => ({
+          name: of(studentId)?.name ?? "",
+          className: of(studentId)?.className ?? null,
+        })}
         schoolName={schoolName}
-        className={null}
         {...left}
         onDone={onClose}
       />
@@ -118,14 +127,14 @@ export function CreateSignIns({ students, onClose }: CreateSignInsProps) {
   }
 
   const ready = plan.data?.ready.length ?? 0;
-  const left = plan.data ? leftOut(students, plan.data) : null;
+  const left = plan.data ? leftOut(students, plan.data, refused) : null;
   const count = { count: ready, value: formatNumber(ready) };
   return (
     <SheetForm
       open
       onOpenChange={(next) => (next ? undefined : onClose())}
       title={m.studentsCreateSignIns()}
-      submitLabel={way === "email" ? m.signInsSubmitEmail() : m.signInsSubmit()}
+      submitLabel={chosen?.sent ? chosen.sent.submit() : m.signInsSubmit()}
       pending={mutation.isPending}
       error={failure ? getMessageFromError(failure) : null}
       onSubmit={async () => {
@@ -137,14 +146,14 @@ export function CreateSignIns({ students, onClose }: CreateSignInsProps) {
         await mutation.mutateAsync().then(
           async (result) => {
             await queryClient.invalidateQueries({ queryKey: ["people"] });
-            // Links are in the post, with nothing here to print.
-            if (way !== "email") return setOpened(result);
+            // What is sent leaves nothing here to print.
+            if (!chosen?.sent) return setOpened(result);
             const sent = result.invited.length;
             if (sent > 0)
               toast.success(
-                m.signInsEmailed({ count: sent, value: formatNumber(sent) }),
+                chosen.sent.done({ count: sent, value: formatNumber(sent) }),
               );
-            for (const line of leftOut(students, result).warnings)
+            for (const line of leftOut(students, result, refused).warnings)
               toast.warning(line);
             onClose();
           },
@@ -164,16 +173,11 @@ export function CreateSignIns({ students, onClose }: CreateSignInsProps) {
             label: m.signInsWaySlips(),
             hint: m.signInsWaySlipsHint(),
           },
-          {
-            value: "badges",
-            label: m.signInsWayBadges(),
-            hint: m.signInsWayBadgesHint(),
-          },
-          {
-            value: "email",
-            label: m.signInsWayEmail(),
-            hint: m.signInsWayEmailHint({ days: INVITE_DAYS }),
-          },
+          ...ways.map((option) => ({
+            value: option.way,
+            label: option.label(),
+            hint: option.hint(),
+          })),
         ]}
         onChange={(next) => {
           setNothing(false);
@@ -185,11 +189,7 @@ export function CreateSignIns({ students, onClose }: CreateSignInsProps) {
         <output className="grid gap-1.5 rounded-lg bg-muted p-3 text-sm leading-5">
           {ready > 0 ? (
             <span>
-              {way === "slips"
-                ? m.signInsReadySlips(count)
-                : way === "badges"
-                  ? m.signInsReadyBadges(count)
-                  : m.signInsReadyEmail(count)}
+              {chosen ? chosen.ready(count) : m.signInsReadySlips(count)}
             </span>
           ) : nothing ? null : (
             <span>{m.signInsNothing()}</span>

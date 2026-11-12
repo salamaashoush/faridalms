@@ -8,11 +8,15 @@ import type { ModuleFillings } from "~/utils/extension";
 import { navItems } from "~/components/app/navigation";
 import { calendarOrigins } from "~/components/calendar/slots";
 import { setupItemWords, setupStepWords } from "~/components/home/slots";
+import { mailboxWords } from "~/components/messages/slots";
+import { templateUses } from "~/components/templates/slots";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 
 import { EVENT_KIND_LABEL } from "./application-labels";
+import { enquiryEventText } from "./labels";
 import { ADMISSIONS_NOTICES } from "./notices";
 
 /** The Admissions area: one link whose pages list beneath it while one is open. */
@@ -56,6 +60,21 @@ export const ADMISSIONS_NAV: PlacedItem = {
 export const ADMISSIONS: ModuleFillings = {
   module: "admissions",
   fillings: [
+    fill(templateUses, {
+      kind: "admission_letter",
+      start: {
+        label: m.templatesEditLetter,
+        run: ({ templateId, navigate }) =>
+          void navigate({
+            to: "/admissions/letter-editor",
+            search: { id: templateId },
+          }),
+      },
+    }),
+    fill(mailboxWords, {
+      mailbox: "admissions",
+      event: (details, words) => enquiryEventText(details, inLocale, words),
+    }),
     ...ADMISSIONS_NOTICES,
     fill(setupStepWords, {
       id: "admissions",

@@ -20,17 +20,17 @@ import { CheckCircle2, Coffee, LoaderCircle, Timer } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { toast } from "sonner";
 
-import type { CheckDriver } from "~/components/learning/Checks";
+import type { CheckDriver } from "~/components/questions/Checks";
 
 import { ContentView, WholeDocument } from "~/components/content/ContentView";
-import { CheckLanguage } from "~/components/learning/checkLanguage";
+import { CheckLanguage } from "~/components/questions/checkLanguage";
 import {
   CheckBlockView,
   CheckModeContext,
   isCheckBlock,
   ReviewerContext,
-} from "~/components/learning/Checks";
-import { ReaderContext } from "~/components/learning/ReadAloud";
+} from "~/components/questions/Checks";
+import { ReaderContext } from "~/components/questions/ReadAloud";
 import * as m from "~/i18n/messages";
 import { myWorkQuery, quizPollResultsQuery } from "~/queries/coursework";
 import {

@@ -7,9 +7,14 @@ import type { ModuleFillings } from "~/utils/extension";
 import { assignmentEditorParts } from "~/components/coursework/slots";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { teachingModulesQuery } from "~/queries/learning";
+import {
+  moduleDiscussionsQuery,
+  teachingModulesQuery,
+} from "~/queries/learning";
 import { getDiscussionModule } from "~/server/learning";
 import { fill } from "~/utils/extension";
+
+import { moduleDiscussions } from "./slots";
 
 /** The module a discussion stands in among the lessons, one set for its class. */
 function ModuleField({
@@ -50,6 +55,10 @@ export const ELEARNING_WITH_COURSEWORK: ModuleFillings = {
   module: "elearning",
   needs: ["coursework"],
   fillings: [
+    fill(moduleDiscussions, {
+      query: (moduleId, studentId) =>
+        moduleDiscussionsQuery(moduleId, studentId),
+    }),
     fill(assignmentEditorParts, {
       key: "module",
       section: "discussion",

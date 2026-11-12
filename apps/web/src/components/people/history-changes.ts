@@ -7,7 +7,6 @@ import type { FieldChange } from "@faridalms/ui/system/change-log";
 
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
 
-import { MEANING_LABEL } from "~/components/attendance/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { formatDate, formatNumber } from "~/utils/datetime";
@@ -61,7 +60,14 @@ const CHOICES: Partial<Record<HistoryField, Record<string, () => string>>> = {
     current: m.yearsCurrent,
     closed: m.yearsClosed,
   },
-  "core.attendance_events.meaning": MEANING_LABEL,
+  // A school's history reads the same once a module it had is off.
+  "core.attendance_events.meaning": {
+    present: m.attPresent,
+    absent: m.attAbsent,
+    late: m.attLate,
+    excused: m.attExcused,
+    left_early: m.attLeftEarly,
+  },
 };
 
 function choiceLabel(field: HistoryField, value: string) {

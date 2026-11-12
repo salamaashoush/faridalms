@@ -1,3 +1,4 @@
+import { INVITE_DAYS } from "@faridalms/domain/first-sign-in";
 import { StatusText } from "@faridalms/ui/system/status";
 import { Value } from "@faridalms/ui/system/value";
 import {
@@ -22,6 +23,7 @@ import {
 import { formatPhone } from "~/components/people/format";
 import {
   personRecordParts,
+  signInWays,
   studentColumns,
   studentEditorParts,
   studentFamilyParts,
@@ -61,6 +63,18 @@ const phoneOf = (value: string | null) =>
 export const FAMILIES: ModuleFillings = {
   module: "families",
   fillings: [
+    fill(signInWays, {
+      way: "email",
+      place: 20,
+      label: m.signInsWayEmail,
+      hint: () => m.signInsWayEmailHint({ days: INVITE_DAYS }),
+      ready: m.signInsReadyEmail,
+      refused: {
+        no_email: m.signInsRefusedNoEmail,
+        not_sent: m.signInsRefusedNotSent,
+      },
+      sent: { submit: m.signInsSubmitEmail, done: m.signInsEmailed },
+    }),
     replaceWords(
       m.settingsLearnersDecideHintCore,
       m.settingsLearnersDecideHint,

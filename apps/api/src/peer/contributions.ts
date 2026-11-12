@@ -20,6 +20,7 @@ import {
   attemptHolds,
   attemptReaders,
 } from "../coursework/points";
+import { PEER_REVIEW_LINES } from "./notice-lines";
 import { reviewerReads } from "./work";
 
 /**
@@ -66,6 +67,7 @@ const kept = (settings: {
 export const PEER_REVIEW: ModuleContributions = {
   module: "peer_review",
   contributions: [
+    ...PEER_REVIEW_LINES,
     contribute(assignmentParts, {
       key: "peer",
       async prepare(context, input) {

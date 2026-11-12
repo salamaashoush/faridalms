@@ -9,16 +9,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Users } from "lucide-react";
 import * as v from "valibot";
 
-import { StudentGrades } from "~/components/coursework/StudentGrades";
+import { gradesSections } from "~/components/gradebook/slots";
 import { displayName } from "~/components/people/format";
-import { GoalsReport } from "~/components/standards/Goals";
-import { SkillsSection } from "~/components/standards/Progress";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { childrenQuery } from "~/queries/families";
-import { studentGradesQuery } from "~/queries/gradebook";
-import { goalsReportQuery, studentProgressQuery } from "~/queries/standards";
 import { currentUserQuery } from "~/queries/user";
+import { filled } from "~/utils/extension";
 
 export const Route = createFileRoute("/_app/family/grades")({
   validateSearch: v.object({
@@ -32,15 +30,12 @@ export const Route = createFileRoute("/_app/family/grades")({
     );
     const child = deps.studentId ?? children[0]?.studentId;
     if (child)
-      await Promise.all([
-        context.queryClient.ensureQueryData(studentGradesQuery(child)),
-        user.modules.standards
-          ? context.queryClient.ensureQueryData(studentProgressQuery(child))
-          : null,
-        user.modules.standards
-          ? context.queryClient.ensureQueryData(goalsReportQuery(child))
-          : null,
-      ]);
+      await Promise.all(
+        filled(context.extensions, user.modules, gradesSections).map(
+          (section) =>
+            context.queryClient.ensureQueryData(section.query(child)),
+        ),
+      );
   },
   component: FamilyGradesPage,
 });
@@ -51,6 +46,9 @@ function FamilyGradesPage() {
   const user = useCurrentUser();
   const children = useSuspenseQuery(childrenQuery(user.id)).data;
   const current = search.studentId ?? children[0]?.studentId;
+  const sections = useSlot(gradesSections).toSorted(
+    (a, b) => a.place - b.place,
+  );
   const childFacet: Facet = {
     id: "child",
     label: m.courseworkChild(),
@@ -72,13 +70,9 @@ function FamilyGradesPage() {
         <div className="grid gap-6">
           {children.length > 1 ? <IndexToolbar facets={[childFacet]} /> : null}
           <div className="grid gap-10">
-            {user.modules.standards ? (
-              <GoalsReport studentId={current} />
-            ) : null}
-            <StudentGrades studentId={current} />
-            {user.modules.standards ? (
-              <SkillsSection studentId={current} />
-            ) : null}
+            {sections.map(({ key, Section }) => (
+              <Section key={key} studentId={current} />
+            ))}
           </div>
         </div>
       ) : (

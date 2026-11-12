@@ -2,7 +2,7 @@ import type { FileStrings } from "@faridalms/editor/files";
 import type { MathInputLabels } from "@faridalms/editor/math-input";
 import type { EditorStrings } from "@faridalms/editor/strings";
 
-import { featureNames } from "~/components/coding/scratch-checks";
+import { featureNames } from "~/components/questions/scratch-checks";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 

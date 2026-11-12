@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   functionBodyProblems,
   moduleImportProblems,
+  moduleNameProblems,
   sqlNameProblems,
 } from "./module-files";
 
@@ -79,6 +80,60 @@ describe("imports of the families module", () => {
     ]).filter((problem) => !problem.includes("listed as pending"));
     expect(problems).toEqual([
       "apps/web/src/routes/_app/me/details.tsx: imports ~/queries/families, which belongs to the families module",
+    ]);
+  });
+});
+
+describe("imports of the web's module folders", () => {
+  it("refuses core's editor reaching a module's studio, and lets the module's own files and links do", () => {
+    const problems = moduleImportProblems([
+      {
+        path: "apps/web/src/components/content/ContentEditor.tsx",
+        text: 'import { useEditorStudio } from "~/components/coding/useEditorStudio";',
+      },
+      {
+        path: "apps/web/src/components/coding/contributions.tsx",
+        text: 'import { useEditorStudio } from "./useEditorStudio";',
+      },
+      {
+        path: "apps/web/src/components/coding/learning.tsx",
+        text: 'import { galleryQuery } from "~/queries/learning";',
+      },
+      {
+        path: "apps/web/src/components/coding/CodingAnswer.tsx",
+        text: 'import { galleryQuery } from "~/queries/learning";',
+      },
+    ]);
+    expect(problems).toEqual([
+      "apps/web/src/components/content/ContentEditor.tsx: imports ~/components/coding/useEditorStudio, which belongs to the coding module",
+      "apps/web/src/components/coding/CodingAnswer.tsx: imports ~/queries/learning, which belongs to the elearning module",
+    ]);
+  });
+});
+
+describe("modules named in the web", () => {
+  it("refuses core asking whether a module is on, and lets the module and its links", () => {
+    const text = "const on = user.modules.families;";
+    expect(
+      moduleNameProblems([
+        { path: "apps/web/src/components/people/StudentRecord.tsx", text },
+        { path: "apps/web/src/components/families/contributions.tsx", text },
+        { path: "apps/web/src/components/admissions/families.tsx", text },
+      ]),
+    ).toEqual([
+      "apps/web/src/components/people/StudentRecord.tsx: asks whether the families module is on; read it through a slot the module fills",
+    ]);
+  });
+
+  it("lets only the plan's catalogue list every module", () => {
+    const text = 'import { MODULE_IDS } from "@faridalms/domain/modules";';
+    expect(
+      moduleNameProblems([
+        { path: "apps/web/src/components/admin/FeaturesCard.tsx", text },
+        { path: "apps/web/src/components/admin/SchoolEditors.tsx", text },
+      ]),
+    ).toEqual([
+      "apps/web/src/components/admin/SchoolEditors.tsx: lists every module, which only a catalogue may",
     ]);
   });
 });

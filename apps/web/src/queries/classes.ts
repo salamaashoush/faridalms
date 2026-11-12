@@ -4,6 +4,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   getClassDirectory,
+  getClassGroups,
   getClassOptions,
   getClassRecord,
   getEnrollmentHistory,
@@ -53,3 +54,9 @@ export const subjectsQuery = queryOptions({
   queryKey: ["classes", "subjects"],
   queryFn: () => getSubjects(),
 });
+
+export const classGroupsQuery = (classId: string) =>
+  queryOptions({
+    queryKey: ["classes", "groups", classId],
+    queryFn: () => getClassGroups({ data: { classId } }),
+  });

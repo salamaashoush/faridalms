@@ -15,7 +15,7 @@ import {
   setOrgFeature,
   updateSchool,
 } from "@faridalms/database/stores/school";
-import { MODULE_IDS } from "@faridalms/domain/modules";
+import { askAboutModuleSchema } from "@faridalms/domain/modules";
 import { saveSchoolSchema, setFeatureSchema } from "@faridalms/domain/people";
 import {
   COMMONS_SWITCH,
@@ -23,7 +23,6 @@ import {
 } from "@faridalms/domain/pictures";
 import { availableModules, limitsOf } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
-import * as v from "valibot";
 
 import { sendLead, stableIntakeId } from "../core/intake";
 import { forgetFace } from "../core/portal-face";
@@ -135,7 +134,7 @@ export const features = readProcedure.handler(async ({ context }) => ({
  * Asked again the same day, it is the same lead.
  */
 export const askAboutModule = readProcedure
-  .input(v.object({ module: v.picklist(MODULE_IDS) }))
+  .input(askAboutModuleSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "school:manage");
     if (!context.intake)

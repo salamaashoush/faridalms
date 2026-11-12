@@ -28,6 +28,7 @@ import {
 } from "~/components/admin/AccessRolesPanel";
 import { AssistantSettings } from "~/components/admin/AssistantSettings";
 import { CommonsPictures } from "~/components/admin/CommonsPictures";
+import { FeaturesCard } from "~/components/admin/FeaturesCard";
 import { SchoolProfileSection } from "~/components/admin/SchoolEditors";
 import { schoolSettingsSections, settingsTabs } from "~/components/admin/slots";
 import {
@@ -38,7 +39,6 @@ import {
   SubjectSheet,
 } from "~/components/admin/SubjectCatalogue";
 import { UsageBar } from "~/components/files/UsageBar";
-import { FeaturesCard } from "~/components/learning/FeaturesCard";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";

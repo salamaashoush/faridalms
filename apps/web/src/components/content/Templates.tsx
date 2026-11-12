@@ -43,16 +43,11 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import type { Starter } from "~/components/learning/starters";
-
-import { BookError, importPictureBook } from "~/components/learning/bookImport";
-import { altIn, sayIn, STARTERS } from "~/components/learning/starters";
 import { labelOf } from "~/components/people/format";
 import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { subjectsQuery } from "~/queries/classes";
-import { shareModule } from "~/server/learning";
 import {
   listTemplates,
   openTemplate,
@@ -61,6 +56,11 @@ import {
 } from "~/server/templates";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+
+import type { Starter } from "./starters";
+
+import { BookError, importPictureBook } from "./bookImport";
+import { altIn, sayIn, STARTERS } from "./starters";
 
 const BOOK_ERROR: Record<string, () => string> = {
   "book.unreadable": m.starterBookUnreadable,
@@ -348,13 +348,20 @@ export function useStartFrom(
   }, [piece, apply]);
 }
 
+/** What a template is called and filed under, as its author wrote it. */
+export interface TemplateAbout {
+  title: string;
+  description: string;
+  subjectId: string;
+}
+
 export interface SaveTemplateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** A document kept as it stands, or a whole module with its lessons. */
+  /** A document kept as it stands, or a piece its own page keeps, such as a whole module with its lessons. */
   piece:
     | { kind: DocumentTemplateKind; content: ContentDocument }
-    | { kind: "module"; moduleId: string };
+    | { keep: (about: TemplateAbout) => Promise<{ state: string }> };
   suggestedTitle: string;
 }
 
@@ -378,8 +385,8 @@ export function SaveTemplateDialog({
         description: description.trim(),
         subjectId,
       };
-      return piece.kind === "module"
-        ? shareModule({ data: { ...about, moduleId: piece.moduleId } })
+      return "keep" in piece
+        ? piece.keep(about)
         : saveTemplate({
             data: { ...about, kind: piece.kind, content: piece.content },
           });

@@ -2,20 +2,30 @@ import { BookOpen, Layers } from "lucide-react";
 
 import type { ModuleFillings } from "~/utils/extension";
 
+import { moduleSwitches } from "~/components/admin/slots";
 import { navItems } from "~/components/app/navigation";
 import { searchKindWords } from "~/components/app/SearchResults";
 import { classRecordSections } from "~/components/classes/slots";
+import { templateUses } from "~/components/templates/slots";
 import * as m from "~/i18n/messages";
 import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 
 import { LessonSoundsSection } from "./LessonSounds";
+import { LEARNING_TEMPLATES } from "./templates";
 import { ELEARNING_TODAY } from "./today";
 
 /** What e-learning shows in the pages of core and other modules. */
 export const ELEARNING: ModuleFillings = {
   module: "elearning",
   fillings: [
+    fill(moduleSwitches, {
+      module: "elearning",
+      place: 10,
+      name: m.learningFeatureToggle,
+      hint: m.learningFeatureToggleHintCore,
+    }),
+    ...LEARNING_TEMPLATES.map((use) => fill(templateUses, use)),
     fill(searchKindWords, {
       kind: "learning",
       label: m.searchKindLearning,

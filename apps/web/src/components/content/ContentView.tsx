@@ -16,8 +16,8 @@ import { useMemo } from "react";
 
 import type { Locale } from "~/i18n/runtime";
 
-import { RunnableCode } from "~/components/coding/RunnableCode";
-import { ReadAloud } from "~/components/learning/ReadAloud";
+import { RunnableCode } from "~/components/code/RunnableCode";
+import { ReadAloud } from "~/components/questions/ReadAloud";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { sharedBlockQuery } from "~/queries/shared";

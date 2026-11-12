@@ -16,11 +16,13 @@ import { fileHosts } from "../files/authorize";
 import { studentRecordAccess } from "../people/points";
 import { leavingGuards } from "../people/sign-in-ways";
 import { ATTENDANCE_HOSTS } from "./hosts";
+import { ATTENDANCE_LINES } from "./notice-lines";
 
 /** What attendance tells the rest of the product, wherever it asks. */
 export const ATTENDANCE: ModuleContributions = {
   module: "attendance",
   contributions: [
+    ...ATTENDANCE_LINES,
     contribute(studentRecordAccess, {
       key: "attendance",
       may: (context) => can(context, "attendance:read"),

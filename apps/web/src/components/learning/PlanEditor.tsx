@@ -1,15 +1,8 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 
 import { emptyContent } from "@faridalms/domain/content-conversion";
-import { planTargets } from "@faridalms/domain/standards";
-import { cn } from "@faridalms/ui/cn";
-import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
-import {
-  useQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
 import type {
@@ -19,164 +12,19 @@ import type {
 
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { sayIn } from "~/components/content/starters";
 import { useStartFrom } from "~/components/content/Templates";
-import {
-  DetailsPanel,
-  DetailsSection,
-  DocumentPage,
-} from "~/components/system/DocumentPage";
+import { DocumentPage } from "~/components/system/DocumentPage";
 import { useAutosave } from "~/hooks/useAutosave";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { moduleRecordQuery, planQuery } from "~/queries/learning";
 import { savePlan } from "~/server/learning";
-import { describeStandards } from "~/server/standards";
 
 import { PLANNERS, plannerContent } from "./planners";
-import { sayIn } from "./starters";
-
-type Plan = Awaited<
-  ReturnType<NonNullable<ReturnType<typeof planQuery>["queryFn"]>>
->;
-type Covered = Plan["covered"][number];
-
-/** How the lessons cover a standard: the questions assessing it, and the lessons setting it out. */
-function coverOf(row: Pick<Covered, "questions" | "lessons">) {
-  return [
-    row.questions ? m.planQuestions({ count: row.questions }) : null,
-    row.lessons ? m.planLessons({ count: row.lessons }) : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
-
-interface StatementProps {
-  code: string;
-  statement: string;
-}
-
-function Statement({ code, statement }: StatementProps) {
-  return (
-    <span className="min-w-0 text-sm leading-5" dir="auto">
-      {code ? (
-        <>
-          <span className="font-mono text-[13px] font-medium text-muted-foreground">
-            {code}
-          </span>{" "}
-        </>
-      ) : null}
-      {statement}
-    </span>
-  );
-}
-
-export interface PlanCoverageProps {
-  content: ContentDocument;
-  covered: readonly Covered[];
-  /** Ruled off as a section of a page, rather than inside the details panel. */
-  framed?: boolean;
-}
-
-/**
- * A plan's standards read against its module's lessons: each standard the
- * plan names with the questions that assess it and the lessons that set it
- * out, the ones no question assesses yet, and the standards the lessons
- * cover that the plan leaves out.
- */
-export function PlanCoverage({
-  content,
-  covered,
-  framed = false,
-}: PlanCoverageProps) {
-  const named = planTargets(content);
-  const ids = named.map((target) => target.id).toSorted();
-  // Ideas that frame a unit, such as key concepts, are named, not assessed.
-  const framing = useQuery({
-    queryKey: ["standards", "describe", ids],
-    queryFn: () => describeStandards({ data: { ids } }),
-    enabled: ids.length > 0,
-    staleTime: 60_000,
-    select: (rows) =>
-      new Set(rows.filter((row) => !row.assessed).map((row) => row.id)),
-  });
-  const counted = new Map(covered.map((row) => [row.id, row]));
-  const left = covered.filter(
-    (row) => !named.some((target) => target.id === row.id),
-  );
-  const list = "grid gap-2";
-  const row = "grid gap-0.5";
-  const sections = (
-    <>
-      <DetailsSection title={m.planNamed()}>
-        {named.length === 0 ? (
-          <EmptyState placement="section" title={m.planNoStandards()} />
-        ) : (
-          <ul className={list}>
-            {named.map((target) => {
-              const cover = counted.get(target.id);
-              const questions = cover?.questions ?? 0;
-              const frames = framing.data?.has(target.id) ?? false;
-              // Until its framework is known, nothing is called unassessed.
-              const settled = framing.data !== undefined;
-              return (
-                <li key={target.id} className={row}>
-                  <Statement code={target.code} statement={target.statement} />
-                  <span
-                    className={cn(
-                      "text-[13px] leading-[18px]",
-                      questions || frames || !settled
-                        ? "text-muted-foreground"
-                        : "text-warning-foreground dark:text-warning",
-                    )}
-                  >
-                    {frames
-                      ? m.planFrames()
-                      : questions || !settled
-                        ? coverOf({ questions, lessons: cover?.lessons ?? 0 })
-                        : [
-                            m.planNotAssessed(),
-                            coverOf({
-                              questions: 0,
-                              lessons: cover?.lessons ?? 0,
-                            }),
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </DetailsSection>
-      {left.length > 0 ? (
-        <DetailsSection title={m.planUnplanned()}>
-          <ul className={list}>
-            {left.map((standard) => (
-              <li key={standard.id} className={row}>
-                <Statement
-                  code={standard.code}
-                  statement={standard.statement}
-                />
-                <span className="text-[13px] leading-[18px] text-muted-foreground">
-                  {coverOf(standard)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </DetailsSection>
-      ) : null}
-    </>
-  );
-  return framed ? (
-    <section className="grid gap-5 rounded-lg border bg-card p-4">
-      {sections}
-    </section>
-  ) : (
-    <DetailsPanel title={m.planCoverage()}>{sections}</DetailsPanel>
-  );
-}
+import { planCoverage } from "./slots";
 
 /** The built-in planners, in the language the teacher works in. */
 function plannerGroup(): BuiltInGroup {
@@ -236,7 +84,7 @@ export function PlanEditor({ moduleId, template, onClose }: PlanEditorProps) {
     useCallback((piece: StartingPiece) => apply(piece.content), [apply]),
   );
   const written = JSON.stringify(content) !== JSON.stringify(emptyContent());
-  const named = planTargets(content).length;
+  const coverage = useSlot(planCoverage)[0];
 
   return (
     <>
@@ -288,9 +136,13 @@ export function PlanEditor({ moduleId, template, onClose }: PlanEditorProps) {
             </h1>
           </div>
         }
-        summary={[m.planNamedCount({ count: named })]}
+        summary={coverage ? [coverage.summary(content)] : undefined}
         details={{ open: detailsOpen, onOpenChange: setDetailsOpen }}
-        aside={<PlanCoverage content={content} covered={plan.covered} />}
+        aside={
+          coverage ? (
+            <coverage.Coverage content={content} covered={plan.covered} />
+          ) : undefined
+        }
       >
         <ContentEditor
           id="plan-body"

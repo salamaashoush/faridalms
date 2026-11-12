@@ -1,8 +1,7 @@
-import type { ProjectFile } from "@faridalms/domain/project";
-
 import { Button } from "@faridalms/ui/button";
 import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { StatusBadge } from "@faridalms/ui/system/status";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppWindow, Images } from "lucide-react";
 import { useState } from "react";
@@ -12,29 +11,19 @@ import { displayName } from "~/components/people/format";
 import * as m from "~/i18n/messages";
 import { galleryQuery } from "~/queries/learning";
 import {
+  decideGalleryOffer,
   offerToGallery,
   remixFromGallery,
   takeFromGallery,
 } from "~/server/learning";
 import { getMessageFromError } from "~/utils/error";
 
+import type { ClassGalleryProps, GalleryOfferProps } from "./slots";
+
 import { CodingStudio } from "./CodingStudio";
 import { ProjectStudio } from "./ProjectStudio";
 
 const failed = (error: unknown) => toast.error(getMessageFromError(error));
-
-export interface ProjectGalleryProps {
-  lessonId: string;
-  blockId: string;
-  /** The student's project is marked, so it can no longer begin again. */
-  settled: boolean;
-  onRemixed?: (files: ProjectFile[]) => void;
-  onBuild?: (from: {
-    studentId: string;
-    name: string;
-    projectUrl: string;
-  }) => void;
-}
 
 /**
  * A project question's class gallery, under a student's own project: where
@@ -51,7 +40,7 @@ export function ProjectGallery({
   settled,
   onRemixed,
   onBuild,
-}: ProjectGalleryProps) {
+}: ClassGalleryProps) {
   const queryClient = useQueryClient();
   const query = galleryQuery(lessonId, blockId);
   const data = useQuery(query).data;
@@ -235,5 +224,101 @@ export function ProjectGallery({
         onCancel={() => setConfirming(false)}
       />
     </section>
+  );
+}
+
+/**
+ * A project a student offered to the class gallery, for their teacher to
+ * show to the class, keep out, or take down again. A student who has sent
+ * a newer project since offered the one before it, which is what the class
+ * would see: that one opens from here, so nothing is shown unseen.
+ */
+export function GalleryOffer({ answer, name }: GalleryOfferProps) {
+  const [looking, setLooking] = useState(false);
+  const queryClient = useQueryClient();
+  const decide = useMutation({
+    mutationFn: (show: boolean) =>
+      decideGalleryOffer({
+        data: {
+          lessonId: answer.lessonId,
+          blockId: answer.blockId,
+          studentId: answer.studentId,
+          show,
+        },
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["learning", "answers"] }),
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  if (!answer.share) return null;
+  const shown = answer.share === "shown";
+  const earlier = answer.share === "declined" ? null : answer.offered;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {earlier ? (
+        <p className="flex basis-full flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[18px] text-muted-foreground">
+          {m.galleryTeacherEarlier()}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="max-md:h-10"
+            onClick={() => setLooking(true)}
+          >
+            {m.galleryTeacherSeeOffered()}
+          </Button>
+        </p>
+      ) : null}
+      {looking && earlier?.files ? (
+        <ProjectStudio
+          title={m.galleryTeacherOfferedBy({ name })}
+          files={earlier.files}
+          unkept
+          onClose={() => setLooking(false)}
+        />
+      ) : looking && earlier?.project ? (
+        <CodingStudio
+          projectUrl={`/files/${earlier.project.fileId}`}
+          mode="editor"
+          title={m.galleryTeacherOfferedBy({ name })}
+          onClose={() => setLooking(false)}
+        />
+      ) : null}
+      <StatusBadge
+        tone={
+          shown ? "success" : answer.share === "offered" ? "info" : "neutral"
+        }
+      >
+        {shown
+          ? m.galleryTeacherShown()
+          : answer.share === "offered"
+            ? m.galleryTeacherOffered()
+            : m.galleryTeacherDeclined()}
+      </StatusBadge>
+      {shown ? null : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="max-md:h-10"
+          disabled={decide.isPending}
+          onClick={() => decide.mutate(true)}
+        >
+          {m.galleryShow()}
+        </Button>
+      )}
+      {answer.share === "declined" ? null : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="max-md:h-10"
+          disabled={decide.isPending}
+          onClick={() => decide.mutate(false)}
+        >
+          {shown ? m.galleryTakeDown() : m.galleryNotNow()}
+        </Button>
+      )}
+    </div>
   );
 }

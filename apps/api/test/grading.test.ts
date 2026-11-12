@@ -16,7 +16,7 @@ const preset = (key: string) => {
 async function classOfStudent(api: Session["api"], studentId: string) {
   const { classes } = await api.coursework.options();
   for (const row of classes.filter((item) => item.subjectId !== null)) {
-    const { roster } = await api.coursework.groups({ classId: row.id });
+    const { roster } = await api.classes.groups({ classId: row.id });
     if (roster.some((pupil) => pupil.id === studentId)) return row;
   }
   throw new Error("the seeded student takes no class of this teacher");

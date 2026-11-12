@@ -9,8 +9,6 @@ import {
   Bell,
   BookMarked,
   CalendarDays,
-  ClipboardCheck,
-  HeartPulse,
   Megaphone,
   MessageSquare,
   ShieldCheck,
@@ -18,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { inLocale } from "~/hooks/useCurrentUser";
+import { usePageOn } from "~/hooks/usePageOn";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { formatDate } from "~/utils/datetime";
@@ -38,11 +37,9 @@ const KIND_ICON: Partial<Record<NotificationKind, LucideIcon>> = {
   urgent: URGENT_ICON,
   message: MessageSquare,
   event: CalendarDays,
-  reminder: ClipboardCheck,
   consent: ShieldCheck,
   mention: AtSign,
   library: BookMarked,
-  correction: HeartPulse,
 };
 
 /** What a notice of core's says, in the reader's language, from what its producer recorded. */
@@ -75,25 +72,6 @@ function coreText(notice: Notice): { title: string; body: string } | null {
             ? m.ntfEventChanged()
             : m.ntfEvent(),
         body: [title, date ? formatDate(date) : ""].filter(Boolean).join(" · "),
-      };
-    case "reminder":
-      if (params.cover)
-        return {
-          title: (params.cancelled ? m.ntfCoverOff : m.ntfCover)({
-            name: both(params.className, params.classNameAr),
-          }),
-          body: [
-            date ? formatDate(date) : "",
-            both(params.periodName, params.periodNameAr),
-          ]
-            .filter(Boolean)
-            .join(" · "),
-        };
-      return {
-        title: m.ntfReminder({
-          name: both(params.className, params.classNameAr),
-        }),
-        body: date ? formatDate(date) : "",
       };
     case "consent":
       return {
@@ -131,15 +109,6 @@ function coreText(notice: Notice): { title: string; body: string } | null {
             }),
         body: title,
       };
-    case "correction":
-      return {
-        title: (params.report === "accepted"
-          ? m.ntfCorrectionAccepted
-          : m.ntfCorrectionDeclined)({
-          name: both(params.studentName, params.studentNameAr),
-        }),
-        body: m.ntfCorrectionBody(),
-      };
   }
   return null;
 }
@@ -151,13 +120,16 @@ function coreText(notice: Notice): { title: string; body: string } | null {
  */
 export function useNoticeWords() {
   const added = useSlot(noticeWords);
-  const of = (kind: NotificationKind) =>
-    added.find((each) => each.kind === kind);
+  const of = (kind: NotificationKind, notice?: Notice) =>
+    added.find(
+      (each) =>
+        each.kind === kind && (!notice || !each.sends || each.sends(notice)),
+    );
   return {
     iconOf: (kind: NotificationKind): LucideIcon =>
       of(kind)?.icon ?? KIND_ICON[kind] ?? Bell,
     textOf: (notice: Notice): { title: string; body: string } | null =>
-      of(notice.kind)?.text(notice) ?? coreText(notice),
+      of(notice.kind, notice)?.text(notice) ?? coreText(notice),
     labelOf: (kind: NotificationKind) => of(kind)?.label,
     offered: (
       kind: NotificationKind,
@@ -185,6 +157,7 @@ function CommentedIn({
   children,
   ...rest
 }: Passed & { notice: Notice; children: ReactNode }) {
+  const opens = usePageOn();
   const id = notice.subjectId;
   const hash = notice.params.threadId
     ? `thread-${notice.params.threadId}`
@@ -192,7 +165,7 @@ function CommentedIn({
   const parentId = notice.params.parentId;
   switch (notice.subjectType) {
     case "lesson":
-      return parentId ? (
+      return parentId && opens("/lesson-editor") ? (
         <Link
           {...rest}
           to="/lesson-editor"
@@ -203,17 +176,17 @@ function CommentedIn({
         </Link>
       ) : null;
     case "module_plan":
-      return (
+      return opens("/module-plan") ? (
         <Link {...rest} to="/module-plan" search={{ moduleId: id }} hash={hash}>
           {children}
         </Link>
-      );
+      ) : null;
     case "assignment":
-      return (
+      return opens("/assignment-editor") ? (
         <Link {...rest} to="/assignment-editor" search={{ id }} hash={hash}>
           {children}
         </Link>
-      );
+      ) : null;
     case "announcement":
       return (
         <Link {...rest} to="/announcement-editor" search={{ id }} hash={hash}>
@@ -248,6 +221,7 @@ function MentionedIn({
   children,
   ...rest
 }: Passed & { notice: Notice; children: ReactNode }) {
+  const opens = usePageOn();
   const id = notice.subjectId;
   if (notice.params.comment)
     return (
@@ -257,13 +231,13 @@ function MentionedIn({
     );
   switch (notice.subjectType) {
     case "lesson":
-      return (
+      return opens("/lessons") ? (
         <Link {...rest} to="/lessons/$lessonId" params={{ lessonId: id }}>
           {children}
         </Link>
-      );
+      ) : null;
     case "assignment":
-      return (
+      return opens("/assignments") ? (
         <Link
           {...rest}
           to="/assignments/$assignmentId"
@@ -272,7 +246,7 @@ function MentionedIn({
         >
           {children}
         </Link>
-      );
+      ) : null;
     case "announcement":
       return (
         <Link
@@ -295,7 +269,9 @@ export function NoticeLink({
   children,
   ...rest
 }: NoticeLinkProps) {
-  const added = useSlot(noticeWords).find((each) => each.kind === notice.kind);
+  const added = useSlot(noticeWords).find(
+    (each) => each.kind === notice.kind && (!each.sends || each.sends(notice)),
+  );
   if (added)
     return (
       <added.Link notice={notice} workspace={workspace} {...rest}>
@@ -327,23 +303,6 @@ export function NoticeLink({
           {children}
         </Link>
       );
-    case "reminder":
-      if (notice.params.cover && notice.params.cancelled)
-        return (
-          <Link {...rest} to="/timetable">
-            {children}
-          </Link>
-        );
-      return (
-        <Link
-          {...rest}
-          to="/registers/$classId"
-          params={{ classId: id }}
-          search={{ date: notice.params.date ?? "" }}
-        >
-          {children}
-        </Link>
-      );
     case "consent":
       return (
         <Link
@@ -362,16 +321,6 @@ export function NoticeLink({
     case "library":
       return (
         <Link {...rest} to="/templates" search={{}}>
-          {children}
-        </Link>
-      );
-    case "correction":
-      return (
-        <Link
-          {...rest}
-          to="/family/health"
-          search={{ studentId: notice.params.studentId || undefined }}
-        >
           {children}
         </Link>
       );

@@ -6,9 +6,8 @@ import { Button } from "@faridalms/ui/button";
 import { Play, Square } from "lucide-react";
 import { useImperativeHandle } from "react";
 
+import { RunOutput, useProgramRun } from "~/components/code/ProgramRun";
 import * as m from "~/i18n/messages";
-
-import { RunOutput, useProgramRun } from "./ProgramRun";
 
 /** What a key pressed elsewhere may ask of a project's program. */
 export interface ProgramHandle {

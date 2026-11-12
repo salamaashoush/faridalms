@@ -11,8 +11,8 @@ import {
 } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { PictureField } from "~/components/media/PictureField";
 import { CheckboxRow } from "~/components/people/fields";
-import { PictureField } from "~/components/site/PictureField";
 import * as m from "~/i18n/messages";
 import { schoolProfileQuery } from "~/queries/school-settings";
 import { saveSchoolProfile } from "~/server/school-settings";

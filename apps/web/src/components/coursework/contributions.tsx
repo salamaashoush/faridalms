@@ -7,10 +7,14 @@ import { settingsTabs } from "~/components/admin/slots";
 import { navItems } from "~/components/app/navigation";
 import { searchKindWords } from "~/components/app/SearchResults";
 import { classRecordSections } from "~/components/classes/slots";
+import { editorParts } from "~/components/content/slots";
 import { ClassGradingSection } from "~/components/grading/ClassGrading";
 import { GradingSettings } from "~/components/grading/GradingSettings";
 import { setupItemWords } from "~/components/home/slots";
 import { studentRecordTabs } from "~/components/people/slots";
+import { passageMarks } from "~/components/questions/slots";
+import { FluencyMarker, FluencySummary } from "~/components/reading/Fluency";
+import { templateUses } from "~/components/templates/slots";
 import { useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { gradingOverviewQuery } from "~/queries/grading";
@@ -18,7 +22,9 @@ import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 
 import { COURSEWORK_NOTICES } from "./notices";
+import { BankEditorPart } from "./QuestionBank";
 import { StudentCoursework } from "./StudentCoursework";
+import { ASSIGNMENT_TEMPLATE } from "./templates";
 import { COURSEWORK_TODAY } from "./today";
 
 /** How the class is graded, for its teachers and whoever keeps the school's classes or grading. */
@@ -37,6 +43,9 @@ function ClassGrading({ classId, manages }: ClassRecordSectionProps) {
 export const COURSEWORK: ModuleFillings = {
   module: "coursework",
   fillings: [
+    fill(templateUses, ASSIGNMENT_TEMPLATE),
+    fill(editorParts, BankEditorPart),
+    fill(passageMarks, { Marker: FluencyMarker, Summary: FluencySummary }),
     ...COURSEWORK_NOTICES,
     fill(searchKindWords, {
       kind: "assignments",

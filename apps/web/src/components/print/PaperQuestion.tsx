@@ -29,14 +29,14 @@ import { countBlocks } from "@faridalms/puzzles/program";
 import { ARROWS, wordsOf } from "@faridalms/puzzles/text";
 import { cn } from "@faridalms/ui/cn";
 
-import { QrCode } from "~/components/badges/QrCode";
-import { featureNames } from "~/components/coding/scratch-checks";
-import { NumberLineDrawing } from "~/components/learning/NumberLine";
 import { blockNames, puzzleStrings } from "~/components/puzzles/strings";
+import { NumberLineDrawing } from "~/components/questions/NumberLine";
+import { featureNames } from "~/components/questions/scratch-checks";
 import * as m from "~/i18n/messages";
 import { numberLocale } from "~/utils/digits";
 
 import { paperGrid } from "./paper-blocks";
+import { QrCode } from "./QrCode";
 
 const LATIN = "abcdefghijklmnopqrstuvwxyz".split("");
 // Arabic multiple choice is lettered in the abjad order: أ، ب، ج، د.
