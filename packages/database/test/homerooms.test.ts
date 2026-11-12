@@ -181,7 +181,6 @@ describe("a homeroom's subject classes follow its places", () => {
         titleAr: null,
         courseId: null,
         subjectId: null,
-        gradeId: null,
         locationId: null,
       });
       await linkClass(tx, {

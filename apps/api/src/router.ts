@@ -31,6 +31,7 @@ import * as documentsSystem from "./systems/documents";
 import * as filesSystem from "./systems/files";
 import * as followUpSystem from "./systems/follow-up";
 import * as frontDeskSystem from "./systems/front-desk";
+import * as gradeLevelsSystem from "./systems/grade-levels";
 import * as gradebookSystem from "./systems/gradebook";
 import * as gradingSystem from "./systems/grading";
 import * as homeSystem from "./systems/home";
@@ -122,6 +123,7 @@ export const router = {
   records: owned("records", recordsSystem),
   classes: owned("classes", classesSystem),
   homerooms: owned("homerooms", homeroomsSystem),
+  gradeLevels: owned("gradeLevels", gradeLevelsSystem),
   consents: owned("consents", consentsSystem),
   years: owned("years", yearsSystem),
   schoolDays: owned("schoolDays", schoolDaysSystem),

@@ -8,10 +8,12 @@ import * as v from "valibot";
 
 import { yearTitle } from "~/components/years/format";
 import { Rollover } from "~/components/years/Rollover";
+import { rolloverClassParts } from "~/components/years/slots";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery } from "~/queries/classes";
 import { rolloverQuery } from "~/queries/rollover";
 import { currentUserQuery } from "~/queries/user";
+import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/_staff/rollover")({
@@ -32,6 +34,9 @@ export const Route = createFileRoute("/_app/_staff/rollover")({
         rolloverQuery({ sourceYearId: deps.source, targetYearId: deps.target }),
       ),
       context.queryClient.ensureQueryData(classOptionsQuery),
+      ...filled(context.extensions, user.modules, rolloverClassParts).map(
+        (part) => context.queryClient.ensureQueryData(part.query()),
+      ),
     ]);
   },
   component: RolloverPage,

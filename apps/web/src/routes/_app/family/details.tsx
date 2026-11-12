@@ -15,6 +15,7 @@ import * as v from "valibot";
 import { groupWords } from "~/components/classes/slots";
 import { displayName, labelOf } from "~/components/people/format";
 import { ContactList } from "~/components/people/record-parts";
+import { placeWords } from "~/components/people/slots";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
@@ -123,6 +124,7 @@ function ChildDetails({ studentId }: ChildDetailsProps) {
   const user = useCurrentUser();
   const child = useSuspenseQuery(childDetailsQuery(studentId)).data;
   const words = useSlot(groupWords)[0];
+  const place = useSlot(placeWords)[0];
   const me = useSuspenseQuery(personRecordQuery(user.id)).data;
   const [asking, setAsking] = useState(false);
   const name = displayName(child);
@@ -176,9 +178,13 @@ function ChildDetails({ studentId }: ChildDetailsProps) {
                 <span dir="ltr">{child.reference}</span>
               ) : null}
             </Fact>
-            <Fact label={m.studentGrade()} notApplicable={!child.grade}>
-              {labelOf(child.grade)}
-            </Fact>
+            {place ? (
+              <Fact label={place.place()} notApplicable={!child.place}>
+                {child.place
+                  ? inLocale(child.place.labelEn, child.place.labelAr)
+                  : null}
+              </Fact>
+            ) : null}
             {words ? (
               <Fact label={words.group()} notApplicable={!child.group}>
                 {child.group

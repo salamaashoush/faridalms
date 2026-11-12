@@ -17,7 +17,6 @@ export interface Placement {
   yearTitleAr: string | null;
   from: string;
   to: string;
-  gradeId: string | null;
   entryTypeId: string | null;
   exitTypeId: string | null;
   exitMeaning: string | null;
@@ -37,7 +36,6 @@ export async function placements(
     title_en: string | null;
     title_ar: string | null;
     valid_during: string;
-    grade_id: string | null;
     entry_id: string | null;
     exit_id: string | null;
     exit_meaning: string | null;
@@ -45,7 +43,7 @@ export async function placements(
     destination_school: string | null;
   }>(sql`
     select s.id, s.version, s.school_year_id, y.title_en, y.title_ar, s.valid_during::text as valid_during,
-           s.grade_level_descriptor_id as grade_id, s.entry_type_descriptor_id as entry_id,
+           s.entry_type_descriptor_id as entry_id,
            s.exit_type_descriptor_id as exit_id, x.system_meaning as exit_meaning, s.previous_school,
            s.destination_school
     from core.student_school_years s
@@ -64,7 +62,6 @@ export async function placements(
       yearTitleAr: row.title_ar,
       from: range.from,
       to: range.to ?? range.from,
-      gradeId: row.grade_id,
       entryTypeId: row.entry_id,
       exitTypeId: row.exit_id,
       exitMeaning: row.exit_meaning,
@@ -160,9 +157,9 @@ export async function voidPlacementsFrom(
 }
 
 /**
- * Places a student in a grade for a year. A student already placed that year
- * in another grade moves: the old placement ends and a new one starts, unless
- * it only began today, when it changes in place.
+ * Places a student in a year from a day (today by default, never before the
+ * year) to its end. A placement in the year already running then stands; one
+ * due to start later starts on that day instead, so the two never overlap.
  */
 export async function place(
   tx: Tx,
@@ -170,8 +167,6 @@ export async function place(
   input: {
     studentId: string;
     year: { id: string; startsOn: string; endsBefore: string };
-    gradeId: string;
-    /** The day the grade takes effect; today by default, never before the year. */
     from?: string;
     entryTypeId?: string | null;
     source?: "manual" | "rollover" | "admission";
@@ -179,43 +174,31 @@ export async function place(
 ) {
   const wanted = input.from ?? scope.today;
   const start = wanted > input.year.startsOn ? wanted : input.year.startsOn;
-  const existing = (await placements(tx, scope, input.studentId)).find(
-    (row) =>
-      row.schoolYearId === input.year.id && row.from <= start && start < row.to,
-  );
-  if (existing?.gradeId === input.gradeId) return { changed: false };
-  if (existing && existing.from === start)
+  const placed = (await placements(tx, scope, input.studentId))
+    .filter((row) => row.schoolYearId === input.year.id && start < row.to)
+    .toSorted((a, b) => a.from.localeCompare(b.from));
+  const first = placed[0];
+  if (first && first.from <= start) return { changed: false };
+  if (first)
     await tx
       .update(studentSchoolYears)
-      .set({ gradeLevelDescriptorId: input.gradeId })
+      .set({ validDuring: `[${start},${first.to})` })
       .where(
         and(
           eq(studentSchoolYears.tenantId, scope.tenantId),
-          eq(studentSchoolYears.id, existing.id),
+          eq(studentSchoolYears.id, first.id),
         ),
       );
-  else {
-    if (existing)
-      await tx
-        .update(studentSchoolYears)
-        .set({ validDuring: `[${existing.from},${start})` })
-        .where(
-          and(
-            eq(studentSchoolYears.tenantId, scope.tenantId),
-            eq(studentSchoolYears.id, existing.id),
-          ),
-        );
+  else
     await tx.insert(studentSchoolYears).values({
       tenantId: scope.tenantId,
       studentUserId: input.studentId,
       orgId: scope.schoolId,
       schoolYearId: input.year.id,
       validDuring: `[${start},${input.year.endsBefore})`,
-      gradeLevelDescriptorId: input.gradeId,
       entryTypeDescriptorId: input.entryTypeId ?? null,
       source: input.source ?? "manual",
     });
-  }
   await ensureStudentRole(tx, scope, input.studentId, start);
   return { changed: true };
 }
@@ -223,13 +206,12 @@ export async function place(
 /** A student in a year's list, as their placements there give them. */
 export interface YearStudent {
   studentId: string;
-  gradeId: string | null;
   status: "enrolled" | "pre_enrolled" | "left" | "graduated" | "unplaced";
 }
 
 /**
- * A year's students: those placed in it, with their grade there and where
- * they stand by their placements at the school (mirrors `placementStatus`).
+ * A year's students: those placed in it, and where they stand by their
+ * placements at the school (mirrors `placementStatus`).
  * The working year also lists every student whose role holds today, placed
  * or not.
  */
@@ -240,15 +222,13 @@ export async function yearStudents(
 ): Promise<YearStudent[]> {
   const rows = await tx.execute<{
     student_id: string;
-    grade_id: string | null;
     status: YearStudent["status"];
   }>(sql`
     with placed as (
-      select distinct on (s.student_user_id) s.student_user_id, s.grade_level_descriptor_id
+      select distinct s.student_user_id
       from core.student_school_years s
       where s.tenant_id = ${scope.tenantId}::uuid and s.org_id = ${scope.schoolId}::uuid
         and s.school_year_id = ${input.yearId}::uuid and s.status = 'active'
-      order by s.student_user_id, upper(s.valid_during) desc
     ), members as (
       select student_user_id from placed
       union
@@ -256,7 +236,7 @@ export async function yearStudents(
       where ${input.working} and r.tenant_id = ${scope.tenantId}::uuid and r.org_id = ${scope.schoolId}::uuid
         and r.role = 'student' and r.status = 'active' and r.valid_during @> ${scope.today}::date
     )
-    select m.student_user_id as student_id, p.grade_level_descriptor_id as grade_id,
+    select m.student_user_id as student_id,
       case
         when exists (select 1 from core.student_school_years s where s.tenant_id = ${scope.tenantId}::uuid
                        and s.student_user_id = m.student_user_id and s.org_id = ${scope.schoolId}::uuid
@@ -275,11 +255,9 @@ export async function yearStudents(
                 and s.org_id = ${scope.schoolId}::uuid and s.status = 'active'
               order by upper(s.valid_during) desc limit 1)
       end as status
-    from members m
-    left join placed p on p.student_user_id = m.student_user_id`);
+    from members m`);
   return rows.map((row) => ({
     studentId: row.student_id,
-    gradeId: row.grade_id,
     status: row.status,
   }));
 }

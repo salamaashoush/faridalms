@@ -27,7 +27,7 @@ import {
 import { AssistantSettings } from "~/components/admin/AssistantSettings";
 import { CommonsPictures } from "~/components/admin/CommonsPictures";
 import { SchoolProfileSection } from "~/components/admin/SchoolEditors";
-import { schoolSettingsSections } from "~/components/admin/slots";
+import { schoolSettingsSections, settingsTabs } from "~/components/admin/slots";
 import {
   filterSubjects,
   SUBJECT_PAGE_SIZE,
@@ -39,7 +39,6 @@ import { AttendanceRules } from "~/components/attendance/AttendanceRules";
 import { UsageBar } from "~/components/files/UsageBar";
 import { GradingSettings } from "~/components/grading/GradingSettings";
 import { FeaturesCard } from "~/components/learning/FeaturesCard";
-import { ReadingNorms } from "~/components/reading/ReadingNorms";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
@@ -48,7 +47,6 @@ import { assistantSettingsQuery } from "~/queries/assistant";
 import { attendanceSettingsQuery } from "~/queries/attendance";
 import { subjectsQuery } from "~/queries/classes";
 import { gradingHistoryQuery, gradingOverviewQuery } from "~/queries/grading";
-import { readingNormsQuery } from "~/queries/reading";
 import {
   pictureSourcesQuery,
   schoolFeaturesQuery,
@@ -59,19 +57,18 @@ import { currentUserQuery } from "~/queries/user";
 import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
 
+/** The settings' own tabs; a module's tab rides under its own value. */
+const SECTIONS = [
+  "school",
+  "subjects",
+  "attendance",
+  "grading",
+  "access",
+  "assistant",
+] as const;
+
 const searchSchema = v.object({
-  section: v.optional(
-    v.picklist([
-      "school",
-      "subjects",
-      "attendance",
-      "reading",
-      "grading",
-      "access",
-      "assistant",
-    ]),
-    "school",
-  ),
+  section: v.optional(v.pipe(v.string(), v.regex(/^[a-z]{1,20}$/)), "school"),
   q: v.optional(v.string(), ""),
   sort: v.optional(v.picklist(["name", "code"]), "name"),
   dir: v.optional(v.picklist(["asc", "desc"]), "asc"),
@@ -91,15 +88,29 @@ export const Route = createFileRoute("/_app/_staff/settings")({
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "school:manage", "grading:manage");
     const grading = gradesHere(user);
+    const moduleTab = filled(
+      context.extensions,
+      user.modules,
+      settingsTabs,
+    ).find((tab) => tab.value === deps.section);
     // Someone who sets up only grading lands on its tab; a tab nobody here
     // may open falls back to the one they can.
-    if (deps.section === "grading" ? !grading : !keepsSchool(user))
+    if (
+      (deps.section === "grading" ? !grading : !keepsSchool(user)) ||
+      (!moduleTab && !(SECTIONS as readonly string[]).includes(deps.section))
+    )
       throw redirect({
         to: "/settings",
-        search: { section: grading ? "grading" : "school" },
+        search: {
+          section: grading && !keepsSchool(user) ? "grading" : "school",
+        },
       });
     const { queryClient } = context;
-    if (deps.section === "grading")
+    if (moduleTab)
+      await Promise.all(
+        moduleTab.queries().map((query) => queryClient.ensureQueryData(query)),
+      );
+    else if (deps.section === "grading")
       await Promise.all([
         queryClient.ensureQueryData(gradingOverviewQuery),
         queryClient.ensureQueryData(gradingHistoryQuery(1)),
@@ -119,8 +130,6 @@ export const Route = createFileRoute("/_app/_staff/settings")({
       await queryClient.ensureQueryData(attendanceSettingsQuery);
     else if (deps.section === "assistant")
       await queryClient.ensureQueryData(assistantSettingsQuery);
-    else if (deps.section === "reading")
-      await queryClient.ensureQueryData(readingNormsQuery);
     else
       await Promise.all([
         queryClient.ensureQueryData(accessRolesQuery),
@@ -159,6 +168,8 @@ function SettingsRoute() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
+  const moduleTabs = useSlot(settingsTabs);
+  const moduleTab = moduleTabs.find((tab) => tab.value === search.section);
   // An empty catalogue offers Add subject in its empty state instead, so the
   // page keeps one primary button.
   const subjects = (
@@ -203,7 +214,10 @@ function SettingsRoute() {
                   label: m.adminSubjectsSection(),
                 },
                 { value: "attendance" as const, label: m.attendanceTitle() },
-                { value: "reading" as const, label: m.readingSettingsTab() },
+                ...moduleTabs.map((tab) => ({
+                  value: tab.value,
+                  label: tab.label(),
+                })),
               ]
             : []),
           ...(gradesHere(user)
@@ -230,10 +244,8 @@ function SettingsRoute() {
           <SettingsPage>
             <AttendanceRules />
           </SettingsPage>
-        ) : search.section === "reading" ? (
-          <SettingsPage>
-            <ReadingNorms />
-          </SettingsPage>
+        ) : moduleTab ? (
+          <moduleTab.Tab />
         ) : search.section === "grading" ? (
           <GradingSettings />
         ) : search.section === "assistant" ? (

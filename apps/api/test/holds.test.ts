@@ -25,7 +25,7 @@ async function teachersEvent(title: string) {
     endTime: "10:00",
     location: "Room 12",
     provisional: false,
-    audiences: [{ scope: "class" as const, classId: own.id, gradeId: "" }],
+    audiences: [{ scope: "class" as const, classId: own.id, targetId: "" }],
     description: plainContent(`${title} agenda.`),
   };
   const saved = await teacher.api.calendar.save(input);
@@ -158,7 +158,7 @@ describe("holding a document while it is edited", () => {
       titleAr: "",
       body: plainContent("Held notice in full."),
       translation: null,
-      audiences: [{ scope: "families", classId: "", gradeId: "" }],
+      audiences: [{ scope: "families", classId: "", targetId: "" }],
       urgency: "normal",
       pinnedUntil: "",
       expiresOn: "",

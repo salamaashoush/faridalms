@@ -153,11 +153,8 @@ function ApplicationPage() {
             ? [{ label: m.aplFieldNumber(), value: row.reference }]
             : []),
           {
-            label: m.aplColGrade(),
-            value: m.itkEditTitle({
-              grade: inLocale(row.intake.gradeEn, row.intake.gradeAr),
-              year: inLocale(row.intake.yearTitleEn, row.intake.yearTitleAr),
-            }),
+            label: m.aplColIntake(),
+            value: inLocale(row.intake.titleEn, row.intake.titleAr),
           },
           {
             label: m.aplColFamily(),

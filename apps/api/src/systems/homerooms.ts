@@ -21,6 +21,7 @@ import {
   classViewOf,
   requireChangeable,
   saveClassParts,
+  withClassColumns,
 } from "../classes/points";
 import {
   audit,
@@ -57,15 +58,15 @@ export const directory = readProcedure
       {
         on,
         classIds: view?.classIds ?? null,
+        within: view?.within ?? null,
         ended: input.ended,
         q: input.q,
-        gradeIds: input.grade,
         locale: localeOf(context),
       },
     );
     return {
       on,
-      rows,
+      ...(await withClassColumns(context, rows)),
       manage: can(context, "classes:manage") && !view?.settled,
     };
   });
@@ -126,7 +127,6 @@ export const unstaffed = readProcedure.handler(async ({ context }) => {
       classIds: view?.classIds ?? null,
       ended: false,
       q: "",
-      gradeIds: [],
       locale: "en",
     },
   );
@@ -164,7 +164,6 @@ export const save = writeProcedure
         code: input.code,
         titleEn: input.titleEn || null,
         titleAr: input.titleAr || null,
-        gradeId: input.gradeId || null,
         locationId: input.locationId || null,
         runs,
       }),

@@ -14,3 +14,14 @@ export interface SchoolSettingsSection {
 export const schoolSettingsSections = slot<SchoolSettingsSection>(
   "school settings sections",
 );
+
+/** A tab a module adds to the settings, for whoever keeps the school's settings. */
+export interface SettingsTab {
+  value: string;
+  label: () => string;
+  /** What the tab reads, loaded before it opens. */
+  queries(): SlotQuery<unknown>[];
+  Tab: ComponentType;
+}
+
+export const settingsTabs = slot<SettingsTab>("settings tabs");

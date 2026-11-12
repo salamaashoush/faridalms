@@ -67,11 +67,11 @@ export async function newClass(
     subjects?: { subjectId: string; teacherIds: string[] }[];
   },
 ) {
-  const [options, { years }] = await Promise.all([
-    api.classes.options(),
+  const [{ grades }, { years }] = await Promise.all([
+    api.gradeLevels.options(),
     api.years.options(),
   ]);
-  const grade = options.grades[0];
+  const grade = grades[0];
   if (!grade) throw new Error("the school has no grades");
   const year = years.find((row) => row.id === input.yearId);
   if (!year) throw new Error("the school has no such year");
@@ -79,12 +79,11 @@ export async function newClass(
     code: `SA-${crypto.randomUUID().slice(0, 6)}`,
     titleEn: input.title,
     titleAr: "",
-    gradeId: grade.id,
     homeroomTeacherId: input.homeroomTeacherId ?? "",
     subjects: input.subjects ?? [],
     startsOn: year.startsOn,
     endsOn: addDays(year.endsBefore, -1),
-    parts: { year: { yearId: year.id } },
+    parts: { year: { yearId: year.id }, grade: { gradeId: grade.id } },
   });
   return { id: saved.id, title: input.title };
 }

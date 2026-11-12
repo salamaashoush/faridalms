@@ -12,7 +12,6 @@ import {
   attendanceReport,
   attendanceCounts,
 } from "@faridalms/database/stores/attendance";
-import { reachOf } from "@faridalms/database/stores/audiences";
 import {
   announcementFeed,
   managedBroadcasts,
@@ -31,7 +30,6 @@ import { threadsOf, unreadThreads } from "@faridalms/database/stores/messages";
 import { deliveryLog } from "@faridalms/database/stores/notifications";
 import { onboardingSeen } from "@faridalms/database/stores/onboarding";
 import { childrenOf } from "@faridalms/database/stores/persons";
-import { placements } from "@faridalms/database/stores/placements";
 import {
   preferenceOf,
   savePreference,
@@ -40,13 +38,11 @@ import {
   person as readPerson,
   referenceOf,
   studentDirectory,
-  youngStudents,
 } from "@faridalms/database/stores/students";
 import {
   meetingsOn,
   studentClasses,
 } from "@faridalms/database/stores/timetable";
-import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import { ATTENDANCE_MEANINGS, summarise } from "@faridalms/domain/attendance";
 import { GRACE_MS, learnerState } from "@faridalms/domain/coursework";
 import {
@@ -73,6 +69,7 @@ import { dayBoard } from "../attendance/board";
 import { dailyClassIds } from "../attendance/daily-registers";
 import { periodsOn } from "../attendance/plans";
 import { classesInView } from "../classes/points";
+import { reachAt } from "../core/audiences";
 import { modulesOf } from "../core/modules";
 import {
   can,
@@ -84,13 +81,7 @@ import {
 } from "../core/procedure";
 import { recordLinks, scopeFor } from "../core/reach";
 import { studentGroupsOf } from "../core/student-groups";
-
-async function yearOf(context: UnitContext) {
-  return workingYear(
-    await schoolYears(context.tx, context.tenantId, context.schoolId),
-    context.today,
-  );
-}
+import { studentPlacesOf, youngStudentsOf } from "../people/points";
 
 interface Slot {
   periodId: string;
@@ -273,9 +264,7 @@ export const teacher = readProcedure.handler(async ({ context }) => {
       drafts: false,
       from: context.today,
       to: addDays(context.today, 6),
-      reach: await reachOf(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
+      reach: await reachAt(context, {
         userId: context.actor.userId,
         on: context.today,
       }),
@@ -440,7 +429,6 @@ function rateOf(rows: { counts: AttendanceCounts }[]): number | null {
 
 /** A student's day as the student or a family sees it: presence, lessons and work. */
 async function studentDay(context: UnitContext, studentId: string) {
-  const year = await yearOf(context);
   const weekEnd = addDays(context.today, 7);
   const [attendance, unexplained, classIds, periods, rows, clock] =
     await Promise.all([
@@ -528,7 +516,6 @@ async function studentDay(context: UnitContext, studentId: string) {
         }))
       : [],
     work: on.coursework ? work : [],
-    year,
   };
 }
 
@@ -562,7 +549,7 @@ function labelIn(
 
 /**
  * What the school holds about one child, for a guardian to read and check:
- * who they are, their number, grade and class. It says whether this guardian
+ * who they are, their number, where a module places them and their class. It says whether this guardian
  * decides for the child, since only one who does may ask for a correction.
  */
 export const child = readProcedure
@@ -574,17 +561,11 @@ export const child = readProcedure
       await childrenOf(context.tx, scope, context.actor.userId)
     ).find((row) => row.visible && row.studentId === input.studentId);
     if (!link) throw new ORPCError("NOT_FOUND");
-    const [record, reference, held, groups, grades, sexes] = await Promise.all([
+    const [record, reference, places, groups, sexes] = await Promise.all([
       readPerson(context.tx, input.studentId),
       referenceOf(context.tx, scope, input.studentId),
-      placements(context.tx, scope, input.studentId),
+      studentPlacesOf(context, [input.studentId], context.today),
       studentGroupsOf(context, [input.studentId], context.today),
-      descriptorsFor(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        namespace: "grade_level",
-        today: context.today,
-      }),
       descriptorsFor(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
@@ -593,9 +574,6 @@ export const child = readProcedure
       }),
     ]);
     if (!record) throw new ORPCError("NOT_FOUND");
-    const current = held.find(
-      (row) => row.from <= context.today && context.today < row.to,
-    );
     return {
       studentId: input.studentId,
       fullNameEn: record.fullNameEn,
@@ -604,7 +582,7 @@ export const child = readProcedure
       birthDate: record.birthDate,
       sex: labelIn(sexes, record.sexId),
       reference: reference?.identifier ?? null,
-      grade: labelIn(grades, current?.gradeId),
+      place: places.get(input.studentId) ?? null,
       group: groups.get(input.studentId) ?? null,
       decides: link.educationalRights === "full",
     };
@@ -661,12 +639,11 @@ export const family = readProcedure
         offset: 0,
       }).then(({ rows }) => rows),
     ]);
-    const young = await youngStudents(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      userIds: chosen.map((link) => link.studentId),
-      today: context.today,
-    });
+    const young = await youngStudentsOf(
+      context,
+      chosen.map((link) => link.studentId),
+      context.today,
+    );
     const children = [];
     for (const link of chosen) {
       const day = await studentDay(context, link.studentId);
@@ -755,9 +732,7 @@ export const student = readProcedure.handler(async ({ context }) => {
   const studentId = context.actor.userId;
   const [day, reach, feed] = await Promise.all([
     studentDay(context, studentId),
-    reachOf(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
+    reachAt(context, {
       userId: studentId,
       on: context.today,
     }),
@@ -915,14 +890,14 @@ export const admin = readProcedure.handler(async ({ context }) => {
         q: "",
         phone: null,
         documentHolders: [],
-        gradeIds: [],
+        within: null,
         statuses: [],
         missingGuardian: true,
         missingAccount: false,
         sort: "name",
         dir: "asc",
         locale: "en",
-        gradeOrder: [],
+        ranks: null,
         page: 1,
         pageSize: 1,
       })

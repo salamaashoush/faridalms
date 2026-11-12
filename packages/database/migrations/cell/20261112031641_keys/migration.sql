@@ -53,6 +53,10 @@ alter table core.student_school_years add constraint student_school_years_excl e
   (tenant_id with =, student_user_id with =, org_id with =, valid_during with &&)
   where (status = 'active');
 
+alter table core.student_grades add constraint student_grades_excl exclude using gist
+  (tenant_id with =, student_user_id with =, org_id with =, valid_during with &&)
+  where (status = 'active');
+
 alter table core.user_roles add constraint user_roles_role_excl exclude using gist
   (tenant_id with =, user_id with =, org_id with =, role with =, valid_during with &&)
   where (status = 'active');

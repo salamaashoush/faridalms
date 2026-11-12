@@ -21,22 +21,36 @@ const code = v.pipe(
   v.regex(/^[A-Za-z0-9_.-]{1,40}$/, "validation.class_code"),
 );
 
+const viewValue = v.pipe(v.string(), v.maxLength(64));
+
 /**
- * What a module narrows a list to, by the key it answers for: a year, say.
- * Each value is read by the module's own schema.
+ * What a module narrows a list to, by the key it answers for: a year, or
+ * several grades, say. Each value is read by the module's own schema.
  */
 export const viewsSchema = v.optional(
   v.record(
     v.pipe(v.string(), v.regex(/^[a-z]{1,20}$/)),
-    v.pipe(v.string(), v.maxLength(64)),
+    v.union([viewValue, v.pipe(v.array(viewValue), v.maxLength(30))]),
   ),
   {},
 );
 export type Views = v.InferOutput<typeof viewsSchema>;
 
+/**
+ * What a module keeps about a record as the record's lists and forms carry
+ * it: named values, each one or several ids or words.
+ */
+export const partValueSchema = v.record(
+  v.pipe(v.string(), v.maxLength(40)),
+  v.union([
+    v.pipe(v.string(), v.maxLength(200)),
+    v.pipe(v.array(v.pipe(v.string(), v.maxLength(200))), v.maxLength(60)),
+  ]),
+);
+export type PartValue = v.InferOutput<typeof partValueSchema>;
+
 export const classDirectorySchema = v.object({
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
-  grade: v.optional(v.array(id), []),
   ended: v.optional(v.boolean(), false),
 });
 export type ClassDirectoryQuery = v.InferOutput<typeof classDirectorySchema>;
@@ -61,7 +75,6 @@ export const saveClassSchema = v.pipe(
     titleEn: optionalText(120),
     titleAr: optionalText(120),
     subjectId: v.optional(v.union([v.literal(""), id]), ""),
-    gradeId: v.optional(v.union([v.literal(""), id]), ""),
     locationId: v.optional(v.union([v.literal(""), id]), ""),
     /** The first is the class's primary teacher. */
     teacherIds: v.pipe(v.array(id), v.maxLength(4)),

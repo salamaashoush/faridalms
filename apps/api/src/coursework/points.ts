@@ -3,6 +3,7 @@ import type {
   Selection,
 } from "@faridalms/database/stores/coursework";
 import type { SubmissionFormat } from "@faridalms/database/tables/coursework";
+import type { PartValue } from "@faridalms/domain/classes";
 import type { FluencyMark } from "@faridalms/domain/learning";
 
 import { ORPCError } from "@orpc/server";
@@ -142,3 +143,101 @@ export interface LessonReadings {
 }
 
 export const lessonReadings = point<LessonReadings>("lesson readings");
+
+/**
+ * What a module keeps about a programme, saved with it from its form under
+ * the module's key, and read back for the list: the grade levels it covers,
+ * say. `retired` lets the module let go of what it kept.
+ */
+export interface ProgrammePart {
+  key: string;
+  read(
+    context: UnitContext,
+    programmeIds: readonly string[],
+  ): Promise<Map<string, PartValue>>;
+  save(
+    context: UnitContext,
+    input: { programmeId: string; value: unknown },
+  ): Promise<void>;
+  retired(context: UnitContext, programmeId: string): Promise<void>;
+}
+
+export const programmeParts = point<ProgrammePart>("programme parts");
+
+async function partsOffered(
+  context: UnitContext,
+  parts: Readonly<Record<string, unknown>>,
+) {
+  const offered = await contributionsTo(context, programmeParts);
+  if (Object.keys(parts).some((key) => !offered.some((p) => p.key === key)))
+    throw new ORPCError("BAD_REQUEST", { message: "grading.part_unknown" });
+  return offered;
+}
+
+/** Saves what the modules keep about a programme; a part no module on answers for is refused. */
+export async function saveProgrammeParts(
+  context: UnitContext,
+  programmeId: string,
+  parts: Readonly<Record<string, unknown>>,
+) {
+  for (const part of await partsOffered(context, parts))
+    if (part.key in parts)
+      await part.save(context, { programmeId, value: parts[part.key] });
+}
+
+/** What each module keeps about each programme, by programme and key. */
+export async function programmePartsOf(
+  context: UnitContext,
+  programmeIds: readonly string[],
+): Promise<Map<string, Record<string, PartValue>>> {
+  const result = new Map<string, Record<string, PartValue>>(
+    programmeIds.map((id) => [id, {}]),
+  );
+  for (const part of await contributionsTo(context, programmeParts))
+    for (const [id, value] of await part.read(context, programmeIds)) {
+      const parts = result.get(id);
+      if (parts) parts[part.key] = value;
+    }
+  return result;
+}
+
+export async function retireProgrammeParts(
+  context: UnitContext,
+  programmeId: string,
+) {
+  for (const part of await contributionsTo(context, programmeParts))
+    await part.retired(context, programmeId);
+}
+
+/**
+ * The programme a module gives a class that has none chosen for it: the
+ * one covering its grade, say. Coursework keeps what it answers as the
+ * class's derived programme.
+ */
+export interface ProgrammeDefaults {
+  programmesFor(
+    context: UnitContext,
+    classIds: readonly string[],
+  ): Promise<Map<string, string | null>>;
+}
+
+export const programmeDefaults = point<ProgrammeDefaults>("programme defaults");
+
+/**
+ * The grade a student was in over each stretch, by its fixed meaning, where
+ * a module keeps grades: what reading aloud is set against the norms of.
+ */
+export interface ReadingGrades {
+  gradesOver(
+    context: UnitContext,
+    studentId: string,
+  ): Promise<{ from: string; before: string | null; meaning: string | null }[]>;
+}
+
+export const readingGrades = point<ReadingGrades>("reading grades");
+
+/** Refuses the reading norms where no module keeps grades: norms are by grade. */
+export async function requireReadingGrades(context: UnitContext) {
+  if ((await contributionsTo(context, readingGrades)).length === 0)
+    throw new ORPCError("NOT_FOUND");
+}

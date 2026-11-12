@@ -32,6 +32,7 @@ import {
   moveClass,
   refuseOverRegisters,
 } from "../classes/enrolment";
+import { homeroomPlaced } from "./points";
 
 function subjectCode(code: string) {
   return (
@@ -48,7 +49,6 @@ export interface HomeroomInput {
   code: string;
   titleEn: string | null;
   titleAr: string | null;
-  gradeId: string;
   locationId: string;
   homeroomTeacherId: string;
   subjects: { subjectId: string; teacherIds: string[] }[];
@@ -124,7 +124,6 @@ export async function writeHomeroom(
       code: input.code,
       titleEn: input.titleEn,
       titleAr: input.titleAr,
-      gradeId: input.gradeId || null,
       locationId: input.locationId || null,
     });
     if (!saved)
@@ -145,7 +144,6 @@ export async function writeHomeroom(
       titleAr: input.titleAr,
       courseId: null,
       subjectId: null,
-      gradeId: input.gradeId || null,
       locationId: input.locationId || null,
     });
     homeroomId = created.id;
@@ -188,7 +186,6 @@ export async function writeHomeroom(
         tenantId: context.tenantId,
         orgId: context.schoolId,
         subjectId: known.id,
-        gradeId: input.gradeId || null,
         code: `${subjectCode(known.code)}-${input.code}`.slice(0, 40),
         titleEn: known.labelEn,
         titleAr: known.labelAr,
@@ -209,7 +206,6 @@ export async function writeHomeroom(
               : known.labelAr,
           courseId,
           subjectId: known.id,
-          gradeId: input.gradeId || null,
           locationId: null,
         })
       ).id;
@@ -304,6 +300,11 @@ export async function placeInHomeroom(
     input.from,
   );
   await follow(context, input.homeroom.id, input.from);
+  await homeroomPlaced(context, {
+    studentId: input.studentId,
+    homeroomClassId: input.homeroom.id,
+    from: input.from,
+  });
   return { enrollmentId, movedFrom: current?.classId ?? null };
 }
 

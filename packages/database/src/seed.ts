@@ -68,6 +68,8 @@ import {
   linkClass,
   placeMember,
 } from "./stores/homerooms";
+import { setIntakeGrade } from "./stores/intake-grades";
+import { setIntakeYear } from "./stores/intake-years";
 import {
   insertLesson,
   insertModule,
@@ -107,6 +109,7 @@ import {
   classGroupMembers,
   classGroups,
   classYears,
+  classGrades,
   classes,
   classMeetings,
   timetables,
@@ -129,6 +132,7 @@ import {
   periodGrades,
   siteEnquiries,
   rubrics,
+  studentGrades,
   studentSchoolYears,
   submissionAttempts,
   submissions,
@@ -693,6 +697,11 @@ async function seedClasses(
         code: `${short}-${letter}`,
         titleEn: `${short}${letter}`,
         titleAr: `${gradeShortAr(grade)} ${letterAr}`,
+      });
+      await tx.insert(classGrades).values({
+        tenantId,
+        orgId: schoolId,
+        classId: homeroomId,
         gradeLevelDescriptorId: need(gradeIds, grade),
       });
       await tx.insert(classYears).values({
@@ -740,7 +749,6 @@ async function seedClasses(
             titleEn: `${names?.en ?? subject} ${short}`,
             titleAr: `${names?.ar ?? subject} ${gradeShortAr(grade)}`,
             subjectDescriptorId: need(subjectIds, subject),
-            gradeLevelDescriptorId: need(gradeIds, grade),
           });
           courseIds.set(subject, courseId);
         }
@@ -755,6 +763,11 @@ async function seedClasses(
           titleAr: `${gradeShortAr(grade)} ${letterAr} ${names?.ar ?? subject}`,
           courseId,
           subjectDescriptorId: need(subjectIds, subject),
+        });
+        await tx.insert(classGrades).values({
+          tenantId,
+          orgId: schoolId,
+          classId,
           gradeLevelDescriptorId: need(gradeIds, grade),
         });
         await tx.insert(classYears).values({
@@ -1202,8 +1215,15 @@ export async function seedSchool(
         orgId: schoolId,
         schoolYearId: yearId,
         validDuring: `[${YEAR.start},${YEAR.end})`,
-        gradeLevelDescriptorId: need(grades, grade),
         entryTypeDescriptorId: need(entries, "continuing"),
+        source: "manual",
+      });
+      await tx.insert(studentGrades).values({
+        tenantId,
+        orgId: schoolId,
+        studentUserId: student.id,
+        gradeLevelDescriptorId: need(grades, grade),
+        validDuring: `[${YEAR.start},)`,
         source: "manual",
       });
       await role(
@@ -1571,7 +1591,7 @@ async function seedAnnouncements(tx: Tx, tenantId: string, schoolId: string) {
       {
         title: "Welcome to the new school year",
         body: "Registers open at 7:45 each morning. The timetable and the reading lists for the term are in the app.",
-        audience: { scope: "school", classId: null, gradeId: null },
+        audience: { scope: "school", classId: null },
         urgency: "normal",
         pinnedUntil: "2027-06-18",
         publishAt: new Date("2026-09-13T06:00:00Z"),
@@ -1579,7 +1599,7 @@ async function seedAnnouncements(tx: Tx, tenantId: string, schoolId: string) {
       {
         title: "Museum trip permission",
         body: "The museum trip is on 15 October. Please acknowledge that your child may join by 8 October.",
-        audience: { scope: "families", classId: null, gradeId: null },
+        audience: { scope: "families", classId: null },
         urgency: "important",
         requiresAck: true,
         ackDueOn: "2026-10-08",
@@ -1588,7 +1608,7 @@ async function seedAnnouncements(tx: Tx, tenantId: string, schoolId: string) {
       {
         title: "Parents' evening",
         body: "Parents' evening dates will follow once teachers confirm their slots.",
-        audience: { scope: "families", classId: null, gradeId: null },
+        audience: { scope: "families", classId: null },
         urgency: "normal",
         publishAt: null,
       },
@@ -1759,7 +1779,7 @@ export async function insertNewsletters(
   plans: readonly NewsletterPlan[],
 ) {
   const { tenantId, schoolId } = input;
-  const audience: Audience = { scope: "school", classId: null, gradeId: null };
+  const audience: Audience = { scope: "school", classId: null };
   for (const plan of plans) {
     const created = await insertBroadcast(tx, {
       ...unsetFields,
@@ -2065,13 +2085,12 @@ async function seedEvents(
     where h.tenant_id = ${tenantId}::uuid and c.id in (select y.class_id from core.class_years y where y.tenant_id = c.tenant_id and y.school_year_id = ${yearId}::uuid and y.status = 'active')
       and c.title_en = '8A' and c.status = 'active'`);
   if (!principal) return;
-  const school: Audience = { scope: "school", classId: null, gradeId: null };
+  const school: Audience = { scope: "school", classId: null };
   const families: Audience = {
     scope: "families",
     classId: null,
-    gradeId: null,
   };
-  const staff: Audience = { scope: "staff", classId: null, gradeId: null };
+  const staff: Audience = { scope: "staff", classId: null };
   await insertEvents(tx, { tenantId, schoolId, authorId: principal.user_id }, [
     {
       title: "Staff meeting",
@@ -2092,9 +2111,7 @@ async function seedEvents(
       startTime: "08:30",
       endTime: "13:00",
       location: "Egyptian Museum",
-      audiences: eight
-        ? [{ scope: "class", classId: eight.id, gradeId: null }]
-        : [families],
+      audiences: eight ? [{ scope: "class", classId: eight.id }] : [families],
       body: "Buses leave from the main gate. Bring a packed lunch.",
     },
     {
@@ -3245,8 +3262,9 @@ async function seedAdmissions(
   ];
   const kg1 = await insertIntake(tx, {
     ...org,
-    schoolYearId: yearId,
-    gradeId: need(grades, "kg1"),
+    titleEn: "KG1, 2027–2028",
+    titleAr: "الروضة الأولى، 2027–2028",
+    startsOn: "2027-09-12",
     opensOn: "2026-10-15",
     closesOn: "2027-03-31",
     capacity: 40,
@@ -3275,10 +3293,11 @@ async function seedAdmissions(
     ],
     letters: {},
   });
-  await insertIntake(tx, {
+  const first = await insertIntake(tx, {
     ...org,
-    schoolYearId: yearId,
-    gradeId: need(grades, "grade_1"),
+    titleEn: "Grade 1, 2027–2028",
+    titleAr: "الصف الأول، 2027–2028",
+    startsOn: "2027-09-12",
     opensOn: "2026-10-15",
     closesOn: "2027-03-31",
     capacity: 24,
@@ -3305,6 +3324,17 @@ async function seedAdmissions(
     priorities: ["sibling", "returning_student"],
     letters: {},
   });
+  for (const [intake, grade] of [
+    [kg1, "kg1"],
+    [first, "grade_1"],
+  ] as const) {
+    await setIntakeYear(tx, { ...org, intakeId: intake.id, yearId });
+    await setIntakeGrade(tx, {
+      tenantId,
+      intakeId: intake.id,
+      gradeId: need(grades, grade),
+    });
+  }
 
   const parent = person(context.visitor.given, context.visitor.family, "male");
   await insertPerson(tx, tenantId, parent, { primaryOrgId: schoolId });

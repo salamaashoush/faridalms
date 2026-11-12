@@ -1,5 +1,6 @@
 import type { CellTransaction } from "@faridalms/database/context";
 import type { StoredPreview } from "@faridalms/database/stores/previews";
+import type { ModuleId } from "@faridalms/domain/modules";
 import type { PublishedPicture } from "@faridalms/domain/previews";
 
 import {
@@ -34,6 +35,8 @@ export interface PublicUnit {
   /** Where the school's website answers, which its pages name as their own address. */
   siteHost: string;
   now: Date;
+  /** The modules the school's plan includes, which its public pages follow. */
+  modules: readonly ModuleId[];
 }
 
 /**
@@ -63,6 +66,7 @@ export async function withPublicSite<T>(
           school.hosts.site ??
           platformName(school.slug, "site", context.domains),
         now,
+        modules: availableModules(school.entitlements),
       }),
   );
 }

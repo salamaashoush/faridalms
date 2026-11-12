@@ -265,13 +265,14 @@ export const saveProgrammeSchema = v.pipe(
     id: v.optional(uuid),
     titleEn: title,
     titleAr: title,
-    gradeLevelIds: v.pipe(v.array(uuid), v.maxLength(20)),
     scaleId: v.nullable(uuid),
     /** How work weighs in a term grade; none weighs all work by its points. */
     categories: v.optional(
       v.pipe(v.array(categorySchema), v.maxLength(12)),
       [],
     ),
+    /** What modules keep about the programme, each read by its own schema. */
+    parts: v.optional(v.record(v.string(), v.unknown()), {}),
   }),
   v.check(
     (input) => Boolean(input.titleEn ?? input.titleAr),

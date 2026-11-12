@@ -1,8 +1,5 @@
 import type { Column, RowAction } from "@faridalms/ui/system/data-table";
-import type {
-  Facet,
-  IndexToolbarProps,
-} from "@faridalms/ui/system/index-toolbar";
+import type { IndexToolbarProps } from "@faridalms/ui/system/index-toolbar";
 import type { HeaderAction } from "@faridalms/ui/system/page-header";
 import type { ReactNode } from "react";
 
@@ -21,12 +18,13 @@ import type { ClassesSearch } from "~/components/classes/slots";
 
 import {
   endedFacet,
+  useClassColumns,
   useClassFacets,
   useNarrowed,
 } from "~/components/classes/class-facets";
 import { classTitle, subjectName } from "~/components/classes/format";
 import { classFilters, viewsOf } from "~/components/classes/slots";
-import { displayName, labelOf } from "~/components/people/format";
+import { displayName } from "~/components/people/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
@@ -68,9 +66,10 @@ function Teacher({ row }: TeacherProps) {
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function classColumns(options: Options): Column<ClassRow>[] {
-  const grade = (id: string | null) =>
-    labelOf(options.grades.find((row) => row.id === id) ?? null);
+function classColumns(
+  options: Options,
+  modules: readonly Column<ClassRow>[],
+): Column<ClassRow>[] {
   const room = (id: string | null) => {
     const found = options.rooms.find((row) => row.id === id);
     return found ? inLocale(found.nameEn, found.nameAr) || found.code : null;
@@ -92,11 +91,7 @@ function classColumns(options: Options): Column<ClassRow>[] {
         </div>
       ),
     },
-    {
-      id: "grade",
-      header: m.studentGrade(),
-      cell: (row) => <Value>{grade(row.gradeId)}</Value>,
-    },
+    ...modules,
     {
       id: "subject",
       header: m.classesSubject(),
@@ -160,16 +155,7 @@ export function ClassDirectory({
   const moduleFacets = useClassFacets(search, patch);
   const narrowed = useNarrowed(search);
   const whenFacet = endedFacet(search.ended, (ended) => patch({ ended }));
-  const gradeFacet: Facet = {
-    id: "grade",
-    label: m.studentGrade(),
-    options: options.grades.map((row) => ({
-      value: row.id,
-      label: labelOf(row) ?? row.code,
-    })),
-    selected: search.grade,
-    onChange: (grade) => patch({ grade }),
-  };
+  const moduleColumns = useClassColumns<ClassRow>(data.columns);
   const create: HeaderAction | undefined = data.manage
     ? {
         label: m.classesAdd(),
@@ -198,11 +184,10 @@ export function ClassDirectory({
       label: m.classesSearchHint(),
       placeholder: m.classesSearchPlaceholder(),
     },
-    facets: [...moduleFacets, ...(narrowed ? [] : [whenFacet]), gradeFacet],
+    facets: [...moduleFacets, ...(narrowed ? [] : [whenFacet])],
     onReset: () =>
       patch({
         q: "",
-        grade: [],
         ended: false,
         ...Object.fromEntries(filters.map((filter) => [filter.key, undefined])),
       }),
@@ -220,7 +205,7 @@ export function ClassDirectory({
         <DataTable
           caption={m.classesAllCaption()}
           rows={data.rows}
-          columns={classColumns(options)}
+          columns={classColumns(options, moduleColumns)}
           rowLabel={(row) => classTitle(row)}
           toolbar={toolbar}
           rowActions={rowActions}

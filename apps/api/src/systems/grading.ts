@@ -1,4 +1,3 @@
-import { classById } from "@faridalms/database/stores/classes";
 import {
   classCategories as classCategoriesOf,
   classGrading as classGradingOf,
@@ -28,8 +27,6 @@ import { paged, pageWindow } from "@faridalms/domain/paging";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
-import type { UnitContext } from "../core/context";
-
 import {
   audit,
   can,
@@ -37,29 +34,26 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import {
+  refuse,
+  requireReader,
+  schoolClass,
+  scopeOf,
+} from "../coursework/grading";
+import { retireProgrammeParts, saveProgrammeParts } from "../coursework/points";
+import {
+  programmesWithParts,
+  rederiveProgrammes,
+} from "../coursework/programmes";
 
 const uuid = v.pipe(v.string(), v.uuid());
-
-function refuse(message: string): never {
-  throw new ORPCError("BAD_REQUEST", { message });
-}
-
-function scopeOf(context: UnitContext) {
-  return { tenantId: context.tenantId, orgId: context.schoolId };
-}
-
-/** Those who set up grading keep scales and programmes; office staff place classes in them. */
-function requireReader(context: UnitContext) {
-  if (!can(context, "grading:manage"))
-    requireCapability(context, "classes:manage");
-}
 
 /** The school's grade scales and programmes, and the presets a scale may start from. */
 export const overview = readProcedure.handler(async ({ context }) => {
   requireReader(context);
   const [scales, programmes] = await Promise.all([
     scalesOf(context.tx, scopeOf(context)),
-    programmesOf(context.tx, scopeOf(context)),
+    programmesWithParts(context),
   ]);
   return {
     scales,
@@ -163,11 +157,13 @@ export const saveProgramme = writeProcedure
     const scales = await scalesOf(context.tx, scopeOf(context));
     if (input.scaleId && !scales.some((row) => row.id === input.scaleId))
       refuse("grading.scale_unknown");
+    const { parts, ...fields } = input;
     const saved = await saveProgrammeOf(context.tx, {
       ...scopeOf(context),
-      ...input,
+      ...fields,
     });
     if (!saved) throw new ORPCError("NOT_FOUND");
+    await saveProgrammeParts(context, saved.id, parts);
     await audit(context, {
       action: input.id
         ? "grading_programme.update"
@@ -179,7 +175,7 @@ export const saveProgramme = writeProcedure
           titleEn: input.titleEn,
           titleAr: input.titleAr,
           scaleId: input.scaleId,
-          gradeLevelIds: input.gradeLevelIds,
+          parts,
         },
       },
     });
@@ -204,6 +200,7 @@ export const retireProgramme = writeProcedure
       }))
     )
       throw new ORPCError("NOT_FOUND");
+    await retireProgrammeParts(context, input.id);
     await audit(context, {
       action: "grading_programme.retire",
       objectType: "programme",
@@ -211,12 +208,6 @@ export const retireProgramme = writeProcedure
     });
     return { ok: true };
   });
-
-async function schoolClass(context: UnitContext, classId: string) {
-  const row = await classById(context.tx, context, classId);
-  if (!row) throw new ORPCError("NOT_FOUND");
-  return row;
-}
 
 /** The programme and scale a class follows, its own or by default. */
 export const classGrading = readProcedure
@@ -255,6 +246,7 @@ export const setClassGrade = writeProcedure
       programmeId: input.programmeId,
       scaleId: input.scaleId,
     });
+    await rederiveProgrammes(context, [row.id]);
     await audit(context, {
       action: "grading_class.set",
       objectType: "class",
@@ -303,7 +295,7 @@ export const classPlan = readProcedure
             id: programme.id,
             titleEn: programme.titleEn,
             titleAr: programme.titleAr,
-            byGradeLevel: !grading?.programmeId,
+            derived: !grading?.programmeId,
           }
         : null,
       scale:

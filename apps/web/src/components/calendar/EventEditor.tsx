@@ -129,12 +129,12 @@ function draftOf(
       ? existing.audiences.map((row) => ({
           scope: row.scope,
           classId: row.classId ?? "",
-          gradeId: row.gradeId ?? "",
+          targetId: row.targetId ?? "",
         }))
       : [
           manages
-            ? { scope: "school", classId: "", gradeId: "" }
-            : { scope: "class", classId: "", gradeId: "" },
+            ? { scope: "school", classId: "", targetId: "" }
+            : { scope: "class", classId: "", targetId: "" },
         ],
     primaryLocale:
       existing?.primaryLocale ?? (getLocale() === "ar" ? "ar" : "en"),

@@ -11,7 +11,12 @@ import type { ClassesSearch, ClassesTab } from "~/components/classes/slots";
 
 import { ClassDirectory } from "~/components/classes/ClassDirectory";
 import { MyClasses } from "~/components/classes/MyClasses";
-import { classesTabs, classFilters, viewsOf } from "~/components/classes/slots";
+import {
+  classColumns,
+  classesTabs,
+  classFilters,
+  viewsOf,
+} from "~/components/classes/slots";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
@@ -71,9 +76,10 @@ export const Route = createFileRoute("/_app/_staff/classes")({
     const [mine] = await Promise.all([
       context.queryClient.ensureQueryData(myClassesQuery(views)),
       context.queryClient.ensureQueryData(classOptionsQuery),
-      ...filters.map((filter) =>
-        context.queryClient.ensureQueryData(filter.query()),
-      ),
+      ...[
+        ...filters,
+        ...filled(context.extensions, user.modules, classColumns),
+      ].map((part) => context.queryClient.ensureQueryData(part.query())),
     ]);
     const tabs = filled(context.extensions, user.modules, classesTabs);
     const scopes = scopesOf(user.capabilities, mine.rows.length > 0, tabs);

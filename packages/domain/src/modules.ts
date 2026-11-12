@@ -47,7 +47,12 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     schoolSwitch: false,
     systems: ["years", "rollover"],
   },
-  grade_levels: { requires: [], basic: true, schoolSwitch: false, systems: [] },
+  grade_levels: {
+    requires: [],
+    basic: true,
+    schoolSwitch: false,
+    systems: ["gradeLevels"],
+  },
   homerooms: {
     requires: [],
     basic: true,
@@ -112,7 +117,8 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     systems: ["records"],
   },
   badges: {
-    requires: [],
+    // Badges sign in young children, whom only their grade marks as young.
+    requires: [["grade_levels"]],
     basic: false,
     schoolSwitch: false,
     systems: ["badges"],

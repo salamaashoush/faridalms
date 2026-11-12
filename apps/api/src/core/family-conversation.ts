@@ -5,8 +5,8 @@ import { applicationSubject } from "@faridalms/domain/enquiries";
 
 import type { ConversationScope } from "../messages/conversations";
 
+import { registerLetterDelivery } from "../admissions/decisions";
 import { openMailboxConversation, writeEntry } from "../messages/conversations";
-import { registerLetterDelivery } from "./decisions";
 
 /**
  * An applying family's conversation with admissions: the one their

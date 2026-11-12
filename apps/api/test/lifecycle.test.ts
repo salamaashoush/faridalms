@@ -56,7 +56,7 @@ describe("a paused school", () => {
             endTime: "",
             location: "",
             provisional: false,
-            audiences: [{ scope: "school", classId: "", gradeId: "" }],
+            audiences: [{ scope: "school", classId: "", targetId: "" }],
             description: plainContent("Nothing changes while paused."),
           }),
         ),

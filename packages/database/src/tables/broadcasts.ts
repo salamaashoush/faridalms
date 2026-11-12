@@ -29,7 +29,6 @@ import {
   pk,
   tenantColumns,
 } from "./conventions";
-import { descriptors } from "./descriptors";
 import { files } from "./files";
 import { users } from "./people";
 import { siteCategories, slugPattern } from "./site";
@@ -165,8 +164,6 @@ export const broadcastAudiences = core.table.withRLS(
     broadcastId: uuid("broadcast_id").notNull(),
     scope: text("scope").$type<AudienceScope>().notNull(),
     classId: uuid("class_id"),
-    gradeDescriptorId: uuid("grade_descriptor_id"),
-    gradeNs: text("grade_ns").notNull().default("grade_level"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -182,21 +179,15 @@ export const broadcastAudiences = core.table.withRLS(
       [t.tenantId, t.classId],
       [classes.tenantId, classes.id],
     ),
-    fk(
-      "broadcast_audiences",
-      [t.tenantId, t.gradeDescriptorId, t.gradeNs],
-      [descriptors.tenantId, descriptors.id, descriptors.namespace],
-    ),
     ck(
       "broadcast_audiences",
       "scope",
-      sql`scope in ('school', 'staff', 'families', 'students', 'class', 'grade')`,
+      sql`scope in ('school', 'staff', 'families', 'students', 'class')`,
     ),
-    ck("broadcast_audiences", "grade_ns", sql`grade_ns = 'grade_level'`),
     ck(
       "broadcast_audiences",
       "target",
-      sql`(scope = 'class') = (class_id is not null) and (scope = 'grade') = (grade_descriptor_id is not null)`,
+      sql`(scope = 'class') = (class_id is not null)`,
     ),
     index("broadcast_audiences_broadcast_idx")
       .on(t.tenantId, t.broadcastId)

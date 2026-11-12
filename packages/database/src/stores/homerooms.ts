@@ -48,9 +48,9 @@ export async function homeroomDirectory(
   filter: {
     on: string;
     classIds: readonly string[] | null;
+    within?: readonly string[] | null;
     ended: boolean;
     q: string;
-    gradeIds: string[];
     locale: "ar" | "en";
   },
 ): Promise<HomeroomRow[]> {
@@ -72,10 +72,10 @@ export async function homeroomDirectory(
             ? sql`upper(c.runs) <= ${filter.on}::date`
             : sql`(upper_inf(c.runs) or upper(c.runs) > ${filter.on}::date)`
       }
+      and ${filter.within ? sql`c.id = any(${uuidArray([...filter.within])})` : sql`true`}
       and c.id in ${reached(scope, filter.on)}
       and (${holds(q, [sql`c.code`, sql`c.title_en`, sql`c.title_ar`])})
-      and (${filter.gradeIds.length === 0} or c.grade_level_descriptor_id = any(${uuidArray(filter.gradeIds)}))
-    order by c.grade_level_descriptor_id, ${nameKey}, c.id`);
+    order by ${nameKey}, c.id`);
   const ids = rows.map((row) => row.id);
   const offerings = ids.length
     ? await tx.execute<{

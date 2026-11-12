@@ -63,6 +63,7 @@ import { toast } from "sonner";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ChooseFromMedia } from "~/components/media/ChooseFromMedia";
 import { CheckboxRow } from "~/components/people/fields";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
@@ -1050,9 +1051,12 @@ export function FieldControl({
   onChange,
   prefix,
 }: FieldControlProps) {
+  const grades = useCurrentUser().modules.grade_levels;
   const id = `${prefix}-${name}`;
   const label = labelOf(name);
   if (context.wordsOnly && !hasWords(field)) return null;
+  // A school without grade levels asks no grade, so offers no such choice.
+  if (name === "grade" && field.kind === "choice" && !grades) return null;
   switch (field.kind) {
     case "text":
       return (

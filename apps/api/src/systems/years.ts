@@ -53,6 +53,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { reachesClass, requireStudent, scopeFor } from "../core/reach";
+import { YEAR_READERS } from "../years/years";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -369,13 +370,7 @@ function yearView(year: SchoolYear) {
 
 /** The school's years and what placing a student in one offers, for the forms that ask for a year. */
 export const options = readProcedure.handler(async ({ context }) => {
-  requireCapability(
-    context,
-    "classes:read",
-    "classes:manage",
-    "people:read",
-    "people:manage",
-  );
+  requireCapability(context, ...YEAR_READERS);
   const load = (namespace: string) =>
     descriptorsFor(context.tx, {
       tenantId: context.tenantId,

@@ -20,7 +20,6 @@ import {
   attemptsSoFar,
   countAttempt,
   createSession,
-  effectiveAccess,
   findPasswordIdentity,
   recordSignIn,
   revokeSession,
@@ -30,7 +29,6 @@ import {
 } from "@faridalms/database/stores/identity";
 import { findInvite, redeemInvite } from "@faridalms/database/stores/invites";
 import { childrenOf } from "@faridalms/database/stores/persons";
-import { youngStudents } from "@faridalms/database/stores/students";
 import { BADGE_DAYS } from "@faridalms/domain/badges";
 import {
   acceptInviteSchema,
@@ -87,6 +85,7 @@ import {
   SHARED_LIFETIME,
   userAgentSummary,
 } from "../core/session";
+import { accessAt, accessAtSchool } from "../people/access";
 
 const PER_NAME = 10;
 // A class signs in together from one network, so only badges that fail
@@ -123,10 +122,8 @@ export const signIn = schoolProcedure
         );
         const access =
           identity && proof.valid
-            ? await effectiveAccess(tx, {
-                tenantId,
+            ? await accessAtSchool(tx, context, {
                 userId: identity.userId,
-                orgId: schoolId,
                 today,
                 context: input.context ?? "staff",
               })
@@ -209,10 +206,8 @@ export const badgeSignIn = schoolProcedure
         );
         const access =
           holder && holder.accountState === "active"
-            ? await effectiveAccess(tx, {
-                tenantId,
+            ? await accessAtSchool(tx, context, {
                 userId: holder.userId,
-                orgId: schoolId,
                 today,
                 context: "student",
               })
@@ -626,10 +621,8 @@ export const switchContext = sessionProcedure
       subjectUserId: context.actor.userId,
       details: { from: context.actor.context, to: input.context },
     });
-    const access = await effectiveAccess(context.tx, {
-      tenantId: context.tenantId,
+    const access = await accessAt(context, {
       userId: context.actor.userId,
-      orgId: context.schoolId,
       today: context.today,
       context: input.context,
     });
@@ -658,21 +651,12 @@ export const childSession = sessionProcedure
     );
     if (!links.some((link) => link.studentId === input.studentId))
       throw new ORPCError("NOT_FOUND");
-    const young = await youngStudents(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      userIds: [input.studentId],
-      today: context.today,
-    });
-    const access = await effectiveAccess(context.tx, {
-      tenantId: context.tenantId,
+    const access = await accessAt(context, {
       userId: input.studentId,
-      orgId: context.schoolId,
       today: context.today,
       context: "student",
     });
     if (
-      !young.has(input.studentId) ||
       !access.contexts.includes("student") ||
       access.profile !== "young_student"
     )

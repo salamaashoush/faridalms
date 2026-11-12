@@ -245,17 +245,16 @@ describe("creating a school from the operator console", () => {
       roles: ["teacher"],
     });
     const options = await api.classes.options();
-    const [grade] = options.grades;
+    const [grade] = (await api.gradeLevels.options()).grades;
     const [subject] = options.subjects;
     if (!grade || !subject) throw new Error("the catalogue has no grades");
     const homeroom = await api.homerooms.save({
       startsOn: addDays(today, -40),
       endsOn: addDays(today, 200),
-      parts: { year: { yearId: year.id } },
+      parts: { year: { yearId: year.id }, grade: { gradeId: grade.id } },
       code: "1A",
       titleEn: "1A",
       titleAr: "",
-      gradeId: grade.id,
       homeroomTeacherId: teacher.id,
       subjects: [{ subjectId: subject.id, teacherIds: [teacher.id] }],
     });

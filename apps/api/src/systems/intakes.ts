@@ -10,23 +10,18 @@ import {
   updateForm,
   updateIntake,
 } from "@faridalms/database/stores/admissions";
-import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import {
   templateById,
   templatesOf,
 } from "@faridalms/database/stores/templates";
-import { schoolYears } from "@faridalms/database/stores/years";
 import {
-  admissionsYear,
   formRefSchema,
   intakeListSchema,
   intakeRefSchema,
   formUnready,
   saveFormSchema,
   saveIntakeSchema,
-  suggestedAges,
-  suggestedCutoff,
 } from "@faridalms/domain/admissions";
 import { formQuestions } from "@faridalms/domain/questions";
 import { ORPCError } from "@orpc/server";
@@ -34,7 +29,12 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { admissionConsents, intakeOf } from "../core/admissions";
+import { admissionConsents, intakeOf } from "../admissions/access";
+import {
+  intakeViewOf,
+  saveIntakeParts,
+  withIntakeFacts,
+} from "../admissions/points";
 import {
   audit,
   can,
@@ -59,22 +59,6 @@ const org = (context: UnitContext) => ({
   orgId: context.schoolId,
 });
 
-/** The years an intake may be for: the current one and those still to come. */
-async function entryYears(context: UnitContext) {
-  return (
-    await schoolYears(context.tx, context.tenantId, context.schoolId)
-  ).filter((year) => year.lifecycle !== "closed");
-}
-
-async function grades(context: UnitContext) {
-  return descriptorsFor(context.tx, {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    namespace: "grade_level",
-    today: context.today,
-  });
-}
-
 async function formOf(context: UnitContext, id: string) {
   const [form] = await formsOf(context.tx, { ...org(context), id });
   if (!form) throw new ORPCError("NOT_FOUND");
@@ -82,41 +66,24 @@ async function formOf(context: UnitContext, id: string) {
 }
 
 /**
- * What setting up admissions chooses from: the years and grades an intake
- * may be for, the school's forms, the age range and cut-off each grade
- * starts with, and whether the consents an application asks have words.
+ * What setting up admissions chooses from: the school's forms and letters,
+ * its country (which the day ages are counted on follows), and whether the
+ * consents an application asks have words.
  */
 export const options = readProcedure.handler(async ({ context }) => {
   readsAdmissions(context);
-  const [years, gradeRows, forms, school, consents, letters] =
-    await Promise.all([
-      entryYears(context),
-      grades(context),
-      formsOf(context.tx, org(context)),
-      schoolProfile(context.tx, context.schoolId),
-      admissionConsents(context),
-      templatesOf(context.tx, {
-        ...org(context),
-        viewerId: context.actor.userId,
-        kinds: ["admission_letter"],
-      }).then(({ rows }) => rows),
-    ]);
-  const country = school?.countryCode ?? null;
+  const [forms, school, consents, letters] = await Promise.all([
+    formsOf(context.tx, org(context)),
+    schoolProfile(context.tx, context.schoolId),
+    admissionConsents(context),
+    templatesOf(context.tx, {
+      ...org(context),
+      viewerId: context.actor.userId,
+      kinds: ["admission_letter"],
+    }).then(({ rows }) => rows),
+  ]);
   return {
-    years: years.map((year) => ({
-      id: year.id,
-      titleEn: year.titleEn,
-      titleAr: year.titleAr,
-      startsOn: year.startsOn,
-      lifecycle: year.lifecycle,
-      cutoffOn: suggestedCutoff(year.startsOn, country),
-    })),
-    grades: gradeRows.map((grade) => ({
-      id: grade.id,
-      labelEn: grade.labelEn,
-      labelAr: grade.labelAr,
-      ...suggestedAges(grade.meaning),
-    })),
+    country: school?.countryCode ?? null,
     forms: forms.map((form) => ({
       id: form.id,
       nameEn: form.nameEn,
@@ -135,21 +102,20 @@ export const options = readProcedure.handler(async ({ context }) => {
   };
 });
 
-/** A year's intakes, grade by grade, with how many families are applying to each. */
+/** The intakes a module's view names, or all, with how many families are applying to each. */
 export const list = readProcedure
   .input(intakeListSchema)
   .handler(async ({ input, context }) => {
     readsAdmissions(context);
-    const years = await entryYears(context);
-    const yearId =
-      input.year || admissionsYear(years, context.today)?.id || null;
-    const intakes = yearId
-      ? await intakesOf(context.tx, { ...org(context), yearId })
-      : [];
+    const view = await intakeViewOf(context, input.views);
+    const intakes = await intakesOf(context.tx, {
+      ...org(context),
+      intakeIds: view?.intakeIds ?? null,
+    });
     return {
-      yearId,
       today: context.today,
-      intakes,
+      title: view?.title ?? null,
+      intakes: await withIntakeFacts(context, intakes),
       configures: can(context, "admissions:configure"),
     };
   });
@@ -158,14 +124,13 @@ export const intake = readProcedure
   .input(intakeRefSchema)
   .handler(async ({ input, context }) => {
     readsAdmissions(context);
-    return intakeOf(context, input.id);
+    const [found] = await withIntakeFacts(context, [
+      await intakeOf(context, input.id),
+    ]);
+    if (!found) throw new ORPCError("NOT_FOUND");
+    return found;
   });
 
-/**
- * Creates an intake for a year and grade, or changes one. Its year and
- * grade are fixed once made; the form it uses must have been published, so
- * families never meet questions the office is still writing.
- */
 /** Refuses a letter that is not one of the school's admission letters. */
 async function requireLetters(context: UnitContext, letters: IntakeLetters) {
   const ids = new Set(
@@ -182,6 +147,11 @@ async function requireLetters(context: UnitContext, letters: IntakeLetters) {
   }
 }
 
+/**
+ * Creates an intake or changes one, with what the modules keep about it;
+ * the form it uses must have been published, so families never meet
+ * questions the office is still writing.
+ */
 export const saveIntake = writeProcedure
   .input(saveIntakeSchema)
   .handler(async ({ input, context }) => {
@@ -192,6 +162,9 @@ export const saveIntake = writeProcedure
         message: "intake.form_unpublished",
       });
     const fields = {
+      titleEn: input.titleEn,
+      titleAr: input.titleAr,
+      startsOn: input.startsOn,
       opensOn: input.opensOn,
       closesOn: input.closesOn,
       capacity: input.capacity,
@@ -210,11 +183,6 @@ export const saveIntake = writeProcedure
     await requireLetters(context, input.letters);
     if (input.id) {
       const before = await intakeOf(context, input.id);
-      if (
-        before.schoolYearId !== input.schoolYearId ||
-        before.gradeId !== input.gradeId
-      )
-        throw new ORPCError("BAD_REQUEST", { message: "intake.fixed" });
       const version = await updateIntake(context.tx, {
         ...org(context),
         id: input.id,
@@ -229,6 +197,9 @@ export const saveIntake = writeProcedure
         change: {
           table: "core.admission_intakes",
           before: {
+            titleEn: before.titleEn,
+            titleAr: before.titleAr,
+            startsOn: before.startsOn,
             opensOn: before.opensOn,
             closesOn: before.closesOn,
             capacity: before.capacity,
@@ -247,18 +218,21 @@ export const saveIntake = writeProcedure
           after: fields,
         },
       });
+      await saveIntakeParts(context, {
+        intakeId: input.id,
+        startsOn: input.startsOn,
+        parts: input.parts,
+      });
       return { id: input.id, version };
     }
-    const years = await entryYears(context);
-    if (!years.some((year) => year.id === input.schoolYearId))
-      throw new ORPCError("BAD_REQUEST", { message: "intake.year" });
-    if (!(await grades(context)).some((grade) => grade.id === input.gradeId))
-      throw new ORPCError("BAD_REQUEST", { message: "intake.grade" });
     const created = await insertIntake(context.tx, {
       ...org(context),
-      schoolYearId: input.schoolYearId,
-      gradeId: input.gradeId,
       ...fields,
+    });
+    await saveIntakeParts(context, {
+      intakeId: created.id,
+      startsOn: input.startsOn,
+      parts: input.parts,
     });
     await audit(context, {
       action: "admission_intake.create",
@@ -267,11 +241,7 @@ export const saveIntake = writeProcedure
       change: {
         table: "core.admission_intakes",
         before: null,
-        after: {
-          schoolYearId: input.schoolYearId,
-          gradeId: input.gradeId,
-          ...fields,
-        },
+        after: { ...fields, parts: input.parts },
       },
     });
     return created;

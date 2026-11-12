@@ -17,23 +17,15 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type {
-  StudentEditorPartProps,
-  StudentPartProps,
-} from "~/components/people/slots";
+import type { StudentPartProps } from "~/components/people/slots";
 
 import { labelOf, lastDay } from "~/components/people/format";
-import { ShownValue } from "~/components/people/StudentEditor";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { peopleOptionsQuery, studentRecordQuery } from "~/queries/students";
 import { placementsQuery, yearOptionsQuery } from "~/queries/years";
-import { saveStudent } from "~/server/students";
 import { saveArrival } from "~/server/years";
 import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
-
-import { namesFrom, namesInput } from "../people/fields";
 
 type Placements = Awaited<
   ReturnType<NonNullable<ReturnType<typeof placementsQuery>["queryFn"]>>
@@ -51,11 +43,9 @@ function labelIn(
 }
 
 function useLabels() {
-  const people = useSuspenseQuery(peopleOptionsQuery).data;
   const years = useSuspenseQuery(yearOptionsQuery).data;
   return {
     years,
-    grade: (id: string | null) => labelIn(people.grades, id),
     entry: (id: string | null) => labelIn(years.entryTypes, id),
     exit: (id: string | null) => labelIn(years.exitTypes, id),
     open: (yearId: string | undefined) =>
@@ -78,27 +68,17 @@ function useRefresh(studentId: string) {
 
 interface PlacementSectionProps {
   placements: Placements;
-  onEdit?: () => void;
 }
 
-function PlacementSection({ placements, onEdit }: PlacementSectionProps) {
-  const labels = useLabels();
+function PlacementSection({ placements }: PlacementSectionProps) {
   const placement = placements.current;
   return (
-    <RecordSection
-      title={m.studentPlacement()}
-      edit={
-        onEdit ? { label: m.studentChangeGrade(), onClick: onEdit } : undefined
-      }
-    >
+    <RecordSection title={m.studentPlacement()}>
       <Facts>
         <Fact label={m.studentSchoolYear()} notApplicable={!placement}>
           {placement
             ? inLocale(placement.yearTitleEn, placement.yearTitleAr)
             : null}
-        </Fact>
-        <Fact label={m.studentGrade()} notApplicable={!placement}>
-          {placement ? labels.grade(placement.gradeId) : null}
         </Fact>
         <Fact label={m.enrollmentStarts()} notApplicable={!placement}>
           {placement ? formatDate(placement.from) : null}
@@ -136,7 +116,9 @@ export function StudentYearHistory({ student, today }: StudentPartProps) {
               >
                 <div className="grid min-w-0 gap-0.5">
                   <span className="flex flex-wrap items-center gap-x-3 text-sm leading-5 font-medium">
-                    <Value>{labels.grade(placement.gradeId)}</Value>
+                    <Value>
+                      {inLocale(placement.yearTitleEn, placement.yearTitleAr)}
+                    </Value>
                     {current ? (
                       <StatusText tone="success">
                         {m.enrollmentCurrent()}
@@ -144,14 +126,9 @@ export function StudentYearHistory({ student, today }: StudentPartProps) {
                     ) : null}
                   </span>
                   <span className="text-[13px] leading-[18px] text-muted-foreground">
-                    {[
-                      inLocale(placement.yearTitleEn, placement.yearTitleAr),
-                      placement.exitTypeId
-                        ? labels.exit(placement.exitTypeId)
-                        : null,
-                    ]
-                      .filter((part) => part !== null)
-                      .join(" · ")}
+                    {placement.exitTypeId
+                      ? labels.exit(placement.exitTypeId)
+                      : null}
                   </span>
                 </div>
                 <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm leading-5">
@@ -180,17 +157,17 @@ export function StudentYearHistory({ student, today }: StudentPartProps) {
 }
 
 /**
- * Where a student is placed, with a change of grade in the working year,
- * and how they came to the school, from their first placement here.
+ * Where a student is placed, and how they came to the school, from their
+ * first placement here.
  */
 export function StudentYearAside({ student, manage }: StudentPartProps) {
   const labels = useLabels();
   const placements = useSuspenseQuery(placementsQuery(student.id)).data;
   const [sheet, setSheet] = useState<{
-    which: "grade" | "arrival" | null;
+    which: "arrival" | null;
     key: number;
   }>({ which: null, key: 0 });
-  const open = (which: "grade" | "arrival") => () =>
+  const open = (which: "arrival") => () =>
     setSheet((current) => ({ which, key: current.key + 1 }));
   const close = () => setSheet((current) => ({ ...current, which: null }));
   const first = placements.placements.at(-1);
@@ -198,14 +175,7 @@ export function StudentYearAside({ student, manage }: StudentPartProps) {
     Boolean(placements.placements[0]?.exitTypeId) && !placements.current;
   return (
     <>
-      {gone ? null : (
-        <PlacementSection
-          placements={placements}
-          onEdit={
-            manage && placements.workingYearId ? open("grade") : undefined
-          }
-        />
-      )}
+      {gone ? null : <PlacementSection placements={placements} />}
       {first ? (
         <RecordSection
           title={m.arrivalTitle()}
@@ -228,14 +198,6 @@ export function StudentYearAside({ student, manage }: StudentPartProps) {
           </Facts>
         </RecordSection>
       ) : null}
-      {sheet.which === "grade" ? (
-        <GradeSheet
-          key={sheet.key}
-          studentId={student.id}
-          placements={placements}
-          onClose={close}
-        />
-      ) : null}
       {sheet.which === "arrival" && first ? (
         <ArrivalSheet
           key={sheet.key}
@@ -245,83 +207,6 @@ export function StudentYearAside({ student, manage }: StudentPartProps) {
         />
       ) : null}
     </>
-  );
-}
-
-interface GradeSheetProps {
-  studentId: string;
-  placements: Placements;
-  onClose: () => void;
-}
-
-/** Places a student in a grade in the working year, from today. */
-function GradeSheet({ studentId, placements, onClose }: GradeSheetProps) {
-  const people = useSuspenseQuery(peopleOptionsQuery).data;
-  const student = useSuspenseQuery(studentRecordQuery(studentId)).data;
-  const refresh = useRefresh(studentId);
-  const current =
-    placements.current?.schoolYearId === placements.workingYearId
-      ? placements.current
-      : null;
-  const [gradeId, setGradeId] = useState(current?.gradeId ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const mutation = useMutation({
-    mutationFn: () =>
-      saveStudent({
-        data: {
-          id: student.id,
-          expectedVersion: student.version,
-          names: namesInput(namesFrom(student)),
-          preferredName: student.preferredGivenName ?? "",
-          reference: student.reference ?? "",
-          birthDate: student.birthDate ?? "",
-          sexId: student.sexId ?? "",
-          parts: { year: { gradeId } },
-        },
-      }),
-    meta: { inlineError: true },
-  });
-  return (
-    <SheetForm
-      open
-      onOpenChange={(next) => (next ? undefined : onClose())}
-      title={m.studentChangeGrade()}
-      pending={mutation.isPending}
-      error={mutation.error ? getMessageFromError(mutation.error) : null}
-      onSubmit={async () => {
-        if (!gradeId) {
-          setError(m.validationSelection());
-          return;
-        }
-        await mutation.mutateAsync().then(
-          async () => {
-            await refresh();
-            toast.success(m.managementSaved());
-            onClose();
-          },
-          () => undefined,
-        );
-      }}
-    >
-      <p className="text-sm leading-5 text-muted-foreground">
-        {m.studentChangeGradeHint()}
-      </p>
-      <SelectField
-        id="sheet-grade"
-        label={m.studentGrade()}
-        value={gradeId}
-        options={people.grades.map((row) => ({
-          value: row.id,
-          label: labelOf(row) ?? row.code,
-        }))}
-        onChange={(value) => {
-          setError(null);
-          setGradeId(value);
-        }}
-        errors={error ? [error] : undefined}
-        width="name"
-      />
-    </SheetForm>
   );
 }
 
@@ -398,72 +283,6 @@ function ArrivalSheet({ studentId, placement, onClose }: ArrivalSheetProps) {
         onChange={(event) => setPreviousSchool(event.target.value)}
       />
     </SheetForm>
-  );
-}
-
-/**
- * A student's grade in the working year on the student form: chosen for a
- * new student, shown for one already placed, changed on their record.
- */
-export function StudentYearField({
-  student,
-  value,
-  onChange,
-}: StudentEditorPartProps) {
-  const people = useSuspenseQuery(peopleOptionsQuery).data;
-  if (student) return <PlacedGrade studentId={student.id} />;
-  const gradeId =
-    typeof value === "object" && value && "gradeId" in value
-      ? String(value.gradeId)
-      : "";
-  return (
-    <SelectField
-      id="student-grade"
-      label={m.studentGrade()}
-      optional
-      hint={m.studentGradeHint()}
-      value={gradeId || "none"}
-      options={[
-        ...people.grades.map((row) => ({
-          value: row.id,
-          label: labelOf(row) ?? row.code,
-        })),
-        { value: "none", label: m.studentNotPlacedYet() },
-      ]}
-      onChange={(next) => onChange({ gradeId: next === "none" ? "" : next })}
-      width="name"
-    />
-  );
-}
-
-interface PlacedGradeProps {
-  studentId: string;
-}
-
-function PlacedGrade({ studentId }: PlacedGradeProps) {
-  const labels = useLabels();
-  const { current } = useSuspenseQuery(placementsQuery(studentId)).data;
-  return (
-    <ShownValue
-      label={m.studentGrade()}
-      link={{ id: studentId, tab: "enrollment", label: m.studentChangeGrade() }}
-    >
-      {current ? labels.grade(current.gradeId) : m.studentStatusUnplaced()}
-    </ShownValue>
-  );
-}
-
-interface PlacedGradeLabelProps {
-  placements: Placements;
-}
-
-/** The grade a student is placed in today, as the school names it. */
-export function PlacedGradeLabel({ placements }: PlacedGradeLabelProps) {
-  const labels = useLabels();
-  return (
-    <Value>
-      {placements.current ? labels.grade(placements.current.gradeId) : null}
-    </Value>
   );
 }
 

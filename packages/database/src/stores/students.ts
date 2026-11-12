@@ -1,6 +1,5 @@
 import type { StudentStatus } from "@faridalms/domain/people";
 
-import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
 import { familyRoleFor } from "@faridalms/domain/family-roles";
 import { fullName } from "@faridalms/domain/people";
 import { and, eq, sql } from "drizzle-orm";
@@ -15,7 +14,7 @@ import {
   userRoles,
 } from "../tables/membership";
 import { contactPoints, externalIds, users } from "../tables/people";
-import { bounds, textArray, uuidArray } from "./sql";
+import { bounds, intArray, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -53,13 +52,18 @@ const referenceSql = (scope: Scope) => sql`(
   order by e.assigning_org_id nulls last limit 1)`;
 
 /**
- * The students a module's view names, with the status and grade it gives
- * each in place of the role's: a year's students, say, with their placement.
+ * The students a module's view names, with the status it gives each in
+ * place of the role's: a year's students, say, by their placement.
  */
 export interface GivenStudents {
   ids: readonly string[];
   statuses: readonly StudentStatus[];
-  grades: readonly (string | null)[];
+}
+
+/** A module's order of the students, as a rank each; the unranked come last. */
+export interface StudentRanks {
+  ids: readonly string[];
+  ranks: readonly number[];
 }
 
 export interface DirectoryFilter {
@@ -69,14 +73,15 @@ export interface DirectoryFilter {
   phone: string | null;
   /** Students whose identity document number the search matched exactly. */
   documentHolders: string[];
-  gradeIds: string[];
+  /** Only these students, where a module's filter narrows the list. */
+  within: readonly string[] | null;
   statuses: StudentStatus[];
   missingGuardian: boolean;
   missingAccount: boolean;
-  sort: "name" | "reference" | "grade";
+  sort: "name" | "reference" | "rank";
   dir: "asc" | "desc";
   locale: "ar" | "en";
-  gradeOrder: string[];
+  ranks: StudentRanks | null;
   page: number;
   pageSize: number;
 }
@@ -87,7 +92,6 @@ export interface DirectoryRow {
   fullNameAr: string | null;
   photoFileId: string | null;
   reference: string | null;
-  gradeId: string | null;
   status: StudentStatus;
   guardianPhone: string | null;
   hasGuardian: boolean;
@@ -109,8 +113,8 @@ export async function studentDirectory(
   const order =
     filter.sort === "reference"
       ? sql`reference ${direction} nulls last, ${nameKey}, u.id`
-      : filter.sort === "grade"
-        ? sql`array_position(${uuidArray(filter.gradeOrder)}, u.grade_id) ${direction} nulls last, ${nameKey}, u.id`
+      : filter.sort === "rank"
+        ? sql`u.rank ${direction} nulls last, ${nameKey}, u.id`
         : sql`${nameKey} ${direction}, u.id`;
   const q = filter.q.trim();
   const words =
@@ -134,7 +138,6 @@ export async function studentDirectory(
     full_name_ar: string | null;
     photo_file_id: string | null;
     reference: string | null;
-    grade_id: string | null;
     status: StudentStatus;
     guardian_phone: string | null;
     has_guardian: boolean;
@@ -144,16 +147,19 @@ export async function studentDirectory(
     total: number;
   }>(sql`
     with given as (
-      select g.id as student_user_id, g.status, nullif(g.grade, '')::uuid as grade_id
-      from unnest(${uuidArray([...(filter.given?.ids ?? [])])}, ${textArray([...(filter.given?.statuses ?? [])])},
-        ${textArray((filter.given?.grades ?? []).map((grade) => grade ?? ""))}) as g(id, status, grade)
+      select g.id as student_user_id, g.status
+      from unnest(${uuidArray([...(filter.given?.ids ?? [])])}, ${textArray([...(filter.given?.statuses ?? [])])})
+        as g(id, status)
     ), members as (
-      select student_user_id, status, grade_id from given
+      select student_user_id, status from given
       union
-      select distinct r.user_id, null::text, null::uuid from ${roleRows(scope)} and ${filter.given === null}
+      select distinct r.user_id, null::text from ${roleRows(scope)} and ${filter.given === null}
+    ), ranked as (
+      select k.id, k.rank from unnest(${uuidArray([...(filter.ranks?.ids ?? [])])},
+        ${intArray(filter.ranks?.ranks ?? [])}) as k(id, rank)
     ), listed as (
       select u.id, u.full_name_en, u.full_name_ar, u.photo_file_id, u.medical_alert, u.custody_alert,
-             m.grade_id,
+             (select k.rank from ranked k where k.id = u.id) as rank,
              ${referenceSql(scope)} as reference,
              coalesce(m.status, ${statusSql(scope)}) as status,
              (select c.normalized from core.user_relationships r
@@ -177,7 +183,7 @@ export async function studentDirectory(
     from listed u
     where ${search}
       and (${filter.given !== null} or u.status <> 'left' or 'left' = any(${textArray(filter.statuses)}))
-      and (${filter.gradeIds.length === 0} or u.grade_id = any(${uuidArray(filter.gradeIds)}))
+      and (${filter.within === null} or u.id = any(${uuidArray([...(filter.within ?? [])])}))
       and (${filter.statuses.length === 0} or u.status = any(${textArray(filter.statuses)}))
       and (not ${filter.missingGuardian} or not u.has_guardian)
       and (not ${filter.missingAccount} or not u.has_account)
@@ -191,7 +197,6 @@ export async function studentDirectory(
       fullNameAr: row.full_name_ar,
       photoFileId: row.photo_file_id,
       reference: row.reference,
-      gradeId: row.grade_id,
       status: row.status,
       guardianPhone: row.guardian_phone,
       hasGuardian: row.has_guardian,
@@ -1149,28 +1154,6 @@ export async function accountOf(
         lastSignInAt: row.last_authenticated_at,
       }
     : null;
-}
-
-/** Which of the students are in a young grade at the school on the day. */
-export async function youngStudents(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    orgId: string;
-    userIds: readonly string[];
-    today: string;
-  },
-): Promise<Set<string>> {
-  if (input.userIds.length === 0) return new Set();
-  const rows = await tx.execute<{ user_id: string }>(sql`
-    select distinct s.student_user_id as user_id
-    from core.student_school_years s
-    join core.descriptors d on d.tenant_id = s.tenant_id and d.id = s.grade_level_descriptor_id
-    where s.tenant_id = ${input.tenantId}::uuid and s.org_id = ${input.orgId}::uuid
-      and s.student_user_id = any(${uuidArray(input.userIds)})
-      and s.status = 'active' and s.valid_during @> ${input.today}::date
-      and d.system_meaning = any(${textArray(YOUNG_STUDENT_GRADES)})`);
-  return new Set(rows.map((row) => row.user_id));
 }
 
 export interface Face {

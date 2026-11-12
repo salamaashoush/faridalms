@@ -28,7 +28,6 @@ import {
   roles,
   tenantColumns,
 } from "./conventions";
-import { descriptors } from "./descriptors";
 import { users } from "./people";
 import { classes } from "./teaching";
 import { orgs, tenants } from "./tenancy";
@@ -152,8 +151,6 @@ export const calendarEventAudiences = core.table.withRLS(
     eventId: uuid("event_id").notNull(),
     scope: text("scope").$type<AudienceScope>().notNull(),
     classId: uuid("class_id"),
-    gradeDescriptorId: uuid("grade_descriptor_id"),
-    gradeNs: text("grade_ns").notNull().default("grade_level"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -169,21 +166,15 @@ export const calendarEventAudiences = core.table.withRLS(
       [t.tenantId, t.classId],
       [classes.tenantId, classes.id],
     ),
-    fk(
-      "calendar_event_audiences",
-      [t.tenantId, t.gradeDescriptorId, t.gradeNs],
-      [descriptors.tenantId, descriptors.id, descriptors.namespace],
-    ),
     ck(
       "calendar_event_audiences",
       "scope",
-      sql`scope in ('school', 'staff', 'families', 'students', 'class', 'grade')`,
+      sql`scope in ('school', 'staff', 'families', 'students', 'class')`,
     ),
-    ck("calendar_event_audiences", "grade_ns", sql`grade_ns = 'grade_level'`),
     ck(
       "calendar_event_audiences",
       "target",
-      sql`(scope = 'class') = (class_id is not null) and (scope = 'grade') = (grade_descriptor_id is not null)`,
+      sql`(scope = 'class') = (class_id is not null)`,
     ),
     index("calendar_event_audiences_event_idx")
       .on(t.tenantId, t.eventId)

@@ -61,6 +61,11 @@ export const isErrorCode = (message: string) => CODE.test(message);
 const INTERNAL_CODES: ReadonlySet<string> = new Set([
   "classes.part_unknown",
   "coursework.part_unknown",
+  "grading.part_unknown",
+  "intake.part_unknown",
+  "intake.view_unknown",
+  "people.sort_unknown",
+  "grade_level.order",
   "classes.view_unknown",
   "people.part_unknown",
   "people.view_unknown",
@@ -262,8 +267,6 @@ export function getMessageFromError(error: unknown): string {
         return m.errorYearTransition();
       case "school_year.reason_required":
         return m.yearsReasonRequired();
-      case "school_year.missing":
-        return m.errorSchoolYearMissing();
       case "academic_session.overlapping":
         return m.errorTermsOverlapping();
       case "coursework.quiz_needed":
@@ -816,8 +819,6 @@ export function getMessageFromError(error: unknown): string {
         return m.errIntakeYear();
       case "intake.grade":
         return m.errIntakeGrade();
-      case "intake.exists":
-        return m.errIntakeExists();
       case "intake.dates":
         return m.itkErrDates();
       case "intake.ages":
@@ -1109,6 +1110,14 @@ export function getMessageFromError(error: unknown): string {
         return m.errorBirthDateTooEarly();
       case "placement.overlapping":
         return m.errorPlacementOverlapping();
+      case "student_grade.overlapping":
+        return m.errorStudentGradeOverlapping();
+      case "grade_level.in_use":
+        return m.errorGradeLevelInUse();
+      case "grade_level.unknown":
+        return m.errorGradeLevelUnknown();
+      case "grade_level.code_taken":
+        return m.errorGradeLevelCodeTaken();
       case "class_group_member.exists":
         return m.errorConflictVersion();
       case "assignment_recipient.exists":

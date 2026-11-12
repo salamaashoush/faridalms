@@ -42,7 +42,6 @@ import {
 } from "@faridalms/database/stores/documents";
 import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import {
-  classesOfModule,
   firstAttempts,
   pollVotes,
   insertLesson,
@@ -281,6 +280,7 @@ import {
   mayEditModule,
   moduleOfSchool,
 } from "../learning/access";
+import { moduleClasses } from "../learning/classes";
 import { copyLesson, copyModule, planHost } from "../learning/module-copy";
 import {
   moduleParts,
@@ -968,7 +968,7 @@ export const record = readProcedure
   .handler(async ({ input, context }) => {
     const row = await editableModule(context, input.id);
     const [classes, lessons, audiences, live] = await Promise.all([
-      classesOfModule(context.tx, context.tenantId, row.id),
+      moduleClasses(context, row.id),
       lessonsOf(context.tx, context.tenantId, row.id),
       audiencesOf(context.tx, { tenantId: context.tenantId, moduleId: row.id }),
       runningPacedOf(context.tx, {
@@ -1585,9 +1585,7 @@ async function routesBack(
  */
 async function routeChoicesOf(context: UnitContext, owner: ModuleRow) {
   const classes = new Set(
-    (await classesOfModule(context.tx, context.tenantId, owner.id)).map(
-      (item) => item.id,
-    ),
+    (await moduleClasses(context, owner.id)).map((item) => item.id),
   );
   if (classes.size === 0) return [];
   const siblings = (
@@ -1921,7 +1919,7 @@ export const progress = readProcedure
   .input(progressQuerySchema)
   .handler(async ({ input, context }) => {
     const row = await editableModule(context, input.moduleId);
-    const classes = await classesOfModule(context.tx, context.tenantId, row.id);
+    const classes = await moduleClasses(context, row.id);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
     const [lessons, roster] = await Promise.all([
@@ -1997,7 +1995,7 @@ export const videos = readProcedure
   .input(progressQuerySchema)
   .handler(async ({ input, context }) => {
     const row = await editableModule(context, input.moduleId);
-    const classes = await classesOfModule(context.tx, context.tenantId, row.id);
+    const classes = await moduleClasses(context, row.id);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
     const [lessons, roster] = await Promise.all([
@@ -2084,7 +2082,7 @@ export const live = readProcedure
   .input(progressQuerySchema)
   .handler(async ({ input, context }) => {
     const row = await editableModule(context, input.moduleId);
-    const classes = await classesOfModule(context.tx, context.tenantId, row.id);
+    const classes = await moduleClasses(context, row.id);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
     const now = Date.now();
@@ -2201,11 +2199,7 @@ export const startPaced = writeProcedure
     const owner = await editableModule(context, led.moduleId);
     if (!isLive(owner, context.now))
       throw new ORPCError("CONFLICT", { message: "learning.module_draft" });
-    const classes = await classesOfModule(
-      context.tx,
-      context.tenantId,
-      owner.id,
-    );
+    const classes = await moduleClasses(context, owner.id);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
     if (!(await publishedLesson(context, led.id)))
@@ -2245,7 +2239,7 @@ export const paced = readProcedure
     const open = new Set((parts[step] ?? []).map((block) => block.id));
     const [classes, students, rows, activity, ran, releases] =
       await Promise.all([
-        classesOfModule(context.tx, context.tenantId, owner.id),
+        moduleClasses(context, owner.id),
         namesOf(context.tx, context.tenantId, roster),
         responsesSince(context.tx, {
           tenantId: context.tenantId,
@@ -2481,11 +2475,7 @@ export const openForStudent = writeProcedure
     const row = await lessonById(context.tx, context.tenantId, input.lessonId);
     if (!row?.condition) throw new ORPCError("NOT_FOUND");
     const owner = await editableModule(context, row.moduleId);
-    const classes = await classesOfModule(
-      context.tx,
-      context.tenantId,
-      owner.id,
-    );
+    const classes = await moduleClasses(context, owner.id);
     let enrolled = false;
     for (const item of classes)
       if (
@@ -2517,11 +2507,7 @@ export const override = writeProcedure
     const row = await lessonById(context.tx, context.tenantId, input.lessonId);
     if (!row) throw new ORPCError("NOT_FOUND");
     const owner = await editableModule(context, row.moduleId);
-    const classes = await classesOfModule(
-      context.tx,
-      context.tenantId,
-      owner.id,
-    );
+    const classes = await moduleClasses(context, owner.id);
     let enrolled = false;
     for (const item of classes)
       if (
@@ -3320,11 +3306,7 @@ function galleryBlock(played: Played, blockId: string) {
  * whose projects they may see, and who may see theirs.
  */
 async function classmatesOf(context: UnitContext, played: Played) {
-  const classes = await classesOfModule(
-    context.tx,
-    context.tenantId,
-    played.owner.id,
-  );
+  const classes = await moduleClasses(context, played.owner.id);
   const rosters = await Promise.all(
     classes.map((item) => audienceOf(context, played.owner.id, item.id)),
   );
@@ -3869,7 +3851,7 @@ export const pollResults = readProcedure
       throw new ORPCError("CONFLICT", { message: "learning.poll_first" });
     const [joined, taught] = await Promise.all([
       classesOfStudent(context, played.studentId),
-      classesOfModule(context.tx, context.tenantId, played.owner.id),
+      moduleClasses(context, played.owner.id),
     ]);
     const rosters = await Promise.all(
       taught
@@ -3928,11 +3910,7 @@ export const release = writeProcedure
     const row = await lessonById(context.tx, context.tenantId, input.lessonId);
     if (!row) throw new ORPCError("NOT_FOUND");
     const owner = await editableModule(context, row.moduleId);
-    const classes = await classesOfModule(
-      context.tx,
-      context.tenantId,
-      owner.id,
-    );
+    const classes = await moduleClasses(context, owner.id);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
     if (
@@ -4235,7 +4213,7 @@ export const answers = readProcedure
   .input(progressQuerySchema)
   .handler(async ({ input, context }) => {
     const row = await editableModule(context, input.moduleId);
-    const classes = await classesOfModule(context.tx, context.tenantId, row.id);
+    const classes = await moduleClasses(context, row.id);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
     const [lessons, roster] = await Promise.all([
@@ -4500,7 +4478,7 @@ export const questions = readProcedure
   .input(progressQuerySchema)
   .handler(async ({ input, context }) => {
     const row = await editableModule(context, input.moduleId);
-    const classes = await classesOfModule(context.tx, context.tenantId, row.id);
+    const classes = await moduleClasses(context, row.id);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
     const [lessons, roster] = await Promise.all([
@@ -4572,7 +4550,7 @@ export const runs = readProcedure
   .input(runsQuerySchema)
   .handler(async ({ input, context }) => {
     const row = await editableModule(context, input.moduleId);
-    const classes = await classesOfModule(context.tx, context.tenantId, row.id);
+    const classes = await moduleClasses(context, row.id);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
     const [lessons, roster] = await Promise.all([
@@ -4644,11 +4622,7 @@ export const mark = writeProcedure
     if (!row) throw new ORPCError("NOT_FOUND");
     const owner = await editableModule(context, row.moduleId);
     const studentIds = [...new Set(input.studentIds)];
-    const classes = await classesOfModule(
-      context.tx,
-      context.tenantId,
-      owner.id,
-    );
+    const classes = await moduleClasses(context, owner.id);
     const enrolled = new Set<string>();
     for (const item of classes)
       for (const studentId of await audienceOf(context, owner.id, item.id))

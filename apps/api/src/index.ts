@@ -9,11 +9,11 @@ import { createProvider } from "@faridalms/mail/providers";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { startAdmissionsClock } from "./admissions/clock";
 import { createApp } from "./app";
 import { assistantFrom } from "./assistant/anthropic";
 import { startProgramReruns } from "./coding/rerun";
 import { createJavaScriptRunner, createPythonRunner } from "./coding/run";
-import { startAdmissionsClock } from "./core/admissions-clock";
 import { createKeyRing } from "./core/keys";
 import { createLoginIndex, startLoginIndex } from "./core/login-index";
 import { startPartitionUpkeep } from "./core/partitions";
@@ -271,6 +271,7 @@ const stopAdmissionsClock = env.CELL_WORKER_URL
   ? startAdmissionsClock({
       cell,
       directory,
+      extensions: MODULE_EXTENSIONS,
       cellId: env.CELL_ID,
       channels: {
         email: gateways.email !== null,

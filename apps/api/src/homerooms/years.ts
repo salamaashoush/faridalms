@@ -25,7 +25,6 @@ export const HOMEROOMS_IN_YEARS: ModuleContributions = {
             classIds,
             ended: false,
             q: "",
-            gradeIds: [],
             locale: localeOf(context),
           })
         ).map((row) => ({
@@ -33,7 +32,6 @@ export const HOMEROOMS_IN_YEARS: ModuleContributions = {
           code: row.code,
           titleEn: row.titleEn,
           titleAr: row.titleAr,
-          gradeId: row.gradeId,
           locationId: row.locationId,
           teacherId:
             row.teachers.find((teacher) => teacher.isPrimary)?.userId ?? null,
@@ -62,7 +60,6 @@ export const HOMEROOMS_IN_YEARS: ModuleContributions = {
           code: row.code,
           titleEn: row.titleEn || null,
           titleAr: row.titleAr || null,
-          gradeId: row.gradeId,
           locationId: row.locationId,
           homeroomTeacherId: row.teacherId,
           subjects: row.subjects.map((subject) => ({

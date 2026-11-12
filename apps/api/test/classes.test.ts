@@ -450,7 +450,8 @@ for (const off of [["school_years"], ["school_years", "homerooms"]])
         const list = await api.people.students({ q: "", pageSize: 50 });
         expect(list).not.toHaveProperty("year");
         expect(list.rows.length).toBeGreaterThan(0);
-        expect(list.rows.every((row) => row.grade === null)).toBe(true);
+        // A student's grade is the grade levels' own, so it shows without years.
+        expect(list.rows.some((row) => row.columns.grade)).toBe(true);
         const student = list.rows.find((row) => row.status === "enrolled");
         if (!student) throw new Error("seed student");
         const before = await api.people.student({ id: student.id });

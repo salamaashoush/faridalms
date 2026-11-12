@@ -27,7 +27,6 @@ export const peopleOptionsQuery = queryOptions({
 export const studentsQuery = (query: StudentDirectoryQuery, views: Views) => {
   const data = {
     q: query.q,
-    grade: query.grade,
     status: query.status,
     missing: query.missing,
     sort: query.sort,

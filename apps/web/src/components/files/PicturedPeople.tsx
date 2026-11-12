@@ -58,7 +58,6 @@ function PeopleSheet({ fileId, channel, open, onClose }: PeopleSheetProps) {
       ...studentsQuery(
         {
           q: needle,
-          grade: [],
           status: [],
           missing: [],
           sort: "name",

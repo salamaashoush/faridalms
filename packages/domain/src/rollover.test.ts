@@ -20,7 +20,7 @@ const cls = {
   code: "8-A",
   titleEn: "8A",
   titleAr: "",
-  gradeId: "",
+  parts: { grade: { gradeId: "" } },
   locationId: "",
   teacherId: "",
   subjects: [],

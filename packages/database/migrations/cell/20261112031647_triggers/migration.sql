@@ -28,15 +28,21 @@ create trigger row_meta before insert or update on core.bank_questions for each 
 create trigger row_meta before insert or update on core.bell_schedules for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.breaches for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.broadcast_audiences for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.broadcast_grades
+  for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.broadcast_recipients
   for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.broadcasts for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.calendar_dates for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.calendar_event_audiences
   for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.calendar_event_grades
+  for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.calendar_events for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.calendar_feeds for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.caption_drafts for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.class_grades
+  for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.class_grading for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.class_group_members for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.class_groups for each row execute function app.row_meta();
@@ -83,6 +89,10 @@ create trigger row_meta before insert or update on core.identity_provider_orgs
   for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.identity_providers for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.import_runs for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.intake_grades
+  for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.intake_years
+  for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.learning_modules for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.legal_holds for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.lesson_changes for each row execute function app.row_meta();
@@ -156,6 +166,8 @@ create trigger row_meta before insert or update on core.standard_sittings for ea
 create trigger row_meta before insert or update on core.standards for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.student_departures for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.student_movements for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.student_grades
+  for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.student_school_years
   for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.submission_attempts for each row execute function app.row_meta();

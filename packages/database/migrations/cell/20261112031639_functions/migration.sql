@@ -483,22 +483,15 @@ $$;
 revoke all on function app.reached_people(uuid, uuid, date, boolean) from public;
 grant execute on function app.reached_people(uuid, uuid, date, boolean) to app;
 
--- A class's programme: the one it was given, else the one programme
--- covering its grade level. Two programmes sharing the level leave the class to choose.
+-- A class's programme: the one the school chose for it, or one a module
+-- derived for it, which `class_grading` keeps either way.
 create function app.programme_of(p_class uuid) returns uuid
 language sql stable
 set search_path = pg_catalog, pg_temp
 as $$
-  select coalesce(g.programme_id, (
-    select min(p.id::text)::uuid
-    from core.programme_grade_levels l
-    join core.programmes p on p.tenant_id = l.tenant_id and p.id = l.programme_id
-      and p.status = 'active' and p.org_id = c.org_id
-    where l.tenant_id = c.tenant_id and l.grade_level_descriptor_id = c.grade_level_descriptor_id
-      and l.status = 'active'
-    having count(distinct p.id) = 1))
+  select g.programme_id
   from core.classes c
-  left join core.class_grading g on g.tenant_id = c.tenant_id and g.class_id = c.id
+  join core.class_grading g on g.tenant_id = c.tenant_id and g.class_id = c.id
     and g.status = 'active'
   where c.tenant_id = app.tenant_id() and c.id = p_class
 $$;

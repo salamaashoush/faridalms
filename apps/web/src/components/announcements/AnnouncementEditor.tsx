@@ -151,7 +151,7 @@ function saveOf(draft: Draft, id: string, version: number) {
 }
 
 const FAMILIES: AudienceInput[] = [
-  { scope: "families", classId: "", gradeId: "" },
+  { scope: "families", classId: "", targetId: "" },
 ];
 
 const NEWSLETTERS = ["weekly", "monthly"] as const;
@@ -210,7 +210,7 @@ function draftOf(existing: EditorData | null): Draft {
       ? existing.audiences.map((row) => ({
           scope: row.scope,
           classId: row.classId ?? "",
-          gradeId: row.gradeId ?? "",
+          targetId: row.targetId ?? "",
         }))
       : FAMILIES,
     urgency: existing?.urgency ?? "normal",

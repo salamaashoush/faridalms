@@ -2,6 +2,8 @@ import type { AudienceScope, Urgency } from "@faridalms/domain/announcements";
 import type { PublicationPhase } from "@faridalms/domain/publication";
 import type { Tone } from "@faridalms/ui/system/status";
 
+import { AUDIENCE_SCOPES } from "@faridalms/domain/announcements";
+
 import { classTitle } from "~/components/classes/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -38,16 +40,19 @@ export const SCOPE_LABEL: Record<AudienceScope, () => string> = {
   families: m.annScopeFamilies,
   students: m.annScopeStudents,
   class: m.annScopeClass,
-  grade: m.annScopeGrade,
 };
 
+/** Whether a scope is one of the school's own, rather than one a module adds. */
+export const isCoreScope = (scope: string): scope is AudienceScope =>
+  (AUDIENCE_SCOPES as readonly string[]).includes(scope);
+
 export function audienceLabel(audience: {
-  scope: AudienceScope;
+  scope: string;
   classCode: string | null;
   classTitleEn: string | null;
   classTitleAr: string | null;
-  gradeLabelEn: string | null;
-  gradeLabelAr: string | null;
+  labelEn: string | null;
+  labelAr: string | null;
 }): string {
   if (audience.scope === "class")
     return classTitle({
@@ -55,7 +60,7 @@ export function audienceLabel(audience: {
       titleEn: audience.classTitleEn,
       titleAr: audience.classTitleAr,
     });
-  if (audience.scope === "grade")
-    return inLocale(audience.gradeLabelEn, audience.gradeLabelAr);
-  return SCOPE_LABEL[audience.scope]();
+  return isCoreScope(audience.scope)
+    ? SCOPE_LABEL[audience.scope]()
+    : inLocale(audience.labelEn, audience.labelAr);
 }

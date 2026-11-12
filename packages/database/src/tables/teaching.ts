@@ -39,7 +39,7 @@ export type EnrollmentRole =
   | "proctor"
   | "administrator";
 
-/** OneRoster courses: a subject a school teaches, optionally at one grade. */
+/** OneRoster courses: a subject a school teaches. */
 export const courses = core.table.withRLS(
   "courses",
   {
@@ -53,10 +53,6 @@ export const courses = core.table.withRLS(
     subjectNs: text("subject_ns")
       .notNull()
       .generatedAlwaysAs(sql`'subject'`),
-    gradeLevelDescriptorId: uuid("grade_level_descriptor_id"),
-    gradeLevelNs: text("grade_level_ns")
-      .notNull()
-      .generatedAlwaysAs(sql`'grade_level'`),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -71,11 +67,6 @@ export const courses = core.table.withRLS(
     fk(
       "courses",
       [t.tenantId, t.subjectDescriptorId, t.subjectNs],
-      [descriptors.tenantId, descriptors.id, descriptors.namespace],
-    ),
-    fk(
-      "courses",
-      [t.tenantId, t.gradeLevelDescriptorId, t.gradeLevelNs],
       [descriptors.tenantId, descriptors.id, descriptors.namespace],
     ),
     ck("courses", "org_type", sql`org_type = 'school'`),
@@ -111,10 +102,6 @@ export const classes = core.table.withRLS(
     subjectNs: text("subject_ns")
       .notNull()
       .generatedAlwaysAs(sql`'subject'`),
-    gradeLevelDescriptorId: uuid("grade_level_descriptor_id"),
-    gradeLevelNs: text("grade_level_ns")
-      .notNull()
-      .generatedAlwaysAs(sql`'grade_level'`),
     locationId: uuid("location_id"),
     ...entityColumns(),
   },
@@ -135,11 +122,6 @@ export const classes = core.table.withRLS(
     fk(
       "classes",
       [t.tenantId, t.subjectDescriptorId, t.subjectNs],
-      [descriptors.tenantId, descriptors.id, descriptors.namespace],
-    ),
-    fk(
-      "classes",
-      [t.tenantId, t.gradeLevelDescriptorId, t.gradeLevelNs],
       [descriptors.tenantId, descriptors.id, descriptors.namespace],
     ),
     fk(

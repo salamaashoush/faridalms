@@ -1,4 +1,3 @@
-import { reachOf } from "@faridalms/database/stores/audiences";
 import {
   eventsBetween,
   openFeed,
@@ -10,6 +9,7 @@ import { schoolDate, addDays } from "@faridalms/domain/school";
 
 import type { RequestContext } from "../core/context";
 
+import { reachAt } from "../core/audiences";
 import { portalOrigin } from "../core/portal";
 import { feedLessons } from "./lessons";
 
@@ -74,12 +74,16 @@ export async function handleCalendarFeed(
         from: addDays(today, -BACK_DAYS),
         to: addDays(today, AHEAD_DAYS),
       };
-      const reach = await reachOf(tx, {
-        tenantId: school.tenantId,
-        schoolId: school.schoolId,
-        userId: owner.userId,
-        on: today,
-      });
+      const reach = await reachAt(
+        {
+          tx,
+          tenantId: school.tenantId,
+          schoolId: school.schoolId,
+          school,
+          extensions: context.extensions,
+        },
+        { userId: owner.userId, on: today },
+      );
       const origin = portalOrigin(school, context.domains);
       const [events, days, lessons] = await Promise.all([
         eventsBetween(tx, {

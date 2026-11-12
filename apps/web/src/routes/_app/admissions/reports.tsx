@@ -6,7 +6,7 @@ import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
 import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { ChartColumn } from "lucide-react";
 import * as v from "valibot";
@@ -16,11 +16,15 @@ import {
   ORIGIN_LABEL,
   STAGE_LABEL,
 } from "~/components/admissions/application-labels";
+import { intakeFilters } from "~/components/admissions/slots";
+import { viewsOf, viewValue } from "~/components/classes/slots";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { admissionReportsQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
 import { formatNumber } from "~/utils/datetime";
+import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
 
 const REPORTS = ["stage", "intake", "origin", "time"] as const;
@@ -33,8 +37,8 @@ const REPORT_LABEL: Record<ReportView, () => string> = {
   time: m.adrTimes,
 };
 
-const searchSchema = v.object({
-  year: v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
+// Loose, so a module's view rides in the address under its own key.
+const searchSchema = v.looseObject({
   report: v.fallback(v.optional(v.picklist(REPORTS), "stage"), "stage"),
 });
 const DEFAULT_SEARCH = v.parse(searchSchema, {});
@@ -47,7 +51,15 @@ export const Route = createFileRoute("/_app/admissions/reports")({
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "admissions:read", "admissions:manage");
-    await context.queryClient.ensureQueryData(admissionReportsQuery(deps.year));
+    const filters = filled(context.extensions, user.modules, intakeFilters);
+    await Promise.all([
+      context.queryClient.ensureQueryData(
+        admissionReportsQuery(viewsOf(filters, deps)),
+      ),
+      ...filters.map((filter) =>
+        context.queryClient.ensureQueryData(filter.query()),
+      ),
+    ]);
   },
   component: ReportsPage,
 });
@@ -128,14 +140,30 @@ const days = (value: number | null) =>
   value === null ? m.adrNoTime() : m.adrDays({ days: formatNumber(value) });
 
 /**
- * A year's admissions in numbers, one report a tab: how far applications
- * got, by grade and intake and by where the family came from, and how long
- * applications wait in each state. The year chosen holds across the tabs.
+ * Admissions in numbers, one report a tab: how far applications got, by
+ * intake and by where the family came from, and how long applications wait
+ * in each state. A module's view chosen (a year, say) holds across the tabs.
  */
 function ReportsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const report = useSuspenseQuery(admissionReportsQuery(search.year)).data;
+  const filters = useSlot(intakeFilters);
+  const views = viewsOf(filters, search);
+  const report = useSuspenseQuery(admissionReportsQuery(views)).data;
+  const reads = useSuspenseQueries({
+    queries: filters.map((filter) => filter.query()),
+  });
+  const facets = filters.flatMap((filter, index) => {
+    const facet = filter.facetOf(
+      reads[index]?.data,
+      viewValue(search[filter.key]),
+      (value) =>
+        void navigate({
+          search: (previous) => ({ ...previous, [filter.key]: value }),
+        }),
+    );
+    return facet ? [facet] : [];
+  });
   const intakes: IntakeRow[] = report.byIntake.map((row) => ({
     ...row,
     id: row.intakeId,
@@ -151,32 +179,18 @@ function ReportsPage() {
   return (
     <Page width="list">
       <PageHeader title={m.adrTitle()} description={m.adrHint()} />
-      <div className="mb-6">
-        <IndexToolbar
-          facets={[
-            {
-              id: "year",
-              label: m.itkFieldYear(),
-              single: true,
-              defaultSelected: [report.yearId ?? ""],
-              selected: [report.yearId ?? ""],
-              options: report.years.map((year) => ({
-                value: year.id,
-                label: inLocale(year.titleEn, year.titleAr),
-              })),
-              onChange: ([year]) =>
-                void navigate({
-                  search: (previous) => ({ ...previous, year: year ?? "" }),
-                }),
-            },
-          ]}
-          onReset={() =>
-            void navigate({
-              search: (previous) => ({ report: previous.report }),
-            })
-          }
-        />
-      </div>
+      {facets.length > 0 ? (
+        <div className="mb-6">
+          <IndexToolbar
+            facets={facets}
+            onReset={() =>
+              void navigate({
+                search: (previous) => ({ report: previous.report }),
+              })
+            }
+          />
+        </div>
+      ) : null}
       <RecordTabs
         label={m.adrTitle()}
         tabs={REPORTS.map((value) => ({ value, label: REPORT_LABEL[value]() }))}
@@ -201,18 +215,18 @@ function ReportsPage() {
             caption={m.adrByIntake()}
             rows={intakes}
             columns={stageColumns<IntakeRow>({
-              id: "grade",
-              header: m.aplColGrade(),
+              id: "intake",
+              header: m.aplColIntake(),
               primary: true,
               cell: (row) =>
                 m.adrGradePlaces({
-                  grade: inLocale(row.gradeEn, row.gradeAr),
+                  intake: inLocale(row.titleEn, row.titleAr),
                   places: formatNumber(row.capacity),
                 }),
             })}
-            rowLabel={(row) => inLocale(row.gradeEn, row.gradeAr)}
+            rowLabel={(row) => inLocale(row.titleEn, row.titleAr)}
             card={{
-              title: (row) => inLocale(row.gradeEn, row.gradeAr),
+              title: (row) => inLocale(row.titleEn, row.titleAr),
               fact: (row) =>
                 m.adrCardFact({
                   sent: formatNumber(countAt(row.funnel, "submitted")),

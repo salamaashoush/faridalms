@@ -168,7 +168,6 @@ export interface ProgrammeRow {
   id: string;
   titleEn: string | null;
   titleAr: string | null;
-  gradeLevelIds: string[];
   scaleId: string | null;
   classes: number;
   categories: CategoryRow[];
@@ -196,16 +195,12 @@ export async function programmesOf(
     id: string;
     title_en: string | null;
     title_ar: string | null;
-    grade_level_ids: string[];
     grade_scale_id: string | null;
     classes: number;
     categories: CategoryRow[];
   }>(sql`
     select p.id, p.title_en, p.title_ar, p.grade_scale_id,
       ${categoriesOf} as categories,
-      coalesce(array(select l.grade_level_descriptor_id::text from core.programme_grade_levels l
-        where l.tenant_id = p.tenant_id and l.programme_id = p.id and l.status = 'active'),
-        '{}') as grade_level_ids,
       (select count(*)::int from core.classes c where c.tenant_id = p.tenant_id
         and c.org_id = p.org_id and c.status = 'active' and app.programme_of(c.id) = p.id) as classes
     from core.programmes p
@@ -216,7 +211,6 @@ export async function programmesOf(
     id: row.id,
     titleEn: row.title_en,
     titleAr: row.title_ar,
-    gradeLevelIds: row.grade_level_ids,
     scaleId: row.grade_scale_id,
     classes: row.classes,
     categories: row.categories,
@@ -231,7 +225,6 @@ export async function saveProgramme(
     id?: string;
     titleEn: string | null;
     titleAr: string | null;
-    gradeLevelIds: readonly string[];
     scaleId: string | null;
     categories: readonly {
       id?: string;
@@ -254,24 +247,11 @@ export async function saveProgramme(
           ${input.titleAr}, ${input.scaleId}::uuid)
         returning id`);
   if (!row) return null;
-  await tx.execute(sql`
-    update core.programme_grade_levels set status = 'tobedeleted'
-    where tenant_id = ${input.tenantId}::uuid and programme_id = ${row.id}::uuid
-      and status = 'active'
-      and not (grade_level_descriptor_id = any(${uuidArray(input.gradeLevelIds)}))`);
   await saveCategories(tx, {
     tenantId: input.tenantId,
     programmeId: row.id,
     categories: input.categories,
   });
-  if (input.gradeLevelIds.length)
-    await tx.execute(sql`
-      insert into core.programme_grade_levels (tenant_id, programme_id, grade_level_descriptor_id)
-      select ${input.tenantId}::uuid, ${row.id}::uuid, level
-      from unnest(${uuidArray(input.gradeLevelIds)}) as level
-      where not exists (select 1 from core.programme_grade_levels l
-        where l.tenant_id = ${input.tenantId}::uuid and l.programme_id = ${row.id}::uuid
-          and l.grade_level_descriptor_id = level and l.status = 'active')`);
   return row;
 }
 
@@ -284,7 +264,7 @@ export async function programmeInUse(
     select exists (select 1 from core.class_grading g
       join core.classes c on c.tenant_id = g.tenant_id and c.id = g.class_id and c.status = 'active'
       where g.tenant_id = ${input.tenantId}::uuid
-      and g.programme_id = ${input.id}::uuid and g.status = 'active') as used`);
+      and g.programme_id = ${input.id}::uuid and g.programme_chosen and g.status = 'active') as used`);
   return row?.used ?? false;
 }
 
@@ -299,16 +279,17 @@ export async function retireProgramme(
     returning id`);
   if (rows.length)
     await tx.execute(sql`
-      update core.programme_grade_levels set status = 'tobedeleted'
+      update core.class_grading set status = 'tobedeleted'
       where tenant_id = ${input.tenantId}::uuid and programme_id = ${input.id}::uuid
-        and status = 'active'`);
+        and not programme_chosen and status = 'active'`);
   return rows.length > 0;
 }
 
 export interface ClassGrading {
+  /** The programme the school chose for the class. */
   programmeId: string | null;
   scaleId: string | null;
-  /** The programme the class follows: its own, else the one covering its grade level. */
+  /** The programme the class follows: the one chosen, else one a module derived. */
   effectiveProgrammeId: string | null;
   /** The scale version it grades on today. */
   versionId: string | null;
@@ -324,7 +305,8 @@ export async function classGrading(
     effective_programme_id: string | null;
     version_id: string | null;
   }>(sql`
-    select g.programme_id, g.grade_scale_id, app.programme_of(c.id) as effective_programme_id,
+    select case when g.programme_chosen then g.programme_id end as programme_id, g.grade_scale_id,
+      app.programme_of(c.id) as effective_programme_id,
       app.scale_version_of(c.id, ${input.today}::date) as version_id
     from core.classes c
     left join core.class_grading g on g.tenant_id = c.tenant_id and g.class_id = c.id
@@ -361,6 +343,62 @@ export async function setClassGrading(
       from core.classes c
       where c.tenant_id = ${input.tenantId}::uuid and c.id = ${input.classId}::uuid
         and c.status = 'active'`);
+}
+
+/**
+ * Writes the programme each class follows where the school chose none for
+ * it, as a module derived it; null leaves such a class without one.
+ */
+export async function deriveProgrammes(
+  tx: Tx,
+  input: { tenantId: string; programmes: ReadonlyMap<string, string | null> },
+): Promise<void> {
+  for (const [classId, programmeId] of input.programmes) {
+    const [row] = await tx.execute<{
+      id: string;
+      programme_id: string | null;
+      programme_chosen: boolean;
+      grade_scale_id: string | null;
+    }>(sql`
+      select id, programme_id, programme_chosen, grade_scale_id from core.class_grading
+      where tenant_id = ${input.tenantId}::uuid and class_id = ${classId}::uuid
+        and status = 'active'
+      for update`);
+    if (row?.programme_chosen && row.programme_id) continue;
+    if (row && row.programme_id === programmeId) continue;
+    if (row && !programmeId && !row.grade_scale_id)
+      await tx.execute(sql`
+        update core.class_grading set status = 'tobedeleted'
+        where tenant_id = ${input.tenantId}::uuid and id = ${row.id}::uuid`);
+    else if (row)
+      await tx.execute(sql`
+        update core.class_grading set programme_id = ${programmeId}::uuid,
+          programme_chosen = ${programmeId === null}
+        where tenant_id = ${input.tenantId}::uuid and id = ${row.id}::uuid`);
+    else if (programmeId)
+      await tx.execute(sql`
+        insert into core.class_grading (tenant_id, org_id, class_id, programme_id, programme_chosen)
+        select c.tenant_id, c.org_id, c.id, ${programmeId}::uuid, false
+        from core.classes c
+        where c.tenant_id = ${input.tenantId}::uuid and c.id = ${classId}::uuid
+          and c.status = 'active'`);
+  }
+}
+
+/** The classes whose programme was derived rather than chosen, or that follow none. */
+export async function classesWithoutChosenProgramme(
+  tx: Tx,
+  input: { tenantId: string; classIds: readonly string[] },
+): Promise<string[]> {
+  if (input.classIds.length === 0) return [];
+  const rows = await tx.execute<{ id: string }>(sql`
+    select c.id from core.classes c
+    where c.tenant_id = ${input.tenantId}::uuid and c.id = any(${uuidArray(input.classIds)})
+      and c.status = 'active'
+      and not exists (select 1 from core.class_grading g where g.tenant_id = c.tenant_id
+        and g.class_id = c.id and g.status = 'active' and g.programme_chosen
+        and g.programme_id is not null)`);
+  return rows.map((row) => row.id);
 }
 
 /**

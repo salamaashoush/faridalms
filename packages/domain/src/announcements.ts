@@ -13,7 +13,6 @@ export const AUDIENCE_SCOPES = [
   "families",
   "students",
   "class",
-  "grade",
 ] as const;
 export type AudienceScope = (typeof AUDIENCE_SCOPES)[number];
 
@@ -34,16 +33,21 @@ const version = (min: number) =>
   v.pipe(v.number(), v.integer(), v.minValue(min));
 const words = (max: number) => v.pipe(v.string(), v.trim(), v.maxLength(max));
 
+/**
+ * One audience: a scope of the school's own, with the class for `class`, or
+ * a scope a module answers for (a grade, say) with the target it names.
+ */
 export const audienceSchema = v.pipe(
   v.object({
-    scope: v.picklist(AUDIENCE_SCOPES),
+    scope: v.pipe(v.string(), v.regex(/^[a-z_]{1,20}$/)),
     classId: optionalId,
-    gradeId: optionalId,
+    targetId: optionalId,
   }),
   v.check(
     (audience) =>
       (audience.scope === "class") === (audience.classId !== "") &&
-      (audience.scope === "grade") === (audience.gradeId !== ""),
+      (AUDIENCE_SCOPES as readonly string[]).includes(audience.scope) ===
+        (audience.targetId === ""),
     "announcements.audience_target",
   ),
 );

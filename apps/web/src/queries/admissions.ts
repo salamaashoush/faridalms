@@ -1,4 +1,5 @@
 import type { ApplicationListQuery } from "@faridalms/domain/admissions";
+import type { Views } from "@faridalms/domain/classes";
 import type { EnquiryListQuery } from "@faridalms/domain/enquiries";
 
 import { queryOptions } from "@tanstack/react-query";
@@ -40,10 +41,10 @@ export const intakeOptionsQuery = queryOptions({
   queryFn: () => getIntakeOptions(),
 });
 
-export const intakesQuery = (year: string) =>
+export const intakesQuery = (views: Views) =>
   queryOptions({
-    queryKey: ["admissions", "intakes", year],
-    queryFn: () => getIntakes({ data: { year } }),
+    queryKey: ["admissions", "intakes", views],
+    queryFn: () => getIntakes({ data: { views } }),
   });
 
 export const intakeQuery = (id: string) =>
@@ -63,10 +64,10 @@ export const formQuery = (id: string) =>
     queryFn: () => getForm({ data: { id } }),
   });
 
-export const applicationsQuery = (query: ApplicationListQuery) =>
+export const applicationsQuery = (query: ApplicationListQuery, views: Views) =>
   queryOptions({
-    queryKey: ["admissions", "applications", query],
-    queryFn: () => getApplications({ data: query }),
+    queryKey: ["admissions", "applications", query, views],
+    queryFn: () => getApplications({ data: { ...query, views } }),
   });
 
 export const applicationQuery = (id: string) =>
@@ -92,10 +93,10 @@ export const boardQuery = (intake: string) =>
     queryFn: () => getBoard({ data: { intake } }),
   });
 
-export const admissionReportsQuery = (year: string) =>
+export const admissionReportsQuery = (views: Views) =>
   queryOptions({
-    queryKey: ["admissions", "reports", year],
-    queryFn: () => getAdmissionReports({ data: { year } }),
+    queryKey: ["admissions", "reports", views],
+    queryFn: () => getAdmissionReports({ data: { views } }),
   });
 
 export const attendeesQuery = queryOptions({

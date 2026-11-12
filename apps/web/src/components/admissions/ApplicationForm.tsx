@@ -53,7 +53,7 @@ import { toast } from "sonner";
 
 import { TranslatedView } from "~/components/content/TranslatedView";
 import { FileField } from "~/components/system/FileField";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { draftQuery, myApplicationsQuery } from "~/queries/admissions";
@@ -412,10 +412,7 @@ export function StartApplication({
           value={chosenIntake}
           options={mine.intakes.map((row) => ({
             value: row.id,
-            label: m.itkEditTitle({
-              grade: inLocale(row.gradeEn, row.gradeAr),
-              year: inLocale(row.yearTitleEn, row.yearTitleAr),
-            }),
+            label: inLocale(row.titleEn, row.titleAr),
           }))}
           onChange={setChosenIntake}
           width="name"
@@ -1083,6 +1080,7 @@ interface SchoolsStepProps {
 }
 
 function SchoolsStep({ form, onChange, tried }: SchoolsStepProps) {
+  const grades = useCurrentUser().modules.grade_levels;
   const setSchool = (index: number, patch: Partial<PreviousSchool>) =>
     onChange({
       ...form,
@@ -1134,15 +1132,17 @@ function SchoolsStep({ form, onChange, tried }: SchoolsStepProps) {
                   })
                 }
               />
-              <TextField
-                id={`school-${String(index)}-grade`}
-                label={m.applySchoolGrade()}
-                optional
-                value={school.grade}
-                onChange={(event) =>
-                  setSchool(index, { grade: event.target.value })
-                }
-              />
+              {grades ? (
+                <TextField
+                  id={`school-${String(index)}-grade`}
+                  label={m.applySchoolGrade()}
+                  optional
+                  value={school.grade}
+                  onChange={(event) =>
+                    setSchool(index, { grade: event.target.value })
+                  }
+                />
+              ) : null}
             </div>
             <div className="flex flex-wrap gap-4">
               <TextField

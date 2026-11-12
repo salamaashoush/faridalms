@@ -112,7 +112,7 @@ const eventInput = (title: string, day: string) => ({
   endTime: "14:00",
   location: "Library",
   provisional: false,
-  audiences: [{ scope: "staff" as const, classId: "", gradeId: "" }],
+  audiences: [{ scope: "staff" as const, classId: "", targetId: "" }],
   description: plainContent("Bring the term plan."),
 });
 

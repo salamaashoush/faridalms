@@ -105,7 +105,7 @@ export const classRecordParts = slot<ClassRecordPart>("class record parts");
 
 export interface ClassRecordSectionProps {
   classId: string;
-  /** The class is of young children, by its grade. */
+  /** The class is of young children, as a module knows it. */
   young: boolean;
   /** The viewer teaches the class or keeps the school's classes. */
   keeps: boolean;
@@ -140,6 +140,9 @@ export interface GroupWords {
 
 export const groupWords = slot<GroupWords>("group words");
 
+/** What a module's view holds in an address: one value, several, or none. */
+export type ViewValue = string | readonly string[] | undefined;
+
 /**
  * A view of the school's classes a module offers on the lists of classes,
  * kept in the address under its key: what it reads to offer it, and the
@@ -147,17 +150,33 @@ export const groupWords = slot<GroupWords>("group words");
  */
 export interface ClassFilter {
   key: string;
+  /** Offered on the lists of classes themselves, not on lists of what classes hold (work, modules). */
+  directoryOnly?: boolean;
   /** Whether the view at this value names the classes listed, rather than leaving every class. */
-  narrows(value: string | undefined): boolean;
+  narrows(value: ViewValue): boolean;
   query(): SlotQuery<unknown>;
   facetOf(
     read: unknown,
-    value: string | undefined,
-    onChange: (value: string | undefined) => void,
+    value: ViewValue,
+    onChange: (value: ViewValue) => void,
   ): Facet | null;
 }
 
 export const classFilters = slot<ClassFilter>("class filters");
+
+/**
+ * A column a module adds to the lists of classes, under the key the list's
+ * rows carry its values by: what it reads to name a value, its header and
+ * its cell. Methods, so each module types what it reads.
+ */
+export interface ClassColumn {
+  key: string;
+  header: () => string;
+  query(): SlotQuery<unknown>;
+  cell(read: unknown, value: string | null): ReactNode;
+}
+
+export const classColumns = slot<ClassColumn>("class columns");
 
 /** What the class form holds that a module's field may read and change. */
 export interface ClassFormDays {
@@ -177,10 +196,12 @@ export interface ClassEditorPartProps {
 
 /**
  * A field a module adds to the class form, saved with the class under the
- * module's key: the year a class belongs to, say.
+ * module's key: the year a class belongs to among its days, or the grade it
+ * teaches among its details.
  */
 export interface ClassEditorPart {
   key: string;
+  section: "details" | "days";
   query(classId: string | null): SlotQuery<unknown>;
   /** The part's value for the form to start from, and the days it starts on, if it sets them. */
   initial(
@@ -192,15 +213,29 @@ export interface ClassEditorPart {
 
 export const classEditorParts = slot<ClassEditorPart>("class editor parts");
 
+/** A module's view as an address holds it, or undefined for none. */
+export function viewValue(value: unknown): ViewValue {
+  if (typeof value === "string") return value || undefined;
+  if (Array.isArray(value)) {
+    const values = value.filter(
+      (item): item is string => typeof item === "string" && item !== "",
+    );
+    return values.length > 0 ? values : undefined;
+  }
+  return undefined;
+}
+
 /** The views modules keep in an address, by key, for the API to narrow a list by. */
 export function viewsOf(
   filters: readonly { key: string }[],
   search: Readonly<Record<string, unknown>>,
-): Record<string, string> {
+): Record<string, string | string[]> {
   return Object.fromEntries(
     filters.flatMap((filter) => {
-      const value = search[filter.key];
-      return typeof value === "string" && value ? [[filter.key, value]] : [];
+      const value = viewValue(search[filter.key]);
+      return value === undefined
+        ? []
+        : [[filter.key, typeof value === "string" ? value : [...value]]];
     }),
   );
 }

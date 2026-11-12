@@ -163,7 +163,7 @@ describe("saving an event", () => {
     endTime: "09:00",
     location: "",
     provisional: false,
-    audiences: [{ scope: "school", classId: "", gradeId: "" }],
+    audiences: [{ scope: "school", classId: "", targetId: "" }],
     description: plainContent(""),
   };
 
@@ -207,8 +207,8 @@ describe("material changes", () => {
     endTime: "10:00",
     location: "Room 12",
     audiences: [
-      { scope: "class", classId: "a", gradeId: "" },
-      { scope: "families", classId: "", gradeId: "" },
+      { scope: "class", classId: "a", targetId: "" },
+      { scope: "families", classId: "", targetId: "" },
     ],
   };
 
@@ -225,8 +225,14 @@ describe("material changes", () => {
     expect(
       materialChange(planned, {
         ...planned,
-        audiences: [{ scope: "school", classId: "", gradeId: "" }],
+        audiences: [{ scope: "school", classId: "", targetId: "" }],
       }),
+    ).toBe(true);
+    expect(
+      materialChange(
+        { ...planned, audiences: [{ scope: "grade", targetId: "g1" }] },
+        { ...planned, audiences: [{ scope: "grade", targetId: "g2" }] },
+      ),
     ).toBe(true);
     expect(
       materialChange(planned, {

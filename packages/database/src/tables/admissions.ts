@@ -35,7 +35,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { academicSessions } from "./calendar";
 import {
   baseConstraints,
   ck,
@@ -52,7 +51,6 @@ import {
   tenantColumns,
   uq,
 } from "./conventions";
-import { descriptors } from "./descriptors";
 import { users } from "./people";
 import { siteEnquiries } from "./site";
 import { orgs, tenants } from "./tenancy";
@@ -170,22 +168,20 @@ export const admissionFormVersions = core.table.withRLS(
 );
 
 /**
- * One school's admission into one grade of one school year: when families
- * may apply, how many places there are, the form and checklist they meet,
- * what it costs, when decisions go out and how long an offer stands, the
- * day and range ages are counted by, and the order of preference.
+ * One school's admission of learners who start on one day: its name, when
+ * families may apply, how many places there are, the form and checklist
+ * they meet, what it costs, when decisions go out and how long an offer
+ * stands, the day and range ages are counted by, and the order of
+ * preference.
  */
 export const admissionIntakes = core.table.withRLS(
   "admission_intakes",
   {
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
-    schoolYearType: text("school_year_type").notNull().default("school_year"),
-    gradeLevelDescriptorId: uuid("grade_level_descriptor_id").notNull(),
-    gradeLevelNs: text("grade_level_ns")
-      .notNull()
-      .generatedAlwaysAs(sql`'grade_level'`),
+    titleEn: text("title_en"),
+    titleAr: text("title_ar"),
+    startsOn: date("starts_on", { mode: "string" }).notNull(),
     opensOn: date("opens_on", { mode: "string" }).notNull(),
     closesOn: date("closes_on", { mode: "string" }).notNull(),
     capacity: integer("capacity").notNull(),
@@ -217,6 +213,7 @@ export const admissionIntakes = core.table.withRLS(
   },
   (t): PgTableExtraConfigValue[] => [
     pk("admission_intakes", t.tenantId, t.id),
+    uq("admission_intakes", t.tenantId, t.id, t.orgId),
     ck(
       "admission_intakes",
       "letters",
@@ -225,29 +222,23 @@ export const admissionIntakes = core.table.withRLS(
     ...baseConstraints("admission_intakes", t, tenants),
     fk(
       "admission_intakes",
-      [t.tenantId, t.schoolYearId, t.schoolYearType, t.schoolYearId, t.orgId],
-      [
-        academicSessions.tenantId,
-        academicSessions.id,
-        academicSessions.type,
-        academicSessions.schoolYearId,
-        academicSessions.orgId,
-      ],
-    ),
-    fk(
-      "admission_intakes",
-      [t.tenantId, t.gradeLevelDescriptorId, t.gradeLevelNs],
-      [descriptors.tenantId, descriptors.id, descriptors.namespace],
-    ),
-    fk(
-      "admission_intakes",
       [t.tenantId, t.formId],
       [admissionForms.tenantId, admissionForms.id],
     ),
     ck(
       "admission_intakes",
-      "school_year_type",
-      sql`school_year_type = 'school_year'`,
+      "title_en",
+      sql`char_length(title_en) between 1 and 120`,
+    ),
+    ck(
+      "admission_intakes",
+      "title_ar",
+      sql`char_length(title_ar) between 1 and 120`,
+    ),
+    ck(
+      "admission_intakes",
+      "title",
+      sql`num_nonnulls(title_en, title_ar) >= 1`,
     ),
     ck("admission_intakes", "window", sql`opens_on <= closes_on`),
     ck("admission_intakes", "capacity", sql`capacity between 1 and 5000`),
@@ -279,9 +270,6 @@ export const admissionIntakes = core.table.withRLS(
       "priorities",
       sql`priorities <@ array['sibling', 'staff_child', 'returning_student', 'additional_needs']`,
     ),
-    uniqueIndex("admission_intakes_grade_key")
-      .on(t.tenantId, t.orgId, t.schoolYearId, t.gradeLevelDescriptorId)
-      .where(sql`status = 'active'`),
     index("admission_intakes_window_idx")
       .on(t.tenantId, t.orgId, t.opensOn, t.closesOn)
       .where(sql`status = 'active'`),

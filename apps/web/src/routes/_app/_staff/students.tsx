@@ -41,29 +41,30 @@ import * as v from "valibot";
 import type { GroupWords } from "~/components/classes/slots";
 
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
-import { groupWords, viewsOf } from "~/components/classes/slots";
+import { groupWords, viewsOf, viewValue } from "~/components/classes/slots";
 import { NewMessage } from "~/components/messages/NewMessage";
 import { CreateSignIns } from "~/components/people/CreateSignIns";
 import {
   displayName,
   formatPhone,
-  labelOf,
   otherName,
   STATUS_LABEL,
   STATUS_TONE,
 } from "~/components/people/format";
 import { LeaveSchool } from "~/components/people/LeaveSchool";
-import { studentClassesParts, studentFilters } from "~/components/people/slots";
+import {
+  studentClassesParts,
+  studentColumns as studentColumnSlot,
+  studentFilters,
+} from "~/components/people/slots";
 import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
-import { peopleOptionsQuery, studentsQuery } from "~/queries/students";
+import { studentsQuery } from "~/queries/students";
 import { currentUserQuery } from "~/queries/user";
 import { downloadCsv } from "~/utils/csv";
 import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
-
-type Sort = StudentDirectoryQuery["sort"];
 
 /** Where a student stands by their role, whatever modules the school has. */
 const CORE_STATUSES: readonly StudentStatus[] = [
@@ -90,13 +91,13 @@ export const Route = createFileRoute("/_app/_staff/students")({
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "people:read", "people:manage");
     const filters = filled(context.extensions, user.modules, studentFilters);
+    const columns = filled(context.extensions, user.modules, studentColumnSlot);
     await Promise.all([
       context.queryClient.ensureQueryData(
         studentsQuery(deps, viewsOf(filters, deps)),
       ),
-      context.queryClient.ensureQueryData(peopleOptionsQuery),
-      ...filters.map((filter) =>
-        context.queryClient.ensureQueryData(filter.query()),
+      ...[...filters, ...columns].map((part) =>
+        context.queryClient.ensureQueryData(part.query()),
       ),
     ]);
   },
@@ -152,8 +153,8 @@ function Status({ row }: StatusProps) {
 // array would fix at whichever language first loaded the module on the server.
 function studentColumns(
   words: GroupWords | undefined,
-  grades: boolean,
-): Column<StudentRow, Sort>[] {
+  modules: readonly Column<StudentRow>[],
+): Column<StudentRow>[] {
   return [
     {
       id: "name",
@@ -183,18 +184,7 @@ function studentColumns(
       sort: "reference",
       cell: (row) => <Reference value={row.reference} />,
     },
-    ...(grades
-      ? [
-          {
-            id: "grade",
-            header: m.studentGrade(),
-            sort: "grade" as const,
-            cell: (row: StudentRow) => (
-              <Value notApplicable={!row.grade}>{labelOf(row.grade)}</Value>
-            ),
-          },
-        ]
-      : []),
+    ...modules,
     ...(words
       ? [
           {
@@ -245,33 +235,38 @@ function studentColumns(
   ];
 }
 
-const card = {
+const cardOf = (texts: (row: StudentRow) => string[]) => ({
   leading: (row: StudentRow) => <PersonAvatar name={displayName(row)} />,
   title: (row: StudentRow) => <StudentName row={row} />,
   fact: (row: StudentRow) => (
     <span className="flex flex-wrap items-center gap-x-3">
       <Status row={row} />
-      {row.grade ? <span>{labelOf(row.grade)}</span> : null}
+      {texts(row).map((text, index) => (
+        <span key={index}>{text}</span>
+      ))}
       {row.group ? (
         <span>{inLocale(row.group.titleEn, row.group.titleAr)}</span>
       ) : null}
     </span>
   ),
-};
+});
 
-function exportStudents(rows: StudentRow[]) {
+function exportStudents(
+  rows: StudentRow[],
+  columns: { header: string; text: (row: StudentRow) => string }[],
+) {
   downloadCsv(`${m.adminStudentsTitle()}.csv`, [
     [
       m.adminName(),
       m.adminReference(),
-      m.studentGrade(),
+      ...columns.map((column) => column.header),
       m.studentStatus(),
       m.studentsGuardianPhone(),
     ],
     ...rows.map((row) => [
       displayName(row),
       row.reference ?? "",
-      labelOf(row.grade) ?? "",
+      ...columns.map((column) => column.text(row)),
       STATUS_LABEL[row.status](),
       row.guardianPhone ?? "",
     ]),
@@ -305,25 +300,44 @@ function StudentsPage() {
     { id: string; name: string; className: string | null }[] | null
   >(null);
   const filters = useSlot(studentFilters);
+  const columnParts = useSlot(studentColumnSlot);
   const views = viewsOf(filters, search);
   const data = useSuspenseQuery(studentsQuery(search, views)).data;
-  const options = useSuspenseQuery(peopleOptionsQuery).data;
   const reads = useSuspenseQueries({
     queries: filters.map((filter) => filter.query()),
   });
+  const columnReads = useSuspenseQueries({
+    queries: columnParts.map((column) => column.query()),
+  });
+  const valueOf = (row: StudentRow, key: string) => row.columns[key] ?? null;
+  const moduleColumns: Column<StudentRow>[] = columnParts.map(
+    (column, index) => ({
+      id: column.key,
+      header: column.header(),
+      sort: column.key,
+      cell: (row) =>
+        column.cell(columnReads[index]?.data, valueOf(row, column.key)),
+    }),
+  );
+  const columnTexts = columnParts.map((column, index) => ({
+    header: column.header(),
+    text: (row: StudentRow) =>
+      column.text(columnReads[index]?.data, valueOf(row, column.key)),
+  }));
+  const card = cardOf((row) =>
+    columnTexts.map((column) => column.text(row)).filter(Boolean),
+  );
   const patch = (change: Partial<Search>) => {
     void navigate({ search: (previous) => ({ ...previous, ...change }) });
   };
   const moduleFacets = filters.flatMap((filter, index) => {
-    const value = search[filter.key];
     const facet = filter.facetOf(
       reads[index]?.data,
-      typeof value === "string" && value ? value : undefined,
+      viewValue(search[filter.key]),
       (next) => patch({ [filter.key]: next, page: 1 }),
     );
     return facet ? [facet] : [];
   });
-  const grades = filters.some((filter) => filter.givesGrades);
   const statusFacet: Facet = {
     id: "status",
     label: m.studentStatus(),
@@ -337,16 +351,6 @@ function StudentsPage() {
         status: STUDENT_STATUSES.filter((value) => status.includes(value)),
         page: 1,
       }),
-  };
-  const gradeFacet: Facet = {
-    id: "grade",
-    label: m.studentGrade(),
-    options: options.grades.map((grade) => ({
-      value: grade.id,
-      label: labelOf(grade) ?? grade.code,
-    })),
-    selected: search.grade,
-    onChange: (grade) => patch({ grade, page: 1 }),
   };
   const attentionFacet: Facet = {
     id: "missing",
@@ -403,16 +407,10 @@ function StudentsPage() {
       label: m.studentsSearchHint(),
       placeholder: m.studentsSearchPlaceholder(),
     },
-    facets: [
-      ...moduleFacets,
-      ...(grades ? [gradeFacet] : []),
-      statusFacet,
-      attentionFacet,
-    ],
+    facets: [...moduleFacets, statusFacet, attentionFacet],
     onReset: () =>
       patch({
         q: "",
-        grade: [],
         status: [],
         missing: [],
         page: 1,
@@ -430,7 +428,7 @@ function StudentsPage() {
       <DataTable
         caption={m.adminStudentsCaption()}
         rows={data.rows}
-        columns={studentColumns(words, grades)}
+        columns={studentColumns(words, moduleColumns)}
         rowLabel={(row) => displayName(row)}
         toolbar={toolbar}
         sort={{
@@ -506,7 +504,7 @@ function StudentsPage() {
           {
             label: m.studentsExport(),
             icon: Download,
-            onSelect: exportStudents,
+            onSelect: (rows: StudentRow[]) => exportStudents(rows, columnTexts),
           },
         ]}
         pagination={{

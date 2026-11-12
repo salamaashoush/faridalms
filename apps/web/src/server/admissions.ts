@@ -1,7 +1,7 @@
 import {
   admissionReportSchema,
   answerOfferSchema,
-  applicationListSchema,
+  applicationListInputSchema,
   applicationNoteSchema,
   applicationRefSchema,
   attachDocumentSchema,
@@ -115,7 +115,7 @@ export const publishForm = createServerFn({ method: "POST" })
   .handler(({ data }) => backend().intakes.publishForm(data));
 
 export const getApplications = createServerFn({ method: "GET" })
-  .validator(checked(applicationListSchema))
+  .validator(checked(applicationListInputSchema))
   .handler(({ data }) => backend().applications.list(data));
 
 export const getApplication = createServerFn({ method: "GET" })

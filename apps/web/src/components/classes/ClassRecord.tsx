@@ -1,7 +1,6 @@
 import type { HeaderFact, RecordTab } from "@faridalms/ui/system/record-page";
 import type { ReactNode } from "react";
 
-import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { ActionMenu } from "@faridalms/ui/system/action-menu";
@@ -43,7 +42,7 @@ import { formatDate } from "~/utils/datetime";
 
 import type { ClassRecordData, RosterKeeping } from "./slots";
 
-import { displayName, labelOf, lastDay } from "../people/format";
+import { displayName, lastDay } from "../people/format";
 import { Deferred } from "../people/record-parts";
 import { AddStudentSheet, WithdrawSheet } from "./Enrolment";
 import { classTitle, subjectName } from "./format";
@@ -163,16 +162,8 @@ interface StudentsSectionProps {
 }
 
 function StudentsSection({ data, note, keeping }: StudentsSectionProps) {
-  const options = useSuspenseQuery(classOptionsQuery).data;
   const canEnrol = data.access.enrol && keeping !== null;
-  const meaning = options.grades.find(
-    (row) => row.id === data.gradeId,
-  )?.meaning;
-  const badges =
-    useCapability("badges:issue") &&
-    (YOUNG_STUDENT_GRADES as readonly (string | null | undefined)[]).includes(
-      meaning,
-    );
+  const badges = useCapability("badges:issue") && data.young;
   const [sheet, setSheet] = useState<{
     sheet: Sheet;
     open: boolean;
@@ -378,13 +369,8 @@ export function ClassRecord({
   const teaches = useCapability("assignments:author");
   const grades = useCapability("submissions:grade");
   const keepsGrading = setsUpGrading || keepsClasses;
-  const youngClass = (
-    YOUNG_STUDENT_GRADES as readonly (string | null | undefined)[]
-  ).includes(options.grades.find((row) => row.id === data.gradeId)?.meaning);
+  const youngClass = data.young;
   const title = classTitle(data);
-  const grade = labelOf(
-    options.grades.find((row) => row.id === data.gradeId) ?? null,
-  );
   const room = options.rooms.find((row) => row.id === data.locationId);
   const facts: HeaderFact[] = [
     {
@@ -398,7 +384,6 @@ export function ClassRecord({
     },
     ...(part?.facts ?? []),
   ];
-  if (grade) facts.push({ label: m.studentGrade(), value: grade });
   if (data.subjectId)
     facts.push({
       label: m.classesSubject(),

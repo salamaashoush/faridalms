@@ -5,12 +5,6 @@ import type { ContentLocale } from "@faridalms/domain/translations";
 
 import { changeOf } from "@faridalms/database/audit";
 import { bookedBetween } from "@faridalms/database/stores/admission-decisions";
-import {
-  audiencesOf,
-  audienceUsers,
-  reachOf,
-  setAudiences,
-} from "@faridalms/database/stores/audiences";
 import { classesTaughtBy } from "@faridalms/database/stores/classes";
 import {
   eventById,
@@ -45,7 +39,14 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 
 import { hashFeedToken, newFeedToken } from "../calendar/feed";
-import { audienceChoices, audienceOf, calendarReach } from "../core/audiences";
+import {
+  audienceChoices,
+  audiencePeople,
+  audiencesAt,
+  calendarReach,
+  reachAt,
+  saveAudiences,
+} from "../core/audiences";
 import { refuseIfHeld } from "../core/holds";
 import { notify } from "../core/notify";
 import {
@@ -169,18 +170,10 @@ async function tell(
   },
   change: { updated?: boolean; cancelled?: boolean },
 ) {
-  const audiences = await audiencesOf(context.tx, context.tenantId, {
-    kind: "calendar_event",
-    id: row.id,
-  });
-  const people = await audienceUsers(
-    context.tx,
-    {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      on: context.today,
-    },
-    audiences,
+  const people = await audiencePeople(
+    context,
+    { kind: "calendar_event", id: row.id },
+    context.today,
   );
   return notify(context, people, {
     kind: "event",
@@ -214,7 +207,7 @@ registerHostWriter("calendar_event", async (context, hostId) => {
 
 /**
  * Who the viewer is to the audiences, narrowed to one of their children when
- * a family asks: that child's classes and grade, and what goes to every
+ * a family asks: that child's classes, and what goes to every
  * student or family.
  */
 async function reachFor(context: UnitContext, childId: string) {
@@ -228,9 +221,7 @@ async function reachFor(context: UnitContext, childId: string) {
   if (!childId) return { reach: await calendarReach(context), children };
   if (!children.some((child) => child.studentId === childId))
     throw new ORPCError("NOT_FOUND");
-  const theirs = await reachOf(context.tx, {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
+  const theirs = await reachAt(context, {
     userId: childId,
     on: context.today,
   });
@@ -321,7 +312,7 @@ export const range = readProcedure
     };
   });
 
-/** The classes and grades an event can be for: every one for the office, a teacher's own classes otherwise. */
+/** The classes, and what the modules' audiences may name, an event can be for: every one for the office, a teacher's own classes otherwise. */
 export const options = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "calendar:manage", "calendar:author");
   if (manages(context)) return audienceChoices(context);
@@ -336,7 +327,7 @@ export const options = readProcedure.handler(async ({ context }) => {
       titleEn: row.titleEn,
       titleAr: row.titleAr,
     })),
-    grades: [],
+    kinds: [],
   };
 });
 
@@ -349,10 +340,7 @@ export const event = readProcedure
       (can(context, "calendar:author") &&
         row.authorUserId === context.actor.userId);
     const [audiences, draft, published, review] = await Promise.all([
-      audiencesOf(context.tx, context.tenantId, {
-        kind: "calendar_event",
-        id: row.id,
-      }),
+      audiencesAt(context, { kind: "calendar_event", id: row.id }),
       draftWords(context, host(row.id)),
       publishedWords(context, host(row.id)),
       canEdit
@@ -365,14 +353,10 @@ export const event = readProcedure
     ]);
     const reached = canEdit
       ? (
-          await audienceUsers(
-            context.tx,
-            {
-              tenantId: context.tenantId,
-              schoolId: context.schoolId,
-              on: context.today,
-            },
-            audiences,
+          await audiencePeople(
+            context,
+            { kind: "calendar_event", id: row.id },
+            context.today,
           )
         ).length
       : 0;
@@ -439,11 +423,11 @@ export const save = writeProcedure
       eventId = created.id;
       version = created.version;
     }
-    await setAudiences(context.tx, {
-      tenantId: context.tenantId,
-      owner: { kind: "calendar_event", id: eventId },
-      audiences: input.audiences.map(audienceOf),
-    });
+    await saveAudiences(
+      context,
+      { kind: "calendar_event", id: eventId },
+      input.audiences,
+    );
     const words = await saveWords(context, host(eventId), {
       primaryLocale: localeOf(input.primaryLocale, input),
       body: input.description,

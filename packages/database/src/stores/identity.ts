@@ -3,7 +3,6 @@ import type { SwitchedModule } from "@faridalms/domain/modules";
 import type { SessionContext } from "@faridalms/domain/workspace";
 
 import { PROFILE_CAPS } from "@faridalms/domain/capabilities";
-import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
 import { SWITCHED_MODULES } from "@faridalms/domain/modules";
 import {
   ADMINISTRATION_ROLES,
@@ -61,8 +60,11 @@ export async function effectiveAccess(
     userId: string;
     orgId: string;
     today: string;
-    context: SessionContext;
-  },
+  } & (
+    | { context: "staff" | "family"; young?: undefined }
+    /** A student's profile is young where a module knows them to be a young child. */
+    | { context: SessionContext; young: boolean }
+  ),
 ): Promise<EffectiveAccess> {
   const path = await orgPath(tx, input.tenantId, input.orgId);
   if (path.length === 0)
@@ -156,19 +158,7 @@ export async function effectiveAccess(
         : "staff";
   else if (input.context === "family") profile = "family";
   else {
-    const grade = await tx.execute<{ meaning: string | null }>(sql`
-      select d.system_meaning as meaning
-      from core.student_school_years s
-      join core.descriptors d on d.tenant_id = s.tenant_id and d.id = s.grade_level_descriptor_id
-      where s.tenant_id = ${input.tenantId}::uuid and s.student_user_id = ${input.userId}::uuid
-        and s.org_id = ${input.orgId}::uuid and s.status = 'active'
-        and s.valid_during @> ${input.today}::date
-      limit 1`);
-    const meaning = grade[0]?.meaning ?? null;
-    profile =
-      meaning && (YOUNG_STUDENT_GRADES as readonly string[]).includes(meaning)
-        ? "young_student"
-        : "student";
+    profile = input.young === true ? "young_student" : "student";
   }
   if (!contexts.includes(input.context))
     return { profile, capabilities: new Set(), roles, contexts };

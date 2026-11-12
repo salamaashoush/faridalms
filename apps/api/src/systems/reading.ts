@@ -1,10 +1,7 @@
 import type { FluencyMark } from "@faridalms/domain/learning";
-import type { NormRow, ReadingLanguage } from "@faridalms/domain/reading";
 
 import {
-  gradesOverTime,
   quizReadingsOf,
-  readingNormsOf,
   resetReadingNorms,
   saveReadingNorms,
 } from "@faridalms/database/stores/reading";
@@ -16,12 +13,10 @@ import {
 } from "@faridalms/domain/learning";
 import { lessonOfContent } from "@faridalms/domain/lesson-content";
 import {
-  DEFAULT_NORMS,
   normStanding,
   passageLanguage,
   practiseWords,
   prosodyTotal,
-  READING_LANGUAGES,
   resetNormsSchema,
   saveNormsSchema,
   seasonOf,
@@ -40,34 +35,15 @@ import {
 } from "../core/procedure";
 import { requireStudent } from "../core/reach";
 import { defaultSpan } from "../core/spans";
-import { lessonReadings } from "../coursework/points";
+import { normsIn } from "../coursework/norms";
+import {
+  lessonReadings,
+  readingGrades,
+  requireReadingGrades,
+} from "../coursework/points";
 import { publishedQuiz } from "../quizzes/quiz";
 
 const id = v.pipe(v.string(), v.uuid());
-
-/** The norms the school reads by, each language its own or the defaults. */
-async function normsIn(context: UnitContext) {
-  const saved = await readingNormsOf(context.tx, {
-    tenantId: context.tenantId,
-    orgId: context.schoolId,
-  });
-  return Object.fromEntries(
-    READING_LANGUAGES.map((language) => {
-      const own = saved.find((row) => row.language === language);
-      return [
-        language,
-        {
-          rows: own?.rows ?? DEFAULT_NORMS[language],
-          own: own !== undefined,
-          version: own?.version ?? 0,
-        },
-      ];
-    }),
-  ) as Record<
-    ReadingLanguage,
-    { rows: NormRow[]; own: boolean; version: number }
-  >;
-}
 
 /** The school's reading norms, for whoever manages the school's settings. */
 export const norms = readProcedure.handler(async ({ context }) => {
@@ -85,6 +61,7 @@ export const saveNorms = writeProcedure
   )
   .handler(async ({ input, context }) => {
     requireCapability(context, "school:manage");
+    await requireReadingGrades(context);
     const saved = await saveReadingNorms(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -108,6 +85,7 @@ export const resetNorms = writeProcedure
   .input(resetNormsSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "school:manage");
+    await requireReadingGrades(context);
     await resetReadingNorms(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -230,28 +208,27 @@ export const student = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:read");
     await requireStudent(context, "teaching", input.studentId);
+    const [source] = await contributionsTo(context, readingGrades);
     const [readings, grades, school] = await Promise.all([
       readingsOf(context, input.studentId),
-      gradesOverTime(context.tx, {
-        tenantId: context.tenantId,
-        studentId: input.studentId,
-      }),
-      normsIn(context),
+      source ? source.gradesOver(context, input.studentId) : [],
+      source ? normsIn(context) : null,
     ]);
     const gradeOn = (day: string) =>
       grades.find(
         (row) => row.from <= day && (row.before === null || day < row.before),
-      )?.grade ?? null;
+      )?.meaning ?? null;
     return {
       readings: readings.map((reading) => {
         const day = reading.markedAt.slice(0, 10);
         const season = seasonOf(day);
         const grade = gradeOn(day);
-        const norm = grade
-          ? school[reading.language].rows.find(
-              (row) => row.grade === grade && row.season === season,
-            )
-          : undefined;
+        const norm =
+          grade && school
+            ? school[reading.language].rows.find(
+                (row) => row.grade === grade && row.season === season,
+              )
+            : undefined;
         return {
           ...reading,
           grade,

@@ -1,3 +1,4 @@
+import { suggestedAges, suggestedCutoff } from "@faridalms/domain/admissions";
 import { formDocument } from "@faridalms/domain/questions";
 import { describe, expect, test } from "bun:test";
 
@@ -34,12 +35,16 @@ describe("setting up admissions", () => {
       code: "FORBIDDEN",
     });
     const api = await officer();
-    const options = await api.intakes.options();
-    const year = options.years.find((row) => row.titleEn === "2027–2028");
-    const grade = options.grades.find((row) => row.labelEn === "Grade 5");
+    const [options, years, grades] = await Promise.all([
+      api.intakes.options(),
+      api.years.options(),
+      api.gradeLevels.options(),
+    ]);
+    const year = years.years.find((row) => row.titleEn === "2027–2028");
+    const grade = grades.grades.find((row) => row.labelEn === "Grade 5");
     if (!year || !grade) throw new Error("seed is missing next year");
-    expect(year.cutoffOn).toBe("2027-10-01");
-    expect(grade.minMonths).toBe(120);
+    expect(suggestedCutoff(year.startsOn, options.country)).toBe("2027-10-01");
+    expect(suggestedAges(grade.meaning).minMonths).toBe(120);
     const draft = await api.intakes.saveForm({
       expectedVersion: 0,
       nameEn: "Unpublished",
@@ -52,8 +57,9 @@ describe("setting up admissions", () => {
       await rejection(
         api.intakes.saveIntake({
           expectedVersion: 0,
-          schoolYearId: year.id,
-          gradeId: grade.id,
+          titleEn: "Grade 5, 2027–2028",
+          startsOn: year.startsOn,
+          parts: { year: { yearId: year.id }, grade: { gradeId: grade.id } },
           opensOn: "2026-11-01",
           closesOn: "2027-03-31",
           capacity: 10,
@@ -95,10 +101,12 @@ describe("setting up admissions", () => {
 
   test("the seeded school has next year's KG1 intake open with its checklist", async () => {
     const api = await principal();
-    const { years } = await api.intakes.options();
+    const { years } = await api.years.options();
     const year = years.find((row) => row.titleEn === "2027–2028");
-    const { intakes } = await api.intakes.list({ year: year?.id ?? "" });
-    const kg1 = intakes.find((row) => row.gradeEn === "KG1");
+    const { intakes } = await api.intakes.list({
+      views: { year: year?.id ?? "" },
+    });
+    const kg1 = intakes.find((row) => row.facts.grade?.labelEn === "KG1");
     expect(kg1).toMatchObject({
       capacity: 40,
       ageCutoffOn: "2027-10-01",
@@ -122,7 +130,7 @@ describe("registering to apply", () => {
     expect(me).toMatchObject({ workspace: "family" });
     const mine = await api.applying.mine();
     expect(mine.applications).toEqual([]);
-    expect(mine.intakes.map((row) => row.gradeEn)).toContain("KG1");
+    expect(mine.intakes.map((row) => row.titleEn)).toContain("KG1, 2027–2028");
     // A family that only applies reaches nothing of the school's own.
     expect(await rejection(api.applications.list({}))).toMatchObject({
       code: "FORBIDDEN",

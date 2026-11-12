@@ -20,7 +20,11 @@ import { toast } from "sonner";
 
 import type { ClassDaysValue } from "~/components/classes/ClassDays";
 
-import { ClassDaysSection, useClassDays } from "~/components/classes/ClassDays";
+import {
+  ClassDaysSection,
+  ClassPartFields,
+  useClassDays,
+} from "~/components/classes/ClassDays";
 import { displayName, labelOf } from "~/components/people/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -49,7 +53,6 @@ interface Draft {
   code: string;
   titleEn: string;
   titleAr: string;
-  gradeId: string;
   locationId: string;
   homeroomTeacherId: string;
   subjects: SubjectDraft[];
@@ -83,7 +86,6 @@ function initialDraft(
       code: "",
       titleEn: "",
       titleAr: "",
-      gradeId: "",
       locationId: "",
       homeroomTeacherId: "",
       subjects: [],
@@ -94,7 +96,6 @@ function initialDraft(
     code: record.code,
     titleEn: record.titleEn ?? "",
     titleAr: record.titleAr ?? "",
-    gradeId: record.gradeId ?? "",
     locationId: record.locationId ?? "",
     homeroomTeacherId: record.teachers[0]?.userId ?? "",
     subjects: subjects.map((subject, index) => ({
@@ -412,7 +413,6 @@ export function HomeroomEditor({
     code: draft.code.trim(),
     titleEn: draft.titleEn,
     titleAr: draft.titleAr,
-    gradeId: draft.gradeId,
     locationId: draft.locationId,
     homeroomTeacherId: draft.homeroomTeacherId,
     subjects: draft.subjects
@@ -490,20 +490,13 @@ export function HomeroomEditor({
           onChange={(event) => set("code", event.target.value)}
           errors={errors.code ? [errors.code] : undefined}
         />
-        <SelectField
-          id="class-grade"
-          label={m.studentGrade()}
-          optional
-          value={draft.gradeId || "none"}
-          options={[
-            ...options.grades.map((row) => ({
-              value: row.id,
-              label: labelOf(row) ?? row.code,
-            })),
-            { value: "none", label: m.commonNotRecorded() },
-          ]}
-          onChange={(value) => set("gradeId", value === "none" ? "" : value)}
-          width="name"
+        <ClassPartFields
+          section="details"
+          parts={classDays.parts}
+          reads={classDays.reads}
+          search={search}
+          value={draft.days}
+          onChange={(days) => setDraft((current) => ({ ...current, days }))}
         />
         <SelectField
           id="class-room"

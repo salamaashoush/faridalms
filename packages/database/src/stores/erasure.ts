@@ -536,6 +536,11 @@ export async function eraseSubject(
     sql`student_user_id = ${s}::uuid`,
   );
   await tombstone(
+    "student_grades",
+    sql`core.student_grades`,
+    sql`student_user_id = ${s}::uuid`,
+  );
+  await tombstone(
     "student_departures",
     sql`core.student_departures`,
     sql`student_user_id = ${s}::uuid`,

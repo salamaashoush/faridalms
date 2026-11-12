@@ -22,11 +22,11 @@ import {
 } from "@faridalms/domain/admissions";
 import { ORPCError } from "@orpc/server";
 
-import type { UnitContext } from "./context";
+import type { UnitContext } from "../core/context";
 
+import { audit } from "../core/procedure";
+import { draftWords } from "../core/publication";
 import { registerHostReader } from "../files/authorize";
-import { audit } from "./procedure";
-import { draftWords } from "./publication";
 
 const readsAdmissions = (context: UnitContext) =>
   context.actor.capabilities.has("admissions:read") ||

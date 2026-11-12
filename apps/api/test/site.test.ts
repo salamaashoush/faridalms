@@ -499,7 +499,7 @@ describe("events on the website", () => {
       endTime: "",
       location: "Main hall",
       provisional: false,
-      audiences: [{ scope: "school", classId: "", gradeId: "" }],
+      audiences: [{ scope: "school", classId: "", targetId: "" }],
       description: plainContent(""),
       public: true,
     });

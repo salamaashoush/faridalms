@@ -8,7 +8,7 @@ import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
   Link,
@@ -17,12 +17,18 @@ import {
 import { CalendarRange, FileText, Plus } from "lucide-react";
 import * as v from "valibot";
 
+import type { IntakePart } from "~/components/admissions/slots";
+
 import {
   named,
   WINDOW_LABEL,
   WINDOW_TONE,
 } from "~/components/admissions/application-labels";
+import { IntakeFact } from "~/components/admissions/IntakeFact";
+import { intakeFilters, intakeParts } from "~/components/admissions/slots";
+import { viewsOf, viewValue } from "~/components/classes/slots";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import {
   formsQuery,
@@ -31,10 +37,11 @@ import {
 } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
 import { formatDate, formatList, formatNumber } from "~/utils/datetime";
+import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
 
-const searchSchema = v.object({
-  year: v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
+// Loose, so a module's view rides in the address under its own key.
+const searchSchema = v.looseObject({
   tab: v.optional(v.picklist(["intakes", "forms"]), "intakes"),
 });
 const DEFAULT_SEARCH = v.parse(searchSchema, {});
@@ -47,10 +54,14 @@ export const Route = createFileRoute("/_app/admissions/intakes/")({
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "admissions:read", "admissions:configure");
+    const filters = filled(context.extensions, user.modules, intakeFilters);
     await Promise.all([
-      context.queryClient.ensureQueryData(intakesQuery(deps.year)),
+      context.queryClient.ensureQueryData(intakesQuery(viewsOf(filters, deps))),
       context.queryClient.ensureQueryData(intakeOptionsQuery),
       context.queryClient.ensureQueryData(formsQuery),
+      ...filters.map((filter) =>
+        context.queryClient.ensureQueryData(filter.query()),
+      ),
     ]);
   },
   component: IntakesPage,
@@ -63,30 +74,45 @@ type Form = Awaited<
   ReturnType<NonNullable<(typeof formsQuery)["queryFn"]>>
 >["forms"][number];
 
-interface GradeProps {
+interface IntakeNameProps {
   row: Intake;
 }
 
 /** An intake opens its board, where its applications are worked through. */
-function Grade({ row }: GradeProps) {
+function IntakeName({ row }: IntakeNameProps) {
   return (
     <RowLink
       to="/admissions/intakes/$intakeId"
       params={{ intakeId: row.id }}
       className="justify-self-start"
     >
-      {inLocale(row.gradeEn, row.gradeAr)}
+      {inLocale(row.titleEn, row.titleAr)}
     </RowLink>
   );
 }
 
-function intakeColumns(today: string): Column<Intake>[] {
+function intakeColumns(
+  today: string,
+  parts: readonly IntakePart[],
+): Column<Intake>[] {
   return [
     {
-      id: "grade",
-      header: m.itkColGrade(),
+      id: "name",
+      header: m.itkColName(),
       primary: true,
-      cell: (row) => <Grade row={row} />,
+      cell: (row) => <IntakeName row={row} />,
+    },
+    ...parts.map((part) => ({
+      id: part.key,
+      header: part.label(),
+      cell: (row: Intake) => <IntakeFact fact={row.facts[part.key]} />,
+    })),
+    {
+      id: "starts",
+      header: m.itkColStarts(),
+      cell: (row: Intake) => (
+        <span className="whitespace-nowrap">{formatDate(row.startsOn)}</span>
+      ),
     },
     {
       id: "dates",
@@ -186,7 +212,7 @@ function Published({ row }: PublishedProps) {
 }
 
 const intakeCard = (today: string) => ({
-  title: (row: Intake) => <Grade row={row} />,
+  title: (row: Intake) => <IntakeName row={row} />,
   status: (row: Intake) => <Window row={row} today={today} />,
   fact: (row: Intake) =>
     m.itkPlacesApplying({
@@ -235,7 +261,24 @@ const FORM_CARD = {
 function IntakesPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const data = useSuspenseQuery(intakesQuery(search.year)).data;
+  const filters = useSlot(intakeFilters);
+  const parts = useSlot(intakeParts);
+  const views = viewsOf(filters, search);
+  const data = useSuspenseQuery(intakesQuery(views)).data;
+  const reads = useSuspenseQueries({
+    queries: filters.map((filter) => filter.query()),
+  });
+  const facets = filters.flatMap((filter, index) => {
+    const facet = filter.facetOf(
+      reads[index]?.data,
+      viewValue(search[filter.key]),
+      (value) =>
+        void navigate({
+          search: (previous) => ({ ...previous, [filter.key]: value }),
+        }),
+    );
+    return facet ? [facet] : [];
+  });
   const options = useSuspenseQuery(intakeOptionsQuery).data;
   const forms = useSuspenseQuery(formsQuery).data;
   const missingWords = options.consents.filter(
@@ -257,10 +300,7 @@ function IntakesPage() {
               : {
                   label: m.itkNew(),
                   icon: Plus,
-                  link: {
-                    to: "/admissions/intake-editor",
-                    search: { year: data.yearId ?? undefined },
-                  },
+                  link: { to: "/admissions/intake-editor", search: views },
                 }
             : undefined
         }
@@ -301,31 +341,17 @@ function IntakesPage() {
       >
         {search.tab === "intakes" ? (
           <div className="grid gap-4">
-            <IndexToolbar
-              facets={[
-                {
-                  id: "year",
-                  label: m.itkFieldYear(),
-                  single: true,
-                  defaultSelected: [data.yearId ?? ""],
-                  selected: [data.yearId ?? ""],
-                  options: options.years.map((year) => ({
-                    value: year.id,
-                    label: inLocale(year.titleEn, year.titleAr),
-                  })),
-                  onChange: ([year]) =>
-                    void navigate({
-                      search: (previous) => ({ ...previous, year: year ?? "" }),
-                    }),
-                },
-              ]}
-              onReset={() => void navigate({ search: {} })}
-            />
+            {facets.length > 0 ? (
+              <IndexToolbar
+                facets={facets}
+                onReset={() => void navigate({ search: {} })}
+              />
+            ) : null}
             <DataTable
               caption={m.itkCaption()}
               rows={data.intakes}
-              columns={intakeColumns(data.today)}
-              rowLabel={(row) => inLocale(row.gradeEn, row.gradeAr)}
+              columns={intakeColumns(data.today, parts)}
+              rowLabel={(row) => inLocale(row.titleEn, row.titleAr)}
               card={intakeCard(data.today)}
               empty={{
                 icon: CalendarRange,

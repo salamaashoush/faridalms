@@ -405,7 +405,7 @@ const post = (
   ackDueOn: "",
   audiences:
     visibility === "school"
-      ? [{ scope: "families" as const, classId: "", gradeId: "" }]
+      ? [{ scope: "families" as const, classId: "", targetId: "" }]
       : [],
   body: withPicture(plainContent(`${title} was a great day.`), pictureId),
   translation: null,

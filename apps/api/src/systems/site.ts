@@ -91,7 +91,6 @@ import {
   pageFileIds,
   pageIssues,
   pagePlainText,
-  pageSectionSchema,
   pageWarnings,
   publicPageSchema,
   publicPostSchema,
@@ -99,6 +98,7 @@ import {
   publicRedirectSchema,
   publicSitemapSchema,
   publicSiteSchema,
+  publishedSections,
   publishSchema,
   saveCategorySchema,
   savePageSchema,
@@ -114,7 +114,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { announceEnquiry } from "../core/enquiries";
+import { announceEnquiry } from "../admissions/enquiries";
 import { refuseIfHeld } from "../core/holds";
 import { forgetFace } from "../core/portal-face";
 import {
@@ -1222,7 +1222,8 @@ export const publicSite = publicProcedure
 export const publicSitePage = publicProcedure
   .input(publicPageSchema)
   .handler(({ input, context }) =>
-    withWebsite(context, input.school, async ({ tx, tenantId, schoolId }) => {
+    withWebsite(context, input.school, async (unit) => {
+      const { tx, tenantId, schoolId, modules } = unit;
       const settings = await liveSettings(tx, tenantId, schoolId);
       const locale = resolveLocale(settings, input.locale);
       const row = await publicPage(tx, {
@@ -1231,16 +1232,7 @@ export const publicSitePage = publicProcedure
         slug: input.slug,
       });
       if (!row) throw new ORPCError("NOT_FOUND");
-      // Published copies are read through the schema, so a section
-      // published before a field existed gets that field's default.
-      const sections = (
-        (row.content.sections ?? []) as ReturnType<typeof localizedSections>
-      ).flatMap((item) => {
-        const read = v.safeParse(pageSectionSchema, item.section);
-        return read.success
-          ? [{ section: read.output, locale: item.locale }]
-          : [];
-      });
+      const sections = publishedSections(row.content.sections, modules);
       const wanted = Math.max(
         0,
         ...sections.flatMap((item) =>
@@ -1529,7 +1521,7 @@ export const submitEnquiry = publicProcedure
     const received = await withWebsite(
       context,
       input.school,
-      async ({ tx, tenantId, schoolId }) => {
+      async ({ tx, tenantId, schoolId, modules }) => {
         const settings = await liveSettings(tx, tenantId, schoolId);
         const locale = resolveLocale(settings, input.locale);
         const published = await publicPage(tx, {
@@ -1537,13 +1529,8 @@ export const submitEnquiry = publicProcedure
           locale,
           slug: input.page,
         });
-        const form = (
-          (published?.content.sections ?? []) as ReturnType<
-            typeof localizedSections
-          >
-        )
-          .map((item) => v.safeParse(pageSectionSchema, item.section))
-          .flatMap((read) => (read.success ? [read.output] : []))
+        const form = publishedSections(published?.content.sections, modules)
+          .map((item) => item.section)
           .find((section) => section.id === input.sectionId);
         if (!published || form?.type !== "form")
           throw new ORPCError("BAD_REQUEST", { message: "site.form" });

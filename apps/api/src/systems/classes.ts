@@ -46,6 +46,8 @@ import {
   endingRefusal,
   requireChangeable,
   saveClassParts,
+  classFactsOf,
+  withClassColumns,
 } from "../classes/points";
 import {
   audit,
@@ -70,8 +72,7 @@ export const options = readProcedure.handler(async ({ context }) => {
       namespace,
       today: context.today,
     });
-  const [grades, subjects, rooms, staff] = await Promise.all([
-    load("grade_level"),
+  const [subjects, rooms, staff] = await Promise.all([
     load("subject"),
     roomsOf(context.tx, context.tenantId, context.schoolId),
     staffDirectory(context.tx, scopeFor(context, "classes"), {
@@ -86,7 +87,6 @@ export const options = readProcedure.handler(async ({ context }) => {
     }),
   ]);
   return {
-    grades,
     subjects,
     rooms,
     today: context.today,
@@ -115,15 +115,15 @@ export const directory = readProcedure
       {
         on,
         classIds: view?.classIds ?? null,
+        within: view?.within ?? null,
         ended: input.ended,
         q: input.q,
-        gradeIds: input.grade,
         locale: localeOf(context),
       },
     );
     return {
       on,
-      rows,
+      ...(await withClassColumns(context, rows)),
       manage: can(context, "classes:manage") && !view?.settled,
     };
   });
@@ -175,6 +175,7 @@ export const record = readProcedure
       ...detail,
       on,
       today: context.today,
+      ...(await classFactsOf(context, detail.id)),
       roster,
       access: {
         manage: can(context, "classes:manage") && changeable,
@@ -238,7 +239,6 @@ export const save = writeProcedure
       titleEn: input.titleEn,
       titleAr: input.titleAr,
       subjectId: input.subjectId || null,
-      gradeId: input.gradeId || null,
       locationId: input.locationId || null,
     };
     let classId: string;
@@ -301,7 +301,6 @@ export const save = writeProcedure
         titleEn: input.titleEn || null,
         titleAr: input.titleAr || null,
         subjectId: input.subjectId || null,
-        gradeId: input.gradeId || null,
         locationId: input.locationId || null,
         runs,
       }),

@@ -8,15 +8,7 @@ import {
   adoptHealthRecords,
   closeApplicantRole,
 } from "@faridalms/database/stores/admission-decisions";
-import {
-  descriptorId,
-  descriptorsFor,
-} from "@faridalms/database/stores/descriptors";
-import {
-  place,
-  placements,
-  saveArrival,
-} from "@faridalms/database/stores/placements";
+import { descriptorId } from "@faridalms/database/stores/descriptors";
 import {
   guardiansOf,
   insertRelationship,
@@ -25,17 +17,18 @@ import {
   refreshCustodyAlert,
   setReference,
   syncFamilyRoles,
+  ensureStudentRole,
   updateRelationship,
 } from "@faridalms/database/stores/students";
-import { holdYear, schoolYears } from "@faridalms/database/stores/years";
 import { ORPCError } from "@orpc/server";
 
-import type { UnitContext } from "./context";
+import type { UnitContext } from "../core/context";
 
+import { audit } from "../core/procedure";
+import { withPurposeFor } from "../core/purpose";
+import { scopeFor } from "../core/reach";
 import { admissionScope, moveApplication } from "./decisions";
-import { audit } from "./procedure";
-import { withPurposeFor } from "./purpose";
-import { scopeFor } from "./reach";
+import { enrolParts } from "./points";
 
 /**
  * Whom an accepted applicant becomes: themself, or the school's own
@@ -124,9 +117,10 @@ async function joinRecords(
  * student is kept; the guardians the family named are linked with their
  * relationship and legal-guardian flags, the applying parent now with the
  * portal and notices; the identity document, health and needs and consents
- * stay with the child, as they were kept on them from the first save; a
- * placement for the intake's year and grade starts on its first day with
- * how the child came; the family role their links now give replaces the
+ * stay with the child, as they were kept on them from the first save; the
+ * child is the school's student from the intake's first day, and each
+ * module records its part (the year and grade the intake admits into, and
+ * how the child came); the family role their links now give replaces the
  * applying role, which ends the day the child starts; and the application
  * is closed, read-only and linked to the student, with the welcome letter
  * sent.
@@ -167,55 +161,20 @@ export async function enrol(
     });
   }
 
-  const year = (await schoolYears(tx, context.tenantId, context.schoolId)).find(
-    (each) => each.id === intake.schoolYearId,
-  );
-  if (!year)
-    throw new ORPCError("BAD_REQUEST", { message: "school_year.missing" });
-  if ((await holdYear(tx, context.tenantId, year.id)) === "closed")
-    throw new ORPCError("CONFLICT", { message: "school_year.closed" });
-  await place(tx, scope, {
-    studentId,
-    year,
-    gradeId: intake.gradeId,
-    from: year.startsOn,
-    source: "admission",
-  });
-  const entryTypes = await descriptorsFor(tx, {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    namespace: "school_entry_type",
-    today: context.today,
-  });
+  await ensureStudentRole(tx, scope, studentId, intake.startsOn);
   const previous = row.form.schools[0]?.name ?? null;
   const entry = returning
     ? "re_entry"
     : previous
       ? "transfer_in"
       : "first_enrolment";
-  const placement = (await placements(tx, scope, studentId)).find(
-    (each) => each.schoolYearId === year.id && each.from === year.startsOn,
-  );
-  if (placement)
-    await saveArrival(tx, {
-      tenantId: context.tenantId,
-      placementId: placement.id,
-      entryTypeId:
-        entryTypes.find((each) => each.meaning === entry)?.id ?? null,
-      previousSchool: previous?.slice(0, 160) ?? null,
-    });
-  await audit(context, {
-    action: "placement.change",
-    objectType: "student_school_year",
-    objectId: placement?.id ?? null,
-    subjectUserId: studentId,
-    studentUserId: studentId,
-    details: {
-      gradeId: intake.gradeId,
-      schoolYearId: year.id,
-      entry,
-      applicationId: row.id,
-    },
+  await enrolParts(context, {
+    intakeId: intake.id,
+    studentId,
+    startsOn: intake.startsOn,
+    entry,
+    previousSchool: previous?.slice(0, 160) ?? null,
+    applicationId: row.id,
   });
 
   const links = await guardiansOf(
@@ -268,7 +227,8 @@ export async function enrol(
   await refreshCustodyAlert(tx, context.tenantId, studentId, context.today);
   // The family role the links give opens the family workspace once the
   // child is a student today; until then the applying role keeps it open.
-  const endsOn = year.startsOn > context.today ? year.startsOn : context.today;
+  const endsOn =
+    intake.startsOn > context.today ? intake.startsOn : context.today;
   if (
     await closeApplicantRole(tx, {
       tenantId: context.tenantId,

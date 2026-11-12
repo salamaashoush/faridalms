@@ -80,7 +80,6 @@ async function enterStaff() {
 describe("adding a staff member", () => {
   beforeEach(() => {
     vi.mocked(getPeopleOptions).mockResolvedValue({
-      grades: [],
       relations: [],
       sexes: [],
       positions: [],

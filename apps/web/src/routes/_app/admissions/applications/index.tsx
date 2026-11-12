@@ -15,7 +15,7 @@ import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
 import { Value } from "@faridalms/ui/system/value";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { FileUser } from "lucide-react";
 import * as v from "valibot";
@@ -25,7 +25,10 @@ import {
   APPLICATION_STATE_TONE,
   PRIORITY_LABEL,
 } from "~/components/admissions/application-labels";
+import { intakeFilters } from "~/components/admissions/slots";
+import { viewsOf, viewValue } from "~/components/classes/slots";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { applicationsQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
@@ -35,19 +38,30 @@ import {
   formatList,
   formatNumber,
 } from "~/utils/datetime";
+import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
 
 const DEFAULT_SEARCH = v.parse(applicationListSchema, {});
+// Loose, so a module's view rides in the address under its own key.
+const searchSchema = v.looseObject(applicationListSchema.entries);
 
 export const Route = createFileRoute("/_app/admissions/applications/")({
   staticData: { breadcrumb: m.aplTitle },
-  validateSearch: applicationListSchema,
+  validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "admissions:read", "admissions:manage");
-    await context.queryClient.ensureQueryData(applicationsQuery(deps));
+    const filters = filled(context.extensions, user.modules, intakeFilters);
+    await Promise.all([
+      context.queryClient.ensureQueryData(
+        applicationsQuery(deps, viewsOf(filters, deps)),
+      ),
+      ...filters.map((filter) =>
+        context.queryClient.ensureQueryData(filter.query()),
+      ),
+    ]);
   },
   component: ApplicationsPage,
 });
@@ -100,9 +114,9 @@ function columns(): Column<Row>[] {
       cell: (row) => <Child row={row} />,
     },
     {
-      id: "grade",
-      header: m.aplColGrade(),
-      cell: (row) => inLocale(row.gradeEn, row.gradeAr),
+      id: "intake",
+      header: m.aplColIntake(),
+      cell: (row) => inLocale(row.intakeEn, row.intakeAr),
     },
     {
       id: "family",
@@ -152,7 +166,7 @@ const CARD = {
   title: (row: Row) => <Child row={row} />,
   status: (row: Row) => <State row={row} />,
   fact: (row: Row) =>
-    `${inLocale(row.gradeEn, row.gradeAr)} · ${inLocale(row.familyEn, row.familyAr)}`,
+    `${inLocale(row.intakeEn, row.intakeAr)} · ${inLocale(row.familyEn, row.familyAr)}`,
 };
 
 const VIEWS: ApplicationView[] = [
@@ -174,11 +188,26 @@ const viewLabel = (view: ApplicationView) =>
 function ApplicationsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const data = useSuspenseQuery(applicationsQuery(search)).data;
-  const update = (next: Partial<ApplicationListQuery>) =>
+  const filters = useSlot(intakeFilters);
+  const views = viewsOf(filters, search);
+  const data = useSuspenseQuery(applicationsQuery(search, views)).data;
+  const reads = useSuspenseQueries({
+    queries: filters.map((filter) => filter.query()),
+  });
+  const update = (
+    next: Partial<ApplicationListQuery> & Record<string, unknown>,
+  ) =>
     void navigate({
       search: (previous) => ({ ...previous, page: 1, ...next }),
     });
+  const viewFacets = filters.flatMap((filter, index) => {
+    const facet = filter.facetOf(
+      reads[index]?.data,
+      viewValue(search[filter.key]),
+      (value) => update({ [filter.key]: value, intake: "" }),
+    );
+    return facet ? [facet] : [];
+  });
   // States with no application are missing from the counts, not zero.
   const counts: Partial<Record<string, number>> = data.counts;
   const countOf = (state: string) => counts[state] ?? 0;
@@ -197,7 +226,7 @@ function ApplicationsPage() {
         description={
           intake
             ? m.aplPlaces({
-                grade: inLocale(intake.gradeEn, intake.gradeAr),
+                intake: inLocale(intake.titleEn, intake.titleAr),
                 places: formatNumber(intake.capacity),
                 live: formatNumber(intake.live),
               })
@@ -228,26 +257,15 @@ function ApplicationsPage() {
               placeholder: m.aplSearchPlaceholder(),
             }}
             facets={[
-              {
-                id: "year",
-                label: m.itkFieldYear(),
-                single: true,
-                defaultSelected: [data.yearId ?? ""],
-                selected: [search.year || (data.yearId ?? "")],
-                options: data.years.map((year) => ({
-                  value: year.id,
-                  label: inLocale(year.titleEn, year.titleAr),
-                })),
-                onChange: ([year]) => update({ year: year ?? "", intake: "" }),
-              },
+              ...viewFacets,
               {
                 id: "intake",
-                label: m.aplColGrade(),
+                label: m.aplColIntake(),
                 single: true,
                 selected: search.intake ? [search.intake] : [],
                 options: data.intakes.map((row) => ({
                   value: row.id,
-                  label: inLocale(row.gradeEn, row.gradeAr),
+                  label: inLocale(row.titleEn, row.titleAr),
                 })),
                 onChange: ([intakeId]) => update({ intake: intakeId ?? "" }),
               },

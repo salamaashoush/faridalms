@@ -2,9 +2,9 @@
   "type": "diff",
   "version": "9",
   "dialect": "postgres",
-  "id": "6a70a756-35c1-4f75-abe4-9279d4accc68",
+  "id": "143f2255-7cec-42ec-817f-7dfa14694d92",
   "prevIds": [
-    "3639a044-0ad4-4852-8585-435040845ef3"
+    "00c02f61-43a7-44b4-9e64-6a0da0dc0f80"
   ],
   "footprints": [
     {
@@ -252,7 +252,8 @@
         "e|tbl|core.admission_intakes",
         "n|rel|core.admission_intakes",
         "n|type|core.admission_intakes",
-        "n|rel|core.admission_intakes_pkey"
+        "n|rel|core.admission_intakes_pkey",
+        "n|rel|core.admission_intakes_tenant_id_id_org_id_key"
       ],
       "reads": [
         "n|sch|core"
@@ -590,6 +591,25 @@
       "statementTarget": [
         "table",
         "core",
+        "broadcast_grades"
+      ],
+      "writes": [
+        "s|tbl|core.broadcast_grades",
+        "n|tbl|core.broadcast_grades",
+        "e|tbl|core.broadcast_grades",
+        "n|rel|core.broadcast_grades",
+        "n|type|core.broadcast_grades",
+        "n|rel|core.broadcast_grades_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
         "broadcast_recipients"
       ],
       "writes": [
@@ -666,6 +686,25 @@
       "statementTarget": [
         "table",
         "core",
+        "calendar_event_grades"
+      ],
+      "writes": [
+        "s|tbl|core.calendar_event_grades",
+        "n|tbl|core.calendar_event_grades",
+        "e|tbl|core.calendar_event_grades",
+        "n|rel|core.calendar_event_grades",
+        "n|type|core.calendar_event_grades",
+        "n|rel|core.calendar_event_grades_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
         "calendar_events"
       ],
       "writes": [
@@ -713,6 +752,25 @@
         "n|rel|core.caption_drafts",
         "n|type|core.caption_drafts",
         "n|rel|core.caption_drafts_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grades"
+      ],
+      "writes": [
+        "s|tbl|core.class_grades",
+        "n|tbl|core.class_grades",
+        "e|tbl|core.class_grades",
+        "n|rel|core.class_grades",
+        "n|type|core.class_grades",
+        "n|rel|core.class_grades_pkey"
       ],
       "reads": [
         "n|sch|core"
@@ -1638,6 +1696,44 @@
         "n|rel|core.import_runs",
         "n|type|core.import_runs",
         "n|rel|core.import_runs_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_grades"
+      ],
+      "writes": [
+        "s|tbl|core.intake_grades",
+        "n|tbl|core.intake_grades",
+        "e|tbl|core.intake_grades",
+        "n|rel|core.intake_grades",
+        "n|type|core.intake_grades",
+        "n|rel|core.intake_grades_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_years"
+      ],
+      "writes": [
+        "s|tbl|core.intake_years",
+        "n|tbl|core.intake_years",
+        "e|tbl|core.intake_years",
+        "n|rel|core.intake_years",
+        "n|type|core.intake_years",
+        "n|rel|core.intake_years_pkey"
       ],
       "reads": [
         "n|sch|core"
@@ -2965,6 +3061,25 @@
       "statementTarget": [
         "table",
         "core",
+        "student_grades"
+      ],
+      "writes": [
+        "s|tbl|core.student_grades",
+        "n|tbl|core.student_grades",
+        "e|tbl|core.student_grades",
+        "n|rel|core.student_grades",
+        "n|type|core.student_grades",
+        "n|rel|core.student_grades_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
         "student_movements"
       ],
       "writes": [
@@ -3759,29 +3874,6 @@
         "index",
         "core",
         "admission_intakes",
-        "admission_intakes_grade_key"
-      ],
-      "writes": [
-        "s|idx|core.admission_intakes_grade_key",
-        "n|idx|core.admission_intakes_grade_key",
-        "e|idx|core.admission_intakes_grade_key",
-        "n|rel|core.admission_intakes_grade_key"
-      ],
-      "reads": [
-        "n|tbl|core.admission_intakes",
-        "n|sch|core",
-        "n|col|core.admission_intakes.tenant_id",
-        "n|col|core.admission_intakes.org_id",
-        "n|col|core.admission_intakes.school_year_id",
-        "n|col|core.admission_intakes.grade_level_descriptor_id"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "core",
-        "admission_intakes",
         "admission_intakes_window_idx"
       ],
       "writes": [
@@ -4234,6 +4326,49 @@
       "statementTarget": [
         "index",
         "core",
+        "broadcast_grades",
+        "broadcast_grades_key"
+      ],
+      "writes": [
+        "s|idx|core.broadcast_grades_key",
+        "n|idx|core.broadcast_grades_key",
+        "e|idx|core.broadcast_grades_key",
+        "n|rel|core.broadcast_grades_key"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_grades",
+        "n|sch|core",
+        "n|col|core.broadcast_grades.tenant_id",
+        "n|col|core.broadcast_grades.broadcast_id",
+        "n|col|core.broadcast_grades.grade_level_descriptor_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "broadcast_grades",
+        "broadcast_grades_grade_idx"
+      ],
+      "writes": [
+        "s|idx|core.broadcast_grades_grade_idx",
+        "n|idx|core.broadcast_grades_grade_idx",
+        "e|idx|core.broadcast_grades_grade_idx",
+        "n|rel|core.broadcast_grades_grade_idx"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_grades",
+        "n|sch|core",
+        "n|col|core.broadcast_grades.tenant_id",
+        "n|col|core.broadcast_grades.grade_level_descriptor_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
         "broadcast_recipients",
         "broadcast_recipients_key"
       ],
@@ -4385,6 +4520,49 @@
       "statementTarget": [
         "index",
         "core",
+        "calendar_event_grades",
+        "calendar_event_grades_key"
+      ],
+      "writes": [
+        "s|idx|core.calendar_event_grades_key",
+        "n|idx|core.calendar_event_grades_key",
+        "e|idx|core.calendar_event_grades_key",
+        "n|rel|core.calendar_event_grades_key"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_grades",
+        "n|sch|core",
+        "n|col|core.calendar_event_grades.tenant_id",
+        "n|col|core.calendar_event_grades.event_id",
+        "n|col|core.calendar_event_grades.grade_level_descriptor_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "calendar_event_grades",
+        "calendar_event_grades_grade_idx"
+      ],
+      "writes": [
+        "s|idx|core.calendar_event_grades_grade_idx",
+        "n|idx|core.calendar_event_grades_grade_idx",
+        "e|idx|core.calendar_event_grades_grade_idx",
+        "n|rel|core.calendar_event_grades_grade_idx"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_grades",
+        "n|sch|core",
+        "n|col|core.calendar_event_grades.tenant_id",
+        "n|col|core.calendar_event_grades.grade_level_descriptor_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
         "calendar_events",
         "calendar_events_org_idx"
       ],
@@ -4486,6 +4664,48 @@
         "n|sch|core",
         "n|col|core.caption_drafts.tenant_id",
         "n|col|core.caption_drafts.created_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "class_grades",
+        "class_grades_class_key"
+      ],
+      "writes": [
+        "s|idx|core.class_grades_class_key",
+        "n|idx|core.class_grades_class_key",
+        "e|idx|core.class_grades_class_key",
+        "n|rel|core.class_grades_class_key"
+      ],
+      "reads": [
+        "n|tbl|core.class_grades",
+        "n|sch|core",
+        "n|col|core.class_grades.tenant_id",
+        "n|col|core.class_grades.class_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "class_grades",
+        "class_grades_grade_idx"
+      ],
+      "writes": [
+        "s|idx|core.class_grades_grade_idx",
+        "n|idx|core.class_grades_grade_idx",
+        "e|idx|core.class_grades_grade_idx",
+        "n|rel|core.class_grades_grade_idx"
+      ],
+      "reads": [
+        "n|tbl|core.class_grades",
+        "n|sch|core",
+        "n|col|core.class_grades.tenant_id",
+        "n|col|core.class_grades.grade_level_descriptor_id"
       ]
     },
     {
@@ -6071,6 +6291,90 @@
         "n|col|core.identity_providers.tenant_id",
         "n|col|core.identity_providers.protocol",
         "n|col|core.identity_providers.issuer"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "intake_grades",
+        "intake_grades_intake_key"
+      ],
+      "writes": [
+        "s|idx|core.intake_grades_intake_key",
+        "n|idx|core.intake_grades_intake_key",
+        "e|idx|core.intake_grades_intake_key",
+        "n|rel|core.intake_grades_intake_key"
+      ],
+      "reads": [
+        "n|tbl|core.intake_grades",
+        "n|sch|core",
+        "n|col|core.intake_grades.tenant_id",
+        "n|col|core.intake_grades.intake_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "intake_grades",
+        "intake_grades_grade_idx"
+      ],
+      "writes": [
+        "s|idx|core.intake_grades_grade_idx",
+        "n|idx|core.intake_grades_grade_idx",
+        "e|idx|core.intake_grades_grade_idx",
+        "n|rel|core.intake_grades_grade_idx"
+      ],
+      "reads": [
+        "n|tbl|core.intake_grades",
+        "n|sch|core",
+        "n|col|core.intake_grades.tenant_id",
+        "n|col|core.intake_grades.grade_level_descriptor_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "intake_years",
+        "intake_years_intake_key"
+      ],
+      "writes": [
+        "s|idx|core.intake_years_intake_key",
+        "n|idx|core.intake_years_intake_key",
+        "e|idx|core.intake_years_intake_key",
+        "n|rel|core.intake_years_intake_key"
+      ],
+      "reads": [
+        "n|tbl|core.intake_years",
+        "n|sch|core",
+        "n|col|core.intake_years.tenant_id",
+        "n|col|core.intake_years.intake_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "intake_years",
+        "intake_years_year_idx"
+      ],
+      "writes": [
+        "s|idx|core.intake_years_year_idx",
+        "n|idx|core.intake_years_year_idx",
+        "e|idx|core.intake_years_year_idx",
+        "n|rel|core.intake_years_year_idx"
+      ],
+      "reads": [
+        "n|tbl|core.intake_years",
+        "n|sch|core",
+        "n|col|core.intake_years.tenant_id",
+        "n|col|core.intake_years.school_year_id"
       ]
     },
     {
@@ -8498,6 +8802,49 @@
       "statementTarget": [
         "index",
         "core",
+        "student_grades",
+        "student_grades_student_idx"
+      ],
+      "writes": [
+        "s|idx|core.student_grades_student_idx",
+        "n|idx|core.student_grades_student_idx",
+        "e|idx|core.student_grades_student_idx",
+        "n|rel|core.student_grades_student_idx"
+      ],
+      "reads": [
+        "n|tbl|core.student_grades",
+        "n|sch|core",
+        "n|col|core.student_grades.tenant_id",
+        "n|col|core.student_grades.student_user_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "student_grades",
+        "student_grades_grade_idx"
+      ],
+      "writes": [
+        "s|idx|core.student_grades_grade_idx",
+        "n|idx|core.student_grades_grade_idx",
+        "e|idx|core.student_grades_grade_idx",
+        "n|rel|core.student_grades_grade_idx"
+      ],
+      "reads": [
+        "n|tbl|core.student_grades",
+        "n|sch|core",
+        "n|col|core.student_grades.tenant_id",
+        "n|col|core.student_grades.org_id",
+        "n|col|core.student_grades.grade_level_descriptor_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
         "student_movements",
         "student_movements_day_idx"
       ],
@@ -8554,8 +8901,7 @@
         "n|tbl|core.student_school_years",
         "n|sch|core",
         "n|col|core.student_school_years.tenant_id",
-        "n|col|core.student_school_years.school_year_id",
-        "n|col|core.student_school_years.grade_level_descriptor_id"
+        "n|col|core.student_school_years.school_year_id"
       ]
     },
     {
@@ -10416,64 +10762,6 @@
         "admission_intakes"
       ],
       "writes": [
-        "s|fk|core.admission_intakes.admission_intakes_tenant_id_school_year_id_school_year_typ_fkey",
-        "n|fk|core.admission_intakes.admission_intakes_tenant_id_school_year_id_school_year_typ_fkey",
-        "e|fk|core.admission_intakes.admission_intakes_tenant_id_school_year_id_school_year_typ_fkey",
-        "n|con|core.admission_intakes.admission_intakes_tenant_id_school_year_id_school_year_typ_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.admission_intakes",
-        "n|sch|core",
-        "n|tbl|core.academic_sessions",
-        "n|sch|core",
-        "n|col|core.admission_intakes.tenant_id",
-        "n|col|core.admission_intakes.school_year_id",
-        "n|col|core.admission_intakes.school_year_type",
-        "n|col|core.admission_intakes.school_year_id",
-        "n|col|core.admission_intakes.org_id",
-        "n|col|core.academic_sessions.tenant_id",
-        "n|col|core.academic_sessions.id",
-        "n|col|core.academic_sessions.type",
-        "n|col|core.academic_sessions.school_year_id",
-        "n|col|core.academic_sessions.org_id",
-        "e|uniqueness|core.academic_sessions.id.org_id.school_year_id.tenant_id.type"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "admission_intakes"
-      ],
-      "writes": [
-        "s|fk|core.admission_intakes.admission_intakes_tenant_id_grade_level_descriptor_id_grad_fkey",
-        "n|fk|core.admission_intakes.admission_intakes_tenant_id_grade_level_descriptor_id_grad_fkey",
-        "e|fk|core.admission_intakes.admission_intakes_tenant_id_grade_level_descriptor_id_grad_fkey",
-        "n|con|core.admission_intakes.admission_intakes_tenant_id_grade_level_descriptor_id_grad_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.admission_intakes",
-        "n|sch|core",
-        "n|tbl|core.descriptors",
-        "n|sch|core",
-        "n|col|core.admission_intakes.tenant_id",
-        "n|col|core.admission_intakes.grade_level_descriptor_id",
-        "n|col|core.admission_intakes.grade_level_ns",
-        "n|col|core.descriptors.tenant_id",
-        "n|col|core.descriptors.id",
-        "n|col|core.descriptors.namespace",
-        "e|uniqueness|core.descriptors.id.namespace.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "admission_intakes"
-      ],
-      "writes": [
         "s|fk|core.admission_intakes.admission_intakes_tenant_id_form_id_fkey",
         "n|fk|core.admission_intakes.admission_intakes_tenant_id_form_id_fkey",
         "e|fk|core.admission_intakes.admission_intakes_tenant_id_form_id_fkey",
@@ -11722,22 +12010,70 @@
       "statementTarget": [
         "table",
         "core",
-        "broadcast_audiences"
+        "broadcast_grades"
       ],
       "writes": [
-        "s|fk|core.broadcast_audiences.broadcast_audiences_tenant_id_grade_descriptor_id_grade_ns_fkey",
-        "n|fk|core.broadcast_audiences.broadcast_audiences_tenant_id_grade_descriptor_id_grade_ns_fkey",
-        "e|fk|core.broadcast_audiences.broadcast_audiences_tenant_id_grade_descriptor_id_grade_ns_fkey",
-        "n|con|core.broadcast_audiences.broadcast_audiences_tenant_id_grade_descriptor_id_grade_ns_fkey"
+        "s|fk|core.broadcast_grades.broadcast_grades_tenant_id_fkey",
+        "n|fk|core.broadcast_grades.broadcast_grades_tenant_id_fkey",
+        "e|fk|core.broadcast_grades.broadcast_grades_tenant_id_fkey",
+        "n|con|core.broadcast_grades.broadcast_grades_tenant_id_fkey"
       ],
       "reads": [
-        "n|tbl|core.broadcast_audiences",
+        "n|tbl|core.broadcast_grades",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.broadcast_grades.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcast_grades"
+      ],
+      "writes": [
+        "s|fk|core.broadcast_grades.broadcast_grades_tenant_id_broadcast_id_fkey",
+        "n|fk|core.broadcast_grades.broadcast_grades_tenant_id_broadcast_id_fkey",
+        "e|fk|core.broadcast_grades.broadcast_grades_tenant_id_broadcast_id_fkey",
+        "n|con|core.broadcast_grades.broadcast_grades_tenant_id_broadcast_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_grades",
+        "n|sch|core",
+        "n|tbl|core.broadcasts",
+        "n|sch|core",
+        "n|col|core.broadcast_grades.tenant_id",
+        "n|col|core.broadcast_grades.broadcast_id",
+        "n|col|core.broadcasts.tenant_id",
+        "n|col|core.broadcasts.id",
+        "e|uniqueness|core.broadcasts.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcast_grades"
+      ],
+      "writes": [
+        "s|fk|core.broadcast_grades.broadcast_grades_tenant_id_grade_level_descriptor_id_grade_fkey",
+        "n|fk|core.broadcast_grades.broadcast_grades_tenant_id_grade_level_descriptor_id_grade_fkey",
+        "e|fk|core.broadcast_grades.broadcast_grades_tenant_id_grade_level_descriptor_id_grade_fkey",
+        "n|con|core.broadcast_grades.broadcast_grades_tenant_id_grade_level_descriptor_id_grade_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_grades",
         "n|sch|core",
         "n|tbl|core.descriptors",
         "n|sch|core",
-        "n|col|core.broadcast_audiences.tenant_id",
-        "n|col|core.broadcast_audiences.grade_descriptor_id",
-        "n|col|core.broadcast_audiences.grade_ns",
+        "n|col|core.broadcast_grades.tenant_id",
+        "n|col|core.broadcast_grades.grade_level_descriptor_id",
+        "n|col|core.broadcast_grades.grade_level_ns",
         "n|col|core.descriptors.tenant_id",
         "n|col|core.descriptors.id",
         "n|col|core.descriptors.namespace",
@@ -12118,22 +12454,70 @@
       "statementTarget": [
         "table",
         "core",
-        "calendar_event_audiences"
+        "calendar_event_grades"
       ],
       "writes": [
-        "s|fk|core.calendar_event_audiences.calendar_event_audiences_tenant_id_grade_descriptor_id_gra_fkey",
-        "n|fk|core.calendar_event_audiences.calendar_event_audiences_tenant_id_grade_descriptor_id_gra_fkey",
-        "e|fk|core.calendar_event_audiences.calendar_event_audiences_tenant_id_grade_descriptor_id_gra_fkey",
-        "n|con|core.calendar_event_audiences.calendar_event_audiences_tenant_id_grade_descriptor_id_gra_fkey"
+        "s|fk|core.calendar_event_grades.calendar_event_grades_tenant_id_fkey",
+        "n|fk|core.calendar_event_grades.calendar_event_grades_tenant_id_fkey",
+        "e|fk|core.calendar_event_grades.calendar_event_grades_tenant_id_fkey",
+        "n|con|core.calendar_event_grades.calendar_event_grades_tenant_id_fkey"
       ],
       "reads": [
-        "n|tbl|core.calendar_event_audiences",
+        "n|tbl|core.calendar_event_grades",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.calendar_event_grades.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_event_grades"
+      ],
+      "writes": [
+        "s|fk|core.calendar_event_grades.calendar_event_grades_tenant_id_event_id_fkey",
+        "n|fk|core.calendar_event_grades.calendar_event_grades_tenant_id_event_id_fkey",
+        "e|fk|core.calendar_event_grades.calendar_event_grades_tenant_id_event_id_fkey",
+        "n|con|core.calendar_event_grades.calendar_event_grades_tenant_id_event_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_grades",
+        "n|sch|core",
+        "n|tbl|core.calendar_events",
+        "n|sch|core",
+        "n|col|core.calendar_event_grades.tenant_id",
+        "n|col|core.calendar_event_grades.event_id",
+        "n|col|core.calendar_events.tenant_id",
+        "n|col|core.calendar_events.id",
+        "e|uniqueness|core.calendar_events.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_event_grades"
+      ],
+      "writes": [
+        "s|fk|core.calendar_event_grades.calendar_event_grades_tenant_id_grade_level_descriptor_id__fkey",
+        "n|fk|core.calendar_event_grades.calendar_event_grades_tenant_id_grade_level_descriptor_id__fkey",
+        "e|fk|core.calendar_event_grades.calendar_event_grades_tenant_id_grade_level_descriptor_id__fkey",
+        "n|con|core.calendar_event_grades.calendar_event_grades_tenant_id_grade_level_descriptor_id__fkey"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_grades",
         "n|sch|core",
         "n|tbl|core.descriptors",
         "n|sch|core",
-        "n|col|core.calendar_event_audiences.tenant_id",
-        "n|col|core.calendar_event_audiences.grade_descriptor_id",
-        "n|col|core.calendar_event_audiences.grade_ns",
+        "n|col|core.calendar_event_grades.tenant_id",
+        "n|col|core.calendar_event_grades.grade_level_descriptor_id",
+        "n|col|core.calendar_event_grades.grade_level_ns",
         "n|col|core.descriptors.tenant_id",
         "n|col|core.descriptors.id",
         "n|col|core.descriptors.namespace",
@@ -12382,6 +12766,83 @@
         "n|col|core.users.tenant_id",
         "n|col|core.users.id",
         "e|uniqueness|core.users.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grades"
+      ],
+      "writes": [
+        "s|fk|core.class_grades.class_grades_tenant_id_fkey",
+        "n|fk|core.class_grades.class_grades_tenant_id_fkey",
+        "e|fk|core.class_grades.class_grades_tenant_id_fkey",
+        "n|con|core.class_grades.class_grades_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.class_grades",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.class_grades.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grades"
+      ],
+      "writes": [
+        "s|fk|core.class_grades.class_grades_tenant_id_class_id_org_id_fkey",
+        "n|fk|core.class_grades.class_grades_tenant_id_class_id_org_id_fkey",
+        "e|fk|core.class_grades.class_grades_tenant_id_class_id_org_id_fkey",
+        "n|con|core.class_grades.class_grades_tenant_id_class_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.class_grades",
+        "n|sch|core",
+        "n|tbl|core.classes",
+        "n|sch|core",
+        "n|col|core.class_grades.tenant_id",
+        "n|col|core.class_grades.class_id",
+        "n|col|core.class_grades.org_id",
+        "n|col|core.classes.tenant_id",
+        "n|col|core.classes.id",
+        "n|col|core.classes.org_id",
+        "e|uniqueness|core.classes.id.org_id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grades"
+      ],
+      "writes": [
+        "s|fk|core.class_grades.class_grades_tenant_id_grade_level_descriptor_id_grade_lev_fkey",
+        "n|fk|core.class_grades.class_grades_tenant_id_grade_level_descriptor_id_grade_lev_fkey",
+        "e|fk|core.class_grades.class_grades_tenant_id_grade_level_descriptor_id_grade_lev_fkey",
+        "n|con|core.class_grades.class_grades_tenant_id_grade_level_descriptor_id_grade_lev_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.class_grades",
+        "n|sch|core",
+        "n|tbl|core.descriptors",
+        "n|sch|core",
+        "n|col|core.class_grades.tenant_id",
+        "n|col|core.class_grades.grade_level_descriptor_id",
+        "n|col|core.class_grades.grade_level_ns",
+        "n|col|core.descriptors.tenant_id",
+        "n|col|core.descriptors.id",
+        "n|col|core.descriptors.namespace",
+        "e|uniqueness|core.descriptors.id.namespace.tenant_id"
       ]
     },
     {
@@ -13104,33 +13565,6 @@
         "classes"
       ],
       "writes": [
-        "s|fk|core.classes.classes_tenant_id_grade_level_descriptor_id_grade_level_ns_fkey",
-        "n|fk|core.classes.classes_tenant_id_grade_level_descriptor_id_grade_level_ns_fkey",
-        "e|fk|core.classes.classes_tenant_id_grade_level_descriptor_id_grade_level_ns_fkey",
-        "n|con|core.classes.classes_tenant_id_grade_level_descriptor_id_grade_level_ns_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.classes",
-        "n|sch|core",
-        "n|tbl|core.descriptors",
-        "n|sch|core",
-        "n|col|core.classes.tenant_id",
-        "n|col|core.classes.grade_level_descriptor_id",
-        "n|col|core.classes.grade_level_ns",
-        "n|col|core.descriptors.tenant_id",
-        "n|col|core.descriptors.id",
-        "n|col|core.descriptors.namespace",
-        "e|uniqueness|core.descriptors.id.namespace.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "classes"
-      ],
-      "writes": [
         "s|fk|core.classes.classes_tenant_id_location_id_fkey",
         "n|fk|core.classes.classes_tenant_id_location_id_fkey",
         "e|fk|core.classes.classes_tenant_id_location_id_fkey",
@@ -13492,33 +13926,6 @@
         "n|col|core.courses.tenant_id",
         "n|col|core.courses.subject_descriptor_id",
         "n|col|core.courses.subject_ns",
-        "n|col|core.descriptors.tenant_id",
-        "n|col|core.descriptors.id",
-        "n|col|core.descriptors.namespace",
-        "e|uniqueness|core.descriptors.id.namespace.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "courses"
-      ],
-      "writes": [
-        "s|fk|core.courses.courses_tenant_id_grade_level_descriptor_id_grade_level_ns_fkey",
-        "n|fk|core.courses.courses_tenant_id_grade_level_descriptor_id_grade_level_ns_fkey",
-        "e|fk|core.courses.courses_tenant_id_grade_level_descriptor_id_grade_level_ns_fkey",
-        "n|con|core.courses.courses_tenant_id_grade_level_descriptor_id_grade_level_ns_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.courses",
-        "n|sch|core",
-        "n|tbl|core.descriptors",
-        "n|sch|core",
-        "n|col|core.courses.tenant_id",
-        "n|col|core.courses.grade_level_descriptor_id",
-        "n|col|core.courses.grade_level_ns",
         "n|col|core.descriptors.tenant_id",
         "n|col|core.descriptors.id",
         "n|col|core.descriptors.namespace",
@@ -16682,6 +17089,162 @@
         "n|col|core.users.tenant_id",
         "n|col|core.users.id",
         "e|uniqueness|core.users.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_grades"
+      ],
+      "writes": [
+        "s|fk|core.intake_grades.intake_grades_tenant_id_fkey",
+        "n|fk|core.intake_grades.intake_grades_tenant_id_fkey",
+        "e|fk|core.intake_grades.intake_grades_tenant_id_fkey",
+        "n|con|core.intake_grades.intake_grades_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.intake_grades",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.intake_grades.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_grades"
+      ],
+      "writes": [
+        "s|fk|core.intake_grades.intake_grades_tenant_id_intake_id_fkey",
+        "n|fk|core.intake_grades.intake_grades_tenant_id_intake_id_fkey",
+        "e|fk|core.intake_grades.intake_grades_tenant_id_intake_id_fkey",
+        "n|con|core.intake_grades.intake_grades_tenant_id_intake_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.intake_grades",
+        "n|sch|core",
+        "n|tbl|core.admission_intakes",
+        "n|sch|core",
+        "n|col|core.intake_grades.tenant_id",
+        "n|col|core.intake_grades.intake_id",
+        "n|col|core.admission_intakes.tenant_id",
+        "n|col|core.admission_intakes.id",
+        "e|uniqueness|core.admission_intakes.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_grades"
+      ],
+      "writes": [
+        "s|fk|core.intake_grades.intake_grades_tenant_id_grade_level_descriptor_id_grade_le_fkey",
+        "n|fk|core.intake_grades.intake_grades_tenant_id_grade_level_descriptor_id_grade_le_fkey",
+        "e|fk|core.intake_grades.intake_grades_tenant_id_grade_level_descriptor_id_grade_le_fkey",
+        "n|con|core.intake_grades.intake_grades_tenant_id_grade_level_descriptor_id_grade_le_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.intake_grades",
+        "n|sch|core",
+        "n|tbl|core.descriptors",
+        "n|sch|core",
+        "n|col|core.intake_grades.tenant_id",
+        "n|col|core.intake_grades.grade_level_descriptor_id",
+        "n|col|core.intake_grades.grade_level_ns",
+        "n|col|core.descriptors.tenant_id",
+        "n|col|core.descriptors.id",
+        "n|col|core.descriptors.namespace",
+        "e|uniqueness|core.descriptors.id.namespace.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_years"
+      ],
+      "writes": [
+        "s|fk|core.intake_years.intake_years_tenant_id_fkey",
+        "n|fk|core.intake_years.intake_years_tenant_id_fkey",
+        "e|fk|core.intake_years.intake_years_tenant_id_fkey",
+        "n|con|core.intake_years.intake_years_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.intake_years",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.intake_years.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_years"
+      ],
+      "writes": [
+        "s|fk|core.intake_years.intake_years_tenant_id_intake_id_org_id_fkey",
+        "n|fk|core.intake_years.intake_years_tenant_id_intake_id_org_id_fkey",
+        "e|fk|core.intake_years.intake_years_tenant_id_intake_id_org_id_fkey",
+        "n|con|core.intake_years.intake_years_tenant_id_intake_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.intake_years",
+        "n|sch|core",
+        "n|tbl|core.admission_intakes",
+        "n|sch|core",
+        "n|col|core.intake_years.tenant_id",
+        "n|col|core.intake_years.intake_id",
+        "n|col|core.intake_years.org_id",
+        "n|col|core.admission_intakes.tenant_id",
+        "n|col|core.admission_intakes.id",
+        "n|col|core.admission_intakes.org_id",
+        "e|uniqueness|core.admission_intakes.id.org_id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_years"
+      ],
+      "writes": [
+        "s|fk|core.intake_years.intake_years_tenant_id_school_year_id_school_year_type_sch_fkey",
+        "n|fk|core.intake_years.intake_years_tenant_id_school_year_id_school_year_type_sch_fkey",
+        "e|fk|core.intake_years.intake_years_tenant_id_school_year_id_school_year_type_sch_fkey",
+        "n|con|core.intake_years.intake_years_tenant_id_school_year_id_school_year_type_sch_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.intake_years",
+        "n|sch|core",
+        "n|tbl|core.academic_sessions",
+        "n|sch|core",
+        "n|col|core.intake_years.tenant_id",
+        "n|col|core.intake_years.school_year_id",
+        "n|col|core.intake_years.school_year_type",
+        "n|col|core.intake_years.school_year_id",
+        "n|col|core.intake_years.org_id",
+        "n|col|core.academic_sessions.tenant_id",
+        "n|col|core.academic_sessions.id",
+        "n|col|core.academic_sessions.type",
+        "n|col|core.academic_sessions.school_year_id",
+        "n|col|core.academic_sessions.org_id",
+        "e|uniqueness|core.academic_sessions.id.org_id.school_year_id.tenant_id.type"
       ]
     },
     {
@@ -22424,6 +22987,131 @@
       "statementTarget": [
         "table",
         "core",
+        "student_grades"
+      ],
+      "writes": [
+        "s|fk|core.student_grades.student_grades_tenant_id_fkey",
+        "n|fk|core.student_grades.student_grades_tenant_id_fkey",
+        "e|fk|core.student_grades.student_grades_tenant_id_fkey",
+        "n|con|core.student_grades.student_grades_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.student_grades",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.student_grades.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "student_grades"
+      ],
+      "writes": [
+        "s|fk|core.student_grades.student_grades_tenant_id_org_id_fkey",
+        "n|fk|core.student_grades.student_grades_tenant_id_org_id_fkey",
+        "e|fk|core.student_grades.student_grades_tenant_id_org_id_fkey",
+        "n|con|core.student_grades.student_grades_tenant_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.student_grades",
+        "n|sch|core",
+        "n|tbl|core.orgs",
+        "n|sch|core",
+        "n|col|core.student_grades.tenant_id",
+        "n|col|core.student_grades.org_id",
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "student_grades"
+      ],
+      "writes": [
+        "s|fk|core.student_grades.student_grades_tenant_id_student_user_id_fkey",
+        "n|fk|core.student_grades.student_grades_tenant_id_student_user_id_fkey",
+        "e|fk|core.student_grades.student_grades_tenant_id_student_user_id_fkey",
+        "n|con|core.student_grades.student_grades_tenant_id_student_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.student_grades",
+        "n|sch|core",
+        "n|tbl|core.users",
+        "n|sch|core",
+        "n|col|core.student_grades.tenant_id",
+        "n|col|core.student_grades.student_user_id",
+        "n|col|core.users.tenant_id",
+        "n|col|core.users.id",
+        "e|uniqueness|core.users.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "student_grades"
+      ],
+      "writes": [
+        "s|fk|core.student_grades.student_grades_tenant_id_grade_level_descriptor_id_grade_l_fkey",
+        "n|fk|core.student_grades.student_grades_tenant_id_grade_level_descriptor_id_grade_l_fkey",
+        "e|fk|core.student_grades.student_grades_tenant_id_grade_level_descriptor_id_grade_l_fkey",
+        "n|con|core.student_grades.student_grades_tenant_id_grade_level_descriptor_id_grade_l_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.student_grades",
+        "n|sch|core",
+        "n|tbl|core.descriptors",
+        "n|sch|core",
+        "n|col|core.student_grades.tenant_id",
+        "n|col|core.student_grades.grade_level_descriptor_id",
+        "n|col|core.student_grades.grade_level_ns",
+        "n|col|core.descriptors.tenant_id",
+        "n|col|core.descriptors.id",
+        "n|col|core.descriptors.namespace",
+        "e|uniqueness|core.descriptors.id.namespace.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "student_grades"
+      ],
+      "writes": [
+        "s|fk|core.student_grades.student_grades_tenant_id_import_run_id_fkey",
+        "n|fk|core.student_grades.student_grades_tenant_id_import_run_id_fkey",
+        "e|fk|core.student_grades.student_grades_tenant_id_import_run_id_fkey",
+        "n|con|core.student_grades.student_grades_tenant_id_import_run_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.student_grades",
+        "n|sch|core",
+        "n|tbl|core.import_runs",
+        "n|sch|core",
+        "n|col|core.student_grades.tenant_id",
+        "n|col|core.student_grades.import_run_id",
+        "n|col|core.import_runs.tenant_id",
+        "n|col|core.import_runs.id",
+        "e|uniqueness|core.import_runs.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
         "student_movements"
       ],
       "writes": [
@@ -22646,33 +23334,6 @@
         "n|col|core.academic_sessions.school_year_id",
         "n|col|core.academic_sessions.org_id",
         "e|uniqueness|core.academic_sessions.id.org_id.school_year_id.tenant_id.type"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "student_school_years"
-      ],
-      "writes": [
-        "s|fk|core.student_school_years.student_school_years_tenant_id_grade_level_descriptor_id_g_fkey",
-        "n|fk|core.student_school_years.student_school_years_tenant_id_grade_level_descriptor_id_g_fkey",
-        "e|fk|core.student_school_years.student_school_years_tenant_id_grade_level_descriptor_id_g_fkey",
-        "n|con|core.student_school_years.student_school_years_tenant_id_grade_level_descriptor_id_g_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.student_school_years",
-        "n|sch|core",
-        "n|tbl|core.descriptors",
-        "n|sch|core",
-        "n|col|core.student_school_years.tenant_id",
-        "n|col|core.student_school_years.grade_level_descriptor_id",
-        "n|col|core.student_school_years.grade_level_ns",
-        "n|col|core.descriptors.tenant_id",
-        "n|col|core.descriptors.id",
-        "n|col|core.descriptors.namespace",
-        "e|uniqueness|core.descriptors.id.namespace.tenant_id"
       ]
     },
     {
@@ -27364,6 +28025,107 @@
       "statementTarget": [
         "table",
         "core",
+        "broadcast_grades"
+      ],
+      "writes": [
+        "s|pol|core.broadcast_grades.tenant_isolation",
+        "n|pol|core.broadcast_grades.tenant_isolation",
+        "e|pol|core.broadcast_grades.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_grades",
+        "n|sch|core",
+        "e|rls|core.broadcast_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcast_grades"
+      ],
+      "writes": [
+        "s|pol|core.broadcast_grades.owner_all",
+        "n|pol|core.broadcast_grades.owner_all",
+        "e|pol|core.broadcast_grades.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_grades",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.broadcast_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcast_grades"
+      ],
+      "writes": [
+        "s|pol|core.broadcast_grades.p_select",
+        "n|pol|core.broadcast_grades.p_select",
+        "e|pol|core.broadcast_grades.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.broadcast_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcast_grades"
+      ],
+      "writes": [
+        "s|pol|core.broadcast_grades.p_insert",
+        "n|pol|core.broadcast_grades.p_insert",
+        "e|pol|core.broadcast_grades.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.broadcast_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcast_grades"
+      ],
+      "writes": [
+        "s|pol|core.broadcast_grades.p_update",
+        "n|pol|core.broadcast_grades.p_update",
+        "e|pol|core.broadcast_grades.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.broadcast_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "broadcast_recipients"
       ],
       "writes": [
@@ -27825,6 +28587,107 @@
       "statementTarget": [
         "table",
         "core",
+        "calendar_event_grades"
+      ],
+      "writes": [
+        "s|pol|core.calendar_event_grades.tenant_isolation",
+        "n|pol|core.calendar_event_grades.tenant_isolation",
+        "e|pol|core.calendar_event_grades.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_grades",
+        "n|sch|core",
+        "e|rls|core.calendar_event_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_event_grades"
+      ],
+      "writes": [
+        "s|pol|core.calendar_event_grades.owner_all",
+        "n|pol|core.calendar_event_grades.owner_all",
+        "e|pol|core.calendar_event_grades.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_grades",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.calendar_event_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_event_grades"
+      ],
+      "writes": [
+        "s|pol|core.calendar_event_grades.p_select",
+        "n|pol|core.calendar_event_grades.p_select",
+        "e|pol|core.calendar_event_grades.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.calendar_event_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_event_grades"
+      ],
+      "writes": [
+        "s|pol|core.calendar_event_grades.p_insert",
+        "n|pol|core.calendar_event_grades.p_insert",
+        "e|pol|core.calendar_event_grades.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.calendar_event_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_event_grades"
+      ],
+      "writes": [
+        "s|pol|core.calendar_event_grades.p_update",
+        "n|pol|core.calendar_event_grades.p_update",
+        "e|pol|core.calendar_event_grades.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.calendar_event_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "calendar_events"
       ],
       "writes": [
@@ -28178,6 +29041,126 @@
         "n|role|cell_io",
         "n|role|worker",
         "e|rls|core.caption_drafts"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grades"
+      ],
+      "writes": [
+        "s|pol|core.class_grades.tenant_isolation",
+        "n|pol|core.class_grades.tenant_isolation",
+        "e|pol|core.class_grades.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.class_grades",
+        "n|sch|core",
+        "e|rls|core.class_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grades"
+      ],
+      "writes": [
+        "s|pol|core.class_grades.owner_all",
+        "n|pol|core.class_grades.owner_all",
+        "e|pol|core.class_grades.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.class_grades",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.class_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grades"
+      ],
+      "writes": [
+        "s|pol|core.class_grades.p_select",
+        "n|pol|core.class_grades.p_select",
+        "e|pol|core.class_grades.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.class_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.class_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grades"
+      ],
+      "writes": [
+        "s|pol|core.class_grades.p_insert",
+        "n|pol|core.class_grades.p_insert",
+        "e|pol|core.class_grades.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.class_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.class_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grades"
+      ],
+      "writes": [
+        "s|pol|core.class_grades.p_update",
+        "n|pol|core.class_grades.p_update",
+        "e|pol|core.class_grades.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.class_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.class_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_grades"
+      ],
+      "writes": [
+        "s|pol|core.class_grades.p_integration_select",
+        "n|pol|core.class_grades.p_integration_select",
+        "e|pol|core.class_grades.p_integration_select"
+      ],
+      "reads": [
+        "n|tbl|core.class_grades",
+        "n|sch|core",
+        "n|role|integration",
+        "e|rls|core.class_grades"
       ]
     },
     {
@@ -33978,6 +34961,246 @@
         "n|role|cell_io",
         "n|role|worker",
         "e|rls|core.import_runs"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_grades"
+      ],
+      "writes": [
+        "s|pol|core.intake_grades.p_site_select",
+        "n|pol|core.intake_grades.p_site_select",
+        "e|pol|core.intake_grades.p_site_select"
+      ],
+      "reads": [
+        "n|tbl|core.intake_grades",
+        "n|sch|core",
+        "n|role|site",
+        "e|rls|core.intake_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_grades"
+      ],
+      "writes": [
+        "s|pol|core.intake_grades.tenant_isolation",
+        "n|pol|core.intake_grades.tenant_isolation",
+        "e|pol|core.intake_grades.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.intake_grades",
+        "n|sch|core",
+        "e|rls|core.intake_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_grades"
+      ],
+      "writes": [
+        "s|pol|core.intake_grades.owner_all",
+        "n|pol|core.intake_grades.owner_all",
+        "e|pol|core.intake_grades.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.intake_grades",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.intake_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_grades"
+      ],
+      "writes": [
+        "s|pol|core.intake_grades.p_select",
+        "n|pol|core.intake_grades.p_select",
+        "e|pol|core.intake_grades.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.intake_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.intake_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_grades"
+      ],
+      "writes": [
+        "s|pol|core.intake_grades.p_insert",
+        "n|pol|core.intake_grades.p_insert",
+        "e|pol|core.intake_grades.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.intake_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.intake_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_grades"
+      ],
+      "writes": [
+        "s|pol|core.intake_grades.p_update",
+        "n|pol|core.intake_grades.p_update",
+        "e|pol|core.intake_grades.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.intake_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.intake_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_years"
+      ],
+      "writes": [
+        "s|pol|core.intake_years.p_site_select",
+        "n|pol|core.intake_years.p_site_select",
+        "e|pol|core.intake_years.p_site_select"
+      ],
+      "reads": [
+        "n|tbl|core.intake_years",
+        "n|sch|core",
+        "n|role|site",
+        "e|rls|core.intake_years"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_years"
+      ],
+      "writes": [
+        "s|pol|core.intake_years.tenant_isolation",
+        "n|pol|core.intake_years.tenant_isolation",
+        "e|pol|core.intake_years.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.intake_years",
+        "n|sch|core",
+        "e|rls|core.intake_years"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_years"
+      ],
+      "writes": [
+        "s|pol|core.intake_years.owner_all",
+        "n|pol|core.intake_years.owner_all",
+        "e|pol|core.intake_years.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.intake_years",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.intake_years"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_years"
+      ],
+      "writes": [
+        "s|pol|core.intake_years.p_select",
+        "n|pol|core.intake_years.p_select",
+        "e|pol|core.intake_years.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.intake_years",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.intake_years"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_years"
+      ],
+      "writes": [
+        "s|pol|core.intake_years.p_insert",
+        "n|pol|core.intake_years.p_insert",
+        "e|pol|core.intake_years.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.intake_years",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.intake_years"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "intake_years"
+      ],
+      "writes": [
+        "s|pol|core.intake_years.p_update",
+        "n|pol|core.intake_years.p_update",
+        "e|pol|core.intake_years.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.intake_years",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.intake_years"
       ]
     },
     {
@@ -41857,6 +43080,145 @@
       "statementTarget": [
         "table",
         "core",
+        "student_grades"
+      ],
+      "writes": [
+        "s|pol|core.student_grades.tenant_isolation",
+        "n|pol|core.student_grades.tenant_isolation",
+        "e|pol|core.student_grades.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.student_grades",
+        "n|sch|core",
+        "e|rls|core.student_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "student_grades"
+      ],
+      "writes": [
+        "s|pol|core.student_grades.owner_all",
+        "n|pol|core.student_grades.owner_all",
+        "e|pol|core.student_grades.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.student_grades",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.student_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "student_grades"
+      ],
+      "writes": [
+        "s|pol|core.student_grades.p_select",
+        "n|pol|core.student_grades.p_select",
+        "e|pol|core.student_grades.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.student_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.student_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "student_grades"
+      ],
+      "writes": [
+        "s|pol|core.student_grades.p_insert",
+        "n|pol|core.student_grades.p_insert",
+        "e|pol|core.student_grades.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.student_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.student_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "student_grades"
+      ],
+      "writes": [
+        "s|pol|core.student_grades.p_update",
+        "n|pol|core.student_grades.p_update",
+        "e|pol|core.student_grades.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.student_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.student_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "student_grades"
+      ],
+      "writes": [
+        "s|pol|core.student_grades.p_integration_select",
+        "n|pol|core.student_grades.p_integration_select",
+        "e|pol|core.student_grades.p_integration_select"
+      ],
+      "reads": [
+        "n|tbl|core.student_grades",
+        "n|sch|core",
+        "n|role|integration",
+        "e|rls|core.student_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "student_grades"
+      ],
+      "writes": [
+        "s|pol|core.student_grades.p_erase_update",
+        "n|pol|core.student_grades.p_erase_update",
+        "e|pol|core.student_grades.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.student_grades",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.student_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "student_movements"
       ],
       "writes": [
@@ -44284,6 +45646,15 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "name": "broadcast_grades",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "name": "broadcast_recipients",
         "isRlsEnabled": true,
         "entityType": "tables"
@@ -44320,6 +45691,15 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "name": "calendar_event_grades",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "name": "calendar_events",
         "isRlsEnabled": true,
         "entityType": "tables"
@@ -44339,6 +45719,15 @@
       "row": {
         "schema": "core",
         "name": "caption_drafts",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "class_grades",
         "isRlsEnabled": true,
         "entityType": "tables"
       }
@@ -44771,6 +46160,24 @@
       "row": {
         "schema": "core",
         "name": "import_runs",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "intake_grades",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "intake_years",
         "isRlsEnabled": true,
         "entityType": "tables"
       }
@@ -45392,6 +46799,15 @@
       "row": {
         "schema": "core",
         "name": "student_departures",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "student_grades",
         "isRlsEnabled": true,
         "entityType": "tables"
       }
@@ -48775,42 +50191,10 @@
       "row": {
         "schema": "core",
         "table": "admission_intakes",
-        "name": "school_year_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "admission_intakes",
-        "name": "school_year_type",
+        "name": "title_en",
         "type": "text",
         "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'school_year'",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "admission_intakes",
-        "name": "grade_level_descriptor_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
+        "notNull": false,
         "dimensions": 0,
         "default": null,
         "generated": null,
@@ -48823,16 +50207,29 @@
       "row": {
         "schema": "core",
         "table": "admission_intakes",
-        "name": "grade_level_ns",
+        "name": "title_ar",
         "type": "text",
         "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "admission_intakes",
+        "name": "starts_on",
+        "type": "date",
+        "typeSchema": null,
         "notNull": true,
         "dimensions": 0,
         "default": null,
-        "generated": {
-          "as": "'grade_level'",
-          "type": "stored"
-        },
+        "generated": null,
         "identity": null,
         "entityType": "columns"
       }
@@ -53197,38 +54594,6 @@
       "row": {
         "schema": "core",
         "table": "broadcast_audiences",
-        "name": "grade_descriptor_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "broadcast_audiences",
-        "name": "grade_ns",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'grade_level'",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "broadcast_audiences",
         "name": "status",
         "type": "text",
         "typeSchema": null,
@@ -53293,6 +54658,169 @@
       "row": {
         "schema": "core",
         "table": "broadcast_audiences",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "broadcast_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "grade_level_descriptor_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "grade_level_ns",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": {
+          "as": "'grade_level'",
+          "type": "stored"
+        },
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
         "name": "created_at",
         "type": "timestamp with time zone",
         "typeSchema": null,
@@ -54323,38 +55851,6 @@
       "row": {
         "schema": "core",
         "table": "calendar_event_audiences",
-        "name": "grade_descriptor_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_event_audiences",
-        "name": "grade_ns",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "'grade_level'",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_event_audiences",
         "name": "status",
         "type": "text",
         "typeSchema": null,
@@ -54419,6 +55915,169 @@
       "row": {
         "schema": "core",
         "table": "calendar_event_audiences",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "event_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "grade_level_descriptor_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "grade_level_ns",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": {
+          "as": "'grade_level'",
+          "type": "stored"
+        },
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
         "name": "created_at",
         "type": "timestamp with time zone",
         "typeSchema": null,
@@ -55282,6 +56941,185 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "class_grades",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "class_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "grade_level_descriptor_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "grade_level_ns",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": {
+          "as": "'grade_level'",
+          "type": "stored"
+        },
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "class_grading",
         "name": "tenant_id",
         "type": "uuid",
@@ -55353,6 +57191,22 @@
         "notNull": false,
         "dimensions": 0,
         "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "programme_chosen",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "true",
         "generated": null,
         "identity": null,
         "entityType": "columns"
@@ -56886,41 +58740,6 @@
       "row": {
         "schema": "core",
         "table": "classes",
-        "name": "grade_level_descriptor_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
-        "name": "grade_level_ns",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": {
-          "as": "'grade_level'",
-          "type": "stored"
-        },
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
         "name": "location_id",
         "type": "uuid",
         "typeSchema": null,
@@ -57876,41 +59695,6 @@
         "default": null,
         "generated": {
           "as": "'subject'",
-          "type": "stored"
-        },
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "courses",
-        "name": "grade_level_descriptor_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "courses",
-        "name": "grade_level_ns",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": {
-          "as": "'grade_level'",
           "type": "stored"
         },
         "identity": null,
@@ -66758,6 +68542,345 @@
       "row": {
         "schema": "core",
         "table": "import_runs",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "intake_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "grade_level_descriptor_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "grade_level_ns",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": {
+          "as": "'grade_level'",
+          "type": "stored"
+        },
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "intake_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "school_year_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "school_year_type",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'school_year'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
         "name": "created_at",
         "type": "timestamp with time zone",
         "typeSchema": null,
@@ -82660,6 +84783,233 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "student_grades",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "student_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "grade_level_descriptor_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "grade_level_ns",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": {
+          "as": "'grade_level'",
+          "type": "stored"
+        },
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "valid_during",
+        "type": "daterange",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "source",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "import_run_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "student_movements",
         "name": "tenant_id",
         "type": "uuid",
@@ -83055,41 +85405,6 @@
         "dimensions": 0,
         "default": null,
         "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "student_school_years",
-        "name": "grade_level_descriptor_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "student_school_years",
-        "name": "grade_level_ns",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": null,
-        "generated": {
-          "as": "'grade_level'",
-          "type": "stored"
-        },
         "identity": null,
         "entityType": "columns"
       }
@@ -87928,51 +90243,6 @@
       "row": {
         "schema": "core",
         "table": "admission_intakes",
-        "name": "admission_intakes_grade_key",
-        "nameExplicit": true,
-        "columns": [
-          {
-            "value": "tenant_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "org_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "school_year_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "grade_level_descriptor_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          }
-        ],
-        "isUnique": true,
-        "where": "status = 'active'",
-        "with": "",
-        "method": "btree",
-        "concurrently": false,
-        "entityType": "indexes"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "admission_intakes",
         "name": "admission_intakes_window_idx",
         "nameExplicit": true,
         "columns": [
@@ -88707,6 +90977,75 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "broadcast_grades",
+        "name": "broadcast_grades_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "broadcast_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "grade_level_descriptor_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "broadcast_grades_grade_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "grade_level_descriptor_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "broadcast_recipients",
         "name": "broadcast_recipients_key",
         "nameExplicit": true,
@@ -88952,6 +91291,75 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "calendar_event_grades_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "event_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "grade_level_descriptor_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "calendar_event_grades_grade_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "grade_level_descriptor_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "calendar_events",
         "name": "calendar_events_org_idx",
         "nameExplicit": true,
@@ -89118,6 +91526,68 @@
         ],
         "isUnique": false,
         "where": "status = 'active' and state in ('queued', 'working')",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "class_grades_class_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "class_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "class_grades_grade_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "grade_level_descriptor_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active'",
         "with": "",
         "method": "btree",
         "concurrently": false,
@@ -91628,6 +94098,130 @@
           }
         ],
         "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "intake_grades_intake_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "intake_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "intake_grades_grade_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "grade_level_descriptor_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "intake_years_intake_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "intake_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "intake_years_year_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "school_year_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
         "where": "status = 'active'",
         "with": "",
         "method": "btree",
@@ -95738,6 +98332,75 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "student_grades",
+        "name": "student_grades_student_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "student_user_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "student_grades_grade_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "org_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "grade_level_descriptor_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "student_movements",
         "name": "student_movements_day_idx",
         "nameExplicit": true,
@@ -95820,13 +98483,6 @@
           },
           {
             "value": "school_year_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "grade_level_descriptor_id",
             "isExpression": false,
             "asc": true,
             "nullsFirst": false,
@@ -97917,58 +100573,6 @@
       "row": {
         "schema": "core",
         "table": "admission_intakes",
-        "name": "admission_intakes_tenant_id_school_year_id_school_year_typ_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "school_year_id",
-          "school_year_type",
-          "school_year_id",
-          "org_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "academic_sessions",
-        "columnsTo": [
-          "tenant_id",
-          "id",
-          "type",
-          "school_year_id",
-          "org_id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "admission_intakes",
-        "name": "admission_intakes_tenant_id_grade_level_descriptor_id_grad_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "grade_level_descriptor_id",
-          "grade_level_ns"
-        ],
-        "schemaTo": "core",
-        "tableTo": "descriptors",
-        "columnsTo": [
-          "tenant_id",
-          "id",
-          "namespace"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "admission_intakes",
         "name": "admission_intakes_tenant_id_form_id_fkey",
         "nameExplicit": true,
         "columns": [
@@ -99066,13 +101670,55 @@
       "op": "create",
       "row": {
         "schema": "core",
-        "table": "broadcast_audiences",
-        "name": "broadcast_audiences_tenant_id_grade_descriptor_id_grade_ns_fkey",
+        "table": "broadcast_grades",
+        "name": "broadcast_grades_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "broadcast_grades_tenant_id_broadcast_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
-          "grade_descriptor_id",
-          "grade_ns"
+          "broadcast_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "broadcasts",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "broadcast_grades_tenant_id_grade_level_descriptor_id_grade_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "grade_level_descriptor_id",
+          "grade_level_ns"
         ],
         "schemaTo": "core",
         "tableTo": "descriptors",
@@ -99414,13 +102060,55 @@
       "op": "create",
       "row": {
         "schema": "core",
-        "table": "calendar_event_audiences",
-        "name": "calendar_event_audiences_tenant_id_grade_descriptor_id_gra_fkey",
+        "table": "calendar_event_grades",
+        "name": "calendar_event_grades_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "calendar_event_grades_tenant_id_event_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
-          "grade_descriptor_id",
-          "grade_ns"
+          "event_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "calendar_events",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "calendar_event_grades_tenant_id_grade_level_descriptor_id__fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "grade_level_descriptor_id",
+          "grade_level_ns"
         ],
         "schemaTo": "core",
         "tableTo": "descriptors",
@@ -99642,6 +102330,74 @@
         "columnsTo": [
           "tenant_id",
           "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "class_grades_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "class_grades_tenant_id_class_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "class_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "classes",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "org_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "class_grades_tenant_id_grade_level_descriptor_id_grade_lev_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "grade_level_descriptor_id",
+          "grade_level_ns"
+        ],
+        "schemaTo": "core",
+        "tableTo": "descriptors",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "namespace"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -100281,30 +103037,6 @@
       "row": {
         "schema": "core",
         "table": "classes",
-        "name": "classes_tenant_id_grade_level_descriptor_id_grade_level_ns_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "grade_level_descriptor_id",
-          "grade_level_ns"
-        ],
-        "schemaTo": "core",
-        "tableTo": "descriptors",
-        "columnsTo": [
-          "tenant_id",
-          "id",
-          "namespace"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "classes",
         "name": "classes_tenant_id_location_id_fkey",
         "nameExplicit": true,
         "columns": [
@@ -100617,30 +103349,6 @@
           "tenant_id",
           "subject_descriptor_id",
           "subject_ns"
-        ],
-        "schemaTo": "core",
-        "tableTo": "descriptors",
-        "columnsTo": [
-          "tenant_id",
-          "id",
-          "namespace"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "courses",
-        "name": "courses_tenant_id_grade_level_descriptor_id_grade_level_ns_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "grade_level_descriptor_id",
-          "grade_level_ns"
         ],
         "schemaTo": "core",
         "tableTo": "descriptors",
@@ -103426,6 +106134,144 @@
         "columnsTo": [
           "tenant_id",
           "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "intake_grades_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "intake_grades_tenant_id_intake_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "intake_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "admission_intakes",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "intake_grades_tenant_id_grade_level_descriptor_id_grade_le_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "grade_level_descriptor_id",
+          "grade_level_ns"
+        ],
+        "schemaTo": "core",
+        "tableTo": "descriptors",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "namespace"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "intake_years_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "intake_years_tenant_id_intake_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "intake_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "admission_intakes",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "org_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "intake_years_tenant_id_school_year_id_school_year_type_sch_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "school_year_id",
+          "school_year_type",
+          "school_year_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "academic_sessions",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "type",
+          "school_year_id",
+          "org_id"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -108472,6 +111318,116 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "student_grades",
+        "name": "student_grades_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "student_grades_tenant_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "orgs",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "student_grades_tenant_id_student_user_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "student_user_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "users",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "student_grades_tenant_id_grade_level_descriptor_id_grade_l_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "grade_level_descriptor_id",
+          "grade_level_ns"
+        ],
+        "schemaTo": "core",
+        "tableTo": "descriptors",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "namespace"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "student_grades_tenant_id_import_run_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "import_run_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "import_runs",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "student_movements",
         "name": "student_movements_tenant_id_fkey",
         "nameExplicit": true,
@@ -108664,30 +111620,6 @@
           "type",
           "school_year_id",
           "org_id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "student_school_years",
-        "name": "student_school_years_tenant_id_grade_level_descriptor_id_g_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "grade_level_descriptor_id",
-          "grade_level_ns"
-        ],
-        "schemaTo": "core",
-        "tableTo": "descriptors",
-        "columnsTo": [
-          "tenant_id",
-          "id",
-          "namespace"
         ],
         "onUpdate": "NO ACTION",
         "onDelete": "NO ACTION",
@@ -110334,6 +113266,20 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "broadcast_grades",
+        "name": "broadcast_grades_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "broadcast_recipients",
         "name": "broadcast_recipients_pkey",
         "columns": [
@@ -110390,6 +113336,20 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "calendar_event_grades_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "calendar_events",
         "name": "calendar_events_pkey",
         "columns": [
@@ -110420,6 +113380,20 @@
         "schema": "core",
         "table": "caption_drafts",
         "name": "caption_drafts_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "class_grades_pkey",
         "columns": [
           "tenant_id",
           "id"
@@ -111096,6 +114070,34 @@
         "schema": "core",
         "table": "import_runs",
         "name": "import_runs_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "intake_grades_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "intake_years_pkey",
         "columns": [
           "tenant_id",
           "id"
@@ -112074,6 +115076,20 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "student_grades",
+        "name": "student_grades_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "student_movements",
         "name": "student_movements_pkey",
         "columns": [
@@ -112398,6 +115414,22 @@
           "tenant_id",
           "form_id",
           "number"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "admission_intakes",
+        "name": "admission_intakes_tenant_id_id_org_id_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "id",
+          "org_id"
         ],
         "nullsNotDistinct": false,
         "entityType": "uniques"
@@ -113847,8 +116879,28 @@
       "row": {
         "schema": "core",
         "table": "admission_intakes",
-        "name": "admission_intakes_school_year_type_check",
-        "value": "school_year_type = 'school_year'",
+        "name": "admission_intakes_title_en_check",
+        "value": "char_length(title_en) between 1 and 120",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "admission_intakes",
+        "name": "admission_intakes_title_ar_check",
+        "value": "char_length(title_ar) between 1 and 120",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "admission_intakes",
+        "name": "admission_intakes_title_check",
+        "value": "num_nonnulls(title_en, title_ar) >= 1",
         "entityType": "checks"
       }
     },
@@ -115098,17 +118150,7 @@
         "schema": "core",
         "table": "broadcast_audiences",
         "name": "broadcast_audiences_scope_check",
-        "value": "scope in ('school', 'staff', 'families', 'students', 'class', 'grade')",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "broadcast_audiences",
-        "name": "broadcast_audiences_grade_ns_check",
-        "value": "grade_ns = 'grade_level'",
+        "value": "scope in ('school', 'staff', 'families', 'students', 'class')",
         "entityType": "checks"
       }
     },
@@ -115118,7 +118160,37 @@
         "schema": "core",
         "table": "broadcast_audiences",
         "name": "broadcast_audiences_target_check",
-        "value": "(scope = 'class') = (class_id is not null) and (scope = 'grade') = (grade_descriptor_id is not null)",
+        "value": "(scope = 'class') = (class_id is not null)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "broadcast_grades_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "broadcast_grades_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "broadcast_grades_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
         "entityType": "checks"
       }
     },
@@ -115388,17 +118460,7 @@
         "schema": "core",
         "table": "calendar_event_audiences",
         "name": "calendar_event_audiences_scope_check",
-        "value": "scope in ('school', 'staff', 'families', 'students', 'class', 'grade')",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "calendar_event_audiences",
-        "name": "calendar_event_audiences_grade_ns_check",
-        "value": "grade_ns = 'grade_level'",
+        "value": "scope in ('school', 'staff', 'families', 'students', 'class')",
         "entityType": "checks"
       }
     },
@@ -115408,7 +118470,37 @@
         "schema": "core",
         "table": "calendar_event_audiences",
         "name": "calendar_event_audiences_target_check",
-        "value": "(scope = 'class') = (class_id is not null) and (scope = 'grade') = (grade_descriptor_id is not null)",
+        "value": "(scope = 'class') = (class_id is not null)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "calendar_event_grades_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "calendar_event_grades_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "calendar_event_grades_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
         "entityType": "checks"
       }
     },
@@ -115686,6 +118778,36 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "class_grades",
+        "name": "class_grades_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "class_grades_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "class_grades_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "class_grading",
         "name": "class_grading_status_check",
         "value": "status in ('active', 'tobedeleted')",
@@ -115719,6 +118841,16 @@
         "table": "class_grading",
         "name": "class_grading_chosen_check",
         "value": "num_nonnulls(programme_id, grade_scale_id) >= 1",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grading",
+        "name": "class_grading_programme_chosen_check",
+        "value": "programme_chosen or programme_id is not null",
         "entityType": "checks"
       }
     },
@@ -119459,6 +122591,76 @@
         "table": "import_runs",
         "name": "import_runs_error_count_check",
         "value": "error_count >= 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "intake_grades_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "intake_grades_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "intake_grades_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "intake_years_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "intake_years_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "intake_years_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "intake_years_school_year_type_check",
+        "value": "school_year_type = 'school_year'",
         "entityType": "checks"
       }
     },
@@ -124266,6 +127468,56 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "student_grades",
+        "name": "student_grades_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "student_grades_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "student_grades_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "student_grades_valid_during_check",
+        "value": "not isempty(\"valid_during\") and not lower_inf(\"valid_during\") and lower_inc(\"valid_during\") and not upper_inc(\"valid_during\")",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "student_grades_source_check",
+        "value": "source in ('manual', 'import', 'class', 'homeroom', 'rollover', 'admission')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "student_movements",
         "name": "student_movements_status_check",
         "value": "status in ('active', 'tobedeleted')",
@@ -128474,6 +131726,93 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "broadcast_grades",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_grades",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "broadcast_recipients",
         "name": "p_erase_update",
         "as": "PERMISSIVE",
@@ -128870,6 +132209,93 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_grades",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "calendar_events",
         "name": "p_site_select",
         "as": "PERMISSIVE",
@@ -129172,6 +132598,109 @@
         ],
         "using": "true",
         "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_grades",
+        "name": "p_integration_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "integration"
+        ],
+        "using": "true",
+        "withCheck": null,
         "entityType": "policies"
       }
     },
@@ -134141,6 +137670,212 @@
       "row": {
         "schema": "core",
         "table": "import_runs",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "p_site_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "site"
+        ],
+        "using": "status = 'active'",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_grades",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "p_site_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "site"
+        ],
+        "using": "status = 'active'",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "intake_years",
         "name": "p_update",
         "as": "PERMISSIVE",
         "for": "UPDATE",
@@ -140901,6 +144636,125 @@
       "row": {
         "schema": "core",
         "table": "student_departures",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
+        "name": "p_integration_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "integration"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "student_grades",
         "name": "p_erase_update",
         "as": "PERMISSIVE",
         "for": "UPDATE",

@@ -1,8 +1,5 @@
 import type { Column, RowAction } from "@faridalms/ui/system/data-table";
-import type {
-  Facet,
-  IndexToolbarProps,
-} from "@faridalms/ui/system/index-toolbar";
+import type { IndexToolbarProps } from "@faridalms/ui/system/index-toolbar";
 import type { HeaderAction } from "@faridalms/ui/system/page-header";
 
 import { ButtonLink } from "@faridalms/ui/system/button-link";
@@ -18,10 +15,13 @@ import { Pencil, Plus, School } from "lucide-react";
 
 import type { ClassesTabProps } from "~/components/classes/slots";
 
-import { useClassFacets } from "~/components/classes/class-facets";
+import {
+  useClassColumns,
+  useClassFacets,
+} from "~/components/classes/class-facets";
 import { classTitle, subjectName } from "~/components/classes/format";
 import { classFilters, viewsOf } from "~/components/classes/slots";
-import { displayName, labelOf } from "~/components/people/format";
+import { displayName } from "~/components/people/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
@@ -64,9 +64,10 @@ function Teacher({ row }: TeacherProps) {
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function classColumns(options: Options): Column<ClassRow>[] {
-  const grade = (id: string | null) =>
-    labelOf(options.grades.find((row) => row.id === id) ?? null);
+function classColumns(
+  options: Options,
+  modules: readonly Column<ClassRow>[],
+): Column<ClassRow>[] {
   const room = (id: string | null) => {
     const found = options.rooms.find((row) => row.id === id);
     return found ? inLocale(found.nameEn, found.nameAr) || found.code : null;
@@ -88,11 +89,7 @@ function classColumns(options: Options): Column<ClassRow>[] {
         </div>
       ),
     },
-    {
-      id: "grade",
-      header: m.studentGrade(),
-      cell: (row) => <Value>{grade(row.gradeId)}</Value>,
-    },
+    ...modules,
     {
       id: "teacher",
       header: m.classesClassTeacher(),
@@ -155,16 +152,7 @@ export function HomeroomDirectory({
   const data = useSuspenseQuery(homeroomDirectoryQuery(search, views)).data;
   const options = useSuspenseQuery(classOptionsQuery).data;
   const moduleFacets = useClassFacets(search, patch);
-  const gradeFacet: Facet = {
-    id: "grade",
-    label: m.studentGrade(),
-    options: options.grades.map((row) => ({
-      value: row.id,
-      label: labelOf(row) ?? row.code,
-    })),
-    selected: search.grade,
-    onChange: (grade) => patch({ grade }),
-  };
+  const moduleColumns = useClassColumns<ClassRow>(data.columns);
   const create: HeaderAction | undefined = data.manage
     ? {
         label: m.homeroomsAdd(),
@@ -193,11 +181,10 @@ export function HomeroomDirectory({
       label: m.classesSearchHint(),
       placeholder: m.classesSearchPlaceholder(),
     },
-    facets: [...moduleFacets, gradeFacet],
+    facets: moduleFacets,
     onReset: () =>
       patch({
         q: "",
-        grade: [],
         ...Object.fromEntries(filters.map((filter) => [filter.key, undefined])),
       }),
   };
@@ -214,7 +201,7 @@ export function HomeroomDirectory({
         <DataTable
           caption={m.homeroomsCaption()}
           rows={data.rows}
-          columns={classColumns(options)}
+          columns={classColumns(options, moduleColumns)}
           rowLabel={(row) => classTitle(row)}
           toolbar={toolbar}
           rowActions={rowActions}

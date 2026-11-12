@@ -39,7 +39,6 @@ export interface ClassRow {
   titleAr: string | null;
   courseId: string | null;
   subjectId: string | null;
-  gradeId: string | null;
   locationId: string | null;
 }
 
@@ -52,7 +51,6 @@ export type ClassRecord = {
   title_ar: string | null;
   course_id: string | null;
   subject_descriptor_id: string | null;
-  grade_level_descriptor_id: string | null;
   location_id: string | null;
 };
 
@@ -66,13 +64,12 @@ export function classOf(row: ClassRecord): ClassRow {
     titleAr: row.title_ar,
     courseId: row.course_id,
     subjectId: row.subject_descriptor_id,
-    gradeId: row.grade_level_descriptor_id,
     locationId: row.location_id,
   };
 }
 
 export const classColumns = sql`c.id, c.version, c.runs::text as runs, c.code, c.title_en, c.title_ar,
-  c.course_id, c.subject_descriptor_id, c.grade_level_descriptor_id, c.location_id`;
+  c.course_id, c.subject_descriptor_id, c.location_id`;
 
 export function spanOf(range: string): OpenSpan {
   const { from, to } = bounds(range);
@@ -146,15 +143,27 @@ export interface ClassesViewed {
   classIds: readonly string[] | null;
   /** Without a module's view, those over rather than those still running or yet to start. */
   ended: boolean;
+  /** Of those, only the classes a module's filter keeps; null keeps all. */
+  within?: readonly string[] | null;
 }
 
-/** The condition a list's classes meet: those a view names, else those running on or after the day, or ended before it. */
+/**
+ * The condition a list's classes meet: those a view names, else those
+ * running on or after the day, or ended before it; of those, the ones a
+ * filter keeps.
+ */
 export const viewedClasses = (filter: ClassesViewed) =>
-  filter.classIds
-    ? sql`c.id = any(${uuidArray([...filter.classIds])})`
-    : filter.ended
-      ? sql`upper(c.runs) <= ${filter.on}::date`
-      : sql`(upper_inf(c.runs) or upper(c.runs) > ${filter.on}::date)`;
+  sql`${
+    filter.classIds
+      ? sql`c.id = any(${uuidArray([...filter.classIds])})`
+      : filter.ended
+        ? sql`upper(c.runs) <= ${filter.on}::date`
+        : sql`(upper_inf(c.runs) or upper(c.runs) > ${filter.on}::date)`
+  } and ${
+    filter.within
+      ? sql`c.id = any(${uuidArray([...filter.within])})`
+      : sql`true`
+  }`;
 
 /**
  * The school's classes as the viewer reaches them on the date, each with its
@@ -167,9 +176,9 @@ export async function classDirectory(
   filter: {
     on: string;
     classIds: readonly string[] | null;
+    within: readonly string[] | null;
     ended: boolean;
     q: string;
-    gradeIds: string[];
     locale: "ar" | "en";
   },
 ): Promise<DirectoryClass[]> {
@@ -186,8 +195,7 @@ export async function classDirectory(
       and ${viewedClasses(filter)}
       and c.id in ${reached(scope, filter.on)}
       and (${holds(q, [sql`c.code`, sql`c.title_en`, sql`c.title_ar`])})
-      and (${filter.gradeIds.length === 0} or c.grade_level_descriptor_id = any(${uuidArray(filter.gradeIds)}))
-    order by c.grade_level_descriptor_id, ${nameKey}, c.id`);
+    order by ${nameKey}, c.id`);
   const teachers = await teachersOf(
     tx,
     scope.tenantId,
@@ -447,7 +455,6 @@ export async function insertClass(
     titleAr: string | null;
     courseId: string | null;
     subjectId: string | null;
-    gradeId: string | null;
     locationId: string | null;
   },
 ) {
@@ -462,7 +469,6 @@ export async function insertClass(
       titleAr: input.titleAr,
       courseId: input.courseId,
       subjectDescriptorId: input.subjectId,
-      gradeLevelDescriptorId: input.gradeId,
       locationId: input.locationId,
     })
     .returning({ id: classes.id, version: classes.version });
@@ -481,7 +487,6 @@ export async function updateClass(
     titleEn: string | null;
     titleAr: string | null;
     subjectId?: string | null;
-    gradeId: string | null;
     locationId: string | null;
   },
 ) {
@@ -494,7 +499,6 @@ export async function updateClass(
       ...(input.subjectId === undefined
         ? {}
         : { subjectDescriptorId: input.subjectId }),
-      gradeLevelDescriptorId: input.gradeId,
       locationId: input.locationId,
     })
     .where(
@@ -575,14 +579,13 @@ export async function retireClass(
 
 const COURSE_CODE_MAX = 40;
 
-/** The course for a subject at a grade in the school, made on first use. */
+/** The course for a subject in the school, made on first use. */
 export async function ensureCourse(
   tx: Tx,
   input: {
     tenantId: string;
     orgId: string;
     subjectId: string;
-    gradeId: string | null;
     code: string;
     titleEn: string | null;
     titleAr: string | null;
@@ -592,7 +595,6 @@ export async function ensureCourse(
     select id from core.courses
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid and status = 'active'
       and subject_descriptor_id = ${input.subjectId}::uuid
-      and grade_level_descriptor_id is not distinct from ${input.gradeId}::uuid
     order by created_at limit 1`);
   if (found[0]) return found[0].id;
   const stem = input.code.slice(0, COURSE_CODE_MAX - 4);
@@ -618,7 +620,6 @@ export async function ensureCourse(
       titleEn: input.titleEn,
       titleAr: input.titleAr,
       subjectDescriptorId: input.subjectId,
-      gradeLevelDescriptorId: input.gradeId,
     })
     .returning({ id: courses.id });
   if (!row) throw new Error("course was not created");

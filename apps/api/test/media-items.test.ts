@@ -518,7 +518,7 @@ describe("the school's media", () => {
       expiresOn: "",
       requiresAck: false,
       ackDueOn: "",
-      audiences: [{ scope: "families", classId: "", gradeId: "" }],
+      audiences: [{ scope: "families", classId: "", targetId: "" }],
       body: withPicture(inNews, "The assembly"),
       translation: null,
     });

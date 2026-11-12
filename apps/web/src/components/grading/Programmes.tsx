@@ -10,7 +10,7 @@ import {
   TextField,
 } from "@faridalms/ui/system/form-field";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import {
   Archive,
   CircleAlert,
@@ -22,12 +22,10 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { CheckboxRow } from "~/components/people/fields";
-import { labelOf } from "~/components/people/format";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { classOptionsQuery } from "~/queries/classes";
 import { retireProgramme, saveProgramme } from "~/server/grading";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -35,6 +33,7 @@ import { getMessageFromError } from "~/utils/error";
 import type { GradingOverview } from "./Scales";
 
 import { weightsLine } from "./format";
+import { programmeParts } from "./slots";
 
 export type ProgrammeRow = GradingOverview["programmes"][number];
 
@@ -44,18 +43,22 @@ const title = (row: { titleEn: string | null; titleAr: string | null }) =>
   inLocale(row.titleEn, row.titleAr);
 
 function useNames(overview: GradingOverview) {
-  const grades = useQuery(classOptionsQuery).data?.grades ?? [];
-  const levels = (row: ProgrammeRow) =>
+  const parts = useSlot(programmeParts);
+  const reads = useQueries({
+    queries: parts.map((part) => part.query()),
+  });
+  const summary = (row: ProgrammeRow) =>
     formatList(
-      grades
-        .filter((grade) => row.gradeLevelIds.includes(grade.id))
-        .map((grade) => labelOf(grade) ?? grade.code),
+      parts.flatMap((part, index) => {
+        const said = part.summary(reads[index]?.data, row.parts[part.key]);
+        return said ? [said] : [];
+      }),
     );
   const scale = (row: ProgrammeRow) => {
     const found = overview.scales.find((item) => item.id === row.scaleId);
     return found ? title(found) : m.gradingNoScale();
   };
-  return { levels, scale, grades };
+  return { summary, scale, parts, reads };
 }
 
 function columns(names: ReturnType<typeof useNames>): Column<ProgrammeRow>[] {
@@ -70,7 +73,7 @@ function columns(names: ReturnType<typeof useNames>): Column<ProgrammeRow>[] {
             {title(row)}
           </span>
           <span className="truncate text-[13px] leading-[18px] text-muted-foreground">
-            {[names.levels(row), weightsLine(row.categories)]
+            {[names.summary(row), weightsLine(row.categories)]
               .filter(Boolean)
               .join(" · ")}
           </span>
@@ -438,8 +441,13 @@ export function ProgrammeSheet({
   const names = useNames(overview);
   const [titleEn, setTitleEn] = useState(programme?.titleEn ?? "");
   const [titleAr, setTitleAr] = useState(programme?.titleAr ?? "");
-  const [levels, setLevels] = useState<string[]>(
-    programme?.gradeLevelIds ?? [],
+  const [parts, setParts] = useState<Record<string, unknown>>(() =>
+    Object.fromEntries(
+      names.parts.map((part) => [
+        part.key,
+        programme?.parts[part.key] ?? part.initial(),
+      ]),
+    ),
   );
   const [scaleId, setScaleId] = useState(programme?.scaleId ?? NONE);
   const [categories, setCategories] = useState<CategoryDraft[]>(() =>
@@ -460,7 +468,7 @@ export function ProgrammeSheet({
           ...(programme ? { id: programme.id } : {}),
           titleEn: titleEn.trim() || null,
           titleAr: titleAr.trim() || null,
-          gradeLevelIds: levels,
+          parts,
           scaleId: scaleId === NONE ? null : scaleId,
           categories: categories.map((row) => ({
             ...(row.id ? { id: row.id } : {}),
@@ -516,30 +524,16 @@ export function ProgrammeSheet({
         value={titleAr}
         onChange={(event) => setTitleAr(event.target.value)}
       />
-      <fieldset className="grid gap-3">
-        <legend className="mb-1 text-sm leading-5 font-medium">
-          {m.gradingGradeLevels()}
-        </legend>
-        <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {m.gradingGradeLevelsHint()}
-        </p>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-          {names.grades.map((grade) => (
-            <CheckboxRow
-              key={grade.id}
-              label={labelOf(grade) ?? grade.code}
-              checked={levels.includes(grade.id)}
-              onChange={(checked) =>
-                setLevels((current) =>
-                  checked
-                    ? [...current, grade.id]
-                    : current.filter((id) => id !== grade.id),
-                )
-              }
-            />
-          ))}
-        </div>
-      </fieldset>
+      {names.parts.map((part, index) => (
+        <part.Field
+          key={part.key}
+          read={names.reads[index]?.data}
+          value={parts[part.key]}
+          onChange={(value) =>
+            setParts((current) => ({ ...current, [part.key]: value }))
+          }
+        />
+      ))}
       <SelectField
         id="programme-scale"
         label={m.gradingScale()}

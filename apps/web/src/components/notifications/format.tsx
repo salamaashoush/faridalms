@@ -213,7 +213,7 @@ export function noticeText(notice: Notice): { title: string; body: string } {
       if (params.outcome)
         return {
           title: OUTCOME_TITLE[params.outcome](),
-          body: [title, both(params.gradeName, params.gradeNameAr)]
+          body: [title, both(params.intakeName, params.intakeNameAr)]
             .filter(Boolean)
             .join(" · "),
         };
@@ -222,13 +222,13 @@ export function noticeText(notice: Notice): { title: string; body: string } {
             title: m.ntfApplicationReceived(),
             body: m.ntfApplicationReceivedBody({
               child: title,
-              grade: both(params.gradeName, params.gradeNameAr),
+              intake: both(params.intakeName, params.intakeNameAr),
               reference: params.reference ?? "",
             }),
           }
         : {
             title: m.ntfApplication(),
-            body: [title, both(params.gradeName, params.gradeNameAr)]
+            body: [title, both(params.intakeName, params.intakeNameAr)]
               .filter(Boolean)
               .join(" · "),
           };

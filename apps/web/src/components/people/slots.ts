@@ -4,6 +4,7 @@ import type { HeaderFact } from "@faridalms/ui/system/record-page";
 import type { Tone } from "@faridalms/ui/system/status";
 import type { ComponentType, ReactNode } from "react";
 
+import type { ViewValue } from "~/components/classes/slots";
 import type { SlotQuery } from "~/utils/extension";
 
 import { slot } from "~/utils/extension";
@@ -55,16 +56,36 @@ export interface StudentFilter {
   query(): SlotQuery<unknown>;
   facetOf(
     read: unknown,
-    value: string | undefined,
-    onChange: (value: string | undefined) => void,
+    value: ViewValue,
+    onChange: (value: ViewValue) => void,
   ): Facet | null;
-  /** The view gives each student a grade, to list, filter and sort by. */
-  givesGrades: boolean;
   /** Where a student may stand in the view, beyond the role's own. */
   statuses: readonly StudentStatus[];
 }
 
 export const studentFilters = slot<StudentFilter>("student filters");
+
+/**
+ * A column a module adds to the student list under the key the list's rows
+ * carry its values by, sorted by under the same key: what it reads to name
+ * a value, its header, and the value as a cell and as text.
+ */
+export interface StudentColumn {
+  key: string;
+  header: () => string;
+  query(): SlotQuery<unknown>;
+  cell(read: unknown, value: string | null): ReactNode;
+  text(read: unknown, value: string | null): string;
+}
+
+export const studentColumns = slot<StudentColumn>("student columns");
+
+/** The word for where a module places a student, beside their class: their grade, say. */
+export interface PlaceWords {
+  place: () => string;
+}
+
+export const placeWords = slot<PlaceWords>("place words");
 
 /** What a module shows of a student on their record. */
 export interface StudentPart {

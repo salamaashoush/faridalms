@@ -3,6 +3,7 @@ import * as v from "valibot";
 import type { ContentDocument, ContentNode } from "./content";
 import type { ContentLocale } from "./translations";
 
+import { viewsSchema } from "./classes";
 import { contentDocumentSchema } from "./content";
 import { responseSchema } from "./learning";
 import { translatedContent } from "./lesson-translation";
@@ -70,7 +71,7 @@ interface Move {
  * cannot be made by anyone. A decision stays the office's until it is
  * released, when it becomes an offer, a ranked place on the waiting list or
  * a refusal. An accepted offer is enrolled by converting the applicant into
- * a student; deferring moves the application to an intake of a later year.
+ * a student; deferring moves the application to an intake starting later.
  */
 const MOVES: Record<ApplicationState, readonly Move[]> = {
   draft: [
@@ -397,13 +398,13 @@ export function suggestedAges(gradeMeaning: string | null): AgeRange {
 
 /**
  * The day ages are counted on: 1 October of the year of entry in Egypt,
- * otherwise the first day of the school year.
+ * otherwise the day learners start.
  */
 export function suggestedCutoff(
-  yearStartsOn: string,
+  startsOn: string,
   country: string | null,
 ): string {
-  return country === "EG" ? `${yearStartsOn.slice(0, 4)}-10-01` : yearStartsOn;
+  return country === "EG" ? `${startsOn.slice(0, 4)}-10-01` : startsOn;
 }
 
 export type IntakeWindow = "upcoming" | "open" | "closed";
@@ -435,9 +436,20 @@ export const intakeLettersSchema = v.object({
 });
 export type IntakeLetters = v.InferInput<typeof intakeLettersSchema>;
 
+const intakeTitle = v.optional(
+  v.pipe(
+    v.string(),
+    v.trim(),
+    v.maxLength(120),
+    v.transform((value) => (value === "" ? null : value)),
+  ),
+  "",
+);
+
 const intakeFields = {
-  schoolYearId: id,
-  gradeId: id,
+  titleEn: intakeTitle,
+  titleAr: intakeTitle,
+  startsOn: isoDate,
   opensOn: isoDate,
   closesOn: isoDate,
   capacity: whole(1, 5000),
@@ -455,6 +467,8 @@ const intakeFields = {
     v.maxLength(PRIORITY_RULES.length),
   ),
   letters: v.optional(intakeLettersSchema, {}),
+  /** What modules keep about the intake, each read by its own schema: its year, say. */
+  parts: v.optional(v.record(v.string(), v.unknown()), {}),
 };
 
 export const saveIntakeSchema = v.pipe(
@@ -463,6 +477,13 @@ export const saveIntakeSchema = v.pipe(
     expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
     ...intakeFields,
   }),
+  v.forward(
+    v.check(
+      (input) => Boolean(input.titleEn || input.titleAr),
+      "validation.name_required",
+    ),
+    ["titleEn"],
+  ),
   v.forward(
     v.check((input) => input.opensOn <= input.closesOn, "intake.dates"),
     ["closesOn"],
@@ -503,13 +524,11 @@ export const saveIntakeSchema = v.pipe(
     ["checklist"],
   ),
 );
-export type SaveIntake = v.InferOutput<typeof saveIntakeSchema>;
+export type SaveIntake = v.InferInput<typeof saveIntakeSchema>;
 
 export const intakeRefSchema = v.object({ id });
 
-export const intakeListSchema = v.object({
-  year: v.optional(v.union([v.literal(""), id]), ""),
-});
+export const intakeListSchema = v.object({ views: viewsSchema });
 
 export const MAX_APPLICATION_QUESTIONS = 30;
 
@@ -776,12 +795,16 @@ export type ApplicationView = (typeof APPLICATION_VIEWS)[number];
 
 export const applicationListSchema = v.object({
   intake: v.optional(v.union([v.literal(""), id]), ""),
-  year: v.optional(v.union([v.literal(""), id]), ""),
   state: v.optional(v.picklist(APPLICATION_VIEWS), "live"),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
   page: pageField,
 });
 export type ApplicationListQuery = v.InferOutput<typeof applicationListSchema>;
+
+export const applicationListInputSchema = v.object({
+  ...applicationListSchema.entries,
+  views: viewsSchema,
+});
 
 export const applicationNoteSchema = v.object({
   id,
@@ -910,7 +933,7 @@ export const answerOfferSchema = v.object({
   note: words(500),
 });
 
-/** Moves an application to an intake of a later year, where it carries on as sent. */
+/** Moves an application to an intake starting later, where it carries on as sent. */
 export const deferApplicationSchema = v.object({
   id,
   expectedVersion: version,
@@ -949,9 +972,7 @@ export const convertSchema = v.object({
 
 export const boardSchema = v.object({ intake: id });
 
-export const admissionReportSchema = v.object({
-  year: v.optional(v.union([v.literal(""), id]), ""),
-});
+export const admissionReportSchema = v.object({ views: viewsSchema });
 
 /** Visits and meetings an application can hold, each at a time with the staff who attend. */
 export const EVENT_KINDS = ["tour", "assessment", "interview"] as const;
@@ -1019,6 +1040,7 @@ export const LETTER_FOR: Partial<Record<ApplicationState, LetterKind>> = {
 export const LETTER_FIELDS = [
   "family",
   "child",
+  "intake",
   "grade",
   "year",
   "school",
@@ -1074,49 +1096,49 @@ export const BUILTIN_LETTERS: readonly {
     kind: "offer",
     locale: "en",
     title: "Offer of a place",
-    body: "Dear {family},\n\nWe are delighted to offer {child} a place in {grade} for the {year} school year.\n\nPlease accept or decline the offer from your family account by {expires}. If we do not hear from you by then, the place will be offered to another child.\n\nYour application number is {reference}. Once you accept, we will write to you about the next steps before the year begins.\n\nWith warm regards,\n{school}",
+    body: "Dear {family},\n\nWe are delighted to offer {child} a place in {intake}.\n\nPlease accept or decline the offer from your family account by {expires}. If we do not hear from you by then, the place will be offered to another child.\n\nYour application number is {reference}. Once you accept, we will write to you about the next steps before {child} starts.\n\nWith warm regards,\n{school}",
   },
   {
     kind: "offer",
     locale: "ar",
     title: "عرض مقعد",
-    body: "إلى {family}،\n\nتحية طيبة وبعد،\n\nيسعدنا أن نعرض على {child} مقعدًا في {grade} للعام الدراسي {year}.\n\nنرجو قبول العرض أو الاعتذار عنه من حساب الأسرة في موعد أقصاه {expires}، وإن لم يصلنا ردكم حتى ذلك الحين عُرض المقعد على طفل آخر.\n\nرقم طلبكم {reference}، وبعد قبولكم العرض سنراسلكم بالخطوات التالية قبل بداية العام.\n\nمع أطيب التحيات،\n{school}",
+    body: "إلى {family}،\n\nتحية طيبة وبعد،\n\nيسعدنا أن نعرض على {child} مقعدًا في {intake}.\n\nنرجو قبول العرض أو الاعتذار عنه من حساب الأسرة في موعد أقصاه {expires}، وإن لم يصلنا ردكم حتى ذلك الحين عُرض المقعد على طفل آخر.\n\nرقم طلبكم {reference}، وبعد قبولكم العرض سنراسلكم بالخطوات التالية قبل أن يبدأ {child}.\n\nمع أطيب التحيات،\n{school}",
   },
   {
     kind: "waitlist",
     locale: "en",
     title: "A place on our waiting list",
-    body: "Dear {family},\n\nThank you for applying to {school} for {child}. We have more applications for {grade} in {year} than places, and we are not able to offer {child} a place at this time.\n\nWe have placed {child} on our waiting list. If a place becomes available, we offer it in the order of our admission criteria and will write to you straight away.\n\nYour application number is {reference}. You can leave the waiting list at any time from your family account.\n\nWith kind regards,\n{school}",
+    body: "Dear {family},\n\nThank you for applying to {school} for {child}. We have more applications for {intake} than places, and we are not able to offer {child} a place at this time.\n\nWe have placed {child} on our waiting list. If a place becomes available, we offer it in the order of our admission criteria and will write to you straight away.\n\nYour application number is {reference}. You can leave the waiting list at any time from your family account.\n\nWith kind regards,\n{school}",
   },
   {
     kind: "waitlist",
     locale: "ar",
     title: "قائمة الانتظار",
-    body: "إلى {family}،\n\nتحية طيبة وبعد،\n\nنشكركم على تقديم طلب التحاق {child} بـ{school}. لقد تجاوز عدد الطلبات المقدَّمة إلى {grade} للعام الدراسي {year} عدد المقاعد المتاحة، ولذلك لا يمكننا أن نعرض على {child} مقعدًا في الوقت الحالي.\n\nوقد أدرجنا {child} في قائمة الانتظار، وإذا توفر مقعد عرضناه وفق ترتيب معايير القبول لدينا وراسلناكم فورًا.\n\nرقم طلبكم {reference}، ويمكنكم الخروج من قائمة الانتظار في أي وقت من حساب الأسرة.\n\nمع أطيب التحيات،\n{school}",
+    body: "إلى {family}،\n\nتحية طيبة وبعد،\n\nنشكركم على تقديم طلب التحاق {child} بـ{school}. لقد تجاوز عدد الطلبات المقدَّمة إلى {intake} عدد المقاعد المتاحة، ولذلك لا يمكننا أن نعرض على {child} مقعدًا في الوقت الحالي.\n\nوقد أدرجنا {child} في قائمة الانتظار، وإذا توفر مقعد عرضناه وفق ترتيب معايير القبول لدينا وراسلناكم فورًا.\n\nرقم طلبكم {reference}، ويمكنكم الخروج من قائمة الانتظار في أي وقت من حساب الأسرة.\n\nمع أطيب التحيات،\n{school}",
   },
   {
     kind: "decline",
     locale: "en",
     title: "Your application",
-    body: "Dear {family},\n\nThank you for your interest in {school} and for the time you gave to the application for {child} to join {grade} in {year}.\n\nAfter careful consideration, we are sorry that we are not able to offer {child} a place.\n\nWe wish {child} every success, and we thank you again for thinking of us.\n\nWith kind regards,\n{school}",
+    body: "Dear {family},\n\nThank you for your interest in {school} and for the time you gave to the application for {child} to join {intake}.\n\nAfter careful consideration, we are sorry that we are not able to offer {child} a place.\n\nWe wish {child} every success, and we thank you again for thinking of us.\n\nWith kind regards,\n{school}",
   },
   {
     kind: "decline",
     locale: "ar",
     title: "بشأن طلب الالتحاق",
-    body: "إلى {family}،\n\nتحية طيبة وبعد،\n\nنشكركم على اهتمامكم بـ{school} وعلى الوقت الذي خصصتموه لطلب التحاق {child} بـ{grade} للعام الدراسي {year}.\n\nوبعد دراسة الطلب بعناية، نأسف لعدم تمكننا من عرض مقعد على {child}.\n\nنتمنى لـ{child} كل التوفيق، ونشكركم مجددًا على ثقتكم.\n\nمع أطيب التحيات،\n{school}",
+    body: "إلى {family}،\n\nتحية طيبة وبعد،\n\nنشكركم على اهتمامكم بـ{school} وعلى الوقت الذي خصصتموه لطلب التحاق {child} بـ{intake}.\n\nوبعد دراسة الطلب بعناية، نأسف لعدم تمكننا من عرض مقعد على {child}.\n\nنتمنى لـ{child} كل التوفيق، ونشكركم مجددًا على ثقتكم.\n\nمع أطيب التحيات،\n{school}",
   },
   {
     kind: "welcome",
     locale: "en",
     title: "Welcome to {school}",
-    body: "Dear {family},\n\nWelcome to {school}. {child} is now enrolled in {grade} for the {year} school year, and we look forward to meeting you.\n\nYour family account now opens {child}'s record at the school. Before the year begins we will share the calendar, the uniform and supplies list, and the arrangements for the first day.\n\nWith warm regards,\n{school}",
+    body: "Dear {family},\n\nWelcome to {school}. {child} is now enrolled in {intake}, and we look forward to meeting you.\n\nYour family account now opens {child}'s record at the school. Before {child} starts we will share the calendar and the arrangements for the first day.\n\nWith warm regards,\n{school}",
   },
   {
     kind: "welcome",
     locale: "ar",
     title: "مرحبًا بكم في {school}",
-    body: "إلى {family}،\n\nتحية طيبة وبعد،\n\nيسعدنا أن نرحب بكم في {school}، فقد أصبح {child} مقيدًا في {grade} للعام الدراسي {year}، ونتطلع إلى لقائكم.\n\nيتيح لكم حساب الأسرة الآن الاطلاع على سجل {child} في المدرسة، وقبل بداية العام سنرسل إليكم التقويم الدراسي وقائمة الزي المدرسي والأدوات وترتيبات اليوم الأول.\n\nمع أطيب التحيات،\n{school}",
+    body: "إلى {family}،\n\nتحية طيبة وبعد،\n\nيسعدنا أن نرحب بكم في {school}، فقد أصبح {child} مقيدًا في {intake}، ونتطلع إلى لقائكم.\n\nيتيح لكم حساب الأسرة الآن الاطلاع على سجل {child} في المدرسة، وقبل أن يبدأ {child} سنرسل إليكم التقويم وترتيبات اليوم الأول.\n\nمع أطيب التحيات،\n{school}",
   },
 ];
 

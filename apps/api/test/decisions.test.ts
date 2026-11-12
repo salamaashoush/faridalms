@@ -1,9 +1,11 @@
 import { contentPlainText } from "@faridalms/domain/content";
 import { plainContent } from "@faridalms/domain/content-conversion";
+import { MODULE_IDS } from "@faridalms/domain/modules";
+import { addDays } from "@faridalms/domain/school";
 import { newSection } from "@faridalms/domain/site-sections";
 import { describe, expect, test } from "bun:test";
 
-import { runAdmissionsClock } from "../src/core/admissions-clock";
+import { runAdmissionsClock } from "../src/admissions/clock";
 import {
   consents,
   filledDraft,
@@ -12,8 +14,17 @@ import {
   officer,
   principal,
   registeredFamily,
+  routeForm,
 } from "./admission-fixtures";
-import { client, login, rejection, seeded, signedIn } from "./harness";
+import {
+  client,
+  login,
+  rejection,
+  seeded,
+  setPlan,
+  signedIn,
+  workerModules,
+} from "./harness";
 
 type Family = Awaited<ReturnType<typeof registeredFamily>>["api"];
 type Office = Awaited<ReturnType<typeof officer>>;
@@ -78,6 +89,14 @@ const mineOf = async (family: Family, id: string) => {
 };
 
 const tenantId = () => seeded().tenants[0]?.tenantId ?? "";
+
+function northwind() {
+  const school = seeded().tenants[0]?.schools.find(
+    (row) => row.slug === "northwind",
+  );
+  if (!school) throw new Error("the seed lacks Northwind");
+  return school.id;
+}
 
 let madeLater: Promise<unknown> | null = null;
 /** A school year well after the seeded ones, made once, for intakes no other test uses. */
@@ -234,11 +253,13 @@ describe("deciding", () => {
     await decide(office, [id], "offer");
     const channels = { email: false, sms: false };
     await runAdmissionsClock(seeded().cell, tenantId(), {
+      modules: workerModules(),
       now: new Date("2027-04-09T12:00:00Z"),
       channels,
     });
     expect((await mineOf(family, id)).state).toBe("in_review");
     await runAdmissionsClock(seeded().cell, tenantId(), {
+      modules: workerModules(),
       now: new Date("2027-04-10T12:00:00Z"),
       channels,
     });
@@ -246,6 +267,7 @@ describe("deciding", () => {
     expect(offered.state).toBe("offered");
     expect(offered.offerExpiresOn).toBe("2027-04-24");
     await runAdmissionsClock(seeded().cell, tenantId(), {
+      modules: workerModules(),
       now: new Date("2027-04-25T12:00:00Z"),
       channels,
     });
@@ -427,6 +449,82 @@ describe("enrolling", () => {
     expect(
       student.guardians?.some((row) => row.userId === before.family.id),
     ).toBe(true);
+  });
+
+  test("a school without years or grades takes an intake by its title and start, and enrols from that day", async () => {
+    const schoolId = northwind();
+    await setPlan(schoolId, {
+      modules: MODULE_IDS.filter(
+        (id) => id !== "school_years" && id !== "grade_levels",
+      ),
+    });
+    try {
+      const office = await officer();
+      const { today } = await office.classes.options();
+      const startsOn = addDays(today, 90);
+      const form = await office.intakes.saveForm({
+        expectedVersion: 0,
+        nameEn: "Bootcamp form",
+        nameAr: "",
+        ...routeForm(),
+      });
+      await office.intakes.publishForm({
+        id: form.id,
+        expectedVersion: form.version,
+      });
+      const intake = {
+        expectedVersion: 0,
+        titleEn: "Salama coding bootcamp",
+        startsOn,
+        opensOn: "2020-01-01",
+        closesOn: "2099-12-31",
+        capacity: 10,
+        formId: form.id,
+        checklist: [],
+        currency: "EGP" as const,
+        fees: [],
+        decisionsOn: "",
+        offerDays: 14,
+        ageCutoffOn: startsOn,
+        minAgeMonths: null,
+        maxAgeMonths: null,
+        priorities: [],
+        letters: {},
+      };
+      for (const parts of [
+        { year: { yearId: crypto.randomUUID() } },
+        { grade: { gradeId: crypto.randomUUID() } },
+      ])
+        expect(
+          await rejection(office.intakes.saveIntake({ ...intake, parts })),
+        ).toMatchObject({ message: "intake.part_unknown" });
+      const saved = await office.intakes.saveIntake(intake);
+
+      const { api: family } = await registeredFamily(
+        "salama.bootcamp@example.com",
+      );
+      const id = await accepted(family, saved.id, { birthDate: "2012-01-01" });
+      const before = await office.applications.application({ id });
+      const { enrolled } = await office.decisions.convert({
+        applications: [{ id, expectedVersion: before.version }],
+      });
+      const studentId = enrolled[0]?.studentId ?? "";
+      expect(studentId).toBe(before.child.id);
+      expect(await office.people.student({ id: studentId })).toMatchObject({
+        status: "pre_enrolled",
+        reference: before.reference,
+      });
+      const mine = await mineOf(family, id);
+      const welcome = mine.letters.find((letter) => letter.kind === "welcome");
+      if (!welcome) throw new Error("no welcome letter went to the family");
+      expect(
+        contentPlainText(
+          (await family.applying.letter({ id: welcome.id })).content,
+        ),
+      ).toContain("Salama coding bootcamp");
+    } finally {
+      await setPlan(schoolId, null);
+    }
   });
 });
 
@@ -687,9 +785,11 @@ describe("the website's doors into admissions", () => {
       locale: "en",
       slug: "places",
     });
-    const kg1 = page.intakes.find((intake) => intake.gradeEn === "KG1");
+    const kg1 = page.intakes.find(
+      (intake) => intake.titleEn === "KG1, 2027–2028",
+    );
     expect(kg1).toMatchObject({
-      yearTitleEn: "2027–2028",
+      startsOn: "2027-09-12",
       currency: "EGP",
       decisionsOn: "2027-04-15",
     });

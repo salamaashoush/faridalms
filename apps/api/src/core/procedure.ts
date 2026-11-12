@@ -6,7 +6,6 @@ import { writeAudit } from "@faridalms/database/audit";
 import { bindActor, TenantUnavailableError } from "@faridalms/database/context";
 import { mapDatabaseError } from "@faridalms/database/errors";
 import {
-  effectiveAccess,
   findSession,
   schoolProfile,
   touchSession,
@@ -17,6 +16,7 @@ import { ORPCError, os } from "@orpc/server";
 
 import type { RequestContext, SchoolContext, UnitContext } from "./context";
 
+import { accessAt } from "../people/access";
 import { bearer, LIFETIME, parseToken, SHARED_LIFETIME } from "./session";
 
 /** The school slug the web backend forwards, taken from the host or the school cookie. */
@@ -151,13 +151,16 @@ export async function openUnit<T>(
         );
       const schoolId = context.school.schoolId;
       const today = schoolDate(await schoolZone(tx, schoolId), now);
-      const resolved = await effectiveAccess(tx, {
-        tenantId: token.tenantId,
-        userId: session.userId,
-        orgId: schoolId,
-        today,
-        context: session.context,
-      });
+      const resolved = await accessAt(
+        {
+          tx,
+          tenantId: token.tenantId,
+          schoolId,
+          school: context.school,
+          extensions: context.extensions,
+        },
+        { userId: session.userId, today, context: session.context },
+      );
       if (!resolved.contexts.includes(session.context))
         throw new ORPCError("UNAUTHORIZED");
       return run({

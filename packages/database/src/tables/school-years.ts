@@ -85,10 +85,6 @@ export const studentSchoolYears = core.table.withRLS(
     schoolYearId: uuid("school_year_id").notNull(),
     schoolYearType: text("school_year_type").notNull().default("school_year"),
     validDuring: daterange("valid_during").notNull(),
-    gradeLevelDescriptorId: uuid("grade_level_descriptor_id"),
-    gradeLevelNs: text("grade_level_ns")
-      .notNull()
-      .generatedAlwaysAs(sql`'grade_level'`),
     entryTypeDescriptorId: uuid("entry_type_descriptor_id"),
     entryTypeNs: text("entry_type_ns")
       .notNull()
@@ -134,11 +130,6 @@ export const studentSchoolYears = core.table.withRLS(
         academicSessions.schoolYearId,
         academicSessions.orgId,
       ],
-    ),
-    fk(
-      "student_school_years",
-      [t.tenantId, t.gradeLevelDescriptorId, t.gradeLevelNs],
-      [descriptors.tenantId, descriptors.id, descriptors.namespace],
     ),
     fk(
       "student_school_years",
@@ -201,7 +192,7 @@ export const studentSchoolYears = core.table.withRLS(
       .on(t.tenantId, t.studentUserId)
       .where(sql`status = 'active'`),
     index("student_school_years_year_idx")
-      .on(t.tenantId, t.schoolYearId, t.gradeLevelDescriptorId)
+      .on(t.tenantId, t.schoolYearId)
       .where(sql`status = 'active'`),
     index("student_school_years_delta_idx").on(t.tenantId, t.dateLastModified),
     ...entityProfile({ integration: true }),

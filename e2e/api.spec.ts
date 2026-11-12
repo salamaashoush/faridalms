@@ -104,7 +104,7 @@ test("administrative writes reject family accounts and cross-school references",
     apiAs("admin"),
     signedInApi(ACME_ADMIN, PASSWORD, "acme").then((session) => session.api),
   ]);
-  const foreignGrade = (await acme.people.options()).grades[0];
+  const foreignGrade = (await acme.gradeLevels.options()).grades[0];
   if (!foreignGrade) throw new Error("the seed gives acme no grades");
   const reference = `TEST-${crypto.randomUUID().slice(0, 8)}`;
   expect(
@@ -112,7 +112,7 @@ test("administrative writes reject family accounts and cross-school references",
       northwind.people.saveStudent({
         names: names("Salama", "Ashoush"),
         reference,
-        parts: { year: { gradeId: foreignGrade.id } },
+        parts: { grade: { gradeId: foreignGrade.id } },
       }),
     ),
   ).toMatchObject({ code: "BAD_REQUEST" });
@@ -264,7 +264,7 @@ test("calendar revisions reject stale updates without losing the saved event", a
     endTime: "",
     location: "",
     provisional: false,
-    audiences: [{ scope: "staff" as const, classId: "", gradeId: "" }],
+    audiences: [{ scope: "staff" as const, classId: "", targetId: "" }],
     description: plainContent("Initial details"),
   };
   const created = await admin.calendar.save(input);

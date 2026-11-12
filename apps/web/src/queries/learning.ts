@@ -1,3 +1,5 @@
+import type { Views } from "@faridalms/domain/classes";
+
 import { queryOptions } from "@tanstack/react-query";
 
 import {
@@ -36,7 +38,7 @@ export const learningOptionsQuery = queryOptions({
 /** The modules of the viewer's classes: one class's, those in the views given, or with `ended` those over. */
 export const teachingModulesQuery = (
   classId: string,
-  view: { ended?: boolean; views?: Record<string, string> } = {},
+  view: { ended?: boolean; views?: Views } = {},
 ) =>
   queryOptions({
     queryKey: ["learning", "teaching", classId, view],

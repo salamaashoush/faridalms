@@ -804,16 +804,10 @@ export function SiteStudio({
     media,
     intakes: overview.intakes.map((intake) => ({
       id: intake.id,
-      label: m.itkEditTitle({
-        grade:
-          (locale === "ar"
-            ? (intake.gradeAr ?? intake.gradeEn)
-            : (intake.gradeEn ?? intake.gradeAr)) ?? "",
-        year:
-          (locale === "ar"
-            ? (intake.yearTitleAr ?? intake.yearTitleEn)
-            : (intake.yearTitleEn ?? intake.yearTitleAr)) ?? "",
-      }),
+      label:
+        (locale === "ar"
+          ? (intake.titleAr ?? intake.titleEn)
+          : (intake.titleEn ?? intake.titleAr)) ?? "",
     })),
   };
   const sharedWaiting = Object.keys(shared.base).some((id) =>

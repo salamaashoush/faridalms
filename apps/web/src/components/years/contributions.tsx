@@ -11,7 +11,6 @@ import { familyChildParts, officeCards } from "~/components/home/slots";
 import { STATUS_LABEL, STATUS_TONE } from "~/components/people/format";
 import {
   leavingParts,
-  studentEditorParts,
   studentFilters,
   studentRecordParts,
 } from "~/components/people/slots";
@@ -34,9 +33,7 @@ import type { ClassYearRead } from "./YearParts";
 import { yearDayPart } from "./DayParts";
 import {
   ExitLabel,
-  PlacedGradeLabel,
   StudentYearAside,
-  StudentYearField,
   StudentYearHistory,
   StudentYearOverview,
 } from "./StudentYears";
@@ -82,6 +79,7 @@ export const SCHOOL_YEARS: ModuleFillings = {
     }),
     fill(classEditorParts, {
       key: "year",
+      section: "days",
       query: (classId) => classYearPartQuery(classId),
       initial: (read, search) => {
         const { options, linked } = read as ClassYearRead;
@@ -135,7 +133,6 @@ export const SCHOOL_YEARS: ModuleFillings = {
       query: () => yearOptionsQuery,
       facetOf: (read, value, onChange) =>
         yearFacet(read as Options, value, onChange, m.studentsEveryStudent()),
-      givesGrades: true,
       statuses: ["graduated", "unplaced"],
     }),
     fill(studentRecordParts, {
@@ -144,14 +141,7 @@ export const SCHOOL_YEARS: ModuleFillings = {
         const placements = read as Placements;
         const [latest] = placements.placements;
         return {
-          facts: placements.current
-            ? [
-                {
-                  label: m.studentGrade(),
-                  value: <PlacedGradeLabel placements={placements} />,
-                },
-              ]
-            : [],
+          facts: [],
           status: {
             label: STATUS_LABEL[placements.status](),
             tone: STATUS_TONE[placements.status],
@@ -175,13 +165,6 @@ export const SCHOOL_YEARS: ModuleFillings = {
           EnrolmentAside: StudentYearAside,
         };
       },
-    }),
-    fill(studentEditorParts, {
-      key: "year",
-      title: m.studentTabEnrollment,
-      query: () => yearOptionsQuery,
-      initial: () => ({ gradeId: "" }),
-      Field: StudentYearField,
     }),
     fill(leavingParts, {
       key: "year",

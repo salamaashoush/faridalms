@@ -23,10 +23,8 @@ import {
   nextReferenceCount,
   setItemState,
 } from "@faridalms/database/stores/admissions";
-import { schoolYears } from "@faridalms/database/stores/years";
 import {
   admissionReportSchema,
-  admissionsYear,
   answerOfferSchema,
   APPLICATION_STATES,
   applicationReference,
@@ -50,7 +48,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
-import { intakeOf } from "../core/admissions";
+import { intakeOf } from "../admissions/access";
 import {
   admissionScope,
   applicationIn,
@@ -58,8 +56,9 @@ import {
   moveApplication,
   offerPlaces,
   releaseDecisions,
-} from "../core/decisions";
-import { enrol } from "../core/enrolment";
+} from "../admissions/decisions";
+import { enrol } from "../admissions/enrolment";
+import { intakeViewOf, withIntakeFacts } from "../admissions/points";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -155,17 +154,13 @@ export const board = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "admissions:read", "admissions:manage");
     const intake = await intakeOf(context, input.intake);
-    const [rows, seats, years, siblings] = await Promise.all([
+    const [rows, seats, siblings] = await Promise.all([
       boardOf(context.tx, { ...org(context), intakeId: intake.id }),
       seatsOf(context.tx, {
         tenantId: context.tenantId,
         intakeIds: [intake.id],
       }),
-      schoolYears(context.tx, context.tenantId, context.schoolId),
-      intakesOf(context.tx, {
-        ...org(context),
-        yearId: intake.schoolYearId,
-      }),
+      intakesOf(context.tx, org(context)),
     ]);
     const ranked = rankWaitlist(
       rows.filter((row) => row.state === "waitlisted"),
@@ -174,11 +169,9 @@ export const board = readProcedure
     return {
       intake: {
         id: intake.id,
-        gradeEn: intake.gradeEn,
-        gradeAr: intake.gradeAr,
-        yearTitleEn: intake.yearTitleEn,
-        yearTitleAr: intake.yearTitleAr,
-        schoolYearId: intake.schoolYearId,
+        titleEn: intake.titleEn,
+        titleAr: intake.titleAr,
+        startsOn: intake.startsOn,
         opensOn: intake.opensOn,
         closesOn: intake.closesOn,
         decisionsOn: intake.decisionsOn,
@@ -195,16 +188,9 @@ export const board = readProcedure
       })),
       intakes: siblings.map((each) => ({
         id: each.id,
-        gradeEn: each.gradeEn,
-        gradeAr: each.gradeAr,
+        titleEn: each.titleEn,
+        titleAr: each.titleAr,
       })),
-      years: years
-        .filter((year) => year.lifecycle !== "closed")
-        .map((year) => ({
-          id: year.id,
-          titleEn: year.titleEn,
-          titleAr: year.titleAr,
-        })),
       today: context.today,
       manages: can(context, "admissions:manage"),
       decides: can(context, "admissions:decide"),
@@ -422,7 +408,7 @@ export const defer = writeProcedure
       intakeOf(context, row.intakeId),
       intakeOf(context, input.intakeId),
     ]);
-    if (to.yearStartsOn <= from.yearStartsOn)
+    if (to.startsOn <= from.startsOn)
       throw new ORPCError("BAD_REQUEST", { message: "defer.later_year" });
     const prefix = String(to.entryYear);
     const reference = applicationReference(
@@ -470,16 +456,7 @@ export const defer = writeProcedure
       expectedVersion: input.expectedVersion,
       note: input.note,
       details: { deferredTo: moved.id, intakeId: to.id },
-      gradeName: {
-        en:
-          to.gradeEn && to.yearTitleEn
-            ? `${to.gradeEn}, ${to.yearTitleEn}`
-            : to.gradeEn,
-        ar:
-          to.gradeAr && to.yearTitleAr
-            ? `${to.gradeAr}، ${to.yearTitleAr}`
-            : to.gradeAr,
-      },
+      intakeName: { en: to.titleEn, ar: to.titleAr },
     });
     if (version === null) throw conflict();
     return { id: moved.id, reference, version };
@@ -487,8 +464,7 @@ export const defer = writeProcedure
 
 /**
  * Enrols accepted applicants, one or many in one transaction: each becomes
- * a student placed for the intake's year and grade, or all of them stay
- * as they were.
+ * a student from the intake's first day, or all of them stay as they were.
  */
 export const convert = writeProcedure
   .input(convertSchema)
@@ -727,26 +703,27 @@ export const recordEvent = writeProcedure
   });
 
 /**
- * A year's admissions in numbers: how far applications got, by stage,
- * where families came from, grade and intake, and how long applications
- * stay in each state.
+ * The admissions of the intakes a module's view names, or of all, in
+ * numbers: how far applications got, by stage, where families came from
+ * and intake, and how long applications stay in each state.
  */
 export const reports = readProcedure
   .input(admissionReportSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "admissions:read", "admissions:manage");
-    const years = (
-      await schoolYears(context.tx, context.tenantId, context.schoolId)
-    ).filter((year) => year.lifecycle !== "closed");
-    const yearId =
-      input.year || admissionsYear(years, context.today)?.id || null;
-    const [rows, times, intakes] = yearId
-      ? await Promise.all([
-          funnelRows(context.tx, { ...org(context), yearId }),
-          stageTimes(context.tx, { ...org(context), yearId }),
-          intakesOf(context.tx, { ...org(context), yearId }),
-        ])
-      : [[], [], []];
+    const view = await intakeViewOf(context, input.views);
+    const intakes = await withIntakeFacts(
+      context,
+      await intakesOf(context.tx, {
+        ...org(context),
+        intakeIds: view?.intakeIds ?? null,
+      }),
+    );
+    const intakeIds = intakes.map((intake) => intake.id);
+    const [rows, times] = await Promise.all([
+      funnelRows(context.tx, { ...org(context), intakeIds }),
+      stageTimes(context.tx, { ...org(context), intakeIds }),
+    ]);
     const reached = rows.map((row) => ({
       ...row,
       stage: stageReached([...row.states, row.state]),
@@ -762,18 +739,14 @@ export const reports = readProcedure
       (a, b) => a.localeCompare(b),
     );
     return {
-      yearId,
-      years: years.map((year) => ({
-        id: year.id,
-        titleEn: year.titleEn,
-        titleAr: year.titleAr,
-      })),
+      title: view?.title ?? null,
       total: reached.length,
       funnel: funnel(reached),
       byIntake: intakes.map((intake) => ({
         intakeId: intake.id,
-        gradeEn: intake.gradeEn,
-        gradeAr: intake.gradeAr,
+        titleEn: intake.titleEn,
+        titleAr: intake.titleAr,
+        facts: intake.facts,
         capacity: intake.capacity,
         funnel: funnel(reached.filter((row) => row.intakeId === intake.id)),
       })),

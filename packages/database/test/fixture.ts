@@ -14,6 +14,8 @@ import {
   insertIntake,
   publishForm as publishAdmissionForm,
 } from "../src/stores/admissions";
+import { setIntakeGrade } from "../src/stores/intake-grades";
+import { setIntakeYear } from "../src/stores/intake-years";
 import { setOrgFeature } from "../src/stores/school";
 import {
   absenceReports,
@@ -58,6 +60,8 @@ import {
   retentionSettings,
   programmeGradeLevels,
   programmes,
+  broadcastGrades,
+  calendarEventGrades,
   familyShares,
   lessonChanges,
   staffAbsences,
@@ -1102,6 +1106,23 @@ export async function completeFixture(
       "grade_8",
     ),
   });
+  const grade8 = await descriptor(tx, tenantId, "grade_level", "grade_8");
+  const [broadcast] = await tx.execute<{ id: string }>(sql`
+    select id from core.broadcasts where tenant_id = ${tenantId}::uuid limit 1`);
+  const [calendarEvent] = await tx.execute<{ id: string }>(sql`
+    select id from core.calendar_events where tenant_id = ${tenantId}::uuid limit 1`);
+  if (!broadcast || !calendarEvent)
+    throw new Error("the development seed must hold a broadcast and an event");
+  await tx.insert(broadcastGrades).values({
+    tenantId,
+    broadcastId: broadcast.id,
+    gradeLevelDescriptorId: grade8,
+  });
+  await tx.insert(calendarEventGrades).values({
+    tenantId,
+    eventId: calendarEvent.id,
+    gradeLevelDescriptorId: grade8,
+  });
   const [lessonSlot] = await tx.execute<{
     class_id: string;
     class_period_id: string;
@@ -1243,8 +1264,9 @@ export async function completeFixture(
   const intake = await insertIntake(tx, {
     tenantId,
     orgId: schoolId,
-    schoolYearId: nextYear,
-    gradeId: await descriptor(tx, tenantId, "grade_level", "kg1"),
+    titleEn: "KG1, 2035",
+    titleAr: null,
+    startsOn: "2035-09-01",
     opensOn: "2035-01-01",
     closesOn: "2035-03-31",
     capacity: 20,
@@ -1259,6 +1281,17 @@ export async function completeFixture(
     maxAgeMonths: 71,
     priorities: ["sibling"],
     letters: {},
+  });
+  await setIntakeYear(tx, {
+    tenantId,
+    orgId: schoolId,
+    intakeId: intake.id,
+    yearId: nextYear,
+  });
+  await setIntakeGrade(tx, {
+    tenantId,
+    intakeId: intake.id,
+    gradeId: await descriptor(tx, tenantId, "grade_level", "kg1"),
   });
   const admission = await insertApplication(tx, {
     tenantId,

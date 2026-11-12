@@ -23,7 +23,6 @@ const optionalText = (max: number) =>
 
 export const homeroomDirectorySchema = v.object({
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
-  grade: v.optional(v.array(id), []),
   ended: v.optional(v.boolean(), false),
 });
 export type HomeroomDirectoryQuery = v.InferOutput<
@@ -46,7 +45,6 @@ export const saveHomeroomSchema = v.pipe(
     ),
     titleEn: optionalText(120),
     titleAr: optionalText(120),
-    gradeId: optionalId,
     locationId: optionalId,
     homeroomTeacherId: optionalId,
     subjects: v.pipe(

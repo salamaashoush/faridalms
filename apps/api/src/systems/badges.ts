@@ -4,7 +4,6 @@ import {
   voidBadges,
 } from "@faridalms/database/stores/badges";
 import { classById, classRoster } from "@faridalms/database/stores/classes";
-import { youngStudents } from "@faridalms/database/stores/students";
 import {
   classBadgesSchema,
   issueBadgesSchema,
@@ -23,6 +22,7 @@ import {
 } from "../core/procedure";
 import { scopeFor, teaches } from "../core/reach";
 import { issueBadgeSecret } from "../core/session";
+import { youngStudentsOf } from "../people/points";
 
 /**
  * A class whose sign-in badges the teacher looks after: one they teach, or
@@ -41,12 +41,11 @@ async function badgeClass(context: UnitContext, classId: string) {
     context.today,
     false,
   );
-  const young = await youngStudents(context.tx, {
-    tenantId: context.tenantId,
-    orgId: context.schoolId,
-    userIds: roster.map((row) => row.userId),
-    today: context.today,
-  });
+  const young = await youngStudentsOf(
+    context,
+    roster.map((row) => row.userId),
+    context.today,
+  );
   return { found, roster, young };
 }
 

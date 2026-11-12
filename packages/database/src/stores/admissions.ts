@@ -215,16 +215,12 @@ export async function formVersionById(
 export interface IntakeRow {
   id: string;
   version: number;
-  schoolYearId: string;
-  yearTitleEn: string | null;
-  yearTitleAr: string | null;
-  yearStartsOn: string;
+  titleEn: string | null;
+  titleAr: string | null;
+  /** The day admitted learners start. */
+  startsOn: string;
+  /** The calendar year learners start in, which numbers its applications. */
   entryYear: number;
-  gradeId: string;
-  gradeMeaning: string | null;
-  gradeEn: string | null;
-  gradeAr: string | null;
-  gradeOrder: number;
   opensOn: string;
   closesOn: string;
   capacity: number;
@@ -248,12 +244,8 @@ export interface IntakeRow {
   drafts: number;
 }
 
-const intakeColumns = sql`i.id, i.version, i.school_year_id, y.title_en as year_title_en,
-  y.title_ar as year_title_ar, lower(y.span)::text as year_starts_on,
-  extract(year from lower(y.span))::int as entry_year,
-  i.grade_level_descriptor_id as grade_id, g.system_meaning as grade_meaning,
-  coalesce(o.label_en, g.label_en) as grade_en, coalesce(o.label_ar, g.label_ar) as grade_ar,
-  coalesce(o.sort_order, g.sort_order) as grade_order,
+const intakeColumns = sql`i.id, i.version, i.title_en, i.title_ar,
+  i.starts_on::text as starts_on, extract(year from i.starts_on)::int as entry_year,
   i.opens_on::text as opens_on, i.closes_on::text as closes_on, i.capacity, i.form_id,
   f.name_en as form_name_en, f.name_ar as form_name_ar,
   (select v.id from core.admission_form_versions v where v.tenant_id = i.tenant_id
@@ -268,28 +260,15 @@ const intakeColumns = sql`i.id, i.version, i.school_year_id, y.title_en as year_
 
 const intakeJoins = sql`
   from core.admission_intakes i
-  join core.academic_sessions y on y.tenant_id = i.tenant_id and y.id = i.school_year_id
-  join core.descriptors g on g.tenant_id = i.tenant_id and g.id = i.grade_level_descriptor_id
-  left join lateral (
-    select x.label_en, x.label_ar, x.sort_order from core.descriptor_overrides x
-    where x.tenant_id = i.tenant_id and x.descriptor_id = g.id and x.org_id = i.org_id
-      and x.status = 'active' limit 1
-  ) o on true
   join core.admission_forms f on f.tenant_id = i.tenant_id and f.id = i.form_id`;
 
 type IntakeRecord = {
   id: string;
   version: number;
-  school_year_id: string;
-  year_title_en: string | null;
-  year_title_ar: string | null;
-  year_starts_on: string;
+  title_en: string | null;
+  title_ar: string | null;
+  starts_on: string;
   entry_year: number;
-  grade_id: string;
-  grade_meaning: string | null;
-  grade_en: string | null;
-  grade_ar: string | null;
-  grade_order: number;
   opens_on: string;
   closes_on: string;
   capacity: number;
@@ -314,16 +293,10 @@ type IntakeRecord = {
 const intakeOf = (row: IntakeRecord): IntakeRow => ({
   id: row.id,
   version: row.version,
-  schoolYearId: row.school_year_id,
-  yearTitleEn: row.year_title_en,
-  yearTitleAr: row.year_title_ar,
-  yearStartsOn: row.year_starts_on,
+  titleEn: row.title_en,
+  titleAr: row.title_ar,
+  startsOn: row.starts_on,
   entryYear: row.entry_year,
-  gradeId: row.grade_id,
-  gradeMeaning: row.grade_meaning,
-  gradeEn: row.grade_en,
-  gradeAr: row.grade_ar,
-  gradeOrder: row.grade_order,
   opensOn: row.opens_on,
   closesOn: row.closes_on,
   capacity: row.capacity,
@@ -345,26 +318,34 @@ const intakeOf = (row: IntakeRecord): IntakeRow => ({
   drafts: row.drafts,
 });
 
-/** A school's intakes, by year of entry and then grade; one year's, or all. */
+/**
+ * A school's intakes, latest start first: those a view names, one by id,
+ * those open on a day, or all.
+ */
 export async function intakesOf(
   tx: Tx,
-  input: Org & { yearId?: string | null; id?: string; openOn?: string },
+  input: Org & {
+    intakeIds?: readonly string[] | null;
+    id?: string;
+    openOn?: string;
+  },
 ): Promise<IntakeRow[]> {
   const rows = await tx.execute<IntakeRecord>(sql`
     select ${intakeColumns} ${intakeJoins}
     where i.tenant_id = ${input.tenantId}::uuid and i.org_id = ${input.orgId}::uuid
       and i.status = 'active'
-      and (${input.yearId ?? null}::uuid is null or i.school_year_id = ${input.yearId ?? null}::uuid)
+      and (${(input.intakeIds ?? null) === null} or i.id = any(${uuidArray([...(input.intakeIds ?? [])])}))
       and (${input.id ?? null}::uuid is null or i.id = ${input.id ?? null}::uuid)
       and (${input.openOn ?? null}::date is null
         or ${input.openOn ?? null}::date between i.opens_on and i.closes_on)
-    order by lower(y.span), coalesce(o.sort_order, g.sort_order), i.id`);
+    order by i.starts_on desc, lower(coalesce(i.title_en, i.title_ar)), i.id`);
   return rows.map(intakeOf);
 }
 
 export interface IntakeFields {
-  schoolYearId: string;
-  gradeId: string;
+  titleEn: string | null;
+  titleAr: string | null;
+  startsOn: string;
   opensOn: string;
   closesOn: string;
   capacity: number;
@@ -386,11 +367,11 @@ export async function insertIntake(
   input: Org & IntakeFields,
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.admission_intakes (tenant_id, org_id, school_year_id, grade_level_descriptor_id,
+    insert into core.admission_intakes (tenant_id, org_id, title_en, title_ar, starts_on,
       opens_on, closes_on, capacity, form_id, checklist, currency, fees, decisions_on, offer_days,
       age_cutoff_on, min_age_months, max_age_months, priorities, letters)
-    values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.schoolYearId}::uuid,
-      ${input.gradeId}::uuid, ${input.opensOn}::date, ${input.closesOn}::date, ${input.capacity},
+    values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.titleEn},
+      ${input.titleAr}, ${input.startsOn}::date, ${input.opensOn}::date, ${input.closesOn}::date, ${input.capacity},
       ${input.formId}::uuid, ${JSON.stringify(input.checklist)}::text::jsonb, ${input.currency},
       ${JSON.stringify(input.fees)}::text::jsonb, ${input.decisionsOn}::date, ${input.offerDays},
       ${input.ageCutoffOn}::date, ${input.minAgeMonths}, ${input.maxAgeMonths},
@@ -400,17 +381,15 @@ export async function insertIntake(
   return row;
 }
 
-/** Null when another edit won. The year and grade of an intake never change. */
+/** Null when another edit won. */
 export async function updateIntake(
   tx: Tx,
-  input: Org & { id: string; expectedVersion: number } & Omit<
-      IntakeFields,
-      "schoolYearId" | "gradeId"
-    >,
+  input: Org & { id: string; expectedVersion: number } & IntakeFields,
 ): Promise<number | null> {
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.admission_intakes
-    set opens_on = ${input.opensOn}::date, closes_on = ${input.closesOn}::date,
+    set title_en = ${input.titleEn}, title_ar = ${input.titleAr}, starts_on = ${input.startsOn}::date,
+      opens_on = ${input.opensOn}::date, closes_on = ${input.closesOn}::date,
       capacity = ${input.capacity}, form_id = ${input.formId}::uuid,
       checklist = ${JSON.stringify(input.checklist)}::text::jsonb, currency = ${input.currency},
       fees = ${JSON.stringify(input.fees)}::text::jsonb, decisions_on = ${input.decisionsOn}::date,
@@ -735,8 +714,8 @@ export interface ApplicationListRow {
   stateChangedAt: string;
   submittedAt: string | null;
   intakeId: string;
-  gradeEn: string | null;
-  gradeAr: string | null;
+  intakeEn: string | null;
+  intakeAr: string | null;
   applicantEn: string | null;
   applicantAr: string | null;
   birthDate: string | null;
@@ -762,7 +741,8 @@ export async function listApplications(
   tx: Tx,
   input: Org & {
     query: ApplicationListQuery;
-    yearId: string | null;
+    /** The intakes a view names, or null for every intake. */
+    intakeIds: readonly string[] | null;
     limit: number;
     offset: number;
   },
@@ -771,7 +751,7 @@ export async function listApplications(
   const narrowed = sql`a.tenant_id = ${input.tenantId}::uuid and a.org_id = ${input.orgId}::uuid
     and a.status = 'active'
     and (${query.intake || null}::uuid is null or a.intake_id = ${query.intake || null}::uuid)
-    and (${input.yearId}::uuid is null or i.school_year_id = ${input.yearId}::uuid)
+    and (${input.intakeIds === null} or i.id = any(${uuidArray([...(input.intakeIds ?? [])])}))
     and (${holds(query.q, [sql`c.full_name_en`, sql`c.full_name_ar`, sql`p.full_name_en`, sql`p.full_name_ar`, sql`a.reference`])})`;
   const from = sql`from core.admission_applications a
     join core.admission_intakes i on i.tenant_id = a.tenant_id and i.id = a.intake_id
@@ -804,8 +784,8 @@ export async function listApplications(
     state_changed_at: string;
     submitted_at: string | null;
     intake_id: string;
-    grade_en: string | null;
-    grade_ar: string | null;
+    intake_en: string | null;
+    intake_ar: string | null;
     applicant_en: string | null;
     applicant_ar: string | null;
     birth_date: string | null;
@@ -816,19 +796,13 @@ export async function listApplications(
   }>(sql`
     select a.id, a.version, a.reference, a.state, ${isoOf(sql`a.state_changed_at`)} as state_changed_at,
       case when a.submitted_at is null then null else ${isoOf(sql`a.submitted_at`)} end as submitted_at,
-      a.intake_id, coalesce(o.label_en, g.label_en) as grade_en, coalesce(o.label_ar, g.label_ar) as grade_ar,
+      a.intake_id, i.title_en as intake_en, i.title_ar as intake_ar,
       c.full_name_en as applicant_en, c.full_name_ar as applicant_ar, c.birth_date::text as birth_date,
       p.full_name_en as family_en, p.full_name_ar as family_ar, a.priorities,
       (select count(*)::int from core.admission_items t where t.tenant_id = a.tenant_id
         and t.application_id = a.id and t.status = 'active' and t.required
         and t.state not in ('verified', 'waived')) as outstanding
     ${from}
-    join core.descriptors g on g.tenant_id = i.tenant_id and g.id = i.grade_level_descriptor_id
-    left join lateral (
-      select x.label_en, x.label_ar from core.descriptor_overrides x
-      where x.tenant_id = i.tenant_id and x.descriptor_id = g.id and x.org_id = i.org_id
-        and x.status = 'active' limit 1
-    ) o on true
     where ${narrowed} ${inState}
     order by a.submitted_at desc nulls last, a.created_at desc, a.id desc
     limit ${input.limit} offset ${input.offset}`);
@@ -843,8 +817,8 @@ export async function listApplications(
       stateChangedAt: row.state_changed_at,
       submittedAt: row.submitted_at,
       intakeId: row.intake_id,
-      gradeEn: row.grade_en,
-      gradeAr: row.grade_ar,
+      intakeEn: row.intake_en,
+      intakeAr: row.intake_ar,
       applicantEn: row.applicant_en,
       applicantAr: row.applicant_ar,
       birthDate: row.birth_date,
@@ -1211,10 +1185,9 @@ export async function linkEnquiriesToFamily(
 
 export interface PublicIntake {
   id: string;
-  gradeEn: string | null;
-  gradeAr: string | null;
-  yearTitleEn: string | null;
-  yearTitleAr: string | null;
+  titleEn: string | null;
+  titleAr: string | null;
+  startsOn: string;
   opensOn: string;
   closesOn: string;
   decisionsOn: string | null;
@@ -1224,8 +1197,8 @@ export interface PublicIntake {
 
 /**
  * The intakes a school's website lists: those still to close, with their
- * grade, year, dates and fees, by year of entry and then grade. Reads only
- * what the site role is granted, so it runs on a visitor's page.
+ * names, dates and fees, by the day learners start. Reads only what the
+ * site role is granted, so it runs on a visitor's page.
  */
 export async function publicIntakes(
   tx: Tx,
@@ -1233,39 +1206,28 @@ export async function publicIntakes(
 ): Promise<PublicIntake[]> {
   const rows = await tx.execute<{
     id: string;
-    grade_en: string | null;
-    grade_ar: string | null;
-    year_title_en: string | null;
-    year_title_ar: string | null;
+    title_en: string | null;
+    title_ar: string | null;
+    starts_on: string;
     opens_on: string;
     closes_on: string;
     decisions_on: string | null;
     currency: Currency;
     fees: Fee[];
   }>(sql`
-    select i.id, coalesce(o.label_en, g.label_en) as grade_en,
-      coalesce(o.label_ar, g.label_ar) as grade_ar, y.title_en as year_title_en,
-      y.title_ar as year_title_ar, i.opens_on::text as opens_on, i.closes_on::text as closes_on,
+    select i.id, i.title_en, i.title_ar, i.starts_on::text as starts_on,
+      i.opens_on::text as opens_on, i.closes_on::text as closes_on,
       i.decisions_on::text as decisions_on, i.currency, i.fees
     from core.admission_intakes i
-    join core.academic_sessions y on y.tenant_id = i.tenant_id and y.id = i.school_year_id
-      and y.status = 'active'
-    join core.descriptors g on g.tenant_id = i.tenant_id and g.id = i.grade_level_descriptor_id
-    left join lateral (
-      select x.label_en, x.label_ar, x.sort_order from core.descriptor_overrides x
-      where x.tenant_id = i.tenant_id and x.descriptor_id = g.id and x.org_id = i.org_id
-        and x.status = 'active' limit 1
-    ) o on true
     where i.org_id = ${input.orgId}::uuid and i.status = 'active'
       and i.closes_on >= ${input.today}::date
-    order by lower(y.span), coalesce(o.sort_order, g.sort_order), i.id
+    order by i.starts_on, lower(coalesce(i.title_en, i.title_ar)), i.id
     limit 40`);
   return rows.map((row) => ({
     id: row.id,
-    gradeEn: row.grade_en,
-    gradeAr: row.grade_ar,
-    yearTitleEn: row.year_title_en,
-    yearTitleAr: row.year_title_ar,
+    titleEn: row.title_en,
+    titleAr: row.title_ar,
+    startsOn: row.starts_on,
     opensOn: row.opens_on,
     closesOn: row.closes_on,
     decisionsOn: row.decisions_on,

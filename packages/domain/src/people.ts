@@ -62,10 +62,10 @@ export type StudentStatus = (typeof STUDENT_STATUSES)[number];
 
 export const studentDirectorySchema = v.object({
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
-  grade: v.optional(v.array(id), []),
   status: v.optional(v.array(v.picklist(STUDENT_STATUSES)), []),
   missing: v.optional(v.array(v.picklist(["guardian", "account"])), []),
-  sort: v.optional(v.picklist(["name", "reference", "grade"]), "name"),
+  /** By name, by reference, or by a module's column under its key. */
+  sort: v.optional(v.pipe(v.string(), v.regex(/^[a-z]{1,20}$/)), "name"),
   dir: v.optional(v.picklist(["asc", "desc"]), "asc"),
   page: pageField,
   pageSize: pageSizeField,

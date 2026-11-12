@@ -1389,9 +1389,11 @@ describe("courses", () => {
     const school = await schoolOf(a.tenantId);
     const subjects = (
       await harness().su.unsafe(
-        `select id from core.descriptors
-         where tenant_id = $1 and namespace = 'subject' and status = 'active'
-         order by code_value limit 5`,
+        `select d.id from core.descriptors d
+         where d.tenant_id = $1 and d.namespace = 'subject' and d.status = 'active'
+           and not exists (select 1 from core.courses c where c.tenant_id = d.tenant_id
+             and c.subject_descriptor_id = d.id and c.status = 'active')
+         order by d.code_value limit 5`,
         [a.tenantId],
       )
     ).map((row: { id: string }) => row.id);
@@ -1412,7 +1414,6 @@ describe("courses", () => {
               tenantId: a.tenantId,
               orgId: school.id,
               subjectId: subjectId ?? "",
-              gradeId: null,
               code,
               titleEn: "Salama course",
               titleAr: null,

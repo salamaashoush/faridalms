@@ -116,23 +116,3 @@ export async function quizReadingsOf(
     markedAt: row.marked_at,
   }));
 }
-
-/** The grade a student was in over each stretch of their enrolment, by its fixed meaning. */
-export async function gradesOverTime(
-  tx: Tx,
-  input: { tenantId: string; studentId: string },
-): Promise<{ from: string; before: string | null; grade: string | null }[]> {
-  const rows = await tx.execute<{
-    from: string;
-    before: string | null;
-    grade: string | null;
-  }>(sql`
-    select lower(y.valid_during)::text as from, upper(y.valid_during)::text as before,
-      d.system_meaning as grade
-    from core.student_school_years y
-    left join core.descriptors d on d.tenant_id = y.tenant_id and d.id = y.grade_level_descriptor_id
-    where y.tenant_id = ${input.tenantId}::uuid and y.student_user_id = ${input.studentId}::uuid
-      and y.status = 'active'
-    order by lower(y.valid_during)`);
-  return rows;
-}

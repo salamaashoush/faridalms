@@ -80,7 +80,7 @@ export function useReschedule() {
           audiences: event.audiences.map((row) => ({
             scope: row.scope,
             classId: row.classId ?? "",
-            gradeId: row.gradeId ?? "",
+            targetId: row.targetId ?? "",
           })),
           description: event.description ?? emptyContent(),
           sendUpdate,

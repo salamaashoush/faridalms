@@ -9,11 +9,6 @@ import type { SiteLocale } from "@faridalms/domain/website";
 
 import { changeOf } from "@faridalms/database/audit";
 import {
-  audiencesOf,
-  audienceUsers,
-  setAudiences,
-} from "@faridalms/database/stores/audiences";
-import {
   addRecipients,
   announcementFeed,
   broadcastById,
@@ -79,7 +74,13 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 import type { LiveScope } from "../core/publication";
 
-import { audienceChoices, audienceOf } from "../core/audiences";
+import {
+  audienceChoices,
+  audienceInputs,
+  audiencePeople,
+  audiencesAt,
+  saveAudiences,
+} from "../core/audiences";
 import { refuseIfHeld } from "../core/holds";
 import { modulesOf } from "../core/modules";
 import { notify, notifyIn } from "../core/notify";
@@ -368,7 +369,7 @@ export const editor = readProcedure
   .handler(async ({ input, context }) => {
     const row = await managed(context, input.id);
     const [audiences, words, review, published] = await Promise.all([
-      audiencesOf(context.tx, context.tenantId, owner(row)),
+      audiencesAt(context, owner(row)),
       draftWords(context, host(row)),
       translationReview(context.tx, {
         tenantId: context.tenantId,
@@ -405,7 +406,7 @@ export const record = readProcedure
     const { row, recipient } = await readable(context, input.id);
     const manages = can(context, CAPABILITY);
     const [audiences, published, report, review, words] = await Promise.all([
-      audiencesOf(context.tx, context.tenantId, owner(row)),
+      audiencesAt(context, owner(row)),
       publishedWords(context, host(row)),
       manages
         ? deliveryCounts(context.tx, {
@@ -502,11 +503,7 @@ export const save = writeProcedure
       version = created.version;
     }
     const target = { id: announcementId };
-    await setAudiences(context.tx, {
-      tenantId: context.tenantId,
-      owner: owner(target),
-      audiences: input.audiences.map(audienceOf),
-    });
+    await saveAudiences(context, owner(target), input.audiences);
     const cleared = await saveWords(context, host(target), {
       primaryLocale: input.primaryLocale,
       body: input.body,
@@ -539,15 +536,7 @@ export const save = writeProcedure
 
 /** The people an announcement's audience names today. */
 async function audienceOfRow(context: UnitContext, row: BroadcastRow) {
-  return audienceUsers(
-    context.tx,
-    {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      on: context.today,
-    },
-    await audiencesOf(context.tx, context.tenantId, owner(row)),
-  );
+  return audiencePeople(context, owner(row), context.today);
 }
 
 /** Writes the website's copy in each of its languages for visitors. */
@@ -810,7 +799,7 @@ export const duplicate = writeProcedure
   .handler(async ({ input, context }) => {
     const row = await managed(context, input.id);
     const [audiences, words, checked] = await Promise.all([
-      audiencesOf(context.tx, context.tenantId, owner(row)),
+      audiencesAt(context, owner(row)),
       draftWords(context, host(row)),
       translationReview(context.tx, {
         tenantId: context.tenantId,
@@ -842,11 +831,7 @@ export const duplicate = writeProcedure
       pinned: false,
     });
     const target = host(created);
-    await setAudiences(context.tx, {
-      tenantId: context.tenantId,
-      owner: owner(created),
-      audiences,
-    });
+    await saveAudiences(context, owner(created), audienceInputs(audiences));
     if (words.original && words.body) {
       const locale = words.original.locale ?? primaryOf(row);
       const copy = await saveDocument(context.tx, {

@@ -656,9 +656,8 @@ export async function recordEventOutcome(
 
 export interface FunnelRow {
   intakeId: string;
-  gradeEn: string | null;
-  gradeAr: string | null;
-  gradeOrder: number;
+  intakeEn: string | null;
+  intakeAr: string | null;
   capacity: number;
   /** Where the family first came from: the enquiry it grew out of, or straight to the application. */
   origin: EnquirySource | "direct";
@@ -667,43 +666,33 @@ export interface FunnelRow {
   states: ApplicationState[];
 }
 
-/** The applications sent to a year's intakes, each with where it came from and the states it went through. */
+/** The applications sent to the intakes, each with where it came from and the states it went through. */
 export async function funnelRows(
   tx: Tx,
-  input: Org & { yearId: string },
+  input: Org & { intakeIds: readonly string[] },
 ): Promise<FunnelRow[]> {
   const rows = await tx.execute<{
     intake_id: string;
-    grade_en: string | null;
-    grade_ar: string | null;
-    grade_order: number;
+    intake_en: string | null;
+    intake_ar: string | null;
     capacity: number;
     origin: EnquirySource | null;
     state: ApplicationState;
     states: ApplicationState[] | null;
   }>(sql`
-    select a.intake_id, coalesce(o.label_en, g.label_en) as grade_en,
-      coalesce(o.label_ar, g.label_ar) as grade_ar, coalesce(o.sort_order, g.sort_order) as grade_order,
-      i.capacity, e.source as origin, a.state,
+    select a.intake_id, i.title_en as intake_en, i.title_ar as intake_ar, i.capacity, e.source as origin, a.state,
       (select array_agg(n.details->>'to' order by n.created_at) from core.admission_entries n
         where n.tenant_id = a.tenant_id and n.application_id = a.id and n.kind = 'state') as states
     from core.admission_applications a
     join core.admission_intakes i on i.tenant_id = a.tenant_id and i.id = a.intake_id
-    join core.descriptors g on g.tenant_id = i.tenant_id and g.id = i.grade_level_descriptor_id
-    left join lateral (
-      select x.label_en, x.label_ar, x.sort_order from core.descriptor_overrides x
-      where x.tenant_id = i.tenant_id and x.descriptor_id = g.id and x.org_id = i.org_id
-        and x.status = 'active' limit 1
-    ) o on true
     left join core.site_enquiries e on e.tenant_id = a.tenant_id and e.id = a.enquiry_id
     where a.tenant_id = ${input.tenantId}::uuid and a.org_id = ${input.orgId}::uuid
-      and i.school_year_id = ${input.yearId}::uuid and i.status = 'active'
+      and i.id = any(${uuidArray(input.intakeIds)}) and i.status = 'active'
       and a.state <> 'draft' and a.submitted_at is not null`);
   return rows.map((row) => ({
     intakeId: row.intake_id,
-    gradeEn: row.grade_en,
-    gradeAr: row.grade_ar,
-    gradeOrder: row.grade_order,
+    intakeEn: row.intake_en,
+    intakeAr: row.intake_ar,
     capacity: row.capacity,
     origin: row.origin ?? "direct",
     state: row.state,
@@ -722,12 +711,12 @@ export interface StageTime {
 }
 
 /**
- * How long applications of a year's intakes stay in each state, from their
+ * How long applications of the intakes stay in each state, from their
  * history: each stay ends when the next change of state is recorded.
  */
 export async function stageTimes(
   tx: Tx,
-  input: Org & { yearId: string },
+  input: Org & { intakeIds: readonly string[] },
 ): Promise<StageTime[]> {
   const rows = await tx.execute<{
     state: ApplicationState;
@@ -744,7 +733,7 @@ export async function stageTimes(
         and a.status = 'active'
       join core.admission_intakes i on i.tenant_id = a.tenant_id and i.id = a.intake_id
       where n.tenant_id = ${input.tenantId}::uuid and n.org_id = ${input.orgId}::uuid
-        and n.kind = 'state' and i.school_year_id = ${input.yearId}::uuid
+        and n.kind = 'state' and i.id = any(${uuidArray(input.intakeIds)})
     )
     select state, count(ended_at)::int as left_count, (count(*) - count(ended_at))::int as now_count,
       round((percentile_cont(0.5) within group (order by extract(epoch from ended_at - created_at))

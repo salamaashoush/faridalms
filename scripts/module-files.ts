@@ -31,6 +31,18 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "apps/web/src/routes/_app/_staff/rollover.tsx",
     "apps/web/src/routes/_app/years.$yearId.tsx",
   ],
+  grade_levels: [
+    "packages/database/src/tables/grade-levels.ts",
+    "packages/database/src/stores/class-grades.ts",
+    "packages/database/src/stores/student-grades.ts",
+    "packages/database/src/stores/grade-audiences.ts",
+    "packages/domain/src/grade-levels.ts",
+    "apps/api/src/grade-levels/",
+    "apps/api/src/systems/grade-levels.ts",
+    "apps/web/src/components/grade-levels/",
+    "apps/web/src/server/grade-levels.ts",
+    "apps/web/src/queries/grade-levels.ts",
+  ],
   homerooms: [
     "packages/database/src/tables/homerooms.ts",
     "packages/database/src/stores/homerooms.ts",
@@ -101,6 +113,18 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "packages/database/src/stores/standards.ts",
     "apps/api/src/standards/",
     "apps/api/src/systems/standards.ts",
+  ],
+  admissions: [
+    "packages/database/src/tables/admissions.ts",
+    "packages/database/src/stores/admissions.ts",
+    "packages/database/src/stores/admission-decisions.ts",
+    "packages/database/src/stores/enquiries.ts",
+    "apps/api/src/admissions/",
+    "apps/api/src/systems/admissions.ts",
+    "apps/api/src/systems/intakes.ts",
+    "apps/api/src/systems/applications.ts",
+    "apps/api/src/systems/applying.ts",
+    "apps/api/src/systems/decisions.ts",
   ],
 };
 
@@ -211,6 +235,66 @@ export const LINK_FILES: Readonly<
     owner: "standards",
     needs: ["coursework"],
   },
+  "packages/database/src/tables/programme-grades.ts": {
+    owner: "grade_levels",
+    needs: ["coursework"],
+  },
+  "packages/database/src/stores/programme-grades.ts": {
+    owner: "grade_levels",
+    needs: ["coursework"],
+  },
+  "apps/api/src/grade-levels/coursework.ts": {
+    owner: "grade_levels",
+    needs: ["coursework"],
+  },
+  "apps/web/src/components/grade-levels/coursework.tsx": {
+    owner: "grade_levels",
+    needs: ["coursework"],
+  },
+  "apps/api/src/grade-levels/years.ts": {
+    owner: "grade_levels",
+    needs: ["school_years"],
+  },
+  "apps/web/src/components/grade-levels/years.tsx": {
+    owner: "grade_levels",
+    needs: ["school_years"],
+  },
+  "apps/api/src/homerooms/grades.ts": {
+    owner: "homerooms",
+    needs: ["grade_levels"],
+  },
+  "packages/database/src/tables/intake-years.ts": {
+    owner: "admissions",
+    needs: ["school_years"],
+  },
+  "packages/database/src/stores/intake-years.ts": {
+    owner: "admissions",
+    needs: ["school_years"],
+  },
+  "apps/api/src/admissions/years.ts": {
+    owner: "admissions",
+    needs: ["school_years"],
+  },
+  "apps/web/src/components/admissions/years.tsx": {
+    owner: "admissions",
+    needs: ["school_years"],
+  },
+  "packages/database/src/tables/intake-grades.ts": {
+    owner: "admissions",
+    needs: ["grade_levels"],
+  },
+  "packages/database/src/stores/intake-grades.ts": {
+    owner: "admissions",
+    needs: ["grade_levels"],
+  },
+  "apps/api/src/admissions/grades.ts": {
+    owner: "admissions",
+    needs: ["grade_levels"],
+  },
+  "apps/web/src/components/admissions/grades.tsx": {
+    owner: "admissions",
+    needs: ["grade_levels"],
+  },
 };
 
 /** Whether a link file may import another: one link between the same modules, split over files. */
@@ -232,25 +316,27 @@ function sameLink(from: string, to: string): boolean {
  * shrinks.
  */
 export const PENDING_IMPORTS: Readonly<Record<string, readonly string[]>> = {
-  "grade levels and admissions": [
-    "apps/api/src/core/enrolment.ts -> school_years",
-    "apps/api/src/systems/applications.ts -> school_years",
-    "apps/api/src/systems/decisions.ts -> school_years",
-    "apps/api/src/systems/home.ts -> school_years",
-    "apps/api/src/systems/intakes.ts -> school_years",
-  ],
   badges: ["apps/api/src/core/badges.ts -> school_years"],
+  families: [
+    "apps/api/src/core/family-conversation.ts -> admissions",
+    "apps/api/src/core/registration.ts -> admissions",
+  ],
   surfaces: [
     "apps/api/src/calendar/lessons.ts -> timetable",
     "apps/api/src/coding/rerun.ts -> elearning",
     "apps/api/src/files/exports.ts -> coursework",
+    "apps/api/src/index.ts -> admissions",
     "apps/api/src/index.ts -> coursework",
     "apps/api/src/index.ts -> peer_review",
+    "apps/api/src/systems/calendar.ts -> admissions",
+    "apps/api/src/systems/consents.ts -> admissions",
     "apps/api/src/systems/coursework.ts -> peer_review",
     "apps/api/src/systems/home.ts -> coursework",
     "apps/api/src/systems/home.ts -> elearning",
     "apps/api/src/systems/home.ts -> timetable",
+    "apps/api/src/systems/privacy.ts -> admissions",
     "apps/api/src/systems/records.ts -> coursework",
+    "apps/api/src/systems/site.ts -> admissions",
     "apps/api/src/systems/templates.ts -> elearning",
     "apps/web/src/components/classes/ClassRecord.tsx -> timetable",
     "apps/web/src/components/people/StudentOverview.tsx -> timetable",

@@ -42,6 +42,14 @@ export function textArray(values: readonly string[]): SQL {
   )}]`;
 }
 
+export function intArray(values: readonly number[]): SQL {
+  if (values.length === 0) return sql`array[]::int[]`;
+  return sql`array[${sql.join(
+    values.map((value) => sql`${value}::int`),
+    sql`, `,
+  )}]`;
+}
+
 /** The first day and the day after the last of a `[a,b)` date range. */
 export function bounds(range: string): { from: string; to: string | null } {
   const match = /^\[([0-9-]+),([0-9-]*)\)$/.exec(range);

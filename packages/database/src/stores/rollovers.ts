@@ -17,7 +17,6 @@ type Tx = CellTransaction;
 export interface YearEndStudent {
   studentId: string;
   placementId: string;
-  gradeId: string | null;
   outcome: NextYearOutcome | null;
   /** What the family, or the office for them, said of next year. */
   intention: NextYearIntention | null;
@@ -41,14 +40,13 @@ export async function studentsAtYearEnd(
   const rows = await tx.execute<{
     student_id: string;
     placement_id: string;
-    grade_id: string | null;
     outcome: NextYearOutcome | null;
     intention: NextYearIntention | null;
     full_name_en: string | null;
     full_name_ar: string | null;
   }>(sql`
     select p.student_user_id as student_id, p.id as placement_id,
-           p.grade_level_descriptor_id as grade_id, p.next_year_outcome as outcome,
+           p.next_year_outcome as outcome,
            p.next_year_intention as intention,
            u.full_name_en, u.full_name_ar
     from core.student_school_years p
@@ -60,7 +58,6 @@ export async function studentsAtYearEnd(
   return rows.map((row) => ({
     studentId: row.student_id,
     placementId: row.placement_id,
-    gradeId: row.grade_id,
     outcome: row.outcome,
     intention: row.intention,
     fullNameEn: row.full_name_en,

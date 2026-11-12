@@ -56,9 +56,9 @@ import { formatDate, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
-import { displayName, labelOf } from "../people/format";
+import { displayName } from "../people/format";
 import { yearTitle } from "./format";
-import { rolloverCarrierWords } from "./slots";
+import { rolloverCarrierWords, rolloverClassParts } from "./slots";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof rolloverQuery>["queryFn"]>>
@@ -170,6 +170,7 @@ function ClassRow({ row, source, following, data, onChange }: ClassRowProps) {
   const words = useSlot(rolloverCarrierWords).find(
     (each) => each.carrier === row.carrier,
   );
+  const parts = useSlot(rolloverClassParts);
   const name = source ? classTitle(source) : row.code;
   const taken = data.takenCodes.some(
     (code) => code.toLowerCase() === row.code.trim().toLowerCase(),
@@ -198,22 +199,16 @@ function ClassRow({ row, source, following, data, onChange }: ClassRowProps) {
               onChange={(event) => onChange({ code: event.target.value })}
               errors={taken ? [m.errorClassCodeTaken()] : undefined}
             />
-            <SelectField
-              id={`roll-grade-${row.key}`}
-              label={m.studentGrade()}
-              optional
-              value={row.gradeId || "none"}
-              options={[
-                ...options.grades.map((grade) => ({
-                  value: grade.id,
-                  label: labelOf(grade) ?? grade.code,
-                })),
-                { value: "none", label: m.commonNotRecorded() },
-              ]}
-              onChange={(value) =>
-                onChange({ gradeId: value === "none" ? "" : value })
-              }
-            />
+            {parts.map((part) => (
+              <part.Field
+                key={part.key}
+                rowKey={row.key}
+                value={row.parts[part.key]}
+                onChange={(value) =>
+                  onChange({ parts: { ...row.parts, [part.key]: value } })
+                }
+              />
+            ))}
             <TextField
               id={`roll-title-ar-${row.key}`}
               label={m.classesNameArabic()}

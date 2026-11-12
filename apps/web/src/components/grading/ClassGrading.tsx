@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import {
   classGradingQuery,
@@ -18,6 +19,7 @@ import { getMessageFromError } from "~/utils/error";
 import type { GradingOverview } from "./Scales";
 
 import { bandsLine, weightsLine } from "./format";
+import { programmeDefaultWords } from "./slots";
 
 const FOLLOW = "follow";
 
@@ -38,6 +40,7 @@ export function ClassGradingSection({
   canEdit,
 }: ClassGradingSectionProps) {
   const queryClient = useQueryClient();
+  const words = useSlot(programmeDefaultWords)[0];
   const plan = useQuery(classPlanQuery(classId)).data;
   const overview = useQuery({ ...gradingOverviewQuery, enabled: canEdit }).data;
   const grading = useQuery({
@@ -70,10 +73,10 @@ export function ClassGradingSection({
           {programme ? (
             <>
               <bdi>{title(programme)}</bdi>
-              {programme.byGradeLevel ? (
+              {programme.derived && words ? (
                 <span className="text-muted-foreground">
                   {" "}
-                  {m.gradingByGradeLevel()}
+                  {words.derived()}
                 </span>
               ) : null}
             </>
@@ -144,6 +147,7 @@ function ClassGradingSheet({
   onClose,
   onSaved,
 }: ClassGradingSheetProps) {
+  const words = useSlot(programmeDefaultWords)[0];
   const [programme, setProgramme] = useState(programmeId ?? FOLLOW);
   const [scale, setScale] = useState(scaleId ?? FOLLOW);
   const mutation = useMutation({
@@ -180,10 +184,13 @@ function ClassGradingSheet({
       <SelectField
         id="class-programme"
         label={m.gradingProgramme()}
-        hint={m.gradingClassProgrammeHint()}
+        hint={words?.hint()}
         value={programme}
         options={[
-          { value: FOLLOW, label: m.gradingByGradeLevelOption() },
+          {
+            value: FOLLOW,
+            label: words ? words.option() : m.gradingNoProgramme(),
+          },
           ...overview.programmes.map((row) => ({
             value: row.id,
             label: title(row),

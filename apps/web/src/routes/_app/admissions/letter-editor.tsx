@@ -8,6 +8,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import * as v from "valibot";
 
+import { intakeParts } from "~/components/admissions/slots";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import {
   DocumentVersion,
@@ -21,6 +22,7 @@ import {
   DocumentTitle,
 } from "~/components/system/DocumentPage";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { lettersQuery } from "~/queries/admissions";
 import { templateQuery } from "~/queries/templates";
@@ -50,15 +52,15 @@ export const Route = createFileRoute("/_app/admissions/letter-editor")({
   component: LetterEditorPage,
 });
 
-const FIELD_HINT = {
-  family: m.ltrFieldFamily,
-  child: m.ltrFieldChild,
-  grade: m.ltrFieldGrade,
-  year: m.ltrFieldYear,
-  school: m.ltrFieldSchool,
-  reference: m.ltrFieldReference,
-  expires: m.ltrFieldExpires,
-} satisfies Record<(typeof LETTER_FIELDS)[number], () => string>;
+/** The fields every letter may say; a module's own follow under its key. */
+const FIELD_HINT: [string, () => string][] = [
+  ["family", m.ltrFieldFamily],
+  ["child", m.ltrFieldChild],
+  ["intake", m.ltrFieldIntake],
+  ["school", m.ltrFieldSchool],
+  ["reference", m.ltrFieldReference],
+  ["expires", m.ltrFieldExpires],
+];
 
 /**
  * A letter of admission as the school writes it: its title and words, with
@@ -69,6 +71,7 @@ function LetterEditorPage() {
   const { id } = Route.useSearch();
   const navigate = Route.useNavigate();
   const queryClient = useQueryClient();
+  const parts = useSlot(intakeParts);
   const template = useSuspenseQuery(templateQuery(id)).data;
   const listed = useSuspenseQuery(lettersQuery).data.find(
     (row) => row.id === id,
@@ -160,7 +163,17 @@ function LetterEditorPage() {
           <DetailsPanel title={m.ltrFields()}>
             <DetailsSection title={m.ltrFieldsTitle()} hint={m.ltrFieldsHint()}>
               <dl className="grid gap-2 text-sm">
-                {LETTER_FIELDS.map((field) => (
+                {[
+                  ...FIELD_HINT,
+                  ...parts
+                    .filter((part) =>
+                      (LETTER_FIELDS as readonly string[]).includes(part.key),
+                    )
+                    .map((part): [string, () => string] => [
+                      part.key,
+                      part.letterHint,
+                    ]),
+                ].map(([field, hint]) => (
                   <div key={field} className="grid gap-0.5">
                     <dt>
                       <code dir="ltr" className="font-mono text-[13px]">
@@ -168,7 +181,7 @@ function LetterEditorPage() {
                       </code>
                     </dt>
                     <dd className="text-[13px] text-muted-foreground">
-                      {FIELD_HINT[field]()}
+                      {hint()}
                     </dd>
                   </div>
                 ))}

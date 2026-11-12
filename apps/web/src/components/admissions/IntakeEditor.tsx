@@ -15,6 +15,7 @@ import {
   FEE_KINDS,
   LETTER_KINDS,
   PRIORITY_RULES,
+  suggestedCutoff,
 } from "@faridalms/domain/admissions";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
@@ -50,6 +51,8 @@ import { saveIntake } from "~/server/admissions";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import type { IntakePartsRead } from "./parts";
+
 import {
   CHECKLIST_KIND_LABEL,
   FEE_KIND_LABEL,
@@ -65,8 +68,11 @@ type Options = Awaited<
 export interface IntakeDraft {
   id: string;
   version: number;
-  schoolYearId: string;
-  gradeId: string;
+  titleEn: string;
+  titleAr: string;
+  startsOn: string;
+  /** What modules keep about the intake, by their keys. */
+  parts: Record<string, unknown>;
   opensOn: string;
   closesOn: string;
   capacity: string;
@@ -98,11 +104,14 @@ const joined = (years: string, months: string) =>
 /** A new intake's starting values, or an existing one's as saved. */
 export function intakeDraft(
   options: Options,
+  parts: IntakePartsRead,
   intake?: {
     id: string;
     version: number;
-    schoolYearId: string;
-    gradeId: string;
+    titleEn: string | null;
+    titleAr: string | null;
+    startsOn: string;
+    facts: Record<string, { value: unknown }>;
     opensOn: string;
     closesOn: string;
     capacity: number;
@@ -118,23 +127,30 @@ export function intakeDraft(
     priorities: PriorityRule[];
     letters: IntakeLetters;
   },
-  year?: string,
 ): IntakeDraft {
   const fees = Object.fromEntries(
     FEE_KINDS.map((kind) => [kind, ""]),
   ) as Record<FeeKind, string>;
   for (const fee of intake?.fees ?? []) fees[fee.kind] = String(fee.amount);
-  const chosenYear =
-    options.years.find((row) => row.id === (intake?.schoolYearId ?? year)) ??
-    options.years.find((row) => row.lifecycle === "upcoming") ??
-    options.years[0];
+  const starts = parts.initial.find((start) => start.startsOn)?.startsOn ?? "";
+  const startsOn = intake?.startsOn ?? starts;
   const min = split(intake?.minAgeMonths ?? null);
   const max = split(intake?.maxAgeMonths ?? null);
   return {
     id: intake?.id ?? "",
     version: intake?.version ?? 0,
-    schoolYearId: chosenYear?.id ?? "",
-    gradeId: intake?.gradeId ?? "",
+    titleEn: intake?.titleEn ?? "",
+    titleAr: intake?.titleAr ?? "",
+    startsOn,
+    parts: Object.fromEntries(
+      parts.parts.map((part, index) => [
+        part.key,
+        intake
+          ? (intake.facts[part.key]?.value ??
+            part.initial(parts.reads[index], {}).value)
+          : parts.initial[index]?.value,
+      ]),
+    ),
     opensOn: intake?.opensOn ?? "",
     closesOn: intake?.closesOn ?? "",
     capacity: intake ? String(intake.capacity) : "",
@@ -145,7 +161,9 @@ export function intakeDraft(
     fees,
     decisionsOn: intake?.decisionsOn ?? "",
     offerDays: String(intake?.offerDays ?? 14),
-    ageCutoffOn: intake?.ageCutoffOn ?? chosenYear?.cutoffOn ?? "",
+    ageCutoffOn:
+      intake?.ageCutoffOn ??
+      (startsOn ? suggestedCutoff(startsOn, options.country) : ""),
     minYears: min.years,
     minMonths: min.months,
     maxYears: max.years,
@@ -159,8 +177,10 @@ function saveInput(draft: IntakeDraft): SaveIntake {
   return {
     id: draft.id,
     expectedVersion: draft.version,
-    schoolYearId: draft.schoolYearId,
-    gradeId: draft.gradeId,
+    titleEn: draft.titleEn,
+    titleAr: draft.titleAr,
+    startsOn: draft.startsOn,
+    parts: draft.parts,
     opensOn: draft.opensOn,
     closesOn: draft.closesOn,
     capacity: Number(draft.capacity),
@@ -549,17 +569,24 @@ function FeesTable({ fees, currency, onChange }: FeesTableProps) {
 
 export interface IntakeEditorProps {
   options: Options;
+  parts: IntakePartsRead;
   initial: IntakeDraft;
   onDone: () => void;
 }
 
 /**
- * An intake's settings in one column: which year and grade, when families
+ * An intake's settings in one column: its name, the day its learners start
+ * and what modules keep about it (its year and grade, say), when families
  * may apply and how many places there are, the form and the checklist they
  * meet, what it costs, decisions and offers, the ages it takes, and the
  * order families are preferred in.
  */
-export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
+export function IntakeEditor({
+  options,
+  parts,
+  initial,
+  onDone,
+}: IntakeEditorProps) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(initial);
   const leaving = useRef(false);
@@ -572,8 +599,11 @@ export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
     meta: { inlineError: true },
   });
 
+  const [titled, setTitled] = useState(!creating);
   const errors = {
-    gradeId: draft.gradeId ? null : m.itkErrGrade(),
+    title:
+      draft.titleEn.trim() || draft.titleAr.trim() ? null : m.itkErrTitle(),
+    startsOn: draft.startsOn ? null : m.itkErrDate(),
     opensOn: draft.opensOn ? null : m.itkErrDate(),
     closesOn: !draft.closesOn
       ? m.itkErrDate()
@@ -598,38 +628,46 @@ export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
   const shown = (key: keyof typeof errors) =>
     tried && errors[key] ? [errors[key]] : undefined;
 
-  const chooseGrade = (gradeId: string) => {
-    const grade = options.grades.find((row) => row.id === gradeId);
+  /** A part's new value, with the start day, ages and name it suggests where they were left as they were. */
+  const choosePart = (index: number, value: unknown) => {
+    const part = parts.parts[index];
+    if (!part) return;
+    const read = parts.reads[index];
+    const suggested = part.suggest?.(read, value) ?? {};
     setDraft((current) => {
-      const min = split(grade?.minMonths ?? null);
-      const max = split(grade?.maxMonths ?? null);
+      const next = {
+        ...current,
+        parts: { ...current.parts, [part.key]: value },
+      };
       const untouched =
         current.minYears === "" &&
         current.minMonths === "" &&
         current.maxYears === "" &&
         current.maxMonths === "";
-      return {
-        ...current,
-        gradeId,
-        ...(untouched
-          ? {
-              minYears: min.years,
-              minMonths: min.months,
-              maxYears: max.years,
-              maxMonths: max.months,
-            }
-          : {}),
-      };
+      if (untouched && suggested.ages) {
+        const min = split(suggested.ages.minMonths);
+        const max = split(suggested.ages.maxMonths);
+        Object.assign(next, {
+          minYears: min.years,
+          minMonths: min.months,
+          maxYears: max.years,
+          maxMonths: max.months,
+        });
+      }
+      if (creating && suggested.startsOn) {
+        next.startsOn = suggested.startsOn;
+        next.ageCutoffOn = suggestedCutoff(suggested.startsOn, options.country);
+      }
+      if (!titled) {
+        const titles = parts.parts.flatMap((each, at) => {
+          const title = each.titleOf(parts.reads[at], next.parts[each.key]);
+          return title ? [title] : [];
+        });
+        next.titleEn = titles.map((title) => title.en).join(", ");
+        next.titleAr = titles.map((title) => title.ar).join("، ");
+      }
+      return next;
     });
-  };
-
-  const chooseYear = (yearId: string) => {
-    const year = options.years.find((row) => row.id === yearId);
-    setDraft((current) => ({
-      ...current,
-      schoolYearId: yearId,
-      ageCutoffOn: year?.cutoffOn ?? current.ageCutoffOn,
-    }));
   };
 
   const movePriority = (rule: PriorityRule, by: -1 | 1) => {
@@ -641,17 +679,13 @@ export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
     set("priorities", list);
   };
 
-  const grade = options.grades.find((row) => row.id === draft.gradeId);
-  const year = options.years.find((row) => row.id === draft.schoolYearId);
-
   return (
     <RecordForm
       title={
         creating
           ? m.itkNewTitle()
           : m.itkEditTitle({
-              grade: inLocale(grade?.labelEn ?? null, grade?.labelAr ?? null),
-              year: inLocale(year?.titleEn ?? null, year?.titleAr ?? null),
+              name: inLocale(initial.titleEn || null, initial.titleAr || null),
             })
       }
       description={m.itkEditorHint()}
@@ -675,33 +709,50 @@ export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
         title={m.itkSectionWhich()}
         description={m.itkSectionWhichHint()}
       >
-        <SelectField
-          id="intake-year"
-          label={m.itkFieldYear()}
-          value={draft.schoolYearId}
-          disabled={!creating}
-          options={options.years.map((row) => ({
-            value: row.id,
-            label: inLocale(row.titleEn, row.titleAr),
-          }))}
-          onChange={chooseYear}
+        <TextField
+          id="intake-title-ar"
+          label={m.itkFieldTitleAr()}
+          dir="rtl"
           width="name"
+          maxLength={120}
+          value={draft.titleAr}
+          onChange={(event) => {
+            setTitled(true);
+            set("titleAr", event.target.value);
+          }}
+          errors={shown("title")}
         />
-        <SelectField
-          id="intake-grade"
-          label={m.itkFieldGrade()}
-          value={draft.gradeId}
-          disabled={!creating}
-          options={[
-            { value: "", label: m.itkChooseGrade() },
-            ...options.grades.map((row) => ({
-              value: row.id,
-              label: inLocale(row.labelEn, row.labelAr),
-            })),
-          ]}
-          onChange={chooseGrade}
-          errors={shown("gradeId")}
+        <TextField
+          id="intake-title-en"
+          label={m.itkFieldTitleEn()}
+          dir="ltr"
           width="name"
+          maxLength={120}
+          value={draft.titleEn}
+          onChange={(event) => {
+            setTitled(true);
+            set("titleEn", event.target.value);
+          }}
+        />
+        {parts.parts.map((part, index) => (
+          <part.Field
+            key={part.key}
+            read={parts.reads[index]}
+            value={draft.parts[part.key]}
+            startsOn={draft.startsOn}
+            fixed={!creating}
+            onChange={(value) => choosePart(index, value)}
+          />
+        ))}
+        <TextField
+          id="intake-starts"
+          label={m.itkFieldStarts()}
+          hint={m.itkFieldStartsHint()}
+          type="date"
+          width="date"
+          value={draft.startsOn}
+          onChange={(event) => set("startsOn", event.target.value)}
+          errors={shown("startsOn")}
         />
       </FormSection>
 

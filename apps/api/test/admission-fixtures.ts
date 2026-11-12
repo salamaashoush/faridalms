@@ -1,6 +1,7 @@
 import type { IntakeLetters } from "@faridalms/domain/admissions";
 import type { FormQuestion } from "@faridalms/domain/questions";
 
+import { suggestedAges } from "@faridalms/domain/admissions";
 import { formDocument } from "@faridalms/domain/questions";
 
 import { client, login, seeded, signedIn } from "./harness";
@@ -73,11 +74,14 @@ export async function intakeFor(
   } = {},
 ) {
   const api = await officer();
-  const options = await api.intakes.options();
-  const year = options.years.find(
+  const [years, grades] = await Promise.all([
+    api.years.options(),
+    api.gradeLevels.options(),
+  ]);
+  const year = years.years.find(
     (row) => row.titleEn === (more.year ?? "2027–2028"),
   );
-  const gradeRow = options.grades.find((row) => row.labelEn === grade);
+  const gradeRow = grades.grades.find((row) => row.labelEn === grade);
   if (!year || !gradeRow) throw new Error(`no upcoming year or ${grade}`);
   const form = await api.intakes.saveForm({
     expectedVersion: 0,
@@ -88,8 +92,9 @@ export async function intakeFor(
   await api.intakes.publishForm({ id: form.id, expectedVersion: form.version });
   const intake = await api.intakes.saveIntake({
     expectedVersion: 0,
-    schoolYearId: year.id,
-    gradeId: gradeRow.id,
+    titleEn: `${grade}, ${year.titleEn ?? ""}`,
+    startsOn: year.startsOn,
+    parts: { year: { yearId: year.id }, grade: { gradeId: gradeRow.id } },
     opensOn: "2020-01-01",
     closesOn: "2099-12-31",
     capacity: more.capacity ?? 20,
@@ -119,8 +124,12 @@ export async function intakeFor(
     decisionsOn: more.decisionsOn ?? "",
     offerDays: 14,
     ageCutoffOn: "2027-10-01",
-    minAgeMonths: more.anyAge ? null : gradeRow.minMonths,
-    maxAgeMonths: more.anyAge ? null : gradeRow.maxMonths,
+    minAgeMonths: more.anyAge
+      ? null
+      : suggestedAges(gradeRow.meaning).minMonths,
+    maxAgeMonths: more.anyAge
+      ? null
+      : suggestedAges(gradeRow.meaning).maxMonths,
     priorities: [
       "sibling",
       "staff_child",

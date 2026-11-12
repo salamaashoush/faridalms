@@ -28,7 +28,8 @@ export async function descriptorsFor(
     tenantId: string;
     schoolId: string;
     namespace: string;
-    today: string;
+    /** The day values are read on; null reads every value, retired or not. */
+    today: string | null;
     includeRetired?: boolean;
   },
 ): Promise<Descriptor[]> {
@@ -64,7 +65,9 @@ export async function descriptorsFor(
       and d.status = 'active' and (d.org_id is null or d.org_id = any(${uuidArray(path)}))
     order by 7, d.code_value`);
   return rows
-    .filter((row) => input.includeRetired || row.effective)
+    .filter(
+      (row) => input.includeRetired || input.today === null || row.effective,
+    )
     .map((row) => ({
       id: row.id,
       code: row.code,
@@ -162,4 +165,44 @@ export async function relabelDescriptor(
     insert into core.descriptor_overrides (tenant_id, descriptor_id, org_id, label_en, label_ar, color)
     values (${input.tenantId}::uuid, ${input.descriptorId}::uuid, ${input.orgId}::uuid, ${input.labelEn},
       ${input.labelAr}, ${input.color})`);
+}
+
+/**
+ * Sets where a value sits in the school's order, or the days it is in use
+ * there: its own value in place, a shared one through an override at the
+ * school, as `relabelDescriptor`.
+ */
+export async function placeDescriptor(
+  tx: CellTransaction,
+  input: {
+    tenantId: string;
+    orgId: string;
+    descriptorId: string;
+    sortOrder?: number;
+    /** A range literal, such as `(,2026-11-12)` for a value retired from that day. */
+    effectiveDuring?: string;
+  },
+) {
+  const sortOrder = input.sortOrder ?? null;
+  const during = input.effectiveDuring ?? null;
+  const own = await tx.execute<{ id: string }>(sql`
+    update core.descriptors
+    set sort_order = coalesce(${sortOrder}::int, sort_order),
+      effective_during = coalesce(${during}::daterange, effective_during)
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.descriptorId}::uuid and org_id = ${input.orgId}::uuid
+      and status = 'active'
+    returning id`);
+  if (own.length > 0) return;
+  const overridden = await tx.execute<{ id: string }>(sql`
+    update core.descriptor_overrides
+    set sort_order = coalesce(${sortOrder}::int, sort_order),
+      effective_during = coalesce(${during}::daterange, effective_during)
+    where tenant_id = ${input.tenantId}::uuid and descriptor_id = ${input.descriptorId}::uuid
+      and org_id = ${input.orgId}::uuid and status = 'active'
+    returning id`);
+  if (overridden.length > 0) return;
+  await tx.execute(sql`
+    insert into core.descriptor_overrides (tenant_id, descriptor_id, org_id, sort_order, effective_during)
+    values (${input.tenantId}::uuid, ${input.descriptorId}::uuid, ${input.orgId}::uuid, ${sortOrder}::int,
+      ${during}::daterange)`);
 }

@@ -44,7 +44,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { consentWords } from "../core/admissions";
+import { consentWords } from "../admissions/access";
 import { refuseIfHeld } from "../core/holds";
 import { notify } from "../core/notify";
 import {

@@ -173,7 +173,6 @@ describe("student guardians", () => {
   beforeEach(() => {
     vi.mocked(getStudentRecord).mockResolvedValue(RECORD);
     vi.mocked(getPeopleOptions).mockResolvedValue({
-      grades: [],
       relations: [
         {
           id: MOTHER,

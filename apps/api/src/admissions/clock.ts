@@ -5,9 +5,11 @@ import { clockDue } from "@faridalms/database/stores/admission-decisions";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import { schoolDate } from "@faridalms/domain/school";
 
-import type { UnitContext } from "./context";
+import type { UnitContext } from "../core/context";
+import type { WorkerModules } from "../core/extension";
 import type { AdmissionScope } from "./decisions";
 
+import { workerScope } from "../core/extension";
 import { everyTenant } from "../files/upkeep";
 import {
   applicationIn,
@@ -25,7 +27,12 @@ import {
 export async function runAdmissionsClock(
   cell: Cell,
   tenantId: string,
-  input: { now: Date; channels: UnitContext["channels"]; limit?: number },
+  input: {
+    now: Date;
+    channels: UnitContext["channels"];
+    modules: WorkerModules;
+    limit?: number;
+  },
 ): Promise<number> {
   return cell.withWorker(
     { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
@@ -43,10 +50,14 @@ export async function runAdmissionsClock(
       let moved = 0;
       for (const schoolId of schools) {
         const school = await schoolProfile(tx, schoolId);
-        const scope: AdmissionScope = {
+        const modules = await workerScope(input.modules, {
           tx,
           tenantId,
           schoolId,
+        });
+        if (!modules) continue;
+        const scope: AdmissionScope = {
+          ...modules,
           actorUserId: null,
           now: input.now,
           channels: input.channels,
@@ -90,6 +101,7 @@ export function startAdmissionsClock(input: {
   directory: Directory;
   cellId: string;
   channels: UnitContext["channels"];
+  extensions: WorkerModules["extensions"];
   intervalMs: number;
 }): () => Promise<void> {
   return everyTenant({
@@ -101,6 +113,7 @@ export function startAdmissionsClock(input: {
       await runAdmissionsClock(input.cell, tenantId, {
         now: new Date(),
         channels: input.channels,
+        modules: { directory: input.directory, extensions: input.extensions },
       });
     },
   });

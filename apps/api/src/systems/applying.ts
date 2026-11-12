@@ -109,8 +109,8 @@ import {
   fileDocument,
   intakeOf,
   letterView,
-} from "../core/admissions";
-import { admissionScope, moveApplication } from "../core/decisions";
+} from "../admissions/access";
+import { admissionScope, moveApplication } from "../admissions/decisions";
 import { readNeeds, writeNeeds } from "../core/health";
 import { identifierValue } from "../core/identifiers";
 import { notify, notifyIn } from "../core/notify";
@@ -447,10 +447,9 @@ function intakeView(
 ) {
   return {
     id: intake.id,
-    yearTitleEn: intake.yearTitleEn,
-    yearTitleAr: intake.yearTitleAr,
-    gradeEn: intake.gradeEn,
-    gradeAr: intake.gradeAr,
+    titleEn: intake.titleEn,
+    titleAr: intake.titleAr,
+    startsOn: intake.startsOn,
     opensOn: intake.opensOn,
     closesOn: intake.closesOn,
     currency: intake.currency,
@@ -1426,8 +1425,8 @@ export const submit = writeProcedure
         params: {
           title: child.fullNameEn ?? child.fullNameAr ?? "",
           titleAr: child.fullNameAr ?? undefined,
-          gradeName: intake.gradeEn ?? intake.gradeAr ?? undefined,
-          gradeNameAr: intake.gradeAr ?? undefined,
+          intakeName: intake.titleEn ?? intake.titleAr ?? undefined,
+          intakeNameAr: intake.titleAr ?? undefined,
           reference,
           received: true,
         },
@@ -1448,8 +1447,8 @@ export const submit = writeProcedure
         params: {
           title: child.fullNameEn ?? child.fullNameAr ?? "",
           titleAr: child.fullNameAr ?? undefined,
-          gradeName: intake.gradeEn ?? intake.gradeAr ?? undefined,
-          gradeNameAr: intake.gradeAr ?? undefined,
+          intakeName: intake.titleEn ?? intake.titleAr ?? undefined,
+          intakeNameAr: intake.titleAr ?? undefined,
         },
         needsAction: true,
       },
@@ -1534,8 +1533,8 @@ export const answer = writeProcedure
           titleAr: row.applicant.nameAr ?? undefined,
           actorName: row.family.nameEn ?? row.family.nameAr ?? "",
           actorNameAr: row.family.nameAr ?? undefined,
-          gradeName: intake.gradeEn ?? intake.gradeAr ?? undefined,
-          gradeNameAr: intake.gradeAr ?? undefined,
+          intakeName: intake.titleEn ?? intake.titleAr ?? undefined,
+          intakeNameAr: intake.titleAr ?? undefined,
           outcome: to,
         },
         needsAction: to === "accepted",

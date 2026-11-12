@@ -219,10 +219,7 @@ function ApplicationCard({ row }: ApplicationCardProps) {
       }),
   });
   const grade = row.intake
-    ? m.itkEditTitle({
-        grade: inLocale(row.intake.gradeEn, row.intake.gradeAr),
-        year: inLocale(row.intake.yearTitleEn, row.intake.yearTitleAr),
-      })
+    ? inLocale(row.intake.titleEn, row.intake.titleAr)
     : "";
   return (
     <RecordSection

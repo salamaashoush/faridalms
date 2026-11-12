@@ -82,7 +82,6 @@ import {
   updatePerson,
   updateRelationship,
   withdrawDeparture,
-  youngStudents,
 } from "@faridalms/database/stores/students";
 import {
   createSignInsSchema,
@@ -157,7 +156,9 @@ import {
   cancelParts,
   leaveParts,
   saveStudentParts,
+  studentListColumns,
   studentViewOf,
+  youngStudentsOf,
 } from "../people/points";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -238,15 +239,13 @@ export const options = readProcedure.handler(async ({ context }) => {
       namespace,
       today: context.today,
     });
-  const [grades, relations, sexes, positions, religions] = await Promise.all([
-    load("grade_level"),
+  const [relations, sexes, positions, religions] = await Promise.all([
     load("relation"),
     load("sex"),
     load("staff_position"),
     load("religion"),
   ]);
   return {
-    grades,
     relations,
     sexes,
     positions,
@@ -260,12 +259,10 @@ export const students = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:read", "people:manage");
     const view = await studentViewOf(context, input.views);
-    const grades = await descriptorsFor(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      namespace: "grade_level",
-      today: context.today,
-      includeRetired: true,
+    const columns = await studentListColumns(context, {
+      views: input.views,
+      sort: input.sort,
+      on: view?.on ?? context.today,
     });
     const phone = /^[+0-9 ()-]{7,}$/.test(input.q)
       ? toE164(input.q, await countryOf(context))
@@ -297,19 +294,18 @@ export const students = readProcedure
         q: input.q,
         phone,
         documentHolders,
-        gradeIds: input.grade,
+        within: columns.within,
         statuses: input.status,
         missingGuardian: input.missing.includes("guardian"),
         missingAccount: input.missing.includes("account"),
-        sort: input.sort,
+        sort: columns.sort,
         dir: input.dir,
         locale: localeOf(context),
-        gradeOrder: grades.map((grade) => grade.id),
+        ranks: columns.ranks,
         page: input.page,
         pageSize: input.pageSize,
       },
     );
-    const byId = new Map(grades.map((grade) => [grade.id, grade]));
     const groups = await studentGroupsOf(
       context,
       rows.map((row) => row.id),
@@ -318,20 +314,11 @@ export const students = readProcedure
     return {
       today: context.today,
       ...paged(
-        rows.map((row) => {
-          const grade = row.gradeId ? byId.get(row.gradeId) : undefined;
-          return {
-            ...row,
-            grade: grade
-              ? {
-                  id: grade.id,
-                  labelEn: grade.labelEn,
-                  labelAr: grade.labelAr,
-                }
-              : null,
-            group: groups.get(row.id) ?? null,
-          };
-        }),
+        rows.map((row) => ({
+          ...row,
+          columns: columns.valuesOf(row.id),
+          group: groups.get(row.id) ?? null,
+        })),
         total,
         input.page,
         input.pageSize,
@@ -1475,12 +1462,7 @@ async function slipsPlan(context: UnitContext, seeds: readonly SignInSeed[]) {
 async function badgesPlan(context: UnitContext, seeds: readonly SignInSeed[]) {
   const ids = seeds.map((row) => row.userId);
   const [young, held] = await Promise.all([
-    youngStudents(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      userIds: ids,
-      today: context.today,
-    }),
+    youngStudentsOf(context, ids, context.today),
     badgesOf(context.tx, context.tenantId, ids),
   ]);
   const now = context.now.toISOString();

@@ -26,7 +26,7 @@ const event = (title: string) => ({
   endTime: "10:00",
   location: "Room 12",
   provisional: false,
-  audiences: [{ scope: "families" as const, classId: "", gradeId: "" }],
+  audiences: [{ scope: "families" as const, classId: "", targetId: "" }],
   description: plainContent(`${title} agenda.`),
 });
 
@@ -182,7 +182,7 @@ describe("keeping the calendar", () => {
       await rejection(
         teacher.api.calendar.save({
           ...event("Their trip"),
-          audiences: [{ scope: "class", classId: other.id, gradeId: "" }],
+          audiences: [{ scope: "class", classId: other.id, targetId: "" }],
         }),
       ),
     ).toMatchObject({ code: "FORBIDDEN" });
@@ -190,14 +190,14 @@ describe("keeping the calendar", () => {
 
   test("a teacher puts a test on their class's calendar and can change only their own", async () => {
     const teacher = await sessionFor("northwind", login("teacher", 0, 1));
-    const { classes, grades } = await teacher.api.calendar.options();
-    expect(grades).toEqual([]);
+    const { classes, kinds } = await teacher.api.calendar.options();
+    expect(kinds).toEqual([]);
     const own = classes[0];
     if (!own) throw new Error("the seeded teacher has no class");
     const saved = await teacher.api.calendar.save({
       ...event("Unit test: fractions"),
       category: "exam",
-      audiences: [{ scope: "class", classId: own.id, gradeId: "" }],
+      audiences: [{ scope: "class", classId: own.id, targetId: "" }],
     });
     const draft = await teacher.api.calendar.event({ id: saved.id });
     expect(draft).toMatchObject({ state: "draft", canEdit: true });

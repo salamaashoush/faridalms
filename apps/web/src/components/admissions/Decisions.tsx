@@ -299,10 +299,7 @@ function DeferSheet({ row, open, onOpenChange }: DeferSheetProps) {
         value={intakeId}
         options={row.laterIntakes.map((intake) => ({
           value: intake.id,
-          label: m.itkEditTitle({
-            grade: inLocale(intake.gradeEn, intake.gradeAr),
-            year: inLocale(intake.yearTitleEn, intake.yearTitleAr),
-          }),
+          label: inLocale(intake.titleEn, intake.titleAr),
         }))}
         onChange={setIntakeId}
       />
@@ -353,10 +350,7 @@ function EnrolSheet({ row, open, onOpenChange }: EnrolSheetProps) {
       }),
     meta: { inlineError: true },
   });
-  const grade = m.itkEditTitle({
-    grade: inLocale(row.intake.gradeEn, row.intake.gradeAr),
-    year: inLocale(row.intake.yearTitleEn, row.intake.yearTitleAr),
-  });
+  const intake = inLocale(row.intake.titleEn, row.intake.titleAr);
   return (
     <SheetForm
       open={open}
@@ -410,7 +404,7 @@ function EnrolSheet({ row, open, onOpenChange }: EnrolSheetProps) {
       <div className="grid gap-2 rounded-lg border bg-muted/40 p-4 text-sm">
         <p className="font-medium">{m.decEnrolSummary()}</p>
         <ul className="grid list-disc gap-1 ps-5 text-muted-foreground">
-          <li>{m.decEnrolPlaced({ grade })}</li>
+          <li>{m.decEnrolPlaced({ intake })}</li>
           <li>{m.decEnrolFamily()}</li>
           <li>{m.decEnrolCarried()}</li>
           <li>{m.decEnrolClosed()}</li>

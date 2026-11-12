@@ -2,6 +2,7 @@ import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   numeric,
   smallint,
@@ -20,15 +21,13 @@ import {
   pk,
   tenantColumns,
 } from "./conventions";
-import { descriptors } from "./descriptors";
 import { gradeScales } from "./grading";
 import { classes } from "./teaching";
 import { orgs, tenants } from "./tenancy";
 
 /**
- * A programme a school runs, such as the IB Diploma or IGCSE: the grade
- * levels it covers and the scale its classes grade on. Two can share a
- * grade level.
+ * A programme a school runs, such as the IB Diploma or IGCSE, and the
+ * scale its classes grade on.
  */
 export const programmes = core.table.withRLS(
   "programmes",
@@ -54,40 +53,6 @@ export const programmes = core.table.withRLS(
     ck("programmes", "title", sql`num_nonnulls(title_en, title_ar) >= 1`),
     index("programmes_org_idx")
       .on(t.tenantId, t.orgId)
-      .where(sql`status = 'active'`),
-    ...entityProfile(),
-  ],
-);
-
-export const programmeGradeLevels = core.table.withRLS(
-  "programme_grade_levels",
-  {
-    ...tenantColumns(),
-    programmeId: uuid("programme_id").notNull(),
-    gradeLevelDescriptorId: uuid("grade_level_descriptor_id").notNull(),
-    gradeLevelNs: text("grade_level_ns")
-      .notNull()
-      .generatedAlwaysAs(sql`'grade_level'`),
-    ...entityColumns(),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("programme_grade_levels", t.tenantId, t.id),
-    ...baseConstraints("programme_grade_levels", t, tenants),
-    fk(
-      "programme_grade_levels",
-      [t.tenantId, t.programmeId],
-      [programmes.tenantId, programmes.id],
-    ),
-    fk(
-      "programme_grade_levels",
-      [t.tenantId, t.gradeLevelDescriptorId, t.gradeLevelNs],
-      [descriptors.tenantId, descriptors.id, descriptors.namespace],
-    ),
-    uniqueIndex("programme_grade_levels_key")
-      .on(t.tenantId, t.programmeId, t.gradeLevelDescriptorId)
-      .where(sql`status = 'active'`),
-    index("programme_grade_levels_level_idx")
-      .on(t.tenantId, t.gradeLevelDescriptorId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
   ],
@@ -144,9 +109,10 @@ export const programmeCategories = core.table.withRLS(
 );
 
 /**
- * What a class grades by where it is not its programme's own way: the
- * programme it follows when its grade level does not settle one, and a
- * scale of its own. A class with neither has no row.
+ * What a class grades by: the programme it follows and a scale of its own.
+ * A programme the school chose for the class is `programme_chosen`; one a
+ * module derived for it (by its grade, say) is not, and is derived again
+ * when what it came from changes. A class with neither has no row.
  */
 export const classGrading = core.table.withRLS(
   "class_grading",
@@ -155,6 +121,7 @@ export const classGrading = core.table.withRLS(
     orgId: uuid("org_id").notNull(),
     classId: uuid("class_id").notNull(),
     programmeId: uuid("programme_id"),
+    programmeChosen: boolean("programme_chosen").notNull().default(true),
     gradeScaleId: uuid("grade_scale_id"),
     ...entityColumns(),
   },
@@ -180,6 +147,11 @@ export const classGrading = core.table.withRLS(
       "class_grading",
       "chosen",
       sql`num_nonnulls(programme_id, grade_scale_id) >= 1`,
+    ),
+    ck(
+      "class_grading",
+      "programme_chosen",
+      sql`programme_chosen or programme_id is not null`,
     ),
     uniqueIndex("class_grading_class_key")
       .on(t.tenantId, t.classId)

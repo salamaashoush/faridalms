@@ -13,7 +13,11 @@ import { toast } from "sonner";
 
 import type { ClassDaysValue } from "~/components/classes/ClassDays";
 
-import { ClassDaysSection, useClassDays } from "~/components/classes/ClassDays";
+import {
+  ClassDaysSection,
+  ClassPartFields,
+  useClassDays,
+} from "~/components/classes/ClassDays";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
@@ -32,7 +36,6 @@ interface Draft {
   titleEn: string;
   titleAr: string;
   subjectId: string;
-  gradeId: string;
   locationId: string;
   teacherIds: string[];
   startsOn: string;
@@ -66,7 +69,6 @@ function initialDraft(record: ClassData | null, days: ClassDaysValue): Draft {
     titleEn: record?.titleEn ?? "",
     titleAr: record?.titleAr ?? "",
     subjectId: record?.subjectId ?? "",
-    gradeId: record?.gradeId ?? "",
     locationId: record?.locationId ?? "",
     teacherIds:
       record?.teachers
@@ -135,7 +137,6 @@ export function ClassEditor({
     titleEn: draft.titleEn,
     titleAr: draft.titleAr,
     subjectId: draft.subjectId,
-    gradeId: draft.gradeId,
     locationId: draft.locationId,
     teacherIds: draft.teacherIds.filter(Boolean),
   };
@@ -228,20 +229,17 @@ export function ClassEditor({
           onChange={(value) => set("subjectId", value === NONE ? "" : value)}
           width="name"
         />
-        <SelectField
-          id="class-grade"
-          label={m.studentGrade()}
-          optional
-          value={draft.gradeId || NONE}
-          options={[
-            ...options.grades.map((row) => ({
-              value: row.id,
-              label: labelOf(row) ?? row.code,
-            })),
-            { value: NONE, label: m.commonNotRecorded() },
-          ]}
-          onChange={(value) => set("gradeId", value === NONE ? "" : value)}
-          width="name"
+        <ClassPartFields
+          section="details"
+          parts={classDays.parts}
+          reads={classDays.reads}
+          search={search}
+          value={{
+            startsOn: draft.startsOn,
+            endsOn: draft.endsOn,
+            parts: draft.parts,
+          }}
+          onChange={(days) => setDraft((current) => ({ ...current, ...days }))}
         />
         <SelectField
           id="class-room"

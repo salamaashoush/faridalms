@@ -19,10 +19,10 @@ import {
 } from "~/server/students";
 import { render } from "~/testUtils";
 
-import { SCHOOL_YEARS } from "../years/contributions";
+import { GRADE_LEVELS } from "../grade-levels/contributions";
 import { StudentEditor } from "./StudentEditor";
 
-// The grade a new student is placed in is the school years' part of the form.
+// The grade a new student starts in is the grade levels' part of the form.
 vi.mock("~/server/auth", () => ({
   getCurrentUser: vi.fn(() =>
     Promise.resolve({
@@ -32,25 +32,34 @@ vi.mock("~/server/auth", () => ({
       loginName: null,
       photoFileId: null,
       capabilities: [],
-      modules: { school_years: true },
+      modules: { grade_levels: true },
       school: { nameEn: "Acme School", nameAr: null },
     }),
   ),
 }));
 
-vi.mock("~/server/years", () => ({
-  getYearOptions: vi.fn(() =>
+vi.mock("~/server/grade-levels", () => ({
+  getGradeOptions: vi.fn(() =>
     Promise.resolve({
-      years: [],
-      workingYearId: null,
-      entryTypes: [],
-      exitTypes: [],
+      grades: [
+        {
+          id: "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a03",
+          code: "G1",
+          meaning: "grade_1",
+          labelEn: "Grade 1",
+          labelAr: "الصف الأول",
+          retired: false,
+        },
+      ],
       today: "2026-09-27",
     }),
   ),
-  getPlacements: vi.fn(),
-  getClassYear: vi.fn(),
-  getYearEnd: vi.fn(),
+  getStudentGrades: vi.fn(),
+  setStudentGrade: vi.fn(),
+  getGradeSettings: vi.fn(),
+  saveGradeLevel: vi.fn(),
+  orderGradeLevels: vi.fn(),
+  retireGradeLevel: vi.fn(),
 }));
 
 vi.mock("~/server/students", () => ({
@@ -93,7 +102,6 @@ function descriptor(
 }
 
 const OPTIONS = {
-  grades: [descriptor(GRADE, "G1", "Grade 1", "الصف الأول")],
   relations: [
     descriptor(
       "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a05",
@@ -121,7 +129,7 @@ function renderEditor(onClose: () => void) {
     defaultOptions: { queries: { retry: false } },
   });
   const router = createRouter({
-    context: { extensions: [SCHOOL_YEARS] },
+    context: { extensions: [GRADE_LEVELS] },
     routeTree: createRootRouteWithContext<{
       extensions: readonly ModuleFillings[];
     }>()({
@@ -259,7 +267,7 @@ describe("adding a student", () => {
       data: {
         names: { en: { given: "Salama", family: "Ashoush" } },
         reference: "TEST-0001",
-        parts: { year: { gradeId: GRADE } },
+        parts: { grade: { gradeId: GRADE } },
         guardians: [],
       },
     });

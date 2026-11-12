@@ -8,7 +8,6 @@ import type { LiveProgress, LiveTry } from "@faridalms/domain/live";
 import type { ContentLocale } from "@faridalms/domain/translations";
 import type { SQL } from "drizzle-orm";
 
-import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
 import { moduleStanding } from "@faridalms/domain/learning";
 import { sql } from "drizzle-orm";
 
@@ -24,7 +23,7 @@ import type { ClassesViewed } from "./classes";
 
 import { viewedClasses } from "./classes";
 import { liveSql } from "./publication";
-import { isoOf, textArray, uuidArray } from "./sql";
+import { isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -119,19 +118,16 @@ export async function classesOfModule(
   tx: Tx,
   tenantId: string,
   moduleId: string,
-): Promise<(ModuleClass & { young: boolean })[]> {
+): Promise<ModuleClass[]> {
   const rows = await tx.execute<{
     id: string;
     code: string;
     title_en: string | null;
     title_ar: string | null;
-    young: boolean;
   }>(sql`
-    select c.id, c.code, c.title_en, c.title_ar,
-      coalesce(d.system_meaning = any(${textArray(YOUNG_STUDENT_GRADES)}), false) as young
+    select c.id, c.code, c.title_en, c.title_ar
     from core.module_classes x
     join core.classes c on c.tenant_id = x.tenant_id and c.id = x.class_id
-    left join core.descriptors d on d.tenant_id = c.tenant_id and d.id = c.grade_level_descriptor_id
     where x.tenant_id = ${tenantId}::uuid and x.module_id = ${moduleId}::uuid
       and x.status = 'active'
     order by c.code, c.id`);
@@ -140,7 +136,6 @@ export async function classesOfModule(
     code: row.code,
     titleEn: row.title_en,
     titleAr: row.title_ar,
-    young: row.young,
   }));
 }
 

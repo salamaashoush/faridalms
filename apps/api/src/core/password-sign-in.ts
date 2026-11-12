@@ -8,7 +8,6 @@ import {
   clearAttempts,
   countAttempt,
   createSession,
-  effectiveAccess,
   findPasswordIdentity,
   recordFailure,
   recordSignIn,
@@ -16,8 +15,9 @@ import {
 import { WORKSPACE_OF } from "@faridalms/domain/workspace";
 import { randomBytes } from "node:crypto";
 
-import type { RequestContext } from "./context";
+import type { RequestContext, SchoolContext } from "./context";
 
+import { accessAtSchool } from "../people/access";
 import {
   attemptKey,
   ipPrefix,
@@ -128,7 +128,7 @@ export async function refuseSignIn(
  */
 export async function openSession(
   tx: CellTransaction,
-  context: RequestContext,
+  context: SchoolContext,
   input: {
     tenantId: string;
     schoolId: string;
@@ -183,10 +183,8 @@ export async function openSession(
     details: { context: input.sessionContext, ...input.details },
   });
   const profile = (
-    await effectiveAccess(tx, {
-      tenantId,
+    await accessAtSchool(tx, context, {
       userId: input.userId,
-      orgId: schoolId,
       today: input.today,
       context: input.sessionContext,
     })

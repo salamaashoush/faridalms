@@ -13,6 +13,7 @@ import { isSafeContentUrl } from "./content";
 import { enquirerFields, MAX_QUESTIONS } from "./enquiries";
 import { pageField } from "./paging";
 import {
+  askedBy,
   bodyIssues,
   overlay,
   pageSectionSchema,
@@ -205,6 +206,25 @@ export function localizedSections(
     return match && sectionWritten(match) && sectionComplete(section, match)
       ? { section: overlay(section, match), locale }
       : { section, locale: primary };
+  });
+}
+
+/**
+ * A published page's sections as visitors meet them: each read through the
+ * schema, so a section published before a field existed gets that field's
+ * default, and asking only what the school's modules let it ask.
+ */
+export function publishedSections(
+  sections: unknown,
+  modules: readonly string[],
+): { section: PageSection; locale: SiteLocale }[] {
+  return (
+    (sections ?? []) as { section: unknown; locale: SiteLocale }[]
+  ).flatMap((item) => {
+    const read = v.safeParse(pageSectionSchema, item.section);
+    return read.success
+      ? [{ section: askedBy(read.output, modules), locale: item.locale }]
+      : [];
   });
 }
 

@@ -16,7 +16,6 @@ export const homeroomDirectoryQuery = (
 ) => {
   const data = {
     q: query.q,
-    grade: query.grade,
     ended: query.ended,
     views,
   };

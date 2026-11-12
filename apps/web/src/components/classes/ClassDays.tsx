@@ -76,25 +76,16 @@ export function ClassDaysSection({
   onChange,
   error,
 }: ClassDaysSectionProps) {
-  const days = { startsOn: value.startsOn, endsOn: value.endsOn };
   return (
     <FormSection title={m.classesDays()} description={m.classesDaysHint()}>
-      {parts.map((part, index) => (
-        <part.Field
-          key={part.key}
-          read={reads[index]}
-          search={search}
-          value={value.parts[part.key]}
-          days={days}
-          onChange={(next, set) =>
-            onChange({
-              ...value,
-              ...set,
-              parts: { ...value.parts, [part.key]: next },
-            })
-          }
-        />
-      ))}
+      <ClassPartFields
+        section="days"
+        parts={parts}
+        reads={reads}
+        search={search}
+        value={value}
+        onChange={onChange}
+      />
       <TextField
         id="class-starts"
         label={m.classesStartsOn()}
@@ -118,5 +109,44 @@ export function ClassDaysSection({
         errors={error ? [error] : undefined}
       />
     </FormSection>
+  );
+}
+
+export interface ClassPartFieldsProps {
+  section: ClassEditorPart["section"];
+  parts: readonly ClassEditorPart[];
+  reads: readonly unknown[];
+  search: Readonly<Record<string, unknown>>;
+  value: ClassDaysValue;
+  onChange: (value: ClassDaysValue) => void;
+}
+
+/** The fields the modules on add to one section of a class form. */
+export function ClassPartFields({
+  section,
+  parts,
+  reads,
+  search,
+  value,
+  onChange,
+}: ClassPartFieldsProps) {
+  const days = { startsOn: value.startsOn, endsOn: value.endsOn };
+  return parts.map((part, index) =>
+    part.section === section ? (
+      <part.Field
+        key={part.key}
+        read={reads[index]}
+        search={search}
+        value={value.parts[part.key]}
+        days={days}
+        onChange={(next, set) =>
+          onChange({
+            ...value,
+            ...set,
+            parts: { ...value.parts, [part.key]: next },
+          })
+        }
+      />
+    ) : null,
   );
 }

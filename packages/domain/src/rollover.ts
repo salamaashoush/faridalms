@@ -2,6 +2,8 @@ import * as v from "valibot";
 
 import type { YearLifecycle } from "./years";
 
+import { partValueSchema } from "./classes";
+
 const id = v.pipe(v.string(), v.uuid());
 const optionalId = v.optional(v.union([v.literal(""), id]), "");
 const title = v.optional(v.pipe(v.string(), v.trim(), v.maxLength(120)), "");
@@ -62,13 +64,14 @@ export const rolloverClassSchema = v.object({
   ),
   titleEn: title,
   titleAr: title,
-  gradeId: optionalId,
   locationId: optionalId,
   teacherId: optionalId,
   subjects: v.pipe(
     v.array(v.object({ subjectId: id, teacherId: optionalId })),
     v.maxLength(30),
   ),
+  /** What modules give the carried class, each read by its own schema: its grade, say. */
+  parts: v.optional(v.record(v.string(), partValueSchema), {}),
 });
 export type RolloverClass = v.InferOutput<typeof rolloverClassSchema>;
 

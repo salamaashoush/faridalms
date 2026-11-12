@@ -42,18 +42,21 @@ import { formatDayIn } from "@faridalms/domain/date-text";
 import { APPLICATION_OUTCOMES } from "@faridalms/domain/notifications";
 import { formattingLocale } from "@faridalms/domain/school";
 
-import type { UnitContext } from "./context";
-import type { NoticeScope } from "./notify";
+import type { UnitContext } from "../core/context";
+import type { ModuleScope } from "../core/extension";
+import type { NoticeScope } from "../core/notify";
 
-import { notifyIn } from "./notify";
-import { templateHost } from "./templates";
+import { notifyIn } from "../core/notify";
+import { templateHost } from "../core/templates";
+import { intakeFactsOf } from "./points";
 
 /**
  * Where a move of an application is made from: a person's procedure, or
  * the school's clock releasing decisions and letting offers lapse, where
  * nobody is the actor.
  */
-export interface AdmissionScope extends NoticeScope {
+export interface AdmissionScope
+  extends NoticeScope, Pick<ModuleScope, "school" | "extensions"> {
   today: string;
 }
 
@@ -61,6 +64,8 @@ export const admissionScope = (context: UnitContext): AdmissionScope => ({
   tx: context.tx,
   tenantId: context.tenantId,
   schoolId: context.schoolId,
+  school: context.school,
+  extensions: context.extensions,
   actorUserId: context.actor.userId,
   now: context.now,
   channels: context.channels,
@@ -131,12 +136,20 @@ async function letterFields(
   locale: "en" | "ar",
   expires: string | null,
 ): Promise<Record<LetterField, string>> {
-  const school = await schoolProfile(scope.tx, scope.schoolId);
+  const [school, facts] = await Promise.all([
+    schoolProfile(scope.tx, scope.schoolId),
+    intakeFactsOf(scope, [intake.id]),
+  ]);
+  const fact = (key: string) => {
+    const found = facts.get(intake.id)?.[key];
+    return found ? pick(locale, found.labelEn, found.labelAr) : "";
+  };
   return {
     family: pick(locale, row.family.nameEn, row.family.nameAr),
     child: pick(locale, row.applicant.nameEn, row.applicant.nameAr),
-    grade: pick(locale, intake.gradeEn, intake.gradeAr),
-    year: pick(locale, intake.yearTitleEn, intake.yearTitleAr),
+    intake: pick(locale, intake.titleEn, intake.titleAr),
+    grade: fact("grade"),
+    year: fact("year"),
     school: pick(locale, school?.nameEn ?? null, school?.nameAr ?? null),
     reference: row.reference ?? "",
     expires: expires
@@ -250,7 +263,7 @@ export interface Move {
   answered?: boolean;
   studentUserId?: string | null;
   /** Where the application went on to, for a deferral's notice. */
-  gradeName?: { en: string | null; ar: string | null };
+  intakeName?: { en: string | null; ar: string | null };
 }
 
 /**
@@ -311,10 +324,10 @@ export async function moveApplication(
       params: {
         title: row.applicant.nameEn ?? row.applicant.nameAr ?? "",
         titleAr: row.applicant.nameAr ?? undefined,
-        gradeName:
-          (move.gradeName ? move.gradeName.en : intake.gradeEn) ?? undefined,
-        gradeNameAr:
-          (move.gradeName ? move.gradeName.ar : intake.gradeAr) ?? undefined,
+        intakeName:
+          (move.intakeName ? move.intakeName.en : intake.titleEn) ?? undefined,
+        intakeNameAr:
+          (move.intakeName ? move.intakeName.ar : intake.titleAr) ?? undefined,
         reference: row.reference ?? undefined,
         outcome: move.to,
         toFamily: true,

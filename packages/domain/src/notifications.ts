@@ -57,8 +57,8 @@ export interface NoticeParams {
   purpose?: "enquiry" | "visit" | "general";
   assigned?: boolean;
   /** The grade an application is for, its number, and whether the reader is the family that sent it. */
-  gradeName?: string;
-  gradeNameAr?: string;
+  intakeName?: string;
+  intakeNameAr?: string;
   reference?: string;
   received?: boolean;
   /**

@@ -301,7 +301,9 @@ async function taughtClasses(
     from core.homeroom_classes k
     join core.classes c on c.tenant_id = k.tenant_id and c.id = k.class_id
     join core.classes h on h.tenant_id = k.tenant_id and h.id = k.homeroom_class_id
-    join core.descriptors g on g.tenant_id = c.tenant_id and g.id = c.grade_level_descriptor_id
+    join core.class_grades cg on cg.tenant_id = c.tenant_id and cg.class_id = c.id
+      and cg.status = 'active'
+    join core.descriptors g on g.tenant_id = c.tenant_id and g.id = cg.grade_level_descriptor_id
     join core.descriptors s on s.tenant_id = c.tenant_id and s.id = c.subject_descriptor_id
     join core.enrollments t on t.tenant_id = c.tenant_id and t.class_id = c.id
       and t.role = 'teacher' and t.is_primary
@@ -2550,13 +2552,12 @@ async function notices(
   classes: readonly TaughtClass[],
   today: string,
 ) {
-  const everyone: Audience = { scope: "school", classId: null, gradeId: null };
+  const everyone: Audience = { scope: "school", classId: null };
   const families: Audience = {
     scope: "families",
     classId: null,
-    gradeId: null,
   };
-  const staff: Audience = { scope: "staff", classId: null, gradeId: null };
+  const staff: Audience = { scope: "staff", classId: null };
   const author = {
     tenantId: school.tenantId,
     schoolId: school.schoolId,
@@ -2723,7 +2724,7 @@ async function notices(
       endTime: "13:30",
       location: "Children's Museum, Heliopolis",
       audiences: fiveA
-        ? [{ scope: "class", classId: fiveA, gradeId: null }, families]
+        ? [{ scope: "class", classId: fiveA }, families]
         : [families],
       body: "Buses leave from the main gate at 8:30. Please send a packed lunch and a water bottle.",
     },

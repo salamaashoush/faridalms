@@ -6,10 +6,10 @@ import { capabilityHolders } from "@faridalms/database/stores/access";
 import { openEnquiryConversation } from "@faridalms/database/stores/enquiries";
 import { schoolDate } from "@faridalms/domain/school";
 
-import type { RequestContext } from "./context";
+import type { RequestContext } from "../core/context";
 
-import { notifyIn } from "./notify";
-import { schoolZone } from "./procedure";
+import { notifyIn } from "../core/notify";
+import { schoolZone } from "../core/procedure";
 
 /**
  * Records that a family sent an enquiry from the website, opens its

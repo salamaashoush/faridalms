@@ -255,6 +255,7 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     reviewed: false,
   },
   "core.student_departures": { rule: "erased" },
+  "core.student_grades": { rule: "erased" },
   "core.student_school_years": { rule: "erased" },
   "core.submission_attempts": {
     rule: "to_erase",

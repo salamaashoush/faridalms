@@ -371,7 +371,7 @@ export const options = readProcedure
     const [grids, rooms, teachers] = await Promise.all([
       gridOwners(context.tx, {
         ...scope(context),
-        during: view ? { only: view.classIds } : from,
+        during: view?.classIds ? { only: view.classIds } : from,
         except: await plannedElsewhere(context, from),
       }),
       roomsOf(context.tx, context.tenantId, context.schoolId),

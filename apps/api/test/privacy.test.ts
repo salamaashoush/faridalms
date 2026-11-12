@@ -20,14 +20,10 @@ async function leaver(
   reference = "NO9301",
   meanwhile: (studentId: string) => Promise<void> = async () => {},
 ) {
-  const options = await api.people.options();
-  const grade = options.grades.find((row) => row.code === "grade_7");
-  if (!grade) throw new Error("options");
   const created = await api.people.saveStudent({
     names: names("Salama Leaver", "سلامة المغادر"),
     reference,
     birthDate: "2002-05-20",
-    parts: { year: { gradeId: grade.id } },
     guardians: [],
   });
   await meanwhile(created.id);
@@ -47,10 +43,12 @@ async function leaver(
     "write",
     async (tx) => {
       await tx.execute(sql`
-        update core.student_school_years
-        set school_year_id = ${pastYearId}::uuid,
-            valid_during = daterange('2019-09-01', '2020-07-01')
-        where tenant_id = ${tenantId}::uuid and student_user_id = ${created.id}::uuid`);
+        insert into core.student_school_years (tenant_id, student_user_id, org_id,
+          school_year_id, valid_during, source)
+        select ${tenantId}::uuid, ${created.id}::uuid, y.org_id, y.id,
+          daterange('2019-09-01', '2020-07-01'), 'manual'
+        from core.academic_sessions y
+        where y.tenant_id = ${tenantId}::uuid and y.id = ${pastYearId}::uuid`);
       // A leaver's student role ended with their last year; left open, they
       // would still count among the working year's students.
       await tx.execute(sql`

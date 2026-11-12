@@ -131,9 +131,15 @@ export async function classGroupsOf(
   return result;
 }
 
-/** A module's narrowing of a list of classes: the classes it names, read on a day. */
+/**
+ * A module's narrowing of a list of classes: the classes it names, read on
+ * a day, or with `within` only, classes it keeps among those the list
+ * shows on its own days.
+ */
 export interface ClassSelection {
-  classIds: readonly string[];
+  classIds: readonly string[] | null;
+  /** The classes a filter keeps, whichever days the list shows. */
+  within?: readonly string[] | null;
   on: string;
   /** No class is added to the view or changed in it, as in a closed year. */
   settled?: boolean;
@@ -141,16 +147,27 @@ export interface ClassSelection {
   title?: { titleEn: string | null; titleAr: string | null };
 }
 
+/** What a view is given from the address: one value, several, or none. */
+export type ViewValue = string | readonly string[] | null;
+
 /**
  * A view of the school's classes a module offers under its key, such as the
- * classes of a year. Given no value it applies its default, or none.
+ * classes of a year or of some grades. Given no value it applies its
+ * default, or none.
  */
 export interface ClassView {
   key: string;
+  /** The view keeps classes among those listed rather than naming the list: a grade, say. */
+  filter?: boolean;
   select(
     context: UnitContext,
-    value: string | null,
-  ): Promise<ClassSelection | null>;
+    value: ViewValue,
+  ): Promise<{
+    classIds: readonly string[];
+    on: string;
+    settled?: boolean;
+    title?: ClassSelection["title"];
+  } | null>;
 }
 
 export const classViews = point<ClassView>("class views");
@@ -171,12 +188,19 @@ export async function classViewOf(
   if (unknown)
     throw new ORPCError("BAD_REQUEST", { message: "classes.view_unknown" });
   let result: ClassSelection | null = null;
+  let within: string[] | null = null;
   for (const view of offered) {
     const selected = await view.select(context, views[view.key] ?? null);
     if (!selected) continue;
+    if (view.filter) {
+      within = (within ?? [...selected.classIds]).filter((id) =>
+        selected.classIds.includes(id),
+      );
+      continue;
+    }
     result = result
       ? {
-          classIds: result.classIds.filter((id) =>
+          classIds: (result.classIds ?? []).filter((id) =>
             selected.classIds.includes(id),
           ),
           on: result.on,
@@ -185,7 +209,10 @@ export async function classViewOf(
         }
       : selected;
   }
-  return result;
+  if (!within) return result;
+  return result
+    ? { ...result, within }
+    : { classIds: null, within, on: context.today };
 }
 
 /**
@@ -233,6 +260,112 @@ export async function saveClassParts(
       });
 }
 
+/**
+ * What a module says of each class in a list, under its key: the grade it
+ * teaches, say, as an id the module's own options name. `order` ranks the
+ * values, so a list sorts by them before its name.
+ */
+export interface ClassColumn {
+  key: string;
+  valuesOf(
+    context: UnitContext,
+    classIds: readonly string[],
+  ): Promise<Map<string, string>>;
+  order?(context: UnitContext): Promise<readonly string[]>;
+}
+
+export const classColumns = point<ClassColumn>("class columns");
+
+/** Each column the modules on give the classes, by key and class. */
+export async function classColumnsOf(
+  context: UnitContext,
+  classIds: readonly string[],
+): Promise<{
+  values: Record<string, Record<string, string>>;
+  rank: (classId: string) => number;
+}> {
+  const values: Record<string, Record<string, string>> = {};
+  const ranks: ((classId: string) => number)[] = [];
+  for (const column of await contributionsTo(context, classColumns)) {
+    const found = await column.valuesOf(context, classIds);
+    values[column.key] = Object.fromEntries(found);
+    if (column.order) {
+      const order = await column.order(context);
+      ranks.push((classId) => {
+        const index = order.indexOf(found.get(classId) ?? "");
+        return index < 0 ? order.length : index;
+      });
+    }
+  }
+  return {
+    values,
+    rank: (classId) => ranks[0]?.(classId) ?? 0,
+  };
+}
+
+/**
+ * A list of classes with each module's column, sorted by the first column
+ * that ranks its values and then as listed: by name, where no module ranks.
+ */
+export async function withClassColumns<T extends { id: string }>(
+  context: UnitContext,
+  rows: readonly T[],
+): Promise<{ rows: T[]; columns: Record<string, Record<string, string>> }> {
+  const { values, rank } = await classColumnsOf(
+    context,
+    rows.map((row) => row.id),
+  );
+  return {
+    rows: rows
+      .map((row, index) => ({ row, index }))
+      .toSorted((a, b) => rank(a.row.id) - rank(b.row.id) || a.index - b.index)
+      .map((item) => item.row),
+    columns: values,
+  };
+}
+
+/** What each module's column says of one class, by key. */
+export async function classColumnsAt(
+  context: UnitContext,
+  classId: string,
+): Promise<Record<string, string | null>> {
+  const { values } = await classColumnsOf(context, [classId]);
+  return Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [key, value[classId] ?? null]),
+  );
+}
+
+/** A module that knows which classes are of young children. */
+export interface YoungClasses {
+  youngAmong(
+    context: UnitContext,
+    classIds: readonly string[],
+  ): Promise<ReadonlySet<string>>;
+}
+
+export const youngClasses = point<YoungClasses>("young classes");
+
+/** Which of the classes are of young children, as the modules on know them. */
+export async function youngClassesOf(
+  context: UnitContext,
+  classIds: readonly string[],
+): Promise<Set<string>> {
+  const result = new Set<string>();
+  if (classIds.length === 0) return result;
+  for (const contribution of await contributionsTo(context, youngClasses))
+    for (const id of await contribution.youngAmong(context, classIds))
+      result.add(id);
+  return result;
+}
+
+/** What the modules on say of one class: each column's value, and whether it is of young children. */
+export async function classFactsOf(context: UnitContext, classId: string) {
+  return {
+    young: (await youngClassesOf(context, [classId])).has(classId),
+    columns: await classColumnsAt(context, classId),
+  };
+}
+
 /** A module that keeps something in step with students joining classes. */
 export interface ClassJoins {
   joined(
@@ -275,7 +408,8 @@ export async function classesInView(
     ? {
         on: view.on,
         classIds: view.classIds,
-        ended: false,
+        within: view.within ?? null,
+        ended: view.classIds ? false : (input.ended ?? false),
         settled: Boolean(view.settled),
         title: view.title,
       }

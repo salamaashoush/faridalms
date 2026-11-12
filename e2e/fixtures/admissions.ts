@@ -37,7 +37,7 @@ export async function sentApplication(
   const { api } = await signedInApi(email, PASSWORD);
   const office = await apiAs("admin");
   const intake = (await office.intakes.list({})).intakes.find(
-    (row) => row.gradeEn === "KG1",
+    (row) => row.facts.grade?.labelEn === "KG1",
   );
   if (!intake) throw new Error("the seed has no KG1 intake");
   const { options } = await api.applying.mine();

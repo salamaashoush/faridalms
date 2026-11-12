@@ -121,12 +121,12 @@ interface Planned {
   startTime: string | null;
   endTime: string | null;
   location: string | null;
-  audiences: readonly { scope: string; classId?: string; gradeId?: string }[];
+  audiences: readonly { scope: string; classId?: string; targetId?: string }[];
 }
 
 const audienceKey = (audiences: Planned["audiences"]) =>
   audiences
-    .map((one) => `${one.scope}:${one.classId ?? ""}:${one.gradeId ?? ""}`)
+    .map((one) => `${one.scope}:${one.classId ?? ""}:${one.targetId ?? ""}`)
     .toSorted()
     .join("|");
 

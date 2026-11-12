@@ -14,7 +14,10 @@ import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
-import type { ClassEditorPartProps } from "~/components/classes/slots";
+import type {
+  ClassEditorPartProps,
+  ViewValue,
+} from "~/components/classes/slots";
 import type { FamilyChild } from "~/components/home/slots";
 import type { LeavingFieldsProps } from "~/components/people/slots";
 import type { yearEndQuery } from "~/queries/years";
@@ -56,12 +59,13 @@ export const daysOfYear = (year: Year) => ({
  */
 export function yearFacet(
   options: Options,
-  value: string | undefined,
-  onChange: (value: string | undefined) => void,
+  value: ViewValue,
+  onChange: (value: ViewValue) => void,
   every: string,
 ): Facet | null {
   if (options.years.length === 0) return null;
   const working = options.workingYearId ?? "all";
+  const chosen = typeof value === "string" ? value : undefined;
   return {
     id: "year",
     label: m.workingYear(),
@@ -79,7 +83,7 @@ export function yearFacet(
       })),
       { value: "all", label: every },
     ],
-    selected: [value ?? working],
+    selected: [chosen ?? working],
     defaultSelected: [working],
     onChange: ([next]) => onChange(next === working ? undefined : next),
   };

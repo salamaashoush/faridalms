@@ -27,6 +27,16 @@ describe("modules", () => {
     expect(onWithout(["coursework", "elearning"]).standards).toBe(false);
   });
 
+  it("turns badges off without grade levels, which alone mark a child as young", () => {
+    expect(onWithout([]).badges).toBe(true);
+    expect(onWithout(["grade_levels"]).badges).toBe(false);
+  });
+
+  it("answers the grade levels namespace only for the grade levels module", () => {
+    expect(MODULES.grade_levels.systems).toEqual(["gradeLevels"]);
+    expect(MODULES.grade_levels.requires).toEqual([]);
+  });
+
   it("turns the gradebook off with coursework, whatever the plan", () => {
     expect(onWithout(["coursework"]).gradebook).toBe(false);
     expect(onWithout(["school_years"]).gradebook).toBe(true);

@@ -9,7 +9,6 @@ import type {
 } from "@faridalms/domain/search";
 import type { SQL } from "drizzle-orm";
 
-import { reachOf } from "@faridalms/database/stores/audiences";
 import { orgPath } from "@faridalms/database/stores/identity";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import {
@@ -47,10 +46,11 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
-import { calendarReach } from "../core/audiences";
+import { calendarReach, reachAt } from "../core/audiences";
 import { modulesOf } from "../core/modules";
 import { can, localeOf, readProcedure } from "../core/procedure";
 import { classesReachedBesides, scopeFor } from "../core/reach";
+import { placed } from "../people/points";
 
 const TYPES: Record<SearchKind, readonly string[]> = {
   students: ["user"],
@@ -89,14 +89,7 @@ async function learnersOf(context: UnitContext) {
 
 async function learnerClasses(context: UnitContext, learners: string[]) {
   const reaches = await Promise.all(
-    learners.map((userId) =>
-      reachOf(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        userId,
-        on: context.today,
-      }),
-    ),
+    learners.map((userId) => reachAt(context, { userId, on: context.today })),
   );
   return [...new Set(reaches.flatMap((reach) => reach.classIds))];
 }
@@ -123,7 +116,12 @@ async function resolverOf(
       const scope = scopeFor(context, "people");
       return {
         within: studentsReached(scope),
-        resolve: (ids) => studentsAmong(context.tx, scope, { ...base, ids }),
+        resolve: async (ids) =>
+          placed(
+            context,
+            await studentsAmong(context.tx, scope, { ...base, ids }),
+            ar,
+          ),
       };
     }
     case "people": {

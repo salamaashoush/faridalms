@@ -149,18 +149,12 @@ export const classesReached = (scope: Scope, besides: readonly string[]) =>
     ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide})
     union select unnest(${uuidArray(besides)}))`;
 
-/** Students among `ids` the viewer reaches, with their grade this year. */
+/** Students among `ids` the viewer reaches. */
 export async function studentsAmong(tx: Tx, scope: Scope, input: Among) {
   return found(
     await tx.execute<Raw>(sql`
       select u.id, 'user' as type, ${name(input.ar, "u")} as title, null as snippet, null as "when",
-        null as flag, null as roles,
-        (select case when ${input.ar} then coalesce(d.label_ar, d.label_en) else coalesce(d.label_en, d.label_ar) end
-           from core.student_school_years s
-           join core.descriptors d on d.tenant_id = s.tenant_id and d.id = s.grade_level_descriptor_id
-           where s.tenant_id = u.tenant_id and s.student_user_id = u.id and s.org_id = ${scope.schoolId}::uuid
-             and s.status = 'active' and s.valid_during @> ${scope.today}::date
-           order by upper(s.valid_during) desc limit 1) as context
+        null as flag, null as roles, null as context
       from core.users u
       where u.tenant_id = ${scope.tenantId}::uuid and u.id = any(${uuidArray(input.ids)}) and u.status = 'active'
         and u.id in ${studentsReached(scope)}`),

@@ -84,7 +84,7 @@ grant select on core.admission_forms to retention;
 alter table core.admission_intakes force row level security;
 grant select, insert, update on core.admission_intakes to app, worker, cell_io;
 grant select on core.admission_intakes to retention;
-grant select (tenant_id, id, org_id, school_year_id, grade_level_descriptor_id, opens_on, closes_on,
+grant select (tenant_id, id, org_id, title_en, title_ar, starts_on, opens_on, closes_on,
   currency, fees, decisions_on, status) on core.admission_intakes to site;
 
 alter table core.admission_items force row level security;
@@ -156,6 +156,10 @@ alter table core.broadcast_audiences force row level security;
 grant select, insert, update on core.broadcast_audiences to app, worker, cell_io;
 grant select on core.broadcast_audiences to retention;
 
+alter table core.broadcast_grades force row level security;
+grant select, insert, update on core.broadcast_grades to app, worker, cell_io;
+grant select on core.broadcast_grades to retention;
+
 alter table core.broadcast_recipients force row level security;
 grant select, insert, update on core.broadcast_recipients to app, worker, cell_io;
 grant select, delete on core.broadcast_recipients to retention;
@@ -172,6 +176,10 @@ grant select on core.calendar_dates to integration, retention;
 alter table core.calendar_event_audiences force row level security;
 grant select, insert, update on core.calendar_event_audiences to app, worker, cell_io;
 grant select on core.calendar_event_audiences to retention;
+
+alter table core.calendar_event_grades force row level security;
+grant select, insert, update on core.calendar_event_grades to app, worker, cell_io;
+grant select on core.calendar_event_grades to retention;
 
 alter table core.calendar_events force row level security;
 grant select, insert, update on core.calendar_events to app, worker, cell_io;
@@ -190,6 +198,10 @@ grant update (status, metadata) on core.calendar_feeds to retention;
 alter table core.caption_drafts force row level security;
 grant select, insert, update on core.caption_drafts to app, worker, cell_io;
 grant select on core.caption_drafts to retention;
+
+alter table core.class_grades force row level security;
+grant select, insert, update on core.class_grades to app, worker, cell_io;
+grant select on core.class_grades to integration, retention;
 
 alter table core.class_grading force row level security;
 grant select, insert, update on core.class_grading to app, worker, cell_io;
@@ -412,6 +424,16 @@ grant select on core.import_rows to retention;
 alter table core.import_runs force row level security;
 grant select, insert, update on core.import_runs to app, worker, cell_io;
 grant select on core.import_runs to retention;
+
+alter table core.intake_grades force row level security;
+grant select, insert, update on core.intake_grades to app, worker, cell_io;
+grant select on core.intake_grades to retention;
+grant select (tenant_id, id, intake_id, grade_level_descriptor_id, status) on core.intake_grades to site;
+
+alter table core.intake_years force row level security;
+grant select, insert, update on core.intake_years to app, worker, cell_io;
+grant select on core.intake_years to retention;
+grant select (tenant_id, id, org_id, intake_id, school_year_id, status) on core.intake_years to site;
 
 alter table core.learning_modules force row level security;
 grant select, insert, update on core.learning_modules to app, worker, cell_io;
@@ -726,6 +748,11 @@ alter table core.student_departures force row level security;
 grant select, insert, update on core.student_departures to app, worker, cell_io;
 grant select on core.student_departures to retention;
 grant update (status, metadata) on core.student_departures to retention;
+
+alter table core.student_grades force row level security;
+grant select, insert, update on core.student_grades to app, worker, cell_io;
+grant select on core.student_grades to integration, retention;
+grant update (status, metadata) on core.student_grades to retention;
 
 alter table core.student_movements force row level security;
 grant select, insert, update on core.student_movements to app, worker, cell_io;

@@ -12,7 +12,6 @@ type Tx = CellTransaction;
 export interface Audience {
   scope: AudienceScope;
   classId: string | null;
-  gradeId: string | null;
 }
 
 /** What an audience list belongs to; each kind keeps its own audience table. */
@@ -34,10 +33,14 @@ function ownerSql(owner: AudienceOwner) {
   };
 }
 
-/** The people each audience names on a day: staff, students and their portal guardians. */
+/**
+ * The people each audience names on a day: staff, students and their
+ * portal guardians. `classIds` names classes a module's audience covers,
+ * as a class audience covers its own.
+ */
 function audienceSql(
   input: { tenantId: string; schoolId: string; on: string },
-  audience: Audience,
+  audience: Audience | { scope: "classes"; classIds: readonly string[] },
 ): SQL {
   const enrolled = (classFilter: SQL) => sql`
     select e.user_id from core.enrollments e
@@ -70,28 +73,35 @@ function audienceSql(
     case "class": {
       const inClass = sql`c.id = ${audience.classId}::uuid`;
       return sql`${enrolled(inClass)} union ${guardiansOf(enrolled(inClass))}
-        union ${teachersOf(sql`c.id = ${audience.classId}::uuid`)}`;
+        union ${teachersOf(inClass)}`;
     }
     default: {
-      const inGrade = sql`c.grade_level_descriptor_id = ${audience.gradeId}::uuid`;
-      return sql`${enrolled(inGrade)} union ${guardiansOf(enrolled(inGrade))}
-        union ${teachersOf(sql`c.org_id = ${input.schoolId}::uuid and ${inGrade}`)}`;
+      const inClasses = sql`c.id = any(${uuidArray(audience.classIds)})`;
+      return sql`${enrolled(inClasses)} union ${guardiansOf(enrolled(inClasses))}
+        union ${teachersOf(sql`c.org_id = ${input.schoolId}::uuid and ${inClasses}`)}`;
     }
   }
 }
 
-/** Everyone the audiences reach on a day, each once. */
+/**
+ * Everyone the audiences reach on a day, each once, with everyone in the
+ * classes a module's audiences cover.
+ */
 export async function audienceUsers(
   tx: Tx,
   input: { tenantId: string; schoolId: string; on: string },
   audiences: readonly Audience[],
+  classIds: readonly string[] = [],
 ): Promise<string[]> {
-  if (audiences.length === 0) return [];
+  const parts = [
+    ...audiences.map((audience) => audienceSql(input, audience)),
+    ...(classIds.length > 0
+      ? [audienceSql(input, { scope: "classes", classIds })]
+      : []),
+  ];
+  if (parts.length === 0) return [];
   const rows = await tx.execute<{ user_id: string }>(sql`
-    select distinct user_id from (${sql.join(
-      audiences.map((audience) => audienceSql(input, audience)),
-      sql` union `,
-    )}) reached(user_id)
+    select distinct user_id from (${sql.join(parts, sql` union `)}) reached(user_id)
     join core.users u on u.tenant_id = ${input.tenantId}::uuid and u.id = reached.user_id
       and u.status = 'active'`);
   return rows.map((row) => row.user_id);
@@ -108,34 +118,11 @@ export async function reachedAmong(
     select distinct user_id from (${audienceSql(input, {
       scope: "school",
       classId: null,
-      gradeId: null,
     })}) reached(user_id)
     join core.users u on u.tenant_id = ${input.tenantId}::uuid and u.id = reached.user_id
       and u.status = 'active'
     where reached.user_id = any(${uuidArray(userIds)})`);
   return rows.map((row) => row.user_id);
-}
-
-/** The grades the classes running on the date teach, for choosing an audience. */
-export async function gradesRunning(
-  tx: Tx,
-  input: { tenantId: string; schoolId: string; on: string },
-): Promise<{ id: string; labelEn: string | null; labelAr: string | null }[]> {
-  const rows = await tx.execute<{
-    id: string;
-    label_en: string | null;
-    label_ar: string | null;
-  }>(sql`
-    select distinct d.id, d.label_en, d.label_ar, d.sort_order from core.classes c
-    join core.descriptors d on d.tenant_id = c.tenant_id and d.id = c.grade_level_descriptor_id
-    where c.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.schoolId}::uuid
-      and c.runs @> ${input.on}::date and c.status = 'active'
-    order by d.sort_order`);
-  return rows.map((row) => ({
-    id: row.id,
-    labelEn: row.label_en,
-    labelAr: row.label_ar,
-  }));
 }
 
 export async function audiencesOf(
@@ -147,37 +134,27 @@ export async function audiencesOf(
     classCode: string | null;
     classTitleEn: string | null;
     classTitleAr: string | null;
-    gradeLabelEn: string | null;
-    gradeLabelAr: string | null;
   })[]
 > {
   const rows = await tx.execute<{
     scope: AudienceScope;
     class_id: string | null;
-    grade_descriptor_id: string | null;
     code: string | null;
     title_en: string | null;
     title_ar: string | null;
-    label_en: string | null;
-    label_ar: string | null;
   }>(sql`
-    select x.scope, x.class_id, x.grade_descriptor_id, c.code, c.title_en, c.title_ar,
-           d.label_en, d.label_ar
+    select x.scope, x.class_id, c.code, c.title_en, c.title_ar
     from ${ownerSql(owner).table} x
     left join core.classes c on c.tenant_id = x.tenant_id and c.id = x.class_id
-    left join core.descriptors d on d.tenant_id = x.tenant_id and d.id = x.grade_descriptor_id
     where x.tenant_id = ${tenantId}::uuid and x.${ownerSql(owner).column} = ${owner.id}::uuid
       and x.status = 'active'
     order by x.created_at, x.id`);
   return rows.map((row) => ({
     scope: row.scope,
     classId: row.class_id,
-    gradeId: row.grade_descriptor_id,
     classCode: row.code,
     classTitleEn: row.title_en,
     classTitleAr: row.title_ar,
-    gradeLabelEn: row.label_en,
-    gradeLabelAr: row.label_ar,
   }));
 }
 
@@ -196,12 +173,12 @@ export async function setAudiences(
       and status = 'active'`);
   if (input.audiences.length === 0) return;
   await tx.execute(sql`
-    insert into ${table} (tenant_id, ${column}, scope, class_id, grade_descriptor_id)
+    insert into ${table} (tenant_id, ${column}, scope, class_id)
     values ${sql.join(
       input.audiences.map(
         (audience) =>
           sql`(${input.tenantId}::uuid, ${input.owner.id}::uuid, ${audience.scope},
-               ${audience.classId}::uuid, ${audience.gradeId}::uuid)`,
+               ${audience.classId}::uuid)`,
       ),
       sql`, `,
     )}`);
@@ -213,13 +190,14 @@ export interface Reach {
   student: boolean;
   guardian: boolean;
   classIds: string[];
-  gradeIds: string[];
+  /** The announcements and events a module's audiences name this person in. */
+  owners: Record<AudienceOwner["kind"], string[]>;
 }
 
 /**
  * The same membership `audienceUsers` resolves, turned around: whether the
  * scopes name this person. A class covers its students, their families and
- * its teachers; a grade covers its classes the same way.
+ * its teachers. What a module's audiences name is for the module to add.
  */
 export async function reachOf(
   tx: Tx,
@@ -230,7 +208,6 @@ export async function reachOf(
     student: boolean;
     guardian: boolean;
     class_ids: string[];
-    grade_ids: string[];
   }>(sql`
     with children as (
       select l.student_user_id as user_id from core.user_relationships l
@@ -261,18 +238,13 @@ export async function reachOf(
           and r.valid_during @> ${input.on}::date and r.role = any (app.staff_roles())) as staff,
       exists (select 1 from enrolled where user_id = ${input.userId}::uuid) as student,
       exists (select 1 from enrolled where user_id <> ${input.userId}::uuid) as guardian,
-      coalesce((select json_agg(distinct class_id) from member), '[]'::json) as class_ids,
-      coalesce((select json_agg(distinct c.grade_level_descriptor_id) from core.classes c
-        where c.tenant_id = ${input.tenantId}::uuid
-          and c.grade_level_descriptor_id is not null
-          and c.id in (select class_id from enrolled union select class_id from taught)), '[]'::json)
-        as grade_ids`);
+      coalesce((select json_agg(distinct class_id) from member), '[]'::json) as class_ids`);
   return {
     staff: row?.staff ?? false,
     student: row?.student ?? false,
     guardian: row?.guardian ?? false,
     classIds: row?.class_ids ?? [],
-    gradeIds: row?.grade_ids ?? [],
+    owners: { broadcast: [], calendar_event: [] },
   };
 }
 
@@ -282,13 +254,13 @@ export function reaches(
   reach: Reach,
 ): SQL {
   const { table, column } = ownerSql({ kind: input.kind, id: "" });
-  return sql`exists (select 1 from ${table} x
+  return sql`(${input.ownerId} = any(${uuidArray(reach.owners[input.kind])})
+    or exists (select 1 from ${table} x
     where x.tenant_id = ${input.tenantId}::uuid and x.${column} = ${input.ownerId}
       and x.status = 'active'
       and ((x.scope = 'school' and ${reach.staff || reach.student || reach.guardian})
         or (x.scope = 'staff' and ${reach.staff})
         or (x.scope = 'students' and ${reach.student})
         or (x.scope = 'families' and ${reach.guardian})
-        or (x.scope = 'class' and x.class_id = any(${uuidArray(reach.classIds)}))
-        or (x.scope = 'grade' and x.grade_descriptor_id = any(${uuidArray(reach.gradeIds)}))))`;
+        or (x.scope = 'class' and x.class_id = any(${uuidArray(reach.classIds)})))))`;
 }

@@ -128,7 +128,7 @@ describe("home pages", () => {
     expect(held).toMatchObject({ studentId: first.studentId, decides: true });
     expect(held.fullNameEn).toBeTruthy();
     expect(held.reference).toMatch(/^NO/);
-    expect(held.grade?.labelEn).toBeTruthy();
+    expect(held.place?.labelEn).toBeTruthy();
     expect(
       await rejection(family.home.child({ studentId: crypto.randomUUID() })),
     ).toMatchObject({ code: "NOT_FOUND" });

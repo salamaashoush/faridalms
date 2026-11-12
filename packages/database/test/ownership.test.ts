@@ -109,7 +109,7 @@ describe("the ownership gate", () => {
       problem: "has no owner",
     });
     expect(problems).toContainEqual({
-      name: "core.classes",
+      name: "core.class_grades",
       problem: "grade_level_ns pins grade_level, which has no owner",
     });
   });
@@ -238,17 +238,18 @@ describe("the ownership gate", () => {
   });
 
   test("refuses a list out of order", async () => {
-    const entries = OWNERSHIP_VIOLATIONS.school_years ?? [];
+    const entries = OWNERSHIP_VIOLATIONS.families ?? [];
+    expect(entries.length).toBeGreaterThan(1);
     const problems = ownershipProblems(await readOwnership(harness().su), {
       ...registry,
       violations: {
         ...OWNERSHIP_VIOLATIONS,
-        school_years: entries.toReversed(),
+        families: entries.toReversed(),
       },
     });
     expect(problems).toEqual([
       {
-        name: "violations reaching school_years",
+        name: "violations reaching families",
         problem: "are not sorted, or list one twice",
       },
     ]);

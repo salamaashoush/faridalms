@@ -90,13 +90,12 @@ export interface SiteEvent {
   cancelled: boolean;
 }
 
-/** An intake the website lists: the grade and year it takes, when families apply, and what it costs. */
+/** An intake the website lists: its name, when learners start and families apply, and what it costs. */
 export interface SiteIntake {
   id: string;
-  gradeEn: string | null;
-  gradeAr: string | null;
-  yearTitleEn: string | null;
-  yearTitleAr: string | null;
+  titleEn: string | null;
+  titleAr: string | null;
+  startsOn: string;
   opensOn: string;
   closesOn: string;
   decisionsOn: string | null;
@@ -113,7 +112,7 @@ export interface RenderContext {
   news: NewsItem[];
   /** The school calendar's public events still to come, soonest first. */
   events?: SiteEvent[];
-  /** The intakes admissions lists as still to close, by year and grade. */
+  /** The intakes admissions lists as still to close, by the day learners start. */
   intakes?: SiteIntake[];
   /** The school's day, to tell an intake open from one still to come. */
   today?: string;

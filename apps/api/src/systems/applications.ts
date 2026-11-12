@@ -23,11 +23,9 @@ import { identifiersOf } from "@faridalms/database/stores/identifiers";
 import { familyConversation } from "@faridalms/database/stores/messages";
 import { reachability } from "@faridalms/database/stores/notifications";
 import { person as readPerson } from "@faridalms/database/stores/students";
-import { schoolYears } from "@faridalms/database/stores/years";
 import {
-  admissionsYear,
   ageFit,
-  applicationListSchema,
+  applicationListInputSchema,
   applicationNoteSchema,
   applicationRefSchema,
   attachDocumentSchema,
@@ -48,7 +46,8 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
-import { fileDocument, intakeOf, letterView } from "../core/admissions";
+import { fileDocument, intakeOf, letterView } from "../admissions/access";
+import { intakeViewOf, withIntakeFacts } from "../admissions/points";
 import { familyThread } from "../core/family-conversation";
 import { readNeeds } from "../core/health";
 import {
@@ -84,36 +83,30 @@ async function applicationOf(context: UnitContext, id: string) {
  * every live one, with the intakes to narrow by and the count in each state.
  */
 export const list = readProcedure
-  .input(applicationListSchema)
+  .input(applicationListInputSchema)
   .handler(async ({ input, context }) => {
     readsApplications(context);
-    const years = (
-      await schoolYears(context.tx, context.tenantId, context.schoolId)
-    ).filter((year) => year.lifecycle !== "closed");
-    const yearId =
-      input.year || admissionsYear(years, context.today)?.id || null;
+    const view = await intakeViewOf(context, input.views);
     const [listed, intakes] = await Promise.all([
       listApplications(context.tx, {
         ...org(context),
         query: input,
-        yearId: input.intake ? null : yearId,
+        intakeIds: input.intake ? null : (view?.intakeIds ?? null),
         ...pageWindow(input.page),
       }),
-      yearId ? intakesOf(context.tx, { ...org(context), yearId }) : [],
+      intakesOf(context.tx, {
+        ...org(context),
+        intakeIds: view?.intakeIds ?? null,
+      }),
     ]);
     return {
       ...listed,
       ...paged(listed.rows, listed.total, input.page),
-      yearId,
-      years: years.map((year) => ({
-        id: year.id,
-        titleEn: year.titleEn,
-        titleAr: year.titleAr,
-      })),
-      intakes: intakes.map((intake) => ({
+      intakes: (await withIntakeFacts(context, intakes)).map((intake) => ({
         id: intake.id,
-        gradeEn: intake.gradeEn,
-        gradeAr: intake.gradeAr,
+        titleEn: intake.titleEn,
+        titleAr: intake.titleAr,
+        facts: intake.facts,
         capacity: intake.capacity,
         live: intake.live,
       })),
@@ -245,10 +238,9 @@ export const application = readProcedure
       }),
       intake: {
         id: intake.id,
-        gradeEn: intake.gradeEn,
-        gradeAr: intake.gradeAr,
-        yearTitleEn: intake.yearTitleEn,
-        yearTitleAr: intake.yearTitleAr,
+        titleEn: intake.titleEn,
+        titleAr: intake.titleAr,
+        startsOn: intake.startsOn,
         ageCutoffOn: intake.ageCutoffOn,
         priorities: intake.priorities,
       },
@@ -334,13 +326,11 @@ export const application = readProcedure
       letters,
       events,
       laterIntakes: later
-        .filter((each) => each.yearStartsOn > intake.yearStartsOn)
+        .filter((each) => each.startsOn > intake.startsOn)
         .map((each) => ({
           id: each.id,
-          gradeEn: each.gradeEn,
-          gradeAr: each.gradeAr,
-          yearTitleEn: each.yearTitleEn,
-          yearTitleAr: each.yearTitleAr,
+          titleEn: each.titleEn,
+          titleAr: each.titleAr,
         })),
       moves: nextApplicationStates(row.state, "office").filter((to) =>
         can(

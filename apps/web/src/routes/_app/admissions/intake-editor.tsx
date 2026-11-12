@@ -7,9 +7,12 @@ import {
   IntakeEditor,
   intakeDraft,
 } from "~/components/admissions/IntakeEditor";
+import { useIntakeParts } from "~/components/admissions/parts";
+import { intakeParts } from "~/components/admissions/slots";
 import * as m from "~/i18n/messages";
 import { intakeOptionsQuery, intakeQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
+import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/admissions/intake-editor")({
@@ -17,9 +20,9 @@ export const Route = createFileRoute("/_app/admissions/intake-editor")({
     trail: <BreadcrumbCurrent>{m.itkEditorCrumb()}</BreadcrumbCurrent>,
     section: "/admissions/intakes",
   },
-  validateSearch: v.object({
+  // Loose, so the view of a module the form was opened from rides along.
+  validateSearch: v.looseObject({
     id: v.optional(v.pipe(v.string(), v.uuid())),
-    year: v.optional(v.pipe(v.string(), v.uuid())),
   }),
   loaderDeps: ({ search }) => ({ id: search.id }),
   loader: async ({ context, deps }) => {
@@ -30,15 +33,20 @@ export const Route = createFileRoute("/_app/admissions/intake-editor")({
       deps.id
         ? context.queryClient.ensureQueryData(intakeQuery(deps.id))
         : null,
+      ...filled(context.extensions, user.modules, intakeParts).map((part) =>
+        context.queryClient.ensureQueryData(part.query()),
+      ),
     ]);
   },
   component: IntakeEditorPage,
 });
 
 function IntakeEditorPage() {
-  const { id, year } = Route.useSearch();
+  const search = Route.useSearch();
+  const { id } = search;
   const navigate = Route.useNavigate();
   const options = useSuspenseQuery(intakeOptionsQuery).data;
+  const parts = useIntakeParts(search);
   const intake = useQuery({
     ...intakeQuery(id ?? ""),
     enabled: Boolean(id),
@@ -48,13 +56,9 @@ function IntakeEditorPage() {
     <IntakeEditor
       key={`${intake?.id ?? "new"}:${String(intake?.version ?? 0)}`}
       options={options}
-      initial={intakeDraft(options, intake, year)}
-      onDone={() =>
-        void navigate({
-          to: "/admissions/intakes",
-          search: { year: intake?.schoolYearId ?? year ?? "" },
-        })
-      }
+      parts={parts}
+      initial={intakeDraft(options, parts, intake)}
+      onDone={() => void navigate({ to: "/admissions/intakes", search: {} })}
     />
   );
 }

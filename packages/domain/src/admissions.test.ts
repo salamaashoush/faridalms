@@ -165,8 +165,8 @@ describe("an intake", () => {
   it("refuses a close before its opening, a range upside down and a rule twice", () => {
     const base = {
       expectedVersion: 0,
-      schoolYearId: "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3d10",
-      gradeId: "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3d11",
+      titleEn: "KG1, 2027–2028",
+      startsOn: "2027-09-05",
       opensOn: "2026-11-01",
       closesOn: "2027-03-31",
       capacity: 40,
@@ -185,6 +185,7 @@ describe("an intake", () => {
     const issue = (more: object) =>
       v.safeParse(saveIntakeSchema, { ...base, ...more }).issues?.[0]?.message;
     expect(issue({ closesOn: "2026-10-01" })).toBe("intake.dates");
+    expect(issue({ titleEn: " " })).toBe("validation.name_required");
     expect(issue({ minAgeMonths: 80 })).toBe("intake.ages");
     expect(issue({ priorities: ["sibling", "sibling"] })).toBe(
       "intake.priorities",
@@ -336,6 +337,7 @@ describe("letters", () => {
   const fields = {
     family: "Salama Ashoush",
     child: "Omar",
+    intake: "KG1, 2027–2028",
     grade: "KG1",
     year: "2027–2028",
     school: "Northwind",

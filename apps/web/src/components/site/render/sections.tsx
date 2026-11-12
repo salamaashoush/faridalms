@@ -2306,14 +2306,10 @@ const FEE_WORDS: Record<
   other: m.itkFeeOther,
 };
 
-const intakeGrade = (intake: SiteIntake, locale: "en" | "ar") =>
+const intakeName = (intake: SiteIntake, locale: "en" | "ar") =>
   (locale === "ar"
-    ? (intake.gradeAr ?? intake.gradeEn)
-    : (intake.gradeEn ?? intake.gradeAr)) ?? "";
-const intakeYear = (intake: SiteIntake, locale: "en" | "ar") =>
-  (locale === "ar"
-    ? (intake.yearTitleAr ?? intake.yearTitleEn)
-    : (intake.yearTitleEn ?? intake.yearTitleAr)) ?? "";
+    ? (intake.titleAr ?? intake.titleEn)
+    : (intake.titleEn ?? intake.titleAr)) ?? "";
 
 interface PortalLinkProps {
   href: string;
@@ -2348,7 +2344,7 @@ interface IntakeCardsProps {
   compact: boolean;
 }
 
-/** Each intake still to close: its grade and year, when families apply, its fees and the way in. */
+/** Each intake still to close: its name, when learners start and families apply, its fees and the way in. */
 function IntakeCards({ intakes, context, compact }: IntakeCardsProps) {
   const t = { locale: context.locale };
   const money = (currency: string, amount: number) =>
@@ -2374,10 +2370,10 @@ function IntakeCards({ intakes, context, compact }: IntakeCardsProps) {
             <div className="grid gap-5">
               <div className="grid gap-2">
                 <span className="site-eyebrow">
-                  {intakeYear(intake, context.locale)}
+                  {m.siteIntakeStarts({ date: date(intake.startsOn) }, t)}
                 </span>
                 <Heading level={3}>
-                  {intakeGrade(intake, context.locale)}
+                  {intakeName(intake, context.locale)}
                 </Heading>
               </div>
               {upcoming ? null : (
@@ -2578,10 +2574,7 @@ function RegisterApply({ section, context }: Props<"registerApply">) {
         {named && closed === null ? (
           <p className="site-text font-semibold">
             {m.siteRegisterApplyFor(
-              {
-                grade: intakeGrade(named, context.locale),
-                year: intakeYear(named, context.locale),
-              },
+              { intake: intakeName(named, context.locale) },
               t,
             )}
           </p>

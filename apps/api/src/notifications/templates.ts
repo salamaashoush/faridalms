@@ -181,17 +181,17 @@ const ENQUIRY_AR = {
 /** What the school tells a family as their application moves, and the office of the family's answer. */
 const OUTCOME_EN: Record<NonNullable<NoticeParams["outcome"]>, Line> = {
   offered: (p) =>
-    `${p.title || p.titleAr || "Your child"} is offered a place${p.gradeName ? ` in ${p.gradeName}` : ""}. Please answer by ${p.until ?? "the date in the letter"}.`,
+    `${p.title || p.titleAr || "Your child"} is offered a place${p.intakeName ? ` in ${p.intakeName}` : ""}. Please answer by ${p.until ?? "the date in the letter"}.`,
   waitlisted: (p) =>
-    `${p.title || p.titleAr || "Your child"} is on the waiting list${p.gradeName ? ` for ${p.gradeName}` : ""}.`,
+    `${p.title || p.titleAr || "Your child"} is on the waiting list${p.intakeName ? ` for ${p.intakeName}` : ""}.`,
   declined_by_school: (p) =>
     `The school has written to you about the application for ${p.title || p.titleAr || "your child"}.`,
   enrolled: (p) =>
-    `${p.title || p.titleAr || "Your child"} is enrolled${p.gradeName ? ` in ${p.gradeName}` : ""}. Welcome to the school.`,
+    `${p.title || p.titleAr || "Your child"} is enrolled${p.intakeName ? ` in ${p.intakeName}` : ""}. Welcome to the school.`,
   offer_expired: (p) =>
     `The offer of a place for ${p.title || p.titleAr || "your child"} has lapsed.`,
   deferred: (p) =>
-    `The application for ${p.title || p.titleAr || "your child"} has moved to ${p.gradeName ?? "a later year"}.`,
+    `The application for ${p.title || p.titleAr || "your child"} has moved to ${p.intakeName ?? "a later intake"}.`,
   accepted: (p) =>
     `${p.actorName || "The family"} accepted the offer for ${p.title || p.titleAr || "a child"}.`,
   offer_declined: (p) =>
@@ -199,17 +199,17 @@ const OUTCOME_EN: Record<NonNullable<NoticeParams["outcome"]>, Line> = {
 };
 const OUTCOME_AR: Record<NonNullable<NoticeParams["outcome"]>, Line> = {
   offered: (p) =>
-    `عُرض على ${p.titleAr || p.title || "طفلكم"} مقعد${p.gradeNameAr || p.gradeName ? ` في ${p.gradeNameAr || p.gradeName}` : ""}، ونرجو الرد قبل ${p.until ?? "الموعد المذكور في الخطاب"}.`,
+    `عُرض على ${p.titleAr || p.title || "طفلكم"} مقعد${p.intakeNameAr || p.intakeName ? ` في ${p.intakeNameAr || p.intakeName}` : ""}، ونرجو الرد قبل ${p.until ?? "الموعد المذكور في الخطاب"}.`,
   waitlisted: (p) =>
-    `أُدرج ${p.titleAr || p.title || "طفلكم"} في قائمة الانتظار${p.gradeNameAr || p.gradeName ? ` لـ${p.gradeNameAr || p.gradeName}` : ""}.`,
+    `أُدرج ${p.titleAr || p.title || "طفلكم"} في قائمة الانتظار${p.intakeNameAr || p.intakeName ? ` لـ${p.intakeNameAr || p.intakeName}` : ""}.`,
   declined_by_school: (p) =>
     `أرسلت إليكم المدرسة خطابًا بشأن طلب التحاق ${p.titleAr || p.title || "طفلكم"}.`,
   enrolled: (p) =>
-    `أصبح ${p.titleAr || p.title || "طفلكم"} مقيدًا${p.gradeNameAr || p.gradeName ? ` في ${p.gradeNameAr || p.gradeName}` : ""}، مرحبًا بكم في المدرسة.`,
+    `أصبح ${p.titleAr || p.title || "طفلكم"} مقيدًا${p.intakeNameAr || p.intakeName ? ` في ${p.intakeNameAr || p.intakeName}` : ""}، مرحبًا بكم في المدرسة.`,
   offer_expired: (p) =>
     `انتهت مدة عرض المقعد المقدَّم لـ${p.titleAr || p.title || "طفلكم"}.`,
   deferred: (p) =>
-    `نُقل طلب التحاق ${p.titleAr || p.title || "طفلكم"} إلى ${p.gradeNameAr || p.gradeName || "عام لاحق"}.`,
+    `نُقل طلب التحاق ${p.titleAr || p.title || "طفلكم"} إلى ${p.intakeNameAr || p.intakeName || "قبول لاحق"}.`,
   accepted: (p) =>
     `قبلت ${p.actorNameAr || p.actorName || "الأسرة"} عرض المقعد المقدَّم لـ${p.titleAr || p.title || "أحد الأطفال"}.`,
   offer_declined: (p) =>
@@ -272,8 +272,8 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       p.outcome
         ? OUTCOME_EN[p.outcome](p)
         : p.received
-          ? `We received the application for ${p.title || p.titleAr || "your child"}${p.gradeName ? ` to ${p.gradeName}` : ""}. Its number is ${p.reference ?? ""}.`
-          : `New application for ${p.title || p.titleAr || "a child"}${p.gradeName ? ` to ${p.gradeName}` : ""}.`,
+          ? `We received the application for ${p.title || p.titleAr || "your child"}${p.intakeName ? ` to ${p.intakeName}` : ""}. Its number is ${p.reference ?? ""}.`
+          : `New application for ${p.title || p.titleAr || "a child"}${p.intakeName ? ` to ${p.intakeName}` : ""}.`,
     assignment: (p) =>
       p.peerReview
         ? `Classmates' work to review for ${p.title ?? "an assignment"}${p.date ? `, due ${p.date}` : ""}.`
@@ -347,8 +347,8 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       p.outcome
         ? OUTCOME_AR[p.outcome](p)
         : p.received
-          ? `وصلنا طلب التحاق ${p.titleAr || p.title || "طفلكم"}${p.gradeNameAr || p.gradeName ? ` بـ${p.gradeNameAr || p.gradeName}` : ""}، ورقمه ${p.reference ?? ""}.`
-          : `طلب التحاق جديد لـ${p.titleAr || p.title || "أحد الأطفال"}${p.gradeNameAr || p.gradeName ? ` في ${p.gradeNameAr || p.gradeName}` : ""}.`,
+          ? `وصلنا طلب التحاق ${p.titleAr || p.title || "طفلكم"}${p.intakeNameAr || p.intakeName ? ` بـ${p.intakeNameAr || p.intakeName}` : ""}، ورقمه ${p.reference ?? ""}.`
+          : `طلب التحاق جديد لـ${p.titleAr || p.title || "أحد الأطفال"}${p.intakeNameAr || p.intakeName ? ` في ${p.intakeNameAr || p.intakeName}` : ""}.`,
     assignment: (p) =>
       p.peerReview
         ? `أعمال زملاء لتراجعها في ${p.titleAr || p.title || "الواجب"}${p.date ? `، وموعدها ${p.date}` : ""}.`

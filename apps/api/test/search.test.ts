@@ -116,7 +116,7 @@ describe("search", () => {
       terms: [],
     });
     const { years, workingYearId } = await office.years.options();
-    const { grades } = await office.classes.options();
+    const { grades } = await office.gradeLevels.options();
     const working = years.find((row) => row.id === workingYearId);
     const next = years.find((row) => row.id === added.id);
     const [grade] = grades;
@@ -127,11 +127,10 @@ describe("search", () => {
         await office.classes.save({
           startsOn: year.startsOn,
           endsOn: lastOf(year),
-          parts: { year: { yearId: year.id } },
+          parts: { year: { yearId: year.id }, grade: { gradeId: grade.id } },
           code: "SAT",
           titleEn: name,
           titleAr: "",
-          gradeId: grade.id,
           teacherIds: [],
         })
       ).id;

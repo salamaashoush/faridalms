@@ -7,19 +7,6 @@ import type { OwnershipViolations } from "./ownership";
  * list only shrinks; each group stays sorted.
  */
 export const OWNERSHIP_VIOLATIONS: OwnershipViolations = {
-  school_years: [
-    "core.admission_intakes: admission_intakes_tenant_id_school_year_id_school_year_typ_fkey -> core.academic_sessions",
-    "core.admission_intakes: school_year_id -> school_years",
-    "core.admission_intakes: school_year_type -> school_years",
-  ],
-  grade_levels: [
-    "core.admission_intakes: grade_level_ns -> grade_level",
-    "core.broadcast_audiences: grade_ns -> grade_level",
-    "core.calendar_event_audiences: grade_ns -> grade_level",
-    "core.classes: grade_level_ns -> grade_level",
-    "core.courses: grade_level_ns -> grade_level",
-    "core.student_school_years: grade_level_ns -> grade_level",
-  ],
   families: [
     "core.admission_applications: family_user_id -> families",
     "core.consent_records: consent_records_tenant_id_relationship_id_fkey -> core.user_relationships",

@@ -27,12 +27,12 @@ import { addDays } from "@faridalms/domain/school";
 import {
   classYearPartSchema,
   leavingYearPartSchema,
-  studentYearPartSchema,
   yearViewSchema,
 } from "@faridalms/domain/years";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
+import type { ViewValue } from "../classes/points";
 import type { UnitContext } from "../core/context";
 import type { ModuleContributions } from "../core/extension";
 
@@ -46,7 +46,7 @@ import { contribute } from "../core/extension";
 import { audit } from "../core/procedure";
 import { scopeFor } from "../core/reach";
 import { reportingSpans } from "../core/spans";
-import { leavingParts, studentFormParts, studentViews } from "../people/points";
+import { leavingParts, studentViews } from "../people/points";
 import { openYear } from "./years";
 
 function parsed<T extends v.GenericSchema>(
@@ -65,7 +65,7 @@ function parsed<T extends v.GenericSchema>(
  */
 async function viewedYear(
   context: UnitContext,
-  value: string | null,
+  value: ViewValue,
 ): Promise<{ year: SchoolYear; working: boolean } | null> {
   const years = await schoolYears(
     context.tx,
@@ -216,17 +216,16 @@ export const SCHOOL_YEARS: ModuleContributions = {
           });
       },
     }),
+    // A student who joins a class of a year is placed in that year.
     contribute(classJoins, {
       joined: async (context, joins, from) => {
         for (const [classId, studentIds] of joins) {
           const year = await reconciledYear(context, classId);
-          const found = await classById(context.tx, context, classId);
-          if (!year || !found?.gradeId) continue;
+          if (!year) continue;
           for (const studentId of studentIds)
             await place(context.tx, scopeFor(context, "classes"), {
               studentId,
               year,
-              gradeId: found.gradeId,
               from,
             });
         }
@@ -244,38 +243,8 @@ export const SCHOOL_YEARS: ModuleContributions = {
         return {
           ids: rows.map((row) => row.studentId),
           statuses: rows.map((row) => row.status),
-          grades: rows.map((row) => row.gradeId),
           on: dayIn(viewed.year, context.today),
         };
-      },
-    }),
-    contribute(studentFormParts, {
-      key: "year",
-      save: async (context, input) => {
-        const { gradeId } = parsed(studentYearPartSchema, input.value);
-        if (!gradeId) return;
-        const year = workingYear(
-          await schoolYears(context.tx, context.tenantId, context.schoolId),
-          context.today,
-        );
-        if (!year)
-          throw new ORPCError("BAD_REQUEST", {
-            message: "school_year.missing",
-          });
-        await openYear(context, year.id);
-        const result = await place(context.tx, scopeFor(context, "people"), {
-          studentId: input.studentId,
-          year,
-          gradeId,
-        });
-        if (result.changed)
-          await audit(context, {
-            action: "placement.change",
-            objectType: "student_school_year",
-            subjectUserId: input.studentId,
-            studentUserId: input.studentId,
-            details: { gradeId, schoolYearId: year.id },
-          });
       },
     }),
     contribute(leavingParts, {

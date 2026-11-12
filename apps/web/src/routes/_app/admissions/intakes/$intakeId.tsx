@@ -102,10 +102,7 @@ type Board = Awaited<
 type Row = Board["applications"][number];
 
 const titleOf = (intake: Board["intake"]) =>
-  m.itkEditTitle({
-    grade: inLocale(intake.gradeEn, intake.gradeAr),
-    year: inLocale(intake.yearTitleEn, intake.yearTitleAr),
-  });
+  inLocale(intake.titleEn, intake.titleAr);
 
 function BoardTrail() {
   const { intakeId } = Route.useParams();

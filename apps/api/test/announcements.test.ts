@@ -23,7 +23,7 @@ const mother = () =>
   signedIn("northwind", login("student").replace("student", "parent"));
 
 const families: AudienceInput[] = [
-  { scope: "families", classId: "", gradeId: "" },
+  { scope: "families", classId: "", targetId: "" },
 ];
 
 const draft = (title: string, audiences: AudienceInput[]) => ({
@@ -116,7 +116,7 @@ describe("writing announcements", () => {
     if (!eight || !seven) throw new Error("the seed has no 7A or 8A");
     const saved = await office.announcements.save(
       draft("8A reading week", [
-        { scope: "class", classId: eight.id, gradeId: "" },
+        { scope: "class", classId: eight.id, targetId: "" },
       ]),
     );
     const sent = await office.announcements.publish({
@@ -145,7 +145,7 @@ describe("writing announcements", () => {
   test("a scheduled announcement waits, and an update shows it unread again", async () => {
     const office = await principal();
     const later = await office.announcements.save(
-      draft("Next term", [{ scope: "families", classId: "", gradeId: "" }]),
+      draft("Next term", [{ scope: "families", classId: "", targetId: "" }]),
     );
     const scheduled = await office.announcements.publish({
       id: later.id,
@@ -162,7 +162,7 @@ describe("writing announcements", () => {
 
     const now = await office.announcements.save(
       draft("Uniform reminder", [
-        { scope: "families", classId: "", gradeId: "" },
+        { scope: "families", classId: "", targetId: "" },
       ]),
     );
     const out = await office.announcements.publish({
@@ -196,7 +196,7 @@ describe("writing announcements", () => {
     expect(
       await rejection(
         teacher.api.announcements.save(
-          draft("Not mine", [{ scope: "school", classId: "", gradeId: "" }]),
+          draft("Not mine", [{ scope: "school", classId: "", targetId: "" }]),
         ),
       ),
     ).toMatchObject({ code: "FORBIDDEN" });
@@ -328,7 +328,7 @@ describe("announcements in two languages", () => {
     const office = await principal();
     const saved = await office.announcements.save({
       ...draft("Early closing on Thursday", [
-        { scope: "families", classId: "", gradeId: "" },
+        { scope: "families", classId: "", targetId: "" },
       ]),
       titleAr: "انصراف مبكر يوم الخميس",
       body: plainContent("School closes at noon on Thursday."),
@@ -376,7 +376,7 @@ describe("announcements in two languages", () => {
     expect(
       await rejection(
         office.announcements.save({
-          ...draft("", [{ scope: "families", classId: "", gradeId: "" }]),
+          ...draft("", [{ scope: "families", classId: "", targetId: "" }]),
           primaryLocale: "ar",
           titleEn: "Only English",
         }),

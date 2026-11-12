@@ -1,4 +1,5 @@
 import type { SchoolYear } from "@faridalms/database/stores/years";
+import type { Capability } from "@faridalms/domain/capabilities";
 
 import {
   holdYear,
@@ -9,6 +10,16 @@ import {
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
+
+/** Who reads the school's years: for classes, students and the intakes that admit into a year. */
+export const YEAR_READERS = [
+  "classes:read",
+  "classes:manage",
+  "people:read",
+  "people:manage",
+  "admissions:read",
+  "admissions:configure",
+] as const satisfies readonly Capability[];
 
 /**
  * The year a request names, or the working year when it names none. A year

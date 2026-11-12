@@ -94,7 +94,11 @@ describe("grade scales", () => {
     const programme = await officer.grading.saveProgramme({
       titleEn: "IGCSE",
       titleAr: null,
-      gradeLevelIds: record.gradeId ? [record.gradeId] : [],
+      parts: {
+        levels: {
+          gradeLevelIds: record.columns.grade ? [record.columns.grade] : [],
+        },
+      },
       scaleId: scale.id,
     });
     expect(
@@ -214,7 +218,6 @@ describe("grade scales", () => {
     const programme = await officer.grading.saveProgramme({
       titleEn: "Weighted programme",
       titleAr: null,
-      gradeLevelIds: [],
       scaleId: scale.id,
       categories: [
         { titleEn: "Tests", titleAr: null, weight: 60 },
@@ -226,7 +229,6 @@ describe("grade scales", () => {
         officer.grading.saveProgramme({
           titleEn: "Overweight",
           titleAr: null,
-          gradeLevelIds: [],
           scaleId: null,
           categories: [{ titleEn: "All", titleAr: null, weight: 90 }],
         }),
@@ -239,7 +241,7 @@ describe("grade scales", () => {
     });
     const plan = await teacher.api.grading.classPlan({ classId: target.id });
     expect(plan).toMatchObject({
-      programme: { id: programme.id, byGradeLevel: false },
+      programme: { id: programme.id, derived: false },
       scale: { id: scale.id, own: false },
     });
     const { categories } = plan;

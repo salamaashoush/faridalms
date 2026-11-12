@@ -119,7 +119,6 @@ describe("saving homerooms", () => {
       code: "T-B",
       titleEn: "Test B",
       titleAr: "اختبار ب",
-      gradeId: options.grades[0]?.id ?? "",
       homeroomTeacherId: first.id,
       subjects: [
         { subjectId: arabic.id, teacherIds: [first.id] },
@@ -140,7 +139,6 @@ describe("saving homerooms", () => {
       code: "T-B",
       titleEn: "Test B",
       titleAr: "اختبار ب",
-      gradeId: options.grades[0]?.id ?? "",
       homeroomTeacherId: second.id,
       subjects: [{ subjectId: arabic.id, teacherIds: [second.id] }],
     });
@@ -178,7 +176,6 @@ describe("saving homerooms", () => {
       code: homeroom.code,
       titleEn: homeroom.titleEn ?? "",
       titleAr: homeroom.titleAr ?? "",
-      gradeId: homeroom.gradeId ?? "",
       locationId: homeroom.locationId ?? "",
       homeroomTeacherId: homeroom.teachers[0]?.userId ?? "",
       subjects: [
@@ -213,7 +210,6 @@ describe("saving homerooms", () => {
       code: homeroom.code,
       titleEn: homeroom.titleEn ?? "",
       titleAr: homeroom.titleAr ?? "",
-      gradeId: homeroom.gradeId ?? "",
       locationId: homeroom.locationId ?? "",
       homeroomTeacherId: homeroom.teachers[0]?.userId ?? "",
       subjects: homeroom.subjects.flatMap((row) =>

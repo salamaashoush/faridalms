@@ -35,6 +35,7 @@ import { portalHost } from "../core/portal";
 import { publicProcedure, schoolProcedure } from "../core/procedure";
 import { badgeHash, ipPrefix } from "../core/session";
 import { bareHumanCheck } from "../core/turnstile";
+import { accessAtSchool } from "../people/access";
 
 const WINDOW_MS = 15 * 60_000;
 // Beyond each school's own limits, which still apply: the bare domain is
@@ -304,10 +305,8 @@ export const redeemHandoff = schoolProcedure
         const today = schoolDate(
           (await schoolProfile(tx, schoolId))?.timeZone ?? "UTC",
         );
-        const access = await effectiveAccess(tx, {
-          tenantId,
+        const access = await accessAtSchool(tx, context, {
           userId: held.userId,
-          orgId: schoolId,
           today,
           context: held.context,
         });

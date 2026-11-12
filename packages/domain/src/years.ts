@@ -238,14 +238,14 @@ export function nextYearBegins(
 /** The year a list is narrowed to, or every class or student whatever their year. */
 export const yearViewSchema = v.union([v.literal("all"), id]);
 
-/** A class's year, chosen on the class form; empty leaves it in none. */
-export const classYearPartSchema = v.object({
+/** The year an intake admits into, chosen on its form; empty for none. */
+export const intakeYearPartSchema = v.object({
   yearId: v.union([v.literal(""), id]),
 });
 
-/** A student's grade in the working year, chosen on the student form. */
-export const studentYearPartSchema = v.object({
-  gradeId: v.union([v.literal(""), id]),
+/** A class's year, chosen on the class form; empty leaves it in none. */
+export const classYearPartSchema = v.object({
+  yearId: v.union([v.literal(""), id]),
 });
 
 const optionalText = (max: number) =>

@@ -24,7 +24,7 @@ describe("students", () => {
     const list = await api.people.students({});
     expect(list.total).toBe(18);
     expect(list.rows.every((row) => row.status === "enrolled")).toBe(true);
-    expect(list.rows[0]?.grade).not.toBeNull();
+    expect(list.rows[0]?.columns.grade).toBeTruthy();
     expect(list.rows.every((row) => row.reference?.startsWith("NO"))).toBe(
       true,
     );
@@ -96,17 +96,19 @@ describe("students", () => {
     });
   });
 
-  test("adding a student places them, links a new guardian and makes the guardian a parent", async () => {
+  test("adding a student gives them a grade, links a new guardian and makes the guardian a parent", async () => {
     const api = await signedIn("northwind", login("principal"));
     const options = await api.people.options();
-    const grade = options.grades.find((row) => row.code === "grade_7");
+    const grade = (await api.gradeLevels.options()).grades.find(
+      (row) => row.code === "grade_7",
+    );
     const mother = options.relations.find((row) => row.code === "mother");
     if (!grade || !mother) throw new Error("options");
     const created = await api.people.saveStudent({
       names: names("Laila Ashoush", "ليلى عشوش"),
       reference: "NO9001",
       birthDate: "2014-03-02",
-      parts: { year: { gradeId: grade.id } },
+      parts: { grade: { gradeId: grade.id } },
       guardians: [
         {
           person: {
@@ -129,10 +131,16 @@ describe("students", () => {
     const record = await api.people.student({ id: created.id });
     expect(record.reference).toBe("NO9001");
     expect(record.status).toBe("enrolled");
+    const grades = await api.gradeLevels.student({ studentId: created.id });
+    expect(grades.rows.map((row) => row.grade?.id)).toEqual([grade.id]);
+    // In no class and so in no year yet, they are still on the default list.
     expect(
-      (await api.years.placementsOf({ studentId: created.id })).current
-        ?.gradeId,
-    ).toBe(grade.id);
+      (await api.people.students({ q: "NO9001" })).rows.map((row) => [
+        row.id,
+        row.status,
+        row.columns.grade,
+      ]),
+    ).toEqual([[created.id, "unplaced", grade.id]]);
     expect(record.guardians?.[0]?.contacts[0]?.normalized).toBe(
       "+201005550101",
     );
@@ -142,7 +150,7 @@ describe("students", () => {
     expect(history.map((entry) => entry.action)).toEqual(
       expect.arrayContaining([
         "user.create",
-        "placement.change",
+        "student_grade.change",
         "relationship.create",
       ]),
     );
@@ -290,17 +298,17 @@ describe("students", () => {
 
   test("how a student joined, and the school they came from, are kept on their first placement", async () => {
     const api = await signedIn("northwind", login("principal"));
-    const options = await api.people.options();
-    const grade = options.grades.find((row) => row.code === "grade_7");
     const transfer = (await api.years.options()).entryTypes.find(
       (row) => row.code === "transfer_in",
     );
-    if (!grade || !transfer) throw new Error("options");
+    const [inYear] = (await api.classes.directory({})).rows;
+    if (!transfer || !inYear) throw new Error("options");
     const { id: studentId } = await api.people.saveStudent({
       names: names("Salama Ashoush", "سلامة عشوش"),
       reference: "NO9731",
-      parts: { year: { gradeId: grade.id } },
     });
+    // Joining a class of the working year places a student in the year.
+    await api.classes.enrol({ studentId, classId: inYear.id });
     const firstPlacement = async () =>
       (await api.years.placementsOf({ studentId })).placements[0];
     const placement = await firstPlacement();
@@ -656,7 +664,7 @@ describe("sign-in", () => {
 
   test("the office opens sign-ins for the students it picks, and each signs in from their slip", async () => {
     const api = await signedIn("northwind", login("principal"));
-    const grade = (await api.people.options()).grades.find(
+    const grade = (await api.gradeLevels.options()).grades.find(
       (row) => row.code === "grade_7",
     );
     if (!grade) throw new Error("options");
@@ -665,7 +673,7 @@ describe("sign-in", () => {
         await api.people.saveStudent({
           names: names("Salama Ashoush", "سلامة عشوش"),
           reference,
-          parts: { year: { gradeId: grade.id } },
+          parts: { grade: { gradeId: grade.id } },
         })
       ).id;
     const [numbered, named, second] = [
@@ -731,7 +739,7 @@ describe("sign-in", () => {
 
   test("a student nothing can name is left out with the reason, and only the office opens sign-ins", async () => {
     const api = await signedIn("northwind", login("principal"));
-    const grade = (await api.people.options()).grades.find(
+    const grade = (await api.gradeLevels.options()).grades.find(
       (row) => row.code === "grade_7",
     );
     if (!grade) throw new Error("options");
@@ -741,7 +749,7 @@ describe("sign-in", () => {
         ar: { given: "سلامة", family: "عشوش" },
       },
       reference: "7",
-      parts: { year: { gradeId: grade.id } },
+      parts: { grade: { gradeId: grade.id } },
     });
     expect(
       await api.people.createSignIns({
