@@ -1,0 +1,180 @@
+# A core built around no one kind of school
+
+The product serves schools, coding schools, course academies and video-course
+schools. The owner ruled on 2026-11-12: there is no school type and no preset;
+every difference between customers is a module that is on or off, and the
+correct design is chosen over the cheaper one. This plan is the one design
+every change in the work follows. It rests on an audit of the code at commit
+af40bcb8 and on research into academy, coding-school and video-course
+products, none of which requires a year, a grade, a homeroom or a guardian.
+
+## What is wrong today
+
+Core assumes a K-12 school. `school_year_id` is `NOT NULL` on classes,
+enrolments, registers, timetable rows, assignments, learning modules and
+admission intakes; a class is a homeroom or a subject class under one; a
+register needs a period; the setup guide and Today ask every school for
+terms, guardians, homeroom teachers and a timetable. An academy that runs
+courses from a start date, for adults, with no year, cannot be represented.
+
+## Rules
+
+1. **Dependencies point inward.** A core table has no column that names a
+   module's table or concept. A module's tables point at core, and at the
+   modules it requires, never the reverse.
+2. **Every table has one owner**: core or one module. A relation between two
+   modules neither of which requires the other is a link table owned by one
+   of them and marked as needing the other; it has rows only where both are
+   on. No nullable column stands in for a link table.
+3. **A module that is off leaves no trace**: no page, link, card, setup
+   step, field, editor entry, notification, search result or wording, and
+   its API namespaces answer `NOT_FOUND` as today.
+4. **Core is enough to teach.** With every module off a school can add
+   people, create a class, enrol learners, write content, message and keep a
+   calendar. Each teaching module (coursework, attendance, e-learning) works
+   on core alone.
+5. **A reader that gathers from several modules asks which are on**
+   (`modulesOf`), as home and search do today. Nothing else branches on a
+   module; the router and the page guard do the gating.
+6. **No shims.** No hidden default row, placeholder year or "always present"
+   record that keeps a wrong constraint alive. No compatibility layer; an old
+   shape is removed in the change that lands its replacement.
+7. **Fixed vocabularies may name a module's concept** (a role called
+   `guardian`, an enrolment source called `rollover`): a word in a `CHECK`
+   is not a dependency. Structure is.
+8. **Tests come with the change**: domain unit tests, store tests against a
+   throwaway database, API tests, and a browser spec for anything a person
+   sees. A failing test is a bug in the code.
+
+## Core
+
+- **People** and their sign-ins, roles (the platform's fixed role
+  vocabulary) and the school's own access roles and capabilities.
+- **Courses**: what a school teaches. Title and code; subject optional.
+- **Classes**: a group that is taught. Title, code, an optional course, an
+  optional room, and `runs`, the dates it runs over, open-ended for a class
+  that never stops enrolling. No year, no class type, no homeroom, no grade.
+  A code is unique among a school's active classes whose `runs` overlap.
+- **Enrolments**: a person in a class, in a role, over dates inside the
+  class's `runs`. A class's roster is its enrolments, always; no reader
+  resolves a roster through another class.
+- **School days**: the school's week and its closures, by date. Attendance
+  and the timetable read them; they belong to no year.
+- Documents and the editor, files, media, templates, comments, messages,
+  announcements, calendar events, notifications, consents, privacy, search,
+  home, billing, the assistant: as today, with every year, grade, guardian
+  and homeroom reference removed or moved to its module.
+
+## Modules that leave core
+
+- **`school_years`**: years, terms and grading periods, academic weeks, the
+  target of school days, rollover, re-enrolment, a student's placement in a
+  year. It links a class to a year (`class_years`) and the year views are a
+  filter over that link. Requires nothing.
+- **`grade_levels`**: the school's grades or levels, a class's grade, a
+  student's grade, calendars and audiences by grade. Requires nothing, so a
+  coding school may use levels without years.
+- **`homerooms`**: a homeroom with its subject classes. It owns the link
+  between them and keeps each subject class's enrolments equal to its
+  homeroom's; the homeroom teacher is the primary teacher enrolment of the
+  homeroom. Requires nothing.
+- **`families`**: guardians and relationships, custody restrictions, the
+  family workspace, what a guardian may see, sign and be told. Requires
+  nothing. A learner without the module, or without a guardian, acts for
+  themself.
+
+## Modules that change
+
+- **`timetable`** takes periods and bell schedules from core. Timetables,
+  meetings, cover as today, by date instead of by year.
+- **`attendance`**: a register is one class on one date, with an optional
+  period where the timetable is on (a link table it owns, needing
+  `timetable`). Absence reports from families and follow-up calls need
+  `families`.
+- **`coursework`, `elearning`**: belong to a class or to the school. No year
+  column. The year map needs `school_years`.
+- **`gradebook`**: running grades by class. Term grades and their release
+  need `school_years`.
+- **`admissions`**: an intake has dates; its year and grade are links
+  needing `school_years` and `grade_levels`. A guardian applicant needs
+  `families`; an adult applies for themself.
+- **`student_records`, `standards`, `badges`, `website`**: every year,
+  grade and guardian reference follows the same rule.
+- **`peer_review`, `sso`, `sms`** become real gates in the API and the web,
+  and the editor's insert entries are offered by module as well as by the
+  kind of document.
+
+`MODULES` states each requirement, and the registry gains, for every table,
+its owner and the modules it needs.
+
+## What follows the modules
+
+The setup guide's steps, Today's cards, the sidebar, the settings tabs, the
+search, empty states and wording are each computed from the modules that are
+on. A step, card or sentence that names a year, a term, a grade, a homeroom,
+a guardian or a period belongs to that module and is absent without it.
+
+## What keeps it true
+
+- **An ownership gate** in `db:verify`: every table declares its owner; the
+  catalogue is read and a foreign key from a table to one whose owner it may
+  not reach fails the build. While the work is in progress the gate carries a
+  list of the violations still to remove, which only shrinks; the last
+  change deletes the list.
+- **A school on core and the teaching modules alone** in the seed, beside
+  the existing ones, with a browser spec that walks its setup, a class, a
+  register, an assignment, a lesson and a message.
+- **The router test** that refuses a namespace owned by neither core nor a
+  module, extended to the web's pages and the editor's entries.
+
+## Migrations
+
+Nothing deployed holds data that must survive, so the 341 cell migrations
+are replaced first by a baseline written as if the schema had been designed
+today: the generated tables, then hand-written files by topic (schemas and
+extensions, functions, row security and grants, triggers, exclusion and
+period keys, partitions, views). The baseline is proved equal to the old
+chain by comparing the catalogues of two throwaway databases. Until the work
+is finished the baseline is rewritten in place by each change, not appended
+to; the rule "never edit an applied migration" returns with the first
+release after it. The directory and business databases get the same.
+
+## Order of work
+
+Each step leaves `bun run ready` green.
+
+1. Baseline migrations for the three databases, proved equal.
+2. The ownership registry and gate, the new module ids and their
+   requirements, entitlements, plans and seed for them. No behaviour change.
+3. Homerooms: enrolments written to subject classes, the class type gone.
+4. Classes and enrolments off the school year: `runs`, `class_years`, year
+   views as a filter, rollover inside `school_years`.
+5. Periods and bell schedules into the timetable; school days into core;
+   registers by class and date.
+6. Coursework, e-learning and gradebook off the year; term grades needing
+   `school_years`.
+7. Grade levels; admissions links.
+8. Families.
+9. Surfaces: setup guide, Today, sidebar, settings, search, wording; the
+   gate leaks; the web and editor gates.
+10. The core-only school in the seed and its browser spec.
+11. Removal of everything left without a reader, the violations list, and a
+    last rewrite of the baseline; documents brought up to date
+    (`docs/architecture.md`, `docs/systems/platform-foundation.md`,
+    `docs/product-spec.md`, `docs/plans/onboarding.md`,
+    `docs/plans/navigation.md`, `docs/plans/open-work.md`).
+
+## Not in this work
+
+- Fees: what a learner owes and has paid. Every academy product leads with
+  it; it is the next module to design.
+- Counting use per module.
+- A catalogue and checkout for selling a course to the public.
+
+## For the owner
+
+- Which of the new modules Basic includes. Until decided, Basic keeps what
+  a school has today, so it gains all four.
+- The production cell holds only the demo school. The baseline cannot
+  migrate it, so it is recreated and refilled with `admin demo` at the next
+  deploy.

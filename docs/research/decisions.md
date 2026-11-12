@@ -80,3 +80,21 @@ what follows from them. A decision changes only by a new entry here.
 - **Both languages are authored.** No machine-translation widget; every page
   keeps its second language as a translation document, as the foundation
   requires.
+
+## 2026-11-12
+
+- **No school type; modules only; core built around no one kind of school.**
+  Salama refused a school kind or preset chosen at provisioning: every
+  difference between customers is a module that is on or off. Coding
+  schools, course academies and video-course schools are customers beside
+  schools. Core tables hold no column of a module and module tables point at
+  core, which removes the school year, grades, homerooms and guardians from
+  core. This narrows "Data model aligned to OneRoster 1.2 and Ed-Fi" above:
+  the academic-session tree and homeroom classes are modules, and a OneRoster
+  export of sessions needs the school-years module. The correct design is
+  chosen over the cheaper one, with no compatibility layer and no shim. The
+  design and order of work are in
+  [../plans/modular-core.md](../plans/modular-core.md).
+- **Cell migrations restart from a baseline.** Nothing deployed holds data
+  that must survive, so the migration history is replaced by one baseline
+  written by topic.
