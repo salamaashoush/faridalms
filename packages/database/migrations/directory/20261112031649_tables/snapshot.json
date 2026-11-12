@@ -2,7 +2,7 @@
   "type": "base",
   "version": "9",
   "dialect": "postgres",
-  "id": "190b35bf-81e8-4e25-99e8-2335036ce761",
+  "id": "e8c9af33-a52f-4168-ab9e-e707421af6d8",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -1579,6 +1579,19 @@
     {
       "schema": "public",
       "table": "school_usage",
+      "name": "facts",
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'{}'",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "school_usage",
       "name": "measured_at",
       "type": "timestamp with time zone",
       "typeSchema": null,
@@ -2689,6 +2702,13 @@
       "table": "school_usage",
       "name": "school_usage_file_count_check",
       "value": "file_count >= 0",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "school_usage",
+      "name": "school_usage_facts_check",
+      "value": "jsonb_typeof(facts) = 'object' and octet_length(facts::text) <= 4096",
       "entityType": "checks"
     },
     {

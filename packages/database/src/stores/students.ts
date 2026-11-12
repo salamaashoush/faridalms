@@ -1,6 +1,5 @@
 import type { StudentStatus } from "@faridalms/domain/people";
 
-import { familyRoleFor } from "@faridalms/domain/family-roles";
 import { fullName } from "@faridalms/domain/people";
 import { and, eq, sql } from "drizzle-orm";
 
@@ -8,11 +7,7 @@ import type { CellTransaction } from "../context";
 import type { DepartureEnded } from "../tables/membership";
 import type { PostalAddress } from "../tables/tenancy";
 
-import {
-  studentDepartures,
-  userRelationships,
-  userRoles,
-} from "../tables/membership";
+import { studentDepartures, userRoles } from "../tables/membership";
 import { contactPoints, externalIds, users } from "../tables/people";
 import { bounds, intArray, textArray, uuidArray } from "./sql";
 
@@ -25,10 +20,15 @@ export interface Scope {
   viewerId: string;
   /** The viewer may reach every student of the school. */
   schoolWide: boolean;
+  /**
+   * The students a module says the viewer follows, computed for the unit of
+   * work from the module's own rule, never from what a request sends.
+   */
+  followed: readonly string[];
 }
 
 const visible = (scope: Scope) =>
-  sql`(select student_user_id from app.visible_students(${scope.viewerId}::uuid, ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}))`;
+  sql`(select student_user_id from app.visible_students(${scope.viewerId}::uuid, ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}, ${uuidArray(scope.followed)}))`;
 
 const roleRows = (scope: Pick<Scope, "tenantId" | "schoolId">) =>
   sql`core.user_roles r where r.tenant_id = ${scope.tenantId}::uuid and r.org_id = ${scope.schoolId}::uuid
@@ -71,12 +71,14 @@ export interface DirectoryFilter {
   given: GivenStudents | null;
   q: string;
   phone: string | null;
-  /** Students whose identity document number the search matched exactly. */
-  documentHolders: string[];
+  /**
+   * Students the search matched exactly elsewhere: by an identity document's
+   * number, or by a phone a module holds for them.
+   */
+  exactMatches: string[];
   /** Only these students, where a module's filter narrows the list. */
   within: readonly string[] | null;
   statuses: StudentStatus[];
-  missingGuardian: boolean;
   missingAccount: boolean;
   sort: "name" | "reference" | "rank";
   dir: "asc" | "desc";
@@ -93,11 +95,8 @@ export interface DirectoryRow {
   photoFileId: string | null;
   reference: string | null;
   status: StudentStatus;
-  guardianPhone: string | null;
-  hasGuardian: boolean;
   hasAccount: boolean;
   medicalAlert: boolean;
-  custodyAlert: boolean;
 }
 
 export async function studentDirectory(
@@ -121,16 +120,15 @@ export async function studentDirectory(
     q === ""
       ? sql`true`
       : filter.phone
-        ? sql`exists (select 1 from core.user_relationships r
-                join core.contact_points c on c.tenant_id = r.tenant_id and c.user_id = r.related_user_id
-                where r.tenant_id = ${scope.tenantId}::uuid and r.student_user_id = u.id and r.status = 'active'
+        ? sql`exists (select 1 from core.contact_points c
+                where c.tenant_id = ${scope.tenantId}::uuid and c.user_id = u.id
                   and c.status = 'active' and c.kind = 'phone' and c.normalized = ${filter.phone})`
         : sql`(upper(u.reference) = upper(${q})
                or u.id in (select result_id from app.search(${q}, array['user'], ${uuidArray([scope.schoolId])},
                  within => array${visible(scope)})))`;
   const search =
-    filter.documentHolders.length > 0
-      ? sql`(${words} or u.id = any(${uuidArray(filter.documentHolders)}))`
+    filter.exactMatches.length > 0
+      ? sql`(${words} or u.id = any(${uuidArray(filter.exactMatches)}))`
       : words;
   const rows = await tx.execute<{
     id: string;
@@ -139,11 +137,8 @@ export async function studentDirectory(
     photo_file_id: string | null;
     reference: string | null;
     status: StudentStatus;
-    guardian_phone: string | null;
-    has_guardian: boolean;
     has_account: boolean;
     medical_alert: boolean;
-    custody_alert: boolean;
     total: number;
   }>(sql`
     with given as (
@@ -158,20 +153,10 @@ export async function studentDirectory(
       select k.id, k.rank from unnest(${uuidArray([...(filter.ranks?.ids ?? [])])},
         ${intArray(filter.ranks?.ranks ?? [])}) as k(id, rank)
     ), listed as (
-      select u.id, u.full_name_en, u.full_name_ar, u.photo_file_id, u.medical_alert, u.custody_alert,
+      select u.id, u.full_name_en, u.full_name_ar, u.photo_file_id, u.medical_alert,
              (select k.rank from ranked k where k.id = u.id) as rank,
              ${referenceSql(scope)} as reference,
              coalesce(m.status, ${statusSql(scope)}) as status,
-             (select c.normalized from core.user_relationships r
-                join core.contact_points c on c.tenant_id = r.tenant_id and c.user_id = r.related_user_id
-                where r.tenant_id = u.tenant_id and r.student_user_id = u.id and r.status = 'active'
-                  and r.valid_during @> ${scope.today}::date and c.status = 'active' and c.kind = 'phone'
-                order by r.primary_contact desc, r.contact_priority nulls last, c.priority nulls last, c.created_at
-                limit 1) as guardian_phone,
-             exists (select 1 from core.user_relationships r
-                where r.tenant_id = u.tenant_id and r.student_user_id = u.id and r.status = 'active'
-                  and r.valid_during @> ${scope.today}::date
-                  and (r.portal_access or r.legal_guardian)) as has_guardian,
              exists (select 1 from core.accounts a
                 where a.tenant_id = u.tenant_id and a.user_id = u.id and a.status = 'active'
                   and a.state = 'active') as has_account
@@ -185,7 +170,6 @@ export async function studentDirectory(
       and (${filter.given !== null} or u.status <> 'left' or 'left' = any(${textArray(filter.statuses)}))
       and (${filter.within === null} or u.id = any(${uuidArray([...(filter.within ?? [])])}))
       and (${filter.statuses.length === 0} or u.status = any(${textArray(filter.statuses)}))
-      and (not ${filter.missingGuardian} or not u.has_guardian)
       and (not ${filter.missingAccount} or not u.has_account)
     order by ${order}
     limit ${filter.pageSize} offset ${(filter.page - 1) * filter.pageSize}`);
@@ -198,11 +182,8 @@ export async function studentDirectory(
       photoFileId: row.photo_file_id,
       reference: row.reference,
       status: row.status,
-      guardianPhone: row.guardian_phone,
-      hasGuardian: row.has_guardian,
       hasAccount: row.has_account,
       medicalAlert: row.medical_alert,
-      custodyAlert: row.custody_alert,
     })),
   };
 }
@@ -434,7 +415,6 @@ export interface StudentPerson {
   sexId: string | null;
   photoFileId: string | null;
   medicalAlert: boolean;
-  custodyAlert: boolean;
   createdAt: Date;
 }
 
@@ -459,7 +439,6 @@ export async function person(
       sexId: users.sexDescriptorId,
       photoFileId: users.photoFileId,
       medicalAlert: users.medicalAlert,
-      custodyAlert: users.custodyAlert,
       createdAt: users.createdAt,
     })
     .from(users)
@@ -490,120 +469,6 @@ export interface ContactPoint {
   normalized: string | null;
   postal: PostalAddress | null;
   verified: boolean;
-}
-
-export interface Guardian {
-  relationshipId: string;
-  version: number;
-  userId: string;
-  fullNameEn: string | null;
-  fullNameAr: string | null;
-  relationId: string;
-  relationMeaning: string;
-  legalGuardian: boolean | null;
-  portalAccess: boolean;
-  receivesNotifications: boolean;
-  primaryContact: boolean;
-  emergencyContact: boolean;
-  contactPriority: number | null;
-  residence: "primary" | "secondary" | "none" | null;
-  pickup: "allowed" | "not_allowed" | "ask_office" | null;
-  educationalRights: "full" | "restricted" | "none";
-  communicationIsolated: boolean;
-  accessBasis: string;
-  from: string;
-  hasAccount: boolean;
-  contacts: ContactPoint[];
-}
-
-export async function guardiansOf(
-  tx: Tx,
-  scope: Pick<Scope, "tenantId" | "today">,
-  studentId: string,
-): Promise<Guardian[]> {
-  const rows = await tx.execute<{
-    id: string;
-    version: number;
-    related_user_id: string;
-    full_name_en: string | null;
-    full_name_ar: string | null;
-    relation_descriptor_id: string;
-    relation_meaning: string;
-    legal_guardian: boolean | null;
-    portal_access: boolean;
-    receives_notifications: boolean;
-    primary_contact: boolean;
-    emergency_contact: boolean;
-    contact_priority: number | null;
-    residence: Guardian["residence"];
-    pickup: Guardian["pickup"];
-    educational_rights: Guardian["educationalRights"];
-    communication_isolated: boolean;
-    access_basis: string;
-    valid_during: string;
-    has_account: boolean;
-  }>(sql`
-    select r.id, r.version, r.related_user_id, u.full_name_en, u.full_name_ar, r.relation_descriptor_id,
-           r.relation_meaning, r.legal_guardian, r.portal_access, r.receives_notifications, r.primary_contact,
-           r.emergency_contact, r.contact_priority, r.residence, r.pickup, r.educational_rights,
-           r.communication_isolated, r.access_basis, r.valid_during::text as valid_during,
-           exists (select 1 from core.accounts a where a.tenant_id = u.tenant_id and a.user_id = u.id
-                   and a.status = 'active' and a.state <> 'disabled') as has_account
-    from core.user_relationships r
-    join core.users u on u.tenant_id = r.tenant_id and u.id = r.related_user_id
-    where r.tenant_id = ${scope.tenantId}::uuid and r.student_user_id = ${studentId}::uuid
-      and r.status = 'active' and r.valid_during @> ${scope.today}::date
-    order by r.primary_contact desc, r.contact_priority nulls last, r.created_at`);
-  const people = rows.map((row) => row.related_user_id);
-  const contacts = people.length
-    ? await tx.execute<{
-        id: string;
-        user_id: string;
-        kind: ContactPoint["kind"];
-        label: string;
-        value: string;
-        normalized: string | null;
-        postal: PostalAddress | null;
-        verified_at: string | null;
-      }>(sql`
-        select id, user_id, kind, label, value, normalized, postal, verified_at::text as verified_at
-        from core.contact_points
-        where tenant_id = ${scope.tenantId}::uuid and user_id = any(${uuidArray(people)}) and status = 'active'
-        order by priority nulls last, created_at`)
-    : [];
-  return rows.map((row) => ({
-    relationshipId: row.id,
-    version: row.version,
-    userId: row.related_user_id,
-    fullNameEn: row.full_name_en,
-    fullNameAr: row.full_name_ar,
-    relationId: row.relation_descriptor_id,
-    relationMeaning: row.relation_meaning,
-    legalGuardian: row.legal_guardian,
-    portalAccess: row.portal_access,
-    receivesNotifications: row.receives_notifications,
-    primaryContact: row.primary_contact,
-    emergencyContact: row.emergency_contact,
-    contactPriority: row.contact_priority,
-    residence: row.residence,
-    pickup: row.pickup,
-    educationalRights: row.educational_rights,
-    communicationIsolated: row.communication_isolated,
-    accessBasis: row.access_basis,
-    from: bounds(row.valid_during).from,
-    hasAccount: row.has_account,
-    contacts: contacts
-      .filter((contact) => contact.user_id === row.related_user_id)
-      .map((contact) => ({
-        id: contact.id,
-        kind: contact.kind,
-        label: contact.label,
-        value: contact.value,
-        normalized: contact.normalized,
-        postal: contact.postal,
-        verified: contact.verified_at !== null,
-      })),
-  }));
 }
 
 export interface NamesInput {
@@ -662,7 +527,7 @@ export async function studentMatches(
   }));
 }
 
-/** People who hold a phone number or email address, for linking an existing guardian. */
+/** People who hold a phone number or email address, so someone known is linked rather than made twice. */
 export async function peopleByContact(
   tx: Tx,
   tenantId: string,
@@ -867,257 +732,6 @@ export async function ensureStudentRole(
       where tenant_id = ${scope.tenantId}::uuid and id = ${last.id}::uuid`);
 }
 
-/**
- * Brings the family roles a person holds in line with their current
- * relationships: a role at each school where a related student holds a
- * current student role, while the relationship grants portal access or legal
- * guardianship. Roles no relationship supports any more end today.
- */
-export async function syncFamilyRoles(
-  tx: Tx,
-  tenantId: string,
-  personId: string,
-  today: string,
-) {
-  const links = await tx.execute<{
-    relation_meaning: string;
-    portal_access: boolean;
-    legal_guardian: boolean | null;
-    access_basis: string;
-    org_id: string;
-  }>(sql`
-    select r.relation_meaning, r.portal_access, r.legal_guardian, r.access_basis, s.org_id
-    from core.user_relationships r
-    join lateral (
-      select s.org_id from core.user_roles s
-      where s.tenant_id = r.tenant_id and s.user_id = r.student_user_id
-        and s.role = 'student' and s.status = 'active'
-        and (upper_inf(s.valid_during) or upper(s.valid_during) > ${today}::date)
-      union
-      select d.org_id from core.student_departures d
-      where d.tenant_id = r.tenant_id and d.student_user_id = r.student_user_id
-        and d.status = 'active' and d.access_ends_on > ${today}::date) s on true
-    where r.tenant_id = ${tenantId}::uuid and r.related_user_id = ${personId}::uuid and r.status = 'active'
-      and (upper_inf(r.valid_during) or upper(r.valid_during) > ${today}::date)`);
-  const wanted = new Set<string>();
-  for (const link of links) {
-    const role = familyRoleFor(link.relation_meaning, {
-      portalAccess: link.portal_access,
-      legalGuardian: link.legal_guardian,
-      accessBasis: link.access_basis,
-    });
-    if (role) wanted.add(`${link.org_id}:${role}`);
-  }
-  const held = await tx.execute<{
-    id: string;
-    org_id: string;
-    role: string;
-    lower: string;
-  }>(sql`
-    select id, org_id, role, lower(valid_during)::text as lower from core.user_roles
-    where tenant_id = ${tenantId}::uuid and user_id = ${personId}::uuid and source = 'derived'
-      and role in ('parent', 'guardian', 'relative') and status = 'active'
-      and (upper_inf(valid_during) or upper(valid_during) > ${today}::date)`);
-  for (const row of held) {
-    if (wanted.delete(`${row.org_id}:${row.role}`)) continue;
-    await tx
-      .update(userRoles)
-      .set(
-        row.lower >= today
-          ? { status: "tobedeleted" }
-          : { validDuring: `[${row.lower},${today})` },
-      )
-      .where(and(eq(userRoles.tenantId, tenantId), eq(userRoles.id, row.id)));
-  }
-  for (const key of wanted) {
-    const [orgId, role] = key.split(":") as [
-      string,
-      "parent" | "guardian" | "relative",
-    ];
-    await tx.insert(userRoles).values({
-      tenantId,
-      userId: personId,
-      orgId,
-      orgType: "school",
-      role,
-      validDuring: `[${today},)`,
-      source: "derived",
-    });
-  }
-}
-
-export async function insertRelationship(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    studentId: string;
-    relatedUserId: string;
-    relationId: string;
-    relationMeaning: string;
-    flags: {
-      legalGuardian: boolean | null;
-      portalAccess: boolean;
-      receivesNotifications: boolean;
-      primaryContact: boolean;
-      emergencyContact: boolean;
-      residence: "primary" | "secondary" | "none" | null;
-      pickup: "allowed" | "not_allowed" | "ask_office" | null;
-    };
-    from: string;
-    /** Who on the staff confirmed it; null for a link a family declared, still to be checked. */
-    verifiedByUserId: string | null;
-  },
-) {
-  const [row] = await tx
-    .insert(userRelationships)
-    .values({
-      tenantId: input.tenantId,
-      studentUserId: input.studentId,
-      relatedUserId: input.relatedUserId,
-      relationDescriptorId: input.relationId,
-      relationMeaning: input.relationMeaning,
-      ...input.flags,
-      validDuring: `[${input.from},)`,
-      ...(input.verifiedByUserId
-        ? {
-            verificationMethod: "staff_attested" as const,
-            verifiedAt: new Date(),
-            verifiedByUserId: input.verifiedByUserId,
-          }
-        : {}),
-    })
-    .returning({ id: userRelationships.id });
-  if (!row) throw new Error("relationship was not created");
-  return row.id;
-}
-
-export async function updateRelationship(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    relationshipId: string;
-    expectedVersion: number;
-    relationId: string;
-    relationMeaning: string;
-    flags: {
-      legalGuardian: boolean | null;
-      portalAccess: boolean;
-      receivesNotifications: boolean;
-      primaryContact: boolean;
-      emergencyContact: boolean;
-      residence: "primary" | "secondary" | "none" | null;
-      pickup: "allowed" | "not_allowed" | "ask_office" | null;
-    };
-    editorId: string;
-  },
-) {
-  // Ticking legal guardian is the office confirming it, which is what lets
-  // the adult consent for the child; an unchanged tick keeps its confirmation.
-  const confirms =
-    input.flags.legalGuardian === true
-      ? sql`(legal_guardian is not true or verified_at is null)`
-      : sql`false`;
-  const [row] = await tx
-    .update(userRelationships)
-    .set({
-      relationDescriptorId: input.relationId,
-      relationMeaning: input.relationMeaning,
-      ...input.flags,
-      verificationMethod: sql`case when ${confirms} then 'staff_attested' else verification_method end`,
-      verifiedAt: sql`case when ${confirms} then statement_timestamp() else verified_at end`,
-      verifiedByUserId: sql`case when ${confirms} then ${input.editorId}::uuid else verified_by_user_id end`,
-    })
-    .where(
-      and(
-        eq(userRelationships.tenantId, input.tenantId),
-        eq(userRelationships.id, input.relationshipId),
-        eq(userRelationships.version, input.expectedVersion),
-        eq(userRelationships.status, "active"),
-      ),
-    )
-    .returning({
-      id: userRelationships.id,
-      relatedUserId: userRelationships.relatedUserId,
-    });
-  return row ?? null;
-}
-
-/** Ends a link today; a link that only began today is withdrawn instead. */
-export async function endRelationship(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    relationshipId: string;
-    expectedVersion: number;
-    today: string;
-  },
-) {
-  const rows = await tx.execute<{
-    related_user_id: string;
-    student_user_id: string;
-  }>(sql`
-    update core.user_relationships
-    set valid_during = case when lower(valid_during) >= ${input.today}::date then valid_during
-                            else daterange(lower(valid_during), ${input.today}::date, '[)') end,
-        status = case when lower(valid_during) >= ${input.today}::date then 'tobedeleted' else status end
-    where tenant_id = ${input.tenantId}::uuid and id = ${input.relationshipId}::uuid
-      and version = ${input.expectedVersion} and status = 'active'
-    returning related_user_id, student_user_id`);
-  return rows[0] ?? null;
-}
-
-export async function relationshipOf(
-  tx: Tx,
-  tenantId: string,
-  relationshipId: string,
-) {
-  const [row] = await tx
-    .select({
-      id: userRelationships.id,
-      studentUserId: userRelationships.studentUserId,
-      relatedUserId: userRelationships.relatedUserId,
-      version: userRelationships.version,
-      relationMeaning: userRelationships.relationMeaning,
-      legalGuardian: userRelationships.legalGuardian,
-      portalAccess: userRelationships.portalAccess,
-      receivesNotifications: userRelationships.receivesNotifications,
-      primaryContact: userRelationships.primaryContact,
-      emergencyContact: userRelationships.emergencyContact,
-      residence: userRelationships.residence,
-      pickup: userRelationships.pickup,
-    })
-    .from(userRelationships)
-    .where(
-      and(
-        eq(userRelationships.tenantId, tenantId),
-        eq(userRelationships.id, relationshipId),
-        eq(userRelationships.status, "active"),
-      ),
-    );
-  return row ?? null;
-}
-
-/** Keeps the header's custody chip in step with the student's links. */
-export async function refreshCustodyAlert(
-  tx: Tx,
-  tenantId: string,
-  studentId: string,
-  today: string,
-) {
-  await tx.execute(sql`
-    update core.users set custody_alert = exists (
-      select 1 from core.user_relationships r
-      where r.tenant_id = ${tenantId}::uuid and r.student_user_id = ${studentId}::uuid and r.status = 'active'
-        and r.valid_during @> ${today}::date
-        and (r.pickup = 'not_allowed' or r.educational_rights <> 'full' or r.communication_isolated))
-    where tenant_id = ${tenantId}::uuid and id = ${studentId}::uuid
-      and custody_alert is distinct from exists (
-      select 1 from core.user_relationships r
-      where r.tenant_id = ${tenantId}::uuid and r.student_user_id = ${studentId}::uuid and r.status = 'active'
-        and r.valid_during @> ${today}::date
-        and (r.pickup = 'not_allowed' or r.educational_rights <> 'full' or r.communication_isolated))`);
-}
-
 export interface AccountSummary {
   id: string;
   state: string;
@@ -1194,4 +808,40 @@ export async function facesOf(
     fullNameAr: row.full_name_ar,
     photoFileId: row.photo_file_id,
   }));
+}
+
+/**
+ * What decides whether learners act for themselves: the school's age they
+ * decide from, and each one's birth date on file.
+ */
+export async function decidingFacts(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; studentIds: readonly string[] },
+): Promise<{ from: number | null; births: Map<string, string | null> }> {
+  const [school] = await tx.execute<{ learners_decide_from: number }>(sql`
+    select learners_decide_from from core.orgs
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.schoolId}::uuid`);
+  const rows =
+    input.studentIds.length === 0
+      ? []
+      : await tx.execute<{ id: string; birth_date: string | null }>(sql`
+          select id, birth_date::text as birth_date from core.users
+          where tenant_id = ${input.tenantId}::uuid and id = any(${uuidArray(input.studentIds)})
+            and status = 'active'`);
+  return {
+    from: school?.learners_decide_from ?? null,
+    births: new Map(rows.map((row) => [row.id, row.birth_date])),
+  };
+}
+
+/** The people holding the student role at the school on the day. */
+export async function studentRoleHolders(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; on: string },
+): Promise<string[]> {
+  const rows = await tx.execute<{ user_id: string }>(sql`
+    select distinct user_id from core.user_roles
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
+      and role = 'student' and status = 'active' and valid_during @> ${input.on}::date`);
+  return rows.map((row) => row.user_id);
 }

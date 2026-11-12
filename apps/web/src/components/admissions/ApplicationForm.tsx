@@ -346,9 +346,10 @@ export interface StartApplicationProps {
 }
 
 /**
- * Starts an application: the intake, then a child the family applied for
- * before or a new one. The child is saved as a person from here, so nothing
- * about them is typed twice.
+ * Starts an application: the intake, then, for someone applying for others,
+ * a child the family applied for before or a new one. The child is saved as
+ * a person from here, so nothing about them is typed twice. Someone applying
+ * for themself only picks the intake.
  */
 export function StartApplication({
   intakeId,
@@ -374,12 +375,19 @@ export function StartApplication({
   const start = useMutation({
     mutationFn: () =>
       startApplication({
-        data: {
-          intakeId: chosenIntake,
-          applicantId: applicant,
-          child: applicant ? null : childInput(child),
-          locale: getLocale() === "ar" ? "ar" : "en",
-        },
+        data: mine.self
+          ? {
+              intakeId: chosenIntake,
+              self: true,
+              child: null,
+              locale: getLocale() === "ar" ? "ar" : "en",
+            }
+          : {
+              intakeId: chosenIntake,
+              applicantId: applicant,
+              child: applicant ? null : childInput(child),
+              locale: getLocale() === "ar" ? "ar" : "en",
+            },
       }),
   });
   if (mine.intakes.length === 0)
@@ -392,7 +400,8 @@ export function StartApplication({
       onSubmit={(event) => {
         event.preventDefault();
         setTried(true);
-        if (!chosenIntake || (!applicant && !childReady(child))) return;
+        if (!chosenIntake || (!mine.self && !applicant && !childReady(child)))
+          return;
         void start.mutateAsync().then(
           async (created) => {
             await queryClient.invalidateQueries({ queryKey: ["applying"] });
@@ -419,32 +428,34 @@ export function StartApplication({
         />
         {intake ? <IntakeFacts intake={intake} /> : null}
       </FormSection>
-      <FormSection title={m.applyWhoTitle()}>
-        {mine.children.length ? (
-          <SelectField
-            id="apply-child"
-            label={m.applyWho()}
-            value={applicant}
-            options={[
-              { value: "", label: m.applyNewChild() },
-              ...mine.children.map((row) => ({
-                value: row.id,
-                label: inLocale(row.nameEn, row.nameAr),
-              })),
-            ]}
-            onChange={setApplicant}
-            width="name"
-          />
-        ) : null}
-        {applicant ? null : (
-          <ChildFields
-            child={child}
-            options={mine.options}
-            onChange={setChild}
-            tried={tried}
-          />
-        )}
-      </FormSection>
+      {mine.self ? null : (
+        <FormSection title={m.applyWhoTitle()}>
+          {mine.children.length ? (
+            <SelectField
+              id="apply-child"
+              label={m.applyWho()}
+              value={applicant}
+              options={[
+                { value: "", label: m.applyNewChild() },
+                ...mine.children.map((row) => ({
+                  value: row.id,
+                  label: inLocale(row.nameEn, row.nameAr),
+                })),
+              ]}
+              onChange={setApplicant}
+              width="name"
+            />
+          ) : null}
+          {applicant ? null : (
+            <ChildFields
+              child={child}
+              options={mine.options}
+              onChange={setChild}
+              tried={tried}
+            />
+          )}
+        </FormSection>
+      )}
       {start.error ? (
         <p role="alert" className="text-sm text-destructive">
           {getMessageFromError(start.error)}

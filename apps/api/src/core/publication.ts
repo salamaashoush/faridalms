@@ -29,10 +29,12 @@ import { schoolDate } from "@faridalms/domain/school";
 import { documentWritten, otherLocale } from "@faridalms/domain/translations";
 
 import type { UnitContext } from "./context";
+import type { ModuleScope, WorkerModules } from "./extension";
 import type { NoticeScope } from "./notify";
 
 import { placeMedia } from "../files/authorize";
 import { everyTenant } from "../files/upkeep";
+import { workerScope } from "./extension";
 import { publishTelling, tellPublished } from "./mentions";
 import { schoolZone } from "./procedure";
 
@@ -276,8 +278,12 @@ export async function publishWords(
     });
 }
 
-/** Where a go-live is told: the school's unit of work and day, as its author. */
-export type LiveScope = NoticeScope & { today: string; actorUserId: string };
+/** Where a go-live is told: the school's unit of work and day, as its author, with its modules. */
+export type LiveScope = NoticeScope &
+  Pick<ModuleScope, "school" | "extensions"> & {
+    today: string;
+    actorUserId: string;
+  };
 
 /**
  * A kind of publication that can be set to go out later. `due` claims what
@@ -324,7 +330,11 @@ export async function tellLive(
 export async function runGoLive(
   cell: Cell,
   tenantId: string,
-  input: { channels: UnitContext["channels"]; limit?: number },
+  input: {
+    channels: UnitContext["channels"];
+    modules: WorkerModules;
+    limit?: number;
+  },
 ): Promise<number> {
   return cell.withWorker(
     { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
@@ -340,13 +350,18 @@ export async function runGoLive(
         });
         for (const row of due) {
           const schoolId = host.schoolOf(row);
+          const scope = await workerScope(input.modules, {
+            tx,
+            tenantId,
+            schoolId,
+          });
+          // A school the directory no longer holds has nobody to tell.
+          if (!scope) continue;
           const zone = zones.get(schoolId) ?? (await schoolZone(tx, schoolId));
           zones.set(schoolId, zone);
           await host.live(
             {
-              tx,
-              tenantId,
-              schoolId,
+              ...scope,
               actorUserId: host.authorOf(row),
               now,
               channels: input.channels,
@@ -368,6 +383,7 @@ export function startPublicationClock(input: {
   directory: Directory;
   cellId: string;
   channels: UnitContext["channels"];
+  extensions: WorkerModules["extensions"];
   intervalMs: number;
 }): () => Promise<void> {
   return everyTenant({
@@ -376,7 +392,10 @@ export function startPublicationClock(input: {
     cellId: input.cellId,
     intervalMs: input.intervalMs,
     run: async (tenantId) => {
-      await runGoLive(input.cell, tenantId, { channels: input.channels });
+      await runGoLive(input.cell, tenantId, {
+        channels: input.channels,
+        modules: { directory: input.directory, extensions: input.extensions },
+      });
     },
   });
 }

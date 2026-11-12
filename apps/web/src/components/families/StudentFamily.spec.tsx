@@ -10,20 +10,18 @@ import userEvent from "@testing-library/user-event";
 import { Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { StudentData } from "~/components/people/StudentRecord";
+import type { Guardians } from "~/queries/families";
 import type { ModuleFillings } from "~/utils/extension";
 
-import {
-  endRelationship,
-  getPeopleOptions,
-  getStudentRecord,
-} from "~/server/students";
+import { StudentRecord } from "~/components/people/StudentRecord";
+import { endRelationship, getGuardians, getRelations } from "~/server/families";
+import { getPeopleOptions, getStudentRecord } from "~/server/students";
 import { render } from "~/testUtils";
 
-import type { StudentData } from "./StudentRecord";
+import { FAMILIES } from "./contributions";
 
-import { StudentRecord } from "./StudentRecord";
-
-// The record asks which modules are on for the slots it shows; none is.
+// The record shows a student's family where families is on.
 vi.mock("~/server/auth", () => ({
   getCurrentUser: vi.fn(() =>
     Promise.resolve({
@@ -33,7 +31,7 @@ vi.mock("~/server/auth", () => ({
       loginName: null,
       photoFileId: null,
       capabilities: [],
-      modules: {},
+      modules: { families: true },
       school: { nameEn: "Acme School", nameAr: null },
     }),
   ),
@@ -43,19 +41,30 @@ vi.mock("~/server/students", () => ({
   getPeopleOptions: vi.fn(),
   getStudentRecord: vi.fn(),
   getStudentHistory: vi.fn(),
-  getStudentNotices: vi.fn(() => Promise.resolve([])),
   getStudents: vi.fn(),
   getStudentMatches: vi.fn(),
-  findGuardians: vi.fn(),
+  findByContact: vi.fn(),
   saveStudent: vi.fn(),
-  saveRelationship: vi.fn(),
-  endRelationship: vi.fn(),
   getPersonRecord: vi.fn(),
   getPersonHistory: vi.fn(),
   changePhoto: vi.fn(),
-  getSiblings: vi.fn(() => Promise.resolve([])),
   saveContacts: vi.fn(),
   searchPeople: vi.fn(),
+}));
+
+vi.mock("~/server/families", () => ({
+  getRelations: vi.fn(),
+  getGuardians: vi.fn(),
+  saveRelationship: vi.fn(),
+  endRelationship: vi.fn(),
+  getSiblings: vi.fn(() => Promise.resolve([])),
+  getGuardianNotices: vi.fn(() => Promise.resolve([])),
+  getChildren: vi.fn(),
+  getWithoutGuardian: vi.fn(),
+  getCustody: vi.fn(),
+  saveCustody: vi.fn(),
+  attachCourtOrder: vi.fn(),
+  removeCourtOrder: vi.fn(),
 }));
 
 const STUDENT = "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a01";
@@ -65,7 +74,7 @@ function guardian(
   relationshipId: string,
   userId: string,
   fullNameEn: string,
-): NonNullable<StudentData["guardians"]>[number] {
+): Guardians["guardians"][number] {
   return {
     relationshipId,
     version: 3,
@@ -107,25 +116,13 @@ const RECORD: StudentData = {
   sexId: null,
   photoFileId: null,
   medicalAlert: false,
-  custodyAlert: false,
   createdAt: new Date("2024-09-01T00:00:00Z"),
   reference: "TEST-0001",
   status: "enrolled",
   roles: [{ from: "2024-09-01", to: null }],
   departure: null,
   group: null,
-  guardians: [
-    guardian(
-      "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a10",
-      "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a11",
-      "Salama Hassan",
-    ),
-    guardian(
-      "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a12",
-      "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a13",
-      "Mona Ashoush",
-    ),
-  ],
+  alerts: [],
   account: null,
   today: "2026-09-27",
   noPhotos: false,
@@ -137,7 +134,6 @@ const RECORD: StudentData = {
     health: false,
     support: false,
     demographics: false,
-    custody: false,
     history: false,
     attendance: false,
     timetable: false,
@@ -152,7 +148,7 @@ function renderRecord() {
     defaultOptions: { queries: { retry: false } },
   });
   const router = createRouter({
-    context: { extensions: [] },
+    context: { extensions: [FAMILIES] },
     routeTree: createRootRouteWithContext<{
       extensions: readonly ModuleFillings[];
     }>()({
@@ -172,19 +168,34 @@ function renderRecord() {
 describe("student guardians", () => {
   beforeEach(() => {
     vi.mocked(getStudentRecord).mockResolvedValue(RECORD);
-    vi.mocked(getPeopleOptions).mockResolvedValue({
-      relations: [
-        {
-          id: MOTHER,
-          code: "mother",
-          meaning: "mother",
-          labelEn: "Mother",
-          labelAr: "الأم",
-          color: null,
-          sortOrder: 0,
-          schoolOnly: false,
-        },
+    vi.mocked(getGuardians).mockResolvedValue({
+      guardians: [
+        guardian(
+          "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a10",
+          "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a11",
+          "Salama Hassan",
+        ),
+        guardian(
+          "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a12",
+          "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a13",
+          "Mona Ashoush",
+        ),
       ],
+      access: { manage: true, custody: false },
+    });
+    vi.mocked(getRelations).mockResolvedValue([
+      {
+        id: MOTHER,
+        code: "mother",
+        meaning: "mother",
+        labelEn: "Mother",
+        labelAr: "الأم",
+        color: null,
+        sortOrder: 0,
+        schoolOnly: false,
+      },
+    ]);
+    vi.mocked(getPeopleOptions).mockResolvedValue({
       sexes: [],
       positions: [],
       religions: [],

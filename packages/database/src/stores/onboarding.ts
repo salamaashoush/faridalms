@@ -15,10 +15,27 @@ const ADMINISTRATOR_ROLES = [
   "district_administrator",
   "system_administrator",
 ];
-const FAMILY_ROLES = ["family"];
 const STAFF_ROLES = ALL_STAFF_ROLES.filter(
   (role) => !ADMINISTRATOR_ROLES.includes(role),
 );
+
+/**
+ * Whether someone holding one of the roles at the school has ever signed
+ * in, for the steps a module measures by who has come.
+ */
+export async function signedInAs(
+  tx: CellTransaction,
+  input: { tenantId: string; orgId: string; roles: readonly string[] },
+): Promise<boolean> {
+  const [row] = await tx.execute<{ found: boolean }>(sql`
+    select exists (
+      select 1 from core.user_roles r
+      join core.accounts a on a.tenant_id = r.tenant_id and a.user_id = r.user_id
+        and a.status = 'active' and a.last_authenticated_at is not null
+      where r.tenant_id = ${input.tenantId}::uuid and r.org_id = ${input.orgId}::uuid
+        and r.status = 'active' and r.role = any(${textArray(input.roles)})) as found`);
+  return row?.found ?? false;
+}
 
 /**
  * What the cell sees of a school's first steps, from its own data: who has
@@ -56,14 +73,9 @@ export async function onboardingSeen(
       ${signedIn(STAFF_ROLES)} as staff_signed_in,
       exists (select 1 from core.enrollments s where s.tenant_id = ${tenant}
         and s.org_id = ${org} and s.role = 'student' and s.status = 'active') as students_imported,
-      exists (select 1 from core.user_relationships u
-        join core.enrollments s on s.tenant_id = u.tenant_id and s.user_id = u.student_user_id
-          and s.org_id = ${org} and s.role = 'student' and s.status = 'active'
-        where u.tenant_id = ${tenant} and u.status = 'active') as guardians_linked,
       exists (select 1 from core.class_meetings c
         where c.tenant_id = ${tenant} and c.org_id = ${org} and c.status = 'active'
           and (upper_inf(c.valid_during) or upper(c.valid_during) > ${input.today}::date)) as timetable_ready,
-      ${signedIn(FAMILY_ROLES)} as families_signed_in,
       exists (select 1 from core.assignments a where a.tenant_id = ${tenant}
         and a.org_id = ${org} and a.status = 'active' and a.state <> 'draft') as first_assignment,
       exists (select 1 from core.attendance_registers g where g.tenant_id = ${tenant}

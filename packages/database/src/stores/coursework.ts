@@ -1,8 +1,6 @@
 import type { FeedbackBand } from "@faridalms/domain/learning";
-import type { Feed, Keyset } from "@faridalms/domain/paging";
 import type { ContentLocale } from "@faridalms/domain/translations";
 
-import { feedOf } from "@faridalms/domain/paging";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -746,8 +744,6 @@ export interface WorkRow {
   score: number | null;
   effectiveScore: number | null;
   released: boolean;
-  /** The latest attempt is shared with the student's family. */
-  shared: boolean;
   gradeScaleVersionId: string | null;
   /** Comments the student answered that wait for a grader's reply. */
   awaiting: number;
@@ -783,7 +779,6 @@ export async function studentWork(
     score: string | null;
     effective_score: string | null;
     released: boolean | null;
-    shared: boolean;
     grade_scale_version_id: string | null;
     awaiting: number;
     held: boolean;
@@ -803,8 +798,6 @@ export async function studentWork(
       x.id as assessment_id, x.score::text as score, x.effective_score::text as effective_score,
       x.released_at is not null as released, x.grade_scale_version_id,
       x.comments_released_at is not null and x.released_at is null as held,
-      exists (select 1 from core.family_shares h where h.tenant_id = r.tenant_id
-        and h.attempt_id = t.id and h.status = 'active') as shared,
       -- Comments the student answered that no grader has replied to since:
       -- marked not understood, or with the student's reply last.
       (select count(*)::int from core.work_comments c
@@ -857,109 +850,10 @@ export async function studentWork(
     effectiveScore:
       row.effective_score === null ? null : Number(row.effective_score),
     released: row.released ?? false,
-    shared: row.shared,
     gradeScaleVersionId: row.grade_scale_version_id,
     awaiting: row.awaiting,
     held: row.held,
   }));
-}
-
-/** Shares handed-in work with each student's family; sharing twice keeps one. */
-export async function shareAttempts(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    shares: readonly { attemptId: string; studentId: string }[];
-    userId: string;
-  },
-): Promise<void> {
-  for (const share of input.shares)
-    await tx.execute(sql`
-      insert into core.family_shares (tenant_id, attempt_id, student_user_id, shared_by_user_id)
-      values (${input.tenantId}::uuid, ${share.attemptId}::uuid, ${share.studentId}::uuid,
-        ${input.userId}::uuid)
-      on conflict (tenant_id, attempt_id) where status = 'active' do nothing`);
-}
-
-export async function unshareAttempts(
-  tx: Tx,
-  input: { tenantId: string; attemptIds: readonly string[] },
-): Promise<void> {
-  if (input.attemptIds.length === 0) return;
-  await tx.execute(sql`
-    update core.family_shares set status = 'tobedeleted'
-    where tenant_id = ${input.tenantId}::uuid and attempt_id = any(${uuidArray(input.attemptIds)})
-      and status = 'active'`);
-}
-
-export async function isShared(
-  tx: Tx,
-  tenantId: string,
-  attemptId: string,
-): Promise<boolean> {
-  const [row] = await tx.execute<{ shared: boolean }>(sql`
-    select exists (select 1 from core.family_shares where tenant_id = ${tenantId}::uuid
-      and attempt_id = ${attemptId}::uuid and status = 'active') as shared`);
-  return row?.shared ?? false;
-}
-
-export interface SharedPiece {
-  attemptId: string;
-  assignmentId: string;
-  title: string;
-  classCode: string;
-  sharedAt: string;
-}
-
-/** The work a student's teachers have shared with their family, newest first. */
-export async function sharedWorkOf(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    studentId: string;
-    limit: number;
-    after: Keyset | null;
-  },
-): Promise<Feed<SharedPiece, Keyset>> {
-  const after = input.after;
-  const rows = await tx.execute<{
-    id: string;
-    attempt_id: string;
-    assignment_id: string;
-    title: string;
-    class_code: string;
-    shared_at: string;
-  }>(sql`
-    select h.id, h.attempt_id, a.id as assignment_id, a.title, c.code as class_code,
-      ${isoOf(sql`h.created_at`)} as shared_at
-    from core.family_shares h
-    join core.submission_attempts t on t.tenant_id = h.tenant_id and t.id = h.attempt_id
-      and t.status = 'active'
-    join core.submissions s on s.tenant_id = t.tenant_id and s.id = t.submission_id
-    join core.assignments a on a.tenant_id = s.tenant_id and a.id = s.assignment_id
-      and a.status = 'active'
-    join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
-    where h.tenant_id = ${input.tenantId}::uuid and h.student_user_id = ${input.studentId}::uuid
-      and h.status = 'active'
-      and (${after === null}::boolean
-        or (date_trunc('milliseconds', h.created_at), h.id)
-          < (${after?.at ?? null}::timestamptz, ${after?.id ?? null}::uuid))
-    order by date_trunc('milliseconds', h.created_at) desc, h.id desc
-    limit ${input.limit + 1}`);
-  const feed = feedOf(rows, input.limit, (row) => ({
-    at: row.shared_at,
-    id: row.id,
-  }));
-  return {
-    rows: feed.rows.map((row) => ({
-      attemptId: row.attempt_id,
-      assignmentId: row.assignment_id,
-      title: row.title,
-      classCode: row.class_code,
-      sharedAt: row.shared_at,
-    })),
-    next: feed.next,
-  };
 }
 
 /** The student's submission for the assignment, created the first time. */

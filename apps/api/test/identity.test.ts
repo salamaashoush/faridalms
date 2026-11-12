@@ -7,7 +7,10 @@ describe("sign-in", () => {
   test("a legal guardian reaches the family workspace only with portal access", async () => {
     const password = "correct horse battery staple";
     const api = await signedIn("northwind", login("principal"));
-    const options = await api.people.options();
+    const options = {
+      ...(await api.people.options()),
+      relations: await api.guardians.relations(),
+    };
     const father = options.relations.find((row) => row.code === "father");
     if (!father) throw new Error("options");
     const studentId =
@@ -22,7 +25,7 @@ describe("sign-in", () => {
       residence: "secondary" as const,
       pickup: "allowed" as const,
     };
-    await api.people.saveRelationship({
+    await api.guardians.saveLink({
       studentId,
       person: {
         names: {
@@ -33,9 +36,9 @@ describe("sign-in", () => {
       },
       flags,
     });
-    const link = (await api.people.student({ id: studentId })).guardians?.find(
-      (guardian) => guardian.fullNameEn === "Karim Adel",
-    );
+    const link = (
+      await api.guardians.ofStudent({ studentId: studentId })
+    ).guardians.find((guardian) => guardian.fullNameEn === "Karim Adel");
     if (!link) throw new Error("link missing");
     await api.people.saveSignIn({
       userId: link.userId,
@@ -50,7 +53,7 @@ describe("sign-in", () => {
         }),
       ),
     ).toMatchObject({ message: "auth.invalid_credentials" });
-    await api.people.saveRelationship({
+    await api.guardians.saveLink({
       studentId,
       relationshipId: link.relationshipId,
       expectedVersion: link.version,

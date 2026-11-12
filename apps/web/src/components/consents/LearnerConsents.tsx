@@ -19,7 +19,7 @@ import { usePrint } from "~/components/print/usePrint";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { familyConsentsQuery } from "~/queries/consents";
+import { myConsentsQuery } from "~/queries/consents";
 import { answerConsent } from "~/server/consents";
 import { formatInstant, formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -27,36 +27,36 @@ import { getMessageFromError } from "~/utils/error";
 import { DECISION_LABEL, DECISION_TONE } from "./format";
 
 type Data = Awaited<
-  ReturnType<NonNullable<(typeof familyConsentsQuery)["queryFn"]>>
+  ReturnType<NonNullable<(typeof myConsentsQuery)["queryFn"]>>
 >;
 type Form = Data["forms"][number];
-type Child = Data["children"][number];
-type Answer = Child["answers"][number];
+type Learner = Data["learners"][number];
+type Answer = Learner["answers"][number];
 
-const answerTo = (child: Child, form: Form): Answer | null =>
-  child.answers.find((row) => row.purposeId === form.purposeId) ?? null;
+const answerTo = (learner: Learner, form: Form): Answer | null =>
+  learner.answers.find((row) => row.purposeId === form.purposeId) ?? null;
 
 /**
- * An answer the family still owes: none yet, one the law asks again for, or
+ * An answer still owed: none yet, one the law asks again for, or
  * one given to an earlier version of the form, which stays in force until
- * they answer this one.
+ * this one is answered.
  */
 const waiting = (answer: Answer | null, form: Form) =>
   !answer || answer.due || answer.formId !== form.id;
 
-interface ChildAnswerProps {
-  child: Child;
+interface LearnerAnswerProps {
+  learner: Learner;
   form: Form;
 }
 
-function ChildAnswer({ child, form }: ChildAnswerProps) {
+function LearnerAnswer({ learner, form }: LearnerAnswerProps) {
   const queryClient = useQueryClient();
-  const answer = answerTo(child, form);
+  const answer = answerTo(learner, form);
   const [changing, setChanging] = useState(false);
   const mutation = useMutation({
     mutationFn: (agreed: boolean) =>
       answerConsent({
-        data: { studentId: child.studentId, noticeId: form.id, agreed },
+        data: { studentId: learner.studentId, noticeId: form.id, agreed },
       }),
     onSuccess: async () => {
       setChanging(false);
@@ -67,8 +67,8 @@ function ChildAnswer({ child, form }: ChildAnswerProps) {
     onError: (error) => toast.error(getMessageFromError(error)),
   });
   const owed = waiting(answer, form);
-  const asking = child.mayAnswer && (owed || changing);
-  const name = displayName(child);
+  const asking = learner.mayAnswer && (owed || changing);
+  const name = displayName(learner);
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
       <div className="grid min-w-0 flex-1 gap-0.5">
@@ -97,9 +97,11 @@ function ChildAnswer({ child, form }: ChildAnswerProps) {
             <StatusText tone="warning">{m.consentAskedAgain()}</StatusText>
           ) : null}
         </span>
-        {child.mayAnswer ? null : (
+        {learner.mayAnswer ? null : (
           <span className="text-[13px] leading-[18px] text-muted-foreground">
-            {m.consentGuardianAnswers()}
+            {learner.self
+              ? m.consentAnsweredForYou()
+              : m.consentGuardianAnswers()}
           </span>
         )}
       </div>
@@ -124,7 +126,7 @@ function ChildAnswer({ child, form }: ChildAnswerProps) {
             {m.consentDisagree()}
           </Button>
         </fieldset>
-      ) : child.mayAnswer ? (
+      ) : learner.mayAnswer ? (
         <Button
           type="button"
           variant="ghost"
@@ -142,18 +144,18 @@ function ChildAnswer({ child, form }: ChildAnswerProps) {
 
 interface FormCardProps {
   form: Form;
-  family: Child[];
+  learners: Learner[];
 }
 
-function FormCard({ form, family }: FormCardProps) {
-  const open = family.some(
-    (child) => child.mayAnswer && waiting(answerTo(child, form), form),
+function FormCard({ form, learners }: FormCardProps) {
+  const open = learners.some(
+    (learner) => learner.mayAnswer && waiting(answerTo(learner, form), form),
   );
   const [locale, setLocale] = useState<ContentLocale>(() =>
     getLocale() === "ar" ? "ar" : "en",
   );
   const title = inLocale(form.labelEn, form.labelAr);
-  // A family may print a form to read it through, or to sign and hand in.
+  // A form may be printed to read it through, or to sign and hand in.
   const printing = usePrint(
     form.body
       ? {
@@ -164,9 +166,9 @@ function FormCard({ form, family }: FormCardProps) {
             primary: form.primaryLocale,
             locale,
           }),
-          slip: family
-            .filter((child) => child.mayAnswer)
-            .map((child) => displayName(child)),
+          slip: learners
+            .filter((learner) => learner.mayAnswer)
+            .map((learner) => displayName(learner)),
         }
       : null,
   );
@@ -213,8 +215,12 @@ function FormCard({ form, family }: FormCardProps) {
           </div>
         </details>
         <RecordList>
-          {family.map((child) => (
-            <ChildAnswer key={child.studentId} child={child} form={form} />
+          {learners.map((learner) => (
+            <LearnerAnswer
+              key={learner.studentId}
+              learner={learner}
+              form={form}
+            />
           ))}
         </RecordList>
       </div>
@@ -224,18 +230,19 @@ function FormCard({ form, family }: FormCardProps) {
 }
 
 /**
- * The school's consent forms for a family: each form's words, and for every
- * child an answer the family can give or change at any time. Forms still
- * waiting on an answer come first.
+ * The school's consent forms for the viewer: each form's words, and for
+ * themself or every learner they follow an answer they can give or change
+ * at any time where they decide. Forms still waiting on an answer come first.
  */
-export function FamilyConsents() {
-  const data = useSuspenseQuery(familyConsentsQuery).data;
+export function LearnerConsents() {
+  const data = useSuspenseQuery(myConsentsQuery).data;
   // Ordered once as the page opens, so a card does not jump away the moment
   // it is answered.
   const [order] = useState(() => {
     const owed = (form: Form) =>
-      data.children.some(
-        (child) => child.mayAnswer && waiting(answerTo(child, form), form),
+      data.learners.some(
+        (learner) =>
+          learner.mayAnswer && waiting(answerTo(learner, form), form),
       );
     return data.forms
       .toSorted((a, b) => Number(owed(b)) - Number(owed(a)))
@@ -246,7 +253,7 @@ export function FamilyConsents() {
     return index === -1 ? order.length : index;
   };
   const forms = data.forms.toSorted((a, b) => rank(a) - rank(b));
-  if (data.forms.length === 0 || data.children.length === 0)
+  if (data.forms.length === 0 || data.learners.length === 0)
     return (
       <EmptyState
         icon={ShieldCheck}
@@ -257,7 +264,7 @@ export function FamilyConsents() {
   return (
     <div className="grid gap-6">
       {forms.map((form) => (
-        <FormCard key={form.id} form={form} family={data.children} />
+        <FormCard key={form.id} form={form} learners={data.learners} />
       ))}
     </div>
   );

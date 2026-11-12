@@ -490,6 +490,7 @@ describe("a placement in a year", () => {
         today: year.starts_on,
         viewerId: school.studentId,
         schoolWide: true,
+        followed: [],
       };
       await tx.execute(sql`
         update core.student_school_years set status = 'tobedeleted'

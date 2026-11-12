@@ -121,7 +121,7 @@ function columns(): Column<Row>[] {
     {
       id: "family",
       header: m.aplColFamily(),
-      cell: (row) => <bdi>{inLocale(row.familyEn, row.familyAr)}</bdi>,
+      cell: (row) => <bdi>{inLocale(row.filerEn, row.filerAr)}</bdi>,
     },
     {
       id: "priorities",
@@ -166,7 +166,7 @@ const CARD = {
   title: (row: Row) => <Child row={row} />,
   status: (row: Row) => <State row={row} />,
   fact: (row: Row) =>
-    `${inLocale(row.intakeEn, row.intakeAr)} · ${inLocale(row.familyEn, row.familyAr)}`,
+    `${inLocale(row.intakeEn, row.intakeAr)} · ${inLocale(row.filerEn, row.filerAr)}`,
 };
 
 const VIEWS: ApplicationView[] = [

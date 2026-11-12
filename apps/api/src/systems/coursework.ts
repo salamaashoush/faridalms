@@ -30,10 +30,6 @@ import {
 } from "@faridalms/database/stores/classes";
 import {
   joinOpenWork,
-  isShared,
-  shareAttempts,
-  sharedWorkOf,
-  unshareAttempts,
   assessmentOf,
   assignmentById,
   attemptById,
@@ -188,7 +184,6 @@ import {
   studentWorkActionSchema,
   quizIssue,
   quizPoints,
-  sharedWorkQuerySchema,
   teacherListSchema,
 } from "@faridalms/domain/coursework";
 import {
@@ -209,7 +204,6 @@ import {
   quizOfBrief,
 } from "@faridalms/domain/lesson-content";
 import { translatedQuiz } from "@faridalms/domain/lesson-translation";
-import { PAGE_SIZE } from "@faridalms/domain/paging";
 import { practised, practiceStanding } from "@faridalms/domain/practice";
 import { isLater } from "@faridalms/domain/publication";
 import { dayWithin } from "@faridalms/domain/school";
@@ -269,6 +263,7 @@ import {
   partsFor,
   partsPublished,
   partsReused,
+  readsAttempt,
 } from "../coursework/points";
 import {
   registerArea,
@@ -304,8 +299,6 @@ const AUDIT_ACTIONS = {
   excuse: "submission.excuse",
   unexcuse: "submission.unexcuse",
   hand_in: "submission.hand_in",
-  share: "submission.share",
-  unshare: "submission.unshare",
 } as const satisfies Record<StudentWorkAction, string>;
 
 const id = v.pipe(v.string(), v.uuid());
@@ -413,8 +406,8 @@ async function readable(
   if (host.type === "submission")
     return owner.studentId === context.actor.userId;
   if (teacher) return true;
-  // A family reads handed-in work only once a teacher has shared it; a
-  // classmate, once it was given them to review.
+  // A classmate reads handed-in work once it was given them to review, and
+  // anyone else only as a module lets them.
   if (host.type === "submission_attempt")
     return (
       owner.studentId === context.actor.userId ||
@@ -424,10 +417,11 @@ async function readable(
           attemptId: host.id,
           reviewerId: context.actor.userId,
         }))) ||
-      (can(context, "children:read") &&
-        owner.studentId !== null &&
-        (await reachesStudent(context, "teaching", owner.studentId)) &&
-        (await isShared(context.tx, context.tenantId, host.id)))
+      (owner.studentId !== null &&
+        (await readsAttempt(context, {
+          attemptId: host.id,
+          studentId: owner.studentId,
+        })))
     );
   if (
     await isRecipient(
@@ -1544,83 +1538,64 @@ export const act = writeProcedure
     );
     let changed = 0;
     const returned: typeof chosen = [];
-    if (input.action === "share" || input.action === "unshare") {
-      const handedIn = chosen.flatMap((row) =>
-        row.attemptId
-          ? [{ attemptId: row.attemptId, studentId: row.studentId }]
-          : [],
-      );
-      if (input.action === "share")
-        await shareAttempts(tx, {
-          tenantId: context.tenantId,
-          shares: handedIn,
-          userId: context.actor.userId,
-        });
-      else
-        await unshareAttempts(tx, {
-          tenantId: context.tenantId,
-          attemptIds: handedIn.map((share) => share.attemptId),
-        });
-      changed = handedIn.length;
-    } else
-      for (const row of chosen) {
-        if (input.action === "hand_in") {
-          if (await handInFor(context, { assignment, row })) changed += 1;
+    for (const row of chosen) {
+      if (input.action === "hand_in") {
+        if (await handInFor(context, { assignment, row })) changed += 1;
+        continue;
+      }
+      if (input.action === "return" || input.action === "revise") {
+        if (
+          !row.attemptId ||
+          !row.submissionId ||
+          row.submissionVersion === null
+        )
           continue;
-        }
-        if (input.action === "return" || input.action === "revise") {
-          if (
-            !row.attemptId ||
-            !row.submissionId ||
-            row.submissionVersion === null
-          )
-            continue;
-          if (!row.assessmentId)
-            await saveAssessment(tx, {
-              tenantId: context.tenantId,
-              attemptId: row.attemptId,
-              submissionId: row.submissionId,
-              studentId: row.studentId,
-              score: null,
-              effectiveScore: null,
-              rubricScores: null,
-              rubricComments: null,
-              feedback: null,
-              privateNote: null,
-              userId: context.actor.userId,
-              today: context.today,
-            });
-          // Held grades wait for the student to answer every comment first.
-          if (
-            assignment.gradeAfterAnswers &&
-            (await unansweredComments(tx, context.tenantId, row.attemptId)) > 0
-          )
-            await releaseComments(tx, context.tenantId, [row.attemptId]);
-          else await releaseAssessments(tx, context.tenantId, [row.attemptId]);
-          await touchSubmission(tx, {
+        if (!row.assessmentId)
+          await saveAssessment(tx, {
             tenantId: context.tenantId,
-            id: row.submissionId,
-            expectedVersion: row.submissionVersion,
-            state: "returned",
-            needsRevision: input.action === "revise",
+            attemptId: row.attemptId,
+            submissionId: row.submissionId,
+            studentId: row.studentId,
+            score: null,
+            effectiveScore: null,
+            rubricScores: null,
+            rubricComments: null,
+            feedback: null,
+            privateNote: null,
+            userId: context.actor.userId,
+            today: context.today,
           });
-          returned.push(row);
-          changed += 1;
-          continue;
-        }
-        const submission = await ensureSubmission(tx, {
-          tenantId: context.tenantId,
-          assignmentId: assignment.id,
-          studentId: row.studentId,
-        });
+        // Held grades wait for the student to answer every comment first.
+        if (
+          assignment.gradeAfterAnswers &&
+          (await unansweredComments(tx, context.tenantId, row.attemptId)) > 0
+        )
+          await releaseComments(tx, context.tenantId, [row.attemptId]);
+        else await releaseAssessments(tx, context.tenantId, [row.attemptId]);
         await touchSubmission(tx, {
           tenantId: context.tenantId,
-          id: submission.id,
-          expectedVersion: submission.version,
-          excused: input.action === "excuse",
+          id: row.submissionId,
+          expectedVersion: row.submissionVersion,
+          state: "returned",
+          needsRevision: input.action === "revise",
         });
+        returned.push(row);
         changed += 1;
+        continue;
       }
+      const submission = await ensureSubmission(tx, {
+        tenantId: context.tenantId,
+        assignmentId: assignment.id,
+        studentId: row.studentId,
+      });
+      await touchSubmission(tx, {
+        tenantId: context.tenantId,
+        id: submission.id,
+        expectedVersion: submission.version,
+        excused: input.action === "excuse",
+      });
+      changed += 1;
+    }
     await tellReturned(
       teachingScope(context),
       assignment,
@@ -2982,51 +2957,6 @@ async function workOf(
     now: context.now.toISOString(),
   };
 }
-
-/** The work teachers have shared with a child's family, newest first. */
-export const shared = readProcedure
-  .input(sharedWorkQuerySchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "children:read");
-    await requireStudent(context, "teaching", input.studentId);
-    return sharedWorkOf(context.tx, {
-      tenantId: context.tenantId,
-      studentId: input.studentId,
-      limit: PAGE_SIZE,
-      after: input.after,
-    });
-  });
-
-/** One shared piece of work, as the family reads it. */
-export const sharedPiece = readProcedure
-  .input(v.object({ attemptId: id }))
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "children:read");
-    const host = { type: "submission_attempt", id: input.attemptId };
-    if (!(await readable(context, host))) throw new ORPCError("NOT_FOUND");
-    const [document, assessment, comments] = await Promise.all([
-      documentOf(context.tx, context.tenantId, host),
-      assessmentOf(context.tx, context.tenantId, input.attemptId),
-      commentsOf(context.tx, context.tenantId, input.attemptId),
-    ]);
-    const stored = (document?.content ?? null) as ContentDocument | null;
-    const returned = Boolean(
-      assessment?.releasedAt ?? assessment?.commentsReleasedAt,
-    );
-    return {
-      content: stored ? withBlockIds(stored) : null,
-      // The teacher's comments, once returned, without the child's answers
-      // and replies, which stay between the child and the teacher.
-      comments: returned
-        ? comments.map((row) => ({
-            ...row,
-            anchor: row.anchor as unknown as CommentAnchor,
-            studentState: null,
-            replies: [],
-          }))
-        : [],
-    };
-  });
 
 /** A child's coursework for their family: never draft grades, never other students. */
 export const child = readProcedure

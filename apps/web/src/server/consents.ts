@@ -43,8 +43,8 @@ export const recordConsent = createServerFn({ method: "POST" })
   .validator(checked(recordConsentSchema))
   .handler(({ data }) => backend().consents.record(data));
 
-export const getFamilyConsents = createServerFn({ method: "GET" }).handler(() =>
-  backend().consents.family(),
+export const getMyConsents = createServerFn({ method: "GET" }).handler(() =>
+  backend().consents.mine(),
 );
 
 export const answerConsent = createServerFn({ method: "POST" })

@@ -4,11 +4,9 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../src/context";
 
 import { withPurpose } from "../src/context";
-import { permittingLink } from "../src/stores/persons";
-import {
-  familyHealthRecordsOf,
-  insertHealthChange,
-} from "../src/stores/records";
+import { permittingLink } from "../src/stores/families";
+import { guardianSummary } from "../src/stores/guardian-health";
+import { insertHealthChange, summaryRecordsOf } from "../src/stores/records";
 import { appCell, harness, probe } from "./harness";
 
 const TODAY = "2026-11-01";
@@ -239,11 +237,14 @@ describe("the medical summary in the store", () => {
         purpose: "health",
       });
       const rows = await withPurpose(tx, "health", (inner) =>
-        familyHealthRecordsOf(inner, {
+        summaryRecordsOf(inner, {
           tenantId: a.tenantId,
           studentId: link.student,
-          viewerId: link.related,
-          today: TODAY,
+          reader: guardianSummary({
+            tenantId: a.tenantId,
+            viewerId: link.related,
+            today: TODAY,
+          }),
           meanings: ["allergy", "blood_group"],
         }),
       );
@@ -273,11 +274,15 @@ describe("the medical summary in the store", () => {
           purpose: "health",
         });
         return withPurpose(tx, "health", async (inner) => {
-          const rows = await familyHealthRecordsOf(inner, {
+          const reader = guardianSummary({
             tenantId: a.tenantId,
-            studentId: link.student,
             viewerId: link.related,
             today: TODAY,
+          });
+          const rows = await summaryRecordsOf(inner, {
+            tenantId: a.tenantId,
+            studentId: link.student,
+            reader,
             meanings: ["allergy", "blood_group"],
           });
           const [request] = await inner.execute<{ id: string }>(sql`
@@ -300,11 +305,10 @@ describe("the medical summary in the store", () => {
             requestId: request.id,
             studentId: link.student,
             requestedByUserId: link.related,
-            today: TODAY,
+            reader,
             target: "contact",
             kindId: null,
             recordId: null,
-            relationshipId: link.id,
             keyVersion: key.key_version,
             ciphertext: new Uint8Array(64),
           });
@@ -313,5 +317,89 @@ describe("the medical summary in the store", () => {
       });
       expect(seen).toEqual({ permitting: null, rows: 0, kept: false });
     }
+  });
+});
+
+async function answers(
+  tenantId: string,
+  link: Link,
+  change: string | null,
+): Promise<Record<"consent" | "decide", boolean>> {
+  const result = await probe<{ consent: boolean; decide: boolean }>(
+    "app",
+    tenantId,
+    [
+      ...(change
+        ? [
+            {
+              text: `update core.user_relationships set ${change} where tenant_id = $1 and id = $2`,
+              params: [tenantId, link.id],
+            },
+          ]
+        : []),
+      {
+        text: `select app.guardian_permits(r, $3::date, 'consent') as consent,
+                      app.guardian_permits(r, $3::date, 'decide') as decide
+               from core.user_relationships r where r.tenant_id = $1 and r.id = $2`,
+        params: [tenantId, link.id, TODAY],
+      },
+    ],
+  );
+  if (result.error) throw new Error(result.error.message);
+  const [row] = result.rows;
+  if (!row) throw new Error("the link was not read back");
+  return row;
+}
+
+describe("who answers for a learner", () => {
+  test("a confirmed legal guardian with full rights consents and decides", async () => {
+    const { a } = harness();
+    const link = await confirmedMother(a.tenantId);
+    expect(await answers(a.tenantId, link, null)).toEqual({
+      consent: true,
+      decide: true,
+    });
+  });
+
+  test("portal access and being cut off from contact change neither", async () => {
+    const { a } = harness();
+    const link = await confirmedMother(a.tenantId);
+    for (const change of [
+      "portal_access = false",
+      "communication_isolated = true",
+    ])
+      expect(await answers(a.tenantId, link, change)).toEqual({
+        consent: true,
+        decide: true,
+      });
+  });
+
+  test("a guardian not confirmed as a legal guardian decides but does not consent", async () => {
+    const { a } = harness();
+    const link = await confirmedMother(a.tenantId);
+    for (const change of [
+      "legal_guardian = false",
+      "legal_guardian = null",
+      "verified_at = null",
+    ])
+      expect(await answers(a.tenantId, link, change)).toEqual({
+        consent: false,
+        decide: true,
+      });
+  });
+
+  test("rights a court order limited or an ended link take both away", async () => {
+    const { a } = harness();
+    const link = await confirmedMother(a.tenantId);
+    for (const change of [
+      "educational_rights = 'restricted'",
+      "educational_rights = 'none', portal_access = false",
+      `valid_during = daterange('2024-09-01', '${TODAY}')`,
+      "status = 'tobedeleted'",
+    ])
+      expect(await answers(a.tenantId, link, change)).toEqual({
+        consent: false,
+        decide: false,
+      });
   });
 });

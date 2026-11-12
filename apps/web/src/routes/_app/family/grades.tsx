@@ -15,9 +15,9 @@ import { GoalsReport } from "~/components/standards/Goals";
 import { SkillsSection } from "~/components/standards/Progress";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { childrenQuery } from "~/queries/families";
 import { studentGradesQuery } from "~/queries/gradebook";
 import { goalsReportQuery, studentProgressQuery } from "~/queries/standards";
-import { personRecordQuery } from "~/queries/students";
 import { currentUserQuery } from "~/queries/user";
 
 export const Route = createFileRoute("/_app/family/grades")({
@@ -27,10 +27,10 @@ export const Route = createFileRoute("/_app/family/grades")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    const me = await context.queryClient.ensureQueryData(
-      personRecordQuery(user.id),
+    const children = await context.queryClient.ensureQueryData(
+      childrenQuery(user.id),
     );
-    const child = deps.studentId ?? me.children[0]?.studentId;
+    const child = deps.studentId ?? children[0]?.studentId;
     if (child)
       await Promise.all([
         context.queryClient.ensureQueryData(studentGradesQuery(child)),
@@ -49,7 +49,7 @@ function FamilyGradesPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
-  const children = useSuspenseQuery(personRecordQuery(user.id)).data.children;
+  const children = useSuspenseQuery(childrenQuery(user.id)).data;
   const current = search.studentId ?? children[0]?.studentId;
   const childFacet: Facet = {
     id: "child",

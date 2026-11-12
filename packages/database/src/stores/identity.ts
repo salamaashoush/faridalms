@@ -6,7 +6,6 @@ import { PROFILE_CAPS } from "@faridalms/domain/capabilities";
 import { SWITCHED_MODULES } from "@faridalms/domain/modules";
 import {
   ADMINISTRATION_ROLES,
-  APPLICANT_ROLE,
   builtinFor,
   contextsFor,
 } from "@faridalms/domain/workspace";
@@ -60,6 +59,11 @@ export async function effectiveAccess(
     userId: string;
     orgId: string;
     today: string;
+    /**
+     * The contexts the modules open to someone holding these roles, beside
+     * those the roles open by themselves.
+     */
+    opens?: (roles: readonly string[]) => Promise<readonly SessionContext[]>;
   } & (
     | { context: "staff" | "family"; young?: undefined }
     /** A student's profile is young where a module knows them to be a young child. */
@@ -125,27 +129,12 @@ export async function effectiveAccess(
       for (const cap of nearest?.capabilities ?? []) granted.add(cap);
     }
   }
-  let contexts = contextsFor(roles);
-  // A legal guardian holds a family role without portal access; only a
-  // portal link opens the family workspace, or applying to the school.
-  if (contexts.includes("family") && !roles.includes(APPLICANT_ROLE)) {
-    const portal = await tx.execute<{ found: boolean }>(sql`
-      select exists (
-        select 1 from core.user_relationships r
-        where r.tenant_id = ${input.tenantId}::uuid and r.related_user_id = ${input.userId}::uuid
-          and app.guardian_permits(r, ${input.today}::date, 'follow')
-          and (exists (select 1 from core.user_roles s
-                 where s.tenant_id = r.tenant_id and s.user_id = r.student_user_id
-                   and s.role = 'student' and s.status = 'active' and s.org_id in ${path}
-                   and s.valid_during @> ${input.today}::date)
-               or exists (select 1 from core.student_departures d
-                 where d.tenant_id = r.tenant_id and d.student_user_id = r.student_user_id
-                   and d.status = 'active' and d.org_id in ${path}
-                   and d.left_on <= ${input.today}::date and d.access_ends_on > ${input.today}::date))
-      ) as found`);
-    if (!portal[0]?.found)
-      contexts = contexts.filter((context) => context !== "family");
-  }
+  const contexts = [
+    ...new Set([
+      ...contextsFor(roles),
+      ...((await input.opens?.(roles)) ?? []),
+    ]),
+  ];
   let profile: Profile;
   if (input.context === "staff")
     profile =

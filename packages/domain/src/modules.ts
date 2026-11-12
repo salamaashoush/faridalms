@@ -59,7 +59,12 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     schoolSwitch: false,
     systems: ["homerooms"],
   },
-  families: { requires: [], basic: true, schoolSwitch: false, systems: [] },
+  families: {
+    requires: [],
+    basic: true,
+    schoolSwitch: false,
+    systems: ["guardians"],
+  },
   coursework: {
     requires: [],
     basic: true,
@@ -84,7 +89,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: true,
     schoolSwitch: false,
-    systems: ["attendance", "absenceReports", "followUp", "frontDesk"],
+    systems: ["attendance", "absenceReports", "frontDesk"],
   },
   timetable: {
     requires: [],
@@ -198,9 +203,31 @@ export const SWITCHED_MODULES = [
 ] as const satisfies readonly ModuleId[];
 export type SwitchedModule = (typeof SWITCHED_MODULES)[number];
 
+/**
+ * API namespaces a module owns that do what it does together with modules
+ * it does not require, answered only where those are on too: following up
+ * absences calls those who act for a learner, say.
+ */
+export const LINK_SYSTEMS: Readonly<
+  Record<string, { owner: ModuleId; needs: readonly ModuleId[] }>
+> = {
+  followUp: { owner: "attendance", needs: ["families"] },
+  familyShares: { owner: "coursework", needs: ["families"] },
+};
+
 /** The module that owns an API namespace, or null for core. */
 export function moduleOfSystem(system: string): ModuleId | null {
-  return MODULE_IDS.find((id) => MODULES[id].systems.includes(system)) ?? null;
+  return (
+    MODULE_IDS.find((id) => MODULES[id].systems.includes(system)) ??
+    LINK_SYSTEMS[system]?.owner ??
+    null
+  );
+}
+
+/** Every module that must be on for a namespace to answer: its owner and what it needs. */
+export function modulesOfSystem(system: string): ModuleId[] {
+  const owner = moduleOfSystem(system);
+  return owner ? [owner, ...(LINK_SYSTEMS[system]?.needs ?? [])] : [];
 }
 
 /**

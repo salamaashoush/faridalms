@@ -16,7 +16,7 @@ import { displayName } from "~/components/people/format";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { childCourseworkQuery } from "~/queries/coursework";
-import { personRecordQuery } from "~/queries/students";
+import { childrenQuery } from "~/queries/families";
 import { currentUserQuery } from "~/queries/user";
 
 const WEEK_MS = 7 * 86_400_000;
@@ -33,10 +33,10 @@ export const Route = createFileRoute("/_app/family/assignments")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    const me = await context.queryClient.ensureQueryData(
-      personRecordQuery(user.id),
+    const children = await context.queryClient.ensureQueryData(
+      childrenQuery(user.id),
     );
-    const child = deps.studentId ?? me.children[0]?.studentId;
+    const child = deps.studentId ?? children[0]?.studentId;
     if (child)
       await context.queryClient.ensureQueryData(
         childCourseworkQuery(child, deps.ended),
@@ -130,8 +130,7 @@ function FamilyCourseworkPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
-  const me = useSuspenseQuery(personRecordQuery(user.id)).data;
-  const children = me.children;
+  const children = useSuspenseQuery(childrenQuery(user.id)).data;
   const current = search.studentId ?? children[0]?.studentId;
   const childFacet: Facet = {
     id: "child",

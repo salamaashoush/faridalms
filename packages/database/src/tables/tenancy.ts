@@ -111,6 +111,11 @@ export const orgs = core.table.withRLS(
       .notNull()
       .default(sql`'{5,6}'`),
     countryCode: text("country_code"),
+    /**
+     * The age, on the school's day, from which a learner signs, asks and
+     * reports for themself; a learner with no birth date counts as younger.
+     */
+    learnersDecideFrom: smallint("learners_decide_from").notNull().default(18),
     /** A calendar shown beside the Gregorian one, for schools that keep Hijri dates. */
     secondaryCalendar: text("secondary_calendar").$type<
       "islamic-umalqura" | "islamic-civil"
@@ -162,6 +167,11 @@ export const orgs = core.table.withRLS(
     ck("orgs", "digits", sql`digits in ('latn', 'arab')`),
     ck("orgs", "arabic_math", sql`arabic_math in ('ltr', 'rtl')`),
     ck("orgs", "country_code", sql`country_code ~ '^[A-Z]{2}$'`),
+    ck(
+      "orgs",
+      "learners_decide_from",
+      sql`learners_decide_from between 1 and 25`,
+    ),
     ck("orgs", "address", sql`jsonb_typeof(address) = 'object'`),
     ck("orgs", "phone", sql`char_length(phone) between 1 and 40`),
     ck("orgs", "email", sql`char_length(email) between 3 and 254`),

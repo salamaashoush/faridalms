@@ -7,19 +7,13 @@ import type {
 import type { ReactNode } from "react";
 
 import { ageOn } from "@faridalms/domain/school";
-import { Button } from "@faridalms/ui/button";
-import { cn } from "@faridalms/ui/cn";
-import { ActionMenu } from "@faridalms/ui/system/action-menu";
 import { initialsOf } from "@faridalms/ui/system/app-shell";
 import { Page } from "@faridalms/ui/system/page";
 import {
   Fact,
   Facts,
-  phoneLink,
   RecordColumns,
-  RecordEmpty,
   RecordHeader,
-  RecordList,
   RecordSection,
   RecordTabs,
 } from "@faridalms/ui/system/record-page";
@@ -29,20 +23,16 @@ import {
   useSuspenseQueries,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowRightLeft,
   CameraOff,
-  Contact,
   Copy,
   HeartPulse,
   LogOut,
   MessageSquare,
   Pencil,
-  Plus,
-  ShieldAlert,
   Undo2,
-  UserX,
 } from "lucide-react";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
@@ -56,18 +46,14 @@ import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import {
   peopleOptionsQuery,
-  siblingsQuery,
   studentHistoryQuery,
   studentRecordQuery,
 } from "~/queries/students";
 import { cancelLeaving } from "~/server/students";
 import { formatDate } from "~/utils/datetime";
 
-import type { StudentSheet } from "./StudentSheets";
-
 import { groupWords } from "../classes/slots";
 import { GroupTeachers, StudentClasses } from "../classes/StudentClasses";
-import { ContactsSheet } from "./ContactsSheet";
 import {
   displayName,
   labelOf,
@@ -79,26 +65,26 @@ import {
 import { IdentitySection } from "./IdentitySection";
 import { LeaveSchool } from "./LeaveSchool";
 import { PhotoDialog } from "./PhotoDialog";
-import { Deferred, Email, HistoryFeed, Phone } from "./record-parts";
+import { Deferred, HistoryFeed } from "./record-parts";
 import {
   ArrangementsSection,
-  CustodySection,
   DemographicsSection,
   HealthSection,
 } from "./RecordSections";
 import { SignInSection } from "./SignInSection";
-import { studentClassesParts, studentRecordParts } from "./slots";
 import {
-  StudentAttendanceSummary,
-  StudentNotices,
-  StudentToday,
-} from "./StudentOverview";
-import { StudentSheets, useEndLink } from "./StudentSheets";
+  studentClassesParts,
+  studentFamilyParts,
+  studentRecordParts,
+} from "./slots";
+import { StudentAttendanceSummary, StudentToday } from "./StudentOverview";
+import { StudentSheets } from "./StudentSheets";
 
 export const STUDENT_TABS = [
   "overview",
   "details",
   "family",
+  "consents",
   "enrollment",
   "coursework",
   "skills",
@@ -110,10 +96,10 @@ export const STUDENT_TABS = [
 ] as const;
 export type StudentTab = (typeof STUDENT_TABS)[number];
 
-const TAB_LABEL: Record<StudentTab, () => string> = {
+const TAB_LABEL: Record<Exclude<StudentTab, "family">, () => string> = {
   overview: m.recordOverview,
   details: m.studentTabDetails,
-  family: m.studentTabFamily,
+  consents: m.consentsTitle,
   enrollment: m.studentTabEnrollment,
   coursework: m.courseworkRecordTab,
   skills: m.skillsTab,
@@ -127,7 +113,6 @@ const TAB_LABEL: Record<StudentTab, () => string> = {
 export type StudentData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof studentRecordQuery>["queryFn"]>>
 >;
-type Guardian = NonNullable<StudentData["guardians"]>[number];
 
 /** Which tabs this viewer may open. The route sends any other tab to Overview. */
 export function studentTabsFor(
@@ -137,6 +122,7 @@ export function studentTabsFor(
     overview: true,
     details: true,
     family: access.contacts,
+    consents: access.consents,
     enrollment: true,
     coursework: access.coursework,
     skills: access.skills,
@@ -168,7 +154,6 @@ function useLabels() {
   const options = useSuspenseQuery(peopleOptionsQuery).data;
   return {
     options,
-    relation: (id: string) => labelIn(options.relations, id),
     sex: (id: string | null) => labelIn(options.sexes, id),
   };
 }
@@ -246,153 +231,6 @@ function DepartureSection({ data, facts }: DepartureSectionProps) {
   );
 }
 
-interface GuardianItemProps {
-  guardian: Guardian;
-  actions?: ReactNode;
-}
-
-function GuardianItem({ guardian, actions }: GuardianItemProps) {
-  const labels = useLabels();
-  const phone = guardian.contacts.find((contact) => contact.kind === "phone");
-  const email = guardian.contacts.find((contact) => contact.kind === "email");
-  const address = guardian.contacts.find(
-    (contact) => contact.kind === "postal",
-  );
-  const flags: string[] = [];
-  if (guardian.residence === "primary")
-    flags.push(m.guardianResidencePrimary());
-  if (guardian.residence === "secondary")
-    flags.push(m.guardianResidenceSecondary());
-  if (guardian.primaryContact) flags.push(m.recordPrimaryContact());
-  if (guardian.legalGuardian) flags.push(m.guardianLegal());
-  if (guardian.portalAccess) flags.push(m.guardianPortalAccess());
-  if (guardian.pickup === "not_allowed")
-    flags.push(m.guardianPickupNotAllowed());
-  return (
-    <li className="flex items-start gap-3 py-3">
-      <span
-        aria-hidden
-        className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium"
-      >
-        {initialsOf(displayName(guardian))}
-      </span>
-      <div className="grid min-w-0 flex-1 gap-0.5">
-        <Link
-          to="/people/$userId"
-          params={{ userId: guardian.userId }}
-          dir="auto"
-          className={cn(
-            "justify-self-start text-sm leading-5 font-medium hover:text-primary hover:underline",
-            phoneLink,
-          )}
-        >
-          {displayName(guardian)}
-        </Link>
-        <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {[labels.relation(guardian.relationId), ...flags].join(" · ")}
-        </p>
-        <p className="flex flex-wrap items-center gap-x-4 text-[13px] leading-[18px]">
-          <span>
-            <span className="sr-only">{m.familyMobile()}: </span>
-            <Phone value={phone?.normalized ?? phone?.value} />
-          </span>
-          {email ? <Email value={email.value} /> : null}
-        </p>
-        {address ? (
-          <p className="text-[13px] leading-[18px]">
-            <span className="sr-only">{m.addressTitle()}: </span>
-            <bdi>{address.value}</bdi>
-          </p>
-        ) : null}
-      </div>
-      {actions}
-    </li>
-  );
-}
-
-interface GuardiansSectionProps {
-  data: StudentData;
-  onAdd?: () => void;
-  itemActions?: (guardian: Guardian) => ReactNode;
-}
-
-function GuardiansSection({ data, onAdd, itemActions }: GuardiansSectionProps) {
-  const guardians = data.guardians ?? [];
-  return (
-    <RecordSection
-      title={m.studentGuardians()}
-      action={
-        onAdd ? (
-          <Button
-            type="button"
-            variant="ghost"
-            className="max-md:h-10"
-            onClick={onAdd}
-          >
-            <Plus aria-hidden />
-            {m.guardianAdd()}
-          </Button>
-        ) : undefined
-      }
-    >
-      {guardians.length === 0 ? (
-        <RecordEmpty>{m.studentNoGuardians()}</RecordEmpty>
-      ) : (
-        <RecordList>
-          {guardians.map((guardian) => (
-            <GuardianItem
-              key={guardian.relationshipId}
-              guardian={guardian}
-              actions={itemActions?.(guardian)}
-            />
-          ))}
-        </RecordList>
-      )}
-    </RecordSection>
-  );
-}
-
-interface SiblingsSectionProps {
-  studentId: string;
-}
-
-/** Students who share a parent or guardian with this one. */
-function SiblingsSection({ studentId }: SiblingsSectionProps) {
-  const siblings = useSuspenseQuery(siblingsQuery(studentId)).data;
-  return (
-    <RecordSection title={m.siblingsTitle()} description={m.siblingsHint()}>
-      {siblings.length === 0 ? (
-        <RecordEmpty>{m.siblingsNone()}</RecordEmpty>
-      ) : (
-        <RecordList>
-          {siblings.map((sibling) => (
-            <li key={sibling.userId} className="flex items-center gap-3 py-3">
-              <span
-                aria-hidden
-                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium"
-              >
-                {initialsOf(displayName(sibling))}
-              </span>
-              <Link
-                to="/students/$studentId"
-                params={{ studentId: sibling.userId }}
-                search={{}}
-                dir="auto"
-                className={cn(
-                  "text-sm leading-5 font-medium hover:text-primary hover:underline",
-                  phoneLink,
-                )}
-              >
-                {displayName(sibling)}
-              </Link>
-            </li>
-          ))}
-        </RecordList>
-      )}
-    </RecordSection>
-  );
-}
-
 interface StudentHistoryProps {
   studentId: string;
 }
@@ -406,7 +244,7 @@ export interface StudentRecordProps {
   studentId: string;
   tab: StudentTab;
   onTab: (tab: StudentTab) => void;
-  /** Opens a conversation begun from here with the student's guardians. */
+  /** Opens a conversation begun from here with those who act for the student. */
   onConversation?: (threadId: string) => void;
 }
 
@@ -424,12 +262,7 @@ export function StudentRecord({
   const words = useSlot(groupWords);
   const mover = useSlot(studentClassesParts)[0]?.move;
   const [leaving, setLeaving] = useState(false);
-  const [contacts, setContacts] = useState<{
-    guardian: Guardian | null;
-    open: boolean;
-    key: number;
-  }>({ guardian: null, open: false, key: 0 });
-  const endLink = useEndLink(studentId);
+  const family = useSlot(studentFamilyParts)[0];
   const recordParts = useSlot(studentRecordParts);
   const partReads = useSuspenseQueries({
     queries: recordParts.map((part) => part.query(studentId)),
@@ -444,24 +277,19 @@ export function StudentRecord({
     manage: data.access.manage,
   };
   const navigate = useNavigate();
-  const [sheet, setSheet] = useState<{
-    sheet: StudentSheet;
-    open: boolean;
-    key: number;
-  }>({
-    sheet: { kind: "personal" },
-    open: false,
-    key: 0,
-  });
-  const open = (next: StudentSheet) => () =>
-    setSheet((current) => ({ sheet: next, open: true, key: current.key + 1 }));
+  const [sheet, setSheet] = useState({ open: false, key: 0 });
   const { access } = data;
   const name = displayName(data);
   const available = studentTabsFor(access);
-  const tabs: RecordTab<StudentTab>[] = STUDENT_TABS.filter(
-    (value) => available[value],
-  ).map((value) => ({ value, label: TAB_LABEL[value]() }));
-  const active = available[tab] ? tab : "overview";
+  const shown = (value: StudentTab) =>
+    available[value] && (value !== "family" || family !== undefined);
+  const tabs: RecordTab<StudentTab>[] = STUDENT_TABS.filter(shown).map(
+    (value) => ({
+      value,
+      label: value === "family" ? (family?.label() ?? "") : TAB_LABEL[value](),
+    }),
+  );
+  const active = shown(tab) ? tab : "overview";
 
   const facts: HeaderFact[] = [];
   const second = otherName(data);
@@ -498,23 +326,16 @@ export function StudentRecord({
       tone: "danger",
       icon: HeartPulse,
     });
-  if (data.custodyAlert)
-    alerts.push({
-      label: m.studentCustodyAlert(),
-      tone: "warning",
-      icon: ShieldAlert,
-    });
+  for (const key of data.alerts) {
+    const flag = family?.alerts[key];
+    if (flag)
+      alerts.push({ label: flag.label(), tone: flag.tone, icon: flag.icon });
+  }
   if (data.noPhotos)
     alerts.push({
       label: m.studentNoPhotos(),
       tone: "warning",
       icon: CameraOff,
-    });
-  if (access.contacts && (data.guardians ?? []).length === 0)
-    alerts.push({
-      label: m.studentAlertNoGuardian(),
-      tone: "warning",
-      icon: UserX,
     });
 
   const menu: ActionItem[] = [];
@@ -524,9 +345,9 @@ export function StudentRecord({
       icon: ArrowRightLeft,
       onSelect: () => setMoving(true),
     });
-  if (access.message && onConversation)
+  if (family && access.message && onConversation)
     menu.push({
-      label: m.studentMessageGuardians(),
+      label: family.messageLabel(),
       icon: MessageSquare,
       onSelect: () => setWriting(true),
     });
@@ -569,23 +390,6 @@ export function StudentRecord({
       },
     });
 
-  const guardianActions = access.manage
-    ? (guardian: Guardian) => (
-        <GuardianMenu
-          guardian={guardian}
-          onEdit={open({ kind: "guardian", guardian })}
-          onContacts={() =>
-            setContacts((current) => ({
-              guardian,
-              open: true,
-              key: current.key + 1,
-            }))
-          }
-          onEnd={() => endLink(guardian, name)}
-        />
-      )
-    : undefined;
-
   let body: ReactNode;
   switch (active) {
     case "overview":
@@ -612,10 +416,12 @@ export function StudentRecord({
                 : parts.map((part, index) => (
                     <part.Overview key={index} {...partProps} />
                   ))}
-              {access.contacts ? <GuardiansSection data={data} /> : null}
-              {access.manage ? (
+              {family && access.contacts ? (
                 <Deferred>
-                  <StudentNotices studentId={studentId} />
+                  <family.Overview
+                    studentId={studentId}
+                    manage={access.manage}
+                  />
                 </Deferred>
               ) : null}
             </>
@@ -631,7 +437,15 @@ export function StudentRecord({
             <>
               <PersonalSection
                 data={data}
-                onEdit={access.manage ? open({ kind: "personal" }) : undefined}
+                onEdit={
+                  access.manage
+                    ? () =>
+                        setSheet((current) => ({
+                          open: true,
+                          key: current.key + 1,
+                        }))
+                    : undefined
+                }
               />
               {access.identifiers ? (
                 <Deferred>
@@ -649,31 +463,19 @@ export function StudentRecord({
       );
       break;
     case "family":
+      body = family ? (
+        <Deferred>
+          <family.Tab studentId={studentId} name={name} />
+        </Deferred>
+      ) : null;
+      break;
+    case "consents":
       body = (
         <RecordColumns
           main={
-            <>
-              <GuardiansSection
-                data={data}
-                onAdd={
-                  access.manage ? open({ kind: "add-guardian" }) : undefined
-                }
-                itemActions={guardianActions}
-              />
-              {access.custody ? (
-                <Deferred>
-                  <CustodySection studentId={studentId} />
-                </Deferred>
-              ) : null}
-              {access.consents ? (
-                <Deferred>
-                  <StudentConsents studentId={studentId} />
-                </Deferred>
-              ) : null}
-              <Deferred>
-                <SiblingsSection studentId={studentId} />
-              </Deferred>
-            </>
+            <Deferred>
+              <StudentConsents studentId={studentId} />
+            </Deferred>
           }
         />
       );
@@ -860,62 +662,14 @@ export function StudentRecord({
           }
         />
       ) : null}
-      {access.manage && contacts.guardian ? (
-        <ContactsSheet
-          key={contacts.key}
-          userId={contacts.guardian.userId}
-          name={displayName(contacts.guardian)}
-          contacts={contacts.guardian.contacts}
-          open={contacts.open}
-          onClose={() =>
-            setContacts((current) => ({ ...current, open: false }))
-          }
-        />
-      ) : null}
       {access.manage ? (
         <StudentSheets
           key={sheet.key}
           student={data}
-          sheet={sheet.sheet}
           open={sheet.open}
           onClose={() => setSheet((current) => ({ ...current, open: false }))}
         />
       ) : null}
     </Page>
-  );
-}
-
-interface GuardianMenuProps {
-  guardian: Guardian;
-  onEdit: () => void;
-  onContacts: () => void;
-  onEnd: () => Promise<void>;
-}
-
-function GuardianMenu({
-  guardian,
-  onEdit,
-  onContacts,
-  onEnd,
-}: GuardianMenuProps) {
-  const name = displayName(guardian);
-  return (
-    <ActionMenu
-      label={m.guardianActions({ name })}
-      actions={[
-        { label: m.guardianEditLink(), icon: Pencil, onSelect: onEdit },
-        { label: m.contactsEdit(), icon: Contact, onSelect: onContacts },
-        {
-          label: m.guardianEndLink(),
-          destructive: true,
-          confirm: {
-            title: m.guardianEndLinkTitle({ name }),
-            body: m.guardianEndLinkBody({ name }),
-            label: m.guardianEndLink(),
-          },
-          onSelect: onEnd,
-        },
-      ]}
-    />
   );
 }

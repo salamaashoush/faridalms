@@ -125,9 +125,11 @@ CREATE TABLE "school_usage" (
 	"emails_this_month" integer DEFAULT 0 NOT NULL,
 	"school_days_7d" integer DEFAULT 0 NOT NULL,
 	"failed_deliveries_1d" integer DEFAULT 0 NOT NULL,
+	"facts" jsonb DEFAULT '{}' NOT NULL,
 	"measured_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "school_usage_used_bytes_check" CHECK (used_bytes >= 0),
 	CONSTRAINT "school_usage_file_count_check" CHECK (file_count >= 0),
+	CONSTRAINT "school_usage_facts_check" CHECK (jsonb_typeof(facts) = 'object' and octet_length(facts::text) <= 4096),
 	CONSTRAINT "school_usage_counts_check" CHECK (students >= 0 and staff_accounts >= 0 and signed_in_7d >= 0 and signed_in_30d >= 0 and video_minutes >= 0 and emails_this_month >= 0 and school_days_7d between 0 and 7 and failed_deliveries_1d >= 0)
 );
 --> statement-breakpoint

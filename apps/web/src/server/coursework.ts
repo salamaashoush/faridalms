@@ -29,7 +29,6 @@ import {
   saveQuizAnswerSchema,
   saveRubricSchema,
   studentWorkActionSchema,
-  sharedWorkQuerySchema,
   teacherListSchema,
   reuseSchema,
 } from "@faridalms/domain/coursework";
@@ -81,14 +80,6 @@ export const getMyWork = createServerFn({ method: "GET" })
 export const getMyCoursework = createServerFn({ method: "GET" })
   .validator(checked(v.object({ ended: v.boolean() })))
   .handler(({ data }) => record(backend().coursework.mine(data)));
-
-export const getSharedWork = createServerFn({ method: "GET" })
-  .validator(checked(sharedWorkQuerySchema))
-  .handler(({ data }) => backend().coursework.shared(data));
-
-export const getSharedPiece = createServerFn({ method: "GET" })
-  .validator(checked(v.object({ attemptId: uuid })))
-  .handler(({ data }) => backend().coursework.sharedPiece(data));
 
 export const getChildBrief = createServerFn({ method: "GET" })
   .validator(checked(v.object({ studentId: uuid, assignmentId: uuid })))

@@ -11,9 +11,43 @@ import { namesOf } from "@faridalms/database/stores/persons";
 import { contentMentions } from "@faridalms/domain/content";
 
 import type { UnitContext } from "./context";
+import type { ModuleScope } from "./extension";
 import type { NoticeScope } from "./notify";
 
+import { learnersActedFor } from "../people/acting";
 import { notifyIn } from "./notify";
+
+/** Where a mention is told: the school's unit of work and day, as the author, with its modules. */
+type TellingScope = NoticeScope &
+  Pick<ModuleScope, "school" | "extensions"> & {
+    today: string;
+    actorUserId: string;
+  };
+
+/** Of these people, those the school reaches: its staff and students, and whoever acts for a learner. */
+async function reachedOf(scope: TellingScope, ids: readonly string[]) {
+  const core = await reachedAmong(
+    scope.tx,
+    { tenantId: scope.tenantId, schoolId: scope.schoolId, on: scope.today },
+    ids,
+  );
+  const acting = await Promise.all(
+    ids
+      .filter((id) => !core.includes(id))
+      .map(async (id) =>
+        (
+          await learnersActedFor(scope, {
+            userId: id,
+            on: scope.today,
+            purpose: "contact",
+          })
+        ).length > 0
+          ? [id]
+          : [],
+      ),
+  );
+  return [...core, ...acting.flat()];
+}
 
 const peopleIn = (content: Record<string, unknown> | undefined) =>
   content
@@ -31,18 +65,14 @@ interface Telling {
 
 /** Tells the people `after` mentions that `before` did not, as its author. */
 async function tellFresh(
-  scope: NoticeScope & { today: string; actorUserId: string },
+  scope: TellingScope,
   before: PublishedVersion | null,
   after: PublishedVersion,
   input: Telling,
 ): Promise<void> {
   const told = new Set(peopleIn(before?.content));
   const fresh = peopleIn(after.content).filter((id) => !told.has(id));
-  const people = await reachedAmong(
-    scope.tx,
-    { tenantId: scope.tenantId, schoolId: scope.schoolId, on: scope.today },
-    fresh,
-  );
+  const people = await reachedOf(scope, fresh);
   if (people.length === 0) return;
   const [author] = await namesOf(scope.tx, scope.tenantId, [scope.actorUserId]);
   await notifyIn(scope, people, {
@@ -88,6 +118,8 @@ export async function publishTelling(
       tx: context.tx,
       tenantId: context.tenantId,
       schoolId: context.schoolId,
+      school: context.school,
+      extensions: context.extensions,
       actorUserId: context.actor.userId,
       now: context.now,
       channels: context.channels,
@@ -105,7 +137,7 @@ export async function publishTelling(
  * is snapshotted when it is scheduled and heard of when it goes live.
  */
 export async function tellPublished(
-  scope: NoticeScope & { today: string; actorUserId: string },
+  scope: TellingScope,
   input: Telling,
 ): Promise<void> {
   const [after, before = null] = await publishedVersions(

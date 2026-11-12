@@ -56,6 +56,7 @@ export function AttendanceRules() {
     checkInTouch: settings.checkInTouch,
     checkInQr: settings.checkInQr,
     checkInNfc: settings.checkInNfc,
+    learnersReport: settings.learnersReport,
   }));
   const [savedWays, setSavedWays] = useState(ways);
   const [shown, setShown] = useState(false);
@@ -197,6 +198,12 @@ export function AttendanceRules() {
           onChange={(on) => turn("checkInNfc", on)}
         />
       </fieldset>
+      <CheckboxRow
+        label={m.attLearnersReport()}
+        hint={m.attLearnersReportHint()}
+        checked={ways.learnersReport}
+        onChange={(on) => turn("learnersReport", on)}
+      />
     </SettingsSection>
   );
 }

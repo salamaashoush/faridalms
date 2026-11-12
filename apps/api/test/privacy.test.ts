@@ -24,7 +24,6 @@ async function leaver(
     names: names("Salama Leaver", "سلامة المغادر"),
     reference,
     birthDate: "2002-05-20",
-    guardians: [],
   });
   await meanwhile(created.id);
   pastYearId ??= (

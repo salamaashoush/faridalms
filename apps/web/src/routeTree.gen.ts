@@ -96,9 +96,13 @@ import { Route as AppFamilyTimetableRouteImport } from './routes/_app/family/tim
 import { Route as AppLessonFrameLessonIdRouteImport } from './routes/_app/lesson-frame.$lessonId'
 import { Route as AppLessonsLessonIdRouteImport } from './routes/_app/lessons.$lessonId'
 import { Route as AppMeIndexRouteImport } from './routes/_app/me/index'
+import { Route as AppMeApplicationsRouteImport } from './routes/_app/me/applications'
 import { Route as AppMeAssignmentsRouteImport } from './routes/_app/me/assignments'
 import { Route as AppMeAttendanceRouteImport } from './routes/_app/me/attendance'
+import { Route as AppMeConsentsRouteImport } from './routes/_app/me/consents'
+import { Route as AppMeDetailsRouteImport } from './routes/_app/me/details'
 import { Route as AppMeGradesRouteImport } from './routes/_app/me/grades'
+import { Route as AppMeHealthRouteImport } from './routes/_app/me/health'
 import { Route as AppMeMessagesRouteImport } from './routes/_app/me/messages'
 import { Route as AppMeModulesRouteImport } from './routes/_app/me/modules'
 import { Route as AppMeTimetableRouteImport } from './routes/_app/me/timetable'
@@ -577,6 +581,11 @@ const AppMeIndexRoute = AppMeIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppMeRoute,
 } as any)
+const AppMeApplicationsRoute = AppMeApplicationsRouteImport.update({
+  id: '/applications',
+  path: '/applications',
+  getParentRoute: () => AppMeRoute,
+} as any)
 const AppMeAssignmentsRoute = AppMeAssignmentsRouteImport.update({
   id: '/assignments',
   path: '/assignments',
@@ -587,9 +596,24 @@ const AppMeAttendanceRoute = AppMeAttendanceRouteImport.update({
   path: '/attendance',
   getParentRoute: () => AppMeRoute,
 } as any)
+const AppMeConsentsRoute = AppMeConsentsRouteImport.update({
+  id: '/consents',
+  path: '/consents',
+  getParentRoute: () => AppMeRoute,
+} as any)
+const AppMeDetailsRoute = AppMeDetailsRouteImport.update({
+  id: '/details',
+  path: '/details',
+  getParentRoute: () => AppMeRoute,
+} as any)
 const AppMeGradesRoute = AppMeGradesRouteImport.update({
   id: '/grades',
   path: '/grades',
+  getParentRoute: () => AppMeRoute,
+} as any)
+const AppMeHealthRoute = AppMeHealthRouteImport.update({
+  id: '/health',
+  path: '/health',
   getParentRoute: () => AppMeRoute,
 } as any)
 const AppMeMessagesRoute = AppMeMessagesRouteImport.update({
@@ -861,9 +885,13 @@ export interface FileRoutesByFullPath {
   '/family/timetable': typeof AppFamilyTimetableRoute
   '/lesson-frame/$lessonId': typeof AppLessonFrameLessonIdRoute
   '/lessons/$lessonId': typeof AppLessonsLessonIdRoute
+  '/me/applications': typeof AppMeApplicationsRoute
   '/me/assignments': typeof AppMeAssignmentsRoute
   '/me/attendance': typeof AppMeAttendanceRoute
+  '/me/consents': typeof AppMeConsentsRoute
+  '/me/details': typeof AppMeDetailsRoute
   '/me/grades': typeof AppMeGradesRoute
+  '/me/health': typeof AppMeHealthRoute
   '/me/messages': typeof AppMeMessagesRoute
   '/me/modules': typeof AppMeModulesRoute
   '/me/timetable': typeof AppMeTimetableRoute
@@ -983,9 +1011,13 @@ export interface FileRoutesByTo {
   '/family/timetable': typeof AppFamilyTimetableRoute
   '/lesson-frame/$lessonId': typeof AppLessonFrameLessonIdRoute
   '/lessons/$lessonId': typeof AppLessonsLessonIdRoute
+  '/me/applications': typeof AppMeApplicationsRoute
   '/me/assignments': typeof AppMeAssignmentsRoute
   '/me/attendance': typeof AppMeAttendanceRoute
+  '/me/consents': typeof AppMeConsentsRoute
+  '/me/details': typeof AppMeDetailsRoute
   '/me/grades': typeof AppMeGradesRoute
+  '/me/health': typeof AppMeHealthRoute
   '/me/messages': typeof AppMeMessagesRoute
   '/me/modules': typeof AppMeModulesRoute
   '/me/timetable': typeof AppMeTimetableRoute
@@ -1112,9 +1144,13 @@ export interface FileRoutesById {
   '/_app/family/timetable': typeof AppFamilyTimetableRoute
   '/_app/lesson-frame/$lessonId': typeof AppLessonFrameLessonIdRoute
   '/_app/lessons/$lessonId': typeof AppLessonsLessonIdRoute
+  '/_app/me/applications': typeof AppMeApplicationsRoute
   '/_app/me/assignments': typeof AppMeAssignmentsRoute
   '/_app/me/attendance': typeof AppMeAttendanceRoute
+  '/_app/me/consents': typeof AppMeConsentsRoute
+  '/_app/me/details': typeof AppMeDetailsRoute
   '/_app/me/grades': typeof AppMeGradesRoute
+  '/_app/me/health': typeof AppMeHealthRoute
   '/_app/me/messages': typeof AppMeMessagesRoute
   '/_app/me/modules': typeof AppMeModulesRoute
   '/_app/me/timetable': typeof AppMeTimetableRoute
@@ -1239,9 +1275,13 @@ export interface FileRouteTypes {
     | '/family/timetable'
     | '/lesson-frame/$lessonId'
     | '/lessons/$lessonId'
+    | '/me/applications'
     | '/me/assignments'
     | '/me/attendance'
+    | '/me/consents'
+    | '/me/details'
     | '/me/grades'
+    | '/me/health'
     | '/me/messages'
     | '/me/modules'
     | '/me/timetable'
@@ -1361,9 +1401,13 @@ export interface FileRouteTypes {
     | '/family/timetable'
     | '/lesson-frame/$lessonId'
     | '/lessons/$lessonId'
+    | '/me/applications'
     | '/me/assignments'
     | '/me/attendance'
+    | '/me/consents'
+    | '/me/details'
     | '/me/grades'
+    | '/me/health'
     | '/me/messages'
     | '/me/modules'
     | '/me/timetable'
@@ -1489,9 +1533,13 @@ export interface FileRouteTypes {
     | '/_app/family/timetable'
     | '/_app/lesson-frame/$lessonId'
     | '/_app/lessons/$lessonId'
+    | '/_app/me/applications'
     | '/_app/me/assignments'
     | '/_app/me/attendance'
+    | '/_app/me/consents'
+    | '/_app/me/details'
     | '/_app/me/grades'
+    | '/_app/me/health'
     | '/_app/me/messages'
     | '/_app/me/modules'
     | '/_app/me/timetable'
@@ -2167,6 +2215,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMeIndexRouteImport
       parentRoute: typeof AppMeRoute
     }
+    '/_app/me/applications': {
+      id: '/_app/me/applications'
+      path: '/applications'
+      fullPath: '/me/applications'
+      preLoaderRoute: typeof AppMeApplicationsRouteImport
+      parentRoute: typeof AppMeRoute
+    }
     '/_app/me/assignments': {
       id: '/_app/me/assignments'
       path: '/assignments'
@@ -2181,11 +2236,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMeAttendanceRouteImport
       parentRoute: typeof AppMeRoute
     }
+    '/_app/me/consents': {
+      id: '/_app/me/consents'
+      path: '/consents'
+      fullPath: '/me/consents'
+      preLoaderRoute: typeof AppMeConsentsRouteImport
+      parentRoute: typeof AppMeRoute
+    }
+    '/_app/me/details': {
+      id: '/_app/me/details'
+      path: '/details'
+      fullPath: '/me/details'
+      preLoaderRoute: typeof AppMeDetailsRouteImport
+      parentRoute: typeof AppMeRoute
+    }
     '/_app/me/grades': {
       id: '/_app/me/grades'
       path: '/grades'
       fullPath: '/me/grades'
       preLoaderRoute: typeof AppMeGradesRouteImport
+      parentRoute: typeof AppMeRoute
+    }
+    '/_app/me/health': {
+      id: '/_app/me/health'
+      path: '/health'
+      fullPath: '/me/health'
+      preLoaderRoute: typeof AppMeHealthRouteImport
       parentRoute: typeof AppMeRoute
     }
     '/_app/me/messages': {
@@ -2550,9 +2626,13 @@ const AppFamilyRouteWithChildren = AppFamilyRoute._addFileChildren(
 )
 
 interface AppMeRouteChildren {
+  AppMeApplicationsRoute: typeof AppMeApplicationsRoute
   AppMeAssignmentsRoute: typeof AppMeAssignmentsRoute
   AppMeAttendanceRoute: typeof AppMeAttendanceRoute
+  AppMeConsentsRoute: typeof AppMeConsentsRoute
+  AppMeDetailsRoute: typeof AppMeDetailsRoute
   AppMeGradesRoute: typeof AppMeGradesRoute
+  AppMeHealthRoute: typeof AppMeHealthRoute
   AppMeMessagesRoute: typeof AppMeMessagesRoute
   AppMeModulesRoute: typeof AppMeModulesRoute
   AppMeTimetableRoute: typeof AppMeTimetableRoute
@@ -2560,9 +2640,13 @@ interface AppMeRouteChildren {
 }
 
 const AppMeRouteChildren: AppMeRouteChildren = {
+  AppMeApplicationsRoute: AppMeApplicationsRoute,
   AppMeAssignmentsRoute: AppMeAssignmentsRoute,
   AppMeAttendanceRoute: AppMeAttendanceRoute,
+  AppMeConsentsRoute: AppMeConsentsRoute,
+  AppMeDetailsRoute: AppMeDetailsRoute,
   AppMeGradesRoute: AppMeGradesRoute,
+  AppMeHealthRoute: AppMeHealthRoute,
   AppMeMessagesRoute: AppMeMessagesRoute,
   AppMeModulesRoute: AppMeModulesRoute,
   AppMeTimetableRoute: AppMeTimetableRoute,

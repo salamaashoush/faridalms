@@ -10,15 +10,10 @@ import {
 } from "@faridalms/database/stores/admission-decisions";
 import { descriptorId } from "@faridalms/database/stores/descriptors";
 import {
-  guardiansOf,
-  insertRelationship,
   person as readPerson,
   referenceOf,
-  refreshCustodyAlert,
   setReference,
-  syncFamilyRoles,
   ensureStudentRole,
-  updateRelationship,
 } from "@faridalms/database/stores/students";
 import { ORPCError } from "@orpc/server";
 
@@ -28,7 +23,7 @@ import { audit } from "../core/procedure";
 import { withPurposeFor } from "../core/purpose";
 import { scopeFor } from "../core/reach";
 import { admissionScope, moveApplication } from "./decisions";
-import { enrolParts } from "./points";
+import { enrolParts, filingModule } from "./points";
 
 /**
  * Whom an accepted applicant becomes: themself, or the school's own
@@ -39,14 +34,18 @@ function studentOf(row: ApplicationRow, named: string): string {
   if (!named || named === row.applicantUserId) return row.applicantUserId;
   if (!(row.matches.students ?? []).some((match) => match.id === named))
     throw new ORPCError("BAD_REQUEST", { message: "enrol.not_matched" });
+  // Joining retires the applicant person, who for someone who applied for
+  // themself is the account they sign in with.
+  if (row.filedByUserId === row.applicantUserId)
+    throw new ORPCError("BAD_REQUEST", { message: "enrol.self_matched" });
   return named;
 }
 
 /**
  * A former student applying again keeps one record: what the application
  * kept on the applicant (their identity document, consents, health and
- * needs, and the family's links) becomes the student's, and the applicant
- * person is retired as the duplicate it is.
+ * needs, and what links people to them) becomes the student's, and the
+ * applicant person is retired as the duplicate it is.
  */
 async function joinRecords(
   context: UnitContext,
@@ -54,32 +53,6 @@ async function joinRecords(
   studentId: string,
 ) {
   const tx = context.tx;
-  const scope = { tenantId: context.tenantId, today: context.today };
-  const [theirs, held] = await Promise.all([
-    guardiansOf(tx, scope, row.applicantUserId),
-    guardiansOf(tx, scope, studentId),
-  ]);
-  for (const link of theirs) {
-    if (held.some((each) => each.userId === link.userId)) continue;
-    await insertRelationship(tx, {
-      tenantId: context.tenantId,
-      studentId,
-      relatedUserId: link.userId,
-      relationId: link.relationId,
-      relationMeaning: link.relationMeaning,
-      flags: {
-        legalGuardian: link.legalGuardian,
-        portalAccess: link.portalAccess,
-        receivesNotifications: link.receivesNotifications,
-        primaryContact: link.primaryContact,
-        emergencyContact: link.emergencyContact,
-        residence: link.residence,
-        pickup: link.pickup,
-      },
-      from: context.today,
-      verifiedByUserId: null,
-    });
-  }
   await withPurposeFor(
     context,
     {
@@ -96,10 +69,17 @@ async function joinRecords(
         toUserId: studentId,
       }),
   );
-  await adoptApplicant(tx, {
+  const consentIds = await adoptApplicant(tx, {
     tenantId: context.tenantId,
     fromUserId: row.applicantUserId,
     toUserId: studentId,
+  });
+  await (
+    await filingModule(context)
+  )?.joined(context, {
+    fromId: row.applicantUserId,
+    toId: studentId,
+    consentIds,
   });
   await audit(context, {
     action: "user.join",
@@ -114,15 +94,13 @@ async function joinRecords(
 /**
  * Enrols an accepted applicant, all in the caller's one transaction: the
  * applicant becomes a student with the school's reference, or the existing
- * student is kept; the guardians the family named are linked with their
- * relationship and legal-guardian flags, the applying parent now with the
- * portal and notices; the identity document, health and needs and consents
- * stay with the child, as they were kept on them from the first save; the
- * child is the school's student from the intake's first day, and each
- * module records its part (the year and grade the intake admits into, and
- * how the child came); the family role their links now give replaces the
- * applying role, which ends the day the child starts; and the application
- * is closed, read-only and linked to the student, with the welcome letter
+ * student is kept; the identity document, health and needs and consents
+ * stay with them, as they were kept on them from the first save; they are
+ * the school's student from the intake's first day, and each module
+ * records its part (the year and grade the intake admits into, how they
+ * came, and for someone who applied for them, what their links now open);
+ * the applying role ends the day they start; and the application is
+ * closed, read-only and linked to the student, with the welcome letter
  * sent.
  */
 export async function enrol(
@@ -177,71 +155,23 @@ export async function enrol(
     applicationId: row.id,
   });
 
-  const links = await guardiansOf(
-    tx,
-    { tenantId: context.tenantId, today: context.today },
-    studentId,
-  );
-  for (const link of links) {
-    const applying = link.userId === row.familyUserId;
-    const updated = await updateRelationship(tx, {
-      tenantId: context.tenantId,
-      relationshipId: link.relationshipId,
-      expectedVersion: link.version,
-      relationId: link.relationId,
-      relationMeaning: link.relationMeaning,
-      flags: {
-        legalGuardian: link.legalGuardian,
-        portalAccess: link.portalAccess || applying,
-        receivesNotifications: link.receivesNotifications || applying,
-        primaryContact: link.primaryContact,
-        emergencyContact: link.emergencyContact,
-        residence: link.residence,
-        pickup: link.pickup,
-      },
-      editorId: context.actor.userId,
-    });
-    if (!updated)
-      throw new ORPCError("CONFLICT", { message: "conflict.version" });
-    await syncFamilyRoles(tx, context.tenantId, link.userId, context.today);
-    await audit(context, {
-      action: "relationship.update",
-      objectType: "user_relationship",
-      objectId: link.relationshipId,
-      subjectUserId: studentId,
-      studentUserId: studentId,
-      details: { relatedUserId: link.userId, applicationId: row.id },
-      change: {
-        table: "core.user_relationships",
-        before: {
-          portalAccess: link.portalAccess,
-          receivesNotifications: link.receivesNotifications,
-        },
-        after: {
-          portalAccess: link.portalAccess || applying,
-          receivesNotifications: link.receivesNotifications || applying,
-        },
-      },
-    });
-  }
-  await refreshCustodyAlert(tx, context.tenantId, studentId, context.today);
-  // The family role the links give opens the family workspace once the
-  // child is a student today; until then the applying role keeps it open.
+  // The role enrolment gives opens the filer's workspace once the student
+  // starts; until then the applying role keeps it open.
   const endsOn =
     intake.startsOn > context.today ? intake.startsOn : context.today;
   if (
     await closeApplicantRole(tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
-      userId: row.familyUserId,
+      userId: row.filedByUserId,
       endsOn,
     })
   )
     await audit(context, {
       action: "user_role.end",
       objectType: "user_role",
-      subjectUserId: row.familyUserId,
-      details: { role: "applicant_family", endsOn, applicationId: row.id },
+      subjectUserId: row.filedByUserId,
+      details: { endsOn, applicationId: row.id },
     });
 
   const version = await moveApplication(admissionScope(context), {

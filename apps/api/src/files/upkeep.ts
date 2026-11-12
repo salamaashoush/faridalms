@@ -13,13 +13,16 @@ import {
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import {
   failedDeliveriesSince,
-  onboardingSeen,
   schoolDaysLastWeek,
 } from "@faridalms/database/stores/onboarding";
 import { addDays, schoolDate, zonedInstant } from "@faridalms/domain/school";
 
+import type { WorkerModules } from "../core/extension";
 import type { FileStore } from "./store";
 
+import { workerScope } from "../core/extension";
+import { setupSeen } from "../core/setup";
+import { usageFactsOf } from "../core/usage";
 import { sweepTenantFiles } from "./sweep";
 
 /**
@@ -73,14 +76,15 @@ export function everyTenant(input: {
 
 /**
  * Measures each of a tenant's schools and reports it to the directory: its
- * storage and counts, its week of school days and failed deliveries, and
- * the onboarding steps it has taken.
+ * storage and counts, its week of school days and failed deliveries, the
+ * onboarding steps it has taken, and what each module on counts there.
  */
 export async function reportTenantUsage(
   cell: Cell,
   directory: Directory,
   sync: DirectorySync,
   tenantId: string,
+  extensions: WorkerModules["extensions"],
 ) {
   const schools = await directory.schoolsOfTenant(tenantId);
   const rows = await cell.withWorker(
@@ -90,6 +94,11 @@ export async function reportTenantUsage(
       const measured = [];
       const now = new Date();
       for (const school of schools) {
+        const scope = await workerScope(
+          { directory, extensions },
+          { tx, tenantId, schoolId: school.schoolId },
+        );
+        if (!scope) continue;
         const profile = await schoolProfile(tx, school.schoolId);
         const zone = profile?.timeZone ?? "UTC";
         const today = schoolDate(zone, now);
@@ -133,11 +142,8 @@ export async function reportTenantUsage(
             orgId: school.schoolId,
             since: new Date(now.getTime() - 86_400_000),
           }),
-          reached: await onboardingSeen(tx, {
-            tenantId,
-            orgId: school.schoolId,
-            today,
-          }),
+          reached: await setupSeen(scope, today),
+          facts: await usageFactsOf(scope, today),
         });
       }
       return measured;
@@ -160,6 +166,7 @@ export function startFileUpkeep(input: {
   store: FileStore;
   sweepMs: number;
   reportMs: number;
+  extensions: WorkerModules["extensions"];
 }): () => Promise<void> {
   const stops = [
     everyTenant({
@@ -181,7 +188,13 @@ export function startFileUpkeep(input: {
         cellId: input.cellId,
         intervalMs: input.reportMs,
         run: (tenantId) =>
-          reportTenantUsage(input.cell, input.directory, sync, tenantId),
+          reportTenantUsage(
+            input.cell,
+            input.directory,
+            sync,
+            tenantId,
+            input.extensions,
+          ),
       }),
     );
   return async () => {

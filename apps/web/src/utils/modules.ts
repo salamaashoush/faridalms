@@ -6,6 +6,8 @@ import * as m from "~/i18n/messages";
  * The pages each module owns, by the start of their path. The navigation
  * hides what a school does not have and the app answers its pages as not
  * found, both from this one list, so a page and its link cannot disagree.
+ * A page under two modules' paths, a family's view of attendance say,
+ * shows only where both are on.
  */
 const PAGES: Partial<Record<ModuleId, readonly string[]>> = {
   school_years: [
@@ -31,8 +33,8 @@ const PAGES: Partial<Record<ModuleId, readonly string[]>> = {
   ],
   timetable: ["/timetable", "/me/timetable", "/family/timetable"],
   website: ["/website", "/site-page-editor"],
-  admissions: ["/admissions", "/family/applications"],
-  student_records: ["/health-changes", "/family/health"],
+  admissions: ["/admissions", "/family/applications", "/me/applications"],
+  student_records: ["/health-changes", "/family/health", "/me/health"],
   badges: ["/badges"],
   standards: ["/standards"],
   elearning: [
@@ -49,6 +51,7 @@ const PAGES: Partial<Record<ModuleId, readonly string[]>> = {
     "/lesson-frame",
     "/practice",
   ],
+  families: ["/family"],
 };
 
 /**
@@ -81,8 +84,12 @@ export const pageOn = (
   modules: Record<ModuleId, boolean>,
   path: string,
 ): boolean => {
-  const module = moduleOfPath(path);
-  if (module !== null && !modules[module]) return false;
+  if (
+    OWNED.some(
+      ({ prefix, module }) => matches(path, prefix) && !modules[module],
+    )
+  )
+    return false;
   const needs = Object.entries(NEEDS).find(([prefix]) =>
     matches(path, prefix),
   )?.[1];

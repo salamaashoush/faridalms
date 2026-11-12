@@ -96,7 +96,7 @@ export async function applicationIn(scope: AdmissionScope, id: string) {
 export interface SentLetter {
   id: string;
   applicationId: string;
-  familyUserId: string;
+  filedByUserId: string;
   applicantUserId: string;
   enquiryId: string | null;
   /** Who sent it: whoever moved the application, or for the clock, whoever decided. */
@@ -118,8 +118,8 @@ const deliveries: LetterDelivery[] = [];
 
 /**
  * Where a letter also goes beside the family's applications, which always
- * keep it: `family-conversation.ts` registers here to post each letter
- * into the family's conversation with admissions through Messages, so
+ * keep it: `conversation.ts` registers here to post each letter
+ * into the filer's conversation with admissions through Messages, so
  * admissions never writes a message or an email of its own.
  */
 export function registerLetterDelivery(delivery: LetterDelivery) {
@@ -145,7 +145,7 @@ async function letterFields(
     return found ? pick(locale, found.labelEn, found.labelAr) : "";
   };
   return {
-    family: pick(locale, row.family.nameEn, row.family.nameAr),
+    family: pick(locale, row.filer.nameEn, row.filer.nameAr),
     child: pick(locale, row.applicant.nameEn, row.applicant.nameAr),
     intake: pick(locale, intake.titleEn, intake.titleAr),
     grade: fact("grade"),
@@ -223,7 +223,7 @@ export async function sendLetter(
     await deliver(scope, {
       id: letter.id,
       applicationId: row.id,
-      familyUserId: row.familyUserId,
+      filedByUserId: row.filedByUserId,
       applicantUserId: row.applicantUserId,
       enquiryId: row.enquiryId,
       sentByUserId: scope.actorUserId ?? row.decidedByUserId,
@@ -318,7 +318,7 @@ export async function moveApplication(
     details,
   });
   if (TOLD_FAMILY.has(move.to) && isOutcome(move.to))
-    await notifyIn(scope, [row.familyUserId], {
+    await notifyIn(scope, [row.filedByUserId], {
       kind: "application",
       subject: { type: "admission_application", id: row.id },
       params: {

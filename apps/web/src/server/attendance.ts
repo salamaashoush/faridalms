@@ -3,7 +3,7 @@ import {
   absencesQuerySchema,
   attendanceSettingsSchema,
   decideReportSchema,
-  familyReportsSchema,
+  learnerReportsSchema,
   findStudentSchema,
   followUpQuerySchema,
   frontDeskQuerySchema,
@@ -87,7 +87,7 @@ export const undoCheckInToRegister = createServerFn({ method: "POST" })
   .handler(({ data }) => backend().attendance.undoCheckIn(data));
 
 export const getMyAbsenceReports = createServerFn({ method: "GET" })
-  .validator(checked(familyReportsSchema))
+  .validator(checked(learnerReportsSchema))
   .handler(({ data }) => backend().absenceReports.mine(data));
 
 export const reportAbsence = createServerFn({ method: "POST" })

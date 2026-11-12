@@ -68,6 +68,8 @@ export const isOperatorItem = (item: OnboardingItem): item is OperatorItem =>
 
 /** The module a step needs before it counts; a school without it never takes the step. */
 const NEEDS: Partial<Record<OnboardingItem, ModuleId>> = {
+  guardians_linked: "families",
+  families_signed_in: "families",
   timetable_ready: "timetable",
   first_assignment: "coursework",
   first_register: "attendance",
@@ -129,20 +131,27 @@ export interface SetupProgress {
 }
 
 /**
- * Where a school's own setup stands: each step whose items all apply to
- * it, done once all of them are.
+ * Where a school's own setup stands: each step with an item that applies
+ * to it, done once every item of it that applies is.
  */
 export function setupProgress(
   applies: readonly OnboardingItem[],
   done: ReadonlySet<OnboardingItem>,
 ): SetupProgress[] {
-  return SETUP_STEPS.filter((step) =>
-    step.items.every((item: OnboardingItem) => applies.includes(item)),
-  ).map((step) => ({
-    id: step.id,
-    done: step.items.every((item: OnboardingItem) => done.has(item)),
-    optional: step.optional,
-  }));
+  return SETUP_STEPS.flatMap((step) => {
+    const items = step.items.filter((item: OnboardingItem) =>
+      applies.includes(item),
+    );
+    return items.length === 0
+      ? []
+      : [
+          {
+            id: step.id,
+            done: items.every((item) => done.has(item)),
+            optional: step.optional,
+          },
+        ];
+  });
 }
 
 /** Whether every step the school cannot do without is done. */

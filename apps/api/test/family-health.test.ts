@@ -30,8 +30,7 @@ async function family(index: number) {
     loginAt("northwind", "parent", 8 + index),
   );
   const me = await api.identity.currentUser();
-  const record = await api.people.person({ id: me.id });
-  const child = record.children[0];
+  const child = (await api.guardians.children({ userId: me.id }))[0];
   if (!child) throw new Error("the seeded mother follows no child");
   return { api, me, studentId: child.studentId };
 }
@@ -41,8 +40,9 @@ async function linkOf(
   studentId: string,
   userId: string,
 ) {
-  const student = await office.people.student({ id: studentId });
-  const link = student.guardians?.find((row) => row.userId === userId);
+  const link = (
+    await office.guardians.ofStudent({ studentId: studentId })
+  ).guardians.find((row) => row.userId === userId);
   if (!link) throw new Error("the mother is linked to her child");
   return link;
 }
@@ -83,7 +83,7 @@ describe("the family's medical summary", () => {
       text: "Vegetarian",
     });
 
-    const summary = await api.records.familyHealth({ studentId });
+    const summary = await api.records.summary({ studentId });
     if (!summary.permitted) throw new Error("the mother is permitted");
     expect(summary.records).toContainEqual(
       expect.objectContaining({
@@ -121,7 +121,7 @@ describe("the family's medical summary", () => {
   test("an added allergy waits for the office, and once accepted is in the record and the family is told", async () => {
     const office = await principal();
     const { api, me, studentId } = await family(1);
-    const asked = await api.records.askHealthChange({
+    const asked = await api.records.askChange({
       target: "record",
       studentId,
       kind: "allergy",
@@ -130,7 +130,7 @@ describe("the family's medical summary", () => {
     });
     expect(asked.dueOn >= (await office.privacy.overview()).today).toBe(true);
 
-    const waiting = await api.records.familyHealth({ studentId });
+    const waiting = await api.records.summary({ studentId });
     if (!waiting.permitted) throw new Error("the mother is permitted");
     expect(waiting.records.some((row) => row.text === "Sesame")).toBe(false);
     expect(waiting.changes).toContainEqual(
@@ -178,7 +178,7 @@ describe("the family's medical summary", () => {
     expect(staff.records).toContainEqual(
       expect.objectContaining({ text: "Sesame", severity: "moderate" }),
     );
-    const after = await api.records.familyHealth({ studentId });
+    const after = await api.records.summary({ studentId });
     if (!after.permitted) throw new Error("the mother is permitted");
     expect(after.records.some((record) => record.text === "Sesame")).toBe(true);
     expect(after.changes.find((change) => change.id === asked.id)?.state).toBe(
@@ -226,7 +226,7 @@ describe("the family's medical summary", () => {
       text: "Inhaler before sport",
       actionPlan: "Kept in the PE office",
     });
-    const before = await api.records.familyHealth({ studentId });
+    const before = await api.records.summary({ studentId });
     if (!before.permitted) throw new Error("the mother is permitted");
     const medicine = before.records.find(
       (row) => row.text === "Inhaler before sport",
@@ -234,7 +234,7 @@ describe("the family's medical summary", () => {
     if (!medicine) throw new Error("the medicine reads back");
     expect(
       await rejection(
-        api.records.askHealthChange({
+        api.records.askChange({
           target: "record",
           studentId,
           kind: "medication",
@@ -244,7 +244,7 @@ describe("the family's medical summary", () => {
         }),
       ),
     ).toMatchObject({ message: "health.change_unchanged" });
-    const asked = await api.records.askHealthChange({
+    const asked = await api.records.askChange({
       target: "record",
       studentId,
       kind: "medication",
@@ -265,7 +265,7 @@ describe("the family's medical summary", () => {
       decision: "declined",
       reason: "The doctor's letter says before sport only.",
     });
-    const after = await api.records.familyHealth({ studentId });
+    const after = await api.records.summary({ studentId });
     if (!after.permitted) throw new Error("the mother is permitted");
     expect(
       after.records.find((record) => record.id === medicine.id)?.text,
@@ -295,11 +295,11 @@ describe("the family's medical summary", () => {
       text: "Asthma",
       actionPlan: "Reliever in the clinic",
     });
-    const summary = await api.records.familyHealth({ studentId });
+    const summary = await api.records.summary({ studentId });
     if (!summary.permitted) throw new Error("the mother is permitted");
     const asthma = summary.records.find((row) => row.text === "Asthma");
     if (!asthma) throw new Error("the condition reads back");
-    const asked = await api.records.askHealthChange({
+    const asked = await api.records.askChange({
       target: "record",
       studentId,
       kind: "chronic_condition",
@@ -334,7 +334,7 @@ describe("the family's medical summary", () => {
   test("an emergency contact's new phone reaches the contact once accepted", async () => {
     const office = await principal();
     const { api, me, studentId } = await family(4);
-    const summary = await api.records.familyHealth({ studentId });
+    const summary = await api.records.summary({ studentId });
     if (!summary.permitted) throw new Error("the mother is permitted");
     const contact = summary.contacts.find(
       (row) => row.fullNameEn === me.nameEn,
@@ -342,38 +342,34 @@ describe("the family's medical summary", () => {
     if (!contact) throw new Error("the mother is an emergency contact");
     expect(
       await rejection(
-        api.records.askHealthChange({
+        api.records.askChange({
           target: "contact",
           studentId,
-          relationshipId: contact.relationshipId,
+          contactId: contact.id,
           phone: "12",
         }),
       ),
     ).toMatchObject({ message: "contact_point.phone_invalid" });
-    const asked = await api.records.askHealthChange({
+    const asked = await api.records.askChange({
       target: "contact",
       studentId,
-      relationshipId: contact.relationshipId,
+      contactId: contact.id,
       phone: "01001234567",
     });
-    const unchanged = await api.records.familyHealth({ studentId });
+    const unchanged = await api.records.summary({ studentId });
     if (!unchanged.permitted) throw new Error("the mother is permitted");
-    expect(
-      unchanged.contacts.find(
-        (row) => row.relationshipId === contact.relationshipId,
-      )?.phone,
-    ).toBe(contact.phone);
+    expect(unchanged.contacts.find((row) => row.id === contact.id)?.phone).toBe(
+      contact.phone,
+    );
     await office.records.decideHealthChange({
       id: asked.id,
       decision: "accepted",
     });
-    const after = await api.records.familyHealth({ studentId });
+    const after = await api.records.summary({ studentId });
     if (!after.permitted) throw new Error("the mother is permitted");
-    expect(
-      after.contacts.find(
-        (row) => row.relationshipId === contact.relationshipId,
-      )?.phone,
-    ).toBe("+201001234567");
+    expect(after.contacts.find((row) => row.id === contact.id)?.phone).toBe(
+      "+201001234567",
+    );
   });
 });
 
@@ -382,19 +378,19 @@ describe("who the medical summary reaches", () => {
     const office = await principal();
     const { api, me, studentId } = await family(5);
     const ask = () =>
-      api.records.askHealthChange({
+      api.records.askChange({
         target: "record",
         studentId,
         kind: "allergy",
         text: "Dust",
       });
     const link = await linkOf(office, studentId, me.id);
-    const { links } = await office.records.custody({ studentId });
+    const { links } = await office.guardians.custody({ studentId });
     const custody = links.find(
       (row) => row.relationshipId === link.relationshipId,
     );
     if (!custody) throw new Error("the mother's custody record");
-    await office.records.saveCustody({
+    await office.guardians.saveCustody({
       studentId,
       relationshipId: link.relationshipId,
       expectedVersion: custody.version,
@@ -403,7 +399,7 @@ describe("who the medical summary reaches", () => {
       communicationIsolated: true,
       pickup: "not_allowed",
     });
-    expect(await api.records.familyHealth({ studentId })).toEqual({
+    expect(await api.records.summary({ studentId })).toEqual({
       permitted: false,
     });
     expect(await rejection(ask())).toMatchObject({
@@ -411,7 +407,7 @@ describe("who the medical summary reaches", () => {
       message: "health.not_permitted",
     });
     const isolated = await linkOf(office, studentId, me.id);
-    await office.records.saveCustody({
+    await office.guardians.saveCustody({
       studentId,
       relationshipId: link.relationshipId,
       expectedVersion: isolated.version,
@@ -420,9 +416,7 @@ describe("who the medical summary reaches", () => {
       communicationIsolated: false,
       pickup: "allowed",
     });
-    expect((await api.records.familyHealth({ studentId })).permitted).toBe(
-      true,
-    );
+    expect((await api.records.summary({ studentId })).permitted).toBe(true);
 
     const current = await linkOf(office, studentId, me.id);
     const flags = {
@@ -434,26 +428,24 @@ describe("who the medical summary reaches", () => {
       residence: current.residence,
       pickup: current.pickup,
     };
-    await office.people.saveRelationship({
+    await office.guardians.saveLink({
       studentId,
       relationshipId: current.relationshipId,
       expectedVersion: current.version,
       flags: { ...flags, legalGuardian: false },
     });
-    expect(await api.records.familyHealth({ studentId })).toEqual({
+    expect(await api.records.summary({ studentId })).toEqual({
       permitted: false,
     });
     expect(await rejection(ask())).toMatchObject({ code: "FORBIDDEN" });
     const unconfirmed = await linkOf(office, studentId, me.id);
-    await office.people.saveRelationship({
+    await office.guardians.saveLink({
       studentId,
       relationshipId: unconfirmed.relationshipId,
       expectedVersion: unconfirmed.version,
       flags: { ...flags, legalGuardian: true },
     });
-    expect((await api.records.familyHealth({ studentId })).permitted).toBe(
-      true,
-    );
+    expect((await api.records.summary({ studentId })).permitted).toBe(true);
   });
 
   test("a family cannot read or ask about another family's child", async () => {
@@ -461,13 +453,11 @@ describe("who the medical summary reaches", () => {
     const other = await family(7);
     expect(other.studentId).not.toBe(one.studentId);
     expect(
-      await rejection(
-        one.api.records.familyHealth({ studentId: other.studentId }),
-      ),
+      await rejection(one.api.records.summary({ studentId: other.studentId })),
     ).toMatchObject({ code: "NOT_FOUND" });
     expect(
       await rejection(
-        one.api.records.askHealthChange({
+        one.api.records.askChange({
           target: "record",
           studentId: other.studentId,
           kind: "allergy",
@@ -482,7 +472,7 @@ describe("who the medical summary reaches", () => {
 
   test("the office's queue is the school's own, and staff without health access are refused it", async () => {
     const { api, studentId } = await family(8);
-    const asked = await api.records.askHealthChange({
+    const asked = await api.records.askChange({
       target: "record",
       studentId,
       kind: "doctor",
@@ -548,7 +538,7 @@ async function familySession(index: number) {
     loginAt("northwind", "parent", index),
   );
   const me = await session.api.identity.currentUser();
-  const child = (await session.api.people.person({ id: me.id })).children[0];
+  const child = (await session.api.guardians.children({ userId: me.id }))[0];
   if (!child) throw new Error("the seeded mother follows no child");
   return { ...session, me, studentId: child.studentId };
 }
@@ -615,7 +605,7 @@ describe("medical reports", () => {
       shared: false,
     });
 
-    const unshared = await mother.api.records.familyHealth({
+    const unshared = await mother.api.records.summary({
       studentId: mother.studentId,
     });
     if (!unshared.permitted) throw new Error("the mother is permitted");
@@ -638,7 +628,7 @@ describe("medical reports", () => {
       expectedVersion: attached.version,
       shared: true,
     });
-    const shared = await mother.api.records.familyHealth({
+    const shared = await mother.api.records.summary({
       studentId: mother.studentId,
     });
     if (!shared.permitted) throw new Error("the mother is permitted");
@@ -690,7 +680,7 @@ describe("medical reports", () => {
       "Dr Nour allergy test.pdf",
       "Positive for tree nuts.",
     );
-    const asked = await mother.api.records.askHealthChange({
+    const asked = await mother.api.records.askChange({
       target: "record",
       studentId: mother.studentId,
       kind: "allergy",
@@ -698,7 +688,7 @@ describe("medical reports", () => {
       severity: "severe",
       report: { fileId: file.id, name: "Dr Nour allergy test.pdf" },
     });
-    const own = await mother.api.records.familyHealth({
+    const own = await mother.api.records.summary({
       studentId: mother.studentId,
     });
     if (!own.permitted) throw new Error("the mother is permitted");
@@ -743,7 +733,7 @@ describe("medical reports", () => {
       name: "Dr Nour allergy test.pdf",
       shared: true,
     });
-    const summary = await mother.api.records.familyHealth({
+    const summary = await mother.api.records.summary({
       studentId: mother.studentId,
     });
     if (!summary.permitted) throw new Error("the mother is permitted");
@@ -772,7 +762,7 @@ describe("medical reports", () => {
     );
     expect(
       await rejection(
-        mother.api.records.askHealthChange({
+        mother.api.records.askChange({
           target: "record",
           studentId: mother.studentId,
           kind: "medication",

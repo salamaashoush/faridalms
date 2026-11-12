@@ -56,7 +56,7 @@ export type AbsenceReportStatus =
 export interface AttendanceSettings {
   /** How many days back a teacher may still change a register. */
   teacherEditDays: number;
-  /** How long an unexcused absence waits before families are told. */
+  /** How long an unexcused absence waits before those who hear for the learner are told. */
   noticeDelayMinutes: number;
   /** The share of sessions missed at which a student counts as chronically absent. */
   chronicPercent: number;
@@ -64,6 +64,8 @@ export interface AttendanceSettings {
   checkInTouch: boolean;
   checkInQr: boolean;
   checkInNfc: boolean;
+  /** Learners who decide for themselves report their own absence. */
+  learnersReport: boolean;
   /** Minutes after a period starts before an arrival counts as late. */
   lateAfterMinutes: number;
   /**
@@ -80,6 +82,7 @@ export const DEFAULT_ATTENDANCE_SETTINGS: AttendanceSettings = {
   checkInTouch: false,
   checkInQr: false,
   checkInNfc: false,
+  learnersReport: false,
   lateAfterMinutes: 5,
   registerClosesMinutes: 30,
 };
@@ -227,7 +230,7 @@ export const absenceReportSchema = v.pipe(
 );
 export type AbsenceReportInput = v.InferOutput<typeof absenceReportSchema>;
 
-export const familyReportsSchema = v.object({ studentId: optionalId });
+export const learnerReportsSchema = v.object({ studentId: optionalId });
 
 export const withdrawReportSchema = v.object({ id });
 
@@ -316,6 +319,7 @@ export const attendanceSettingsSchema = v.pipe(
     checkInTouch: v.optional(v.boolean(), false),
     checkInQr: v.optional(v.boolean(), false),
     checkInNfc: v.optional(v.boolean(), false),
+    learnersReport: v.optional(v.boolean(), false),
     lateAfterMinutes: v.optional(
       v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(60)),
       DEFAULT_ATTENDANCE_SETTINGS.lateAfterMinutes,

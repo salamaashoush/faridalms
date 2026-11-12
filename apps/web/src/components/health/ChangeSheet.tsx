@@ -1,7 +1,7 @@
 import type { FileSummary } from "@faridalms/domain/file";
 import type {
   AskHealthChangeInput,
-  FamilyHealthKind,
+  SummaryKind,
 } from "@faridalms/domain/people";
 
 import { MAX_FILE_BYTES } from "@faridalms/domain/file";
@@ -31,7 +31,7 @@ import { KIND_HINT } from "./labels";
 export type Asking =
   | {
       target: "record";
-      kind: FamilyHealthKind;
+      kind: SummaryKind;
       record: {
         id: string;
         version: number;
@@ -41,12 +41,12 @@ export type Asking =
     }
   | {
       target: "contact";
-      contact: { relationshipId: string; name: string; phone: string | null };
+      contact: { contactId: string; name: string; phone: string | null };
     };
 
 type Field = "text" | "severity" | "phone" | "report";
 
-const KIND_ADD: Record<FamilyHealthKind, () => string> = {
+const KIND_ADD: Record<SummaryKind, () => string> = {
   allergy: m.medicalAddAllergy,
   chronic_condition: m.medicalAddCondition,
   medication: m.medicalAddMedicine,
@@ -54,7 +54,7 @@ const KIND_ADD: Record<FamilyHealthKind, () => string> = {
   doctor: m.medicalAddDoctor,
 };
 
-const KIND_CHANGE: Record<FamilyHealthKind, () => string> = {
+const KIND_CHANGE: Record<SummaryKind, () => string> = {
   allergy: m.medicalChangeAllergy,
   chronic_condition: m.medicalChangeCondition,
   medication: m.medicalChangeMedicine,
@@ -122,7 +122,7 @@ export function ChangeSheet({
       : {
           target: "contact",
           studentId,
-          relationshipId: asking.contact.relationshipId,
+          contactId: asking.contact.contactId,
           phone,
         };
   const refusal = refusalOf(mutation.error, {
@@ -153,7 +153,7 @@ export function ChangeSheet({
         await mutation.mutateAsync(input).then(
           async (sent) => {
             await queryClient.invalidateQueries({
-              queryKey: ["family", "health", studentId],
+              queryKey: ["records", "summary", studentId],
             });
             toast.success(m.medicalAskSent({ date: formatDate(sent.dueOn) }));
             onClose();

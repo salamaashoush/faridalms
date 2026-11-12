@@ -258,8 +258,8 @@ describe("creating a school from the operator console", () => {
       homeroomTeacherId: teacher.id,
       subjects: [{ subjectId: subject.id, teacherIds: [teacher.id] }],
     });
-    const people = await api.people.options();
-    const mother = people.relations.find((row) => row.code === "mother");
+    const relations = await api.guardians.relations();
+    const mother = relations.find((row) => row.code === "mother");
     if (!mother) throw new Error("the catalogue has no mother");
     const student = await api.people.saveStudent({
       names: {
@@ -267,27 +267,29 @@ describe("creating a school from the operator console", () => {
         ar: { given: "عمر", middle: "", family: "عشوش" },
       },
       reference: "OR-0001",
-      guardians: [
-        {
-          person: {
-            names: {
-              en: { given: "Mona", middle: "", family: "Ashoush" },
-              ar: { given: "منى", middle: "", family: "عشوش" },
+      parts: {
+        families: [
+          {
+            person: {
+              names: {
+                en: { given: "Mona", middle: "", family: "Ashoush" },
+                ar: { given: "منى", middle: "", family: "عشوش" },
+              },
+              phone: "01012345678",
             },
-            phone: "01012345678",
+            flags: {
+              relationId: mother.id,
+              legalGuardian: true,
+              portalAccess: false,
+              receivesNotifications: false,
+              primaryContact: true,
+              emergencyContact: true,
+              residence: "primary",
+              pickup: "allowed",
+            },
           },
-          flags: {
-            relationId: mother.id,
-            legalGuardian: true,
-            portalAccess: false,
-            receivesNotifications: false,
-            primaryContact: true,
-            emergencyContact: true,
-            residence: "primary",
-            pickup: "allowed",
-          },
-        },
-      ],
+        ],
+      },
     });
     await api.homerooms.place({
       studentId: student.id,
@@ -371,8 +373,8 @@ describe("creating a school from the operator console", () => {
       titleAr: "",
       teacherIds: [teacher.id],
     });
-    const people = await api.people.options();
-    const mother = people.relations.find((row) => row.code === "mother");
+    const relations = await api.guardians.relations();
+    const mother = relations.find((row) => row.code === "mother");
     if (!mother) throw new Error("the catalogue has no mother");
     const learner = await api.people.saveStudent({
       names: {
@@ -380,27 +382,29 @@ describe("creating a school from the operator console", () => {
         ar: { given: "عمر", middle: "", family: "عشوش" },
       },
       reference: "PF-0001",
-      guardians: [
-        {
-          person: {
-            names: {
-              en: { given: "Mona", middle: "", family: "Ashoush" },
-              ar: { given: "منى", middle: "", family: "عشوش" },
+      parts: {
+        families: [
+          {
+            person: {
+              names: {
+                en: { given: "Mona", middle: "", family: "Ashoush" },
+                ar: { given: "منى", middle: "", family: "عشوش" },
+              },
+              phone: "01012345679",
             },
-            phone: "01012345679",
+            flags: {
+              relationId: mother.id,
+              legalGuardian: true,
+              portalAccess: false,
+              receivesNotifications: false,
+              primaryContact: true,
+              emergencyContact: true,
+              residence: "primary",
+              pickup: "allowed",
+            },
           },
-          flags: {
-            relationId: mother.id,
-            legalGuardian: true,
-            portalAccess: false,
-            receivesNotifications: false,
-            primaryContact: true,
-            emergencyContact: true,
-            residence: "primary",
-            pickup: "allowed",
-          },
-        },
-      ],
+        ],
+      },
     });
     await api.classes.enrol({
       studentId: learner.id,
@@ -1038,7 +1042,6 @@ async function schoolWithout(
       ar: { given: "عمر", middle: "", family: "عشوش" },
     },
     reference: `${slug.toUpperCase()}-1`,
-    guardians: [],
   });
   await api.classes.enrol({
     studentId: learner.id,

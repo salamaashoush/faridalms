@@ -10,10 +10,8 @@ import {
   getPersonHistory,
   getPersonProfile,
   getPersonRecord,
-  getSiblings,
   getSignInsPlan,
   getStudentHistory,
-  getStudentNotices,
   getStudentRecord,
   getStudents,
 } from "~/server/students";
@@ -56,12 +54,6 @@ export const studentHistoryQuery = (id: string) =>
     getNextPageParam: (last) => last.next ?? undefined,
   });
 
-export const studentNoticesQuery = (id: string) =>
-  queryOptions({
-    queryKey: ["people", "student", id, "notices"],
-    queryFn: () => getStudentNotices({ data: { id } }),
-  });
-
 export const signInsPlanQuery = (input: CreateSignInsInput) =>
   queryOptions({
     queryKey: ["people", "sign-ins", input],
@@ -87,10 +79,4 @@ export const personHistoryQuery = (id: string) =>
       getPersonHistory({ data: { id, after: pageParam } }),
     initialPageParam: null as Keyset | null,
     getNextPageParam: (last) => last.next ?? undefined,
-  });
-
-export const siblingsQuery = (id: string) =>
-  queryOptions({
-    queryKey: ["people", "siblings", id],
-    queryFn: () => getSiblings({ data: { id } }),
   });

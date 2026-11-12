@@ -15,7 +15,6 @@ import {
   contactById,
   contactOfSchool,
 } from "@faridalms/database/stores/messages";
-import { childrenOf } from "@faridalms/database/stores/persons";
 import {
   breachById,
   breachesOf,
@@ -77,8 +76,9 @@ import {
   schoolZone,
   writeProcedure,
 } from "../core/procedure";
-import { scopeFor } from "../core/reach";
-import { dayKinds, logFamilyRequest } from "../core/records-requests";
+import { reachesStudent } from "../core/reach";
+import { dayKinds, logLearnerRequest } from "../core/records-requests";
+import { decidesFor } from "../people/acting";
 
 function scopeOf(context: UnitContext) {
   return { tenantId: context.tenantId, orgId: context.schoolId };
@@ -338,25 +338,24 @@ export const saveRequest = writeProcedure
   });
 
 /**
- * A guardian asks the school to correct what it holds about their child.
- * Only a guardian who decides for the child may ask; one who only follows
- * them sees the record and leaves changes to the other.
+ * A learner who decides for themself, or someone who decides for them, asks
+ * the school to correct what it holds about the learner. One who only
+ * follows the learner sees the record and leaves changes to the other.
  */
 export const askCorrection = writeProcedure
   .input(askCorrectionSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "children:read");
-    const link = (
-      await childrenOf(
-        context.tx,
-        scopeFor(context, "own"),
-        context.actor.userId,
-      )
-    ).find((row) => row.studentId === input.studentId);
-    if (!link) throw new ORPCError("NOT_FOUND");
-    if (link.educationalRights !== "full")
+    if (!(await reachesStudent(context, "own", input.studentId)))
+      throw new ORPCError("NOT_FOUND");
+    if (
+      !(await decidesFor(context, {
+        userId: context.actor.userId,
+        studentId: input.studentId,
+        on: context.today,
+      }))
+    )
       throw new ORPCError("FORBIDDEN", { message: "privacy.follows_only" });
-    return logFamilyRequest(context, {
+    return logLearnerRequest(context, {
       studentId: input.studentId,
       details: input.details,
       topic: null,

@@ -41,7 +41,6 @@ import {
   teachersOn,
 } from "@faridalms/database/stores/classes";
 import { movementsOn } from "@faridalms/database/stores/front-desk";
-import { noticeGuardians } from "@faridalms/database/stores/messages";
 import { noticed, withdraw } from "@faridalms/database/stores/notifications";
 import { namesOf } from "@faridalms/database/stores/persons";
 import { schoolDay } from "@faridalms/database/stores/school-days";
@@ -96,6 +95,7 @@ import {
 import { reachesClass, reachesStudent, teaches } from "../core/reach";
 import { badgeHash } from "../core/session";
 import { reportRange } from "../core/spans";
+import { hearersFor } from "../people/acting";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -731,7 +731,8 @@ const missing = (mark: MarkChange["after"]) =>
   mark !== null && mark.meaning === "absent" && !mark.reasonId;
 
 /**
- * Tells a student's families of a new unexplained absence, once a day, after
+ * Tells those who hear for a student, or the student where no one does, of
+ * a new unexplained absence, once a day, after
  * the school's notice delay so a teacher can correct a slip first. A
  * correction that leaves the day clear takes the notice back.
  */
@@ -782,12 +783,12 @@ async function noticeAbsences(
       })
     )
       continue;
-    const guardians = await noticeGuardians(context.tx, {
-      tenantId: context.tenantId,
-      studentId: student.id,
+    const hearers = await hearersFor(context, {
+      studentIds: [student.id],
       on: takenOn,
+      purpose: "notice",
     });
-    await notify(context, guardians, {
+    await notify(context, [...new Set(hearers.map((link) => link.userId))], {
       kind: "absence",
       subject,
       params: {
@@ -1147,6 +1148,7 @@ export const saveSettings = writeProcedure
           checkInTouch: input.checkInTouch,
           checkInQr: input.checkInQr,
           checkInNfc: input.checkInNfc,
+          learnersReport: input.learnersReport,
           lateAfterMinutes: input.lateAfterMinutes,
           registerClosesMinutes: input.registerClosesMinutes,
         }),

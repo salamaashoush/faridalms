@@ -36,7 +36,7 @@ import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSessionChange } from "~/hooks/useSessionChange";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
-import { familyHomeQuery } from "~/queries/home";
+import { followedHomeQuery } from "~/queries/home";
 import { currentUserQuery } from "~/queries/user";
 import { startChildMode } from "~/server/auth";
 import { formatInstant, formatDate } from "~/utils/datetime";
@@ -55,7 +55,7 @@ export const Route = createFileRoute("/_app/family/")({
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     await Promise.all([
-      context.queryClient.ensureQueryData(familyHomeQuery(deps.child)),
+      context.queryClient.ensureQueryData(followedHomeQuery(deps.child)),
       ...filled(context.extensions, user.modules, familyChildParts).flatMap(
         (part) => {
           const query = part.query(user.capabilities);
@@ -68,7 +68,7 @@ export const Route = createFileRoute("/_app/family/")({
 });
 
 type Data = Awaited<
-  ReturnType<NonNullable<ReturnType<typeof familyHomeQuery>["queryFn"]>>
+  ReturnType<NonNullable<ReturnType<typeof followedHomeQuery>["queryFn"]>>
 >;
 type Child = Data["children"][number];
 
@@ -281,7 +281,7 @@ function ChildCard({ child, single }: ChildCardProps) {
 function FamilyHome() {
   const { child } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const data = useSuspenseQuery(familyHomeQuery(child)).data;
+  const data = useSuspenseQuery(followedHomeQuery(child)).data;
   const aside = [
     data.messages.unread > 0 ? (
       <HomeCard

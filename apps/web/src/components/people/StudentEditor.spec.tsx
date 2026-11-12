@@ -68,10 +68,8 @@ vi.mock("~/server/students", () => ({
   getStudentHistory: vi.fn(),
   getStudents: vi.fn(),
   getStudentMatches: vi.fn(),
-  findGuardians: vi.fn(),
+  findByContact: vi.fn(),
   saveStudent: vi.fn(),
-  saveRelationship: vi.fn(),
-  endRelationship: vi.fn(),
   getPersonRecord: vi.fn(),
   getPersonHistory: vi.fn(),
 }));
@@ -83,33 +81,7 @@ function slowly<T>(value: T) {
   return new Promise<T>((resolve) => setTimeout(() => resolve(value), 30));
 }
 
-function descriptor(
-  id: string,
-  code: string,
-  labelEn: string,
-  labelAr: string,
-) {
-  return {
-    id,
-    code,
-    meaning: code,
-    labelEn,
-    labelAr,
-    color: null,
-    sortOrder: 0,
-    schoolOnly: false,
-  };
-}
-
 const OPTIONS = {
-  relations: [
-    descriptor(
-      "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a05",
-      "mother",
-      "Mother",
-      "الأم",
-    ),
-  ],
   sexes: [],
   positions: [],
   religions: [],
@@ -268,7 +240,6 @@ describe("adding a student", () => {
         names: { en: { given: "Salama", family: "Ashoush" } },
         reference: "TEST-0001",
         parts: { grade: { gradeId: GRADE } },
-        guardians: [],
       },
     });
     expect(name.given).toHaveValue("");

@@ -408,7 +408,7 @@ export interface ApplicationRow {
   version: number;
   intakeId: string;
   formVersionId: string;
-  familyUserId: string;
+  filedByUserId: string;
   applicantUserId: string;
   enquiryId: string | null;
   state: ApplicationState;
@@ -437,10 +437,10 @@ export interface ApplicationRow {
     birthDate: string | null;
     sexId: string | null;
   };
-  family: { nameEn: string | null; nameAr: string | null };
+  filer: { nameEn: string | null; nameAr: string | null };
 }
 
-const applicationColumns = sql`a.id, a.version, a.intake_id, a.form_version_id, a.family_user_id,
+const applicationColumns = sql`a.id, a.version, a.intake_id, a.form_version_id, a.filed_by_user_id,
   a.applicant_user_id, a.enquiry_id, a.state, ${isoOf(sql`a.state_changed_at`)} as state_changed_at,
   a.exit_reason, a.reference, a.locale, a.form, a.answers, a.additional_needs, a.priorities, a.matches,
   case when a.submitted_at is null then null else ${isoOf(sql`a.submitted_at`)} end as submitted_at,
@@ -452,19 +452,19 @@ const applicationColumns = sql`a.id, a.version, a.intake_id, a.form_version_id, 
   a.decided_by_user_id, a.student_user_id, a.deferred_from_id,
   c.full_name_en as applicant_en, c.full_name_ar as applicant_ar,
   c.birth_date::text as applicant_birth_date, c.sex_descriptor_id as applicant_sex_id,
-  p.full_name_en as family_en, p.full_name_ar as family_ar`;
+  p.full_name_en as filer_en, p.full_name_ar as filer_ar`;
 
 const applicationJoins = sql`
   from core.admission_applications a
   join core.users c on c.tenant_id = a.tenant_id and c.id = a.applicant_user_id
-  join core.users p on p.tenant_id = a.tenant_id and p.id = a.family_user_id`;
+  join core.users p on p.tenant_id = a.tenant_id and p.id = a.filed_by_user_id`;
 
 type ApplicationRecord = {
   id: string;
   version: number;
   intake_id: string;
   form_version_id: string;
-  family_user_id: string;
+  filed_by_user_id: string;
   applicant_user_id: string;
   enquiry_id: string | null;
   state: ApplicationState;
@@ -491,8 +491,8 @@ type ApplicationRecord = {
   applicant_ar: string | null;
   applicant_birth_date: string | null;
   applicant_sex_id: string | null;
-  family_en: string | null;
-  family_ar: string | null;
+  filer_en: string | null;
+  filer_ar: string | null;
 };
 
 const applicationOf = (row: ApplicationRecord): ApplicationRow => ({
@@ -500,7 +500,7 @@ const applicationOf = (row: ApplicationRecord): ApplicationRow => ({
   version: row.version,
   intakeId: row.intake_id,
   formVersionId: row.form_version_id,
-  familyUserId: row.family_user_id,
+  filedByUserId: row.filed_by_user_id,
   applicantUserId: row.applicant_user_id,
   enquiryId: row.enquiry_id,
   state: row.state,
@@ -529,45 +529,45 @@ const applicationOf = (row: ApplicationRecord): ApplicationRow => ({
     birthDate: row.applicant_birth_date,
     sexId: row.applicant_sex_id,
   },
-  family: { nameEn: row.family_en, nameAr: row.family_ar },
+  filer: { nameEn: row.filer_en, nameAr: row.filer_ar },
 });
 
-/** One application of a school; with `familyUserId`, only if that person made it. */
+/** One application of a school; with `filedByUserId`, only if that person filed it. */
 export async function applicationById(
   tx: Tx,
-  input: Org & { id: string; familyUserId?: string },
+  input: Org & { id: string; filedByUserId?: string },
 ): Promise<ApplicationRow | null> {
   const [row] = await tx.execute<ApplicationRecord>(sql`
     select ${applicationColumns} ${applicationJoins}
     where a.tenant_id = ${input.tenantId}::uuid and a.org_id = ${input.orgId}::uuid
       and a.id = ${input.id}::uuid and a.status = 'active'
-      and (${input.familyUserId ?? null}::uuid is null or a.family_user_id = ${input.familyUserId ?? null}::uuid)`);
+      and (${input.filedByUserId ?? null}::uuid is null or a.filed_by_user_id = ${input.filedByUserId ?? null}::uuid)`);
   return row ? applicationOf(row) : null;
 }
 
-/** Every application a family member made at the school, newest first. */
-export async function applicationsOfFamily(
+/** Every application a person filed at the school, newest first. */
+export async function applicationsFiledBy(
   tx: Tx,
-  input: Org & { familyUserId: string },
+  input: Org & { filedByUserId: string },
 ): Promise<ApplicationRow[]> {
   const rows = await tx.execute<ApplicationRecord>(sql`
     select ${applicationColumns} ${applicationJoins}
     where a.tenant_id = ${input.tenantId}::uuid and a.org_id = ${input.orgId}::uuid
-      and a.family_user_id = ${input.familyUserId}::uuid and a.status = 'active'
+      and a.filed_by_user_id = ${input.filedByUserId}::uuid and a.status = 'active'
     order by a.created_at desc, a.id desc`);
   return rows.map(applicationOf);
 }
 
-/** Whether a person is a child a family member has applied for, so their own records are theirs to fill in. */
+/** Whether a person is an applicant this account filed for, so their records are the filer's to fill in. */
 export async function appliedFor(
   tx: Tx,
-  input: Org & { familyUserId: string; applicantUserId: string },
+  input: Org & { filedByUserId: string; applicantUserId: string },
 ): Promise<boolean> {
   const [row] = await tx.execute<{ found: boolean }>(sql`
     select exists (
       select 1 from core.admission_applications
       where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
-        and family_user_id = ${input.familyUserId}::uuid
+        and filed_by_user_id = ${input.filedByUserId}::uuid
         and applicant_user_id = ${input.applicantUserId}::uuid and status = 'active'
     ) as found`);
   return row?.found ?? false;
@@ -578,7 +578,7 @@ export async function insertApplication(
   input: Org & {
     intakeId: string;
     formVersionId: string;
-    familyUserId: string;
+    filedByUserId: string;
     applicantUserId: string;
     locale: "en" | "ar";
     form: ApplicationForm;
@@ -587,9 +587,9 @@ export async function insertApplication(
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.admission_applications (tenant_id, org_id, intake_id, form_version_id,
-      family_user_id, applicant_user_id, locale, form)
+      filed_by_user_id, applicant_user_id, locale, form)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.intakeId}::uuid,
-      ${input.formVersionId}::uuid, ${input.familyUserId}::uuid, ${input.applicantUserId}::uuid,
+      ${input.formVersionId}::uuid, ${input.filedByUserId}::uuid, ${input.applicantUserId}::uuid,
       ${input.locale}, ${JSON.stringify(input.form)}::text::jsonb)
     returning id, version`);
   if (!row) throw new Error("The application was not created");
@@ -719,8 +719,8 @@ export interface ApplicationListRow {
   applicantEn: string | null;
   applicantAr: string | null;
   birthDate: string | null;
-  familyEn: string | null;
-  familyAr: string | null;
+  filerEn: string | null;
+  filerAr: string | null;
   priorities: PriorityRule[];
   /** Required checklist steps not yet verified or waived. */
   outstanding: number;
@@ -756,7 +756,7 @@ export async function listApplications(
   const from = sql`from core.admission_applications a
     join core.admission_intakes i on i.tenant_id = a.tenant_id and i.id = a.intake_id
     join core.users c on c.tenant_id = a.tenant_id and c.id = a.applicant_user_id
-    join core.users p on p.tenant_id = a.tenant_id and p.id = a.family_user_id`;
+    join core.users p on p.tenant_id = a.tenant_id and p.id = a.filed_by_user_id`;
   const counted = await tx.execute<{ state: ApplicationState; n: number }>(sql`
     select a.state, count(*)::int as n ${from} where ${narrowed} group by a.state`);
   const counts = Object.fromEntries(
@@ -789,8 +789,8 @@ export async function listApplications(
     applicant_en: string | null;
     applicant_ar: string | null;
     birth_date: string | null;
-    family_en: string | null;
-    family_ar: string | null;
+    filer_en: string | null;
+    filer_ar: string | null;
     priorities: PriorityRule[];
     outstanding: number;
   }>(sql`
@@ -798,7 +798,7 @@ export async function listApplications(
       case when a.submitted_at is null then null else ${isoOf(sql`a.submitted_at`)} end as submitted_at,
       a.intake_id, i.title_en as intake_en, i.title_ar as intake_ar,
       c.full_name_en as applicant_en, c.full_name_ar as applicant_ar, c.birth_date::text as birth_date,
-      p.full_name_en as family_en, p.full_name_ar as family_ar, a.priorities,
+      p.full_name_en as filer_en, p.full_name_ar as filer_ar, a.priorities,
       (select count(*)::int from core.admission_items t where t.tenant_id = a.tenant_id
         and t.application_id = a.id and t.status = 'active' and t.required
         and t.state not in ('verified', 'waived')) as outstanding
@@ -822,8 +822,8 @@ export async function listApplications(
       applicantEn: row.applicant_en,
       applicantAr: row.applicant_ar,
       birthDate: row.birth_date,
-      familyEn: row.family_en,
-      familyAr: row.family_ar,
+      filerEn: row.filer_en,
+      filerAr: row.filer_ar,
       priorities: row.priorities,
       outstanding: row.outstanding,
     })),
@@ -986,55 +986,24 @@ export async function enquiryToConvert(
   return row ?? null;
 }
 
-/** Links an enquiry to the family and child it became and marks it converted. */
+/** Links an enquiry to the account and applicant it became and marks it converted. */
 export async function convertEnquiry(
   tx: Tx,
   input: Org & {
     id: string;
     expectedVersion: number;
-    familyUserId: string;
+    enquirerUserId: string;
     applicantUserId: string;
   },
 ): Promise<boolean> {
   const rows = await tx.execute(sql`
     update core.site_enquiries
     set state = 'converted', state_changed_at = statement_timestamp(), closed_reason = null,
-      family_user_id = ${input.familyUserId}::uuid, applicant_user_id = ${input.applicantUserId}::uuid
+      enquirer_user_id = ${input.enquirerUserId}::uuid, applicant_user_id = ${input.applicantUserId}::uuid
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
       and id = ${input.id}::uuid and version = ${input.expectedVersion} and status = 'active'
     returning id`);
   return rows.length > 0;
-}
-
-/**
- * Current students who share a parent with any of the people given: the
- * brothers and sisters an applicant would join.
- */
-export async function currentChildrenOf(
-  tx: Tx,
-  input: Org & { parentIds: readonly string[]; today: string },
-): Promise<{ id: string; nameEn: string | null; nameAr: string | null }[]> {
-  if (input.parentIds.length === 0) return [];
-  const rows = await tx.execute<{
-    id: string;
-    full_name_en: string | null;
-    full_name_ar: string | null;
-  }>(sql`
-    select distinct u.id, u.full_name_en, u.full_name_ar
-    from core.user_relationships r
-    join core.users u on u.tenant_id = r.tenant_id and u.id = r.student_user_id and u.status = 'active'
-    join core.user_roles s on s.tenant_id = r.tenant_id and s.user_id = r.student_user_id
-      and s.role = 'student' and s.status = 'active' and s.org_id = ${input.orgId}::uuid
-      and s.valid_during @> ${input.today}::date
-    where r.tenant_id = ${input.tenantId}::uuid and r.related_user_id = any(${uuidArray(input.parentIds)})
-      and r.status = 'active' and r.valid_during @> ${input.today}::date
-      and r.relation_meaning in ('mother', 'father', 'step_parent', 'guardian', 'unspecified')
-    limit 10`);
-  return rows.map((row) => ({
-    id: row.id,
-    nameEn: row.full_name_en,
-    nameAr: row.full_name_ar,
-  }));
 }
 
 /** Whether any of the people holds a current staff role at the school. */
@@ -1058,21 +1027,26 @@ export async function holdsStaffRole(
 }
 
 /**
- * Opens the applying family's role at the school from today, unless one is
- * held already. Answers whether it opened one.
+ * Opens an applying role at the school from today, unless one is held
+ * already: for someone applying for themself, or for another person.
+ * Answers whether it opened one.
  */
 export async function openApplicantRole(
   tx: Tx,
-  input: Org & { userId: string; today: string },
+  input: Org & {
+    userId: string;
+    today: string;
+    role: "applicant" | "applicant_family";
+  },
 ): Promise<boolean> {
   const rows = await tx.execute(sql`
     insert into core.user_roles (tenant_id, user_id, org_id, org_type, role, valid_during, source)
     select ${input.tenantId}::uuid, ${input.userId}::uuid, ${input.orgId}::uuid, 'school',
-      'applicant_family', daterange(${input.today}::date, null, '[)'), 'derived'
+      ${input.role}, daterange(${input.today}::date, null, '[)'), 'derived'
     where not exists (
       select 1 from core.user_roles
       where tenant_id = ${input.tenantId}::uuid and user_id = ${input.userId}::uuid
-        and org_id = ${input.orgId}::uuid and role = 'applicant_family' and status = 'active'
+        and org_id = ${input.orgId}::uuid and role = ${input.role} and status = 'active'
         and (upper_inf(valid_during) or upper(valid_during) > ${input.today}::date))
     returning id`);
   return rows.length > 0;
@@ -1130,15 +1104,15 @@ export async function itemHolder(
   input: { tenantId: string; itemId: string },
 ): Promise<{
   applicationId: string;
-  familyUserId: string;
+  filedByUserId: string;
   orgId: string;
 } | null> {
   const [row] = await tx.execute<{
     application_id: string;
-    family_user_id: string;
+    filed_by_user_id: string;
     org_id: string;
   }>(sql`
-    select t.application_id, a.family_user_id, a.org_id
+    select t.application_id, a.filed_by_user_id, a.org_id
     from core.admission_items t
     join core.admission_applications a on a.tenant_id = t.tenant_id and a.id = t.application_id
       and a.status = 'active'
@@ -1146,7 +1120,7 @@ export async function itemHolder(
   return row
     ? {
         applicationId: row.application_id,
-        familyUserId: row.family_user_id,
+        filedByUserId: row.filed_by_user_id,
         orgId: row.org_id,
       }
     : null;
@@ -1169,15 +1143,15 @@ export async function holderOfName(
   return row ? { userId: row.user_id, accountState: row.state } : null;
 }
 
-/** Names a family on the open enquiries they made with an address, before any applicant; answers which. */
-export async function linkEnquiriesToFamily(
+/** Names an account on the open enquiries made with its address, before any applicant; answers which. */
+export async function linkEnquiriesToAccount(
   tx: Tx,
-  input: Org & { email: string; familyUserId: string },
+  input: Org & { email: string; userId: string },
 ): Promise<string[]> {
   const rows = await tx.execute<{ id: string }>(sql`
-    update core.site_enquiries set family_user_id = ${input.familyUserId}::uuid
+    update core.site_enquiries set enquirer_user_id = ${input.userId}::uuid
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
-      and status = 'active' and family_user_id is null and email <> ''
+      and status = 'active' and enquirer_user_id is null and email <> ''
       and lower(email) = lower(${input.email}) and state in ('open', 'in_progress')
     returning id`);
   return rows.map((row) => row.id);

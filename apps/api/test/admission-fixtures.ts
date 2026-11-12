@@ -150,9 +150,16 @@ export function registrationLink(address: string) {
   return { message, secret };
 }
 
-/** Registers a family on the portal and confirms the address, as the email link does. */
-export async function registeredFamily(email: string) {
+/**
+ * Registers someone on the portal to apply for a child in their care, or
+ * for themself, and confirms the address, as the email link does.
+ */
+export async function registeredFamily(
+  email: string,
+  applyingFor: "self" | "other" = "other",
+) {
   await client("northwind").applying.register({
+    applyingFor,
     names: names("Salama Ashoush", "سلامة عشوش"),
     email,
     phone: "",

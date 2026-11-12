@@ -241,3 +241,27 @@ export async function requireReadingGrades(context: UnitContext) {
   if ((await contributionsTo(context, readingGrades)).length === 0)
     throw new ORPCError("NOT_FOUND");
 }
+
+/**
+ * A module that lets someone besides the student and their teachers read a
+ * piece of handed-in work: someone who follows the student, once a teacher
+ * shared it, say.
+ */
+export interface AttemptReaders {
+  reads(
+    context: UnitContext,
+    attempt: { attemptId: string; studentId: string },
+  ): Promise<boolean>;
+}
+
+export const attemptReaders = point<AttemptReaders>("attempt readers");
+
+/** Whether a module lets the viewer read the attempt. */
+export async function readsAttempt(
+  context: UnitContext,
+  attempt: { attemptId: string; studentId: string },
+): Promise<boolean> {
+  for (const readers of await contributionsTo(context, attemptReaders))
+    if (await readers.reads(context, attempt)) return true;
+  return false;
+}

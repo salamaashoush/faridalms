@@ -8,7 +8,6 @@ import {
 } from "@faridalms/database/stores/handoffs";
 import {
   clearAttempts,
-  effectiveAccess,
   schoolProfile,
 } from "@faridalms/database/stores/identity";
 import {
@@ -150,13 +149,11 @@ async function tryTenant(
         const today = schoolDate(
           (await schoolProfile(tx, school.schoolId))?.timeZone ?? "UTC",
         );
-        const access = await effectiveAccess(tx, {
-          tenantId,
-          userId: identity.userId,
-          orgId: school.schoolId,
-          today,
-          context: "staff",
-        });
+        const access = await accessAtSchool(
+          tx,
+          { school, extensions: context.extensions },
+          { userId: identity.userId, today, context: "staff" },
+        );
         const sessionContext = access.contexts[0];
         if (sessionContext) candidates.push({ school, sessionContext });
       }
@@ -360,13 +357,11 @@ export const discoverReset = publicProcedure
               const today = schoolDate(
                 (await schoolProfile(tx, school.schoolId))?.timeZone ?? "UTC",
               );
-              const access = await effectiveAccess(tx, {
-                tenantId,
-                userId: person.userId,
-                orgId: school.schoolId,
-                today,
-                context: "staff",
-              });
+              const access = await accessAtSchool(
+                tx,
+                { school, extensions: context.extensions },
+                { userId: person.userId, today, context: "staff" },
+              );
               if (access.contexts.length > 0) return school;
             }
             return null;

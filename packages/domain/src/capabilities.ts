@@ -1,3 +1,5 @@
+import type { ModuleId } from "./modules";
+
 /**
  * What a procedure may do. A capability lets a procedure run; relationship
  * functions decide which records it reaches, so none of these grants a record.
@@ -99,6 +101,22 @@ const ADMINISTRATION: readonly Capability[] = CAPABILITIES.filter(
   (capability) => capability !== "erasure:approve",
 );
 
+/**
+ * Capabilities and built-in access roles that mean something only where a
+ * module is on, by that module: the access editor offers them only there.
+ */
+export const CAPABILITY_MODULE: Partial<Record<Capability, ModuleId>> = {
+  "guardians:manage": "families",
+  "custody:read": "families",
+  "custody:write": "families",
+  "children:read": "families",
+};
+
+export const BUILTIN_ROLE_MODULE: Partial<Record<string, ModuleId>> = {
+  family: "families",
+  applicant_family: "families",
+};
+
 /** Seed capabilities of the built-in access roles, keyed by `builtin_key`. */
 export const BUILTIN_CAPABILITIES: Record<
   | "site_administrator"
@@ -113,7 +131,8 @@ export const BUILTIN_CAPABILITIES: Record<
   | "student"
   | "family"
   | "admissions_officer"
-  | "applicant_family",
+  | "applicant_family"
+  | "applicant",
   readonly Capability[]
 > = {
   site_administrator: ADMINISTRATION,
@@ -168,6 +187,8 @@ export const BUILTIN_CAPABILITIES: Record<
   // its own applications, and its conversations with the school, which
   // the office started or its enquiries brought, and nothing else.
   applicant_family: ["applications:submit", "messages:read", "messages:send"],
+  // Someone applying for themself: the same, in their own context.
+  applicant: ["applications:submit", "messages:read", "messages:send"],
 };
 
 /**
@@ -189,7 +210,10 @@ export const PROFILE_CAPS: Record<Profile, ReadonlySet<Capability>> = {
     ),
   ),
   family: new Set(BUILTIN_CAPABILITIES.family),
-  student: new Set(BUILTIN_CAPABILITIES.student),
+  student: new Set([
+    ...BUILTIN_CAPABILITIES.student,
+    ...BUILTIN_CAPABILITIES.applicant,
+  ]),
   young_student: new Set<Capability>([
     "assignments:read",
     "own-work:read",

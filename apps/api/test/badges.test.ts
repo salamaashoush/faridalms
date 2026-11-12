@@ -174,7 +174,7 @@ async function youngParent() {
     .at(0)?.loginName;
   if (!name) throw new Error("the seed lacks a parent at the young school");
   const { api, token } = await sessionFor(YOUNG, name);
-  const child = (await api.home.family({})).children.find((row) => row.young);
+  const child = (await api.home.followed({})).children.find((row) => row.young);
   if (!child) throw new Error("the parent has no young child");
   return { api, token, child };
 }
@@ -197,7 +197,7 @@ describe("handing a device to a young child", () => {
   test("only a young child of the family's own is handed a device", async () => {
     const { api } = await youngParent();
     const older = await signedIn("northwind", login("parent"));
-    const olderChild = (await older.home.family({})).children[0];
+    const olderChild = (await older.home.followed({})).children[0];
     if (!olderChild) throw new Error("the seeded parent has no child");
     expect(olderChild.young).toBe(false);
     expect(

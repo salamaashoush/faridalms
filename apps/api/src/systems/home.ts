@@ -28,8 +28,7 @@ import { expiringDocuments } from "@faridalms/database/stores/identifiers";
 import { studentModules } from "@faridalms/database/stores/learning";
 import { threadsOf, unreadThreads } from "@faridalms/database/stores/messages";
 import { deliveryLog } from "@faridalms/database/stores/notifications";
-import { onboardingSeen } from "@faridalms/database/stores/onboarding";
-import { childrenOf } from "@faridalms/database/stores/persons";
+import { namesOf } from "@faridalms/database/stores/persons";
 import {
   preferenceOf,
   savePreference,
@@ -37,7 +36,6 @@ import {
 import {
   person as readPerson,
   referenceOf,
-  studentDirectory,
 } from "@faridalms/database/stores/students";
 import {
   meetingsOn,
@@ -79,8 +77,15 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { recordLinks, scopeFor } from "../core/reach";
+import {
+  reachesStudent,
+  recordLinks,
+  scopeFor,
+  studentsReached,
+} from "../core/reach";
+import { setupSeen } from "../core/setup";
 import { studentGroupsOf } from "../core/student-groups";
+import { decidesFor } from "../people/acting";
 import { studentPlacesOf, youngStudentsOf } from "../people/points";
 
 interface Slot {
@@ -529,11 +534,6 @@ function localTitle(
     : row.titleEn || row.titleAr;
 }
 
-/**
- * A family's home: for each child today's presence, the lesson now and
- * next, up to three things that need them, and what is due this week; then
- * the latest announcements, pinned first.
- */
 /** The label of one of a list's choices, in both languages. */
 function labelIn(
   list: readonly {
@@ -548,19 +548,21 @@ function labelIn(
 }
 
 /**
- * What the school holds about one child, for a guardian to read and check:
- * who they are, their number, where a module places them and their class. It says whether this guardian
- * decides for the child, since only one who does may ask for a correction.
+ * What the school holds about one learner, for the learner or someone who
+ * follows them to read and check: who they are, their number, where a
+ * module places them and their class. It says whether the reader decides
+ * for the learner, since only one who does may ask for a correction.
  */
-export const child = readProcedure
+export const details = readProcedure
   .input(v.object({ studentId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ input, context }) => {
-    requireCapability(context, "children:read");
     const scope = scopeFor(context, "own");
-    const link = (
-      await childrenOf(context.tx, scope, context.actor.userId)
-    ).find((row) => row.visible && row.studentId === input.studentId);
-    if (!link) throw new ORPCError("NOT_FOUND");
+    if (
+      (input.studentId !== context.actor.userId &&
+        !context.actor.follows.includes(input.studentId)) ||
+      !(await reachesStudent(context, "own", input.studentId))
+    )
+      throw new ORPCError("NOT_FOUND");
     const [record, reference, places, groups, sexes] = await Promise.all([
       readPerson(context.tx, input.studentId),
       referenceOf(context.tx, scope, input.studentId),
@@ -584,11 +586,20 @@ export const child = readProcedure
       reference: reference?.identifier ?? null,
       place: places.get(input.studentId) ?? null,
       group: groups.get(input.studentId) ?? null,
-      decides: link.educationalRights === "full",
+      decides: await decidesFor(context, {
+        userId: context.actor.userId,
+        studentId: input.studentId,
+        on: context.today,
+      }),
     };
   });
 
-export const family = readProcedure
+/**
+ * The home of someone who follows learners: for each today's presence, the
+ * lesson now and next, up to three things that need them, and what is due
+ * this week; then the latest announcements, pinned first.
+ */
+export const followed = readProcedure
   .input(
     v.object({
       studentId: v.optional(
@@ -599,13 +610,22 @@ export const family = readProcedure
   )
   .handler(async ({ input, context }) => {
     requireCapability(context, "children:read");
+    const reached = await studentsReached(
+      context,
+      "teaching",
+      context.actor.follows,
+    );
     const links = (
-      await childrenOf(
+      await namesOf(
         context.tx,
-        scopeFor(context, "teaching"),
-        context.actor.userId,
+        context.tenantId,
+        context.actor.follows.filter((id) => reached.has(id)),
       )
-    ).filter((link) => link.visible);
+    ).map((row) => ({
+      studentId: row.id,
+      fullNameEn: row.fullNameEn,
+      fullNameAr: row.fullNameAr,
+    }));
     if (
       input.studentId &&
       !links.some((link) => link.studentId === input.studentId)
@@ -882,27 +902,6 @@ export const admin = readProcedure.handler(async ({ context }) => {
       })
     ).length;
   }
-  let guardians: number | null = null;
-  if (can(context, "people:read")) {
-    guardians = (
-      await studentDirectory(context.tx, scopeFor(context, "school"), {
-        given: null,
-        q: "",
-        phone: null,
-        documentHolders: [],
-        within: null,
-        statuses: [],
-        missingGuardian: true,
-        missingAccount: false,
-        sort: "name",
-        dir: "asc",
-        locale: "en",
-        ranks: null,
-        page: 1,
-        pageSize: 1,
-      })
-    ).total;
-  }
   const failed = can(context, "school:manage")
     ? (
         await deliveryLog(context.tx, {
@@ -950,7 +949,6 @@ export const admin = readProcedure.handler(async ({ context }) => {
     today: context.today,
     registers,
     absences,
-    guardians,
     failed,
     documents,
     attendance,
@@ -995,11 +993,7 @@ async function onboardingFor(context: UnitContext): Promise<{
     onTrial: context.school.entitlements.trialEndsOn !== null,
   });
   const [seen, kept] = await Promise.all([
-    onboardingSeen(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      today: context.today,
-    }),
+    setupSeen(context, context.today),
     context.directory.onboardingOf(context.schoolId),
   ]);
   const done = new Set<OnboardingItem>([

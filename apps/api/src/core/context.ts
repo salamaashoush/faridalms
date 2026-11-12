@@ -135,6 +135,11 @@ export interface Actor {
   roles: readonly string[];
   capabilities: ReadonlySet<Capability>;
   contexts: readonly SessionContext[];
+  /**
+   * The learners the person follows through a module today, worked out for
+   * this unit of work from the module's rule and never from the request.
+   */
+  follows: readonly string[];
 }
 
 /** A procedure's context inside its unit of work. */

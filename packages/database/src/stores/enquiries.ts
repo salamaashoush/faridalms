@@ -176,7 +176,7 @@ export interface EnquiryRecord extends EnquiryListRow {
   pageTitleAr: string | null;
   createdBy: PersonName | null;
   stateChangedAt: string;
-  familyUserId: string | null;
+  enquirerUserId: string | null;
   applicantUserId: string | null;
 }
 
@@ -211,7 +211,7 @@ export async function enquiryById(
     created_at: string;
     first_responded_at: string | null;
     state_changed_at: string;
-    family_user_id: string | null;
+    enquirer_user_id: string | null;
     applicant_user_id: string | null;
     thread_id: string | null;
     phone_normalized: string | null;
@@ -226,7 +226,7 @@ export async function enquiryById(
       case when e.first_responded_at is null then null else ${isoOf(sql`e.first_responded_at`)} end
         as first_responded_at,
       ${isoOf(sql`e.state_changed_at`)} as state_changed_at,
-      e.family_user_id, e.applicant_user_id
+      e.enquirer_user_id, e.applicant_user_id
     from core.site_enquiries e
     left join core.site_pages p on p.tenant_id = e.tenant_id and p.id = e.page_id
     left join core.users a on a.tenant_id = e.tenant_id and a.id = e.assignee_user_id
@@ -257,7 +257,7 @@ export async function enquiryById(
     createdAt: row.created_at,
     firstRespondedAt: row.first_responded_at,
     stateChangedAt: row.state_changed_at,
-    familyUserId: row.family_user_id,
+    enquirerUserId: row.enquirer_user_id,
     applicantUserId: row.applicant_user_id,
     threadId: row.thread_id,
     phoneNormalized: row.phone_normalized,

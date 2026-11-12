@@ -413,10 +413,10 @@ export type {
 } from "@faridalms/domain/enquiries";
 
 /**
- * A family's enquiry, from whichever door it came in: a form on the website,
- * or a call, a visit, an event or a referral that staff logged. It is worked
- * from open to converted or closed, and later links to the family and the
- * applicant it became. The site role may only add rows from a form, unworked
+ * An enquiry, from whichever door it came in: a form on the website, or a
+ * call, a visit, an event or a referral that staff logged. It is worked
+ * from open to converted or closed, and later links to the account of the
+ * person who enquired and the applicant it became. The site role may only add rows from a form, unworked
  * and unassigned; it reads nothing back but the network key and time it
  * needs to slow down a flood from one place.
  */
@@ -452,7 +452,7 @@ export const siteEnquiries = core.table.withRLS(
     assigneeUserId: uuid("assignee_user_id"),
     firstRespondedAt: instant("first_responded_at"),
     createdByUserId: uuid("created_by_user_id"),
-    familyUserId: uuid("family_user_id"),
+    enquirerUserId: uuid("enquirer_user_id"),
     applicantUserId: uuid("applicant_user_id"),
     // The enquiry's conversation in the admissions mailbox, where the family
     // is written to and every note, contact and change is kept.
@@ -480,7 +480,7 @@ export const siteEnquiries = core.table.withRLS(
     ),
     fk(
       "site_enquiries",
-      [t.tenantId, t.familyUserId],
+      [t.tenantId, t.enquirerUserId],
       [users.tenantId, users.id],
     ),
     fk(
@@ -583,7 +583,7 @@ export const siteEnquiries = core.table.withRLS(
       to: roles.site,
       withCheck: sql`status = 'active' and source = 'website' and state = 'open'
         and closed_reason is null and assignee_user_id is null and first_responded_at is null
-        and created_by_user_id is null and family_user_id is null and applicant_user_id is null
+        and created_by_user_id is null and enquirer_user_id is null and applicant_user_id is null
         and thread_id is null and handled_at is null`,
     }),
     pgPolicy("p_site_select", {

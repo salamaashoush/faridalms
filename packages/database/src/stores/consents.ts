@@ -348,8 +348,8 @@ export async function insertAnswer(
     purposeId: string;
     decision: ConsentDecision;
     noticeId: string | null;
-    givenById: string;
-    relationshipId: string;
+    givenById: string | null;
+    capacity: ConsentAnswer["capacity"];
     method: ConsentMethod;
     evidenceFileId: string | null;
     recordedById: string;
@@ -362,59 +362,17 @@ export async function insertAnswer(
   const written = input.method !== "verbal_recorded";
   const [row] = await tx.execute<{ id: string }>(sql`
     insert into core.consent_records (tenant_id, subject_user_id, purpose_descriptor_id, decision,
-      notice_id, given_by_user_id, capacity, relationship_id, legal_basis, explicit, written, method,
+      notice_id, given_by_user_id, capacity, legal_basis, explicit, written, method,
       evidence_file_id, recorded_by_user_id, valid_during, subject_age_at_decision, refresh_due_on, note)
     values (${input.tenantId}::uuid, ${input.studentId}::uuid, ${input.purposeId}::uuid,
-      ${input.decision}, ${input.noticeId}::uuid, ${input.givenById}::uuid, 'guardian',
-      ${input.relationshipId}::uuid, 'consent', true, ${written}, ${input.method},
+      ${input.decision}, ${input.noticeId}::uuid, ${input.givenById}::uuid, ${input.capacity},
+      'consent', true, ${written}, ${input.method},
       ${input.evidenceFileId}::uuid, ${input.recordedById}::uuid,
       daterange(${input.givenOn}::date, null, '[)'), ${input.ageAtDecision},
       ${input.refreshDueOn}::date, ${input.note})
     returning id`);
   if (!row) throw new Error("consent was not recorded");
   return row.id;
-}
-
-/** The adults who may answer for a student today: confirmed legal guardians with full rights. */
-export async function answerersOf(
-  tx: Tx,
-  input: { tenantId: string; studentIds: readonly string[]; today: string },
-): Promise<
-  {
-    relationshipId: string;
-    studentId: string;
-    userId: string;
-    nameEn: string | null;
-    nameAr: string | null;
-    /** Whether the school may ask them in the portal: `app.guardian_permits` for contact. */
-    contactable: boolean;
-  }[]
-> {
-  if (input.studentIds.length === 0) return [];
-  const rows = await tx.execute<{
-    id: string;
-    student_user_id: string;
-    related_user_id: string;
-    full_name_en: string | null;
-    full_name_ar: string | null;
-    contactable: boolean;
-  }>(sql`
-    select r.id, r.student_user_id, r.related_user_id, u.full_name_en, u.full_name_ar,
-           app.guardian_permits(r, ${input.today}::date, 'contact') as contactable
-    from core.user_relationships r
-    join core.users u on u.tenant_id = r.tenant_id and u.id = r.related_user_id and u.status = 'active'
-    where r.tenant_id = ${input.tenantId}::uuid and r.student_user_id = any(${uuidArray(input.studentIds)})
-      and r.status = 'active' and r.valid_during @> ${input.today}::date
-      and r.legal_guardian and r.verified_at is not null and r.educational_rights = 'full'
-    order by r.contact_priority nulls last, u.full_name_en, u.full_name_ar`);
-  return rows.map((row) => ({
-    relationshipId: row.id,
-    studentId: row.student_user_id,
-    userId: row.related_user_id,
-    nameEn: row.full_name_en,
-    nameAr: row.full_name_ar,
-    contactable: row.contactable,
-  }));
 }
 
 /** Every student at school today, for asking their families when a form goes out. */

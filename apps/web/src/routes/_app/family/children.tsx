@@ -19,13 +19,13 @@ import {
 import { displayName } from "~/components/people/format";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { personRecordQuery } from "~/queries/students";
+import { childrenQuery } from "~/queries/families";
 import { currentUserQuery } from "~/queries/user";
 
 export const Route = createFileRoute("/_app/family/children")({
   loader: async ({ context }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    await context.queryClient.ensureQueryData(personRecordQuery(user.id));
+    await context.queryClient.ensureQueryData(childrenQuery(user.id));
   },
   component: ChildrenPage,
 });
@@ -36,7 +36,7 @@ const link =
 /** Each child with the places a family follows them: work, grades, attendance, week and modules. */
 function ChildrenPage() {
   const user = useCurrentUser();
-  const children = useSuspenseQuery(personRecordQuery(user.id)).data.children;
+  const children = useSuspenseQuery(childrenQuery(user.id)).data;
   const modules = user.modules.elearning;
   return (
     <Page width="list">

@@ -39,7 +39,6 @@ import {
 } from "./conventions";
 import { descriptors } from "./descriptors";
 import { files, tenantKeys } from "./files";
-import { userRelationships } from "./membership";
 import { messageContacts } from "./messaging";
 import { users } from "./people";
 import { recordsRequests } from "./privacy";
@@ -108,11 +107,12 @@ export const healthRecords = health.table.withRLS(
 );
 
 /**
- * The change a guardian asked for in a child's medical summary, carried by
+ * The change someone asked for in a learner's medical summary, carried by
  * their correction request, which holds its deadline and outcome. Nothing
  * here touches the record until the office accepts; the words asked for,
- * the record as the guardian read it and any reason for declining are
- * encrypted together.
+ * the record as the asker read it and any reason for declining are
+ * encrypted together. A change to an emergency contact names its link in
+ * `contact_changes`.
  */
 export const healthChanges = health.table.withRLS(
   "requested_changes",
@@ -127,13 +127,12 @@ export const healthChanges = health.table.withRLS(
       .notNull()
       .generatedAlwaysAs(sql`'health_record_kind'`),
     recordId: uuid("record_id"),
-    relationshipId: uuid("relationship_id"),
     keyPurpose: text("key_purpose")
       .notNull()
       .generatedAlwaysAs(sql`'health'`),
     keyVersion: integer("key_version").notNull(),
     ciphertext: bytea("ciphertext").notNull(),
-    /** A report the family sent with the change, such as a doctor's letter. */
+    /** A report sent with the change, such as a doctor's letter. */
     fileId: uuid("file_id"),
     filePurpose: text("file_purpose").notNull().default("health_report"),
     ...entityColumns(),
@@ -168,11 +167,6 @@ export const healthChanges = health.table.withRLS(
     ),
     fk(
       "requested_changes",
-      [t.tenantId, t.relationshipId],
-      [userRelationships.tenantId, userRelationships.id],
-    ),
-    fk(
-      "requested_changes",
       [t.tenantId, t.keyPurpose, t.keyVersion],
       [tenantKeys.tenantId, tenantKeys.purpose, tenantKeys.keyVersion],
     ),
@@ -196,7 +190,7 @@ export const healthChanges = health.table.withRLS(
     ck(
       "requested_changes",
       "shape",
-      sql`(target = 'record') = (kind_descriptor_id is not null) and (target = 'contact') = (relationship_id is not null) and (record_id is null or target = 'record')`,
+      sql`(target = 'record') = (kind_descriptor_id is not null) and (record_id is null or target = 'record')`,
     ),
     ck(
       "requested_changes",
@@ -809,7 +803,6 @@ export const consentRecords = core.table.withRLS(
     capacity: text("capacity")
       .$type<"self" | "guardian" | "school_on_behalf">()
       .notNull(),
-    relationshipId: uuid("relationship_id"),
     legalBasis: text("legal_basis")
       .$type<
         | "consent"
@@ -863,11 +856,6 @@ export const consentRecords = core.table.withRLS(
     ),
     fk(
       "consent_records",
-      [t.tenantId, t.relationshipId],
-      [userRelationships.tenantId, userRelationships.id],
-    ),
-    fk(
-      "consent_records",
       [t.tenantId, t.evidenceFileId],
       [files.tenantId, files.id],
     ),
@@ -905,7 +893,7 @@ export const consentRecords = core.table.withRLS(
     ck(
       "consent_records",
       "guardian",
-      sql`capacity <> 'guardian' or (relationship_id is not null and given_by_user_id is not null)`,
+      sql`capacity <> 'guardian' or given_by_user_id is not null`,
     ),
     ck(
       "consent_records",

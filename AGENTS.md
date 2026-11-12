@@ -386,7 +386,7 @@ Schema decisions worth not undoing:
   alternative, and what it needs (`mayReach` in
   `packages/domain/src/ownership.ts`); a core table reaches core only.
   A column that carries a module's concept without a key to its tables
-  (`school_year_id`, `homeroom_class_id`, `class_period_id`, `family_user_id`)
+  (`school_year_id`, `homeroom_class_id`, `class_period_id`, `relationship_id`)
   is owned by name in the same file, and a table holding one is held to
   the same rule. `db:verify` refuses a table or namespace without an
   owner, a concept column no table has, and any other reach, except those `packages/database/src/ownership-violations.ts`

@@ -182,7 +182,7 @@ export const broadcastAudiences = core.table.withRLS(
     ck(
       "broadcast_audiences",
       "scope",
-      sql`scope in ('school', 'staff', 'families', 'students', 'class')`,
+      sql`scope in ('school', 'staff', 'students', 'class')`,
     ),
     ck(
       "broadcast_audiences",

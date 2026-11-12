@@ -7,6 +7,7 @@ import { SQL } from "bun";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 
+import { MODULE_EXTENSIONS } from "../src/extensions";
 import { sweepTenantFiles } from "../src/files/sweep";
 import { reportTenantUsage } from "../src/files/upkeep";
 import {
@@ -699,7 +700,13 @@ describe("usage reports", () => {
     const sync = openDirectorySync(syncUrl, "cell:eg-1");
     const admin = new SQL(adminUrl);
     try {
-      await reportTenantUsage(cell, directory, sync, tenantId);
+      await reportTenantUsage(
+        cell,
+        directory,
+        sync,
+        tenantId,
+        MODULE_EXTENSIONS,
+      );
       const [row] = await admin<
         {
           students: number;
@@ -756,7 +763,13 @@ describe("onboarding reports", () => {
     const sync = openDirectorySync(syncUrl, "cell:eg-1");
     const admin = new SQL(adminUrl);
     try {
-      await reportTenantUsage(cell, directory, sync, tenantId);
+      await reportTenantUsage(
+        cell,
+        directory,
+        sync,
+        tenantId,
+        MODULE_EXTENSIONS,
+      );
       const first = await directory.onboardingOf(school.id);
       expect(first.map((row) => row.item)).toEqual(
         expect.arrayContaining([
@@ -773,7 +786,13 @@ describe("onboarding reports", () => {
       expect(first.map((row) => row.item)).not.toContain("kickoff_call");
       expect(first.map((row) => row.item)).not.toContain("first_invoice_paid");
 
-      await reportTenantUsage(cell, directory, sync, tenantId);
+      await reportTenantUsage(
+        cell,
+        directory,
+        sync,
+        tenantId,
+        MODULE_EXTENSIONS,
+      );
       const again = await directory.onboardingOf(school.id);
       for (const row of first)
         expect(
@@ -802,7 +821,13 @@ describe("storage reports", () => {
     const sync = openDirectorySync(syncUrl, "cell:eg-1");
     const admin = new SQL(adminUrl);
     try {
-      await reportTenantUsage(cell, directory, sync, tenantId);
+      await reportTenantUsage(
+        cell,
+        directory,
+        sync,
+        tenantId,
+        MODULE_EXTENSIONS,
+      );
       const rows = await admin<
         { school_id: string; used_bytes: string; measured_at: Date }[]
       >`select school_id, used_bytes, measured_at from school_usage`;

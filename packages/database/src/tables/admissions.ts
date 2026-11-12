@@ -285,11 +285,12 @@ export const admissionIntakes = core.table.withRLS(
 );
 
 /**
- * One child's application to one intake, made by the family member who
- * holds the account. The child is a person from the first save; the other
- * guardian, the schools before and the school's questions stay in `form`
- * until it is sent, when the answers are checked and kept as the family
- * read them, and the people the office may already know are found.
+ * One applicant's application to one intake, filed by the account that
+ * holds it: the applicant's own, or someone's who applies for them. The
+ * applicant is a person from the first save; the schools before and the
+ * school's questions stay in `form` until it is sent, when the answers are
+ * checked and kept as the filer read them, and the people the office may
+ * already know are found.
  */
 export const admissionApplications = core.table.withRLS(
   "admission_applications",
@@ -298,7 +299,7 @@ export const admissionApplications = core.table.withRLS(
     orgId: uuid("org_id").notNull(),
     intakeId: uuid("intake_id").notNull(),
     formVersionId: uuid("form_version_id").notNull(),
-    familyUserId: uuid("family_user_id").notNull(),
+    filedByUserId: uuid("filed_by_user_id").notNull(),
     applicantUserId: uuid("applicant_user_id").notNull(),
     enquiryId: uuid("enquiry_id"),
     state: text("state").$type<ApplicationState>().notNull().default("draft"),
@@ -360,7 +361,7 @@ export const admissionApplications = core.table.withRLS(
     ),
     fk(
       "admission_applications",
-      [t.tenantId, t.familyUserId],
+      [t.tenantId, t.filedByUserId],
       [users.tenantId, users.id],
     ),
     fk(
@@ -460,8 +461,8 @@ export const admissionApplications = core.table.withRLS(
     index("admission_applications_intake_idx")
       .on(t.tenantId, t.intakeId, t.state)
       .where(sql`status = 'active'`),
-    index("admission_applications_family_idx")
-      .on(t.tenantId, t.familyUserId)
+    index("admission_applications_filer_idx")
+      .on(t.tenantId, t.filedByUserId)
       .where(sql`status = 'active'`),
     index("admission_applications_applicant_idx")
       .on(t.tenantId, t.applicantUserId)

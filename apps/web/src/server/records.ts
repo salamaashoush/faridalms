@@ -13,9 +13,6 @@ import {
   healthChangesSchema,
   removeHealthRecordSchema,
   removeHealthReportSchema,
-  attachCourtOrderSchema,
-  removeCourtOrderSchema,
-  saveCustodySchema,
   saveDemographicsSchema,
   saveHealthRecordSchema,
   shareHealthReportSchema,
@@ -68,14 +65,6 @@ export const saveDemographics = createServerFn({ method: "POST" })
   .validator(checked(saveDemographicsSchema))
   .handler(({ data }) => backend().records.saveDemographics(data));
 
-export const getCustody = createServerFn({ method: "GET" })
-  .validator(checked(student))
-  .handler(({ data }) => record(backend().records.custody(data)));
-
-export const saveCustody = createServerFn({ method: "POST" })
-  .validator(checked(saveCustodySchema))
-  .handler(({ data }) => backend().records.saveCustody(data));
-
 export const getIdentifiers = createServerFn({ method: "GET" })
   .validator(checked(student))
   .handler(({ data }) => record(backend().identifiers.list(data)));
@@ -92,13 +81,13 @@ export const removeIdentifier = createServerFn({ method: "POST" })
   .validator(checked(identifierRefSchema))
   .handler(({ data }) => backend().identifiers.remove(data));
 
-export const getFamilyHealth = createServerFn({ method: "GET" })
+export const getSummary = createServerFn({ method: "GET" })
   .validator(checked(student))
-  .handler(({ data }) => record(backend().records.familyHealth(data)));
+  .handler(({ data }) => record(backend().records.summary(data)));
 
 export const askHealthChange = createServerFn({ method: "POST" })
   .validator(checked(askHealthChangeSchema))
-  .handler(({ data }) => backend().records.askHealthChange(data));
+  .handler(({ data }) => backend().records.askChange(data));
 
 export const getHealthChanges = createServerFn({ method: "GET" })
   .validator(checked(healthChangesSchema))
@@ -107,11 +96,3 @@ export const getHealthChanges = createServerFn({ method: "GET" })
 export const decideHealthChange = createServerFn({ method: "POST" })
   .validator(checked(decideHealthChangeSchema))
   .handler(({ data }) => backend().records.decideHealthChange(data));
-
-export const attachCourtOrder = createServerFn({ method: "POST" })
-  .validator(checked(attachCourtOrderSchema))
-  .handler(({ data }) => backend().records.attachCourtOrder(data));
-
-export const removeCourtOrder = createServerFn({ method: "POST" })
-  .validator(checked(removeCourtOrderSchema))
-  .handler(({ data }) => backend().records.removeCourtOrder(data));

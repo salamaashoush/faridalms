@@ -55,3 +55,9 @@ export function filled<T>(
       : [],
   );
 }
+
+/** The query of a filling whose words need nothing read. */
+export const NOTHING_READ: SlotQuery<null> = {
+  queryKey: ["slots", "nothing"],
+  queryFn: () => Promise.resolve(null),
+};

@@ -50,9 +50,10 @@ describe("students", () => {
       const found = await api.people.students({ q });
       expect(found.rows.map((row) => row.id)).toContain(first.id);
     }
-    if (first.guardianPhone) {
+    const phone = first.columns.guardian;
+    if (phone?.startsWith("+")) {
       const byPhone = await api.people.students({
-        q: first.guardianPhone.replace("+20", "0"),
+        q: phone.replace("+20", "0"),
       });
       expect(byPhone.rows.map((row) => row.id)).toContain(first.id);
     }
@@ -98,7 +99,10 @@ describe("students", () => {
 
   test("adding a student gives them a grade, links a new guardian and makes the guardian a parent", async () => {
     const api = await signedIn("northwind", login("principal"));
-    const options = await api.people.options();
+    const options = {
+      ...(await api.people.options()),
+      relations: await api.guardians.relations(),
+    };
     const grade = (await api.gradeLevels.options()).grades.find(
       (row) => row.code === "grade_7",
     );
@@ -108,25 +112,27 @@ describe("students", () => {
       names: names("Laila Ashoush", "ليلى عشوش"),
       reference: "NO9001",
       birthDate: "2014-03-02",
-      parts: { grade: { gradeId: grade.id } },
-      guardians: [
-        {
-          person: {
-            names: names("Heba Ashoush", "هبة عشوش"),
-            phone: "0100 555 0101",
+      parts: {
+        grade: { gradeId: grade.id },
+        families: [
+          {
+            person: {
+              names: names("Heba Ashoush", "هبة عشوش"),
+              phone: "0100 555 0101",
+            },
+            flags: {
+              relationId: mother.id,
+              legalGuardian: true,
+              portalAccess: true,
+              receivesNotifications: true,
+              primaryContact: true,
+              emergencyContact: true,
+              residence: "primary",
+              pickup: "allowed",
+            },
           },
-          flags: {
-            relationId: mother.id,
-            legalGuardian: true,
-            portalAccess: true,
-            receivesNotifications: true,
-            primaryContact: true,
-            emergencyContact: true,
-            residence: "primary",
-            pickup: "allowed",
-          },
-        },
-      ],
+        ],
+      },
     });
     const record = await api.people.student({ id: created.id });
     expect(record.reference).toBe("NO9001");
@@ -141,9 +147,10 @@ describe("students", () => {
         row.columns.grade,
       ]),
     ).toEqual([[created.id, "unplaced", grade.id]]);
-    expect(record.guardians?.[0]?.contacts[0]?.normalized).toBe(
-      "+201005550101",
-    );
+    expect(
+      (await api.guardians.ofStudent({ studentId: created.id })).guardians[0]
+        ?.contacts[0]?.normalized,
+    ).toBe("+201005550101");
     const { rows: history } = await api.people.studentHistory({
       id: created.id,
     });
@@ -154,7 +161,7 @@ describe("students", () => {
         "relationship.create",
       ]),
     );
-    const found = await api.people.findGuardians({ phone: "+20 100 555 0101" });
+    const found = await api.people.findByContact({ phone: "+20 100 555 0101" });
     expect(found).toHaveLength(1);
     const matches = await api.people.matches({
       names: names("Laila Ashoush", "ليلى عشوش"),
@@ -165,7 +172,10 @@ describe("students", () => {
 
   test("a student's history shows the old and new value of each field an edit changed", async () => {
     const api = await signedIn("northwind", login("principal"));
-    const options = await api.people.options();
+    const options = {
+      ...(await api.people.options()),
+      relations: await api.guardians.relations(),
+    };
     const mother = options.relations.find((row) => row.code === "mother");
     if (!mother) throw new Error("options");
     const flags = {
@@ -183,12 +193,14 @@ describe("students", () => {
       names: names("Salama Ashoush", "سلامة عشوش"),
       reference,
       birthDate: "2015-04-01",
-      guardians: [
-        {
-          person: { names: names("Mona Ashoush", "منى عشوش"), phone: "" },
-          flags,
-        },
-      ],
+      parts: {
+        families: [
+          {
+            person: { names: names("Mona Ashoush", "منى عشوش"), phone: "" },
+            flags,
+          },
+        ],
+      },
     });
     const record = await api.people.student({ id });
     await api.people.saveStudent({
@@ -198,9 +210,10 @@ describe("students", () => {
       reference,
       birthDate: "2015-04-02",
     });
-    const link = record.guardians?.[0];
+    const link = (await api.guardians.ofStudent({ studentId: id }))
+      .guardians[0];
     if (!link) throw new Error("no guardian");
-    await api.people.saveRelationship({
+    await api.guardians.saveLink({
       studentId: id,
       relationshipId: link.relationshipId,
       expectedVersion: link.version,
@@ -278,17 +291,19 @@ describe("students", () => {
     const api = await signedIn("northwind", login("principal"));
     const list = await api.people.students({ q: "NO1002" });
     const student = await api.people.student({ id: list.rows[0]?.id ?? "" });
-    const father = student.guardians?.find(
-      (g) => g.relationMeaning === "father",
-    );
+    const father = (
+      await api.guardians.ofStudent({ studentId: list.rows[0]?.id ?? "" })
+    ).guardians.find((g) => g.relationMeaning === "father");
     if (!father) throw new Error("seed father");
-    await api.people.endLink({
+    await api.guardians.endLink({
       relationshipId: father.relationshipId,
       expectedVersion: father.version,
     });
     const after = await api.people.student({ id: student.id });
     expect(
-      after.guardians?.some((g) => g.relationshipId === father.relationshipId),
+      (await api.guardians.ofStudent({ studentId: after.id })).guardians.some(
+        (g) => g.relationshipId === father.relationshipId,
+      ),
     ).toBe(false);
     const unauthenticated = client("northwind");
     expect(await rejection(unauthenticated.people.students({}))).toMatchObject({
@@ -375,8 +390,9 @@ describe("person records", () => {
   test("the principal opens a guardian with contacts, roles and linked students", async () => {
     const api = await signedIn("northwind", login("principal"));
     const list = await api.people.students({ q: "NO1003" });
-    const student = await api.people.student({ id: list.rows[0]?.id ?? "" });
-    const guardian = student.guardians?.[0];
+    const guardian = (
+      await api.guardians.ofStudent({ studentId: list.rows[0]?.id ?? "" })
+    ).guardians[0];
     if (!guardian) throw new Error("seed guardian");
     const record = await api.people.person({ id: guardian.userId });
     expect(
@@ -385,9 +401,9 @@ describe("person records", () => {
       ),
     ).toBe(true);
     expect(record.contacts?.length).toBeGreaterThan(0);
-    const child = record.children.find(
-      (entry) => entry.studentId === student.id,
-    );
+    const child = (
+      await api.guardians.children({ userId: guardian.userId })
+    ).find((entry) => entry.studentId === list.rows[0]?.id);
     expect(child?.relation?.labelAr).toBeTruthy();
     expect(record.access).toMatchObject({
       self: false,
@@ -410,7 +426,9 @@ describe("person records", () => {
       history: false,
     });
     expect(own.account?.state).toBe("active");
-    expect(own.children.length).toBeGreaterThan(0);
+    expect(
+      (await parent.guardians.children({ userId: me.id })).length,
+    ).toBeGreaterThan(0);
     expect(
       await rejection(parent.people.personHistory({ id: me.id })),
     ).toMatchObject({
@@ -475,7 +493,10 @@ describe("staff", () => {
 
   test("adding a staff member records their roles, position and work contacts", async () => {
     const api = await signedIn("northwind", login("principal"));
-    const options = await api.people.options();
+    const options = {
+      ...(await api.people.options()),
+      relations: await api.guardians.relations(),
+    };
     const position = options.positions.find((row) => row.code === "teacher");
     const saved = await api.people.saveStaff({
       names: names("Salama Ashoush", "سلامة عاشور"),
@@ -517,11 +538,12 @@ describe("staff", () => {
   test("a person found by their email joins the staff without a second record", async () => {
     const api = await signedIn("northwind", login("principal"));
     const list = await api.people.students({ q: "NO1004" });
-    const student = await api.people.student({ id: list.rows[0]?.id ?? "" });
-    const guardian = student.guardians?.find((row) => row.contacts.length > 0);
+    const guardian = (
+      await api.guardians.ofStudent({ studentId: list.rows[0]?.id ?? "" })
+    ).guardians.find((row) => row.contacts.length > 0);
     const phone = guardian?.contacts.find((row) => row.kind === "phone")?.value;
     if (!guardian || !phone) throw new Error("seed guardian phone");
-    const matches = await api.people.findGuardians({ phone });
+    const matches = await api.people.findByContact({ phone });
     expect(matches.map((row) => row.id)).toContain(guardian.userId);
     await api.people.saveStaff({
       existingUserId: guardian.userId,
@@ -842,7 +864,7 @@ describe("sign-in", () => {
 });
 
 const motherFlags = async (api: Awaited<ReturnType<typeof signedIn>>) => {
-  const relation = (await api.people.options()).relations.find(
+  const relation = (await api.guardians.relations()).find(
     (row) => row.code === "mother",
   );
   if (!relation) throw new Error("seed");
@@ -878,12 +900,17 @@ describe("a link to choose a student's password", () => {
     const { id: studentId } = await api.people.saveStudent({
       names: names("Salama Ashoush", "سلامة عشوش"),
       reference: "NO9721",
-      guardians: [
-        {
-          person: { names: names("Heba Ashoush", "هبة عشوش"), email: address },
-          flags,
-        },
-      ],
+      parts: {
+        families: [
+          {
+            person: {
+              names: names("Heba Ashoush", "هبة عشوش"),
+              email: address,
+            },
+            flags,
+          },
+        ],
+      },
     });
     const picked = { studentIds: [studentId], way: "email" as const };
     expect(await api.people.signInsPlan(picked)).toEqual({
@@ -960,26 +987,30 @@ describe("a link to choose a student's password", () => {
     const alone = await api.people.saveStudent({
       names: names("Salama Nabil", "سلامة نبيل"),
       reference: "NO9722",
-      guardians: [
-        {
-          person: {
-            names: names("Heba Nabil", "هبة نبيل"),
-            phone: "0100 555 0722",
+      parts: {
+        families: [
+          {
+            person: {
+              names: names("Heba Nabil", "هبة نبيل"),
+              phone: "0100 555 0722",
+            },
+            flags,
           },
-          flags,
-        },
-      ],
+        ],
+      },
     });
     const address = "heba.fouad@northwind.example.com";
     const reached = await api.people.saveStudent({
       names: names("Salama Fouad", "سلامة فؤاد"),
       reference: "NO9723",
-      guardians: [
-        {
-          person: { names: names("Heba Fouad", "هبة فؤاد"), email: address },
-          flags,
-        },
-      ],
+      parts: {
+        families: [
+          {
+            person: { names: names("Heba Fouad", "هبة فؤاد"), email: address },
+            flags,
+          },
+        ],
+      },
     });
     const picked = {
       studentIds: [alone.id, reached.id],
@@ -1037,7 +1068,10 @@ describe("leaving the school", () => {
    */
   async function enrolled(reference: string, email: string) {
     const api = await signedIn("northwind", login("principal"));
-    const options = await api.people.options();
+    const options = {
+      ...(await api.people.options()),
+      relations: await api.guardians.relations(),
+    };
     const years = await api.years.options();
     const mother = options.relations.find((row) => row.code === "mother");
     const year = years.years.find((row) => row.id === years.workingYearId);
@@ -1046,29 +1080,31 @@ describe("leaving the school", () => {
     const { id: studentId } = await api.people.saveStudent({
       names: names("Salama Ashoush", "سلامة عشوش"),
       reference,
-      guardians: [
-        {
-          person: { names: names("Heba Ashoush", "هبة عشوش"), email },
-          flags: {
-            relationId: mother.id,
-            legalGuardian: true,
-            portalAccess: true,
-            receivesNotifications: true,
-            primaryContact: true,
-            emergencyContact: true,
-            residence: "primary",
-            pickup: "allowed",
+      parts: {
+        families: [
+          {
+            person: { names: names("Heba Ashoush", "هبة عشوش"), email },
+            flags: {
+              relationId: mother.id,
+              legalGuardian: true,
+              portalAccess: true,
+              receivesNotifications: true,
+              primaryContact: true,
+              emergencyContact: true,
+              residence: "primary",
+              pickup: "allowed",
+            },
           },
-        },
-      ],
+        ],
+      },
     });
     await api.classes.enrol({
       studentId,
       classId: room.id,
       from: year.startsOn,
     });
-    const guardian = (await api.people.student({ id: studentId }))
-      .guardians?.[0];
+    const guardian = (await api.guardians.ofStudent({ studentId }))
+      .guardians[0];
     if (!guardian) throw new Error("the guardian was not linked");
     await api.people.saveSignIn({
       userId: guardian.userId,
@@ -1097,7 +1133,7 @@ describe("leaving the school", () => {
     const { api, family, studentId, year, reasonId, today, yesterday } =
       await enrolled("NO9711", "heba.ashoush@northwind.example.com");
     expect(
-      (await family.home.family({})).children.map((row) => row.studentId),
+      (await family.home.followed({})).children.map((row) => row.studentId),
     ).toEqual([studentId]);
 
     const left = await api.people.recordLeaving({
@@ -1143,7 +1179,7 @@ describe("leaving the school", () => {
       ),
     ).toEqual([studentId]);
     expect(
-      (await family.home.family({})).children.map((row) => row.studentId),
+      (await family.home.followed({})).children.map((row) => row.studentId),
     ).toEqual([studentId]);
   });
 
@@ -1157,7 +1193,7 @@ describe("leaving the school", () => {
     });
     expect(left.accessEndsOn).toBe(today);
     // With no child left to follow, the mother's family session stops.
-    expect(await rejection(family.home.family({}))).toMatchObject({
+    expect(await rejection(family.home.followed({}))).toMatchObject({
       code: "UNAUTHORIZED",
     });
 
@@ -1178,7 +1214,7 @@ describe("leaving the school", () => {
       year.endsBefore,
     );
     expect(
-      (await family.home.family({})).children.map((row) => row.studentId),
+      (await family.home.followed({})).children.map((row) => row.studentId),
     ).toEqual([studentId]);
     expect(
       (await api.people.studentHistory({ id: studentId })).rows.map(
@@ -1250,18 +1286,22 @@ describe("leaving the school", () => {
 describe("families", () => {
   test("a parent linked to two students makes them brothers and sisters", async () => {
     const api = await signedIn("northwind", login("principal"));
-    const options = await api.people.options();
+    const options = {
+      ...(await api.people.options()),
+      relations: await api.guardians.relations(),
+    };
     const mother = options.relations.find((row) => row.code === "mother");
     if (!mother) throw new Error("options");
     const first = (await api.people.students({ q: "NO1010" })).rows[0];
     const second = (await api.people.students({ q: "NO1011" })).rows[0];
     if (!first || !second) throw new Error("seed students");
     expect(
-      (await api.people.siblings({ id: first.id })).map((row) => row.userId),
+      (await api.guardians.siblings({ id: first.id })).map((row) => row.userId),
     ).not.toContain(second.id);
-    const parent = (await api.people.student({ id: first.id })).guardians?.[0];
+    const parent = (await api.guardians.ofStudent({ studentId: first.id }))
+      .guardians[0];
     if (!parent) throw new Error("seed guardian");
-    await api.people.saveRelationship({
+    await api.guardians.saveLink({
       studentId: second.id,
       existingUserId: parent.userId,
       flags: {
@@ -1276,21 +1316,26 @@ describe("families", () => {
       },
     });
     expect(
-      (await api.people.siblings({ id: first.id })).map((row) => row.userId),
+      (await api.guardians.siblings({ id: first.id })).map((row) => row.userId),
     ).toContain(second.id);
     expect(
-      (await api.people.siblings({ id: second.id })).map((row) => row.userId),
+      (await api.guardians.siblings({ id: second.id })).map(
+        (row) => row.userId,
+      ),
     ).toContain(first.id);
   });
 
   test("a second home is the residence on the guardian link", async () => {
     const api = await signedIn("northwind", login("principal"));
-    const options = await api.people.options();
+    const options = {
+      ...(await api.people.options()),
+      relations: await api.guardians.relations(),
+    };
     const father = options.relations.find((row) => row.code === "father");
     if (!father) throw new Error("options");
     const list = await api.people.students({ q: "NO1006" });
     const studentId = list.rows[0]?.id ?? "";
-    await api.people.saveRelationship({
+    await api.guardians.saveLink({
       studentId,
       person: {
         names: names("Karim Second", "كريم ثان"),
@@ -1307,10 +1352,10 @@ describe("families", () => {
         pickup: "allowed",
       },
     });
-    const record = await api.people.student({ id: studentId });
     expect(
-      record.guardians?.find((row) => row.fullNameEn === "Karim Second")
-        ?.residence,
+      (await api.guardians.ofStudent({ studentId: studentId })).guardians.find(
+        (row) => row.fullNameEn === "Karim Second",
+      )?.residence,
     ).toBe("secondary");
   });
 
@@ -1319,8 +1364,8 @@ describe("families", () => {
     const studentId =
       (await api.people.students({ q: "NO1007" })).rows[0]?.id ?? "";
     const adultId =
-      (await api.people.student({ id: studentId })).guardians?.[0]?.userId ??
-      "";
+      (await api.guardians.ofStudent({ studentId: studentId })).guardians[0]
+        ?.userId ?? "";
     const read = await api.people.person({ id: adultId });
     await api.people.saveContacts({
       userId: adultId,
@@ -1388,8 +1433,8 @@ describe("families", () => {
     const studentId =
       (await principal.people.students({ q: "NO1008" })).rows[0]?.id ?? "";
     const adultId =
-      (await principal.people.student({ id: studentId })).guardians?.[0]
-        ?.userId ?? "";
+      (await principal.guardians.ofStudent({ studentId: studentId }))
+        .guardians[0]?.userId ?? "";
     const teacher = await signedIn("northwind", login("teacher"));
     expect(
       await rejection(
@@ -1410,7 +1455,7 @@ describe("families", () => {
     ).toMatchObject({ code: "FORBIDDEN" });
     const parent = await signedIn("northwind", login("parent"));
     expect(
-      await rejection(parent.people.siblings({ id: studentId })),
+      await rejection(parent.guardians.siblings({ id: studentId })),
     ).toMatchObject({ code: "FORBIDDEN" });
   });
 });
@@ -1660,7 +1705,7 @@ async function familyAndTeacher() {
   const office = await signedIn("northwind", login("principal"));
   const parent = await signedIn("northwind", login("parent"));
   const me = await parent.identity.currentUser();
-  const [child] = (await parent.people.person({ id: me.id })).children;
+  const [child] = await parent.guardians.children({ userId: me.id });
   if (!child) throw new Error("seed parent with a child");
   const seen = await office.people.student({ id: child.studentId });
   const teacher = seen.group?.teachers[0];

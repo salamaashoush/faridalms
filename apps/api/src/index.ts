@@ -259,6 +259,7 @@ const stopUpkeep = env.CELL_WORKER_URL
       store: stores.files,
       sweepMs: env.FILE_SWEEP_MS,
       reportMs: env.USAGE_REPORT_MS,
+      extensions: MODULE_EXTENSIONS,
     })
   : null;
 
@@ -292,6 +293,7 @@ const stopPublicationClock = env.CELL_WORKER_URL
         email: gateways.email !== null,
         sms: Boolean(env.SMS_WEBHOOK_URL),
       },
+      extensions: MODULE_EXTENSIONS,
       intervalMs: 60_000,
     })
   : null;

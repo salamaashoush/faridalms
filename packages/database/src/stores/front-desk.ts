@@ -41,54 +41,6 @@ export async function findStudents(
   }));
 }
 
-export interface PickupContact {
-  userId: string;
-  fullNameEn: string | null;
-  fullNameAr: string | null;
-  relationEn: string | null;
-  relationAr: string | null;
-  pickup: "allowed" | "not_allowed" | "ask_office" | null;
-  phone: string | null;
-}
-
-/** A child's contacts, with whether each may collect them. */
-export async function pickupContacts(
-  tx: Tx,
-  input: { tenantId: string; studentId: string; day: string },
-): Promise<PickupContact[]> {
-  const rows = await tx.execute<{
-    related_user_id: string;
-    full_name_en: string | null;
-    full_name_ar: string | null;
-    relation_en: string | null;
-    relation_ar: string | null;
-    pickup: PickupContact["pickup"];
-    phone: string | null;
-  }>(sql`
-    select l.related_user_id, u.full_name_en, u.full_name_ar, d.label_en as relation_en,
-           d.label_ar as relation_ar, l.pickup,
-           (select coalesce(c.normalized, c.value) from core.contact_points c
-             where c.tenant_id = u.tenant_id and c.user_id = u.id and c.kind = 'phone'
-               and c.status = 'active'
-             order by c.priority nulls last, c.created_at limit 1) as phone
-    from core.user_relationships l
-    join core.users u on u.tenant_id = l.tenant_id and u.id = l.related_user_id
-    left join core.descriptors d on d.tenant_id = l.tenant_id and d.id = l.relation_descriptor_id
-    where l.tenant_id = ${input.tenantId}::uuid and l.student_user_id = ${input.studentId}::uuid
-      and l.status = 'active' and l.valid_during @> ${input.day}::date
-    order by l.pickup = 'not_allowed', l.primary_contact desc, l.contact_priority nulls last,
-             u.full_name_en`);
-  return rows.map((row) => ({
-    userId: row.related_user_id,
-    fullNameEn: row.full_name_en,
-    fullNameAr: row.full_name_ar,
-    relationEn: row.relation_en,
-    relationAr: row.relation_ar,
-    pickup: row.pickup,
-    phone: row.phone,
-  }));
-}
-
 export async function insertMovement(
   tx: Tx,
   input: {

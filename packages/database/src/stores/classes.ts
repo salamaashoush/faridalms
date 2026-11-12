@@ -12,7 +12,7 @@ import { bounds, holds, uuidArray } from "./sql";
 type Tx = CellTransaction;
 
 export const reached = (scope: Scope, on: string) =>
-  sql`(select class_id from app.visible_classes(${scope.viewerId}::uuid, ${scope.schoolId}::uuid, ${on}::date, ${scope.schoolWide}))`;
+  sql`(select class_id from app.visible_classes(${scope.viewerId}::uuid, ${scope.schoolId}::uuid, ${on}::date, ${scope.schoolWide}, ${uuidArray(scope.followed)}))`;
 
 export interface Named {
   userId: string;
@@ -375,7 +375,8 @@ export async function classRoster(
       and e.class_id = ${classId}::uuid
       and e.role = 'student' and e.status = 'active' and e.valid_during @> ${on}::date
       and (not ${onlyReached} or e.user_id in (select student_user_id from app.visible_students(
-             ${scope.viewerId}::uuid, ${scope.schoolId}::uuid, ${on}::date, ${scope.schoolWide})))
+             ${scope.viewerId}::uuid, ${scope.schoolId}::uuid, ${on}::date, ${scope.schoolWide},
+             ${uuidArray(scope.followed)})))
     order by u.full_name_en, u.full_name_ar`);
   return rows.map((row) => {
     const range = bounds(row.valid_during);

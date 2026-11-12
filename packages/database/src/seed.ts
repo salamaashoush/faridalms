@@ -49,19 +49,29 @@ import {
   publishForm as publishAdmissionForm,
   setApplicationState,
 } from "./stores/admissions";
-import { audienceUsers, setAudiences } from "./stores/audiences";
+import {
+  audienceUsers,
+  setAudiences,
+  studentsHeardFor,
+} from "./stores/audiences";
 import {
   addRecipients,
   insertBroadcast,
   setBroadcastState,
 } from "./stores/broadcasts";
-import { insertAnswer, insertForm, publishForm } from "./stores/consents";
+import {
+  enrolledStudents,
+  insertAnswer,
+  insertForm,
+  publishForm,
+} from "./stores/consents";
 import {
   saveDocument,
   saveTranslation,
   snapshotPublish,
 } from "./stores/documents";
 import { openEnquiryConversation } from "./stores/enquiries";
+import { actorsOf, keepConsentLink, setToFamilies } from "./stores/families";
 import {
   addHomeroom,
   followHomeroom,
@@ -1616,10 +1626,47 @@ async function seedAnnouncements(tx: Tx, tenantId: string, schoolId: string) {
   );
 }
 
+/** An audience the seed writes: the school's own, or the families of every student. */
+export type SeedAudience = Audience | { scope: "families"; classId: null };
+
+const ownAudience = (audience: SeedAudience): Audience | null =>
+  audience.scope === "families" ? null : audience;
+
+/**
+ * Everyone seeded audiences reach on a day, as the API's would with every
+ * module on: the school's own, those who act for the students of the
+ * school's and a class's audiences, and the families of every student.
+ */
+async function seededPeople(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; on: string },
+  audiences: readonly SeedAudience[],
+): Promise<string[]> {
+  const own = audiences.flatMap((audience) => ownAudience(audience) ?? []);
+  const [people, heard] = await Promise.all([
+    audienceUsers(tx, input, own),
+    studentsHeardFor(tx, input, own),
+  ]);
+  const everyone = audiences.some((audience) => audience.scope === "families")
+    ? await enrolledStudents(tx, {
+        tenantId: input.tenantId,
+        schoolId: input.schoolId,
+        today: input.on,
+      })
+    : [];
+  const actors = await actorsOf(tx, {
+    tenantId: input.tenantId,
+    studentIds: [...new Set([...heard, ...everyone])],
+    on: input.on,
+    purpose: "contact",
+  });
+  return [...new Set([...people, ...actors.map((link) => link.userId)])];
+}
+
 export interface AnnouncementPlan {
   title: string;
   body: string;
-  audience: Audience;
+  audience: SeedAudience;
   urgency: "normal" | "important";
   pinnedUntil?: string;
   requiresAck?: boolean;
@@ -1650,11 +1697,20 @@ export async function insertAnnouncements(
       ackDueOn: plan.ackDueOn ?? null,
       authorUserId: input.authorId,
     });
-    await tx.insert(broadcastAudiences).values({
-      tenantId,
-      broadcastId: id,
-      scope: plan.audience.scope,
-    });
+    const own = ownAudience(plan.audience);
+    if (own)
+      await tx.insert(broadcastAudiences).values({
+        tenantId,
+        broadcastId: id,
+        scope: own.scope,
+      });
+    else
+      await setToFamilies(tx, {
+        tenantId,
+        kind: "broadcast",
+        id,
+        on: true,
+      });
     const words = await saveDocument(tx, {
       tenantId,
       orgId: schoolId,
@@ -1675,7 +1731,7 @@ export async function insertAnnouncements(
       await addRecipients(tx, {
         tenantId,
         broadcastId: id,
-        userIds: await audienceUsers(tx, { tenantId, schoolId, on }, [
+        userIds: await seededPeople(tx, { tenantId, schoolId, on }, [
           plan.audience,
         ]),
       });
@@ -1840,7 +1896,7 @@ export async function insertNewsletters(
     await addRecipients(tx, {
       tenantId,
       broadcastId: created.id,
-      userIds: await audienceUsers(tx, { tenantId, schoolId, on: input.on }, [
+      userIds: await seededPeople(tx, { tenantId, schoolId, on: input.on }, [
         audience,
       ]),
     });
@@ -2045,14 +2101,14 @@ async function seedConsents(
     );
     if (!mother) continue;
     const agreed = index === 0;
-    await insertAnswer(tx, {
+    const consentId = await insertAnswer(tx, {
       tenantId,
       studentId,
       purposeId: need(purposes, "photo_school_website"),
       decision: agreed ? "granted" : "refused",
       noticeId: website,
       givenById: mother.related_user_id,
-      relationshipId: mother.id,
+      capacity: "guardian",
       method: agreed ? "electronic" : "verbal_recorded",
       evidenceFileId: null,
       recordedById: agreed ? mother.related_user_id : principal.user_id,
@@ -2060,6 +2116,11 @@ async function seedConsents(
       ageAtDecision: null,
       refreshDueOn: null,
       note: agreed ? null : "Told the office at pickup.",
+    });
+    await keepConsentLink(tx, {
+      tenantId,
+      consentId,
+      relationshipId: mother.id,
     });
   }
 }
@@ -2086,7 +2147,7 @@ async function seedEvents(
       and c.title_en = '8A' and c.status = 'active'`);
   if (!principal) return;
   const school: Audience = { scope: "school", classId: null };
-  const families: Audience = {
+  const families: SeedAudience = {
     scope: "families",
     classId: null,
   };
@@ -2174,7 +2235,7 @@ export interface EventPlan {
   location?: string;
   provisional?: boolean;
   cancelled?: boolean;
-  audiences: Audience[];
+  audiences: SeedAudience[];
   body: string;
 }
 
@@ -2204,14 +2265,25 @@ export async function insertEvents(
       cancelled: plan.cancelled ?? false,
       authorUserId: input.authorId,
     });
-    await tx.insert(calendarEventAudiences).values(
-      plan.audiences.map((audience) => ({
-        tenantId,
-        eventId: id,
-        scope: audience.scope,
-        classId: audience.classId,
-      })),
+    const own = plan.audiences.flatMap(
+      (audience) => ownAudience(audience) ?? [],
     );
+    if (own.length > 0)
+      await tx.insert(calendarEventAudiences).values(
+        own.map((audience) => ({
+          tenantId,
+          eventId: id,
+          scope: audience.scope,
+          classId: audience.classId,
+        })),
+      );
+    if (own.length < plan.audiences.length)
+      await setToFamilies(tx, {
+        tenantId,
+        kind: "calendar_event",
+        id,
+        on: true,
+      });
     const description = await saveDocument(tx, {
       tenantId,
       orgId: schoolId,
@@ -3343,6 +3415,7 @@ async function seedAdmissions(
     ...org,
     userId: parent.id,
     today: "2026-10-20",
+    role: "applicant_family",
   });
   context.logins.push({
     role: "applicant",
@@ -3360,7 +3433,7 @@ async function seedAdmissions(
     ...org,
     intakeId: kg1.id,
     formVersionId: published.id,
-    familyUserId: parent.id,
+    filedByUserId: parent.id,
     applicantUserId: child.id,
     locale: "en",
     form: {
@@ -3472,6 +3545,7 @@ async function seedAdmissions(
         ...org,
         userId: adult.id,
         today: "2026-10-20",
+        role: "applicant_family",
       });
       context.logins.push({ role: "applicant", loginName: login, schoolId });
     }
@@ -3485,7 +3559,7 @@ async function seedAdmissions(
       ...org,
       intakeId: kg1.id,
       formVersionId: published.id,
-      familyUserId: adult.id,
+      filedByUserId: adult.id,
       applicantUserId: kid.id,
       locale: index % 2 === 0 ? "ar" : "en",
       form: {

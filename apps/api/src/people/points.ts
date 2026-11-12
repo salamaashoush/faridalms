@@ -297,3 +297,52 @@ export async function placed<T extends { id: string; context: string | null }>(
     return { ...row, context: label };
   });
 }
+
+/** A module that finds students by a phone it holds for them, beside their own. */
+export interface StudentPhones {
+  studentsWith(context: UnitContext, phone: string): Promise<string[]>;
+}
+
+export const studentPhones = point<StudentPhones>("student phones");
+
+/** The students a module finds by the phone, in E.164. */
+export async function studentsByPhone(
+  context: UnitContext,
+  phone: string,
+): Promise<string[]> {
+  const found = await Promise.all(
+    (await contributionsTo(context, studentPhones)).map((contribution) =>
+      contribution.studentsWith(context, phone),
+    ),
+  );
+  return [...new Set(found.flat())];
+}
+
+/** A word a module flags a student with for every member of staff: `custody`, say. */
+export interface StudentAlerts {
+  alertsOf(
+    context: UnitContext,
+    studentIds: readonly string[],
+    on: string,
+  ): Promise<Map<string, string>>;
+}
+
+export const studentAlerts = point<StudentAlerts>("student alerts");
+
+/** Each student's flags on the day, from every module on. */
+export async function studentAlertsOf(
+  context: UnitContext,
+  studentIds: readonly string[],
+  on: string,
+): Promise<Map<string, string[]>> {
+  const result = new Map<string, string[]>();
+  if (studentIds.length === 0) return result;
+  for (const contribution of await contributionsTo(context, studentAlerts))
+    for (const [id, alert] of await contribution.alertsOf(
+      context,
+      studentIds,
+      on,
+    ))
+      result.set(id, [...(result.get(id) ?? []), alert]);
+  return result;
+}

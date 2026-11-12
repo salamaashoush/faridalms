@@ -24,6 +24,7 @@ import { StatusText } from "@faridalms/ui/system/status";
 import { Value } from "@faridalms/ui/system/value";
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -53,6 +54,7 @@ import {
   ReaderWidthToggle,
   useReaderWidth,
 } from "~/components/system/ReaderWidth";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { assignmentRecordQuery } from "~/queries/coursework";
 import {
@@ -83,6 +85,7 @@ import { Discussion } from "./Discussion";
 import { PHASE_LABEL, PHASE_TONE, STATE_LABEL, STATE_TONE } from "./format";
 import { PeerReviewPanel } from "./PeerReview";
 import { QuizAnswers } from "./QuizAnswers";
+import { workSharing } from "./slots";
 import { UseAgainSheet } from "./UseAgain";
 
 export const RECORD_TABS = [
@@ -97,7 +100,7 @@ export type RecordTabValue = (typeof RECORD_TABS)[number];
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof assignmentRecordQuery>["queryFn"]>>
 >;
-type WorkRow = Data["work"][number] & { id: string };
+type WorkRow = Data["work"][number] & { id: string; shared: boolean };
 
 const when = (iso: string | null) => (iso ? formatInstant(iso) : null);
 
@@ -319,15 +322,16 @@ function Score({ row, points }: ScoreProps) {
 
 interface HandedAtProps {
   row: WorkRow;
+  sharedMark: string | null;
 }
 
-function HandedAt({ row }: HandedAtProps) {
+function HandedAt({ row, sharedMark }: HandedAtProps) {
   return row.submittedAt ? (
     <Value>
       {formatInstant(row.submittedAt, "stamp")}
-      {row.shared ? (
+      {row.shared && sharedMark ? (
         <span className="ms-2 text-[13px] text-muted-foreground">
-          {m.courseworkSharedMark()}
+          {sharedMark}
         </span>
       ) : null}
     </Value>
@@ -369,6 +373,7 @@ function CopyCell({ row, files }: CopyCellProps) {
 function workColumns(
   points: number | null,
   copyFiles: number | null,
+  sharedMark: string | null,
 ): Column<WorkRow>[] {
   return [
     {
@@ -385,7 +390,7 @@ function workColumns(
     {
       id: "handed",
       header: m.courseworkHandedInAt(),
-      cell: (row) => <HandedAt row={row} />,
+      cell: (row) => <HandedAt row={row} sharedMark={sharedMark} />,
     },
     ...(copyFiles
       ? [
@@ -443,6 +448,35 @@ function Work({ data }: WorkProps) {
       await queryClient.invalidateQueries({ queryKey: ["coursework"] });
     },
   });
+  const sharing = useSlot(workSharing)[0];
+  const sharingQuery =
+    sharing && data.access.grade ? sharing.query(data.id) : null;
+  const shared = new Set(
+    useQuery({
+      queryKey: sharingQuery?.queryKey ?? ["coursework", "shared", "none"],
+      queryFn: sharingQuery?.queryFn ?? (() => Promise.resolve([])),
+      enabled: sharingQuery !== null,
+    }).data ?? [],
+  );
+  const share = sharing
+    ? async (rows: WorkRow[], next: boolean) => {
+        try {
+          await sharing.share({
+            assignmentId: data.id,
+            studentIds: rows.map((row) => row.studentId),
+            shared: next,
+          });
+          await queryClient.invalidateQueries({
+            queryKey: sharingQuery?.queryKey,
+          });
+          toast.success(
+            next ? sharing.words.shared() : sharing.words.unshared(),
+          );
+        } catch (error) {
+          toast.error(getMessageFromError(error));
+        }
+      }
+    : null;
   const run = async (
     action: StudentWorkAction,
     rows: WorkRow[],
@@ -461,6 +495,7 @@ function Work({ data }: WorkProps) {
   const rows: WorkRow[] = data.work.map((row) => ({
     ...row,
     id: row.studentId,
+    shared: shared.has(row.studentId),
   }));
   const grade = (row: WorkRow) =>
     void navigate({
@@ -487,18 +522,20 @@ function Work({ data }: WorkProps) {
           onSelect: (selected) =>
             run("excuse", selected, m.courseworkExcusedDone()),
         },
-        {
-          label: m.courseworkShare(),
-          icon: Share2,
-          onSelect: (selected) =>
-            run("share", selected, m.courseworkSharedDone()),
-        },
-        {
-          label: m.courseworkUnshare(),
-          icon: EyeOff,
-          onSelect: (selected) =>
-            run("unshare", selected, m.courseworkUnsharedDone()),
-        },
+        ...(sharing && share
+          ? [
+              {
+                label: sharing.words.share(),
+                icon: Share2,
+                onSelect: (selected: WorkRow[]) => share(selected, true),
+              },
+              {
+                label: sharing.words.unshare(),
+                icon: EyeOff,
+                onSelect: (selected: WorkRow[]) => share(selected, false),
+              },
+            ]
+          : []),
         ...(handsIn
           ? [
               {
@@ -531,19 +568,21 @@ function Work({ data }: WorkProps) {
                   inline: true,
                   onSelect: () => grade(row),
                 },
-                row.shared
-                  ? {
-                      label: m.courseworkUnshare(),
-                      icon: EyeOff,
-                      onSelect: () =>
-                        run("unshare", [row], m.courseworkUnsharedDone()),
-                    }
-                  : {
-                      label: m.courseworkShare(),
-                      icon: Share2,
-                      onSelect: () =>
-                        run("share", [row], m.courseworkSharedDone()),
-                    },
+                ...(sharing && share
+                  ? [
+                      row.shared
+                        ? {
+                            label: sharing.words.unshare(),
+                            icon: EyeOff,
+                            onSelect: () => share([row], false),
+                          }
+                        : {
+                            label: sharing.words.share(),
+                            icon: Share2,
+                            onSelect: () => share([row], true),
+                          },
+                    ]
+                  : []),
               ]
             : []),
           ...(row.excused
@@ -590,7 +629,11 @@ function Work({ data }: WorkProps) {
       <DataTable
         caption={m.courseworkWorkCaption()}
         rows={rows}
-        columns={workColumns(data.points, data.copyFiles)}
+        columns={workColumns(
+          data.points,
+          data.copyFiles,
+          sharing?.words.mark() ?? null,
+        )}
         rowLabel={(row) => displayName(row)}
         rowActions={rowActions}
         batchActions={batch}

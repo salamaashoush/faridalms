@@ -1,5 +1,4 @@
 import type { AbsenceReport } from "@faridalms/database/stores/absence-reports";
-import type { ChildLink } from "@faridalms/database/stores/persons";
 
 import {
   decideReport,
@@ -13,13 +12,13 @@ import {
 import {
   attendanceCodes,
   excuseMarks,
+  settingsOf,
 } from "@faridalms/database/stores/attendance";
 import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
-import { childrenOf } from "@faridalms/database/stores/persons";
 import {
   absenceReportSchema,
   decideReportSchema,
-  familyReportsSchema,
+  learnerReportsSchema,
   REPORT_DAYS_BACK,
   reportInboxSchema,
   withdrawReportSchema,
@@ -37,43 +36,54 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { requireStudent, scopeFor } from "../core/reach";
+import { requireStudent, studentsReached } from "../core/reach";
 import { registerHostReader } from "../files/authorize";
 import { withFileGate } from "../files/gate";
+import { decidesFor } from "../people/acting";
 
 const AUDIT_ACTIONS = {
   accepted: "attendance.report_accepted",
   declined: "attendance.report_declined",
 } as const;
 
-/** The links of a family member to the children they follow; none for anyone else. */
-async function familyLinks(context: UnitContext): Promise<ChildLink[]> {
-  if (context.actor.context !== "family" || !can(context, "children:read"))
-    return [];
-  return childrenOf(
-    context.tx,
-    scopeFor(context, "teaching"),
-    context.actor.userId,
-  );
+/**
+ * The learners whose reports the viewer reads: themself as a learner, and
+ * those they follow, each as far as the viewer still reaches them.
+ */
+async function reportedLearners(context: UnitContext): Promise<string[]> {
+  const own = context.actor.context === "student" ? [context.actor.userId] : [];
+  const ids = [...own, ...context.actor.follows];
+  const reached = await studentsReached(context, "teaching", ids);
+  return ids.filter((id) => reached.has(id));
 }
 
-const followed = (links: readonly ChildLink[]) =>
-  links.map((link) => link.studentId);
+/**
+ * Whether the viewer reports for the learner: someone who decides for them,
+ * or the learner themself where they decide for themselves and the school
+ * lets learners report their own absence.
+ */
+async function mayReportFor(context: UnitContext, studentId: string) {
+  if (
+    studentId === context.actor.userId &&
+    !(await settingsOf(context.tx, context.tenantId, context.schoolId))
+      .learnersReport
+  )
+    return false;
+  return decidesFor(context, {
+    userId: context.actor.userId,
+    studentId,
+    on: context.today,
+  });
+}
 
-/** Reporting an absence is a decision for the child, which restricted rights do not reach. */
-const deciding = (links: readonly ChildLink[]) =>
-  links
-    .filter((link) => link.educationalRights === "full")
-    .map((link) => link.studentId);
-
-/** Who may see a report: its family, and the office. */
+/** Who may see a report: whoever made it, whoever reads the learner's reports, and the office. */
 async function mayRead(context: UnitContext, report: AbsenceReport) {
   if (report.reporterId === context.actor.userId) return true;
   if (can(context, "attendance:manage")) return true;
-  return followed(await familyLinks(context)).includes(report.studentId);
+  return (await reportedLearners(context)).includes(report.studentId);
 }
 
-// A note a family sent with a report is read by whoever may read the report.
+// A note sent with a report is read by whoever may read the report.
 registerHostReader("absence_report", async (context, reportId) => {
   const report = await reportById(context.tx, {
     tenantId: context.tenantId,
@@ -121,16 +131,15 @@ async function reasonsOf(context: UnitContext) {
     }));
 }
 
-/** A family's reports for their children, and the reasons they may give. */
+/** The reports of the learners the viewer reads them for, and the reasons they may give. */
 export const mine = readProcedure
-  .input(familyReportsSchema)
+  .input(learnerReportsSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "children:read");
-    const links = await familyLinks(context);
-    const children = followed(links);
+    requireCapability(context, "attendance:read");
+    const learners = await reportedLearners(context);
     const studentIds = input.studentId
-      ? children.filter((id) => id === input.studentId)
-      : children;
+      ? learners.filter((id) => id === input.studentId)
+      : learners;
     const [reports, reasons] = await Promise.all([
       studentIds.length === 0
         ? Promise.resolve([])
@@ -148,14 +157,17 @@ export const mine = readProcedure
       earliest: addDays(context.today, -REPORT_DAYS_BACK),
       reasons,
       reports: reports.map(reportView),
-      mayReport: studentIds.some((id) => deciding(links).includes(id)),
+      mayReport: (
+        await Promise.all(studentIds.map((id) => mayReportFor(context, id)))
+      ).some(Boolean),
     };
   });
 
 /**
- * A family tells the school a child will be away, late or leaving early,
- * or asks for leave ahead. The office may also record one a family phoned
- * in, for any student it can see.
+ * Someone who decides for a learner, or the learner themself where the
+ * school lets them, tells the school the learner will be away, late or
+ * leaving early, or asks for leave ahead. The office may also record one
+ * phoned in, for any student it can see.
  */
 export const report = writeProcedure
   .input(absenceReportSchema)
@@ -164,10 +176,9 @@ export const report = writeProcedure
     if (office) {
       await requireStudent(context, "teaching", input.studentId);
     } else {
-      const links = await familyLinks(context);
-      if (!followed(links).includes(input.studentId))
+      if (!(await reportedLearners(context)).includes(input.studentId))
         throw new ORPCError("NOT_FOUND");
-      if (!deciding(links).includes(input.studentId))
+      if (!(await mayReportFor(context, input.studentId)))
         throw new ORPCError("FORBIDDEN");
     }
     if (input.from < addDays(context.today, -REPORT_DAYS_BACK))

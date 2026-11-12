@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { Button, buttonVariants } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
+import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
 import { useMutation } from "@tanstack/react-query";
 import { Link, useHydrated } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -50,16 +51,23 @@ function Labelled({ id, label, error, children }: LabelledProps) {
 
 export interface RegisterFormProps {
   turnstileKey: string | null;
-  /** The intake the family came to apply for, kept through to the form. */
+  /** The intake the person came to apply for, kept through to the form. */
   intake?: string;
+  /** Whether the school takes applications filed for someone else. */
+  forOthers: boolean;
 }
 
 /**
- * A parent registers to apply: a name, an address to confirm and a phone.
- * Whatever happened, the page says to check the inbox, so it never tells a
- * stranger whether the address has an account.
+ * Someone registers to apply: who for, where the school takes applications
+ * for others, then a name, an address to confirm and a phone. Whatever
+ * happened, the page says to check the inbox, so it never tells a stranger
+ * whether the address has an account.
  */
-export function RegisterForm({ turnstileKey, intake }: RegisterFormProps) {
+export function RegisterForm({
+  turnstileKey,
+  intake,
+  forOthers,
+}: RegisterFormProps) {
   const hydrated = useHydrated();
   const send = useServerFn(registerFamily);
   const opened = useRef(0);
@@ -74,11 +82,15 @@ export function RegisterForm({ turnstileKey, intake }: RegisterFormProps) {
   const [token, setToken] = useState("");
   const [generation, setGeneration] = useState(0);
   const [tried, setTried] = useState(false);
+  const [applyingFor, setApplyingFor] = useState<"" | "self" | "other">(
+    forOthers ? "" : "self",
+  );
   const locale = getLocale() === "ar" ? "ar" : "en";
   const register = useMutation({
     mutationFn: () =>
       send({
         data: {
+          applyingFor: applyingFor || "self",
           names: namesFrom(given, family),
           email: email.trim(),
           phone: phone.trim(),
@@ -92,6 +104,7 @@ export function RegisterForm({ turnstileKey, intake }: RegisterFormProps) {
     onSettled: () => setGeneration((value) => value + 1),
   });
   const errors = {
+    applyingFor: applyingFor ? null : m.registerErrWho(),
     given: given.trim() ? null : m.registerErrGiven(),
     family: family.trim() ? null : m.registerErrFamily(),
     email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
@@ -134,6 +147,39 @@ export function RegisterForm({ turnstileKey, intake }: RegisterFormProps) {
         register.mutate();
       }}
     >
+      {forOthers ? (
+        <fieldset
+          className="grid gap-2"
+          data-invalid={shown("applyingFor") ? true : undefined}
+          aria-describedby={
+            shown("applyingFor") ? "register-who-error" : undefined
+          }
+        >
+          <legend className="mb-1 text-sm font-medium">
+            {m.registerWho()}
+          </legend>
+          <RadioGroup
+            value={applyingFor}
+            onValueChange={(next) =>
+              setApplyingFor(next === "other" ? "other" : "self")
+            }
+          >
+            <label className="flex items-center gap-3 text-sm leading-5">
+              <RadioGroupItem value="other" disabled={!hydrated} />
+              {m.registerWhoOther()}
+            </label>
+            <label className="flex items-center gap-3 text-sm leading-5">
+              <RadioGroupItem value="self" disabled={!hydrated} />
+              {m.registerWhoSelf()}
+            </label>
+          </RadioGroup>
+          {shown("applyingFor") ? (
+            <p id="register-who-error" className="text-[13px] text-destructive">
+              {shown("applyingFor")}
+            </p>
+          ) : null}
+        </fieldset>
+      ) : null}
       <div className="grid gap-4 sm:grid-cols-2">
         <Labelled
           id="register-given"

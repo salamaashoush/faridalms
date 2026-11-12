@@ -124,7 +124,10 @@ test("administrative writes reject family accounts and cross-school references",
 
 test("a guardian is found by phone whichever way the number was written", async () => {
   const admin = await apiAs("admin");
-  const options = await admin.people.options();
+  const options = {
+    ...(await admin.people.options()),
+    relations: await admin.guardians.relations(),
+  };
   const mother = options.relations.find((row) => row.code === "mother");
   if (!mother) throw new Error("the seed has no mother relation");
   const digits = String(Date.now()).slice(-7);
@@ -133,24 +136,30 @@ test("a guardian is found by phone whichever way the number was written", async 
     const student = await admin.people.saveStudent({
       names: names("Salama", `Ashoush ${label} ${digits}`),
       reference: `PH-${label.slice(0, 3)}-${digits}`,
-      guardians: [
-        {
-          person: { names: names("Mona", `Ashoush ${label} ${digits}`), phone },
-          flags: {
-            relationId: mother.id,
-            legalGuardian: true,
-            portalAccess: false,
-            receivesNotifications: true,
-            primaryContact: true,
-            emergencyContact: true,
-            residence: "primary",
-            pickup: "allowed",
+      parts: {
+        families: [
+          {
+            person: {
+              names: names("Mona", `Ashoush ${label} ${digits}`),
+              phone,
+            },
+            flags: {
+              relationId: mother.id,
+              legalGuardian: true,
+              portalAccess: false,
+              receivesNotifications: true,
+              primaryContact: true,
+              emergencyContact: true,
+              residence: "primary",
+              pickup: "allowed",
+            },
           },
-        },
-      ],
+        ],
+      },
     });
-    const record = await admin.people.student({ id: student.id });
-    const guardian = record.guardians?.[0];
+    const guardian = (
+      await admin.guardians.ofStudent({ studentId: student.id })
+    ).guardians[0];
     if (!guardian) throw new Error("the guardian was not linked");
     return guardian.userId;
   };
@@ -159,7 +168,7 @@ test("a guardian is found by phone whichever way the number was written", async 
     create("international", `+20 108 ${spaced}`),
   ]);
   const found = async (phone: string) =>
-    (await admin.people.findGuardians({ phone })).map((row) => row.id);
+    (await admin.people.findByContact({ phone })).map((row) => row.id);
   const [
     nationalSpaced,
     nationalPlus,
@@ -191,7 +200,7 @@ test("teachers message linked families and replies stay private", async ({
     apiAs("student"),
   ]);
   const me = await mother.identity.currentUser();
-  const child = (await mother.people.person({ id: me.id })).children[0];
+  const child = (await mother.guardians.children({ userId: me.id }))[0];
   if (!child) throw new Error("the seed gives the mother no child");
   const note = `Salama learning steps (${browserName} ${crypto.randomUUID().slice(0, 6)})`;
   const { threadId } = await teacher.messages.start({
@@ -303,7 +312,7 @@ test("shared student records protect medical fields and family class rosters", a
   ]);
   const me = await parent.identity.currentUser();
   const own = new Set(
-    (await parent.people.person({ id: me.id })).children.map(
+    (await parent.guardians.children({ userId: me.id })).map(
       (child) => child.studentId,
     ),
   );

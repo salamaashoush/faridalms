@@ -19,16 +19,12 @@ import {
   markRead as markThreadRead,
   mergeContacts as mergeContactRows,
   membersOf,
-  messageable,
   messagesOf,
-  messagingChildren,
-  messagingGuardians,
   readsMessage,
   removeMembers,
   takeHeld,
   threadById,
   threadsOf,
-  unreachable,
   unreadThreads,
   writtenSince,
 } from "@faridalms/database/stores/messages";
@@ -64,6 +60,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { contributionsTo } from "../core/extension";
 import {
   audit,
   can,
@@ -71,9 +68,15 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { isStaff, recordLinks, requireStudent, scopeFor } from "../core/reach";
+import { isStaff, recordLinks, requireStudent } from "../core/reach";
 import { placeMedia, registerHostReader } from "../files/authorize";
 import { scopeOf, writeEntry } from "../messages/conversations";
+import {
+  learnersToName,
+  recipientsFor,
+  unreachableFor,
+} from "../messages/reach";
+import { actingFor, actorsFor } from "../people/acting";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -147,14 +150,22 @@ function readsMessages(context: UnitContext) {
   requireCapability(context, "messages:read");
 }
 
-/** The children a guardian may say a message is about; none for staff, who write to families instead. */
+/**
+ * The learners someone who acts for them may say a message is about; none
+ * for staff, who write to those who act for a learner instead.
+ */
 async function childrenToName(context: UnitContext) {
   if (isStaff(context) || !can(context, "messages:send")) return [];
-  return messagingChildren(context.tx, {
-    tenantId: context.tenantId,
-    viewerId: context.actor.userId,
-    on: context.today,
-  });
+  return learnersToName(context);
+}
+
+/** Whether a module knows who acts for learners, so staff may write to them about one. */
+async function writesToActors(context: UnitContext) {
+  return (
+    isStaff(context) &&
+    can(context, "messages:send") &&
+    (await contributionsTo(context, actingFor)).length > 0
+  );
 }
 
 export const inbox = readProcedure
@@ -168,7 +179,7 @@ export const inbox = readProcedure
       boxes.reads.includes(input.box)
         ? input.box
         : "personal";
-    const [page, children] = await Promise.all([
+    const [page, children, family] = await Promise.all([
       threadsOf(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
@@ -181,13 +192,14 @@ export const inbox = readProcedure
         after: input.after,
       }),
       childrenToName(context),
+      writesToActors(context),
     ]);
     return {
       rows: page.rows,
       next: page.next,
       mailboxes: boxes.reads,
       canStart: can(context, "messages:send"),
-      canStartFamily: can(context, "messages:send") && isStaff(context),
+      canStartFamily: family,
       children,
     };
   });
@@ -329,7 +341,7 @@ export const recipients = readProcedure
   .input(recipientsQuerySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "messages:send");
-    return messageable(context.tx, scopeFor(context, "classes"), {
+    return recipientsFor(context, {
       q: input.q,
       limit: 30,
       after: input.after,
@@ -425,26 +437,23 @@ async function writeComposed(
 
 /**
  * Who a new conversation is for, checked as starting it checks them: a
- * family's child the viewer reaches, people the viewer may write to, and
- * for a guardian, one of their own children to say it is about.
+ * learner the viewer reaches, for those who act for them; people the viewer
+ * may write to; and for whoever acts for a learner, one of theirs to say it
+ * is about.
  */
 async function checkAddressees(
   context: UnitContext,
   input: { kind: StartKind; recipientIds: string[]; studentId: string },
 ) {
   if (input.kind === "family") {
-    if (!isStaff(context)) throw new ORPCError("FORBIDDEN");
+    if (!(await writesToActors(context))) throw new ORPCError("FORBIDDEN");
     if (input.studentId)
       await requireStudent(context, "classes", input.studentId);
     return;
   }
   if (input.kind === "group" && !isStaff(context))
     throw new ORPCError("FORBIDDEN");
-  const outside = await unreachable(
-    context.tx,
-    scopeFor(context, "classes"),
-    input.recipientIds,
-  );
+  const outside = await unreachableFor(context, input.recipientIds);
   if (outside.length)
     throw new ORPCError("FORBIDDEN", { message: "messages.recipient" });
   if (
@@ -482,11 +491,17 @@ export const start = writeProcedure
     let threadId: string | null = null;
     let created = false;
     if (input.kind === "family") {
-      const guardians = await messagingGuardians(context.tx, {
-        tenantId: context.tenantId,
-        studentId: input.studentId,
-        on: context.today,
-      });
+      const guardians = [
+        ...new Set(
+          (
+            await actorsFor(context, {
+              studentIds: [input.studentId],
+              on: context.today,
+              purpose: "contact",
+            })
+          ).map((link) => link.userId),
+        ),
+      ];
       if (guardians.length === 0)
         throw new ORPCError("CONFLICT", { message: "messages.no_guardians" });
       threadId = await existingThread(context.tx, {
@@ -687,7 +702,7 @@ export const draft = readProcedure
     const kind = row.kind ?? "direct";
     const [people, [student]] = await Promise.all([
       row.recipientIds.length
-        ? messageable(context.tx, scopeFor(context, "classes"), {
+        ? recipientsFor(context, {
             q: "",
             limit: 50,
             after: null,
@@ -749,11 +764,7 @@ export const members = writeProcedure
     const { thread: row, me } = await openThread(context, input.threadId);
     if (row.kind !== "group" || me?.role !== "owner")
       throw new ORPCError("FORBIDDEN");
-    const outside = await unreachable(
-      context.tx,
-      scopeFor(context, "classes"),
-      input.add,
-    );
+    const outside = await unreachableFor(context, input.add);
     if (outside.length)
       throw new ORPCError("FORBIDDEN", { message: "messages.recipient" });
     await addMembers(context.tx, {

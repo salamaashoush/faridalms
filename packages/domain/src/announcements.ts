@@ -10,7 +10,6 @@ export type Urgency = (typeof URGENCIES)[number];
 export const AUDIENCE_SCOPES = [
   "school",
   "staff",
-  "families",
   "students",
   "class",
 ] as const;
@@ -35,7 +34,8 @@ const words = (max: number) => v.pipe(v.string(), v.trim(), v.maxLength(max));
 
 /**
  * One audience: a scope of the school's own, with the class for `class`, or
- * a scope a module answers for (a grade, say) with the target it names.
+ * a scope a module answers for, with the target it names (a grade, say), or
+ * none where the scope is whole (every student's family, say).
  */
 export const audienceSchema = v.pipe(
   v.object({
@@ -46,8 +46,8 @@ export const audienceSchema = v.pipe(
   v.check(
     (audience) =>
       (audience.scope === "class") === (audience.classId !== "") &&
-      (AUDIENCE_SCOPES as readonly string[]).includes(audience.scope) ===
-        (audience.targetId === ""),
+      (!(AUDIENCE_SCOPES as readonly string[]).includes(audience.scope) ||
+        audience.targetId === ""),
     "announcements.audience_target",
   ),
 );

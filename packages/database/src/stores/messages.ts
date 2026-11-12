@@ -40,32 +40,36 @@ export interface Messageable {
 
 const OFFICE_ROLES = sql`('principal', 'site_administrator', 'staff', 'counselor')`;
 
+/** What the viewer's messages reach besides their own: the learners they write about and the office. */
+export interface MessageReach extends Scope {
+  /** The learners the viewer writes to the school about, besides themself. */
+  learners: readonly string[];
+  /** Whether the viewer writes to the office: they act for a learner, or for themself. */
+  office: boolean;
+}
+
 /**
  * Everyone the viewer may write to. Staff reach the school's staff and the
- * students they reach with those students' guardians; a guardian reaches
- * the teachers of their children's classes and the office; a student
- * reaches their own teachers. Guardians without portal access, or kept
- * apart from the school's messages, are never offered.
+ * students they reach; whoever writes about a learner, themself or another,
+ * reaches the teachers of the learner's classes, and the office when the
+ * reach says so. Those who act for a learner are a module's to offer.
  */
-function reachable(reach: Scope): SQL {
+function reachable(reach: MessageReach): SQL {
   return sql`
     with viewer as (
       select app.is_staff(${reach.viewerId}::uuid, ${reach.schoolId}::uuid, ${reach.today}::date) as staff
     ), students as (
       select student_user_id as user_id
-      from app.visible_students(${reach.viewerId}::uuid, ${reach.schoolId}::uuid, ${reach.today}::date, ${reach.schoolWide})
+      from app.visible_students(${reach.viewerId}::uuid, ${reach.schoolId}::uuid, ${reach.today}::date,
+        ${reach.schoolWide}, ${uuidArray(reach.followed)})
       where (select staff from viewer)
-    ), children as (
-      select l.student_user_id as user_id from core.user_relationships l
-      where l.tenant_id = ${reach.tenantId}::uuid and l.related_user_id = ${reach.viewerId}::uuid
-        and app.guardian_permits(l, ${reach.today}::date, 'contact')
     ), learners as (
       select ${reach.viewerId}::uuid as user_id
       where exists (select 1 from core.enrollments e
         where e.tenant_id = ${reach.tenantId}::uuid and e.user_id = ${reach.viewerId}::uuid
           and e.role = 'student' and e.status = 'active' and e.valid_during @> ${reach.today}::date)
       union
-      select user_id from children
+      select unnest(${uuidArray(reach.learners)})
     ), their_classes as (
       select c.id from core.enrollments e
       join core.classes c on c.tenant_id = e.tenant_id and c.id = e.class_id and c.status = 'active'
@@ -79,42 +83,47 @@ function reachable(reach: Scope): SQL {
       union
       select s.user_id, 'student' from students s
       union
-      select l.related_user_id, 'guardian' from core.user_relationships l
-      where l.tenant_id = ${reach.tenantId}::uuid and app.guardian_permits(l, ${reach.today}::date, 'contact')
-        and l.student_user_id in (select user_id from students)
-      union
       select e.user_id, 'staff' from core.enrollments e
       where e.tenant_id = ${reach.tenantId}::uuid and e.role in ('teacher', 'aide')
         and e.status = 'active' and e.valid_during @> ${reach.today}::date
         and e.class_id in (select id from their_classes)
       union
       select r.user_id, 'staff' from core.user_roles r
-      where exists (select 1 from children) and r.tenant_id = ${reach.tenantId}::uuid
+      where ${reach.office} and r.tenant_id = ${reach.tenantId}::uuid
         and r.org_id = ${reach.schoolId}::uuid and r.status = 'active'
         and r.valid_during @> ${reach.today}::date and r.role in ${OFFICE_ROLES}
     )
     select distinct on (c.user_id) c.user_id, c.kind from candidates c
     where c.user_id <> ${reach.viewerId}::uuid
-    order by c.user_id, case c.kind when 'staff' then 0 when 'guardian' then 1 else 2 end`;
+    order by c.user_id, case c.kind when 'staff' then 0 else 2 end`;
+}
+
+/** One person offered as a recipient, with the order a page of them sorts in. */
+export interface RecipientRow extends Messageable {
+  rank: number;
+  sortName: string;
+}
+
+/** The recipients' filter: a name, a page and the kind of people asked for. */
+export interface RecipientFilter {
+  q: string;
+  limit: number;
+  after: RecipientCursor | null;
+  among?: "all" | "people" | "students";
+  /** Only these people, as a draft names them. */
+  ids?: readonly string[];
 }
 
 /**
- * A page of the people the viewer may write to, matching a name or, for a
- * guardian, a child's name: staff, then guardians, then students, each by
- * name, and where the next page starts when there is one.
+ * A page of the staff and students the viewer may write to, matching a
+ * name, staff then students, each by name, one more than the limit when
+ * there is a next page.
  */
-export async function messageable(
+export async function messageableRows(
   tx: Tx,
-  reach: Scope,
-  filter: {
-    q: string;
-    limit: number;
-    after: RecipientCursor | null;
-    among?: "all" | "people" | "students";
-    /** Only these people, as a draft names them. */
-    ids?: readonly string[];
-  },
-): Promise<{ rows: Messageable[]; next: RecipientCursor | null }> {
+  reach: MessageReach,
+  filter: RecipientFilter,
+): Promise<RecipientRow[]> {
   const after = filter.after;
   const only = filter.ids ? uuidArray(filter.ids) : null;
   const rows = await tx.execute<{
@@ -124,94 +133,67 @@ export async function messageable(
     sort_name: string;
     full_name_en: string | null;
     full_name_ar: string | null;
-    children: {
-      user_id: string;
-      full_name_en: string | null;
-      full_name_ar: string | null;
-    }[];
   }>(sql`
     with people as (${reachable(reach)}), ranked as (
-      select p.user_id, p.kind, u.tenant_id, u.full_name_en, u.full_name_ar,
-             case p.kind when 'staff' then 0 when 'guardian' then 1 else 2 end as rank,
+      select p.user_id, p.kind, u.full_name_en, u.full_name_ar,
+             case p.kind when 'staff' then 0 else 2 end as rank,
              coalesce(u.full_name_en, '') as sort_name
       from people p
       join core.users u on u.tenant_id = ${reach.tenantId}::uuid and u.id = p.user_id and u.status = 'active'
       where ${only === null ? sql`true` : sql`p.user_id = any(${only})`}
         and (${filter.among ?? "all"} = 'all'
           or (p.kind = 'student') = (${filter.among ?? "all"} = 'students'))
-        and (${holds(filter.q, [sql`u.full_name_en`, sql`u.full_name_ar`])}
-             or exists (select 1 from core.user_relationships l
-               join core.users s on s.tenant_id = l.tenant_id and s.id = l.student_user_id
-               where p.kind = 'guardian' and l.tenant_id = u.tenant_id and l.related_user_id = u.id
-                 and l.status = 'active' and (${holds(filter.q, [sql`s.full_name_en`, sql`s.full_name_ar`])})))
+        and ${holds(filter.q, [sql`u.full_name_en`, sql`u.full_name_ar`])}
     )
-    select r.user_id, r.kind, r.rank, r.sort_name, r.full_name_en, r.full_name_ar,
-           coalesce((select jsonb_agg(jsonb_build_object('user_id', s.id,
-               'full_name_en', s.full_name_en, 'full_name_ar', s.full_name_ar)
-               order by s.full_name_en)
-             from core.user_relationships l
-             join core.users s on s.tenant_id = l.tenant_id and s.id = l.student_user_id
-             where r.kind = 'guardian' and l.tenant_id = r.tenant_id and l.related_user_id = r.user_id
-               and l.status = 'active' and l.valid_during @> ${reach.today}::date), '[]'::jsonb) as children
+    select r.user_id, r.kind, r.rank, r.sort_name, r.full_name_en, r.full_name_ar
     from ranked r
     where ${after === null}::boolean
       or (r.rank, r.sort_name, r.user_id) > (${after?.rank ?? 0}::int, ${after?.name ?? ""}::text,
         ${after?.id ?? null}::uuid)
     order by r.rank, r.sort_name, r.user_id
     limit ${filter.limit + 1}`);
-  const feed = feedOf(rows, filter.limit, (row) => ({
+  return rows.map((row) => ({
+    userId: row.user_id,
+    kind: row.kind,
     rank: row.rank,
-    name: row.sort_name,
-    id: row.user_id,
+    sortName: row.sort_name,
+    fullNameEn: row.full_name_en,
+    fullNameAr: row.full_name_ar,
+    children: [],
+  }));
+}
+
+/**
+ * A page merged from each source of recipients. Each rank belongs to one
+ * source, which already sorts its rows by name in the database's order, so
+ * the merge orders by rank alone and keeps each source's order within it.
+ */
+export function recipientPage(
+  sources: readonly (readonly RecipientRow[])[],
+  limit: number,
+): { rows: Messageable[]; next: RecipientCursor | null } {
+  const merged = sources.flat().toSorted((a, b) => a.rank - b.rank);
+  const feed = feedOf(merged, limit, (row) => ({
+    rank: row.rank,
+    name: row.sortName,
+    id: row.userId,
   }));
   return {
     rows: feed.rows.map((row) => ({
-      userId: row.user_id,
+      userId: row.userId,
       kind: row.kind,
-      fullNameEn: row.full_name_en,
-      fullNameAr: row.full_name_ar,
-      children: row.children.map((child) => ({
-        userId: child.user_id,
-        fullNameEn: child.full_name_en,
-        fullNameAr: child.full_name_ar,
-      })),
+      fullNameEn: row.fullNameEn,
+      fullNameAr: row.fullNameAr,
+      children: row.children,
     })),
     next: feed.next,
   };
 }
 
-/**
- * The children a guardian may write to the school about: those they are
- * linked to with portal access and not kept apart from its messages.
- */
-export async function messagingChildren(
-  tx: Tx,
-  input: { tenantId: string; viewerId: string; on: string },
-): Promise<
-  { userId: string; fullNameEn: string | null; fullNameAr: string | null }[]
-> {
-  const rows = await tx.execute<{
-    user_id: string;
-    full_name_en: string | null;
-    full_name_ar: string | null;
-  }>(sql`
-    select distinct s.id as user_id, s.full_name_en, s.full_name_ar
-    from core.user_relationships l
-    join core.users s on s.tenant_id = l.tenant_id and s.id = l.student_user_id and s.status = 'active'
-    where l.tenant_id = ${input.tenantId}::uuid and l.related_user_id = ${input.viewerId}::uuid
-      and app.guardian_permits(l, ${input.on}::date, 'contact')
-    order by s.full_name_en, s.id`);
-  return rows.map((row) => ({
-    userId: row.user_id,
-    fullNameEn: row.full_name_en,
-    fullNameAr: row.full_name_ar,
-  }));
-}
-
-/** Which of these people the viewer may not write to. */
+/** Which of these people the viewer may not write to, as staff, teacher, office or student. */
 export async function unreachable(
   tx: Tx,
-  reach: Scope,
+  reach: MessageReach,
   userIds: readonly string[],
 ): Promise<string[]> {
   if (userIds.length === 0) return [];
@@ -219,32 +201,6 @@ export async function unreachable(
     with people as (${reachable(reach)})
     select t.user_id from unnest(${uuidArray(userIds)}) as t(user_id)
     where t.user_id not in (select user_id from people)`);
-  return rows.map((row) => row.user_id);
-}
-
-/** A child's guardians who take part in the school's messages. */
-export async function messagingGuardians(
-  tx: Tx,
-  input: { tenantId: string; studentId: string; on: string },
-): Promise<string[]> {
-  const rows = await tx.execute<{ user_id: string }>(sql`
-    select distinct l.related_user_id as user_id from core.user_relationships l
-    where l.tenant_id = ${input.tenantId}::uuid and l.student_user_id = ${input.studentId}::uuid
-      and app.guardian_permits(l, ${input.on}::date, 'contact')
-    order by 1`);
-  return rows.map((row) => row.user_id);
-}
-
-/** The adults told about a child's absence: those the link says receive notices. */
-export async function noticeGuardians(
-  tx: Tx,
-  input: { tenantId: string; studentId: string; on: string },
-): Promise<string[]> {
-  const rows = await tx.execute<{ user_id: string }>(sql`
-    select distinct l.related_user_id as user_id from core.user_relationships l
-    where l.tenant_id = ${input.tenantId}::uuid and l.student_user_id = ${input.studentId}::uuid
-      and app.guardian_permits(l, ${input.on}::date, 'notice')
-    order by 1`);
   return rows.map((row) => row.user_id);
 }
 
@@ -1793,7 +1749,7 @@ export async function contactOfSchool(
  * A family's conversation with a team: the one the enquiry it applied from
  * brought, or else the newest of the mailbox's they are in.
  */
-export async function familyConversation(
+export async function mailboxConversationWith(
   tx: Tx,
   input: {
     tenantId: string;

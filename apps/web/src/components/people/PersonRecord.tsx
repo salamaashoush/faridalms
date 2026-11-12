@@ -23,7 +23,7 @@ import { Pencil } from "lucide-react";
 import { useState } from "react";
 
 import { groupWords } from "~/components/classes/slots";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { personHistoryQuery, personRecordQuery } from "~/queries/students";
@@ -36,6 +36,7 @@ import { displayName, labelOf, otherName, roleLabel } from "./format";
 import { PhotoDialog } from "./PhotoDialog";
 import { ContactList, Deferred, HistoryFeed } from "./record-parts";
 import { SignInSection } from "./SignInSection";
+import { personRecordParts } from "./slots";
 
 export const PERSON_TABS = [
   "overview",
@@ -125,75 +126,6 @@ function ContactsSection({ contacts, onEdit }: ContactsSectionProps) {
       edit={onEdit ? { label: m.contactsEdit(), onClick: onEdit } : undefined}
     >
       <ContactList contacts={contacts} />
-    </RecordSection>
-  );
-}
-
-interface ChildrenSectionProps {
-  data: PersonData;
-}
-
-function ChildrenSection({ data }: ChildrenSectionProps) {
-  const { capabilities, workspace } = useCurrentUser();
-  const opensRecords =
-    capabilities.includes("people:read") ||
-    capabilities.includes("people:manage");
-  const linkClass = cn(
-    "justify-self-start text-sm leading-5 font-medium hover:text-primary hover:underline",
-    phoneLink,
-  );
-  return (
-    <RecordSection title={m.personChildren()}>
-      {data.children.length === 0 ? (
-        <RecordEmpty>{m.personNoChildren()}</RecordEmpty>
-      ) : (
-        <RecordList>
-          {data.children.map((child) => (
-            <li
-              key={child.relationshipId}
-              className="flex items-start gap-3 py-3"
-            >
-              <span
-                aria-hidden
-                className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium"
-              >
-                {initialsOf(displayName(child))}
-              </span>
-              <div className="grid min-w-0 flex-1 gap-0.5">
-                {opensRecords ? (
-                  <Link
-                    to="/students/$studentId"
-                    params={{ studentId: child.studentId }}
-                    search={{}}
-                    dir="auto"
-                    className={linkClass}
-                  >
-                    {displayName(child)}
-                  </Link>
-                ) : workspace === "family" ? (
-                  <Link
-                    to="/family/details"
-                    search={{ studentId: child.studentId }}
-                    dir="auto"
-                    className={linkClass}
-                  >
-                    {displayName(child)}
-                  </Link>
-                ) : (
-                  <span dir="auto" className="text-sm leading-5 font-medium">
-                    {displayName(child)}
-                  </span>
-                )}
-                {child.relation ? (
-                  <span className="text-[13px] leading-[18px] text-muted-foreground">
-                    {labelOf(child.relation)}
-                  </span>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </RecordList>
-      )}
     </RecordSection>
   );
 }
@@ -303,6 +235,7 @@ export interface PersonRecordProps {
 
 export function PersonRecord({ userId, tab, onTab }: PersonRecordProps) {
   const data = useSuspenseQuery(personRecordQuery(userId)).data;
+  const personParts = useSlot(personRecordParts);
   const queryClient = useQueryClient();
   const [photoOpen, setPhotoOpen] = useState(false);
   const [editing, setEditing] = useState({ open: false, key: 0 });
@@ -339,10 +272,14 @@ export function PersonRecord({ userId, tab, onTab }: PersonRecordProps) {
               {data.teaching ? (
                 <TeachingSection teaching={data.teaching} />
               ) : null}
-              {data.children.length > 0 ||
-              data.roles.some((role) => isFamily(role.role)) ? (
-                <ChildrenSection data={data} />
-              ) : null}
+              {personParts.map((part, index) => (
+                <Deferred key={index}>
+                  <part.Overview
+                    personId={data.id}
+                    roles={data.roles.map((role) => role.role)}
+                  />
+                </Deferred>
+              ))}
             </>
           }
           aside={
@@ -470,8 +407,4 @@ export function PersonRecord({ userId, tab, onTab }: PersonRecordProps) {
       ) : null}
     </Page>
   );
-}
-
-function isFamily(role: string) {
-  return role === "parent" || role === "guardian" || role === "relative";
 }

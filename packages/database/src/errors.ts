@@ -51,6 +51,8 @@ export const CONFLICTS: Record<string, string> = {
   class_grades_class_key: "conflict.version",
   broadcast_grades_key: "conflict.version",
   calendar_event_grades_key: "conflict.version",
+  broadcast_families_key: "conflict.version",
+  calendar_event_families_key: "conflict.version",
   intake_grades_intake_key: "conflict.version",
   intake_years_intake_key: "conflict.version",
   courses_code_key: "course.code_taken",

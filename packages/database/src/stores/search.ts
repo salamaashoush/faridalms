@@ -128,12 +128,16 @@ interface Among {
 /** The students the viewer reaches. */
 export const studentsReached = (scope: Scope) =>
   sql`(select student_user_id from app.visible_students(${scope.viewerId}::uuid,
-    ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}))`;
+    ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}, ${uuidArray(scope.followed)}))`;
 
-/** The staff and family members the viewer reaches, students left to their own kind. */
-export const peopleReached = (scope: Scope) =>
-  sql`(select v.user_id from app.visible_people(${scope.viewerId}::uuid, ${scope.schoolId}::uuid,
-      ${scope.today}::date, ${scope.schoolWide}) v
+/**
+ * The grown-ups the viewer reaches, with those a module opens to them
+ * besides, students left to their own kind.
+ */
+export const peopleReached = (scope: Scope, besides: readonly string[]) =>
+  sql`(select v.user_id from (select user_id from app.visible_people(${scope.viewerId}::uuid,
+      ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide})
+      union select unnest(${uuidArray(besides)})) v
     where not exists (select 1 from core.user_roles r
       where r.tenant_id = ${scope.tenantId}::uuid and r.org_id = ${scope.schoolId}::uuid
         and r.user_id = v.user_id and r.role = 'student' and r.status = 'active'
@@ -146,7 +150,7 @@ export const peopleReached = (scope: Scope) =>
 /** The classes the viewer reaches, with those a module opens to them besides. */
 export const classesReached = (scope: Scope, besides: readonly string[]) =>
   sql`(select class_id from app.visible_classes(${scope.viewerId}::uuid,
-    ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide})
+    ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}, ${uuidArray(scope.followed)})
     union select unnest(${uuidArray(besides)}))`;
 
 /** Students among `ids` the viewer reaches. */
@@ -161,8 +165,12 @@ export async function studentsAmong(tx: Tx, scope: Scope, input: Among) {
   );
 }
 
-/** Staff and family members among `ids` the viewer reaches, with the roles they hold today. */
-export async function peopleAmong(tx: Tx, scope: Scope, input: Among) {
+/** Grown-ups among `ids` the viewer reaches, with the roles they hold today. */
+export async function peopleAmong(
+  tx: Tx,
+  scope: Scope,
+  input: Among & { besides: readonly string[] },
+) {
   return found(
     await tx.execute<Raw>(sql`
       with held as (
@@ -178,7 +186,7 @@ export async function peopleAmong(tx: Tx, scope: Scope, input: Among) {
       from core.users u
       left join held h on h.user_id = u.id
       where u.tenant_id = ${scope.tenantId}::uuid and u.id = any(${uuidArray(input.ids)})
-        and u.status = 'active' and u.id in ${peopleReached(scope)}`),
+        and u.status = 'active' and u.id in ${peopleReached(scope, input.besides)}`),
   );
 }
 

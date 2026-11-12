@@ -28,6 +28,8 @@ create trigger row_meta before insert or update on core.bank_questions for each 
 create trigger row_meta before insert or update on core.bell_schedules for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.breaches for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.broadcast_audiences for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.broadcast_families
+  for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.broadcast_grades
   for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.broadcast_recipients
@@ -35,6 +37,8 @@ create trigger row_meta before insert or update on core.broadcast_recipients
 create trigger row_meta before insert or update on core.broadcasts for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.calendar_dates for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.calendar_event_audiences
+  for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.calendar_event_families
   for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.calendar_event_grades
   for each row execute function app.row_meta();

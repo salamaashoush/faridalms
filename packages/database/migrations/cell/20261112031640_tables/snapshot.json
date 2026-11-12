@@ -2,9 +2,9 @@
   "type": "diff",
   "version": "9",
   "dialect": "postgres",
-  "id": "143f2255-7cec-42ec-817f-7dfa14694d92",
+  "id": "fe27856c-3828-43b9-bba9-709d9e3e1be9",
   "prevIds": [
-    "00c02f61-43a7-44b4-9e64-6a0da0dc0f80"
+    "67c654a3-b1a6-4bc2-963d-6a033ca8b223"
   ],
   "footprints": [
     {
@@ -591,6 +591,25 @@
       "statementTarget": [
         "table",
         "core",
+        "broadcast_families"
+      ],
+      "writes": [
+        "s|tbl|core.broadcast_families",
+        "n|tbl|core.broadcast_families",
+        "e|tbl|core.broadcast_families",
+        "n|rel|core.broadcast_families",
+        "n|type|core.broadcast_families",
+        "n|rel|core.broadcast_families_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
         "broadcast_grades"
       ],
       "writes": [
@@ -676,6 +695,25 @@
         "n|rel|core.calendar_event_audiences",
         "n|type|core.calendar_event_audiences",
         "n|rel|core.calendar_event_audiences_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_event_families"
+      ],
+      "writes": [
+        "s|tbl|core.calendar_event_families",
+        "n|tbl|core.calendar_event_families",
+        "e|tbl|core.calendar_event_families",
+        "n|rel|core.calendar_event_families",
+        "n|type|core.calendar_event_families",
+        "n|rel|core.calendar_event_families_pkey"
       ],
       "reads": [
         "n|sch|core"
@@ -935,6 +973,25 @@
       "statementTarget": [
         "table",
         "core",
+        "consent_guardians"
+      ],
+      "writes": [
+        "s|tbl|core.consent_guardians",
+        "n|tbl|core.consent_guardians",
+        "e|tbl|core.consent_guardians",
+        "n|rel|core.consent_guardians",
+        "n|type|core.consent_guardians",
+        "n|rel|core.consent_guardians_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
         "consent_records"
       ],
       "writes": [
@@ -947,6 +1004,25 @@
       ],
       "reads": [
         "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "health",
+        "contact_changes"
+      ],
+      "writes": [
+        "s|tbl|health.contact_changes",
+        "n|tbl|health.contact_changes",
+        "e|tbl|health.contact_changes",
+        "n|rel|health.contact_changes",
+        "n|type|health.contact_changes",
+        "n|rel|health.contact_changes_pkey"
+      ],
+      "reads": [
+        "n|sch|health"
       ]
     },
     {
@@ -3745,19 +3821,19 @@
         "index",
         "core",
         "admission_applications",
-        "admission_applications_family_idx"
+        "admission_applications_filer_idx"
       ],
       "writes": [
-        "s|idx|core.admission_applications_family_idx",
-        "n|idx|core.admission_applications_family_idx",
-        "e|idx|core.admission_applications_family_idx",
-        "n|rel|core.admission_applications_family_idx"
+        "s|idx|core.admission_applications_filer_idx",
+        "n|idx|core.admission_applications_filer_idx",
+        "e|idx|core.admission_applications_filer_idx",
+        "n|rel|core.admission_applications_filer_idx"
       ],
       "reads": [
         "n|tbl|core.admission_applications",
         "n|sch|core",
         "n|col|core.admission_applications.tenant_id",
-        "n|col|core.admission_applications.family_user_id"
+        "n|col|core.admission_applications.filed_by_user_id"
       ]
     },
     {
@@ -4326,6 +4402,27 @@
       "statementTarget": [
         "index",
         "core",
+        "broadcast_families",
+        "broadcast_families_key"
+      ],
+      "writes": [
+        "s|idx|core.broadcast_families_key",
+        "n|idx|core.broadcast_families_key",
+        "e|idx|core.broadcast_families_key",
+        "n|rel|core.broadcast_families_key"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_families",
+        "n|sch|core",
+        "n|col|core.broadcast_families.tenant_id",
+        "n|col|core.broadcast_families.broadcast_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
         "broadcast_grades",
         "broadcast_grades_key"
       ],
@@ -4513,6 +4610,27 @@
         "n|sch|core",
         "n|col|core.calendar_event_audiences.tenant_id",
         "n|col|core.calendar_event_audiences.event_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "calendar_event_families",
+        "calendar_event_families_key"
+      ],
+      "writes": [
+        "s|idx|core.calendar_event_families_key",
+        "n|idx|core.calendar_event_families_key",
+        "e|idx|core.calendar_event_families_key",
+        "n|rel|core.calendar_event_families_key"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_families",
+        "n|sch|core",
+        "n|col|core.calendar_event_families.tenant_id",
+        "n|col|core.calendar_event_families.event_id"
       ]
     },
     {
@@ -4939,6 +5057,27 @@
         "n|sch|core",
         "n|col|core.classes.tenant_id",
         "n|col|core.classes.date_last_modified"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "consent_guardians",
+        "consent_guardians_relationship_idx"
+      ],
+      "writes": [
+        "s|idx|core.consent_guardians_relationship_idx",
+        "n|idx|core.consent_guardians_relationship_idx",
+        "e|idx|core.consent_guardians_relationship_idx",
+        "n|rel|core.consent_guardians_relationship_idx"
+      ],
+      "reads": [
+        "n|tbl|core.consent_guardians",
+        "n|sch|core",
+        "n|col|core.consent_guardians.tenant_id",
+        "n|col|core.consent_guardians.relationship_id"
       ]
     },
     {
@@ -10247,10 +10386,10 @@
         "admission_applications"
       ],
       "writes": [
-        "s|fk|core.admission_applications.admission_applications_tenant_id_family_user_id_fkey",
-        "n|fk|core.admission_applications.admission_applications_tenant_id_family_user_id_fkey",
-        "e|fk|core.admission_applications.admission_applications_tenant_id_family_user_id_fkey",
-        "n|con|core.admission_applications.admission_applications_tenant_id_family_user_id_fkey"
+        "s|fk|core.admission_applications.admission_applications_tenant_id_filed_by_user_id_fkey",
+        "n|fk|core.admission_applications.admission_applications_tenant_id_filed_by_user_id_fkey",
+        "e|fk|core.admission_applications.admission_applications_tenant_id_filed_by_user_id_fkey",
+        "n|con|core.admission_applications.admission_applications_tenant_id_filed_by_user_id_fkey"
       ],
       "reads": [
         "n|tbl|core.admission_applications",
@@ -10258,7 +10397,7 @@
         "n|tbl|core.users",
         "n|sch|core",
         "n|col|core.admission_applications.tenant_id",
-        "n|col|core.admission_applications.family_user_id",
+        "n|col|core.admission_applications.filed_by_user_id",
         "n|col|core.users.tenant_id",
         "n|col|core.users.id",
         "e|uniqueness|core.users.id.tenant_id"
@@ -12010,6 +12149,54 @@
       "statementTarget": [
         "table",
         "core",
+        "broadcast_families"
+      ],
+      "writes": [
+        "s|fk|core.broadcast_families.broadcast_families_tenant_id_fkey",
+        "n|fk|core.broadcast_families.broadcast_families_tenant_id_fkey",
+        "e|fk|core.broadcast_families.broadcast_families_tenant_id_fkey",
+        "n|con|core.broadcast_families.broadcast_families_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_families",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.broadcast_families.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcast_families"
+      ],
+      "writes": [
+        "s|fk|core.broadcast_families.broadcast_families_tenant_id_broadcast_id_fkey",
+        "n|fk|core.broadcast_families.broadcast_families_tenant_id_broadcast_id_fkey",
+        "e|fk|core.broadcast_families.broadcast_families_tenant_id_broadcast_id_fkey",
+        "n|con|core.broadcast_families.broadcast_families_tenant_id_broadcast_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_families",
+        "n|sch|core",
+        "n|tbl|core.broadcasts",
+        "n|sch|core",
+        "n|col|core.broadcast_families.tenant_id",
+        "n|col|core.broadcast_families.broadcast_id",
+        "n|col|core.broadcasts.tenant_id",
+        "n|col|core.broadcasts.id",
+        "e|uniqueness|core.broadcasts.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
         "broadcast_grades"
       ],
       "writes": [
@@ -12447,6 +12634,54 @@
         "n|col|core.classes.tenant_id",
         "n|col|core.classes.id",
         "e|uniqueness|core.classes.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_event_families"
+      ],
+      "writes": [
+        "s|fk|core.calendar_event_families.calendar_event_families_tenant_id_fkey",
+        "n|fk|core.calendar_event_families.calendar_event_families_tenant_id_fkey",
+        "e|fk|core.calendar_event_families.calendar_event_families_tenant_id_fkey",
+        "n|con|core.calendar_event_families.calendar_event_families_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_families",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.calendar_event_families.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_event_families"
+      ],
+      "writes": [
+        "s|fk|core.calendar_event_families.calendar_event_families_tenant_id_event_id_fkey",
+        "n|fk|core.calendar_event_families.calendar_event_families_tenant_id_event_id_fkey",
+        "e|fk|core.calendar_event_families.calendar_event_families_tenant_id_event_id_fkey",
+        "n|con|core.calendar_event_families.calendar_event_families_tenant_id_event_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_families",
+        "n|sch|core",
+        "n|tbl|core.calendar_events",
+        "n|sch|core",
+        "n|col|core.calendar_event_families.tenant_id",
+        "n|col|core.calendar_event_families.event_id",
+        "n|col|core.calendar_events.tenant_id",
+        "n|col|core.calendar_events.id",
+        "e|uniqueness|core.calendar_events.id.tenant_id"
       ]
     },
     {
@@ -13587,6 +13822,79 @@
       "statementTarget": [
         "table",
         "core",
+        "consent_guardians"
+      ],
+      "writes": [
+        "s|fk|core.consent_guardians.consent_guardians_tenant_id_fkey",
+        "n|fk|core.consent_guardians.consent_guardians_tenant_id_fkey",
+        "e|fk|core.consent_guardians.consent_guardians_tenant_id_fkey",
+        "n|con|core.consent_guardians.consent_guardians_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.consent_guardians",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.consent_guardians.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "consent_guardians"
+      ],
+      "writes": [
+        "s|fk|core.consent_guardians.consent_guardians_tenant_id_consent_record_id_fkey",
+        "n|fk|core.consent_guardians.consent_guardians_tenant_id_consent_record_id_fkey",
+        "e|fk|core.consent_guardians.consent_guardians_tenant_id_consent_record_id_fkey",
+        "n|con|core.consent_guardians.consent_guardians_tenant_id_consent_record_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.consent_guardians",
+        "n|sch|core",
+        "n|tbl|core.consent_records",
+        "n|sch|core",
+        "n|col|core.consent_guardians.tenant_id",
+        "n|col|core.consent_guardians.consent_record_id",
+        "n|col|core.consent_records.tenant_id",
+        "n|col|core.consent_records.id",
+        "e|uniqueness|core.consent_records.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "consent_guardians"
+      ],
+      "writes": [
+        "s|fk|core.consent_guardians.consent_guardians_tenant_id_relationship_id_fkey",
+        "n|fk|core.consent_guardians.consent_guardians_tenant_id_relationship_id_fkey",
+        "e|fk|core.consent_guardians.consent_guardians_tenant_id_relationship_id_fkey",
+        "n|con|core.consent_guardians.consent_guardians_tenant_id_relationship_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.consent_guardians",
+        "n|sch|core",
+        "n|tbl|core.user_relationships",
+        "n|sch|core",
+        "n|col|core.consent_guardians.tenant_id",
+        "n|col|core.consent_guardians.relationship_id",
+        "n|col|core.user_relationships.tenant_id",
+        "n|col|core.user_relationships.id",
+        "e|uniqueness|core.user_relationships.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
         "consent_records"
       ],
       "writes": [
@@ -13715,31 +14023,6 @@
         "consent_records"
       ],
       "writes": [
-        "s|fk|core.consent_records.consent_records_tenant_id_relationship_id_fkey",
-        "n|fk|core.consent_records.consent_records_tenant_id_relationship_id_fkey",
-        "e|fk|core.consent_records.consent_records_tenant_id_relationship_id_fkey",
-        "n|con|core.consent_records.consent_records_tenant_id_relationship_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|core.consent_records",
-        "n|sch|core",
-        "n|tbl|core.user_relationships",
-        "n|sch|core",
-        "n|col|core.consent_records.tenant_id",
-        "n|col|core.consent_records.relationship_id",
-        "n|col|core.user_relationships.tenant_id",
-        "n|col|core.user_relationships.id",
-        "e|uniqueness|core.user_relationships.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "core",
-        "consent_records"
-      ],
-      "writes": [
         "s|fk|core.consent_records.consent_records_tenant_id_evidence_file_id_fkey",
         "n|fk|core.consent_records.consent_records_tenant_id_evidence_file_id_fkey",
         "e|fk|core.consent_records.consent_records_tenant_id_evidence_file_id_fkey",
@@ -13780,6 +14063,79 @@
         "n|col|core.users.tenant_id",
         "n|col|core.users.id",
         "e|uniqueness|core.users.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "health",
+        "contact_changes"
+      ],
+      "writes": [
+        "s|fk|health.contact_changes.contact_changes_tenant_id_fkey",
+        "n|fk|health.contact_changes.contact_changes_tenant_id_fkey",
+        "e|fk|health.contact_changes.contact_changes_tenant_id_fkey",
+        "n|con|health.contact_changes.contact_changes_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|health.contact_changes",
+        "n|sch|health",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|health.contact_changes.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "health",
+        "contact_changes"
+      ],
+      "writes": [
+        "s|fk|health.contact_changes.contact_changes_tenant_id_change_id_fkey",
+        "n|fk|health.contact_changes.contact_changes_tenant_id_change_id_fkey",
+        "e|fk|health.contact_changes.contact_changes_tenant_id_change_id_fkey",
+        "n|con|health.contact_changes.contact_changes_tenant_id_change_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|health.contact_changes",
+        "n|sch|health",
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|col|health.contact_changes.tenant_id",
+        "n|col|health.contact_changes.change_id",
+        "n|col|health.requested_changes.tenant_id",
+        "n|col|health.requested_changes.id",
+        "e|uniqueness|health.requested_changes.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "health",
+        "contact_changes"
+      ],
+      "writes": [
+        "s|fk|health.contact_changes.contact_changes_tenant_id_relationship_id_fkey",
+        "n|fk|health.contact_changes.contact_changes_tenant_id_relationship_id_fkey",
+        "e|fk|health.contact_changes.contact_changes_tenant_id_relationship_id_fkey",
+        "n|con|health.contact_changes.contact_changes_tenant_id_relationship_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|health.contact_changes",
+        "n|sch|health",
+        "n|tbl|core.user_relationships",
+        "n|sch|core",
+        "n|col|health.contact_changes.tenant_id",
+        "n|col|health.contact_changes.relationship_id",
+        "n|col|core.user_relationships.tenant_id",
+        "n|col|core.user_relationships.id",
+        "e|uniqueness|core.user_relationships.id.tenant_id"
       ]
     },
     {
@@ -16425,31 +16781,6 @@
         "n|col|health.records.tenant_id",
         "n|col|health.records.id",
         "e|uniqueness|health.records.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "health",
-        "requested_changes"
-      ],
-      "writes": [
-        "s|fk|health.requested_changes.requested_changes_tenant_id_relationship_id_fkey",
-        "n|fk|health.requested_changes.requested_changes_tenant_id_relationship_id_fkey",
-        "e|fk|health.requested_changes.requested_changes_tenant_id_relationship_id_fkey",
-        "n|con|health.requested_changes.requested_changes_tenant_id_relationship_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|health.requested_changes",
-        "n|sch|health",
-        "n|tbl|core.user_relationships",
-        "n|sch|core",
-        "n|col|health.requested_changes.tenant_id",
-        "n|col|health.requested_changes.relationship_id",
-        "n|col|core.user_relationships.tenant_id",
-        "n|col|core.user_relationships.id",
-        "e|uniqueness|core.user_relationships.id.tenant_id"
       ]
     },
     {
@@ -21958,10 +22289,10 @@
         "site_enquiries"
       ],
       "writes": [
-        "s|fk|core.site_enquiries.site_enquiries_tenant_id_family_user_id_fkey",
-        "n|fk|core.site_enquiries.site_enquiries_tenant_id_family_user_id_fkey",
-        "e|fk|core.site_enquiries.site_enquiries_tenant_id_family_user_id_fkey",
-        "n|con|core.site_enquiries.site_enquiries_tenant_id_family_user_id_fkey"
+        "s|fk|core.site_enquiries.site_enquiries_tenant_id_enquirer_user_id_fkey",
+        "n|fk|core.site_enquiries.site_enquiries_tenant_id_enquirer_user_id_fkey",
+        "e|fk|core.site_enquiries.site_enquiries_tenant_id_enquirer_user_id_fkey",
+        "n|con|core.site_enquiries.site_enquiries_tenant_id_enquirer_user_id_fkey"
       ],
       "reads": [
         "n|tbl|core.site_enquiries",
@@ -21969,7 +22300,7 @@
         "n|tbl|core.users",
         "n|sch|core",
         "n|col|core.site_enquiries.tenant_id",
-        "n|col|core.site_enquiries.family_user_id",
+        "n|col|core.site_enquiries.enquirer_user_id",
         "n|col|core.users.tenant_id",
         "n|col|core.users.id",
         "e|uniqueness|core.users.id.tenant_id"
@@ -28025,6 +28356,107 @@
       "statementTarget": [
         "table",
         "core",
+        "broadcast_families"
+      ],
+      "writes": [
+        "s|pol|core.broadcast_families.tenant_isolation",
+        "n|pol|core.broadcast_families.tenant_isolation",
+        "e|pol|core.broadcast_families.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_families",
+        "n|sch|core",
+        "e|rls|core.broadcast_families"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcast_families"
+      ],
+      "writes": [
+        "s|pol|core.broadcast_families.owner_all",
+        "n|pol|core.broadcast_families.owner_all",
+        "e|pol|core.broadcast_families.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_families",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.broadcast_families"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcast_families"
+      ],
+      "writes": [
+        "s|pol|core.broadcast_families.p_select",
+        "n|pol|core.broadcast_families.p_select",
+        "e|pol|core.broadcast_families.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_families",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.broadcast_families"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcast_families"
+      ],
+      "writes": [
+        "s|pol|core.broadcast_families.p_insert",
+        "n|pol|core.broadcast_families.p_insert",
+        "e|pol|core.broadcast_families.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_families",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.broadcast_families"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "broadcast_families"
+      ],
+      "writes": [
+        "s|pol|core.broadcast_families.p_update",
+        "n|pol|core.broadcast_families.p_update",
+        "e|pol|core.broadcast_families.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.broadcast_families",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.broadcast_families"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "broadcast_grades"
       ],
       "writes": [
@@ -28580,6 +29012,107 @@
         "n|role|cell_io",
         "n|role|worker",
         "e|rls|core.calendar_event_audiences"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_event_families"
+      ],
+      "writes": [
+        "s|pol|core.calendar_event_families.tenant_isolation",
+        "n|pol|core.calendar_event_families.tenant_isolation",
+        "e|pol|core.calendar_event_families.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_families",
+        "n|sch|core",
+        "e|rls|core.calendar_event_families"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_event_families"
+      ],
+      "writes": [
+        "s|pol|core.calendar_event_families.owner_all",
+        "n|pol|core.calendar_event_families.owner_all",
+        "e|pol|core.calendar_event_families.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_families",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.calendar_event_families"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_event_families"
+      ],
+      "writes": [
+        "s|pol|core.calendar_event_families.p_select",
+        "n|pol|core.calendar_event_families.p_select",
+        "e|pol|core.calendar_event_families.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_families",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.calendar_event_families"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_event_families"
+      ],
+      "writes": [
+        "s|pol|core.calendar_event_families.p_insert",
+        "n|pol|core.calendar_event_families.p_insert",
+        "e|pol|core.calendar_event_families.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_families",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.calendar_event_families"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_event_families"
+      ],
+      "writes": [
+        "s|pol|core.calendar_event_families.p_update",
+        "n|pol|core.calendar_event_families.p_update",
+        "e|pol|core.calendar_event_families.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_event_families",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.calendar_event_families"
       ]
     },
     {
@@ -30071,6 +30604,86 @@
       "statementTarget": [
         "table",
         "core",
+        "consent_guardians"
+      ],
+      "writes": [
+        "s|pol|core.consent_guardians.tenant_isolation",
+        "n|pol|core.consent_guardians.tenant_isolation",
+        "e|pol|core.consent_guardians.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.consent_guardians",
+        "n|sch|core",
+        "e|rls|core.consent_guardians"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "consent_guardians"
+      ],
+      "writes": [
+        "s|pol|core.consent_guardians.owner_all",
+        "n|pol|core.consent_guardians.owner_all",
+        "e|pol|core.consent_guardians.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.consent_guardians",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.consent_guardians"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "consent_guardians"
+      ],
+      "writes": [
+        "s|pol|core.consent_guardians.p_select",
+        "n|pol|core.consent_guardians.p_select",
+        "e|pol|core.consent_guardians.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.consent_guardians",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.consent_guardians"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "consent_guardians"
+      ],
+      "writes": [
+        "s|pol|core.consent_guardians.p_insert",
+        "n|pol|core.consent_guardians.p_insert",
+        "e|pol|core.consent_guardians.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.consent_guardians",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.consent_guardians"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "consent_records"
       ],
       "writes": [
@@ -30144,6 +30757,123 @@
         "n|role|cell_io",
         "n|role|worker",
         "e|rls|core.consent_records"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "health",
+        "contact_changes"
+      ],
+      "writes": [
+        "s|pol|health.contact_changes.tenant_isolation",
+        "n|pol|health.contact_changes.tenant_isolation",
+        "e|pol|health.contact_changes.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|health.contact_changes",
+        "n|sch|health",
+        "e|rls|health.contact_changes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "health",
+        "contact_changes"
+      ],
+      "writes": [
+        "s|pol|health.contact_changes.owner_all",
+        "n|pol|health.contact_changes.owner_all",
+        "e|pol|health.contact_changes.owner_all"
+      ],
+      "reads": [
+        "n|tbl|health.contact_changes",
+        "n|sch|health",
+        "n|role|cell_owner",
+        "e|rls|health.contact_changes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "health",
+        "contact_changes"
+      ],
+      "writes": [
+        "s|pol|health.contact_changes.p_select",
+        "n|pol|health.contact_changes.p_select",
+        "e|pol|health.contact_changes.p_select"
+      ],
+      "reads": [
+        "n|tbl|health.contact_changes",
+        "n|sch|health",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|health.contact_changes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "health",
+        "contact_changes"
+      ],
+      "writes": [
+        "s|pol|health.contact_changes.p_insert",
+        "n|pol|health.contact_changes.p_insert",
+        "e|pol|health.contact_changes.p_insert"
+      ],
+      "reads": [
+        "n|tbl|health.contact_changes",
+        "n|sch|health",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|health.contact_changes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "health",
+        "contact_changes"
+      ],
+      "writes": [
+        "s|pol|health.contact_changes.purpose_gate",
+        "n|pol|health.contact_changes.purpose_gate",
+        "e|pol|health.contact_changes.purpose_gate"
+      ],
+      "reads": [
+        "n|tbl|health.contact_changes",
+        "n|sch|health",
+        "e|rls|health.contact_changes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "health",
+        "contact_changes"
+      ],
+      "writes": [
+        "s|pol|health.contact_changes.p_erase_delete",
+        "n|pol|health.contact_changes.p_erase_delete",
+        "e|pol|health.contact_changes.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|health.contact_changes",
+        "n|sch|health",
+        "n|role|retention",
+        "e|rls|health.contact_changes"
       ]
     },
     {
@@ -45646,6 +46376,15 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "name": "broadcast_families",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "name": "broadcast_grades",
         "isRlsEnabled": true,
         "entityType": "tables"
@@ -45683,6 +46422,15 @@
       "row": {
         "schema": "core",
         "name": "calendar_event_audiences",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "calendar_event_families",
         "isRlsEnabled": true,
         "entityType": "tables"
       }
@@ -45808,7 +46556,25 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "name": "consent_guardians",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "name": "consent_records",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "name": "contact_changes",
         "isRlsEnabled": true,
         "entityType": "tables"
       }
@@ -48879,7 +49645,7 @@
       "row": {
         "schema": "core",
         "table": "admission_applications",
-        "name": "family_user_id",
+        "name": "filed_by_user_id",
         "type": "uuid",
         "typeSchema": null,
         "notNull": true,
@@ -53442,6 +54208,22 @@
       "row": {
         "schema": "core",
         "table": "attendance_settings",
+        "name": "learners_report",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "attendance_settings",
         "name": "status",
         "type": "text",
         "typeSchema": null,
@@ -54658,6 +55440,134 @@
       "row": {
         "schema": "core",
         "table": "broadcast_audiences",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "broadcast_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
         "name": "created_at",
         "type": "timestamp with time zone",
         "typeSchema": null,
@@ -55915,6 +56825,134 @@
       "row": {
         "schema": "core",
         "table": "calendar_event_audiences",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "event_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
         "name": "created_at",
         "type": "timestamp with time zone",
         "typeSchema": null,
@@ -58835,6 +59873,54 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "consent_guardians",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "consent_guardians",
+        "name": "consent_record_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "consent_guardians",
+        "name": "relationship_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "consent_records",
         "name": "tenant_id",
         "type": "uuid",
@@ -58999,22 +60085,6 @@
       "row": {
         "schema": "core",
         "table": "consent_records",
-        "name": "relationship_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "consent_records",
         "name": "legal_basis",
         "type": "text",
         "typeSchema": null,
@@ -59163,6 +60233,54 @@
         "type": "text",
         "typeSchema": null,
         "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "contact_changes",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "contact_changes",
+        "name": "change_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "contact_changes",
+        "name": "relationship_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
         "dimensions": 0,
         "default": null,
         "generated": null,
@@ -66646,22 +67764,6 @@
         "schema": "health",
         "table": "requested_changes",
         "name": "record_id",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "health",
-        "table": "requested_changes",
-        "name": "relationship_id",
         "type": "uuid",
         "typeSchema": null,
         "notNull": false,
@@ -75319,6 +76421,22 @@
       "row": {
         "schema": "core",
         "table": "orgs",
+        "name": "learners_decide_from",
+        "type": "smallint",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "18",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "orgs",
         "name": "secondary_calendar",
         "type": "text",
         "typeSchema": null,
@@ -81629,7 +82747,7 @@
       "row": {
         "schema": "core",
         "table": "site_enquiries",
-        "name": "family_user_id",
+        "name": "enquirer_user_id",
         "type": "uuid",
         "typeSchema": null,
         "notNull": false,
@@ -88437,22 +89555,6 @@
       "row": {
         "schema": "core",
         "table": "users",
-        "name": "custody_alert",
-        "type": "boolean",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 0,
-        "default": "false",
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "users",
         "name": "erased_at",
         "type": "timestamp with time zone",
         "typeSchema": null,
@@ -90036,7 +91138,7 @@
       "row": {
         "schema": "core",
         "table": "admission_applications",
-        "name": "admission_applications_family_idx",
+        "name": "admission_applications_filer_idx",
         "nameExplicit": true,
         "columns": [
           {
@@ -90047,7 +91149,7 @@
             "opclass": null
           },
           {
-            "value": "family_user_id",
+            "value": "filed_by_user_id",
             "isExpression": false,
             "asc": true,
             "nullsFirst": false,
@@ -90977,6 +92079,37 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "broadcast_families",
+        "name": "broadcast_families_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "broadcast_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "broadcast_grades",
         "name": "broadcast_grades_key",
         "nameExplicit": true,
@@ -91280,6 +92413,37 @@
           }
         ],
         "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "calendar_event_families_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "event_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
         "where": "status = 'active'",
         "with": "",
         "method": "btree",
@@ -91935,6 +93099,37 @@
           },
           {
             "value": "date_last_modified",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "consent_guardians",
+        "name": "consent_guardians_relationship_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "relationship_id",
             "isExpression": false,
             "asc": true,
             "nullsFirst": false,
@@ -100121,11 +101316,11 @@
       "row": {
         "schema": "core",
         "table": "admission_applications",
-        "name": "admission_applications_tenant_id_family_user_id_fkey",
+        "name": "admission_applications_tenant_id_filed_by_user_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
-          "family_user_id"
+          "filed_by_user_id"
         ],
         "schemaTo": "core",
         "tableTo": "users",
@@ -101670,6 +102865,48 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "broadcast_families",
+        "name": "broadcast_families_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "broadcast_families_tenant_id_broadcast_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "broadcast_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "broadcasts",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "broadcast_grades",
         "name": "broadcast_grades_tenant_id_fkey",
         "nameExplicit": true,
@@ -102047,6 +103284,48 @@
         ],
         "schemaTo": "core",
         "tableTo": "classes",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "calendar_event_families_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "calendar_event_families_tenant_id_event_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "event_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "calendar_events",
         "columnsTo": [
           "tenant_id",
           "id"
@@ -103058,6 +104337,70 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "consent_guardians",
+        "name": "consent_guardians_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "consent_guardians",
+        "name": "consent_guardians_tenant_id_consent_record_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "consent_record_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "consent_records",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "consent_guardians",
+        "name": "consent_guardians_tenant_id_relationship_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "relationship_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "user_relationships",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "consent_records",
         "name": "consent_records_tenant_id_fkey",
         "nameExplicit": true,
@@ -103169,28 +104512,6 @@
       "row": {
         "schema": "core",
         "table": "consent_records",
-        "name": "consent_records_tenant_id_relationship_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "relationship_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "user_relationships",
-        "columnsTo": [
-          "tenant_id",
-          "id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "consent_records",
         "name": "consent_records_tenant_id_evidence_file_id_fkey",
         "nameExplicit": true,
         "columns": [
@@ -103221,6 +104542,70 @@
         ],
         "schemaTo": "core",
         "tableTo": "users",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "contact_changes",
+        "name": "contact_changes_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "contact_changes",
+        "name": "contact_changes_tenant_id_change_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "change_id"
+        ],
+        "schemaTo": "health",
+        "tableTo": "requested_changes",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "contact_changes",
+        "name": "contact_changes_tenant_id_relationship_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "relationship_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "user_relationships",
         "columnsTo": [
           "tenant_id",
           "id"
@@ -105545,28 +106930,6 @@
         ],
         "schemaTo": "health",
         "tableTo": "records",
-        "columnsTo": [
-          "tenant_id",
-          "id"
-        ],
-        "onUpdate": "NO ACTION",
-        "onDelete": "NO ACTION",
-        "entityType": "fks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "health",
-        "table": "requested_changes",
-        "name": "requested_changes_tenant_id_relationship_id_fkey",
-        "nameExplicit": true,
-        "columns": [
-          "tenant_id",
-          "relationship_id"
-        ],
-        "schemaTo": "core",
-        "tableTo": "user_relationships",
         "columnsTo": [
           "tenant_id",
           "id"
@@ -110413,11 +111776,11 @@
       "row": {
         "schema": "core",
         "table": "site_enquiries",
-        "name": "site_enquiries_tenant_id_family_user_id_fkey",
+        "name": "site_enquiries_tenant_id_enquirer_user_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
-          "family_user_id"
+          "enquirer_user_id"
         ],
         "schemaTo": "core",
         "tableTo": "users",
@@ -113266,6 +114629,20 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "broadcast_families",
+        "name": "broadcast_families_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "broadcast_grades",
         "name": "broadcast_grades_pkey",
         "columns": [
@@ -113324,6 +114701,20 @@
         "schema": "core",
         "table": "calendar_event_audiences",
         "name": "calendar_event_audiences_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "calendar_event_families_pkey",
         "columns": [
           "tenant_id",
           "id"
@@ -113518,11 +114909,39 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "consent_guardians",
+        "name": "consent_guardians_pkey",
+        "columns": [
+          "tenant_id",
+          "consent_record_id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "consent_records",
         "name": "consent_records_pkey",
         "columns": [
           "tenant_id",
           "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "contact_changes",
+        "name": "contact_changes_pkey",
+        "columns": [
+          "tenant_id",
+          "change_id"
         ],
         "nameExplicit": true,
         "entityType": "pks"
@@ -116320,7 +117739,7 @@
         "schema": "core",
         "table": "access_roles",
         "name": "access_roles_builtin_key_check",
-        "value": "builtin_key in ('site_administrator', 'district_administrator', 'system_administrator', 'principal', 'teacher', 'aide', 'counselor', 'proctor', 'staff', 'student', 'family', 'admissions_officer', 'applicant_family')",
+        "value": "builtin_key in ('site_administrator', 'district_administrator', 'system_administrator', 'principal', 'teacher', 'aide', 'counselor', 'proctor', 'staff', 'student', 'family', 'admissions_officer', 'applicant_family', 'applicant')",
         "entityType": "checks"
       }
     },
@@ -118150,7 +119569,7 @@
         "schema": "core",
         "table": "broadcast_audiences",
         "name": "broadcast_audiences_scope_check",
-        "value": "scope in ('school', 'staff', 'families', 'students', 'class')",
+        "value": "scope in ('school', 'staff', 'students', 'class')",
         "entityType": "checks"
       }
     },
@@ -118161,6 +119580,36 @@
         "table": "broadcast_audiences",
         "name": "broadcast_audiences_target_check",
         "value": "(scope = 'class') = (class_id is not null)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "broadcast_families_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "broadcast_families_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "broadcast_families_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
         "entityType": "checks"
       }
     },
@@ -118460,7 +119909,7 @@
         "schema": "core",
         "table": "calendar_event_audiences",
         "name": "calendar_event_audiences_scope_check",
-        "value": "scope in ('school', 'staff', 'families', 'students', 'class')",
+        "value": "scope in ('school', 'staff', 'students', 'class')",
         "entityType": "checks"
       }
     },
@@ -118471,6 +119920,36 @@
         "table": "calendar_event_audiences",
         "name": "calendar_event_audiences_target_check",
         "value": "(scope = 'class') = (class_id is not null)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "calendar_event_families_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "calendar_event_families_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "calendar_event_families_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
         "entityType": "checks"
       }
     },
@@ -119360,7 +120839,7 @@
         "schema": "core",
         "table": "consent_records",
         "name": "consent_records_guardian_check",
-        "value": "capacity <> 'guardian' or (relationship_id is not null and given_by_user_id is not null)",
+        "value": "capacity <> 'guardian' or given_by_user_id is not null",
         "entityType": "checks"
       }
     },
@@ -122050,7 +123529,7 @@
         "schema": "health",
         "table": "requested_changes",
         "name": "requested_changes_shape_check",
-        "value": "(target = 'record') = (kind_descriptor_id is not null) and (target = 'contact') = (relationship_id is not null) and (record_id is null or target = 'record')",
+        "value": "(target = 'record') = (kind_descriptor_id is not null) and (record_id is null or target = 'record')",
         "entityType": "checks"
       }
     },
@@ -124679,6 +126158,16 @@
       "row": {
         "schema": "core",
         "table": "orgs",
+        "name": "orgs_learners_decide_from_check",
+        "value": "learners_decide_from between 1 and 25",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "orgs",
         "name": "orgs_address_check",
         "value": "jsonb_typeof(address) = 'object'",
         "entityType": "checks"
@@ -126220,7 +127709,7 @@
         "schema": "core",
         "table": "sessions",
         "name": "sessions_active_role_check",
-        "value": "active_role in ('student', 'teacher', 'aide', 'counselor', 'principal', 'site_administrator', 'district_administrator', 'system_administrator', 'proctor', 'staff', 'parent', 'guardian', 'relative', 'applicant_family')",
+        "value": "active_role in ('student', 'teacher', 'aide', 'counselor', 'principal', 'site_administrator', 'district_administrator', 'system_administrator', 'proctor', 'staff', 'parent', 'guardian', 'relative', 'applicant_family', 'applicant')",
         "entityType": "checks"
       }
     },
@@ -128320,7 +129809,7 @@
         "schema": "core",
         "table": "user_roles",
         "name": "user_roles_role_check",
-        "value": "role in ('student', 'teacher', 'aide', 'counselor', 'principal', 'site_administrator', 'district_administrator', 'system_administrator', 'proctor', 'staff', 'parent', 'guardian', 'relative', 'applicant_family')",
+        "value": "role in ('student', 'teacher', 'aide', 'counselor', 'principal', 'site_administrator', 'district_administrator', 'system_administrator', 'proctor', 'staff', 'parent', 'guardian', 'relative', 'applicant_family', 'applicant')",
         "entityType": "checks"
       }
     },
@@ -131726,6 +133215,93 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "broadcast_families",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "broadcast_families",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "broadcast_grades",
         "name": "tenant_isolation",
         "as": "RESTRICTIVE",
@@ -132192,6 +133768,93 @@
       "row": {
         "schema": "core",
         "table": "calendar_event_audiences",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_event_families",
         "name": "p_update",
         "as": "PERMISSIVE",
         "for": "UPDATE",
@@ -133484,6 +135147,75 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "consent_guardians",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "consent_guardians",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "consent_guardians",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "consent_guardians",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "consent_records",
         "name": "tenant_isolation",
         "as": "RESTRICTIVE",
@@ -133546,6 +135278,107 @@
         ],
         "using": null,
         "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "contact_changes",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "contact_changes",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "contact_changes",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "contact_changes",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "contact_changes",
+        "name": "purpose_gate",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "(select current_setting('app.purpose', true)) = 'health'",
+        "withCheck": "(select current_setting('app.purpose', true)) = 'health'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "contact_changes",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "exists (select 1 from health.requested_changes c where c.tenant_id = contact_changes.tenant_id and c.id = contact_changes.change_id and app.erasure_approved(c.tenant_id, c.student_user_id))",
+        "withCheck": null,
         "entityType": "policies"
       }
     },
@@ -143407,7 +145240,7 @@
           "site"
         ],
         "using": null,
-        "withCheck": "status = 'active' and source = 'website' and state = 'open'\n        and closed_reason is null and assignee_user_id is null and first_responded_at is null\n        and created_by_user_id is null and family_user_id is null and applicant_user_id is null\n        and thread_id is null and handled_at is null",
+        "withCheck": "status = 'active' and source = 'website' and state = 'open'\n        and closed_reason is null and assignee_user_id is null and first_responded_at is null\n        and created_by_user_id is null and enquirer_user_id is null and applicant_user_id is null\n        and thread_id is null and handled_at is null",
         "entityType": "policies"
       }
     },

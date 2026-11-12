@@ -385,9 +385,9 @@ describe("enrolling", () => {
     ).placements.find((row) => row.yearTitleEn === "2027–2028");
     expect(placement).toMatchObject({ from: "2027-09-12" });
     expect(placement?.previousSchool).toBe("Little Steps Nursery");
-    const parent = student.guardians?.find(
-      (row) => row.userId === before.family.id,
-    );
+    const parent = (
+      await office.guardians.ofStudent({ studentId: studentId })
+    ).guardians.find((row) => row.userId === before.family.id);
     expect(parent).toMatchObject({ legalGuardian: true, portalAccess: true });
 
     const me = await family.identity.currentUser();
@@ -447,7 +447,9 @@ describe("enrolling", () => {
     const student = await office.people.student({ id: known.id });
     expect(student.reference).toBe(full.reference);
     expect(
-      student.guardians?.some((row) => row.userId === before.family.id),
+      (
+        await office.guardians.ofStudent({ studentId: known.id })
+      ).guardians.some((row) => row.userId === before.family.id),
     ).toBe(true);
   });
 

@@ -18,16 +18,11 @@ import {
   retireFile,
 } from "@faridalms/database/stores/files";
 import { schoolProfile } from "@faridalms/database/stores/identity";
-import {
-  childrenOf,
-  permittingLink,
-  replaceContact,
-} from "@faridalms/database/stores/persons";
+import { replaceContact } from "@faridalms/database/stores/persons";
 import { closeRequest, requestById } from "@faridalms/database/stores/privacy";
 import {
+  askedHealthChanges,
   demographicsOf,
-  familyHealthChanges,
-  familyHealthRecordsOf,
   healthChangeById,
   healthChangeOf,
   healthChangeQueue,
@@ -36,23 +31,16 @@ import {
   healthRecordsOf,
   insertHealthChange,
   insertHealthRecord,
+  ownSummary,
   refreshMedicalAlert,
   removeHealthRecord,
   resealHealthChange,
-  restrictionsOf,
   saveDemographicsRow,
-  saveRestriction,
-  setCourtOrder,
-  courtOrderLink,
   setHealthReport,
   shareHealthReport,
-  updateCustodyFlags,
+  summaryRecordsOf,
   updateHealthRecord,
 } from "@faridalms/database/stores/records";
-import {
-  guardiansOf,
-  refreshCustodyAlert,
-} from "@faridalms/database/stores/students";
 import {
   arrangementsRefSchema,
   NO_ARRANGEMENTS,
@@ -61,20 +49,17 @@ import {
 import { healthReportName, safeFilename } from "@faridalms/domain/file";
 import {
   askHealthChangeSchema,
-  attachCourtOrderSchema,
   attachHealthReportSchema,
   CONTACT_LABELS,
   decideHealthChangeSchema,
-  FAMILY_HEALTH_KINDS,
   HEALTH_SEVERITIES,
   healthChangesSchema,
   removeHealthRecordSchema,
   removeHealthReportSchema,
-  removeCourtOrderSchema,
-  saveCustodySchema,
   saveDemographicsSchema,
   saveHealthRecordSchema,
   shareHealthReportSchema,
+  SUMMARY_KINDS,
 } from "@faridalms/domain/people";
 import { toE164 } from "@faridalms/domain/phone";
 import { ORPCError } from "@orpc/server";
@@ -93,8 +78,14 @@ import {
 } from "../core/procedure";
 import { withPurposeFor } from "../core/purpose";
 import { reachesStudent, requireStudent, scopeFor } from "../core/reach";
-import { logFamilyRequest } from "../core/records-requests";
+import { logLearnerRequest } from "../core/records-requests";
 import { registerHostReader } from "../files/authorize";
+import { decidingLearners } from "../people/acting";
+import {
+  contactKeeper,
+  contactsOf,
+  moduleReaderOf,
+} from "../student-records/points";
 
 const AUDIT_ACTIONS = {
   accepted: "health_change.accept",
@@ -557,222 +548,6 @@ export const saveDemographics = writeProcedure
     return { saved: true };
   });
 
-/** Each guardian link's restrictions, for staff who hold custody records. */
-export const custody = readProcedure
-  .input(v.object({ studentId: id }))
-  .handler(async ({ input, context }) => {
-    await requireStudent(context, "people", input.studentId);
-    const links = await guardiansOf(
-      context.tx,
-      scopeFor(context, "people"),
-      input.studentId,
-    );
-    const { restrictions, orders } = await withPurposeFor(
-      context,
-      {
-        purpose: "custody",
-        subjectUserId: input.studentId,
-        reason: "Opened the student's custody records",
-        write: false,
-      },
-      async (tx) => {
-        const found = await restrictionsOf(
-          tx,
-          context.tenantId,
-          links.map((link) => link.relationshipId),
-        );
-        return {
-          restrictions: found,
-          orders: await filesByIds(
-            tx,
-            context.tenantId,
-            found.flatMap((row) =>
-              row.courtOrderFileId ? [row.courtOrderFileId] : [],
-            ),
-          ),
-        };
-      },
-    );
-    return {
-      links: links.map((link) => ({
-        relationshipId: link.relationshipId,
-        version: link.version,
-        fullNameEn: link.fullNameEn,
-        fullNameAr: link.fullNameAr,
-        pickup: link.pickup,
-        educationalRights: link.educationalRights,
-        communicationIsolated: link.communicationIsolated,
-        portalAccess: link.portalAccess,
-        relationMeaning: link.relationMeaning,
-        accessBasis: link.accessBasis,
-        contactRestrictions:
-          restrictions.find((row) => row.relationshipId === link.relationshipId)
-            ?.contactRestrictions ?? null,
-        courtOrder: courtOrderOf(
-          orders,
-          restrictions.find((row) => row.relationshipId === link.relationshipId)
-            ?.courtOrderFileId ?? null,
-        ),
-      })),
-      canWrite: can(context, "custody:write"),
-    };
-  });
-
-function courtOrderOf(
-  files: readonly {
-    id: string;
-    name: string;
-    mediaType: string;
-    sizeBytes: number;
-  }[],
-  fileId: string | null,
-) {
-  const file = fileId ? files.find((row) => row.id === fileId) : undefined;
-  return file
-    ? {
-        fileId: file.id,
-        name: file.name,
-        mediaType: file.mediaType,
-        sizeBytes: file.sizeBytes,
-      }
-    : null;
-}
-
-/** The link a custody paper is for, one of the student's guardians. */
-async function custodyLink(
-  context: UnitContext,
-  tx: UnitContext["tx"],
-  input: { studentId: string; relationshipId: string },
-) {
-  const link = await courtOrderLink(tx, context.tenantId, input.relationshipId);
-  if (!link || link.studentId !== input.studentId)
-    throw new ORPCError("NOT_FOUND");
-  return link;
-}
-
-/** Keeps a court order or other custody paper on a guardian's link, replacing any it held. */
-export const attachCourtOrder = writeProcedure
-  .input(attachCourtOrderSchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "custody:write");
-    await requireStudent(context, "people", input.studentId);
-    const gone = await withPurposeFor(
-      context,
-      {
-        purpose: "custody",
-        subjectUserId: input.studentId,
-        reason: "Kept a custody paper on a guardian's link",
-        write: true,
-      },
-      async (tx) => {
-        await custodyLink(context, tx, input);
-        const placed = await linkFiles(tx, {
-          tenantId: context.tenantId,
-          userId: context.actor.userId,
-          ids: [input.order.fileId],
-          purpose: "legal_document",
-          host: { type: "relationship_restriction", id: input.relationshipId },
-        });
-        if (placed.length !== 1)
-          throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
-        const before = await setCourtOrder(tx, {
-          tenantId: context.tenantId,
-          relationshipId: input.relationshipId,
-          fileId: input.order.fileId,
-        });
-        return before && before !== input.order.fileId
-          ? retireFile(tx, {
-              tenantId: context.tenantId,
-              id: before,
-              host: {
-                type: "relationship_restriction",
-                id: input.relationshipId,
-              },
-            })
-          : null;
-      },
-    );
-    dropBytes(context, gone);
-    return { saved: true };
-  });
-
-/** Takes a guardian link's custody paper away. */
-export const removeCourtOrder = writeProcedure
-  .input(removeCourtOrderSchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "custody:write");
-    await requireStudent(context, "people", input.studentId);
-    const gone = await withPurposeFor(
-      context,
-      {
-        purpose: "custody",
-        subjectUserId: input.studentId,
-        reason: "Removed a custody paper from a guardian's link",
-        write: true,
-      },
-      async (tx) => {
-        await custodyLink(context, tx, input);
-        const before = await setCourtOrder(tx, {
-          tenantId: context.tenantId,
-          relationshipId: input.relationshipId,
-          fileId: null,
-        });
-        return before
-          ? retireFile(tx, {
-              tenantId: context.tenantId,
-              id: before,
-              host: {
-                type: "relationship_restriction",
-                id: input.relationshipId,
-              },
-            })
-          : null;
-      },
-    );
-    dropBytes(context, gone);
-    return { removed: true };
-  });
-
-export const saveCustody = writeProcedure
-  .input(saveCustodySchema)
-  .handler(async ({ input, context }) => {
-    await requireStudent(context, "people", input.studentId);
-    await withPurposeFor(
-      context,
-      {
-        purpose: "custody",
-        subjectUserId: input.studentId,
-        reason: "Changed a guardian's custody record",
-        write: true,
-      },
-      async (tx) => {
-        const saved = await updateCustodyFlags(tx, {
-          tenantId: context.tenantId,
-          studentId: input.studentId,
-          relationshipId: input.relationshipId,
-          expectedVersion: input.expectedVersion,
-          educationalRights: input.educationalRights,
-          communicationIsolated: input.communicationIsolated,
-          pickup: input.pickup,
-        });
-        if (!saved)
-          throw new ORPCError("CONFLICT", { message: "conflict.version" });
-        await saveRestriction(tx, {
-          tenantId: context.tenantId,
-          relationshipId: input.relationshipId,
-          contactRestrictions: input.contactRestrictions,
-        });
-        await refreshCustodyAlert(
-          tx,
-          context.tenantId,
-          input.studentId,
-          context.today,
-        );
-      },
-    );
-    return { saved: true };
-  });
-
 /**
  * Whoever keeps arrangements sees every student of the school; others see
  * the students they may read at all, whose arrangements they apply.
@@ -910,56 +685,25 @@ const healthKinds = (context: UnitContext) =>
     includeRetired: true,
   });
 
-/** The child's emergency contacts, in the order the office calls them. */
-async function emergencyContactsOf(context: UnitContext, studentId: string) {
-  const [links, relations] = await Promise.all([
-    guardiansOf(context.tx, scopeFor(context, "people"), studentId),
-    descriptorsFor(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      namespace: "relation",
-      today: context.today,
-      includeRetired: true,
-    }),
-  ]);
-  return links
-    .filter((link) => link.emergencyContact)
-    .toSorted((a, b) => (a.contactPriority ?? 99) - (b.contactPriority ?? 99))
-    .map((link) => {
-      const relation = relations.find((row) => row.id === link.relationId);
-      const phone = link.contacts.find((contact) => contact.kind === "phone");
-      return {
-        relationshipId: link.relationshipId,
-        userId: link.userId,
-        fullNameEn: link.fullNameEn,
-        fullNameAr: link.fullNameAr,
-        relation: relation
-          ? { labelEn: relation.labelEn, labelAr: relation.labelAr }
-          : null,
-        phone: phone?.value ?? null,
-        phoneLabel: phone?.label ?? null,
-      };
-    });
-}
-
 /**
- * A guardian's own link to a child they follow in the portal, and whether it
- * lets them read the medical summary; not found for any other child.
+ * How the viewer reads a learner's medical summary outside the health
+ * staff, and whether they may ask for a change: the learner reads their
+ * own and asks once they decide for themselves; someone a module lets act
+ * for them reads and asks by the module's rule. Not found for a learner the
+ * viewer does not reach as their own or one they follow.
  */
-async function familyLinkTo(context: UnitContext, studentId: string) {
-  requireCapability(context, "children:read");
-  const link = (
-    await childrenOf(context.tx, scopeFor(context, "own"), context.actor.userId)
-  ).find((row) => row.visible && row.studentId === studentId);
-  if (!link) throw new ORPCError("NOT_FOUND");
-  const permitting = await permittingLink(context.tx, {
-    tenantId: context.tenantId,
-    viewerId: context.actor.userId,
-    studentId,
-    today: context.today,
-    purpose: "health",
-  });
-  return permitting !== null;
+async function summaryAccess(context: UnitContext, studentId: string) {
+  if (!(await reachesStudent(context, "own", studentId)))
+    throw new ORPCError("NOT_FOUND");
+  if (studentId === context.actor.userId)
+    return {
+      reader: ownSummary(context.actor.userId),
+      asks: (await decidingLearners(context, [studentId], context.today)).has(
+        studentId,
+      ),
+    };
+  const reader = await moduleReaderOf(context, studentId);
+  return reader ? { reader, asks: true } : null;
 }
 
 async function openChange(context: UnitContext, row: HealthChangeRow) {
@@ -973,36 +717,36 @@ async function openChange(context: UnitContext, row: HealthChangeRow) {
 }
 
 /**
- * A child's medical summary as a guardian the school permits reads it:
- * allergies, conditions, medicines, diet and doctor, the emergency
- * contacts, and the changes this guardian has asked for. Notes and plans
- * the health staff keep are not part of it. Any other guardian learns only
- * that the summary is not shared with them.
+ * A learner's medical summary as the learner, or someone the school permits
+ * to act for them, reads it: allergies, conditions, medicines, diet and
+ * doctor, the emergency contacts, and the changes this reader has asked
+ * for. Notes and plans the health staff keep are not part of it. A reader
+ * the school does not permit learns only that the summary is not shared
+ * with them.
  */
-export const familyHealth = readProcedure
+export const summary = readProcedure
   .input(v.object({ studentId: id }))
   .handler(async ({ input, context }) => {
-    if (!(await familyLinkTo(context, input.studentId)))
-      return { permitted: false as const };
+    const access = await summaryAccess(context, input.studentId);
+    if (!access) return { permitted: false as const };
     const [rows, changes, kinds] = await withPurposeFor(
       context,
       {
         purpose: "health",
         subjectUserId: input.studentId,
-        reason: "A guardian opened the child's medical summary",
+        reason: "Opened the learner's medical summary",
         write: false,
-        capabilities: ["children:read"],
+        capabilities: ["own-work:read", "children:read"],
       },
       (tx) =>
         Promise.all([
-          familyHealthRecordsOf(tx, {
+          summaryRecordsOf(tx, {
             tenantId: context.tenantId,
             studentId: input.studentId,
-            viewerId: context.actor.userId,
-            today: context.today,
-            meanings: FAMILY_HEALTH_KINDS,
+            reader: access.reader,
+            meanings: SUMMARY_KINDS,
           }),
-          familyHealthChanges(tx, {
+          askedHealthChanges(tx, {
             tenantId: context.tenantId,
             orgId: context.schoolId,
             studentId: input.studentId,
@@ -1012,7 +756,7 @@ export const familyHealth = readProcedure
         ]),
     );
     const meaningOf = (kindId: string | null) =>
-      FAMILY_HEALTH_KINDS.find(
+      SUMMARY_KINDS.find(
         (kind) => kind === kinds.find((row) => row.id === kindId)?.meaning,
       ) ?? null;
     const reportOf = await reportFiles(context, [
@@ -1033,7 +777,7 @@ export const familyHealth = readProcedure
             version: row.version,
             kind,
             ...recordValueOf(held),
-            // The family learns a report exists, and opens it once shared.
+            // The reader learns a report exists, and opens it once shared.
             report: row.fileId
               ? row.reportShared
                 ? {
@@ -1049,6 +793,16 @@ export const familyHealth = readProcedure
         ];
       }),
     );
+    const keeper = await contactKeeper(context);
+    const about = keeper
+      ? await withPurpose(context.tx, "health", (tx) =>
+          keeper.changesOf(
+            context,
+            tx,
+            changes.map((row) => row.id),
+          ),
+        )
+      : new Map<string, string>();
     const asked = await Promise.all(
       changes.map(async (row) => {
         const payload = await openChange(context, row);
@@ -1057,7 +811,7 @@ export const familyHealth = readProcedure
           target: row.target,
           kind: meaningOf(row.kindId),
           recordId: row.recordId,
-          relationshipId: row.relationshipId,
+          contactId: about.get(row.id) ?? null,
           before: payload.before,
           after: payload.after,
           reason: payload.reason ?? null,
@@ -1068,12 +822,13 @@ export const familyHealth = readProcedure
         };
       }),
     );
-    const contacts = await emergencyContactsOf(context, input.studentId);
+    const contacts = await contactsOf(context, input.studentId);
     return {
       permitted: true as const,
+      asks: access.asks,
       records,
       contacts: contacts.map((contact) => ({
-        relationshipId: contact.relationshipId,
+        id: contact.id,
         fullNameEn: contact.fullNameEn,
         fullNameAr: contact.fullNameAr,
         relation: contact.relation,
@@ -1084,15 +839,17 @@ export const familyHealth = readProcedure
   });
 
 /**
- * A permitted guardian asks the school to add or change one entry of the
- * medical summary, or an emergency contact's phone. It joins the office's
- * register as a correction with its deadline, and the record stays as it
- * is until the health staff accept it.
+ * The learner who decides for themself, or someone permitted to act for
+ * them, asks the school to add or change one entry of the medical summary,
+ * or an emergency contact's phone. It joins the office's register as a
+ * correction with its deadline, and the record stays as it is until the
+ * health staff accept it.
  */
-export const askHealthChange = writeProcedure
+export const askChange = writeProcedure
   .input(askHealthChangeSchema)
   .handler(async ({ input, context }) => {
-    if (!(await familyLinkTo(context, input.studentId)))
+    const access = await summaryAccess(context, input.studentId);
+    if (!access?.asks)
       throw new ORPCError("FORBIDDEN", { message: "health.not_permitted" });
     const country =
       (await schoolProfile(context.tx, context.schoolId))?.countryCode ?? "EG";
@@ -1101,16 +858,16 @@ export const askHealthChange = writeProcedure
       {
         purpose: "health",
         subjectUserId: input.studentId,
-        reason: "A guardian asked to change the child's medical summary",
+        reason: "Asked to change the learner's medical summary",
         write: true,
-        capabilities: ["children:read"],
+        capabilities: ["own-work:read", "children:read"],
       },
       async (tx) => {
         let before: ChangeValue | null = null;
         let after: ChangeValue;
         let kindId: string | null = null;
         let recordId: string | null = null;
-        let relationshipId: string | null = null;
+        let contactId: string | null = null;
         const rowId = Bun.randomUUIDv7();
         const report = input.target === "record" ? input.report : undefined;
         if (input.target === "record") {
@@ -1126,11 +883,10 @@ export const askHealthChange = writeProcedure
           };
           if (input.recordId) {
             const current = (
-              await familyHealthRecordsOf(tx, {
+              await summaryRecordsOf(tx, {
                 tenantId: context.tenantId,
                 studentId: input.studentId,
-                viewerId: context.actor.userId,
-                today: context.today,
+                reader: access.reader,
                 meanings: [input.kind],
               })
             ).find((row) => row.id === input.recordId);
@@ -1147,16 +903,16 @@ export const askHealthChange = writeProcedure
             );
           }
         } else {
-          const contact = (
-            await emergencyContactsOf(context, input.studentId)
-          ).find((row) => row.relationshipId === input.relationshipId);
+          const contact = (await contactsOf(context, input.studentId)).find(
+            (row) => row.id === input.contactId,
+          );
           if (!contact) throw new ORPCError("NOT_FOUND");
           const phone = toE164(input.phone, country);
           if (!phone)
             throw new ORPCError("BAD_REQUEST", {
               message: "contact_point.phone_invalid",
             });
-          relationshipId = contact.relationshipId;
+          contactId = contact.id;
           before = { phone: contact.phone };
           after = { phone };
         }
@@ -1177,7 +933,7 @@ export const askHealthChange = writeProcedure
           ).length !== 1
         )
           throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
-        const request = await logFamilyRequest(context, {
+        const request = await logLearnerRequest(context, {
           studentId: input.studentId,
           details: null,
           topic: "health",
@@ -1198,23 +954,28 @@ export const askHealthChange = writeProcedure
           requestId: request.id,
           studentId: input.studentId,
           requestedByUserId: context.actor.userId,
-          today: context.today,
+          reader: access.reader,
           target: input.target,
           kindId,
           recordId,
-          relationshipId,
           ...sealed,
           fileId: report?.fileId ?? null,
         });
         if (!kept)
           throw new ORPCError("FORBIDDEN", { message: "health.not_permitted" });
+        if (contactId) {
+          const keeper = await contactKeeper(context);
+          if (!keeper) throw new ORPCError("NOT_FOUND");
+          await keeper.keepChange(context, tx, { changeId: rowId, contactId });
+        }
         return request;
       },
     );
   });
 
 /**
- * The changes families asked for that the health staff answer, open ones
+ * The changes learners and those who act for them asked for, which the
+ * health staff answer, open ones
  * first by the day they fall due, each beside what the school holds now so
  * the two can be compared.
  */
@@ -1228,12 +989,13 @@ export const healthChanges = readProcedure
       open: input.open,
     };
     const students = await healthQueueStudents(context.tx, scope);
+    const keeper = await contactKeeper(context);
     const { rows, current, kinds } = await withPurposeFor(
       context,
       {
         purpose: "health",
         subjectUserId: students,
-        reason: "Opened the changes families asked for",
+        reason: "Opened the medical summary changes asked for",
         write: true,
       },
       async (tx) => {
@@ -1246,7 +1008,22 @@ export const healthChanges = readProcedure
           ),
           healthKinds(context),
         ]);
-        return { rows: queue, current: held.flat(), kinds: labels };
+        const about = keeper
+          ? await keeper.changesOf(
+              context,
+              tx,
+              queue.map((row) => row.id),
+            )
+          : new Map<string, string>();
+        return {
+          // A change to a contact is about a module's contact, so it waits
+          // unseen while no module keeps contacts.
+          rows: queue
+            .filter((row) => row.target !== "contact" || about.has(row.id))
+            .map((row) => ({ ...row, contactId: about.get(row.id) ?? null })),
+          current: held.flat(),
+          kinds: labels,
+        };
       },
     );
     const reportOf = await reportFiles(
@@ -1263,7 +1040,7 @@ export const healthChanges = readProcedure
           ),
         ].map(
           async (studentId) =>
-            [studentId, await emergencyContactsOf(context, studentId)] as const,
+            [studentId, await contactsOf(context, studentId)] as const,
         ),
       ),
     );
@@ -1274,7 +1051,7 @@ export const healthChanges = readProcedure
         const record = current.find((entry) => entry.id === row.recordId);
         const contact = contacts
           .get(row.studentId)
-          ?.find((entry) => entry.relationshipId === row.relationshipId);
+          ?.find((entry) => entry.id === row.contactId);
         const now: ChangeValue | null =
           row.target === "contact"
             ? { phone: contact?.phone ?? null }
@@ -1440,11 +1217,16 @@ async function keepChangeReport(
 
 async function applyContactChange(
   context: UnitContext,
+  tx: UnitContext["tx"],
   row: HealthChangeRow,
   phone: string | null,
 ) {
-  const contact = (await emergencyContactsOf(context, row.studentId)).find(
-    (entry) => entry.relationshipId === row.relationshipId,
+  const keeper = await contactKeeper(context);
+  const contactId = keeper
+    ? (await keeper.changesOf(context, tx, [row.id])).get(row.id)
+    : undefined;
+  const contact = (await contactsOf(context, row.studentId)).find(
+    (entry) => entry.id === contactId,
   );
   if (!contact || !phone)
     throw new ORPCError("CONFLICT", { message: "health.change_stale" });
@@ -1497,8 +1279,8 @@ export const decideHealthChange = writeProcedure
         subjectUserId: request.subjectUserId,
         reason:
           input.decision === "accepted"
-            ? "Applied a change a family asked for"
-            : "Declined a change a family asked for",
+            ? "Applied a change asked for in the medical summary"
+            : "Declined a change asked for in the medical summary",
         write: true,
       },
       async (tx) => {
@@ -1537,7 +1319,7 @@ export const decideHealthChange = writeProcedure
               shared: input.shareReport,
             });
         } else if (row.target === "contact" && "phone" in payload.after)
-          await applyContactChange(context, row, payload.after.phone);
+          await applyContactChange(context, tx, row, payload.after.phone);
         else throw new Error("a health change's payload must match its target");
         const closed = await closeRequest(tx, {
           tenantId: context.tenantId,
@@ -1580,22 +1362,8 @@ export const decideHealthChange = writeProcedure
 
 /**
  * A record's report opens for the health staff who reach its student, and
- * for a guardian who reads the medical summary once the school shares it.
+ * for whoever reads the learner's medical summary once the school shares it.
  */
-// A custody paper opens for the staff who read custody records of a
-// student they reach, and for nobody else.
-registerHostReader(
-  "relationship_restriction",
-  async (context, relationshipId, file) => {
-    if (!file || !can(context, "custody:read")) return false;
-    const link = await withPurpose(context.tx, "custody", (tx) =>
-      courtOrderLink(tx, context.tenantId, relationshipId),
-    );
-    if (!link || link.fileId !== file.id) return false;
-    return reachesStudent(context, "people", link.studentId);
-  },
-);
-
 registerHostReader("health_record", async (context, recordId, file) => {
   const record = await withPurpose(context.tx, "health", (tx) =>
     healthRecordOf(tx, context.tenantId, recordId),
@@ -1603,15 +1371,17 @@ registerHostReader("health_record", async (context, recordId, file) => {
   if (!file || !record || record.fileId !== file.id) return false;
   if (can(context, "health:read"))
     return reachesStudent(context, "people", record.studentId);
-  if (!can(context, "children:read")) return false;
+  const access = await summaryAccess(context, record.studentId).catch(
+    () => null,
+  );
+  if (!access) return false;
   return withPurpose(context.tx, "health", async (tx) =>
     (
-      await familyHealthRecordsOf(tx, {
+      await summaryRecordsOf(tx, {
         tenantId: context.tenantId,
         studentId: record.studentId,
-        viewerId: context.actor.userId,
-        today: context.today,
-        meanings: FAMILY_HEALTH_KINDS,
+        reader: access.reader,
+        meanings: SUMMARY_KINDS,
       })
     ).some(
       (row) =>
@@ -1620,7 +1390,7 @@ registerHostReader("health_record", async (context, recordId, file) => {
   );
 });
 
-/** A report a family sent with a change opens for the health staff who answer it. */
+/** A report sent with a change opens for the health staff who answer it. */
 registerHostReader("health_change", (context, changeId, file) =>
   withPurpose(context.tx, "health", async (tx) => {
     if (!file || !can(context, "health:write")) return false;

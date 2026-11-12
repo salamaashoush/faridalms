@@ -245,12 +245,12 @@ describe("absence notices", () => {
     const office = await principal();
     const student = await sessionFor("northwind", login("student"));
     const me = await student.api.identity.currentUser();
-    const father = (await office.people.student({ id: me.id })).guardians?.find(
-      (row) => row.relationMeaning === "father",
-    );
+    const father = (
+      await office.guardians.ofStudent({ studentId: me.id })
+    ).guardians.find((row) => row.relationMeaning === "father");
     if (!father || father.portalAccess)
       throw new Error("the seeded father uses the family app");
-    await office.people.saveRelationship({
+    await office.guardians.saveLink({
       studentId: me.id,
       relationshipId: father.relationshipId,
       expectedVersion: father.version,

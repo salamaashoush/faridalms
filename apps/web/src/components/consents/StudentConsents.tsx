@@ -64,7 +64,11 @@ function AnswerLine({ answer }: AnswerLineProps) {
   return (
     <span className="text-[13px] leading-[18px] text-muted-foreground">
       {[
-        answer.givenBy ? nameOf(answer.givenBy) : null,
+        answer.givenBy
+          ? nameOf(answer.givenBy)
+          : answer.capacity === "school_on_behalf"
+            ? m.consentByOffice()
+            : null,
         formatDate(answer.givenOn),
         METHOD_LABEL[answer.method](),
         answer.versionLabel
@@ -109,13 +113,14 @@ export function StudentConsents({ studentId }: StudentConsentsProps) {
     open: boolean;
     key: number;
   }>({ purpose: null, open: false, key: 0 });
-  const recordable = data.canRecord && data.answerers.length > 0;
+  const answerable = data.answerers.length > 0 || data.office;
+  const recordable = data.canRecord && answerable;
   return (
     <>
       <RecordSection
         title={m.consentsTitle()}
         description={
-          data.canRecord && data.answerers.length === 0
+          data.canRecord && !answerable
             ? m.consentsNoAnswerer()
             : m.consentsHint()
         }
@@ -240,8 +245,8 @@ function RecordSheet({
   onClose,
 }: RecordSheetProps) {
   const queryClient = useQueryClient();
-  const [relationshipId, setRelationshipId] = useState(
-    data.answerers[0]?.relationshipId ?? "",
+  const [answeredBy, setAnsweredBy] = useState(
+    data.answerers[0]?.answeredBy ?? (data.office ? "office" : ""),
   );
   const [agreed, setAgreed] = useState<"yes" | "no" | "">("");
   const [method, setMethod] = useState<OfficeMethod>("paper_scanned");
@@ -256,7 +261,7 @@ function RecordSheet({
         data: {
           studentId,
           purposeId: purpose.id,
-          relationshipId,
+          answeredBy,
           agreed: agreed === "yes",
           method,
           givenOn,
@@ -292,14 +297,19 @@ function RecordSheet({
     >
       <SelectField
         id="consent-guardian"
-        label={m.consentGuardian()}
-        hint={m.consentGuardianHint()}
-        value={relationshipId}
-        options={data.answerers.map((row) => ({
-          value: row.relationshipId,
-          label: nameOf(row),
-        }))}
-        onChange={setRelationshipId}
+        label={m.consentAnsweredBy()}
+        hint={m.consentAnsweredByHint()}
+        value={answeredBy}
+        options={[
+          ...data.answerers.map((row) => ({
+            value: row.answeredBy,
+            label: nameOf(row),
+          })),
+          ...(data.office
+            ? [{ value: "office", label: m.consentByOffice() }]
+            : []),
+        ]}
+        onChange={setAnsweredBy}
         width="name"
       />
       <SelectField

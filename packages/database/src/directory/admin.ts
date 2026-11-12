@@ -61,6 +61,8 @@ export interface OperatorSchool {
     videoMinutes: number;
     schoolDays7d: number;
     failedDeliveries1d: number;
+    /** What each module counts at the school, by its key. */
+    facts: Record<string, number>;
     measuredAt: string;
   } | null;
 }
@@ -185,6 +187,7 @@ interface SchoolRow {
   videoMinutes: number | null;
   schoolDays7d: number | null;
   failedDeliveries1d: number | null;
+  facts: Record<string, number> | null;
   measuredAt: Date | null;
   createdAt: Date;
 }
@@ -218,6 +221,7 @@ function schoolOf(row: SchoolRow): OperatorSchool {
             videoMinutes: row.videoMinutes ?? 0,
             schoolDays7d: row.schoolDays7d ?? 0,
             failedDeliveries1d: row.failedDeliveries1d ?? 0,
+            facts: row.facts ?? {},
             measuredAt: row.measuredAt.toISOString(),
           }
         : null,
@@ -259,6 +263,7 @@ export function openDirectoryAdmin(url: string) {
         videoMinutes: schoolUsage.videoMinutes,
         schoolDays7d: schoolUsage.schoolDays7d,
         failedDeliveries1d: schoolUsage.failedDeliveries1d,
+        facts: schoolUsage.facts,
         measuredAt: schoolUsage.measuredAt,
         createdAt: schools.createdAt,
       })

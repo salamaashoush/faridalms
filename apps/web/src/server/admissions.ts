@@ -17,7 +17,7 @@ import {
   moveApplicationSchema,
   moveItemSchema,
   recordEventSchema,
-  registerFamilySchema,
+  registerApplicantSchema,
   releaseSchema,
   saveDraftSchema,
   saveEventSchema,
@@ -146,8 +146,12 @@ export const fileForFamily = createServerFn({ method: "POST" })
   .validator(checked(attachDocumentSchema))
   .handler(({ data }) => backend().applications.attach(data));
 
+export const getRegistration = createServerFn({ method: "GET" }).handler(() =>
+  backend().applying.registration(),
+);
+
 export const registerFamily = createServerFn({ method: "POST" })
-  .validator(checked(registerFamilySchema))
+  .validator(checked(registerApplicantSchema))
   .handler(({ data }) => backend().applying.register(data));
 
 export const getMyApplications = createServerFn({ method: "GET" }).handler(() =>

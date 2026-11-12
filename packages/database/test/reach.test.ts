@@ -4,6 +4,13 @@ import { harness, probe } from "./harness";
 
 const ON = "2026-10-01";
 
+/**
+ * The learners the viewer in `$1` follows on `$3`, as the families module
+ * answers them: the core functions take them from it, never on their own.
+ */
+const FOLLOWED = `array(select r.student_user_id from core.user_relationships r
+  where r.related_user_id = $1 and app.guardian_permits(r, $3::date, 'follow'))`;
+
 async function one<T>(text: string, params: unknown[] = []): Promise<T> {
   const [row] = await harness().su.unsafe(text, params);
   if (!row) throw new Error(`no row for ${text}`);
@@ -75,7 +82,7 @@ async function reached(tenantId: string, viewer: string, seen: Family) {
     [
       ...apart(tenantId, seen),
       {
-        text: `select user_id, record from app.reached_people($1, $2, $3::date, false)`,
+        text: `select user_id, record from app.reached_people($1, $2, $3::date, false, ${FOLLOWED})`,
         params: [viewer, seen.school, ON],
       },
     ],
@@ -118,7 +125,7 @@ describe("how far a viewer reaches a person", () => {
         params: [a.tenantId, seen.mother],
       },
       {
-        text: `select count(*)::int as n from app.reached_people($1, $2, $3::date, false)
+        text: `select count(*)::int as n from app.reached_people($1, $2, $3::date, false, ${FOLLOWED})
                where user_id = $4`,
         params: [seen.mother, seen.school, ON, seen.teacher],
       },
@@ -127,12 +134,43 @@ describe("how far a viewer reaches a person", () => {
     expect(result.rows[0]?.n).toBe(0);
   });
 
-  test("staff reach their colleagues' whole records, as before", async () => {
+  test("staff reach their colleagues' whole records, and a student's guardian only through the families module", async () => {
     const { a } = harness();
     const seen = await family(a.tenantId);
     const reach = await reached(a.tenantId, seen.teacher, seen);
     expect(reach.get(seen.stranger)).toBe(true);
-    expect(reach.get(seen.mother)).toBe(true);
+    expect(reach.get(seen.mother) ?? false).toBe(false);
+  });
+
+  test("a followed id that is not a student staying at the school opens nothing", async () => {
+    const { a, b } = harness();
+    const seen = await family(a.tenantId);
+    const elsewhere = await one<{ student: string }>(
+      `select s.user_id as student from core.user_roles s
+       where s.tenant_id = $1 and s.role = 'student' and s.status = 'active'
+         and s.org_id <> $2
+       order by s.user_id limit 1`,
+      [a.tenantId, seen.school],
+    );
+    const foreign = await one<{ student: string }>(
+      `select s.user_id as student from core.user_roles s
+       where s.tenant_id = $1 and s.role = 'student' and s.status = 'active'
+       order by s.user_id limit 1`,
+      [b.tenantId],
+    );
+    const result = await probe<{ student_user_id: string }>("app", a.tenantId, [
+      {
+        text: `select student_user_id from app.visible_students($1, $2, $3::date, false, $4::uuid[])`,
+        params: [
+          seen.mother,
+          seen.school,
+          ON,
+          `{${elsewhere.student},${foreign.student},${seen.mother}}`,
+        ],
+      },
+    ]);
+    expect(result.error).toBeUndefined();
+    expect(result.rows).toEqual([]);
   });
 
   test("a conversation opens the other grown-ups' profiles, never a student's", async () => {
@@ -173,7 +211,7 @@ describe("how far a viewer reaches a person", () => {
           ],
         },
         {
-          text: `select user_id, record from app.reached_people($1, $2, $3::date, false)
+          text: `select user_id, record from app.reached_people($1, $2, $3::date, false, ${FOLLOWED})
                  where user_id = any($4::uuid[])`,
           params: [
             seen.mother,

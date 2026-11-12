@@ -16,6 +16,7 @@ import {
   sessionFor,
   signedIn,
   timeHasCome,
+  workerModules,
 } from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
@@ -224,12 +225,21 @@ describe("announcements going out", () => {
       (await family.notifications.list({ tab: "all" })).rows.filter(
         (row) => row.subjectId === saved.id,
       );
-    await runGoLive(seeded().cell, tenantId(), { channels });
+    await runGoLive(seeded().cell, tenantId(), {
+      channels,
+      modules: workerModules(),
+    });
     expect(await notices()).toHaveLength(0);
 
     await timeHasCome("broadcasts", saved.id);
-    await runGoLive(seeded().cell, tenantId(), { channels });
-    await runGoLive(seeded().cell, tenantId(), { channels });
+    await runGoLive(seeded().cell, tenantId(), {
+      channels,
+      modules: workerModules(),
+    });
+    await runGoLive(seeded().cell, tenantId(), {
+      channels,
+      modules: workerModules(),
+    });
     const told = await notices();
     expect(told).toHaveLength(1);
     expect(told[0]?.kind).toBe("announcement");
@@ -654,8 +664,14 @@ describe("writing announcements with headings", () => {
       ).length;
 
     await timeHasCome("broadcasts", kept.id);
-    await runGoLive(seeded().cell, tenantId(), { channels });
-    await runGoLive(seeded().cell, tenantId(), { channels });
+    await runGoLive(seeded().cell, tenantId(), {
+      channels,
+      modules: workerModules(),
+    });
+    await runGoLive(seeded().cell, tenantId(), {
+      channels,
+      modules: workerModules(),
+    });
     expect(await told(kept.id)).toBe(1);
     expect(await told(dropped.id)).toBe(0);
     expect(keptOut.recipients).toBeGreaterThan(0);

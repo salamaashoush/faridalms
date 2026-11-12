@@ -727,16 +727,23 @@ export type Needs = Record<NeedsKind, string>;
 export const emptyNeeds = (): Needs =>
   Object.fromEntries(NEEDS_KINDS.map((kind) => [kind, ""])) as Needs;
 
-/** Starts an application for a child: one already applying through this family, or a new one. */
+/**
+ * Starts an application: for the filer themself, or for another person,
+ * one already applied for by this filer or a new one.
+ */
 export const startApplicationSchema = v.pipe(
   v.object({
     intakeId: id,
+    self: v.optional(v.boolean(), false),
     applicantId: v.optional(v.union([v.literal(""), id]), ""),
     child: v.nullable(childSchema),
     locale: v.picklist(["en", "ar"]),
   }),
   v.check(
-    (input) => (input.applicantId === "") !== (input.child === null),
+    (input) =>
+      input.self
+        ? input.applicantId === "" && input.child === null
+        : (input.applicantId === "") !== (input.child === null),
     "application.child",
   ),
 );
@@ -883,11 +890,13 @@ export function applicationReference(entryYear: number, count: number): string {
 }
 
 /**
- * Registering as a family on the portal: a name, an address to confirm and
- * a phone, sent through Turnstile where it is set up, with the same hidden
- * field and fill time as the website's forms.
+ * Registering on the portal to apply: a name, an address to confirm and a
+ * phone, sent through Turnstile where it is set up, with the same hidden
+ * field and fill time as the website's forms, and whether the person
+ * applies for themself or for someone in their care.
  */
-export const registerFamilySchema = v.object({
+export const registerApplicantSchema = v.object({
+  applyingFor: v.optional(v.picklist(["self", "other"]), "self"),
   names: personNamesSchema,
   email: v.pipe(
     v.string(),
@@ -901,10 +910,10 @@ export const registerFamilySchema = v.object({
   turnstile: v.optional(v.pipe(v.string(), v.maxLength(2048)), ""),
   website: v.optional(v.pipe(v.string(), v.maxLength(200)), ""),
   elapsed: v.pipe(v.number(), v.minValue(0)),
-  /** The intake the family came to apply for, carried back to the form. */
+  /** The intake the person came to apply for, carried back to the form. */
   intake: v.optional(v.pipe(v.string(), v.uuid())),
 });
-export type RegisterFamily = v.InferOutput<typeof registerFamilySchema>;
+export type RegisterApplicant = v.InferOutput<typeof registerApplicantSchema>;
 
 const applicationVersion = v.object({ id, expectedVersion: version });
 const someApplications = v.pipe(

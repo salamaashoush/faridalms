@@ -6,12 +6,10 @@ import { historyQuerySchema } from "@faridalms/domain/history";
 import {
   accountStateSchema,
   cancelLeavingSchema,
-  endRelationshipSchema,
-  guardianLookupSchema,
+  contactLookupSchema,
   personSearchSchema,
   recordLeavingSchema,
   saveContactsSchema,
-  saveRelationshipSchema,
   saveSignInSchema,
   saveStudentSchema,
   setPhotoSchema,
@@ -40,31 +38,17 @@ export const getStudentHistory = createServerFn({ method: "GET" })
   .validator(checked(historyQuerySchema))
   .handler(({ data }) => record(backend().people.studentHistory(data)));
 
-export const getStudentNotices = createServerFn({ method: "GET" })
-  .validator(byId)
-  .handler(({ data }) => record(backend().people.studentNotices(data)));
-
 export const getStudentMatches = createServerFn({ method: "GET" })
   .validator(checked(studentMatchesSchema))
   .handler(({ data }) => backend().people.matches(data));
 
-export const findGuardians = createServerFn({ method: "GET" })
-  .validator(checked(guardianLookupSchema))
-  .handler(({ data }) => backend().people.findGuardians(data));
+export const findByContact = createServerFn({ method: "GET" })
+  .validator(checked(contactLookupSchema))
+  .handler(({ data }) => backend().people.findByContact(data));
 
 export const saveStudent = createServerFn({ method: "POST" })
   .validator(checked(saveStudentSchema))
   .handler(({ data }) => backend().people.saveStudent(data));
-
-export const saveRelationship = createServerFn({ method: "POST" })
-  .validator(checked(saveRelationshipSchema))
-  .handler(({ data }) => backend().people.saveRelationship(data));
-
-export const endRelationship = createServerFn({ method: "POST" })
-  .validator((input: v.InferInput<typeof endRelationshipSchema>) =>
-    v.parse(endRelationshipSchema, input),
-  )
-  .handler(({ data }) => backend().people.endLink(data));
 
 export const getPersonRecord = createServerFn({ method: "GET" })
   .validator(byId)
@@ -109,10 +93,6 @@ export const setSignInState = createServerFn({ method: "POST" })
 export const changePhoto = createServerFn({ method: "POST" })
   .validator(checked(setPhotoSchema))
   .handler(({ data }) => backend().people.setPhoto(data));
-
-export const getSiblings = createServerFn({ method: "GET" })
-  .validator(byId)
-  .handler(({ data }) => record(backend().people.siblings(data)));
 
 export const saveContacts = createServerFn({ method: "POST" })
   .validator(checked(saveContactsSchema))

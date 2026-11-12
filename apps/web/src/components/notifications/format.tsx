@@ -536,7 +536,10 @@ export function NoticeLink({
       );
     case "consent":
       return (
-        <Link {...rest} to="/family/consents">
+        <Link
+          {...rest}
+          to={workspace === "family" ? "/family/consents" : "/me/consents"}
+        >
           {children}
         </Link>
       );

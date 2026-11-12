@@ -1,11 +1,8 @@
 import type { ReactNode, Ref } from "react";
 
 import { fullName, saveStudentSchema } from "@faridalms/domain/people";
-import { Button } from "@faridalms/ui/button";
-import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
-import { Value } from "@faridalms/ui/system/value";
 import {
   useMutation,
   useQueryClient,
@@ -13,23 +10,18 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Plus, TriangleAlert, X } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { peopleOptionsQuery, studentRecordQuery } from "~/queries/students";
-import {
-  findGuardians,
-  getStudentMatches,
-  saveStudent,
-} from "~/server/students";
-import { formatList } from "~/utils/datetime";
+import { getStudentMatches, saveStudent } from "~/server/students";
 import { refusalOf } from "~/utils/error";
 import { schemaErrors } from "~/utils/validation";
 
-import type { FlagsDraft, NamesDraft } from "./fields";
+import type { NamesDraft } from "./fields";
 
 import {
   EMPTY_NAMES,
@@ -37,24 +29,11 @@ import {
   NameFields,
   namesFrom,
   namesInput,
-  PARENT_FLAGS,
-  RelationshipFields,
 } from "./fields";
 import { displayName, labelOf } from "./format";
 import { studentEditorParts } from "./slots";
 
 type Match = Awaited<ReturnType<typeof getStudentMatches>>[number];
-type Found = Awaited<ReturnType<typeof findGuardians>>[number];
-
-interface GuardianDraft {
-  key: number;
-  phone: string;
-  email: string;
-  found: Found[] | null;
-  choice: string;
-  names: NamesDraft;
-  flags: FlagsDraft;
-}
 
 interface Draft {
   names: NamesDraft;
@@ -64,7 +43,6 @@ interface Draft {
   sexId: string;
   /** What modules keep about the student, by their keys. */
   parts: Record<string, unknown>;
-  guardians: GuardianDraft[];
 }
 
 const ADD_ANOTHER = "add-another";
@@ -140,148 +118,6 @@ function Matches({ students, ref }: MatchesProps) {
   );
 }
 
-interface GuardianBlockProps {
-  draft: GuardianDraft;
-  index: number;
-  relations: { value: string; label: string }[];
-  onChange: (draft: GuardianDraft) => void;
-  onRemove: () => void;
-  nameError?: string | null;
-}
-
-function GuardianBlock({
-  draft,
-  index,
-  relations,
-  onChange,
-  onRemove,
-  nameError,
-}: GuardianBlockProps) {
-  const [looking, setLooking] = useState(false);
-  const [contactError, setContactError] = useState<string | null>(null);
-  const legendId = useId();
-  const prefix = `guardian-${draft.key}`;
-  const lookUp = async () => {
-    if (!draft.phone.trim() && !draft.email.trim()) {
-      setContactError(m.guardianContactRequired());
-      return;
-    }
-    setContactError(null);
-    setLooking(true);
-    try {
-      const found = await findGuardians({
-        data: { phone: draft.phone, email: draft.email },
-      });
-      onChange({ ...draft, found, choice: found[0]?.id ?? "new" });
-    } finally {
-      setLooking(false);
-    }
-  };
-  return (
-    <fieldset
-      aria-labelledby={legendId}
-      className="grid gap-6 rounded-lg border p-4"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <legend id={legendId} className="text-sm leading-5 font-semibold">
-          {m.guardianNumbered({ number: index + 1 })}
-        </legend>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={m.guardianRemoveDraft({ number: index + 1 })}
-          onClick={onRemove}
-        >
-          <X aria-hidden />
-        </Button>
-      </div>
-      <div className="flex flex-wrap items-end gap-3">
-        <TextField
-          id={`${prefix}-phone`}
-          label={m.familyMobile()}
-          type="tel"
-          dir="ltr"
-          width="phone"
-          autoComplete="off"
-          value={draft.phone}
-          onChange={(event) =>
-            onChange({ ...draft, phone: event.target.value, found: null })
-          }
-          errors={contactError ? [contactError] : undefined}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          disabled={looking}
-          onClick={() => void lookUp()}
-        >
-          {m.guardianFind()}
-        </Button>
-      </div>
-      <TextField
-        id={`${prefix}-email`}
-        label={m.studentEmail()}
-        type="email"
-        dir="ltr"
-        optional
-        width="name"
-        autoComplete="off"
-        value={draft.email}
-        onChange={(event) =>
-          onChange({ ...draft, email: event.target.value, found: null })
-        }
-      />
-      {draft.found && draft.found.length > 0 ? (
-        <fieldset className="grid gap-3">
-          <legend className="mb-1 text-sm leading-5 font-medium">
-            {m.guardianMatches()}
-          </legend>
-          <RadioGroup
-            value={draft.choice}
-            onValueChange={(next) =>
-              onChange({ ...draft, choice: String(next) })
-            }
-          >
-            {draft.found.map((match) => (
-              <label
-                key={match.id}
-                className="flex items-center gap-3 text-sm leading-5"
-              >
-                <RadioGroupItem value={match.id} />
-                <span dir="auto">{displayName(match)}</span>
-                {match.birthYear ? (
-                  <span className="text-muted-foreground">
-                    {match.birthYear}
-                  </span>
-                ) : null}
-              </label>
-            ))}
-            <label className="flex items-center gap-3 text-sm leading-5">
-              <RadioGroupItem value="new" />
-              {m.guardianSomeoneElse()}
-            </label>
-          </RadioGroup>
-        </fieldset>
-      ) : null}
-      {draft.choice === "new" ? (
-        <NameFields
-          idPrefix={prefix}
-          value={draft.names}
-          onChange={(names) => onChange({ ...draft, names })}
-          error={nameError}
-        />
-      ) : null}
-      <RelationshipFields
-        idPrefix={prefix}
-        value={draft.flags}
-        onChange={(flags) => onChange({ ...draft, flags })}
-        relations={relations}
-      />
-    </fieldset>
-  );
-}
-
 function initialDraft(
   record: StudentRecordData | null,
   parts: Record<string, unknown>,
@@ -293,7 +129,6 @@ function initialDraft(
     birthDate: record?.birthDate ?? "",
     sexId: record?.sexId ?? "",
     parts,
-    guardians: [],
   };
 }
 
@@ -323,13 +158,6 @@ export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
   const adding = record === null;
   const options = useSuspenseQuery(peopleOptionsQuery).data;
   const queryClient = useQueryClient();
-  const relations = options.relations.map((row) => ({
-    value: row.id,
-    label: labelOf(row) ?? row.code,
-  }));
-  const motherId =
-    options.relations.find((row) => row.code === "mother")?.id ?? "";
-  const nextKey = useRef(1);
   const intent = useRef<string | undefined>(undefined);
   const leaving = useRef(false);
   const parts = useSlot(studentEditorParts);
@@ -345,9 +173,10 @@ export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
     );
   const [initial] = useState(() => initialDraft(record, startingParts()));
   const [draft, setDraft] = useState<Draft>(initial);
-  const [errors, setErrors] = useState<
-    Partial<Record<keyof Draft | `guardian-${number}`, string>>
-  >({});
+  const [errors, setErrors] = useState<Partial<Record<keyof Draft, string>>>(
+    {},
+  );
+  const [tried, setTried] = useState(false);
   const [matches, setMatches] = useState<{
     identity: string;
     students: Match[];
@@ -382,21 +211,9 @@ export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
     reference: value.reference,
     birthDate: value.birthDate,
     sexId: value.sexId,
-    parts: value.parts,
-    guardians: adding
-      ? value.guardians.map((guardian) =>
-          guardian.choice === "new"
-            ? {
-                person: {
-                  names: namesInput(guardian.names),
-                  phone: guardian.phone,
-                  email: guardian.email,
-                },
-                flags: guardian.flags,
-              }
-            : { existingUserId: guardian.choice, flags: guardian.flags },
-        )
-      : [],
+    parts: Object.fromEntries(
+      parts.map((part) => [part.key, part.sent(value.parts[part.key])]),
+    ),
   });
   const mutation = useMutation({
     mutationFn: (value: Draft) => saveStudent({ data: payloadOf(value) }),
@@ -404,18 +221,23 @@ export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
   });
 
   const validate = (value: Draft) =>
-    schemaErrors(saveStudentSchema, payloadOf(value), (key, path) =>
-      key === "guardians" && typeof path[1] === "number"
-        ? `guardian-${path[1]}`
-        : key === "names" || key === "reference"
-          ? key
-          : undefined,
+    schemaErrors(saveStudentSchema, payloadOf(value), (key) =>
+      key === "names" || key === "reference" ? key : undefined,
     );
+  const partProblem = (key: string) => {
+    const part = parts.find((each) => each.key === key);
+    return part ? part.problem(draft.parts[key]) : null;
+  };
 
   const submit = async () => {
     const found = validate(draft);
     setErrors(found);
-    if (Object.keys(found).length > 0) return;
+    setTried(true);
+    if (
+      Object.keys(found).length > 0 ||
+      parts.some((part) => partProblem(part.key) !== null)
+    )
+      return;
     if (adding && entered && entered !== matches?.identity) {
       setChecking(true);
       const students = await getStudentMatches({
@@ -453,8 +275,18 @@ export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
             "",
         }),
       );
-      // The next student is often entered with the same choices.
-      setDraft({ ...initialDraft(null, draft.parts) });
+      setDraft(
+        initialDraft(
+          null,
+          Object.fromEntries(
+            parts.map((part) => [
+              part.key,
+              part.carried(draft.parts[part.key]),
+            ]),
+          ),
+        ),
+      );
+      setTried(false);
       mutation.reset();
       setMatches(null);
       setFocusFirst((count) => count + 1);
@@ -467,8 +299,6 @@ export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
 
   const refusal = refusalOf(mutation.error, FIELD_ERRORS);
   const failure = refusal && !refusal.field ? refusal.message : null;
-  const guardianNames =
-    record?.guardians?.map((guardian) => displayName(guardian)) ?? [];
 
   return (
     <RecordForm
@@ -554,6 +384,7 @@ export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
             read={partReads[index]?.data}
             student={record ? { id: record.id, version: record.version } : null}
             value={draft.parts[part.key]}
+            problem={tried ? partProblem(part.key) : null}
             onChange={(value) =>
               setDraft((current) => ({
                 ...current,
@@ -563,80 +394,6 @@ export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
           />
         </FormSection>
       ))}
-      <FormSection title={m.studentGuardians()}>
-        {adding ? (
-          <>
-            {draft.guardians.map((guardian, index) => (
-              <GuardianBlock
-                key={guardian.key}
-                draft={guardian}
-                index={index}
-                relations={relations}
-                nameError={errors[`guardian-${index}`]}
-                onChange={(next) =>
-                  set(
-                    "guardians",
-                    draft.guardians.map((row) =>
-                      row.key === guardian.key ? next : row,
-                    ),
-                  )
-                }
-                onRemove={() =>
-                  set(
-                    "guardians",
-                    draft.guardians.filter((row) => row.key !== guardian.key),
-                  )
-                }
-              />
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              className="justify-self-start max-md:h-10"
-              onClick={() => {
-                const key = nextKey.current;
-                nextKey.current += 1;
-                set("guardians", [
-                  ...draft.guardians,
-                  {
-                    key,
-                    phone: "",
-                    email: "",
-                    found: null,
-                    choice: "new",
-                    names: EMPTY_NAMES,
-                    flags: {
-                      ...PARENT_FLAGS,
-                      primaryContact: draft.guardians.length === 0,
-                      relationId: motherId,
-                    },
-                  },
-                ]);
-              }}
-            >
-              <Plus aria-hidden />
-              {draft.guardians.length
-                ? m.guardianAddAnother()
-                : m.guardianAdd()}
-            </Button>
-          </>
-        ) : (
-          <ShownValue
-            label={m.studentGuardians()}
-            link={{
-              id: record.id,
-              tab: "family",
-              label: m.studentEditGuardians(),
-            }}
-          >
-            {guardianNames.length ? (
-              <span dir="auto">{formatList(guardianNames)}</span>
-            ) : (
-              <Value absent={m.studentNoGuardiansShort()} />
-            )}
-          </ShownValue>
-        )}
-      </FormSection>
     </RecordForm>
   );
 }

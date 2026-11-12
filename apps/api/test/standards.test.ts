@@ -384,7 +384,7 @@ describe("early learning goals", () => {
     // A family reads their child's progress, but not the judgements made of
     // them.
     const family = await signedIn("northwind", login("parent"));
-    const own = (await family.home.family({})).children[0]?.studentId ?? "";
+    const own = (await family.home.followed({})).children[0]?.studentId ?? "";
     let theirs = "";
     for (const row of (await office.classes.directory({})).rows)
       if (
@@ -765,7 +765,8 @@ describe("early learning goals", () => {
       login("principal"),
     );
     const family = await sessionFor("northwind", login("parent"));
-    const own = (await family.api.home.family({})).children[0]?.studentId ?? "";
+    const own =
+      (await family.api.home.followed({})).children[0]?.studentId ?? "";
     let theirs = "";
     for (const row of (await office.classes.directory({})).rows)
       if (
@@ -917,7 +918,8 @@ describe("early learning goals", () => {
     });
 
     const family = await sessionFor("northwind", login("parent"));
-    const own = (await family.api.home.family({})).children[0]?.studentId ?? "";
+    const own =
+      (await family.api.home.followed({})).children[0]?.studentId ?? "";
     let theirs = "";
     for (const row of (await office.classes.directory({})).rows)
       if (

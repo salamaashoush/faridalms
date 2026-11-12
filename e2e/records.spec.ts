@@ -46,22 +46,24 @@ test("people are reachable through the students a viewer teaches or is linked to
   if (!homeroom) throw new Error("the seeded teacher keeps no homeroom");
   const taught = (await teacher.classes.record({ id: homeroom.id })).roster[0];
   if (!taught) throw new Error("the seeded homeroom has no students");
-  const guardian = (await admin.people.student({ id: taught.userId }))
-    .guardians?.[0];
+  const guardian = (
+    await admin.guardians.ofStudent({ studentId: taught.userId })
+  ).guardians[0];
   if (!guardian) throw new Error("the seeded student has no guardian");
 
   const seen = await teacher.people.person({ id: guardian.userId });
   expect(seen.access).toMatchObject({ self: false, manage: false });
-  expect(seen.children).toContainEqual(
-    expect.objectContaining({ studentId: taught.userId }),
-  );
+  expect(
+    await teacher.guardians.children({ userId: guardian.userId }),
+  ).toContainEqual(expect.objectContaining({ studentId: taught.userId }));
 
   const stranger = await newStudent(
     admin,
     `Ashoush ${crypto.randomUUID().slice(0, 6)}`,
   );
-  const strangerGuardian = (await admin.people.student({ id: stranger.id }))
-    .guardians?.[0];
+  const strangerGuardian = (
+    await admin.guardians.ofStudent({ studentId: stranger.id })
+  ).guardians[0];
   if (!strangerGuardian) throw new Error("the new student has no guardian");
   expect(
     await refusal(teacher.people.person({ id: stranger.id })),
@@ -87,7 +89,9 @@ test("people are reachable through the students a viewer teaches or is linked to
 
   const family = await parent.people.person({ id: parentId });
   expect(family.access).toMatchObject({ self: true, manage: false });
-  expect(family.children.length).toBeGreaterThan(0);
+  expect(
+    (await parent.guardians.children({ userId: parentId })).length,
+  ).toBeGreaterThan(0);
   expect(
     await refusal(parent.people.person({ id: guardian.userId })),
   ).toMatchObject({ code: "NOT_FOUND" });
@@ -95,9 +99,11 @@ test("people are reachable through the students a viewer teaches or is linked to
   const office = await admin.people.person({ id: guardian.userId });
   expect(office.access.manage).toBe(true);
   expect(office.contacts?.length).toBeGreaterThan(0);
-  expect(office.children.map((child) => child.studentId)).toContain(
-    taught.userId,
-  );
+  expect(
+    (await admin.guardians.children({ userId: guardian.userId })).map(
+      (child) => child.studentId,
+    ),
+  ).toContain(taught.userId);
   expect(await refusal(admin.people.person({ id: NOBODY }))).toMatchObject({
     code: "NOT_FOUND",
   });
@@ -226,7 +232,7 @@ test("a family's own record names each linked child and links nowhere that is no
 }) => {
   const parent = await apiAs("parent");
   const me = await parent.identity.currentUser();
-  const { children } = await parent.people.person({ id: me.id });
+  const children = await parent.guardians.children({ userId: me.id });
   expect(children.length).toBeGreaterThan(0);
   await signIn(page, "parent");
   await untilHydrated(page);
@@ -311,7 +317,7 @@ test("a teacher's record lists what they teach, and their students' records name
 async function childsTeacher() {
   const [admin, parent] = await Promise.all([apiAs("admin"), apiAs("parent")]);
   const me = await parent.identity.currentUser();
-  const [child] = (await parent.people.person({ id: me.id })).children;
+  const [child] = await parent.guardians.children({ userId: me.id });
   if (!child) throw new Error("the seeded parent has no child");
   const { group: homeroom } = await admin.people.student({
     id: child.studentId,

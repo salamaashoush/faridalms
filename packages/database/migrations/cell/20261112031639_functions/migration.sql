@@ -322,7 +322,11 @@ $$;
 revoke all on function app.is_staff(uuid, uuid, date) from public;
 grant execute on function app.is_staff(uuid, uuid, date) to app, worker;
 
-create function app.visible_students(p_viewer uuid, p_school uuid, p_on date, p_school_wide boolean)
+-- The students a viewer reaches: every one where the work opens the school,
+-- themselves, those in the classes they teach, and those a module says they
+-- follow (`p_followed`), of whom only the students still at the school count.
+create function app.visible_students(p_viewer uuid, p_school uuid, p_on date, p_school_wide boolean,
+  p_followed uuid[])
 returns table (student_user_id uuid)
 language sql stable
 set search_path = pg_catalog, pg_temp
@@ -352,10 +356,7 @@ as $$
   )
   select m.student_user_id from members m where p_school_wide
   union
-  select r.student_user_id from core.user_relationships r
-  where r.tenant_id = app.tenant_id() and r.related_user_id = p_viewer
-    and app.guardian_permits(r, p_on, 'follow')
-    and r.student_user_id in (select s.student_user_id from staying s)
+  select s.student_user_id from staying s where s.student_user_id = any (p_followed)
   union
   select s.student_user_id from staying s where s.student_user_id = p_viewer
   union
@@ -364,8 +365,8 @@ as $$
     and e.class_id in (select class_id from taught)
     and e.user_id in (select student_user_id from members)
 $$;
-revoke all on function app.visible_students(uuid, uuid, date, boolean) from public;
-grant execute on function app.visible_students(uuid, uuid, date, boolean) to app;
+revoke all on function app.visible_students(uuid, uuid, date, boolean, uuid[]) from public;
+grant execute on function app.visible_students(uuid, uuid, date, boolean, uuid[]) to app;
 
 create function app.visible_people(p_viewer uuid, p_school uuid, p_on date, p_school_wide boolean)
 returns table (user_id uuid)
@@ -391,10 +392,6 @@ as $$
     select r.user_id from core.user_roles r
     where r.tenant_id = app.tenant_id() and r.org_id in (select id from path) and r.status = 'active'
       and r.role = any (app.staff_roles())
-    union
-    select l.related_user_id from core.user_relationships l
-    where l.tenant_id = app.tenant_id() and l.status = 'active'
-      and l.student_user_id in (select student_user_id from app.visible_students(p_viewer, p_school, p_on, true))
   )
   select p_viewer where exists (select 1 from school)
   union
@@ -403,16 +400,12 @@ as $$
   select r.user_id from core.user_roles r, viewer_is_staff
   where viewer_is_staff.yes and r.tenant_id = app.tenant_id() and r.org_id in (select id from path)
     and r.status = 'active' and r.valid_during @> p_on and r.role = any (app.staff_roles())
-  union
-  select l.related_user_id from core.user_relationships l, viewer_is_staff
-  where viewer_is_staff.yes and not p_school_wide and l.tenant_id = app.tenant_id() and l.status = 'active'
-    and l.valid_during @> p_on
-    and l.student_user_id in (select student_user_id from app.visible_students(p_viewer, p_school, p_on, false))
 $$;
 revoke all on function app.visible_people(uuid, uuid, date, boolean) from public;
 grant execute on function app.visible_people(uuid, uuid, date, boolean) to app;
 
-create function app.visible_classes(p_viewer uuid, p_school uuid, p_on date, p_school_wide boolean)
+create function app.visible_classes(p_viewer uuid, p_school uuid, p_on date, p_school_wide boolean,
+  p_followed uuid[])
 returns table (class_id uuid)
 language sql stable
 set search_path = pg_catalog, pg_temp
@@ -421,22 +414,18 @@ as $$
     select o.id from core.orgs o
     where o.tenant_id = app.tenant_id() and o.id = p_school and o.type = 'school'
       and o.lifecycle = 'active' and o.status = 'active'
-  ), children as (
-    select r.student_user_id from core.user_relationships r
-    where r.tenant_id = app.tenant_id() and r.related_user_id = p_viewer
-      and app.guardian_permits(r, p_on, 'follow')
   ), joined as (
     select e.class_id from core.enrollments e, school
     where e.tenant_id = app.tenant_id() and e.org_id = school.id and e.status = 'active'
       and e.valid_during @> p_on
-      and (e.user_id = p_viewer or (e.role = 'student' and e.user_id in (select student_user_id from children)))
+      and (e.user_id = p_viewer or (e.role = 'student' and e.user_id = any (p_followed)))
   )
   select c.id from core.classes c, school
   where c.tenant_id = app.tenant_id() and c.org_id = school.id and c.status = 'active'
     and (p_school_wide or c.id in (select class_id from joined))
 $$;
-revoke all on function app.visible_classes(uuid, uuid, date, boolean) from public;
-grant execute on function app.visible_classes(uuid, uuid, date, boolean) to app;
+revoke all on function app.visible_classes(uuid, uuid, date, boolean, uuid[]) from public;
+grant execute on function app.visible_classes(uuid, uuid, date, boolean, uuid[]) to app;
 
 -- How far the viewer reaches each person: their whole record, as
 -- app.visible_people decides, or a limited profile. The profile opens for
@@ -445,7 +434,8 @@ grant execute on function app.visible_classes(uuid, uuid, date, boolean) to app;
 -- (in a mailbox conversation, its contacts and its owner, never the team
 -- reading along). A student is never reached through a conversation, so a
 -- child's profile is not opened to the other families in a group.
-create function app.reached_people(p_viewer uuid, p_school uuid, p_on date, p_school_wide boolean)
+create function app.reached_people(p_viewer uuid, p_school uuid, p_on date, p_school_wide boolean,
+  p_followed uuid[])
 returns table (user_id uuid, record boolean)
 language sql stable
 set search_path = pg_catalog, pg_temp
@@ -456,7 +446,7 @@ as $$
     select e.user_id from core.enrollments e
     where e.tenant_id = app.tenant_id() and e.role in ('teacher', 'aide') and e.status = 'active'
       and e.valid_during @> p_on
-      and e.class_id in (select class_id from app.visible_classes(p_viewer, p_school, p_on, false))
+      and e.class_id in (select class_id from app.visible_classes(p_viewer, p_school, p_on, false, p_followed))
   ), shared as (
     select o.user_id from core.thread_members m
     join core.message_threads t on t.tenant_id = m.tenant_id and t.id = m.thread_id
@@ -480,8 +470,8 @@ as $$
   join core.users u on u.tenant_id = app.tenant_id() and u.id = p.user_id and u.status = 'active'
   where p.user_id not in (select user_id from full_reach)
 $$;
-revoke all on function app.reached_people(uuid, uuid, date, boolean) from public;
-grant execute on function app.reached_people(uuid, uuid, date, boolean) to app;
+revoke all on function app.reached_people(uuid, uuid, date, boolean, uuid[]) from public;
+grant execute on function app.reached_people(uuid, uuid, date, boolean, uuid[]) to app;
 
 -- A class's programme: the one the school chose for it, or one a module
 -- derived for it, which `class_grading` keeps either way.

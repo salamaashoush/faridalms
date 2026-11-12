@@ -24,9 +24,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { audienceLabel } from "~/components/announcements/format";
+import { audienceKinds } from "~/components/announcements/slots";
 import { TranslatedView } from "~/components/content/TranslatedView";
 import { usePrint } from "~/components/print/usePrint";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { calendarEventQuery } from "~/queries/calendar";
@@ -284,6 +286,7 @@ interface EventBodyProps {
 
 function EventBody({ data }: EventBodyProps) {
   const user = useCurrentUser();
+  const kinds = useSlot(audienceKinds);
   const viewer: ContentLocale = getLocale() === "ar" ? "ar" : "en";
   const [locale, setLocale] = useState<ContentLocale>(
     data.translation && viewer === otherLocale(data.primaryLocale)
@@ -319,7 +322,7 @@ function EventBody({ data }: EventBodyProps) {
         ) : null}
         {data.canEdit && data.audiences.length > 0 ? (
           <Property label={m.calFor()}>
-            {formatList(data.audiences.map(audienceLabel))}
+            {formatList(data.audiences.map((row) => audienceLabel(row, kinds)))}
           </Property>
         ) : null}
         <Property label={m.calAddedByLabel()}>

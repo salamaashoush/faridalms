@@ -1,4 +1,4 @@
-import type { FamilyHealthKind } from "@faridalms/domain/people";
+import type { SummaryKind } from "@faridalms/domain/people";
 import type { Tone } from "@faridalms/ui/system/status";
 
 import * as m from "~/i18n/messages";
@@ -11,7 +11,7 @@ export const SEVERITY_LABEL: Record<Severity, () => string> = {
   severe: m.healthSeveritySevere,
 };
 
-export const KIND_SECTION: Record<FamilyHealthKind, () => string> = {
+export const KIND_SECTION: Record<SummaryKind, () => string> = {
   allergy: m.medicalAllergies,
   chronic_condition: m.medicalConditions,
   medication: m.medicalMedicines,
@@ -19,7 +19,7 @@ export const KIND_SECTION: Record<FamilyHealthKind, () => string> = {
   doctor: m.medicalDoctor,
 };
 
-export const KIND_ONE: Record<FamilyHealthKind, () => string> = {
+export const KIND_ONE: Record<SummaryKind, () => string> = {
   allergy: m.medicalAllergy,
   chronic_condition: m.medicalCondition,
   medication: m.medicalMedicine,
@@ -27,7 +27,7 @@ export const KIND_ONE: Record<FamilyHealthKind, () => string> = {
   doctor: m.medicalDoctor,
 };
 
-export const KIND_EMPTY: Record<FamilyHealthKind, () => string> = {
+export const KIND_EMPTY: Record<SummaryKind, () => string> = {
   allergy: m.medicalNoAllergies,
   chronic_condition: m.medicalNoConditions,
   medication: m.medicalNoMedicines,
@@ -35,7 +35,7 @@ export const KIND_EMPTY: Record<FamilyHealthKind, () => string> = {
   doctor: m.medicalNoDoctor,
 };
 
-export const KIND_HINT: Record<FamilyHealthKind, () => string> = {
+export const KIND_HINT: Record<SummaryKind, () => string> = {
   allergy: m.medicalAllergyHint,
   chronic_condition: m.medicalConditionHint,
   medication: m.medicalMedicineHint,

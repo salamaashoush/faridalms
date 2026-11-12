@@ -14,7 +14,7 @@ export const TABLE_OWNERS: Record<string, Ownership> = {
   "audit.payloads": { owner: "core" },
   "audit.seal_batches": { owner: "core" },
   "audit.seal_members": { owner: "core" },
-  "core.absence_reports": { owner: "attendance", needs: ["families"] },
+  "core.absence_reports": { owner: "attendance" },
   "core.academic_sessions": { owner: "school_years" },
   "core.academic_weeks": { owner: "school_years" },
   "core.access_arrangements": { owner: "student_records" },
@@ -44,11 +44,13 @@ export const TABLE_OWNERS: Record<string, Ownership> = {
   "core.bell_schedules": { owner: "timetable" },
   "core.breaches": { owner: "core" },
   "core.broadcast_audiences": { owner: "core" },
+  "core.broadcast_families": { owner: "families" },
   "core.broadcast_grades": { owner: "grade_levels" },
   "core.broadcast_recipients": { owner: "core" },
   "core.broadcasts": { owner: "core" },
   "core.calendar_dates": { owner: "core" },
   "core.calendar_event_audiences": { owner: "core" },
+  "core.calendar_event_families": { owner: "families" },
   "core.calendar_event_grades": { owner: "grade_levels" },
   "core.calendar_events": { owner: "core" },
   "core.calendar_feeds": { owner: "core" },
@@ -62,6 +64,7 @@ export const TABLE_OWNERS: Record<string, Ownership> = {
   "core.class_periods": { owner: "timetable" },
   "core.class_years": { owner: "school_years" },
   "core.classes": { owner: "core" },
+  "core.consent_guardians": { owner: "families" },
   "core.consent_records": { owner: "core" },
   "core.contact_points": { owner: "core" },
   "core.courses": { owner: "core" },
@@ -191,6 +194,10 @@ export const TABLE_OWNERS: Record<string, Ownership> = {
   "core.work_comments": { owner: "coursework" },
   "core.work_sittings": { owner: "standards", needs: ["coursework"] },
   "core.year_rollovers": { owner: "school_years" },
+  "health.contact_changes": {
+    owner: "student_records",
+    needs: ["families"],
+  },
   "health.records": { owner: "student_records" },
   "health.requested_changes": { owner: "student_records" },
 };
@@ -221,15 +228,13 @@ export const NAMESPACE_OWNERS: Record<string, Owner> = {
 /**
  * Columns that carry a module's concept without a key to its tables, by
  * name: a year travelling inside a composite key to `core.classes`, a
- * homeroom named by its class, a period in an array, a guardian named as a
- * user. Whatever
- * table holds one is held to the same rule as a key to that module.
+ * homeroom named by its class, a period in an array, a guardian's link
+ * named without its key. Whatever table holds one is held to the same rule
+ * as a key to that module.
  */
 export const COLUMN_OWNERS: Record<string, ModuleId> = {
   bell_schedule_id: "timetable",
   class_period_id: "timetable",
-  custody_alert: "families",
-  family_user_id: "families",
   grading_period_id: "school_years",
   homeroom_class_id: "homerooms",
   lesson_sounds: "elearning",

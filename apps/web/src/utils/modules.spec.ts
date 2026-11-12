@@ -38,4 +38,15 @@ describe("the pages a school shows", () => {
     );
     expect(pageOn(without("gradebook"), "/me/grades")).toBe(false);
   });
+
+  it("shows the family workspace only with families on, and a family's view of a module only with both", () => {
+    expect(pageOn(without(), "/family")).toBe(true);
+    expect(pageOn(without(), "/family/attendance")).toBe(true);
+    expect(pageOn(without("families"), "/family")).toBe(false);
+    expect(pageOn(without("families"), "/family/consents")).toBe(false);
+    expect(pageOn(without("families"), "/family/attendance")).toBe(false);
+    expect(pageOn(without("attendance"), "/family/attendance")).toBe(false);
+    expect(pageOn(without("families"), "/me/attendance")).toBe(true);
+    expect(moduleOfPath("/family/attendance")).toBe("attendance");
+  });
 });

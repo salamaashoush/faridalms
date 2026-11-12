@@ -317,14 +317,16 @@ describe("a school without grade levels", () => {
 
       const students = await api.people.students({});
       expect(students.rows.length).toBeGreaterThan(0);
-      expect(
-        students.rows.every((row) => Object.keys(row.columns).length === 0),
-      ).toBe(true);
+      expect(students.rows.every((row) => !("grade" in row.columns))).toBe(
+        true,
+      );
       expect(
         await rejection(api.people.students({ sort: "grade" })),
       ).toMatchObject({ message: "people.sort_unknown" });
 
-      expect((await api.calendar.options()).kinds).toEqual([]);
+      expect(
+        (await api.calendar.options()).kinds.map((kind) => kind.scope),
+      ).not.toContain("grade");
       expect(
         await rejection(
           api.calendar.save({
@@ -369,10 +371,10 @@ describe("a school without grade levels", () => {
         "northwind",
         login("student").replace("student", "parent"),
       );
-      const [first] = (await family.home.family({})).choices;
+      const [first] = (await family.home.followed({})).choices;
       if (!first) throw new Error("the seeded parent has no child");
       expect(
-        (await family.home.child({ studentId: first.studentId })).place,
+        (await family.home.details({ studentId: first.studentId })).place,
       ).toBeNull();
     });
   });

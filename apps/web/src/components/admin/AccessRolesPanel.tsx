@@ -2,6 +2,10 @@ import type { Capability } from "@faridalms/domain/capabilities";
 import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 import type { ReactNode } from "react";
 
+import {
+  BUILTIN_ROLE_MODULE,
+  CAPABILITY_MODULE,
+} from "@faridalms/domain/capabilities";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { ChangeLog } from "@faridalms/ui/system/change-log";
 import { DataTable } from "@faridalms/ui/system/data-table";
@@ -26,7 +30,7 @@ import {
   SENSITIVE_CAPABILITIES,
 } from "~/components/people/capabilities";
 import { historyEntry, historyLabels } from "~/components/system/history";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
 import { saveAccessRole } from "~/server/access";
@@ -114,6 +118,13 @@ export function AccessRolesPanel({
   onDuplicate,
 }: AccessRolesPanelProps) {
   const { data } = useSuspenseQuery(accessRolesQuery);
+  const { modules } = useCurrentUser();
+  const rows = data.roles.filter((role) => {
+    const module = role.builtinKey
+      ? BUILTIN_ROLE_MODULE[role.builtinKey]
+      : undefined;
+    return module === undefined || modules[module];
+  });
   const rowActions = (role: AccessRole): RowAction[] => [
     ...(role.editable
       ? [
@@ -134,7 +145,7 @@ export function AccessRolesPanel({
     <div className="grid gap-10">
       <DataTable
         caption={m.accessRolesCaption()}
-        rows={data.roles}
+        rows={rows}
         columns={roleColumns(nameLink)}
         rowLabel={(role) => accessRoleName(role)}
         rowActions={rowActions}
@@ -259,6 +270,11 @@ export function RoleSheet({ open, role, copyOf, onClose }: RoleSheetProps) {
     meta: { inlineError: true },
   });
   const held = new Set<Capability>(data.grantable);
+  const { modules } = useCurrentUser();
+  const offered = (capability: Capability) => {
+    const module = CAPABILITY_MODULE[capability];
+    return module === undefined || modules[module];
+  };
   const groupId = useId();
   const set = <K extends keyof RoleDraft>(key: K, value: RoleDraft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
@@ -350,53 +366,55 @@ export function RoleSheet({ open, role, copyOf, onClose }: RoleSheetProps) {
         >
           {m.accessCapabilitiesHint()}
         </p>
-        {CAPABILITY_AREAS.map(({ area, label, capabilities }) => (
-          <fieldset key={area} className="grid pt-2">
-            <legend className="pb-1 text-[13px] leading-[18px] font-medium text-muted-foreground">
-              {label()}
-            </legend>
-            {capabilities.map((capability) => {
-              const allowed = held.has(capability);
-              const checked = draft.capabilities.includes(capability);
-              return (
-                <label
-                  key={capability}
-                  aria-disabled={!allowed && !checked ? true : undefined}
-                  className="flex min-h-9 cursor-pointer items-center gap-3 text-sm leading-5 aria-disabled:cursor-default aria-disabled:text-muted-foreground max-md:min-h-10"
-                >
-                  <Checkbox
-                    aria-labelledby={`${groupId}-${capability}`}
-                    checked={checked}
-                    disabled={!allowed && !checked}
-                    onCheckedChange={(next) =>
-                      set(
-                        "capabilities",
-                        next
-                          ? [...draft.capabilities, capability]
-                          : draft.capabilities.filter(
-                              (item) => item !== capability,
-                            ),
-                      )
-                    }
-                  />
-                  <span id={`${groupId}-${capability}`} className="min-w-0">
-                    {CAPABILITY_LABEL[capability]()}
-                  </span>
-                  {SENSITIVE_CAPABILITIES.has(capability) ? (
-                    <StatusBadge tone="warning">
-                      {m.accessSensitive()}
-                    </StatusBadge>
-                  ) : null}
-                  {allowed ? null : (
-                    <span className="ms-auto text-[13px] leading-[18px] text-muted-foreground">
-                      {m.accessNotHeld()}
+        {CAPABILITY_AREAS.map(({ area, label, capabilities }) =>
+          capabilities.some(offered) ? (
+            <fieldset key={area} className="grid pt-2">
+              <legend className="pb-1 text-[13px] leading-[18px] font-medium text-muted-foreground">
+                {label()}
+              </legend>
+              {capabilities.filter(offered).map((capability) => {
+                const allowed = held.has(capability);
+                const checked = draft.capabilities.includes(capability);
+                return (
+                  <label
+                    key={capability}
+                    aria-disabled={!allowed && !checked ? true : undefined}
+                    className="flex min-h-9 cursor-pointer items-center gap-3 text-sm leading-5 aria-disabled:cursor-default aria-disabled:text-muted-foreground max-md:min-h-10"
+                  >
+                    <Checkbox
+                      aria-labelledby={`${groupId}-${capability}`}
+                      checked={checked}
+                      disabled={!allowed && !checked}
+                      onCheckedChange={(next) =>
+                        set(
+                          "capabilities",
+                          next
+                            ? [...draft.capabilities, capability]
+                            : draft.capabilities.filter(
+                                (item) => item !== capability,
+                              ),
+                        )
+                      }
+                    />
+                    <span id={`${groupId}-${capability}`} className="min-w-0">
+                      {CAPABILITY_LABEL[capability]()}
                     </span>
-                  )}
-                </label>
-              );
-            })}
-          </fieldset>
-        ))}
+                    {SENSITIVE_CAPABILITIES.has(capability) ? (
+                      <StatusBadge tone="warning">
+                        {m.accessSensitive()}
+                      </StatusBadge>
+                    ) : null}
+                    {allowed ? null : (
+                      <span className="ms-auto text-[13px] leading-[18px] text-muted-foreground">
+                        {m.accessNotHeld()}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+            </fieldset>
+          ) : null,
+        )}
       </fieldset>
     </SheetForm>
   );

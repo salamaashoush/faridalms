@@ -10,7 +10,6 @@ import type {
 import type { SQL } from "drizzle-orm";
 
 import { orgPath } from "@faridalms/database/stores/identity";
-import { childrenOf } from "@faridalms/database/stores/persons";
 import {
   assignmentsAmong,
   assignmentsReached,
@@ -49,7 +48,12 @@ import type { UnitContext } from "../core/context";
 import { calendarReach, reachAt } from "../core/audiences";
 import { modulesOf } from "../core/modules";
 import { can, localeOf, readProcedure } from "../core/procedure";
-import { classesReachedBesides, scopeFor } from "../core/reach";
+import {
+  classesReachedBesides,
+  peopleOpenedTo,
+  scopeFor,
+  studentsReached as reachedOf,
+} from "../core/reach";
 import { placed } from "../people/points";
 
 const TYPES: Record<SearchKind, readonly string[]> = {
@@ -75,16 +79,12 @@ const TARGET: Record<string, SearchTarget> = {
   team_thread: "thread",
 };
 
-/** The students whose work the viewer follows: themselves, or the children in their care. */
+/** The students whose work the viewer follows: themselves, or those a module says they follow. */
 async function learnersOf(context: UnitContext) {
   const own = can(context, "own-work:read") ? [context.actor.userId] : [];
   if (!can(context, "children:read")) return own;
-  const children = await childrenOf(
-    context.tx,
-    scopeFor(context, "people"),
-    context.actor.userId,
-  );
-  return [...own, ...children.map((child) => child.studentId)];
+  const reached = await reachedOf(context, "people", context.actor.follows);
+  return [...own, ...context.actor.follows.filter((id) => reached.has(id))];
 }
 
 async function learnerClasses(context: UnitContext, learners: string[]) {
@@ -126,9 +126,11 @@ async function resolverOf(
     }
     case "people": {
       const scope = scopeFor(context, "people");
+      const besides = await peopleOpenedTo(context, "people");
       return {
-        within: peopleReached(scope),
-        resolve: (ids) => peopleAmong(context.tx, scope, { ...base, ids }),
+        within: peopleReached(scope, besides),
+        resolve: (ids) =>
+          peopleAmong(context.tx, scope, { ...base, ids, besides }),
       };
     }
     case "classes": {

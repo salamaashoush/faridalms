@@ -28,7 +28,7 @@ import {
   viewer,
 } from "@faridalms/database/stores/identity";
 import { findInvite, redeemInvite } from "@faridalms/database/stores/invites";
-import { childrenOf } from "@faridalms/database/stores/persons";
+import { confirmEmail } from "@faridalms/database/stores/students";
 import { BADGE_DAYS } from "@faridalms/domain/badges";
 import {
   acceptInviteSchema,
@@ -55,6 +55,7 @@ import * as v from "valibot";
 
 import type { SchoolContext, UnitContext } from "../core/context";
 
+import { confirmAddress } from "../core/confirmed";
 import { modulesOf } from "../core/modules";
 import { sendPasswordReset } from "../core/password-reset";
 import {
@@ -74,8 +75,7 @@ import {
   sessionProcedure,
   schoolZone,
 } from "../core/procedure";
-import { scopeFor } from "../core/reach";
-import { confirmRegistration } from "../core/registration";
+import { reachesStudent } from "../core/reach";
 import {
   attemptKey,
   badgeHash,
@@ -85,6 +85,7 @@ import {
   SHARED_LIFETIME,
   userAgentSummary,
 } from "../core/session";
+import { claimConversations } from "../messages/conversations";
 import { accessAt, accessAtSchool } from "../people/access";
 
 const PER_NAME = 10;
@@ -345,8 +346,8 @@ async function heldInvite(
         await redeem(tx, { ...holder, loginName });
         if (holder.purpose === "reset")
           await revokeAccountSessions(tx, tenantId, holder.accountId);
-        if (holder.purpose === "register")
-          await confirmRegistration(tx, {
+        if (holder.purpose === "register") {
+          const confirmed = {
             tenantId,
             schoolId: context.school.schoolId,
             userId: holder.userId,
@@ -355,7 +356,32 @@ async function heldInvite(
               await schoolZone(tx, context.school.schoolId),
               new Date(),
             ),
+          };
+          await confirmEmail(tx, confirmed);
+          // Whoever wrote to the school from this address, as an outside
+          // contact, is this account in the same conversations.
+          await claimConversations(tx, {
+            tenantId,
+            schoolId: confirmed.schoolId,
+            userId: confirmed.userId,
+            verifiedEmail: confirmed.email,
           });
+          await confirmAddress(
+            {
+              tx,
+              tenantId,
+              schoolId: confirmed.schoolId,
+              school: context.school,
+              extensions: context.extensions,
+            },
+            {
+              userId: confirmed.userId,
+              email: confirmed.email,
+              today: confirmed.today,
+              applyingFor: holder.applyingFor,
+            },
+          );
+        }
         await writeAudit(tx, tenantId, {
           action: "account.password_set",
           objectType: "account",
@@ -634,22 +660,20 @@ export const switchContext = sessionProcedure
   });
 
 /**
- * A guardian hands their device to a young child: a session as the child,
- * for the lessons and home made for them, while the guardian's own session
- * stays open for the way back. It lives as a shared-device session, so a
- * tablet put down and forgotten closes it within the half hour.
+ * Someone who follows a young child hands their device to them: a session
+ * as the child, for the lessons and home made for them, while their own
+ * session stays open for the way back. It lives as a shared-device session,
+ * so a tablet put down and forgotten closes it within the half hour.
  */
 export const childSession = sessionProcedure
   .input(childSessionSchema)
   .handler(async ({ input, context }) => {
     if (context.actor.context !== "family") throw new ORPCError("FORBIDDEN");
     requireCapability(context, "children:read");
-    const links = await childrenOf(
-      context.tx,
-      scopeFor(context, "teaching"),
-      context.actor.userId,
-    );
-    if (!links.some((link) => link.studentId === input.studentId))
+    if (
+      !context.actor.follows.includes(input.studentId) ||
+      !(await reachesStudent(context, "teaching", input.studentId))
+    )
       throw new ORPCError("NOT_FOUND");
     const access = await accessAt(context, {
       userId: input.studentId,

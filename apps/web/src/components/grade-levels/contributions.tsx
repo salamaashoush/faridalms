@@ -126,6 +126,10 @@ export const GRADE_LEVELS: ModuleFillings = {
       query: (studentId) =>
         studentId ? studentGradesQuery(studentId) : gradeOptionsQuery,
       initial: () => ({ gradeId: "" }),
+      problem: () => null,
+      sent: (value) => value,
+      // The next student is often entered in the same grade.
+      carried: (value) => value,
       Field: StudentGradeField,
     }),
     fill(studentRecordParts, {

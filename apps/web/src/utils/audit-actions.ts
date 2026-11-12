@@ -111,6 +111,7 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "discussion.show": m.auditDiscussionShow,
   "document.take_over": m.auditDocumentTakeOver,
   "enquiry.assign": m.auditEnquiryAssign,
+  "enquiry.enquirer": m.auditEnquiryEnquirer,
   "enquiry.family": m.auditEnquiryFamily,
   "enquiry.log": m.auditEnquiryLog,
   "enquiry.receive": m.auditEnquiryReceive,

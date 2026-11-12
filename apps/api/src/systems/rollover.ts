@@ -20,9 +20,7 @@ import {
   teachersOf,
 } from "@faridalms/database/stores/classes";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
-import { decidingGuardians } from "@faridalms/database/stores/invites";
 import { markActed } from "@faridalms/database/stores/notifications";
-import { childrenOf } from "@faridalms/database/stores/persons";
 import { place } from "@faridalms/database/stores/placements";
 import {
   markRolloverApplied,
@@ -74,7 +72,8 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { scopeFor } from "../core/reach";
+import { scopeFor, studentsReached } from "../core/reach";
+import { decidersTold, decidingLearners } from "../people/acting";
 import {
   carriersOf,
   partsStayed,
@@ -676,9 +675,32 @@ export const apply = writeProcedure
   });
 
 /**
- * Asks the families of every student placed in a year whether each child
- * returns the year after: once a year, a notice to the guardians who
- * decide for the child. Their answers feed the rollover's first outcomes.
+ * Who is asked whether each learner returns: whoever decides for them and
+ * takes the school's notices, and the learner who decides for themself.
+ */
+async function askedAboutReturning(
+  context: UnitContext,
+  studentIds: readonly string[],
+) {
+  const [told, deciding] = await Promise.all([
+    decidersTold(context, { studentIds, on: context.today }),
+    decidingLearners(context, studentIds, context.today),
+  ]);
+  return [
+    ...told.filter((link) => link.linkId !== null),
+    ...[...deciding].map((studentId) => ({
+      studentId,
+      userId: studentId,
+      linkId: null,
+    })),
+  ];
+}
+
+/**
+ * Asks whether each student placed in a year returns the year after: once a
+ * year, a notice to whoever decides for the student and takes the school's
+ * notices, or to the student who decides for themself. The answers feed
+ * the rollover's first outcomes.
  */
 export const openReenrolment = writeProcedure
   .input(openReenrolmentSchema)
@@ -703,18 +725,17 @@ export const openReenrolment = writeProcedure
       schoolId: context.schoolId,
       year,
     });
-    const deciding = await decidingGuardians(context.tx, {
-      tenantId: context.tenantId,
-      studentIds: placed.map((row) => row.studentId),
-      today: context.today,
-    });
+    const deciding = await askedAboutReturning(
+      context,
+      placed.map((row) => row.studentId),
+    );
     let asked = 0;
     for (const student of placed) {
-      const guardians = deciding
+      const askedOf = deciding
         .filter((row) => row.studentId === student.studentId)
-        .map((row) => row.guardianId);
-      // One notice per child, each naming the child its answer is for.
-      asked += await notify(context, guardians, {
+        .map((row) => row.userId);
+      // One notice per learner, each naming the learner its answer is for.
+      asked += await notify(context, askedOf, {
         kind: "reenrolment",
         subject: { type: "student_school_year", id: student.placementId },
         needsAction: true,
@@ -737,22 +758,16 @@ export const openReenrolment = writeProcedure
   });
 
 /**
- * Records whether a student returns next year, while their family is being
- * asked: by a guardian who decides for the child, or by the office for them.
+ * Records whether a student returns next year, while it is being asked: by
+ * whoever decides for the student, or the student who decides for
+ * themself, or by the office for them.
  */
 export const setIntention = writeProcedure
   .input(setIntentionSchema)
   .handler(async ({ input, context }) => {
     const office = can(context, "years:manage");
-    const deciding = await decidingGuardians(context.tx, {
-      tenantId: context.tenantId,
-      studentIds: [input.studentId],
-      today: context.today,
-    });
-    if (
-      !office &&
-      !deciding.some((row) => row.guardianId === context.actor.userId)
-    )
+    const deciding = await askedAboutReturning(context, [input.studentId]);
+    if (!office && !deciding.some((row) => row.userId === context.actor.userId))
       throw new ORPCError("FORBIDDEN");
     const [open] = await openReenrolments(context.tx, {
       tenantId: context.tenantId,
@@ -768,11 +783,11 @@ export const setIntention = writeProcedure
       intention: input.intention,
       byUserId: context.actor.userId,
     });
-    // One answer stands for the child, so no guardian is still asked.
-    for (const { guardianId } of deciding)
+    // One answer stands for the learner, so nobody is still asked.
+    for (const { userId } of deciding)
       await markActed(context.tx, {
         tenantId: context.tenantId,
-        userId: guardianId,
+        userId,
         subjectType: "student_school_year",
         subjectId: open.placementId,
       });
@@ -781,22 +796,31 @@ export const setIntention = writeProcedure
       objectType: "student_school_year",
       objectId: open.placementId,
       subjectUserId: input.studentId,
-      details: { intention: input.intention, by: office ? "office" : "family" },
+      details: {
+        intention: input.intention,
+        by: office
+          ? "office"
+          : context.actor.userId === input.studentId
+            ? "self"
+            : "family",
+      },
     });
     return { intention: input.intention };
   });
 
 /**
- * What the school asks a guardian of each child's next year, for the
- * children they decide for, while the question stands.
+ * What the school asks the viewer of each learner's next year, for the
+ * learners they decide for, themself included, while the question stands.
  */
 export const asking = readProcedure.handler(async ({ context }) => {
-  requireCapability(context, "children:read");
-  const studentIds = (
-    await childrenOf(context.tx, scopeFor(context, "own"), context.actor.userId)
-  )
-    .filter((link) => link.visible)
-    .map((link) => link.studentId);
+  const own = context.actor.context === "student" ? [context.actor.userId] : [];
+  const reached = await studentsReached(context, "own", [
+    ...own,
+    ...context.actor.follows,
+  ]);
+  const studentIds = [...own, ...context.actor.follows].filter((id) =>
+    reached.has(id),
+  );
   const [open, deciding, years] = await Promise.all([
     openReenrolments(context.tx, {
       tenantId: context.tenantId,
@@ -804,11 +828,7 @@ export const asking = readProcedure.handler(async ({ context }) => {
       studentIds,
       today: context.today,
     }),
-    decidingGuardians(context.tx, {
-      tenantId: context.tenantId,
-      studentIds,
-      today: context.today,
-    }),
+    askedAboutReturning(context, studentIds),
     schoolYears(context.tx, context.tenantId, context.schoolId),
   ]);
   return open.flatMap((row) => {
@@ -817,7 +837,7 @@ export const asking = readProcedure.handler(async ({ context }) => {
     const decides = deciding.some(
       (item) =>
         item.studentId === row.studentId &&
-        item.guardianId === context.actor.userId,
+        item.userId === context.actor.userId,
     );
     return next && decides
       ? [

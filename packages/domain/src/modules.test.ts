@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ModuleId } from "./modules";
 
-import { MODULE_IDS, MODULES, modulesOn } from "./modules";
+import { MODULE_IDS, MODULES, modulesOfSystem, modulesOn } from "./modules";
 
 const onWithout = (off: readonly ModuleId[]) =>
   modulesOn({
@@ -40,5 +40,14 @@ describe("modules", () => {
   it("turns the gradebook off with coursework, whatever the plan", () => {
     expect(onWithout(["coursework"]).gradebook).toBe(false);
     expect(onWithout(["school_years"]).gradebook).toBe(true);
+  });
+});
+
+describe("namespaces that link two modules", () => {
+  it("answer only where their owner and what they need are on", () => {
+    expect(modulesOfSystem("guardians")).toEqual(["families"]);
+    expect(modulesOfSystem("followUp")).toEqual(["attendance", "families"]);
+    expect(modulesOfSystem("familyShares")).toEqual(["coursework", "families"]);
+    expect(modulesOfSystem("people")).toEqual([]);
   });
 });

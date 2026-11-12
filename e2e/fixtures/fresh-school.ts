@@ -15,7 +15,8 @@ export interface FreshSchool {
   slug: string;
   admin: string;
   teacher: string;
-  guardian: string;
+  /** None where the school keeps no families. */
+  guardian: string | null;
   student: string;
 }
 
@@ -109,10 +110,10 @@ async function welcome(browser: Browser, slug: string, secret: string) {
 
 /**
  * Every module the school switches on itself, so each of its pages is
- * walked; a teacher, a student and their mother, each with a password,
- * placed nowhere.
+ * walked; a teacher, a student and, where the school keeps families, their
+ * mother, each with a password, placed nowhere.
  */
-async function firstPeople(admin: Api, slug: string) {
+async function firstPeople(admin: Api, slug: string, families: boolean) {
   for (const feature of SWITCHED_MODULES)
     await admin.school.setFeature({ feature, enabled: true });
   const teacher = `teacher@${slug}.example.com`;
@@ -126,30 +127,45 @@ async function firstPeople(admin: Api, slug: string) {
     loginName: teacher,
     password: PASSWORD,
   });
-  const options = await admin.people.options();
-  const mother = options.relations.find((row) => row.code === "mother");
+  if (!families) {
+    const saved = await admin.people.saveStudent({
+      names: names("Salama", "Pupil"),
+      reference: `SA-${slug}`,
+    });
+    const student = `pupil@${slug}.example.com`;
+    await admin.people.saveSignIn({
+      userId: saved.id,
+      loginName: student,
+      password: PASSWORD,
+    });
+    return { teacher, guardian: null, student };
+  }
+  const relations = await admin.guardians.relations();
+  const mother = relations.find((row) => row.code === "mother");
   if (!mother) throw new Error("the school has no mother relation");
   const saved = await admin.people.saveStudent({
     names: names("Salama", "Pupil"),
     reference: `SA-${slug}`,
-    guardians: [
-      {
-        person: {
-          names: names("Mona", "Pupil"),
-          phone: `010${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`,
+    parts: {
+      families: [
+        {
+          person: {
+            names: names("Mona", "Pupil"),
+            phone: `010${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`,
+          },
+          flags: {
+            relationId: mother.id,
+            legalGuardian: true,
+            portalAccess: true,
+            receivesNotifications: true,
+            primaryContact: true,
+            emergencyContact: true,
+            residence: "primary",
+            pickup: "allowed",
+          },
         },
-        flags: {
-          relationId: mother.id,
-          legalGuardian: true,
-          portalAccess: true,
-          receivesNotifications: true,
-          primaryContact: true,
-          emergencyContact: true,
-          residence: "primary",
-          pickup: "allowed",
-        },
-      },
-    ],
+      ],
+    },
   });
   const student = `pupil@${slug}.example.com`;
   await admin.people.saveSignIn({
@@ -157,8 +173,8 @@ async function firstPeople(admin: Api, slug: string) {
     loginName: student,
     password: PASSWORD,
   });
-  const record = await admin.people.student({ id: saved.id });
-  const parent = record.guardians?.[0];
+  const parent = (await admin.guardians.ofStudent({ studentId: saved.id }))
+    .guardians[0];
   if (!parent) throw new Error("the student has no guardian");
   const guardian = `mona@${slug}.example.com`;
   await admin.people.saveSignIn({
@@ -184,7 +200,15 @@ export async function freshSchool(
   await welcome(browser, slug, secret);
   const admin = `salama@${slug}.example.com`;
   const { api } = await signedInApi(admin, PASSWORD, slug);
-  return { slug, admin, ...(await firstPeople(api, slug)) };
+  return {
+    slug,
+    admin,
+    ...(await firstPeople(
+      api,
+      slug,
+      !(options.without ?? []).includes("families"),
+    )),
+  };
 }
 
 /** Signs in to the fresh school and waits for the person's home. */
@@ -199,5 +223,7 @@ export async function signInTo(
     guardian: "/family",
     student: "/me",
   };
-  await signInWith(page, school[who], PASSWORD, home[who], school.slug);
+  const login = school[who];
+  if (login === null) throw new Error("the school keeps no families");
+  await signInWith(page, login, PASSWORD, home[who], school.slug);
 }

@@ -410,12 +410,12 @@ export const askCorrectionSchema = v.object({
 export type AskCorrectionInput = v.InferInput<typeof askCorrectionSchema>;
 
 /**
- * The law a family's own request is logged under, from where the school is:
+ * The law a learner's or their family's own request is logged under, from where the school is:
  * Egypt's and the UK's set the school a deadline for a correction. Anywhere
  * else none is set, and the request is due thirty days on, the office being
  * free to change both when it reads the request.
  */
-export function familyRequestLaw(countryCode: string | null): RequestLaw {
+export function learnerRequestLaw(countryCode: string | null): RequestLaw {
   if (countryCode === "EG") return "egypt";
   if (countryCode === "GB") return "uk_gdpr";
   return "other";

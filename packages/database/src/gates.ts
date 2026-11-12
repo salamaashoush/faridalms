@@ -21,7 +21,7 @@ delete_allowed(name, role) as (values
   ('core.login_identities', 'retention'), ('core.passkeys', 'retention'), ('core.devices', 'retention'),
   ('core.files', 'retention'), ('core.file_subjects', 'retention'), ('core.user_preferences', 'retention'),
   ('core.saved_views', 'retention'), ('health.records', 'retention'),
-  ('health.requested_changes', 'retention'),
+  ('health.requested_changes', 'retention'), ('health.contact_changes', 'retention'),
   ('audit.payloads', 'retention'), ('core.calendar_feeds', 'retention'), ('core.document_files', 'retention'),
   ('core.lesson_runs', 'retention'), ('core.lesson_code', 'retention'), ('core.lesson_projects', 'retention'),
   ('core.lesson_shares', 'retention'), ('core.access_arrangements', 'retention'),
@@ -52,6 +52,7 @@ column_granted(name, role) as (values
   ('core.site_enquiries', 'site')),
 purpose_gated(name, policy, purpose) as (values
   ('health.records', 'purpose_gate', 'health'), ('health.requested_changes', 'purpose_gate', 'health'),
+  ('health.contact_changes', 'purpose_gate', 'health'),
   ('core.demographics', 'purpose_gate', 'demographics'),
   ('core.relationship_restrictions', 'purpose_gate', 'custody'), ('core.files', 'files_purpose_gate', null)),
 required_trigger(name, trigger) as (values

@@ -20,7 +20,7 @@ import { currentAnswers } from "@faridalms/database/stores/consents";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import { filesOfHosts } from "@faridalms/database/stores/files";
 import { identifiersOf } from "@faridalms/database/stores/identifiers";
-import { familyConversation } from "@faridalms/database/stores/messages";
+import { mailboxConversationWith } from "@faridalms/database/stores/messages";
 import { reachability } from "@faridalms/database/stores/notifications";
 import { person as readPerson } from "@faridalms/database/stores/students";
 import {
@@ -47,8 +47,8 @@ import { ORPCError } from "@orpc/server";
 import type { UnitContext } from "../core/context";
 
 import { fileDocument, intakeOf, letterView } from "../admissions/access";
+import { filerThread } from "../admissions/conversation";
 import { intakeViewOf, withIntakeFacts } from "../admissions/points";
-import { familyThread } from "../core/family-conversation";
 import { readNeeds } from "../core/health";
 import {
   audit,
@@ -178,7 +178,7 @@ export const application = readProcedure
       reachability(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
-        userIds: [row.familyUserId],
+        userIds: [row.filedByUserId],
       }),
       currentAnswers(context.tx, {
         tenantId: context.tenantId,
@@ -229,11 +229,11 @@ export const application = readProcedure
       additionalNeeds: row.additionalNeeds,
       enquiryId: row.enquiryId,
       /** The family's conversation with admissions, drawn by Messages; null until there is one. */
-      threadId: await familyConversation(context.tx, {
+      threadId: await mailboxConversationWith(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
         mailbox: "admissions",
-        userId: row.familyUserId,
+        userId: row.filedByUserId,
         enquiryId: row.enquiryId,
       }),
       intake: {
@@ -268,9 +268,9 @@ export const application = readProcedure
         })),
       },
       family: {
-        id: row.familyUserId,
-        nameEn: row.family.nameEn,
-        nameAr: row.family.nameAr,
+        id: row.filedByUserId,
+        nameEn: row.filer.nameEn,
+        nameAr: row.filer.nameAr,
         email: family?.email ?? null,
         phone: family?.phone ?? null,
         relation: label(relations, row.form.relationId),
@@ -537,9 +537,9 @@ export const openConversation = writeProcedure
     requireCapability(context, "admissions:manage");
     const row = await applicationOf(context, input.id);
     return {
-      threadId: await familyThread(scopeOf(context), {
+      threadId: await filerThread(scopeOf(context), {
         id: row.id,
-        familyUserId: row.familyUserId,
+        filedByUserId: row.filedByUserId,
         enquiryId: row.enquiryId,
         locale: row.locale,
       }),

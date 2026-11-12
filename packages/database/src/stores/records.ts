@@ -124,7 +124,7 @@ export async function removeHealthRecord(
 
 /**
  * Gives a record its report, or takes it away, with the record sealed again
- * so it carries the report's name; whether the family may open it goes with
+ * so it carries the report's name; whether its readers may open it goes with
  * it. False when the row changed since the version the caller read.
  */
 export async function setHealthReport(
@@ -150,7 +150,7 @@ export async function setHealthReport(
   return rows.length > 0;
 }
 
-/** Whether the family may open a record's report; false when the row changed or holds none. */
+/** Whether the summary's readers may open a record's report; false when the row changed or holds none. */
 export async function shareHealthReport(
   tx: Tx,
   input: {
@@ -185,17 +185,19 @@ export async function healthRecordOf(
   return row ? { studentId: row.student_user_id, fileId: row.file_id } : null;
 }
 
-/** A link through which the viewer may read the child's medical summary today. */
-const permitsHealth = (input: {
-  tenantId: string;
-  viewerId: string;
-  studentId: SQL;
-  today: string;
-}) => sql`exists (
-  select 1 from core.user_relationships r
-  where r.tenant_id = ${input.tenantId}::uuid and r.related_user_id = ${input.viewerId}::uuid
-    and r.student_user_id = ${input.studentId}
-    and app.guardian_permits(r, ${input.today}::date, 'health'))`;
+/**
+ * Who reads a learner's medical summary or asks to change it: a predicate
+ * over the learner's id, which the caller's rule writes and every read and
+ * write of the summary for someone outside the health staff checks in the
+ * same statement.
+ */
+export type SummaryReader = (studentId: SQL) => SQL;
+
+/** The learner themself. */
+export const ownSummary =
+  (viewerId: string): SummaryReader =>
+  (studentId) =>
+    sql`${studentId} = ${viewerId}::uuid`;
 
 export interface FamilyHealthRow {
   id: string;
@@ -209,16 +211,15 @@ export interface FamilyHealthRow {
 }
 
 /**
- * The records of the given kinds a guardian reads in the child's medical
- * summary, and none at all unless their link permits it.
+ * The records of the given kinds a reader outside the health staff reads in
+ * a learner's medical summary, and none at all unless the reader may.
  */
-export async function familyHealthRecordsOf(
+export async function summaryRecordsOf(
   tx: Tx,
   input: {
     tenantId: string;
     studentId: string;
-    viewerId: string;
-    today: string;
+    reader: SummaryReader;
     meanings: readonly string[];
   },
 ): Promise<FamilyHealthRow[]> {
@@ -238,7 +239,7 @@ export async function familyHealthRecordsOf(
     join core.descriptors d on d.tenant_id = h.tenant_id and d.id = h.kind_descriptor_id
     where h.tenant_id = ${input.tenantId}::uuid and h.student_user_id = ${input.studentId}::uuid
       and h.status = 'active' and d.system_meaning = any(${textArray([...input.meanings])})
-      and ${permitsHealth({ ...input, studentId: sql`h.student_user_id` })}
+      and ${input.reader(sql`h.student_user_id`)}
     order by h.created_at, h.id`);
   return rows.map((row) => ({
     id: row.id,
@@ -253,8 +254,8 @@ export async function familyHealthRecordsOf(
 }
 
 /**
- * Records a guardian's change against their open correction request; false
- * when their link does not permit the medical summary, so nothing is kept.
+ * Records a change asked for against the asker's open correction request;
+ * false when the reader rule does not let them ask, so nothing is kept.
  */
 export async function insertHealthChange(
   tx: Tx,
@@ -264,11 +265,10 @@ export async function insertHealthChange(
     requestId: string;
     studentId: string;
     requestedByUserId: string;
-    today: string;
+    reader: SummaryReader;
     target: "record" | "contact";
     kindId: string | null;
     recordId: string | null;
-    relationshipId: string | null;
     keyVersion: number;
     ciphertext: Uint8Array;
     /** The report sent with the change, already hosted by it. */
@@ -277,16 +277,11 @@ export async function insertHealthChange(
 ): Promise<boolean> {
   const rows = await tx.execute<{ id: string }>(sql`
     insert into health.requested_changes (tenant_id, id, request_id, student_user_id, requested_by_user_id,
-      target, kind_descriptor_id, record_id, relationship_id, key_version, ciphertext, file_id)
+      target, kind_descriptor_id, record_id, key_version, ciphertext, file_id)
     select ${input.tenantId}::uuid, ${input.id}::uuid, ${input.requestId}::uuid, ${input.studentId}::uuid,
       ${input.requestedByUserId}::uuid, ${input.target}, ${input.kindId}::uuid, ${input.recordId}::uuid,
-      ${input.relationshipId}::uuid, ${input.keyVersion}, ${input.ciphertext}, ${input.fileId ?? null}::uuid
-    where ${permitsHealth({
-      tenantId: input.tenantId,
-      viewerId: input.requestedByUserId,
-      studentId: sql`${input.studentId}::uuid`,
-      today: input.today,
-    })}
+      ${input.keyVersion}, ${input.ciphertext}, ${input.fileId ?? null}::uuid
+    where ${input.reader(sql`${input.studentId}::uuid`)}
     returning id`);
   return rows.length > 0;
 }
@@ -303,7 +298,6 @@ export interface HealthChangeRow {
   target: "record" | "contact";
   kindId: string | null;
   recordId: string | null;
-  relationshipId: string | null;
   keyVersion: number;
   ciphertext: Uint8Array;
   fileId: string | null;
@@ -333,7 +327,6 @@ async function healthChangesWhere(
     target: "record" | "contact";
     kind_descriptor_id: string | null;
     record_id: string | null;
-    relationship_id: string | null;
     key_version: number;
     ciphertext: Uint8Array;
     file_id: string | null;
@@ -344,7 +337,7 @@ async function healthChangesWhere(
   }>(sql`
     select c.id, c.request_id, c.student_user_id, s.full_name_en as student_name_en,
            s.full_name_ar as student_name_ar, c.requested_by_user_id, g.full_name_en as requester_name_en,
-           g.full_name_ar as requester_name_ar, c.target, c.kind_descriptor_id, c.record_id, c.relationship_id,
+           g.full_name_ar as requester_name_ar, c.target, c.kind_descriptor_id, c.record_id,
            c.key_version, c.ciphertext, c.file_id, q.received_on::text as received_on,
            coalesce(q.extended_to, q.due_on)::text as due_on, q.outcome, q.closed_at::text as closed_at
     from health.requested_changes c
@@ -366,7 +359,6 @@ async function healthChangesWhere(
     target: row.target,
     kindId: row.kind_descriptor_id,
     recordId: row.record_id,
-    relationshipId: row.relationship_id,
     keyVersion: row.key_version,
     ciphertext: row.ciphertext,
     fileId: row.file_id,
@@ -377,8 +369,8 @@ async function healthChangesWhere(
   }));
 }
 
-/** What one guardian asked to change about one child. */
-export function familyHealthChanges(
+/** What one person asked to change about one learner. */
+export function askedHealthChanges(
   tx: Tx,
   input: {
     tenantId: string;
@@ -399,13 +391,14 @@ export interface HealthReach {
   viewerId: string;
   today: string;
   schoolWide: boolean;
+  followed: readonly string[];
 }
 
 const reached = (
   input: { orgId: string } & HealthReach,
 ) => sql`c.student_user_id in (
   select student_user_id from app.visible_students(${input.viewerId}::uuid, ${input.orgId}::uuid,
-    ${input.today}::date, ${input.schoolWide}))`;
+    ${input.today}::date, ${input.schoolWide}, ${uuidArray(input.followed)}))`;
 
 /** The office's changes to answer, or every one, of the students it reaches. */
 export function healthChangeQueue(
@@ -458,7 +451,7 @@ export async function healthQueueStudents(
       and q.topic = 'health' and (not ${input.open} or q.outcome is null)
       and q.subject_user_id in (
         select student_user_id from app.visible_students(${input.viewerId}::uuid, ${input.orgId}::uuid,
-          ${input.today}::date, ${input.schoolWide}))`);
+          ${input.today}::date, ${input.schoolWide}, ${uuidArray(input.followed)}))`);
   return rows.map((row) => row.subject_user_id);
 }
 
@@ -570,115 +563,5 @@ export async function saveDemographicsRow(
     where tenant_id = ${input.tenantId}::uuid and user_id = ${input.userId}::uuid
       and version = ${input.expectedVersion} and status = 'active'
     returning user_id`);
-  return rows.length > 0;
-}
-
-export interface RestrictionRow {
-  relationshipId: string;
-  version: number;
-  contactRestrictions: string | null;
-  courtOrderFileId: string | null;
-}
-
-export async function restrictionsOf(
-  tx: Tx,
-  tenantId: string,
-  relationshipIds: readonly string[],
-): Promise<RestrictionRow[]> {
-  if (relationshipIds.length === 0) return [];
-  const rows = await tx.execute<{
-    relationship_id: string;
-    version: number;
-    contact_restrictions: string | null;
-    court_order_file_id: string | null;
-  }>(sql`
-    select relationship_id, version, contact_restrictions, court_order_file_id
-    from core.relationship_restrictions
-    where tenant_id = ${tenantId}::uuid and relationship_id = any(${uuidArray([...relationshipIds])})
-      and status = 'active'`);
-  return rows.map((row) => ({
-    relationshipId: row.relationship_id,
-    version: row.version,
-    contactRestrictions: row.contact_restrictions,
-    courtOrderFileId: row.court_order_file_id,
-  }));
-}
-
-export async function saveRestriction(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    relationshipId: string;
-    contactRestrictions: string | null;
-  },
-) {
-  await tx.execute(sql`
-    insert into core.relationship_restrictions (tenant_id, relationship_id, contact_restrictions)
-    values (${input.tenantId}::uuid, ${input.relationshipId}::uuid, ${input.contactRestrictions})
-    on conflict (tenant_id, relationship_id)
-    do update set contact_restrictions = excluded.contact_restrictions, status = 'active'`);
-}
-
-/**
- * Gives a guardian link its court order, or takes it away with null,
- * keeping whatever restriction the link has; returns the order it held.
- */
-export async function setCourtOrder(
-  tx: Tx,
-  input: { tenantId: string; relationshipId: string; fileId: string | null },
-): Promise<string | null> {
-  const [before] = await tx.execute<{ court_order_file_id: string | null }>(sql`
-    select court_order_file_id from core.relationship_restrictions
-    where tenant_id = ${input.tenantId}::uuid and relationship_id = ${input.relationshipId}::uuid
-      and status = 'active'
-    for update`);
-  await tx.execute(sql`
-    insert into core.relationship_restrictions (tenant_id, relationship_id, court_order_file_id)
-    values (${input.tenantId}::uuid, ${input.relationshipId}::uuid, ${input.fileId}::uuid)
-    on conflict (tenant_id, relationship_id)
-    do update set court_order_file_id = excluded.court_order_file_id, status = 'active'`);
-  return before?.court_order_file_id ?? null;
-}
-
-/** The link a custody paper belongs to, and the student the link is for. */
-export async function courtOrderLink(
-  tx: Tx,
-  tenantId: string,
-  relationshipId: string,
-): Promise<{ studentId: string; fileId: string | null } | null> {
-  const [row] = await tx.execute<{
-    student_user_id: string;
-    court_order_file_id: string | null;
-  }>(sql`
-    select l.student_user_id, r.court_order_file_id
-    from core.user_relationships l
-    left join core.relationship_restrictions r on r.tenant_id = l.tenant_id
-      and r.relationship_id = l.id and r.status = 'active'
-    where l.tenant_id = ${tenantId}::uuid and l.id = ${relationshipId}::uuid`);
-  return row
-    ? { studentId: row.student_user_id, fileId: row.court_order_file_id }
-    : null;
-}
-
-/** The derived custody flags every staff member sees; false when the link changed. */
-export async function updateCustodyFlags(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    studentId: string;
-    relationshipId: string;
-    expectedVersion: number;
-    educationalRights: "full" | "restricted" | "none";
-    communicationIsolated: boolean;
-    pickup: "allowed" | "not_allowed" | "ask_office" | null;
-  },
-) {
-  const rows = await tx.execute<{ id: string }>(sql`
-    update core.user_relationships
-    set educational_rights = ${input.educationalRights}, communication_isolated = ${input.communicationIsolated},
-        pickup = ${input.pickup}
-    where tenant_id = ${input.tenantId}::uuid and id = ${input.relationshipId}::uuid
-      and student_user_id = ${input.studentId}::uuid and version = ${input.expectedVersion} and status = 'active'
-    returning id`);
   return rows.length > 0;
 }

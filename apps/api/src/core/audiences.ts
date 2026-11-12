@@ -11,6 +11,7 @@ import {
   audienceUsers,
   reachOf,
   setAudiences,
+  studentsHeardFor,
 } from "@faridalms/database/stores/audiences";
 import { classesRunning } from "@faridalms/database/stores/classes";
 import { AUDIENCE_SCOPES } from "@faridalms/domain/announcements";
@@ -19,6 +20,7 @@ import { ORPCError } from "@orpc/server";
 import type { UnitContext } from "./context";
 import type { ModuleScope } from "./extension";
 
+import { actorsFor, learnersActedFor } from "../people/acting";
 import { contributionsTo, point } from "./extension";
 import { can } from "./procedure";
 
@@ -32,8 +34,8 @@ export interface AudienceTarget {
 /**
  * An audience a module offers under its scope, kept in its own tables: what
  * it may name, what an announcement or event names under it, and the
- * classes those cover, whose students, families and teachers it reaches as
- * a class audience reaches its own.
+ * classes those cover, whose students, teachers and those who act for the
+ * students it reaches as a class audience reaches its own.
  */
 export interface AudienceKind {
   scope: string;
@@ -53,6 +55,18 @@ export interface AudienceKind {
     context: ModuleScope,
     kind: AudienceOwner["kind"],
     classIds: readonly string[],
+  ): Promise<string[]>;
+  /** People the kind reaches on a day beside its classes' own. */
+  peopleOf?(
+    context: ModuleScope,
+    owner: AudienceOwner,
+    on: string,
+  ): Promise<string[]>;
+  /** Of the announcements or events, those the kind names the person in, beside their classes. */
+  ownersNaming?(
+    context: ModuleScope,
+    kind: AudienceOwner["kind"],
+    input: { userId: string; on: string },
   ): Promise<string[]>;
 }
 
@@ -176,7 +190,12 @@ export const audienceInputs = (
     targetId: entry.targetId ?? "",
   }));
 
-/** Everyone an announcement's or event's audiences reach on a day. */
+/**
+ * Everyone an announcement's or event's audiences reach on a day: staff,
+ * students and teachers, those who act for the students of the school's
+ * and a class's audiences in the school's messages, and whom each module's
+ * audiences reach besides.
+ */
 export async function audiencePeople(
   context: ModuleScope,
   owner: AudienceOwner,
@@ -184,14 +203,25 @@ export async function audiencePeople(
 ): Promise<string[]> {
   const own = await audiencesOf(context.tx, context.tenantId, owner);
   const classIds = new Set<string>();
-  for (const kind of await contributionsTo(context, audienceKinds))
+  const besides: string[] = [];
+  for (const kind of await contributionsTo(context, audienceKinds)) {
     for (const id of await kind.classesOf(context, owner)) classIds.add(id);
-  return audienceUsers(
-    context.tx,
-    { tenantId: context.tenantId, schoolId: context.schoolId, on },
-    own,
-    [...classIds],
-  );
+    if (kind.peopleOf)
+      besides.push(...(await kind.peopleOf(context, owner, on)));
+  }
+  const where = { tenantId: context.tenantId, schoolId: context.schoolId, on };
+  const [people, heard] = await Promise.all([
+    audienceUsers(context.tx, where, own, [...classIds]),
+    studentsHeardFor(context.tx, where, own, [...classIds]),
+  ]);
+  const actors = await actorsFor(context, {
+    studentIds: heard,
+    on,
+    purpose: "contact",
+  });
+  return [
+    ...new Set([...people, ...actors.map((link) => link.userId), ...besides]),
+  ];
 }
 
 /**
@@ -202,17 +232,28 @@ export async function reachAt(
   context: ModuleScope,
   input: { userId: string; on: string },
 ): Promise<Reach> {
+  const learners = await learnersActedFor(context, {
+    userId: input.userId,
+    on: input.on,
+    purpose: "contact",
+  });
   const reach = await reachOf(context.tx, {
     tenantId: context.tenantId,
     schoolId: context.schoolId,
     userId: input.userId,
     on: input.on,
+    learners: learners.map((link) => link.studentId),
   });
   for (const kind of await contributionsTo(context, audienceKinds))
-    for (const owned of ["broadcast", "calendar_event"] as const)
+    for (const owned of ["broadcast", "calendar_event"] as const) {
       reach.owners[owned].push(
         ...(await kind.ownersCovering(context, owned, reach.classIds)),
       );
+      if (kind.ownersNaming)
+        reach.owners[owned].push(
+          ...(await kind.ownersNaming(context, owned, input)),
+        );
+    }
   return reach;
 }
 

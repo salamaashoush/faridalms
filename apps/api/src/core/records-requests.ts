@@ -7,7 +7,7 @@ import {
   openRequestsBy,
 } from "@faridalms/database/stores/privacy";
 import {
-  familyRequestLaw,
+  learnerRequestLaw,
   MAX_OPEN_CORRECTIONS,
   MAX_OPEN_HEALTH_CHANGES,
   requestDueOn,
@@ -63,13 +63,13 @@ const MAX_OPEN: Record<RequestTopic | "office", number> = {
 };
 
 /**
- * Logs a guardian's correction request about their child in the register
- * the office keeps, with the deadline the school's law sets, so it is
- * answered on that clock and not lost in a message. A topic names the
- * system that answers it with the change it carries. The caller has
- * checked that this guardian may ask.
+ * Logs a correction request about a learner, by the learner or someone who
+ * acts for them, in the register the office keeps, with the deadline the
+ * school's law sets, so it is answered on that clock and not lost in a
+ * message. A topic names the system that answers it with the change it
+ * carries. The caller has checked that the asker may ask.
  */
-export async function logFamilyRequest(
+export async function logLearnerRequest(
   context: UnitContext,
   input: {
     studentId: string;
@@ -90,7 +90,8 @@ export async function logFamilyRequest(
     viewer(context.tx, context.actor.userId),
     schoolProfile(context.tx, context.schoolId),
   ]);
-  const law = familyRequestLaw(school?.countryCode ?? null);
+  const law = learnerRequestLaw(school?.countryCode ?? null);
+  const self = input.studentId === context.actor.userId;
   const dueOn =
     requestDueOn(
       law,
@@ -102,7 +103,7 @@ export async function logFamilyRequest(
     ...scope,
     subjectUserId: input.studentId,
     requestedBy: (me?.fullNameEn ?? me?.fullNameAr ?? "").slice(0, 120),
-    relation: "parent",
+    relation: self ? "self" : "parent",
     kind: "correction",
     law,
     receivedOn: context.today,
@@ -121,7 +122,7 @@ export async function logFamilyRequest(
       kind: "correction",
       law,
       dueOn,
-      by: "guardian",
+      by: self ? "self" : "guardian",
       ...(input.topic ? { topic: input.topic } : {}),
     },
   });

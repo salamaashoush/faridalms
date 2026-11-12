@@ -512,11 +512,20 @@ describe("handing in and returning work", () => {
     expect(await told()).toBe(0);
     const tenantId = seeded().tenants[0]?.tenantId ?? "";
     const channels = { email: false, sms: false };
-    await runGoLive(seeded().cell, tenantId, { channels });
+    await runGoLive(seeded().cell, tenantId, {
+      channels,
+      modules: workerModules(),
+    });
     expect(await told()).toBe(0);
     await timeHasCome("assignments", saved.id);
-    await runGoLive(seeded().cell, tenantId, { channels });
-    await runGoLive(seeded().cell, tenantId, { channels });
+    await runGoLive(seeded().cell, tenantId, {
+      channels,
+      modules: workerModules(),
+    });
+    await runGoLive(seeded().cell, tenantId, {
+      channels,
+      modules: workerModules(),
+    });
     expect(await told()).toBe(1);
   });
 
@@ -878,16 +887,16 @@ describe("handing in and returning work", () => {
     ).toHaveLength(told.length);
     // Shared with the family, it carries the teacher's comment, not the
     // child's answers to it.
-    await teacher.api.coursework.act({
+    await teacher.api.familyShares.share({
       assignmentId: saved.id,
-      action: "share",
       studentIds: [me.id],
+      shared: true,
     });
     const family = await signedIn(
       "northwind",
       login("student").replace("student", "parent"),
     );
-    const piece = await family.coursework.sharedPiece({
+    const piece = await family.familyShares.piece({
       attemptId: attempt.id,
     });
     expect(piece.comments).toMatchObject([
@@ -1417,27 +1426,27 @@ describe("handing in and returning work", () => {
     ).work.find((row) => row.studentId === me.id)?.attemptId;
     if (!attemptId) throw new Error("no attempt handed in");
     expect(
-      await rejection(family.coursework.sharedPiece({ attemptId })),
+      await rejection(family.familyShares.piece({ attemptId })),
     ).toMatchObject({ code: "NOT_FOUND" });
-    await teacher.api.coursework.act({
+    await teacher.api.familyShares.share({
       assignmentId: saved.id,
-      action: "share",
       studentIds: [me.id],
+      shared: true,
     });
-    const piece = await family.coursework.sharedPiece({ attemptId });
+    const piece = await family.familyShares.piece({ attemptId });
     expect(JSON.stringify(piece.content)).toContain("My answers are attached.");
     expect(
-      (await family.coursework.shared({ studentId: me.id })).rows.map(
+      (await family.familyShares.list({ studentId: me.id })).rows.map(
         (row) => row.attemptId,
       ),
     ).toContain(attemptId);
-    await teacher.api.coursework.act({
+    await teacher.api.familyShares.share({
       assignmentId: saved.id,
-      action: "unshare",
       studentIds: [me.id],
+      shared: false,
     });
     expect(
-      await rejection(family.coursework.sharedPiece({ attemptId })),
+      await rejection(family.familyShares.piece({ attemptId })),
     ).toMatchObject({ code: "NOT_FOUND" });
     // A hand-in names the student only as the one the record is about, and
     // still reaches their history.

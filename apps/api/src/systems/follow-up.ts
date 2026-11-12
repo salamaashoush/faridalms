@@ -8,10 +8,7 @@ import {
   guardiansToCall,
   overdueReasons,
 } from "@faridalms/database/stores/follow-up";
-import {
-  mailboxThreadAbout,
-  messagingGuardians,
-} from "@faridalms/database/stores/messages";
+import { mailboxThreadAbout } from "@faridalms/database/stores/messages";
 import {
   markedMeanings,
   schoolWeek,
@@ -45,6 +42,7 @@ import {
   scopeOf as conversationScope,
   writeEntry,
 } from "../messages/conversations";
+import { actorsFor } from "../people/acting";
 
 /** Missing half the sessions or more: absent more than present. */
 const SEVERE_PERCENT = 50;
@@ -231,11 +229,17 @@ export const logContact = writeProcedure
         subject: null,
         studentId: input.studentId,
         ownerId: null,
-        memberIds: await messagingGuardians(context.tx, {
-          tenantId: context.tenantId,
-          studentId: input.studentId,
-          on: context.today,
-        }),
+        memberIds: [
+          ...new Set(
+            (
+              await actorsFor(context, {
+                studentIds: [input.studentId],
+                on: context.today,
+                purpose: "contact",
+              })
+            ).map((link) => link.userId),
+          ),
+        ],
       }));
     const { id } = await writeEntry(scope, {
       threadId,

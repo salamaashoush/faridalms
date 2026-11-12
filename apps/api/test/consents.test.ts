@@ -23,8 +23,8 @@ async function purpose(office: Office, code: string) {
 }
 
 async function firstChild(family: Family) {
-  const data = await family.consents.family();
-  const child = data.children[0];
+  const data = await family.consents.mine();
+  const child = data.learners[0];
   if (!child) throw new Error("the seeded parent has no child");
   return { data, child };
 }
@@ -35,9 +35,9 @@ async function setRights(
   studentId: string,
   rights: "full" | "restricted" | "none",
 ) {
-  const { links } = await office.records.custody({ studentId });
+  const { links } = await office.guardians.custody({ studentId });
   for (const link of links)
-    await office.records.saveCustody({
+    await office.guardians.saveCustody({
       studentId,
       relationshipId: link.relationshipId,
       expectedVersion: link.version,
@@ -168,9 +168,9 @@ describe("answering for a child", () => {
     if (!form) throw new Error("no published form");
     await setRights(office, child.studentId, "restricted");
     try {
-      const after = await family.consents.family();
+      const after = await family.consents.mine();
       expect(
-        after.children.find((row) => row.studentId === child.studentId)
+        after.learners.find((row) => row.studentId === child.studentId)
           ?.mayAnswer,
       ).toBe(false);
       expect(
@@ -216,7 +216,7 @@ describe("answering for a child", () => {
     const answer = {
       studentId: child.studentId,
       purposeId: news.id,
-      relationshipId: guardian.relationshipId,
+      answeredBy: guardian.answeredBy,
       agreed: true,
       method: "verbal_recorded" as const,
       givenOn: record.today,
@@ -258,18 +258,18 @@ describe("answering for a child", () => {
       expectedVersion: draft.version,
     });
     expect(published.asked).toBeGreaterThan(0);
-    const data = await family.consents.family();
+    const data = await family.consents.mine();
     const form = data.forms.find((row) => row.purposeId === news.id);
     expect(form?.id).toBe(draft.id);
     expect(form?.versionLabel).toBe("2");
-    const answer = data.children
+    const answer = data.learners
       .find((row) => row.studentId === child.studentId)
       ?.answers.find((row) => row.purposeId === news.id);
     expect(answer?.decision).toBe("granted");
     expect(answer?.formId).not.toBe(draft.id);
     const { rows } = await family.notifications.list({ tab: "action" });
     expect(rows.some((row) => row.subjectId === draft.id)).toBe(true);
-    for (const row of data.children.filter((item) => item.mayAnswer))
+    for (const row of data.learners.filter((item) => item.mayAnswer))
       await family.consents.answer({
         studentId: row.studentId,
         noticeId: draft.id,

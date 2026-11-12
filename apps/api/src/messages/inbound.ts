@@ -262,10 +262,16 @@ async function takeMail(
       work,
       "write",
       async (tx, _lifecycle, now) => {
+        const school = (
+          await context.directory.schoolsOfTenant(routed.tenantId)
+        ).find((row) => row.schoolId === target.orgId);
+        if (!school) throw new Error("the school is not in the directory");
         const scope = {
           tx,
           tenantId: routed.tenantId,
           schoolId: target.orgId,
+          school,
+          extensions: context.extensions,
           actorUserId: null,
           now,
           channels: context.channels,

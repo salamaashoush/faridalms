@@ -8,7 +8,6 @@ import {
   findStudents,
   insertMovement,
   movementsOn,
-  pickupContacts,
 } from "@faridalms/database/stores/front-desk";
 import {
   findStudentSchema,
@@ -22,6 +21,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
+import { pickupContactsOf } from "../attendance/pickup";
 import { periodsOf } from "../attendance/plans";
 import {
   audit,
@@ -111,8 +111,7 @@ export const pickup = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:manage");
     await requireOnRoll(context, input.studentId);
-    return pickupContacts(context.tx, {
-      tenantId: context.tenantId,
+    return pickupContactsOf(context, {
       studentId: input.studentId,
       day: context.today,
     });
@@ -228,8 +227,7 @@ export const signOut = writeProcedure
     if (!input.collectedById && !input.collectedByName)
       throw new ORPCError("BAD_REQUEST", { message: "attendance.pickup_who" });
     if (input.collectedById) {
-      const contacts = await pickupContacts(context.tx, {
-        tenantId: context.tenantId,
+      const contacts = await pickupContactsOf(context, {
         studentId: input.studentId,
         day: context.today,
       });

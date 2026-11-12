@@ -183,7 +183,7 @@ export async function erasurePlan(
         ...(
           await tx.execute<{ id: string }>(sql`
             select id from core.site_enquiries where tenant_id = ${t}::uuid
-              and (family_user_id = ${s}::uuid or applicant_user_id = ${s}::uuid)`)
+              and (enquirer_user_id = ${s}::uuid or applicant_user_id = ${s}::uuid)`)
         ).map((row) => row.id),
       ]),
     ],
@@ -481,6 +481,12 @@ export async function eraseSubject(
     sql`relationship_id in ${relationships}`,
   );
   await purpose("health");
+  await run(
+    "contact_changes",
+    sql`delete from health.contact_changes where tenant_id = ${t}::uuid
+          and change_id in (select id from health.requested_changes
+            where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid) returning 1`,
+  );
   await remove(
     "health_changes",
     sql`health.requested_changes`,

@@ -255,7 +255,7 @@ describe("re-enrolment", () => {
     ).toMatchObject({ code: "CONFLICT", message: "reenrolment.opened" });
 
     const family = await signedIn("northwind", login("parent"));
-    const [child] = (await family.home.family({})).children;
+    const [child] = (await family.home.followed({})).children;
     if (!child) throw new Error("seed child");
     const waiting = await family.notifications.list({ tab: "action" });
     expect(

@@ -728,8 +728,6 @@ export const STUDENT_WORK_ACTIONS = [
   "excuse",
   "unexcuse",
   "hand_in",
-  "share",
-  "unshare",
 ] as const;
 export type StudentWorkAction = (typeof STUDENT_WORK_ACTIONS)[number];
 
@@ -985,6 +983,15 @@ export const sharedWorkQuerySchema = v.object({
   studentId: id,
   after: keysetField,
 });
+
+/** Shares handed-in work of some students with those who follow them, or takes it back. */
+export const shareWorkSchema = v.object({
+  assignmentId: id,
+  studentIds: v.pipe(v.array(id), v.minLength(1), v.maxLength(500)),
+  shared: v.boolean(),
+});
+
+export const sharedPieceSchema = v.object({ attemptId: id });
 
 export interface CopyStanding {
   /** How many of the files set aside for each student they put their own version in place of. */

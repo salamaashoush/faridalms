@@ -3,7 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 import {
   getConsentForm,
   getConsentForms,
-  getFamilyConsents,
+  getMyConsents,
   getStudentConsents,
 } from "~/server/consents";
 
@@ -24,7 +24,7 @@ export const studentConsentsQuery = (studentId: string) =>
     queryFn: () => getStudentConsents({ data: { id: studentId } }),
   });
 
-export const familyConsentsQuery = queryOptions({
-  queryKey: ["consents", "family"],
-  queryFn: () => getFamilyConsents(),
+export const myConsentsQuery = queryOptions({
+  queryKey: ["consents", "mine"],
+  queryFn: () => getMyConsents(),
 });

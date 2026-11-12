@@ -169,7 +169,7 @@ export const calendarEventAudiences = core.table.withRLS(
     ck(
       "calendar_event_audiences",
       "scope",
-      sql`scope in ('school', 'staff', 'families', 'students', 'class')`,
+      sql`scope in ('school', 'staff', 'students', 'class')`,
     ),
     ck(
       "calendar_event_audiences",

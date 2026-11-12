@@ -1,6 +1,3 @@
-import type { GuardianPurpose } from "@faridalms/domain/family-roles";
-
-import { PARENTAL_MEANINGS } from "@faridalms/domain/family-roles";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -28,7 +25,7 @@ export async function personReach(
   const rows = await tx.execute<{ user_id: string; record: boolean }>(sql`
     select p.user_id, p.record
     from app.reached_people(${scope.viewerId}::uuid, ${scope.schoolId}::uuid, ${scope.today}::date,
-      ${scope.schoolWide}) p
+      ${scope.schoolWide}, ${uuidArray(scope.followed)}) p
     where p.user_id = any(${uuidArray(userIds)})`);
   return new Map(
     rows.map((row) => [row.user_id, row.record ? "record" : "profile"]),
@@ -115,129 +112,6 @@ export async function contactsOf(
   }));
 }
 
-export interface ChildLink {
-  relationshipId: string;
-  studentId: string;
-  fullNameEn: string | null;
-  fullNameAr: string | null;
-  relationId: string;
-  /** Whether the link lets the person follow the child in the portal today. */
-  follows: boolean;
-  /** Full rights decide for the child; restricted ones only follow. */
-  educationalRights: "full" | "restricted" | "none";
-  /** A legal guardian the office has confirmed, who may consent for the child. */
-  consents: boolean;
-  visible: boolean;
-}
-
-/** The students a person is linked to, marking those the viewer may open. */
-export async function childrenOf(
-  tx: Tx,
-  scope: Scope,
-  userId: string,
-): Promise<ChildLink[]> {
-  const rows = await tx.execute<{
-    id: string;
-    student_user_id: string;
-    full_name_en: string | null;
-    full_name_ar: string | null;
-    relation_descriptor_id: string;
-    follows: boolean;
-    educational_rights: "full" | "restricted" | "none";
-    consents: boolean;
-    visible: boolean;
-  }>(sql`
-    select r.id, r.student_user_id, u.full_name_en, u.full_name_ar, r.relation_descriptor_id,
-           app.guardian_permits(r, ${scope.today}::date, 'follow') as follows, r.educational_rights,
-           coalesce(r.legal_guardian, false) and r.verified_at is not null and r.educational_rights = 'full' as consents,
-           r.student_user_id in (select student_user_id from app.visible_students(${scope.viewerId}::uuid,
-             ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide})) as visible
-    from core.user_relationships r
-    join core.users u on u.tenant_id = r.tenant_id and u.id = r.student_user_id and u.status = 'active'
-    where r.tenant_id = ${scope.tenantId}::uuid and r.related_user_id = ${userId}::uuid and r.status = 'active'
-      and r.valid_during @> ${scope.today}::date
-    order by u.full_name_en, u.full_name_ar`);
-  return rows
-    .filter((row) => row.visible)
-    .map((row) => ({
-      relationshipId: row.id,
-      studentId: row.student_user_id,
-      fullNameEn: row.full_name_en,
-      fullNameAr: row.full_name_ar,
-      relationId: row.relation_descriptor_id,
-      follows: row.follows,
-      educationalRights: row.educational_rights,
-      consents: row.consents,
-      visible: row.visible,
-    }));
-}
-
-/**
- * The viewer's link to a child when it permits the purpose today, as
- * `app.guardian_permits` decides; null when it does not.
- */
-export async function permittingLink(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    viewerId: string;
-    studentId: string;
-    today: string;
-    purpose: GuardianPurpose;
-  },
-): Promise<string | null> {
-  const rows = await tx.execute<{ id: string }>(sql`
-    select r.id from core.user_relationships r
-    where r.tenant_id = ${input.tenantId}::uuid and r.related_user_id = ${input.viewerId}::uuid
-      and r.student_user_id = ${input.studentId}::uuid
-      and app.guardian_permits(r, ${input.today}::date, ${input.purpose})
-    limit 1`);
-  return rows[0]?.id ?? null;
-}
-
-const parental = sql`(${sql.join(
-  PARENTAL_MEANINGS.map((meaning) => sql`${meaning}`),
-  sql`, `,
-)})`;
-
-export interface Sibling {
-  userId: string;
-  fullNameEn: string | null;
-  fullNameAr: string | null;
-}
-
-/** Children who share a parent with this one and whom the viewer reaches. */
-export async function siblingsOf(
-  tx: Tx,
-  scope: Scope,
-  studentId: string,
-): Promise<Sibling[]> {
-  const rows = await tx.execute<{
-    user_id: string;
-    full_name_en: string | null;
-    full_name_ar: string | null;
-  }>(sql`
-    select distinct u.id as user_id, u.full_name_en, u.full_name_ar
-    from core.user_relationships mine
-    join core.user_relationships theirs on theirs.tenant_id = mine.tenant_id
-      and theirs.related_user_id = mine.related_user_id and theirs.student_user_id <> mine.student_user_id
-      and theirs.status = 'active' and theirs.valid_during @> ${scope.today}::date
-      and theirs.relation_meaning in ${parental}
-    join core.users u on u.tenant_id = theirs.tenant_id and u.id = theirs.student_user_id and u.status = 'active'
-    where mine.tenant_id = ${scope.tenantId}::uuid and mine.student_user_id = ${studentId}::uuid
-      and mine.status = 'active' and mine.valid_during @> ${scope.today}::date
-      and mine.relation_meaning in ${parental}
-      and theirs.student_user_id in (
-        select student_user_id from app.visible_students(${scope.viewerId}::uuid, ${scope.schoolId}::uuid,
-          ${scope.today}::date, ${scope.schoolWide}))
-    order by u.full_name_en, u.full_name_ar`);
-  return rows.map((row) => ({
-    userId: row.user_id,
-    fullNameEn: row.full_name_en,
-    fullNameAr: row.full_name_ar,
-  }));
-}
-
 /**
  * Sets a person's contact of one kind and label: an unchanged value stays,
  * a changed one replaces the old row, and an empty one removes it.
@@ -321,10 +195,12 @@ export async function setPhoto(
   return row?.before ?? null;
 }
 
-const reached = (scope: Scope) => sql`(
+const reached = (scope: Scope, besides: readonly string[]) => sql`(
+  select unnest(${uuidArray(besides)})
+  union
   select user_id from app.visible_people(${scope.viewerId}::uuid, ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide})
   union
-  select student_user_id from app.visible_students(${scope.viewerId}::uuid, ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}))`;
+  select student_user_id from app.visible_students(${scope.viewerId}::uuid, ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}, ${uuidArray(scope.followed)}))`;
 
 export interface PersonHit {
   id: string;
@@ -334,11 +210,15 @@ export interface PersonHit {
   roles: string[];
 }
 
-/** People the viewer reaches at this school whose name matches, for pickers. */
+/**
+ * People the viewer reaches at this school whose name matches, for
+ * pickers, with those a module opens to them besides.
+ */
 export async function searchReached(
   tx: Tx,
   scope: Scope,
   q: string,
+  besides: readonly string[],
 ): Promise<PersonHit[]> {
   const path = await orgPath(tx, scope.tenantId, scope.schoolId);
   const rows = await tx.execute<{
@@ -354,7 +234,7 @@ export async function searchReached(
     from core.users u
     where u.tenant_id = ${scope.tenantId}::uuid and u.status = 'active'
       and u.id in (select result_id from app.search(${q}, array['user'], ${uuidArray(path)},
-        within => array${reached(scope)}))
+        within => array${reached(scope, besides)}))
     order by u.full_name_en, u.full_name_ar
     limit 20`);
   return rows.map((row) => ({

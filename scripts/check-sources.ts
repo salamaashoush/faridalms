@@ -17,7 +17,11 @@ import { Glob, SQL } from "bun";
 
 import { errorCodeProblems } from "./error-codes";
 import { migrationProblems } from "./migration-checks";
-import { moduleImportProblems } from "./module-files";
+import {
+  functionBodyProblems,
+  moduleImportProblems,
+  sqlNameProblems,
+} from "./module-files";
 
 const problems: string[] = [];
 
@@ -79,6 +83,7 @@ const REACH_STORE =
 
 const files = await sources();
 problems.push(...moduleImportProblems(files));
+problems.push(...sqlNameProblems(files));
 for (const { path, text } of files) {
   if (path === "scripts/check-sources.ts") continue;
   const context = path === "packages/database/src/context.ts";
@@ -232,9 +237,11 @@ const RULE_DEFINITIONS =
   /create function app\.(?:guardian_permits|staff_roles)\([\s\S]*?\$\$[\s\S]*?\$\$;/gi;
 const VOCABULARY =
   /\bcheck\s*\((?:[^()']|'[^']*'|\((?:[^()']|'[^']*')*\))*\)/gi;
+const cellMigrations: { path: string; text: string }[] = [];
 for (const folder of Object.values(MIGRATIONS))
   for await (const path of new Glob(`${folder}/*/migration.sql`).scan(".")) {
     const text = await Bun.file(path).text();
+    if (folder === MIGRATIONS.cell) cellMigrations.push({ path, text });
     problems.push(...migrationProblems(path, text));
     const rest = text
       .replaceAll(RULE_DEFINITIONS, "")
@@ -242,6 +249,7 @@ for (const folder of Object.values(MIGRATIONS))
     if (GUARDIAN_RULE.test(rest) || STAFF_LIST.test(rest))
       problems.push(`${path}: writes the guardian rule or the staff roles out`);
   }
+problems.push(...functionBodyProblems(cellMigrations));
 
 for (const namespace of CATALOGUE)
   for (const value of namespace.values) {

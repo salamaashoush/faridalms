@@ -14,8 +14,10 @@ import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { formatList } from "~/utils/datetime";
 
+import type { AudienceKind } from "./slots";
+
 import { isCoreScope, SCOPE_LABEL } from "./format";
-import { audienceKinds } from "./slots";
+import { audienceKinds, wholeKind } from "./slots";
 
 export interface AudienceChoices {
   classes: {
@@ -37,6 +39,7 @@ export const MAX_AUDIENCES = 20;
 export function audienceSummary(
   audiences: AudienceInput[],
   choices: AudienceChoices,
+  kinds: readonly AudienceKind[],
 ): string {
   return formatList(
     audiences.flatMap((row) => {
@@ -44,6 +47,8 @@ export function audienceSummary(
         const found = choices.classes.find((item) => item.id === row.classId);
         return found ? [classTitle(found)] : [];
       }
+      const whole = wholeKind(kinds, row.scope);
+      if (whole) return [whole.label()];
       if (!isCoreScope(row.scope)) {
         const found = choices.kinds
           .find((kind) => kind.scope === row.scope)
@@ -55,11 +60,16 @@ export function audienceSummary(
   );
 }
 
-export function audienceIssue(audiences: AudienceInput[]): string | null {
+export function audienceIssue(
+  audiences: AudienceInput[],
+  kinds: readonly AudienceKind[],
+): string | null {
   return audiences.some(
     (row) =>
       (row.scope === "class" && !row.classId) ||
-      (!isCoreScope(row.scope) && !row.targetId),
+      (!isCoreScope(row.scope) &&
+        !wholeKind(kinds, row.scope) &&
+        !row.targetId),
   )
     ? m.annAudienceTarget()
     : null;
@@ -137,23 +147,27 @@ export function AudienceList({
             ) : (
               offered
                 .filter((kind) => kind.scope === row.scope)
-                .map((kind) => (
-                  <SelectField
-                    key={kind.scope}
-                    id={`audience-${index}-${kind.scope}`}
-                    label={kind.target()}
-                    labelHidden
-                    value={row.targetId}
-                    options={[
-                      { value: "", label: kind.pick() },
-                      ...kind.options.map((item) => ({
-                        value: item.id,
-                        label: inLocale(item.labelEn, item.labelAr),
-                      })),
-                    ]}
-                    onChange={(targetId) => setAt(index, { ...row, targetId })}
-                  />
-                ))
+                .map((kind) =>
+                  kind.target ? (
+                    <SelectField
+                      key={kind.scope}
+                      id={`audience-${index}-${kind.scope}`}
+                      label={kind.target()}
+                      labelHidden
+                      value={row.targetId}
+                      options={[
+                        { value: "", label: kind.pick() },
+                        ...kind.options.map((item) => ({
+                          value: item.id,
+                          label: inLocale(item.labelEn, item.labelAr),
+                        })),
+                      ]}
+                      onChange={(targetId) =>
+                        setAt(index, { ...row, targetId })
+                      }
+                    />
+                  ) : null,
+                )
             )}
           </div>
           {value.length > 1 ? (

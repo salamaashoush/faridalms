@@ -360,6 +360,8 @@ export function openDirectorySync(url: string, actor: HostActor) {
         days: { day: string; emails: number; sms: number; signIns: number }[];
         /** The onboarding steps the cell sees the school has taken. */
         reached: readonly OnboardingItem[];
+        /** What each module counts at the school, by its key. */
+        facts: Record<string, number>;
       })[],
       measuredAt: Date,
     ) => {
@@ -368,11 +370,11 @@ export function openDirectorySync(url: string, actor: HostActor) {
         await client`
           insert into school_usage (school_id, used_bytes, file_count, students, staff_accounts,
             signed_in_7d, signed_in_30d, video_minutes, emails_this_month, school_days_7d,
-            failed_deliveries_1d, measured_at)
+            failed_deliveries_1d, facts, measured_at)
           values (${row.schoolId}::uuid, ${row.usedBytes}, ${row.fileCount}, ${row.students},
             ${row.staffAccounts}, ${row.signedIn7d}, ${row.signedIn30d}, ${row.videoMinutes},
             ${row.emailsThisMonth}, ${row.schoolDays7d}, ${row.failedDeliveries1d},
-            ${at}::timestamptz)
+            ${row.facts}::jsonb, ${at}::timestamptz)
           on conflict (school_id) do update set used_bytes = excluded.used_bytes,
             file_count = excluded.file_count, students = excluded.students,
             staff_accounts = excluded.staff_accounts, signed_in_7d = excluded.signed_in_7d,
@@ -380,6 +382,7 @@ export function openDirectorySync(url: string, actor: HostActor) {
             emails_this_month = excluded.emails_this_month,
             school_days_7d = excluded.school_days_7d,
             failed_deliveries_1d = excluded.failed_deliveries_1d,
+            facts = excluded.facts,
             measured_at = excluded.measured_at`;
         // A school's own address is the directory's to know, not the cell's.
         const reached = [...row.reached];

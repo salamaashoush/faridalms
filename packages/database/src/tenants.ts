@@ -100,6 +100,7 @@ const BUILTIN_NAMES: Record<
   family: ["Family", "الأسرة"],
   admissions_officer: ["Admissions officer", "مسؤول القبول"],
   applicant_family: ["Applying family", "أسرة متقدمة"],
+  applicant: ["Applicant", "متقدم"],
 };
 
 export async function seedBuiltinRoles(tx: CellTransaction, tenantId: string) {

@@ -1,3 +1,5 @@
+import type { Keyset } from "@faridalms/domain/paging";
+
 import { Button } from "@faridalms/ui/button";
 import {
   Sheet,
@@ -10,19 +12,31 @@ import {
   RecordList,
   RecordSection,
 } from "@faridalms/ui/system/record-page";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import {
+  infiniteQueryOptions,
+  useInfiniteQuery,
+  useQuery,
+} from "@tanstack/react-query";
 import { useState } from "react";
 
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
-import { sharedWorkQuery } from "~/queries/coursework";
-import { getSharedPiece } from "~/server/coursework";
+import { getSharedPiece, getSharedWork } from "~/server/family-shares";
 import { formatInstant } from "~/utils/datetime";
 
 import { CommentedWork, CommentList } from "./WorkComments";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
+
+const sharedWorkQuery = (studentId: string) =>
+  infiniteQueryOptions({
+    queryKey: ["coursework", "shared", studentId],
+    queryFn: ({ pageParam }) =>
+      getSharedWork({ data: { studentId, after: pageParam } }),
+    initialPageParam: null as Keyset | null,
+    getNextPageParam: (last) => last.next ?? undefined,
+  });
 
 interface PieceProps {
   attemptId: string;

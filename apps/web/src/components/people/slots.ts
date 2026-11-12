@@ -1,6 +1,6 @@
 import type { StudentStatus } from "@faridalms/domain/people";
 import type { Facet } from "@faridalms/ui/system/index-toolbar";
-import type { HeaderFact } from "@faridalms/ui/system/record-page";
+import type { HeaderFact, RecordAlert } from "@faridalms/ui/system/record-page";
 import type { Tone } from "@faridalms/ui/system/status";
 import type { ComponentType, ReactNode } from "react";
 
@@ -121,6 +121,8 @@ export interface StudentEditorPartProps {
   student: { id: string; version: number } | null;
   value: unknown;
   onChange: (value: unknown) => void;
+  /** Why the part's value cannot be sent yet, once the form was tried. */
+  problem: string | null;
 }
 
 /** A section a module adds to the student form, saved with the student under the module's key. */
@@ -129,6 +131,12 @@ export interface StudentEditorPart {
   title: () => string;
   query(studentId: string | null): SlotQuery<unknown>;
   initial(read: unknown): unknown;
+  /** Why the value cannot be sent, or null. */
+  problem(value: unknown): string | null;
+  /** What the part sends with the student for the value it edits. */
+  sent(value: unknown): unknown;
+  /** What the next student starts with once one is saved and another added. */
+  carried(value: unknown): unknown;
   Field: ComponentType<StudentEditorPartProps>;
 }
 
@@ -166,3 +174,34 @@ export interface LeavingPart {
 }
 
 export const leavingParts = slot<LeavingPart>("leaving parts");
+
+/** A flag on a student's record header, by the key the record's alerts carry it under. */
+export interface StudentAlertWords {
+  label: () => string;
+  tone: RecordAlert["tone"];
+  icon: RecordAlert["icon"];
+}
+
+/**
+ * What a module that knows who acts for a student shows of them on the
+ * student's record: a tab of its own, its sections on the overview, the
+ * words for its header flags, and what writing to them is called.
+ */
+export interface StudentFamilyPart {
+  label: () => string;
+  Tab: ComponentType<{ studentId: string; name: string }>;
+  Overview: ComponentType<{ studentId: string; manage: boolean }>;
+  alerts: Readonly<Record<string, StudentAlertWords>>;
+  messageLabel: () => string;
+}
+
+export const studentFamilyParts = slot<StudentFamilyPart>(
+  "student family parts",
+);
+
+/** A section a module adds to a person's record overview, read for the person themself. */
+export interface PersonRecordPart {
+  Overview: ComponentType<{ personId: string; roles: readonly string[] }>;
+}
+
+export const personRecordParts = slot<PersonRecordPart>("person record parts");

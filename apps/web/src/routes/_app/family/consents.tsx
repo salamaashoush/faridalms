@@ -2,13 +2,12 @@ import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { FamilyConsents } from "~/components/consents/FamilyConsents";
+import { LearnerConsents } from "~/components/consents/LearnerConsents";
 import * as m from "~/i18n/messages";
-import { familyConsentsQuery } from "~/queries/consents";
+import { myConsentsQuery } from "~/queries/consents";
 
 export const Route = createFileRoute("/_app/family/consents")({
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData(familyConsentsQuery),
+  loader: ({ context }) => context.queryClient.ensureQueryData(myConsentsQuery),
   component: ConsentsPage,
 });
 
@@ -16,7 +15,7 @@ function ConsentsPage() {
   return (
     <Page width="list">
       <PageHeader title={m.navConsents()} description={m.consentFamilyHint()} />
-      <FamilyConsents />
+      <LearnerConsents />
     </Page>
   );
 }

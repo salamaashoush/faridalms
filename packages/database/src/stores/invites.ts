@@ -5,7 +5,6 @@ import type { CellTransaction } from "../context";
 import { accounts, loginIdentities } from "../tables/accounts";
 import { users } from "../tables/people";
 import { newUserHandle } from "./accounts";
-import { uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -28,6 +27,8 @@ export async function issueInvite(
     /** Null when no school account sent it: an operator provisioning the school. */
     linkedByUserId: string | null;
     purpose?: InvitePurpose;
+    /** For a registration: whom the person registered to apply for. */
+    applyingFor?: "self" | "other";
   },
 ): Promise<{ accountId: string; identityId: string; created: boolean } | null> {
   const [existing] = await tx
@@ -73,6 +74,7 @@ export async function issueInvite(
       metadata: {
         sentToUserId: input.sentToUserId,
         purpose: input.purpose ?? "invite",
+        ...(input.applyingFor ? { applyingFor: input.applyingFor } : {}),
       },
       linkMethod: "invitation",
       linkedByUserId: input.linkedByUserId,
@@ -97,7 +99,7 @@ export async function voidInvite(tx: Tx, tenantId: string, identityId: string) {
 
 /**
  * What a link is for: choosing the first password of an account the office
- * opened, replacing a forgotten one, or confirming the address a family
+ * opened, replacing a forgotten one, or confirming the address someone
  * registered with to apply, which also opens their applying role.
  */
 export type InvitePurpose = "invite" | "reset" | "register";
@@ -114,6 +116,8 @@ export interface InviteHolder {
   preferredGivenName: string | null;
   hasPassword: boolean;
   purpose: InvitePurpose;
+  /** For a registration: whom the person registered to apply for. */
+  applyingFor: "self" | "other";
 }
 
 /** Whose password an invite sets, while it is unused and has not expired. */
@@ -132,8 +136,10 @@ export async function findInvite(
     preferred_given_name: string | null;
     has_password: boolean;
     purpose: string | null;
+    applying_for: string | null;
   }>(sql`
-    select l.id as identity_id, l.metadata->>'purpose' as purpose, a.id as account_id, a.state, u.id as user_id, u.username,
+    select l.id as identity_id, l.metadata->>'purpose' as purpose,
+           l.metadata->>'applyingFor' as applying_for, a.id as account_id, a.state, u.id as user_id, u.username,
            u.given_name_en, u.given_name_ar, u.preferred_given_name,
            exists (select 1 from core.login_identities p
              where p.tenant_id = a.tenant_id and p.account_id = a.id and p.kind = 'password'
@@ -158,6 +164,7 @@ export async function findInvite(
           row.purpose === "reset" || row.purpose === "register"
             ? row.purpose
             : "invite",
+        applyingFor: row.applying_for === "other" ? "other" : "self",
       }
     : null;
 }
@@ -294,28 +301,4 @@ export async function reserveLoginName(
     .update(users)
     .set({ username: input.loginName })
     .where(and(eq(users.tenantId, input.tenantId), eq(users.id, input.userId)));
-}
-
-/**
- * The guardians who decide for each student and take the school's notices:
- * the ones a link to choose the student's password may go to.
- */
-export async function decidingGuardians(
-  tx: Tx,
-  input: { tenantId: string; studentIds: readonly string[]; today: string },
-): Promise<{ studentId: string; guardianId: string }[]> {
-  if (input.studentIds.length === 0) return [];
-  const rows = await tx.execute<{
-    student_user_id: string;
-    related_user_id: string;
-  }>(sql`
-    select r.student_user_id, r.related_user_id from core.user_relationships r
-    where r.tenant_id = ${input.tenantId}::uuid and r.status = 'active'
-      and r.student_user_id = any(${uuidArray(input.studentIds)})
-      and r.educational_rights = 'full' and app.guardian_permits(r, ${input.today}::date, 'notice')
-    order by r.primary_contact desc, r.contact_priority nulls last, r.id`);
-  return rows.map((row) => ({
-    studentId: row.student_user_id,
-    guardianId: row.related_user_id,
-  }));
 }

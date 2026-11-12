@@ -9,6 +9,7 @@ const DELETE_ALLOWED = new Set([
   "core.external_ids",
   "core.contact_points",
   "core.relationship_restrictions",
+  "health.contact_changes",
   "core.login_identities",
   "core.passkeys",
   "core.devices",
@@ -58,6 +59,7 @@ const DELETE_ALLOWED = new Set([
 const PURPOSE_OF: Record<string, string> = {
   "health.records": "health",
   "health.requested_changes": "health",
+  "health.contact_changes": "health",
   "core.demographics": "demographics",
   "core.relationship_restrictions": "custody",
 };

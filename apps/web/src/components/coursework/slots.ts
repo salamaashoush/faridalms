@@ -35,3 +35,27 @@ export interface AssignmentEditorPart {
 export const assignmentEditorParts = slot<AssignmentEditorPart>(
   "assignment editor parts",
 );
+
+/**
+ * A way a module lets a teacher pass students' handed-in work on to those
+ * who follow them, or take it back, and the words for it.
+ */
+export interface WorkSharing {
+  /** The students whose work for the assignment is passed on. */
+  query(assignmentId: string): SlotQuery<readonly string[]>;
+  share(input: {
+    assignmentId: string;
+    studentIds: string[];
+    shared: boolean;
+  }): Promise<unknown>;
+  words: {
+    share: () => string;
+    unshare: () => string;
+    /** Beside a student's work that is passed on. */
+    mark: () => string;
+    shared: () => string;
+    unshared: () => string;
+  };
+}
+
+export const workSharing = slot<WorkSharing>("work sharing");

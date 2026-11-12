@@ -31,26 +31,19 @@ import { historyOf } from "@faridalms/database/stores/history";
 import { studentsByIdentifier } from "@faridalms/database/stores/identifiers";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import {
-  decidingGuardians,
   issueInvite,
   reserveLoginName,
   settleInvites,
   voidInvite,
 } from "@faridalms/database/stores/invites";
-import { unreachable } from "@faridalms/database/stores/messages";
+import { reachability } from "@faridalms/database/stores/notifications";
 import {
-  noticesAbout,
-  reachability,
-} from "@faridalms/database/stores/notifications";
-import {
-  childrenOf,
   contactsOf,
   replaceAddress,
   replaceContact,
   rolesAt,
   searchReached,
   setPhoto as storePhoto,
-  siblingsOf,
 } from "@faridalms/database/stores/persons";
 import {
   schoolRoleIds,
@@ -59,28 +52,20 @@ import {
 } from "@faridalms/database/stores/staff";
 import {
   accountOf,
-  addContact,
   departureOf,
-  endRelationship,
   ensureStudentRole,
-  guardiansOf,
   insertPerson,
-  insertRelationship,
   nameColumns,
   peopleByContact,
   person as readPerson,
   recordDeparture,
   referenceOf,
-  refreshCustodyAlert,
-  relationshipOf,
   setReference,
   signInSeeds,
   studentDirectory,
   studentMatches,
   studentRoles,
-  syncFamilyRoles,
   updatePerson,
-  updateRelationship,
   withdrawDeparture,
 } from "@faridalms/database/stores/students";
 import {
@@ -98,14 +83,12 @@ import {
   addressLine,
   cancelLeavingSchema,
   CONTACT_LABELS,
-  endRelationshipSchema,
-  guardianLookupSchema,
+  contactLookupSchema,
   accountStateSchema,
   personSearchSchema,
   recordLeavingSchema,
   roleStatus,
   saveContactsSchema,
-  saveRelationshipSchema,
   saveSignInSchema,
   saveStaffSchema,
   saveStudentSchema,
@@ -140,6 +123,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import {
+  peopleOpenedTo,
   reachesClass,
   reachesPerson,
   reachesStudent,
@@ -151,12 +135,16 @@ import { issueBadgeSecret } from "../core/session";
 import { emailSignInLink } from "../core/sign-in-link";
 import { studentGroupsOf } from "../core/student-groups";
 import { registerHostReader } from "../files/authorize";
-import { inviteMessage } from "../notifications/templates";
+import { unreachableFor } from "../messages/reach";
+import { adultInviteMessage, inviteMessage } from "../notifications/templates";
+import { decidersTold } from "../people/acting";
 import {
   cancelParts,
   leaveParts,
   saveStudentParts,
+  studentAlertsOf,
   studentListColumns,
+  studentsByPhone,
   studentViewOf,
   youngStudentsOf,
 } from "../people/points";
@@ -239,14 +227,12 @@ export const options = readProcedure.handler(async ({ context }) => {
       namespace,
       today: context.today,
     });
-  const [relations, sexes, positions, religions] = await Promise.all([
-    load("relation"),
+  const [sexes, positions, religions] = await Promise.all([
     load("sex"),
     load("staff_position"),
     load("religion"),
   ]);
   return {
-    relations,
     sexes,
     positions,
     religions,
@@ -293,10 +279,12 @@ export const students = readProcedure
         given: view,
         q: input.q,
         phone,
-        documentHolders,
+        exactMatches: [
+          ...documentHolders,
+          ...(phone ? await studentsByPhone(context, phone) : []),
+        ],
         within: columns.within,
         statuses: input.status,
-        missingGuardian: input.missing.includes("guardian"),
         missingAccount: input.missing.includes("account"),
         sort: columns.sort,
         dir: input.dir,
@@ -306,11 +294,18 @@ export const students = readProcedure
         pageSize: input.pageSize,
       },
     );
-    const groups = await studentGroupsOf(
-      context,
-      rows.map((row) => row.id),
-      view?.on ?? context.today,
-    );
+    const [groups, alerts] = await Promise.all([
+      studentGroupsOf(
+        context,
+        rows.map((row) => row.id),
+        view?.on ?? context.today,
+      ),
+      studentAlertsOf(
+        context,
+        rows.map((row) => row.id),
+        context.today,
+      ),
+    ]);
     return {
       today: context.today,
       ...paged(
@@ -318,6 +313,7 @@ export const students = readProcedure
           ...row,
           columns: columns.valuesOf(row.id),
           group: groups.get(row.id) ?? null,
+          alerts: alerts.get(row.id) ?? [],
         })),
         total,
         input.page,
@@ -362,21 +358,19 @@ export const student = readProcedure
     const scope = scopeFor(context, "people");
     const record = await readPerson(context.tx, input.id);
     if (!record) throw new ORPCError("NOT_FOUND");
-    const [reference, roles, departure, guardians] = await Promise.all([
+    const [reference, roles, departure] = await Promise.all([
       referenceOf(context.tx, scope, input.id),
       studentRoles(context.tx, scope, input.id),
       departureOf(context.tx, scope, input.id),
-      can(context, "contacts:read") || can(context, "people:manage")
-        ? guardiansOf(context.tx, scope, input.id)
-        : Promise.resolve(null),
     ]);
-    const [account, refusals, group] = await Promise.all([
+    const [account, refusals, group, alerts] = await Promise.all([
       accountOf(context.tx, context.tenantId, input.id),
       photoRefusals(context.tx, {
         tenantId: context.tenantId,
         studentIds: [input.id],
       }),
       groupOf(context, input.id),
+      studentAlertsOf(context, [input.id], context.today),
     ]);
     const modules = await modulesOf(context);
     return {
@@ -391,7 +385,7 @@ export const student = readProcedure
         accessEndsOn: departure.accessEndsOn,
       },
       group,
-      guardians,
+      alerts: alerts.get(input.id) ?? [],
       account,
       today: context.today,
       noPhotos: refusals.has(input.id),
@@ -401,14 +395,14 @@ export const student = readProcedure
           can(context, "people:manage") || can(context, "privacy:manage"),
         identifiers:
           can(context, "people:manage") || can(context, "identifiers:read"),
-        contacts: guardians !== null,
+        contacts:
+          can(context, "contacts:read") || can(context, "people:manage"),
         health: modules.student_records && can(context, "health:read"),
         support:
           modules.student_records &&
           (can(context, "people:read") || can(context, "support:manage")),
         demographics:
           modules.student_records && can(context, "demographics:read"),
-        custody: modules.student_records && can(context, "custody:read"),
         history: can(context, "people:manage") || can(context, "audit:read"),
         attendance: modules.attendance && can(context, "attendance:read"),
         timetable: modules.timetable && can(context, "timetable:read"),
@@ -423,26 +417,6 @@ export const student = readProcedure
           can(context, "assignments:read"),
       },
     };
-  });
-
-/** What the school recently told the student's guardians about them, for the office. */
-export const studentNotices = readProcedure
-  .input(v.object({ id }))
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "people:manage");
-    await requireStudent(context, "people", input.id);
-    const guardians = await guardiansOf(
-      context.tx,
-      scopeFor(context, "people"),
-      input.id,
-    );
-    return noticesAbout(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      studentId: input.id,
-      userIds: guardians.map((guardian) => guardian.userId),
-      limit: 6,
-    });
   });
 
 export const studentHistory = readProcedure
@@ -472,12 +446,12 @@ export const matches = readProcedure
   });
 
 /**
- * People already holding a phone or email, so a guardian is linked rather
- * than created twice. A match known only at another school of the group shows
- * a minimal card: name, photo and year of birth.
+ * People already holding a phone or email, so someone known is linked
+ * rather than made twice. A match known only at another school of the
+ * group shows a minimal card: name, photo and year of birth.
  */
-export const findGuardians = readProcedure
-  .input(guardianLookupSchema)
+export const findByContact = readProcedure
+  .input(contactLookupSchema)
   .handler(async ({ input, context }) => {
     requireCapability(
       context,
@@ -501,117 +475,6 @@ export const findGuardians = readProcedure
       });
     return [];
   });
-
-async function relationMeaning(context: UnitContext, relationId: string) {
-  const relations = await descriptorsFor(context.tx, {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    namespace: "relation",
-    today: context.today,
-  });
-  const relation = relations.find((row) => row.id === relationId);
-  if (!relation?.meaning)
-    throw new ORPCError("BAD_REQUEST", {
-      message: "relationship.relation_invalid",
-    });
-  return relation.meaning;
-}
-
-async function createGuardian(
-  context: UnitContext,
-  person: v.InferOutput<typeof saveRelationshipSchema>["person"],
-) {
-  if (!person)
-    throw new ORPCError("BAD_REQUEST", { message: "validation.required" });
-  const created = await insertPerson(context.tx, {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    names: person.names,
-  });
-  const country = await countryOf(context);
-  if (person.phone) {
-    const normalized = toE164(person.phone, country);
-    if (!normalized)
-      throw new ORPCError("BAD_REQUEST", {
-        message: "contact_point.phone_invalid",
-      });
-    await addContact(context.tx, {
-      tenantId: context.tenantId,
-      userId: created.id,
-      kind: "phone",
-      value: person.phone,
-      normalized,
-      label: "mobile",
-    });
-  }
-  if (person.email)
-    await addContact(context.tx, {
-      tenantId: context.tenantId,
-      userId: created.id,
-      kind: "email",
-      value: person.email,
-      normalized: person.email.toLowerCase(),
-      label: "personal",
-    });
-  await audit(context, {
-    action: "user.create",
-    objectType: "user",
-    objectId: created.id,
-    subjectUserId: created.id,
-    change: {
-      table: "core.users",
-      before: null,
-      after: nameColumns(person.names),
-    },
-  });
-  return created.id;
-}
-
-async function linkGuardian(
-  context: UnitContext,
-  studentId: string,
-  link: {
-    existingUserId?: string;
-    person?: v.InferOutput<typeof saveRelationshipSchema>["person"];
-    flags: v.InferOutput<typeof saveRelationshipSchema>["flags"];
-  },
-) {
-  const relatedUserId =
-    link.existingUserId ?? (await createGuardian(context, link.person));
-  if (relatedUserId === studentId)
-    throw new ORPCError("BAD_REQUEST", { message: "relationship.self" });
-  const meaning = await relationMeaning(context, link.flags.relationId);
-  const { relationId, ...flags } = link.flags;
-  const relationshipId = await insertRelationship(context.tx, {
-    tenantId: context.tenantId,
-    studentId,
-    relatedUserId,
-    relationId,
-    relationMeaning: meaning,
-    flags,
-    from: context.today,
-    verifiedByUserId: context.actor.userId,
-  });
-  await syncFamilyRoles(
-    context.tx,
-    context.tenantId,
-    relatedUserId,
-    context.today,
-  );
-  await audit(context, {
-    action: "relationship.create",
-    objectType: "user_relationship",
-    objectId: relationshipId,
-    subjectUserId: studentId,
-    studentUserId: studentId,
-    change: {
-      table: "core.user_relationships",
-      before: null,
-      after: { relatedUserId, relationMeaning: meaning, ...flags },
-    },
-  });
-  return relationshipId;
-}
 
 export const saveStudent = writeProcedure
   .input(saveStudentSchema)
@@ -708,127 +571,8 @@ export const saveStudent = writeProcedure
       systemId: referenceSystem,
     });
     await saveStudentParts(context, { studentId, parts: input.parts });
-    if (!input.id)
-      for (const link of input.guardians)
-        await linkGuardian(context, studentId, link);
     const saved = await readPerson(tx, studentId);
     return { id: studentId, version: saved?.version ?? 1 };
-  });
-
-export const saveRelationship = writeProcedure
-  .input(saveRelationshipSchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "people:manage", "guardians:manage");
-    await requireStudent(context, "people", input.studentId);
-    if (!input.relationshipId) {
-      const relationshipId = await linkGuardian(
-        context,
-        input.studentId,
-        input,
-      );
-      await refreshCustodyAlert(
-        context.tx,
-        context.tenantId,
-        input.studentId,
-        context.today,
-      );
-      return { id: relationshipId };
-    }
-    const existing = await relationshipOf(
-      context.tx,
-      context.tenantId,
-      input.relationshipId,
-    );
-    if (!existing || existing.studentUserId !== input.studentId)
-      throw new ORPCError("NOT_FOUND");
-    const meaning = await relationMeaning(context, input.flags.relationId);
-    const { relationId, ...flags } = input.flags;
-    const updated = await updateRelationship(context.tx, {
-      tenantId: context.tenantId,
-      relationshipId: input.relationshipId,
-      expectedVersion: input.expectedVersion ?? 0,
-      relationId,
-      relationMeaning: meaning,
-      flags,
-      editorId: context.actor.userId,
-    });
-    if (!updated)
-      throw new ORPCError("CONFLICT", { message: "conflict.version" });
-    await syncFamilyRoles(
-      context.tx,
-      context.tenantId,
-      updated.relatedUserId,
-      context.today,
-    );
-    await refreshCustodyAlert(
-      context.tx,
-      context.tenantId,
-      input.studentId,
-      context.today,
-    );
-    await audit(context, {
-      action: "relationship.update",
-      objectType: "user_relationship",
-      objectId: input.relationshipId,
-      subjectUserId: input.studentId,
-      studentUserId: input.studentId,
-      change: {
-        table: "core.user_relationships",
-        before: {
-          relationMeaning: existing.relationMeaning,
-          legalGuardian: existing.legalGuardian,
-          portalAccess: existing.portalAccess,
-          receivesNotifications: existing.receivesNotifications,
-          primaryContact: existing.primaryContact,
-          emergencyContact: existing.emergencyContact,
-          residence: existing.residence,
-          pickup: existing.pickup,
-        },
-        after: { relationMeaning: meaning, ...flags },
-      },
-    });
-    return { id: input.relationshipId };
-  });
-
-export const endLink = writeProcedure
-  .input(endRelationshipSchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "people:manage", "guardians:manage");
-    const existing = await relationshipOf(
-      context.tx,
-      context.tenantId,
-      input.relationshipId,
-    );
-    if (!existing) throw new ORPCError("NOT_FOUND");
-    await requireStudent(context, "people", existing.studentUserId);
-    const ended = await endRelationship(context.tx, {
-      tenantId: context.tenantId,
-      relationshipId: input.relationshipId,
-      expectedVersion: input.expectedVersion,
-      today: context.today,
-    });
-    if (!ended)
-      throw new ORPCError("CONFLICT", { message: "conflict.version" });
-    await syncFamilyRoles(
-      context.tx,
-      context.tenantId,
-      ended.related_user_id,
-      context.today,
-    );
-    await refreshCustodyAlert(
-      context.tx,
-      context.tenantId,
-      existing.studentUserId,
-      context.today,
-    );
-    await audit(context, {
-      action: "relationship.end",
-      objectType: "user_relationship",
-      objectId: input.relationshipId,
-      subjectUserId: existing.studentUserId,
-      studentUserId: existing.studentUserId,
-    });
-    return { ended: true };
   });
 
 function labelFrom(list: Descriptor[], value: string | null) {
@@ -839,9 +583,10 @@ function labelFrom(list: Descriptor[], value: string | null) {
 /**
  * The classes a member of staff teaches or assists, as a module's default
  * view of classes reads them (the working year, on its nearest day) or else
- * as they run today, each marked with whether the viewer may open it. A profile lists only the classes the viewer, or a
- * child they follow, is in, and opens none of them: families and students
- * keep to their own pages.
+ * as they run today, each marked with whether the viewer may open it. A
+ * profile lists only the classes the viewer, or a learner they follow, is
+ * in, and opens none of them: learners and those who follow them keep to
+ * their own pages.
  */
 async function teachingOf(
   context: UnitContext,
@@ -903,9 +648,9 @@ const labelsOf = (context: UnitContext, namespace: string) =>
   });
 
 /**
- * The limited profile a family or a student opens for a teacher of their
- * classes, or for someone they share a conversation with: who they are,
- * what they teach the viewer's children and whether the viewer may write to
+ * The limited profile a learner, or someone who follows one, opens for a
+ * teacher of their classes, or for someone they share a conversation with:
+ * who they are, what they teach and whether the viewer may write to
  * them, never the rest of the record. Anyone the viewer reaches at all has
  * one.
  */
@@ -944,8 +689,7 @@ async function profileOf(
   const message =
     record.id !== context.actor.userId &&
     can(context, "messages:send") &&
-    (await unreachable(context.tx, scopeFor(context, "classes"), [record.id]))
-      .length === 0;
+    (await unreachableFor(context, [record.id])).length === 0;
   return {
     id: record.id,
     givenNameAr: record.givenNameAr,
@@ -969,10 +713,10 @@ async function profileOf(
 }
 
 /**
- * A person's record at this school: a guardian, a member of staff, or the
- * viewer themselves. Contact details show to staff who read contacts and to
- * the person; linked students only where the viewer reaches them. Someone
- * the viewer reaches only as far as a profile is not found here.
+ * A person's record at this school: an adult the school keeps, a member of
+ * staff, or the viewer themselves. Contact details show to staff who read
+ * contacts and to the person. Someone the viewer reaches only as far as a
+ * profile is not found here.
  */
 export const person = readProcedure
   .input(v.object({ id }))
@@ -984,17 +728,14 @@ export const person = readProcedure
     if (!record) throw new ORPCError("NOT_FOUND");
     const manage = can(context, "people:manage");
     const seesContacts = self || manage || can(context, "contacts:read");
-    const [roles, contacts, children, account, relations, positions] =
-      await Promise.all([
-        rolesAt(context.tx, scope, input.id),
-        seesContacts
-          ? contactsOf(context.tx, context.tenantId, input.id)
-          : Promise.resolve(null),
-        childrenOf(context.tx, scope, input.id),
-        accountOf(context.tx, context.tenantId, input.id),
-        labelsOf(context, "relation"),
-        labelsOf(context, "staff_position"),
-      ]);
+    const [roles, contacts, account, positions] = await Promise.all([
+      rolesAt(context.tx, scope, input.id),
+      seesContacts
+        ? contactsOf(context.tx, context.tenantId, input.id)
+        : Promise.resolve(null),
+      accountOf(context.tx, context.tenantId, input.id),
+      labelsOf(context, "staff_position"),
+    ]);
     const personal = manage || self;
     const staffMember = roles.some((role) => STAFF_ROLE_SET.has(role.role));
     const teaching = staffMember
@@ -1026,10 +767,6 @@ export const person = readProcedure
         position: labelFrom(positions, role.positionId),
       })),
       contacts,
-      children: children.map((child) => ({
-        ...child,
-        relation: labelFrom(relations, child.relationId),
-      })),
       account: personal || signIn ? account : null,
       teaching,
       today: context.today,
@@ -1490,37 +1227,37 @@ async function badgesPlan(context: UnitContext, seeds: readonly SignInSeed[]) {
 
 /**
  * Who of the students picked can have a link sent: those slips would name,
- * who have a guardian that decides for them, takes the school's notices and
- * has an email address the school may write to.
+ * with an email address the school may write to of whoever decides for
+ * them and takes its notices, or of the student where no one else does.
  */
 async function emailPlan(context: UnitContext, seeds: readonly SignInSeed[]) {
   if (!context.mail)
     throw new ORPCError("CONFLICT", { message: "sign_in.no_email" });
   const plan = await slipsPlan(context, seeds);
-  const guardians = await decidingGuardians(context.tx, {
-    tenantId: context.tenantId,
+  const deciders = await decidersTold(context, {
     studentIds: plan.ready.map((row) => row.seed.userId),
-    today: context.today,
+    on: context.today,
   });
   const reached = new Map(
     (
       await reachability(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
-        userIds: [...new Set(guardians.map((row) => row.guardianId))],
+        userIds: [...new Set(deciders.map((row) => row.userId))],
       })
     ).map((row) => [row.userId, row]),
   );
   const ready = plan.ready.map((row) => ({
     ...row,
-    recipients: guardians.flatMap((link) => {
-      const guardian = reached.get(link.guardianId);
-      return link.studentId === row.seed.userId && guardian?.email
+    recipients: deciders.flatMap((link) => {
+      const reader = reached.get(link.userId);
+      return link.studentId === row.seed.userId && reader?.email
         ? [
             {
-              guardianId: link.guardianId,
-              address: guardian.email,
-              locale: guardian.locale,
+              userId: link.userId,
+              own: link.userId === link.studentId,
+              address: reader.email,
+              locale: reader.locale,
             },
           ]
         : [];
@@ -1598,8 +1335,8 @@ async function openSlips(context: UnitContext, seeds: readonly SignInSeed[]) {
         secretHash,
         linkedByUserId: context.actor.userId,
       }));
-    // A child who signs in with a badge, or whose guardians were sent a
-    // link, already holds an account.
+    // A child who signs in with a badge, or whose link was sent, already
+    // holds an account.
     if (seed.accountId) {
       await updatePasswordSignIn(context.tx, {
         tenantId: context.tenantId,
@@ -1672,7 +1409,8 @@ async function openBadges(context: UnitContext, seeds: readonly SignInSeed[]) {
 }
 
 /**
- * A link for each student's guardians to choose the student's password.
+ * A link for whoever decides for each student, or the student themself, to
+ * choose the student's password.
  * The account is opened without one and keeps its sign-in name; the secret
  * in each link is sent as it is made and only its hash is kept. A link that
  * the gateway would not take is stopped, so none is left that nobody holds:
@@ -1695,26 +1433,38 @@ async function openLinks(context: UnitContext, seeds: readonly SignInSeed[]) {
           userId: seed.userId,
           secretHash,
           expiresAt,
-          sentToUserId: recipient.guardianId,
+          sentToUserId: recipient.userId,
           linkedByUserId: context.actor.userId,
         });
         if (!invite) return null;
         const arabic = recipient.locale === "ar";
-        const message = inviteMessage({
-          locale: recipient.locale,
-          school:
-            (arabic ? context.school.nameAr : context.school.nameEn) ??
-            context.school.nameEn ??
-            "",
-          student:
-            (arabic ? seed.givenNameAr : seed.givenNameEn) ??
-            seed.givenNameEn ??
-            seed.givenNameAr ??
-            loginName,
-          loginName,
-          link: welcomeLink(context.school, context.domains, secret),
-          days: INVITE_DAYS,
-        });
+        const school =
+          (arabic ? context.school.nameAr : context.school.nameEn) ??
+          context.school.nameEn ??
+          "";
+        const given =
+          (arabic ? seed.givenNameAr : seed.givenNameEn) ??
+          seed.givenNameEn ??
+          seed.givenNameAr ??
+          loginName;
+        const link = welcomeLink(context.school, context.domains, secret);
+        const message = recipient.own
+          ? adultInviteMessage({
+              locale: recipient.locale,
+              school,
+              name: given,
+              loginName,
+              link,
+              days: INVITE_DAYS,
+            })
+          : inviteMessage({
+              locale: recipient.locale,
+              school,
+              student: given,
+              loginName,
+              link,
+              days: INVITE_DAYS,
+            });
         const sent = await mail
           .send({ to: recipient.address, ...message })
           .then(
@@ -1799,7 +1549,7 @@ export const setSignInState = writeProcedure
  * Records that a student has left the school: the day after their last is
  * the day their student role ends and the classes they are in end, and
  * those they were to join later are dropped. The record stays the school's
- * for good; the student and their family keep reading it to the day the
+ * for good; the student and those who follow them keep reading it to the day the
  * office chose. A register that marks the student after the last day
  * refuses it, since it says they were still here.
  */
@@ -1901,18 +1651,9 @@ export const cancelLeaving = writeProcedure
     return { restored: restored.length };
   });
 
-/** Children who share a parent with this student. */
-export const siblings = readProcedure
-  .input(v.object({ id }))
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "people:read", "people:manage");
-    await requireStudent(context, "people", input.id);
-    return siblingsOf(context.tx, scopeFor(context, "people"), input.id);
-  });
-
 /**
- * A guardian's or other adult's phone, email and home address. Staff keep
- * theirs through the staff editor, which needs the staff capability.
+ * An adult's phone, email and home address. Staff keep theirs through the
+ * staff editor, which needs the staff capability.
  */
 export const saveContacts = writeProcedure
   .input(saveContactsSchema)
@@ -2011,5 +1752,10 @@ export const searchPeople = readProcedure
   .input(personSearchSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage", "guardians:manage");
-    return searchReached(context.tx, scopeFor(context, "people"), input.q);
+    return searchReached(
+      context.tx,
+      scopeFor(context, "people"),
+      input.q,
+      await peopleOpenedTo(context, "people"),
+    );
   });

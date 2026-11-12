@@ -18,8 +18,8 @@ import { can } from "./procedure";
 /**
  * Which capabilities open the whole school to each kind of work. Without
  * one, a viewer reaches only through their own relationships: the classes
- * they teach, the children they follow, the people they talk to, and
- * themselves. `school` is for a procedure that has already checked a
+ * they teach, the learners a module says they follow, the people they talk
+ * to, and themselves. `school` is for a procedure that has already checked a
  * capability over every student, `own` for one that never opens the school.
  */
 export const SCHOOL_WIDE = {
@@ -48,6 +48,7 @@ export function scopeFor(context: UnitContext, reach: ReachScope): Scope {
     schoolWide:
       opens === "everyone" ||
       opens.some((capability) => can(context, capability)),
+    followed: context.actor.follows,
   };
 }
 
@@ -149,13 +150,62 @@ export async function requireTaught(
   if (!(await teaches(context, reach, classId))) throw notFound();
 }
 
+/** People a module opens to the viewer's whole record besides those core reaches. */
+export interface PeopleOpened {
+  /** Of these people, those whose record the viewer reaches through the module. */
+  among(
+    context: UnitContext,
+    scope: Scope,
+    userIds: readonly string[],
+  ): Promise<string[]>;
+  /** Everyone whose record the viewer reaches through the module, for a search among them. */
+  all(context: UnitContext, scope: Scope): Promise<string[]>;
+}
+
+export const peopleOpened = point<PeopleOpened>("people opened");
+
+/** Of these people, those the modules on open to the viewer's whole record. */
+export async function peopleOpenedAmong(
+  context: UnitContext,
+  reach: ReachScope,
+  userIds: readonly string[],
+): Promise<Set<string>> {
+  if (userIds.length === 0) return new Set();
+  const scope = scopeFor(context, reach);
+  const found = await Promise.all(
+    (await contributionsTo(context, peopleOpened)).map((contribution) =>
+      contribution.among(context, scope, userIds),
+    ),
+  );
+  return new Set(found.flat());
+}
+
+/** Everyone the modules on open to the viewer's whole record, for a search among them. */
+export async function peopleOpenedTo(
+  context: UnitContext,
+  reach: ReachScope,
+): Promise<string[]> {
+  const scope = scopeFor(context, reach);
+  const found = await Promise.all(
+    (await contributionsTo(context, peopleOpened)).map((contribution) =>
+      contribution.all(context, scope),
+    ),
+  );
+  return [...new Set(found.flat())];
+}
+
 /** How far the viewer reaches each of these people; those left out are not reached. */
-export function peopleReach(
+export async function peopleReach(
   context: UnitContext,
   reach: ReachScope,
   userIds: readonly string[],
 ): Promise<Map<string, PersonReach>> {
-  return personReach(context.tx, scopeFor(context, reach), userIds);
+  const [found, opened] = await Promise.all([
+    personReach(context.tx, scopeFor(context, reach), userIds),
+    peopleOpenedAmong(context, reach, userIds),
+  ]);
+  for (const id of opened) found.set(id, "record");
+  return found;
 }
 
 export async function reachesPerson(

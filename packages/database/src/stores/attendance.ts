@@ -42,11 +42,13 @@ export async function settingsOf(
     check_in_touch: boolean;
     check_in_qr: boolean;
     check_in_nfc: boolean;
+    learners_report: boolean;
     late_after_minutes: number;
     register_closes_minutes: number;
   }>(sql`
     select version, teacher_edit_days, notice_delay_minutes, chronic_percent,
-      check_in_touch, check_in_qr, check_in_nfc, late_after_minutes, register_closes_minutes
+      check_in_touch, check_in_qr, check_in_nfc, learners_report, late_after_minutes,
+      register_closes_minutes
     from core.attendance_settings
     where tenant_id = ${tenantId}::uuid and org_id = ${schoolId}::uuid and status = 'active'`);
   if (!row) return { version: 0, ...DEFAULT_ATTENDANCE_SETTINGS };
@@ -58,6 +60,7 @@ export async function settingsOf(
     checkInTouch: row.check_in_touch,
     checkInQr: row.check_in_qr,
     checkInNfc: row.check_in_nfc,
+    learnersReport: row.learners_report,
     lateAfterMinutes: row.late_after_minutes,
     registerClosesMinutes: row.register_closes_minutes,
   };
@@ -76,11 +79,12 @@ export async function saveSettings(
     const rows = await tx.execute<{ version: number }>(sql`
       insert into core.attendance_settings
         (tenant_id, org_id, teacher_edit_days, notice_delay_minutes, chronic_percent,
-         check_in_touch, check_in_qr, check_in_nfc, late_after_minutes, register_closes_minutes)
+         check_in_touch, check_in_qr, check_in_nfc, learners_report, late_after_minutes,
+         register_closes_minutes)
       values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.teacherEditDays},
               ${input.noticeDelayMinutes}, ${input.chronicPercent},
               ${input.checkInTouch}, ${input.checkInQr}, ${input.checkInNfc},
-              ${input.lateAfterMinutes}, ${input.registerClosesMinutes})
+              ${input.learnersReport}, ${input.lateAfterMinutes}, ${input.registerClosesMinutes})
       on conflict do nothing
       returning version`);
     if (!rows[0]) throw new AttendanceConflict("conflict.version");
@@ -94,6 +98,7 @@ export async function saveSettings(
         check_in_touch = ${input.checkInTouch},
         check_in_qr = ${input.checkInQr},
         check_in_nfc = ${input.checkInNfc},
+        learners_report = ${input.learnersReport},
         late_after_minutes = ${input.lateAfterMinutes},
         register_closes_minutes = ${input.registerClosesMinutes}
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid

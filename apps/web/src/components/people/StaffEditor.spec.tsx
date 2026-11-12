@@ -11,7 +11,7 @@ import { Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { saveStaff } from "~/server/staff";
-import { findGuardians, getPeopleOptions } from "~/server/students";
+import { findByContact, getPeopleOptions } from "~/server/students";
 import { render } from "~/testUtils";
 
 import { StaffEditor } from "./StaffEditor";
@@ -22,7 +22,7 @@ vi.mock("~/server/students", () => ({
   getStudentHistory: vi.fn(),
   getStudents: vi.fn(),
   getStudentMatches: vi.fn(),
-  findGuardians: vi.fn(),
+  findByContact: vi.fn(),
   saveStudent: vi.fn(),
   saveRelationship: vi.fn(),
   endRelationship: vi.fn(),
@@ -80,13 +80,12 @@ async function enterStaff() {
 describe("adding a staff member", () => {
   beforeEach(() => {
     vi.mocked(getPeopleOptions).mockResolvedValue({
-      relations: [],
       sexes: [],
       positions: [],
       religions: [],
       today: "2026-09-27",
     });
-    vi.mocked(findGuardians).mockResolvedValue([]);
+    vi.mocked(findByContact).mockResolvedValue([]);
     vi.mocked(saveStaff).mockResolvedValue(SAVED);
   });
 
@@ -101,7 +100,7 @@ describe("adding a staff member", () => {
   });
 
   it("offers the person who already holds the email and adds them instead of a new record", async () => {
-    vi.mocked(findGuardians).mockImplementation((options) =>
+    vi.mocked(findByContact).mockImplementation((options) =>
       Promise.resolve(
         options.data.email
           ? [
@@ -144,7 +143,7 @@ describe("adding a staff member", () => {
   });
 
   it("adds a new person when saved again past the match", async () => {
-    vi.mocked(findGuardians).mockResolvedValue([
+    vi.mocked(findByContact).mockResolvedValue([
       {
         id: EXISTING,
         fullNameEn: "Salama Hassan",

@@ -84,6 +84,9 @@ test("a parent meets the registration form on the portal's registration page", a
   await expect(
     visitor.getByRole("heading", { name: "Questions about applying?" }),
   ).toBeVisible();
+  await visitor
+    .getByRole("radio", { name: "My child, or someone in my care" })
+    .click();
   await visitor.getByRole("textbox", { name: "First name" }).fill("Salama");
   await visitor.getByRole("textbox", { name: "Family name" }).fill("Ashoush");
   await visitor
@@ -173,6 +176,9 @@ test("a family who registers from an intake's apply door comes back to that inta
   await visitor.goto(`${portal}/apply?intake=${intake.id}`);
   await visitor.getByRole("link", { name: "Register", exact: true }).click();
   await expect(visitor).toHaveURL(`${portal}/register?intake=${intake.id}`);
+  await visitor
+    .getByRole("radio", { name: "My child, or someone in my care" })
+    .click();
   await visitor.getByRole("textbox", { name: "First name" }).fill("Salama");
   await visitor.getByRole("textbox", { name: "Family name" }).fill("Ashoush");
   await visitor.getByRole("textbox", { name: "Email" }).fill(address);

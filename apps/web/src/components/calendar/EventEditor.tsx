@@ -36,6 +36,7 @@ import { Send, Trash2 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { AudienceKind } from "~/components/announcements/slots";
 import type {
   BuiltInGroup,
   BuiltInPiece,
@@ -47,6 +48,7 @@ import {
   audienceIssue,
   audienceSummary,
 } from "~/components/announcements/AudienceList";
+import { audienceKinds } from "~/components/announcements/slots";
 import { contentIssueMessages } from "~/components/content/checks";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
@@ -69,6 +71,7 @@ import {
 } from "~/components/system/DocumentPage";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { calendarEventQuery, calendarOptionsQuery } from "~/queries/calendar";
@@ -156,7 +159,7 @@ const plan = (value: Draft) => ({
   location: value.location.trim() || null,
 });
 
-function issuesOf(draft: Draft) {
+function issuesOf(draft: Draft, kinds: readonly AudienceKind[]) {
   return {
     title:
       draft.titleEn.trim() || draft.titleAr.trim() ? null : m.calTitleNeeded(),
@@ -173,7 +176,7 @@ function issuesOf(draft: Draft) {
       draft.endTime <= draft.startTime
         ? m.calEndsBefore()
         : null,
-    audiences: audienceIssue(draft.audiences),
+    audiences: audienceIssue(draft.audiences, kinds),
   };
 }
 
@@ -236,6 +239,7 @@ export function EventEditor({
   onCreated,
 }: EventEditorProps) {
   const options = useSuspenseQuery(calendarOptionsQuery).data;
+  const kinds = useSlot(audienceKinds);
   const queryClient = useQueryClient();
   const media = useDocumentMedia();
   const id = useRef(existing?.id ?? "");
@@ -267,7 +271,7 @@ export function EventEditor({
   const translating = draft.bilingual && writing === other;
   const shownLocale: ContentLocale = translating ? other : draft.primaryLocale;
   const live = state === "published";
-  const issues = issuesOf(draft);
+  const issues = issuesOf(draft, kinds);
   const ready = !Object.values(issues).some(Boolean);
   // A draft saves as it is; only what readers would meet waits for these.
   const contentProblems = [
@@ -635,7 +639,7 @@ export function EventEditor({
         summary={[
           draftWhen(draft),
           draft.location.trim(),
-          audienceSummary(draft.audiences, options),
+          audienceSummary(draft.audiences, options, kinds),
         ]}
         details={{ open: detailsOpen, onOpenChange: setDetailsOpen }}
         editing={editing}

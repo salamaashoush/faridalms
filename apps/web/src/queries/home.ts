@@ -2,8 +2,8 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   getAdminHome,
-  getChildDetails,
-  getFamilyHome,
+  getLearnerDetails,
+  getFollowedHome,
   getStudentHome,
   getTeacherHome,
 } from "~/server/home";
@@ -13,17 +13,17 @@ export const teacherHomeQuery = queryOptions({
   queryFn: () => getTeacherHome(),
 });
 
-export const familyHomeQuery = (studentId: string) =>
+export const followedHomeQuery = (studentId: string) =>
   queryOptions({
-    queryKey: ["home", "family", studentId],
-    queryFn: () => getFamilyHome({ data: { studentId } }),
+    queryKey: ["home", "followed", studentId],
+    queryFn: () => getFollowedHome({ data: { studentId } }),
     placeholderData: (previous) => previous,
   });
 
-export const childDetailsQuery = (studentId: string) =>
+export const learnerDetailsQuery = (studentId: string) =>
   queryOptions({
-    queryKey: ["home", "child", studentId],
-    queryFn: () => getChildDetails({ data: { studentId } }),
+    queryKey: ["home", "details", studentId],
+    queryFn: () => getLearnerDetails({ data: { studentId } }),
   });
 
 export const studentHomeQuery = queryOptions({

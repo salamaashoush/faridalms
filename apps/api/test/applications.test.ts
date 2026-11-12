@@ -248,7 +248,7 @@ describe("registering to apply", () => {
     });
     await registeredFamily(email);
     const enquiry = await office.admissions.enquiry({ id: enquiryId });
-    expect(enquiry.familyUserId).not.toBeNull();
+    expect(enquiry.enquirerUserId).not.toBeNull();
     expect(enquiry.applicantUserId).toBeNull();
   });
 });

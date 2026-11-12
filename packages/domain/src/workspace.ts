@@ -46,25 +46,28 @@ export const ADMINISTRATION_ROLES = [
 export const FAMILY_ROLES = ["parent", "guardian", "relative"] as const;
 
 /**
- * The natural role a family holds from registering to apply until its child
- * is enrolled. It opens the family context on its own, without the portal
- * link to a student that the other family roles need.
+ * The natural role of someone applying for another person, from registering
+ * until the applicant is enrolled: it opens the family context where the
+ * school keeps families.
  */
 export const APPLICANT_ROLE = "applicant_family";
 
-/** The contexts a person may sign in to, from the natural roles they hold. */
+/**
+ * The natural role of someone applying for themself, from registering until
+ * they are enrolled: it opens their own context where the school takes
+ * applications.
+ */
+export const SELF_APPLICANT_ROLE = "applicant";
+
+/**
+ * The contexts a person's natural roles open by themselves: staff roles the
+ * staff context and the student role the student's. A module opens any
+ * other, such as a family's, through `contextOpeners`.
+ */
 export function contextsFor(roles: readonly string[]): SessionContext[] {
   const contexts: SessionContext[] = [];
   if (roles.some((role) => (STAFF_ROLES as readonly string[]).includes(role)))
     contexts.push("staff");
-  if (
-    roles.some(
-      (role) =>
-        (FAMILY_ROLES as readonly string[]).includes(role) ||
-        role === APPLICANT_ROLE,
-    )
-  )
-    contexts.push("family");
   if (roles.includes("student")) contexts.push("student");
   return contexts;
 }

@@ -816,12 +816,10 @@ describe("the attendance office's calls", () => {
       outcome: "no_answer",
       note: "",
     });
-    const options = await office.api.people.options();
-    const uncle =
-      options.relations.find((row) => row.code === "uncle") ??
-      options.relations[0];
+    const relations = await office.api.guardians.relations();
+    const uncle = relations.find((row) => row.code === "uncle") ?? relations[0];
     if (!uncle) throw new Error("no relation");
-    await office.api.people.saveRelationship({
+    await office.api.guardians.saveLink({
       studentId: child.id,
       person: {
         names: {
@@ -842,8 +840,8 @@ describe("the attendance office's calls", () => {
       },
     });
     const link = (
-      await office.api.people.student({ id: child.id })
-    ).guardians?.find((row) => row.fullNameEn === "Tarek Ashoush");
+      await office.api.guardians.ofStudent({ studentId: child.id })
+    ).guardians.find((row) => row.fullNameEn === "Tarek Ashoush");
     if (!link) throw new Error("link missing");
     await office.api.people.saveSignIn({
       userId: link.userId,

@@ -367,6 +367,7 @@ async function classesOfStudent(context: UnitContext, studentId: string) {
     schoolId: context.schoolId,
     userId: studentId,
     on: context.today,
+    learners: [],
   });
   return reach.classIds;
 }

@@ -1,7 +1,7 @@
 import type { ModuleId } from "@faridalms/domain/modules";
 import type { SchoolEntitlements } from "@faridalms/domain/plans";
 
-import { moduleOfSystem } from "@faridalms/domain/modules";
+import { modulesOfSystem } from "@faridalms/domain/modules";
 import { availableModules } from "@faridalms/domain/plans";
 import { DecoratedProcedure, ORPCError } from "@orpc/server";
 
@@ -28,12 +28,14 @@ import * as coverSystem from "./systems/cover";
 import * as decisionsSystem from "./systems/decisions";
 import * as discovery from "./systems/discovery";
 import * as documentsSystem from "./systems/documents";
+import * as familySharesSystem from "./systems/family-shares";
 import * as filesSystem from "./systems/files";
 import * as followUpSystem from "./systems/follow-up";
 import * as frontDeskSystem from "./systems/front-desk";
 import * as gradeLevelsSystem from "./systems/grade-levels";
 import * as gradebookSystem from "./systems/gradebook";
 import * as gradingSystem from "./systems/grading";
+import * as guardiansSystem from "./systems/guardians";
 import * as homeSystem from "./systems/home";
 import * as homeroomsSystem from "./systems/homerooms";
 import * as hostsSystem from "./systems/hosts";
@@ -65,8 +67,9 @@ import * as yearsSystem from "./systems/years";
 
 /**
  * A namespace as its module answers it: every procedure of a module that
- * is off at the school answers NOT_FOUND, so a procedure added later is
- * gated without anyone remembering to. Core namespaces answer everywhere.
+ * is off at the school, or of a link whose needs are not all on, answers
+ * NOT_FOUND, so a procedure added later is gated without anyone
+ * remembering to. Core namespaces answer everywhere.
  * Procedures run without a school's unit of work, such as the public site,
  * check their school's modules themselves.
  */
@@ -74,17 +77,18 @@ function owned<T extends object>(
   system: string | readonly [string, string],
   procedures: T,
 ): T {
-  const module = moduleOfSystem(
+  const modules = modulesOfSystem(
     typeof system === "string" ? system : system.join("/"),
   );
-  if (!module) return procedures;
+  if (modules.length === 0) return procedures;
   return Object.fromEntries(
     Object.entries(procedures).map(([name, procedure]) => [
       name,
       procedure instanceof DecoratedProcedure
         ? procedure.use(async ({ context, next }) => {
-            if (!(await answers(context, module)))
-              throw new ORPCError("NOT_FOUND");
+            for (const module of modules)
+              if (!(await answers(context, module)))
+                throw new ORPCError("NOT_FOUND");
             return next();
           })
         : procedure,
@@ -116,6 +120,7 @@ export const router = {
   identifiers: owned("identifiers", identifiersSystem),
   identity: owned("identity", { ...identity, ...discovery }),
   people: owned("people", peopleSystem),
+  guardians: owned("guardians", guardiansSystem),
   badges: owned("badges", badgesSystem),
   access: owned("access", accessSystem),
   school: owned("school", schoolSystem),
@@ -145,6 +150,7 @@ export const router = {
   attendance: owned("attendance", attendanceSystem),
   absenceReports: owned("absenceReports", absenceReportsSystem),
   followUp: owned("followUp", followUpSystem),
+  familyShares: owned("familyShares", familySharesSystem),
   frontDesk: owned("frontDesk", frontDeskSystem),
   rollover: owned("rollover", rolloverSystem),
   timetable: owned("timetable", timetableSystem),

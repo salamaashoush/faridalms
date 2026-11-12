@@ -237,19 +237,16 @@ describe("the ownership gate", () => {
     ]);
   });
 
-  test("refuses a list out of order", async () => {
-    const entries = OWNERSHIP_VIOLATIONS.families ?? [];
-    expect(entries.length).toBeGreaterThan(1);
+  test("refuses a list out of order, or one listing an entry twice", async () => {
+    const [entry] = OWNERSHIP_VIOLATIONS.website ?? [];
+    if (!entry) throw new Error("a violation still listed is needed");
     const problems = ownershipProblems(await readOwnership(harness().su), {
       ...registry,
-      violations: {
-        ...OWNERSHIP_VIOLATIONS,
-        families: entries.toReversed(),
-      },
+      violations: { ...OWNERSHIP_VIOLATIONS, website: [entry, entry] },
     });
     expect(problems).toEqual([
       {
-        name: "violations reaching families",
+        name: "violations reaching website",
         problem: "are not sorted, or list one twice",
       },
     ]);

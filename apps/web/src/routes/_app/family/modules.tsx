@@ -13,8 +13,8 @@ import { StudentModuleList } from "~/components/learning/StudentModules";
 import { displayName } from "~/components/people/format";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { childrenQuery } from "~/queries/families";
 import { myModulesQuery } from "~/queries/learning";
-import { personRecordQuery } from "~/queries/students";
 import { currentUserQuery } from "~/queries/user";
 
 export const Route = createFileRoute("/_app/family/modules")({
@@ -24,10 +24,10 @@ export const Route = createFileRoute("/_app/family/modules")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    const me = await context.queryClient.ensureQueryData(
-      personRecordQuery(user.id),
+    const children = await context.queryClient.ensureQueryData(
+      childrenQuery(user.id),
     );
-    const child = deps.studentId ?? me.children[0]?.studentId;
+    const child = deps.studentId ?? children[0]?.studentId;
     if (child) await context.queryClient.ensureQueryData(myModulesQuery(child));
   },
   component: FamilyModulesPage,
@@ -37,7 +37,7 @@ function FamilyModulesPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
-  const children = useSuspenseQuery(personRecordQuery(user.id)).data.children;
+  const children = useSuspenseQuery(childrenQuery(user.id)).data;
   const current = search.studentId ?? children[0]?.studentId;
   const childFacet: Facet = {
     id: "child",

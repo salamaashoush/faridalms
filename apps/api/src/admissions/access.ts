@@ -41,7 +41,7 @@ registerHostReader("admission_letter", async (context, letterId) => {
   });
   if (holder?.orgId !== context.schoolId) return false;
   return (
-    holder.familyUserId === context.actor.userId || readsAdmissions(context)
+    holder.filedByUserId === context.actor.userId || readsAdmissions(context)
   );
 });
 
@@ -52,7 +52,7 @@ registerHostReader("admission_letter", async (context, letterId) => {
 export async function letterView(
   context: UnitContext,
   letterId: string,
-  familyUserId: string | null,
+  filedByUserId: string | null,
 ) {
   const holder = await letterHolder(context.tx, {
     tenantId: context.tenantId,
@@ -60,7 +60,7 @@ export async function letterView(
   });
   if (
     holder?.orgId !== context.schoolId ||
-    (familyUserId !== null && holder.familyUserId !== familyUserId)
+    (filedByUserId !== null && holder.filedByUserId !== filedByUserId)
   )
     throw new ORPCError("NOT_FOUND");
   const [letter] = (

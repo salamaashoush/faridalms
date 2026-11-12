@@ -1,3 +1,4 @@
+import type { ApplicationForm } from "@faridalms/domain/admissions";
 import type { PartValue, Views } from "@faridalms/domain/classes";
 
 import { ORPCError } from "@orpc/server";
@@ -161,4 +162,38 @@ export async function enrolParts(
 ) {
   for (const part of await contributionsTo(context, enrolmentParts))
     await part.enrolled(context, input);
+}
+
+/**
+ * A module that lets someone apply for another person: what sending such
+ * an application links, the applicant's brothers and sisters at the school,
+ * and what follows the applicant onto a student they turn out to be.
+ */
+export interface FilingForOthers {
+  /**
+   * Links the filer, and anyone else the form names, to the applicant as
+   * the application is sent; answers the filer's link, which their consents
+   * are given through.
+   */
+  sent(
+    context: UnitContext,
+    input: { applicantId: string; form: ApplicationForm },
+  ): Promise<{ linkId: string; otherId: string | null }>;
+  /** Current students who share a parent with any of these people. */
+  relatives(
+    context: UnitContext,
+    parentIds: readonly string[],
+  ): Promise<{ id: string; nameEn: string | null; nameAr: string | null }[]>;
+  /** Moves what links people to the applicant onto the student they are. */
+  joined(
+    context: UnitContext,
+    input: { fromId: string; toId: string; consentIds: readonly string[] },
+  ): Promise<void>;
+}
+
+export const filingForOthers = point<FilingForOthers>("filing for others");
+
+/** The module that lets someone apply for another person, where one is on. */
+export async function filingModule(context: UnitContext) {
+  return (await contributionsTo(context, filingForOthers))[0] ?? null;
 }

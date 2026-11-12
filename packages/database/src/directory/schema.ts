@@ -391,6 +391,8 @@ export const schoolUsage = pgTable(
     schoolDays7d: integer("school_days_7d").notNull().default(0),
     /** Messages to its people that could not be delivered in the last day. */
     failedDeliveries1d: integer("failed_deliveries_1d").notNull().default(0),
+    /** What each module counts at the school, by its key, for the console to weigh. */
+    facts: jsonb("facts").$type<Record<string, number>>().notNull().default({}),
     measuredAt: instant("measured_at").notNull(),
   },
   (t) => [
@@ -401,6 +403,10 @@ export const schoolUsage = pgTable(
     }),
     check("school_usage_used_bytes_check", sql`used_bytes >= 0`),
     check("school_usage_file_count_check", sql`file_count >= 0`),
+    check(
+      "school_usage_facts_check",
+      sql`jsonb_typeof(facts) = 'object' and octet_length(facts::text) <= 4096`,
+    ),
     check(
       "school_usage_counts_check",
       sql`students >= 0 and staff_accounts >= 0 and signed_in_7d >= 0 and signed_in_30d >= 0 and video_minutes >= 0 and emails_this_month >= 0 and school_days_7d between 0 and 7 and failed_deliveries_1d >= 0`,

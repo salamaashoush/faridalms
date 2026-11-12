@@ -1,7 +1,9 @@
 import type { ModuleId } from "@faridalms/domain/modules";
+import type { Ownership } from "@faridalms/domain/ownership";
 
+import { TABLE_OWNERS } from "@faridalms/database/ownership";
 import { MODULES } from "@faridalms/domain/modules";
-import { guaranteedBy } from "@faridalms/domain/ownership";
+import { guaranteedBy, presentWith } from "@faridalms/domain/ownership";
 import { dirname, join, normalize } from "node:path";
 
 /**
@@ -43,6 +45,24 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "apps/web/src/server/grade-levels.ts",
     "apps/web/src/queries/grade-levels.ts",
   ],
+  families: [
+    "packages/database/src/tables/families.ts",
+    "packages/database/src/stores/families.ts",
+    "packages/database/src/stores/custody.ts",
+    "packages/domain/src/families.ts",
+    "packages/domain/src/family-roles.ts",
+    "apps/api/src/families/",
+    "apps/api/src/systems/guardians.ts",
+    "apps/web/src/components/families/",
+    "apps/web/src/server/families.ts",
+    "apps/web/src/queries/families.ts",
+    "apps/web/src/routes/_app/family.tsx",
+    "apps/web/src/routes/_app/family/index.tsx",
+    "apps/web/src/routes/_app/family/children.tsx",
+    "apps/web/src/routes/_app/family/details.tsx",
+    "apps/web/src/routes/_app/family/consents.tsx",
+    "apps/web/src/routes/_app/family/messages.tsx",
+  ],
   homerooms: [
     "packages/database/src/tables/homerooms.ts",
     "packages/database/src/stores/homerooms.ts",
@@ -74,7 +94,6 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "apps/web/src/queries/periods.ts",
     "apps/web/src/routes/_app/_staff/timetable.tsx",
     "apps/web/src/routes/_app/me/timetable.tsx",
-    "apps/web/src/routes/_app/family/timetable.tsx",
   ],
   coursework: [
     "packages/database/src/tables/coursework.ts",
@@ -295,6 +314,86 @@ export const LINK_FILES: Readonly<
     owner: "admissions",
     needs: ["grade_levels"],
   },
+  "apps/api/src/admissions/families.ts": {
+    owner: "admissions",
+    needs: ["families"],
+  },
+  "apps/api/src/families/attendance.ts": {
+    owner: "families",
+    needs: ["attendance"],
+  },
+  "packages/database/src/stores/follow-up.ts": {
+    owner: "attendance",
+    needs: ["families"],
+  },
+  "apps/api/src/systems/follow-up.ts": {
+    owner: "attendance",
+    needs: ["families"],
+  },
+  "packages/database/src/tables/family-shares.ts": {
+    owner: "coursework",
+    needs: ["families"],
+  },
+  "packages/database/src/stores/family-shares.ts": {
+    owner: "coursework",
+    needs: ["families"],
+  },
+  "apps/api/src/coursework/family-shares.ts": {
+    owner: "coursework",
+    needs: ["families"],
+  },
+  "apps/api/src/systems/family-shares.ts": {
+    owner: "coursework",
+    needs: ["families"],
+  },
+  "packages/database/src/tables/contact-changes.ts": {
+    owner: "student_records",
+    needs: ["families"],
+  },
+  "packages/database/src/stores/guardian-health.ts": {
+    owner: "student_records",
+    needs: ["families"],
+  },
+  "apps/api/src/student-records/families.ts": {
+    owner: "student_records",
+    needs: ["families"],
+  },
+  "apps/web/src/routes/_app/family/health.tsx": {
+    owner: "student_records",
+    needs: ["families"],
+  },
+  "apps/web/src/server/family-shares.ts": {
+    owner: "coursework",
+    needs: ["families"],
+  },
+  "apps/web/src/components/coursework/family-shares.tsx": {
+    owner: "coursework",
+    needs: ["families"],
+  },
+  "apps/web/src/components/coursework/SharedWork.tsx": {
+    owner: "coursework",
+    needs: ["families"],
+  },
+  "apps/web/src/routes/_app/family/assignments.tsx": {
+    owner: "coursework",
+    needs: ["families"],
+  },
+  "apps/web/src/routes/_app/family/grades.tsx": {
+    owner: "coursework",
+    needs: ["families"],
+  },
+  "apps/web/src/routes/_app/family/timetable.tsx": {
+    owner: "timetable",
+    needs: ["families"],
+  },
+  "apps/web/src/routes/_app/family/attendance.tsx": {
+    owner: "attendance",
+    needs: ["families"],
+  },
+  "apps/web/src/routes/_app/family/modules.tsx": {
+    owner: "elearning",
+    needs: ["families"],
+  },
 };
 
 /** Whether a link file may import another: one link between the same modules, split over files. */
@@ -317,10 +416,6 @@ function sameLink(from: string, to: string): boolean {
  */
 export const PENDING_IMPORTS: Readonly<Record<string, readonly string[]>> = {
   badges: ["apps/api/src/core/badges.ts -> school_years"],
-  families: [
-    "apps/api/src/core/family-conversation.ts -> admissions",
-    "apps/api/src/core/registration.ts -> admissions",
-  ],
   surfaces: [
     "apps/api/src/calendar/lessons.ts -> timetable",
     "apps/api/src/coding/rerun.ts -> elearning",
@@ -454,5 +549,134 @@ export function moduleImportProblems(
   for (const entry of pending)
     if (!seen.has(entry))
       problems.push(`${entry}: listed as pending but no longer imported`);
+  return problems;
+}
+
+/**
+ * Modules whose tables and functions only their own files, link files that
+ * need them and the composition roots name in SQL: where a reach rule lives,
+ * a copy elsewhere would keep granting with the module off.
+ */
+export const SQL_CARVED: readonly ModuleId[] = ["families"];
+
+/**
+ * Files that name a carved module's tables for every module at once, each
+ * with why it may.
+ */
+export const SQL_READERS: Readonly<Record<string, string>> = {
+  "packages/database/src/stores/erasure.ts":
+    "Erasure must reach a switched-off module's rows, which the law asks gone whatever the school has on.",
+  "packages/database/src/gates.ts":
+    "The retention and purpose registries list every table the catalogue gate checks.",
+  "packages/database/src/audit.ts":
+    "The audit registry lists every table whose changes are kept.",
+  "packages/database/src/ownership.ts":
+    "The ownership registry names every table with its owner.",
+  "packages/database/src/erasure-rules.ts":
+    "The erasure registry names every table that keys a person.",
+};
+
+/** Functions in the migrations that belong to a module, as tables do; the rest are core's. */
+export const FUNCTION_OWNERS: Readonly<Record<string, Ownership>> = {
+  "app.guardian_permits": { owner: "families" },
+  "app.change_year_span": { owner: "school_years" },
+  "app.register_period_held": { owner: "attendance", needs: ["timetable"] },
+  "app.programme_of": { owner: "coursework" },
+  "app.scale_version_of": { owner: "coursework" },
+};
+
+/**
+ * Migration functions that name a table their owner may not reach, as
+ * `function -> table`, by the change that removes them. The check refuses
+ * one missing here and an entry that no longer occurs, so the list only
+ * shrinks.
+ */
+export const PENDING_FUNCTION_READS: readonly string[] = [];
+
+const ownershipOf = (name: string): Ownership =>
+  TABLE_OWNERS[name] ?? FUNCTION_OWNERS[name] ?? { owner: "core" };
+
+/** Whether rows a reader runs with exist wherever the table's rows can. */
+const reaches = (reader: Ownership, table: Ownership) => {
+  const present = presentWith(reader, MODULES);
+  return [...presentWith(table, MODULES)].every((id) => present.has(id));
+};
+
+const carved = (table: Ownership) =>
+  [...presentWith(table, MODULES)].some((id) => SQL_CARVED.includes(id));
+
+const SQL_NAME = /\b(?:core|health)\.[a-z_]+\b|\bapp\.[a-z_]+(?=\s*\()/g;
+
+/**
+ * Names in SQL of a carved module's tables and functions from a file that
+ * may not import the module: only its files, its link files, the
+ * composition roots and the registries that span every module may.
+ */
+export function sqlNameProblems(
+  files: readonly { path: string; text: string }[],
+): string[] {
+  const problems: string[] = [];
+  for (const { path, text } of files) {
+    if (
+      COMPOSITION_ROOTS.includes(path) ||
+      TESTS.test(path) ||
+      path in SQL_READERS ||
+      !(
+        path.startsWith("packages/database/src/") ||
+        path.startsWith("apps/api/src/")
+      )
+    )
+      continue;
+    const allowed = allowedFor(path);
+    const named = new Set(text.match(SQL_NAME) ?? []);
+    for (const name of named) {
+      const table = TABLE_OWNERS[name] ?? FUNCTION_OWNERS[name];
+      if (!table || !carved(table)) continue;
+      if ([...presentWith(table, MODULES)].every((id) => allowed.has(id)))
+        continue;
+      problems.push(
+        `${path}: names ${name} in SQL, which only the module that owns it and its links may`,
+      );
+    }
+  }
+  return problems;
+}
+
+const FUNCTION =
+  /create\s+(?:or\s+replace\s+)?function\s+([a-z_]+\.[a-z_]+)\s*\(([\s\S]*?)\$\$([\s\S]*?)\$\$/gi;
+
+/**
+ * Tables a migration's function names that its owner may not reach, and
+ * pending reads that no longer occur.
+ */
+export function functionBodyProblems(
+  migrations: readonly { path: string; text: string }[],
+): string[] {
+  const problems: string[] = [];
+  const pending = new Set(PENDING_FUNCTION_READS);
+  const seen = new Set<string>();
+  for (const { path, text } of migrations)
+    for (const [, name, signature, body] of text.matchAll(FUNCTION)) {
+      if (!name) continue;
+      const reader = ownershipOf(name);
+      for (const table of new Set(
+        `${signature}${body}`.match(/\b(?:core|health|audit)\.[a-z_]+\b/g) ??
+          [],
+      )) {
+        const owned = TABLE_OWNERS[table];
+        if (!owned || reaches(reader, owned)) continue;
+        const entry = `${name} -> ${table}`;
+        if (pending.has(entry)) {
+          seen.add(entry);
+          continue;
+        }
+        problems.push(
+          `${path}: ${name} names ${table}, which its owner may not reach`,
+        );
+      }
+    }
+  for (const entry of pending)
+    if (!seen.has(entry))
+      problems.push(`${entry}: listed as pending but no longer read`);
   return problems;
 }

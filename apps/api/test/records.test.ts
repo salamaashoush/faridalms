@@ -111,10 +111,10 @@ describe("custody", () => {
     const api = await signedIn("northwind", login("principal"));
     const list = await api.people.students({ q: "NO1005" });
     const studentId = list.rows[0]?.id ?? "";
-    const { links } = await api.records.custody({ studentId });
+    const { links } = await api.guardians.custody({ studentId });
     const link = links[0];
     if (!link) throw new Error("seed guardian");
-    await api.records.saveCustody({
+    await api.guardians.saveCustody({
       studentId,
       relationshipId: link.relationshipId,
       expectedVersion: link.version,
@@ -123,11 +123,11 @@ describe("custody", () => {
       communicationIsolated: false,
       pickup: "not_allowed",
     });
-    expect((await api.people.student({ id: studentId })).custodyAlert).toBe(
-      true,
+    expect((await api.people.student({ id: studentId })).alerts).toContain(
+      "custody",
     );
     const registrar = await signedIn("northwind", login("staff"));
-    const seen = await registrar.records.custody({ studentId });
+    const seen = await registrar.guardians.custody({ studentId });
     expect(
       seen.links.find((row) => row.relationshipId === link.relationshipId),
     ).toMatchObject({

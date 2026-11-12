@@ -34,9 +34,9 @@ function ownerSql(owner: AudienceOwner) {
 }
 
 /**
- * The people each audience names on a day: staff, students and their
- * portal guardians. `classIds` names classes a module's audience covers,
- * as a class audience covers its own.
+ * The people each audience names on a day: staff, students and teachers.
+ * `classIds` names classes a module's audience covers, as a class audience
+ * covers its own. Those who act for the students are for the caller to add.
  */
 function audienceSql(
   input: { tenantId: string; schoolId: string; on: string },
@@ -48,10 +48,6 @@ function audienceSql(
     where e.tenant_id = ${input.tenantId}::uuid and e.role = 'student' and e.status = 'active'
       and e.valid_during @> ${input.on}::date and c.org_id = ${input.schoolId}::uuid
       and c.status = 'active' and ${classFilter}`;
-  const guardiansOf = (students: SQL) => sql`
-    select l.related_user_id from core.user_relationships l
-    where l.tenant_id = ${input.tenantId}::uuid and app.guardian_permits(l, ${input.on}::date, 'contact')
-      and l.student_user_id in (${students})`;
   const staff = sql`
     select r.user_id from core.user_roles r
     where r.tenant_id = ${input.tenantId}::uuid and r.org_id = ${input.schoolId}::uuid
@@ -66,21 +62,49 @@ function audienceSql(
       return staff;
     case "students":
       return enrolled(sql`true`);
-    case "families":
-      return guardiansOf(enrolled(sql`true`));
     case "school":
-      return sql`${staff} union ${enrolled(sql`true`)} union ${guardiansOf(enrolled(sql`true`))}`;
+      return sql`${staff} union ${enrolled(sql`true`)}`;
     case "class": {
       const inClass = sql`c.id = ${audience.classId}::uuid`;
-      return sql`${enrolled(inClass)} union ${guardiansOf(enrolled(inClass))}
-        union ${teachersOf(inClass)}`;
+      return sql`${enrolled(inClass)} union ${teachersOf(inClass)}`;
     }
     default: {
       const inClasses = sql`c.id = any(${uuidArray(audience.classIds)})`;
-      return sql`${enrolled(inClasses)} union ${guardiansOf(enrolled(inClasses))}
+      return sql`${enrolled(inClasses)}
         union ${teachersOf(sql`c.org_id = ${input.schoolId}::uuid and ${inClasses}`)}`;
     }
   }
+}
+
+/**
+ * The students on a day whose audiences reach those who act for them too:
+ * the school's, a class's and a module's classes', not the students' alone.
+ */
+export async function studentsHeardFor(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; on: string },
+  audiences: readonly Audience[],
+  classIds: readonly string[] = [],
+): Promise<string[]> {
+  const parts: SQL[] = [
+    ...audiences.flatMap((audience) =>
+      audience.scope === "school"
+        ? [sql`true`]
+        : audience.scope === "class"
+          ? [sql`c.id = ${audience.classId}::uuid`]
+          : [],
+    ),
+    ...(classIds.length > 0 ? [sql`c.id = any(${uuidArray(classIds)})`] : []),
+  ];
+  if (parts.length === 0) return [];
+  const rows = await tx.execute<{ user_id: string }>(sql`
+    select distinct e.user_id from core.enrollments e
+    join core.classes c on c.tenant_id = e.tenant_id and c.id = e.class_id
+    where e.tenant_id = ${input.tenantId}::uuid and e.role = 'student' and e.status = 'active'
+      and e.valid_during @> ${input.on}::date and c.org_id = ${input.schoolId}::uuid
+      and c.status = 'active'
+      and (${sql.join(parts, sql` or `)})`);
+  return rows.map((row) => row.user_id);
 }
 
 /**
@@ -107,7 +131,7 @@ export async function audienceUsers(
   return rows.map((row) => row.user_id);
 }
 
-/** Which of some people the school reaches on a day: its staff, its students and their families. */
+/** Which of some people the school reaches on a day: its staff and its students. */
 export async function reachedAmong(
   tx: Tx,
   input: { tenantId: string; schoolId: string; on: string },
@@ -188,7 +212,8 @@ export async function setAudiences(
 export interface Reach {
   staff: boolean;
   student: boolean;
-  guardian: boolean;
+  /** They act for a learner, whose classes count as theirs. */
+  actsFor: boolean;
   classIds: string[];
   /** The announcements and events a module's audiences name this person in. */
   owners: Record<AudienceOwner["kind"], string[]>;
@@ -196,30 +221,33 @@ export interface Reach {
 
 /**
  * The same membership `audienceUsers` resolves, turned around: whether the
- * scopes name this person. A class covers its students, their families and
- * its teachers. What a module's audiences name is for the module to add.
+ * scopes name this person, or the learners they act for (`learners`). A
+ * class covers its students, those who act for them and its teachers. What
+ * a module's audiences name is for the module to add.
  */
 export async function reachOf(
   tx: Tx,
-  input: { tenantId: string; schoolId: string; userId: string; on: string },
+  input: {
+    tenantId: string;
+    schoolId: string;
+    userId: string;
+    on: string;
+    learners: readonly string[];
+  },
 ): Promise<Reach> {
   const [row] = await tx.execute<{
     staff: boolean;
     student: boolean;
-    guardian: boolean;
+    acts_for: boolean;
     class_ids: string[];
   }>(sql`
-    with children as (
-      select l.student_user_id as user_id from core.user_relationships l
-      where l.tenant_id = ${input.tenantId}::uuid and l.related_user_id = ${input.userId}::uuid
-        and app.guardian_permits(l, ${input.on}::date, 'contact')
-    ), enrolled as (
+    with enrolled as (
       select e.user_id, e.class_id from core.enrollments e
       join core.classes c on c.tenant_id = e.tenant_id and c.id = e.class_id
       where e.tenant_id = ${input.tenantId}::uuid and e.role = 'student' and e.status = 'active'
         and e.valid_during @> ${input.on}::date and c.org_id = ${input.schoolId}::uuid
         and c.status = 'active'
-        and (e.user_id = ${input.userId}::uuid or e.user_id in (select user_id from children))
+        and (e.user_id = ${input.userId}::uuid or e.user_id = any(${uuidArray(input.learners)}))
     ), taught as (
       select e.class_id from core.enrollments e
       join core.classes c on c.tenant_id = e.tenant_id and c.id = e.class_id
@@ -237,12 +265,12 @@ export async function reachOf(
           and r.org_id = ${input.schoolId}::uuid and r.status = 'active'
           and r.valid_during @> ${input.on}::date and r.role = any (app.staff_roles())) as staff,
       exists (select 1 from enrolled where user_id = ${input.userId}::uuid) as student,
-      exists (select 1 from enrolled where user_id <> ${input.userId}::uuid) as guardian,
+      exists (select 1 from enrolled where user_id <> ${input.userId}::uuid) as acts_for,
       coalesce((select json_agg(distinct class_id) from member), '[]'::json) as class_ids`);
   return {
     staff: row?.staff ?? false,
     student: row?.student ?? false,
-    guardian: row?.guardian ?? false,
+    actsFor: row?.acts_for ?? false,
     classIds: row?.class_ids ?? [],
     owners: { broadcast: [], calendar_event: [] },
   };
@@ -258,9 +286,8 @@ export function reaches(
     or exists (select 1 from ${table} x
     where x.tenant_id = ${input.tenantId}::uuid and x.${column} = ${input.ownerId}
       and x.status = 'active'
-      and ((x.scope = 'school' and ${reach.staff || reach.student || reach.guardian})
+      and ((x.scope = 'school' and ${reach.staff || reach.student || reach.actsFor})
         or (x.scope = 'staff' and ${reach.staff})
         or (x.scope = 'students' and ${reach.student})
-        or (x.scope = 'families' and ${reach.guardian})
         or (x.scope = 'class' and x.class_id = any(${uuidArray(reach.classIds)})))))`;
 }

@@ -10,10 +10,9 @@ import {
 } from "@faridalms/database/stores/admission-decisions";
 import {
   applicationById,
-  applicationsOfFamily,
+  applicationsFiledBy,
   appliedFor,
   convertEnquiry,
-  currentChildrenOf,
   enquiryToConvert,
   formVersionById,
   holderOfName,
@@ -62,7 +61,6 @@ import {
 import {
   addContact,
   insertPerson,
-  insertRelationship,
   nameColumns,
   peopleByContact,
   person as readPerson,
@@ -85,7 +83,7 @@ import {
   prioritiesFound,
   prioritiesMet,
   readApplicationAnswers,
-  registerFamilySchema,
+  registerApplicantSchema,
   saveDraftSchema,
   startApplicationSchema,
   submitApplicationSchema,
@@ -111,8 +109,10 @@ import {
   letterView,
 } from "../admissions/access";
 import { admissionScope, moveApplication } from "../admissions/decisions";
+import { filingModule } from "../admissions/points";
 import { readNeeds, writeNeeds } from "../core/health";
 import { identifierValue } from "../core/identifiers";
+import { modulesOf } from "../core/modules";
 import { notify, notifyIn } from "../core/notify";
 import { portalUrl, welcomeLink } from "../core/portal";
 import {
@@ -132,15 +132,23 @@ import {
   alreadyRegisteredMessage,
   registerMessage,
 } from "../notifications/templates";
+import { decidingLearners, keepConsentLink } from "../people/acting";
 
 const conflict = () =>
   new ORPCError("CONFLICT", { message: "conflict.version" });
 
-/** A family session that may apply: a parent already at the school, or a family that registered to. */
+/**
+ * A session that may apply: someone applying for themself in their own
+ * context, or for another person in the family context a module opens.
+ */
 function applying(context: UnitContext) {
   requireCapability(context, "applications:submit");
-  if (context.actor.context !== "family") throw new ORPCError("FORBIDDEN");
+  if (context.actor.context !== "family" && context.actor.context !== "student")
+    throw new ORPCError("FORBIDDEN");
 }
+
+/** Whether the session applies for other people rather than for itself. */
+const forOthers = (context: UnitContext) => context.actor.context === "family";
 
 const org = (context: UnitContext) => ({
   tenantId: context.tenantId,
@@ -149,7 +157,7 @@ const org = (context: UnitContext) => ({
 
 const NEEDS_USE = ["applications:submit"] as const;
 
-// A document a family uploaded for a checklist step is theirs and the
+// A document the filer uploaded for a checklist step is theirs and the
 // office's to open.
 registerHostReader("admission_item", async (context, itemId) => {
   const holder = await itemHolder(context.tx, {
@@ -158,7 +166,7 @@ registerHostReader("admission_item", async (context, itemId) => {
   });
   if (holder?.orgId !== context.schoolId) return false;
   return (
-    holder.familyUserId === context.actor.userId ||
+    holder.filedByUserId === context.actor.userId ||
     context.actor.capabilities.has("admissions:read") ||
     context.actor.capabilities.has("admissions:manage")
   );
@@ -168,7 +176,7 @@ async function ownApplication(context: UnitContext, id: string) {
   const row = await applicationById(context.tx, {
     ...org(context),
     id,
-    familyUserId: context.actor.userId,
+    filedByUserId: context.actor.userId,
   });
   if (!row) throw new ORPCError("NOT_FOUND");
   return row;
@@ -208,18 +216,56 @@ const REGISTER_PER_NETWORK = 5;
 const REGISTER_PER_ADDRESS = 3;
 const REGISTER_WINDOW_MINUTES = 60;
 
+type SchoolProcedureContext = Parameters<
+  Parameters<typeof schoolProcedure.handler>[0]
+>[0]["context"];
+
 /**
- * A parent registers on the portal to apply. Turnstile is checked where it
- * is set up, the hidden field and the fill time where it is not, then the
- * limits per network and per address. The answer is the same whatever happened, so
+ * Whether the school takes applications filed for someone else: that opens
+ * the family context, which only a school with families on keeps.
+ */
+async function takesFamilies(context: SchoolProcedureContext) {
+  const { school } = context;
+  return context.cell.withTenant(
+    {
+      tenantId: school.tenantId,
+      requestId: context.requestId,
+      actor: { kind: "user" },
+    },
+    "read",
+    async (tx) =>
+      (
+        await modulesOf({
+          tx,
+          tenantId: school.tenantId,
+          schoolId: school.schoolId,
+          school,
+          extensions: context.extensions,
+        })
+      ).families,
+  );
+}
+
+/** Who the portal's registration lets someone apply for. */
+export const registration = schoolProcedure.handler(async ({ context }) => ({
+  forOthers: await takesFamilies(context),
+}));
+
+/**
+ * Someone registers on the portal to apply, for themself or, where the
+ * school keeps families, for someone in their care. Turnstile is checked
+ * where it is set up, the hidden field and the fill time where it is not,
+ * then the limits per network and per address. The answer is the same whatever happened, so
  * nobody learns who has an account: a new address is sent a link that
  * confirms it and chooses the password, and an address that already signs
  * in is told so in its own inbox.
  */
 export const register = schoolProcedure
-  .input(registerFamilySchema)
+  .input(registerApplicantSchema)
   .handler(async ({ input, context }) => {
     const { school } = context;
+    if (input.applyingFor === "other" && !(await takesFamilies(context)))
+      throw new ORPCError("BAD_REQUEST", { message: "application.self_only" });
     const turnstile = context.turnstile;
     // Turnstile's answer, where it is set up, outranks the hidden field and
     // the fill time, which autofill trips for real families.
@@ -374,6 +420,7 @@ export const register = schoolProcedure
           sentToUserId: userId,
           linkedByUserId: null,
           purpose: "register",
+          applyingFor: input.applyingFor,
         });
         if (!invite) return false;
         const names = arabic ? input.names.ar : input.names.en;
@@ -491,9 +538,9 @@ function applicationView(row: ApplicationRow) {
 export const mine = readProcedure.handler(async ({ context }) => {
   applying(context);
   const [rows, open, all, options] = await Promise.all([
-    applicationsOfFamily(context.tx, {
+    applicationsFiledBy(context.tx, {
       ...org(context),
-      familyUserId: context.actor.userId,
+      filedByUserId: context.actor.userId,
     }),
     intakesOf(context.tx, { ...org(context), openOn: context.today }),
     intakesOf(context.tx, org(context)),
@@ -557,6 +604,7 @@ export const mine = readProcedure.handler(async ({ context }) => {
       };
     }),
     children: [...children.values()],
+    self: !forOthers(context),
     options,
     intakes: open
       .filter((intake) => intake.formVersionId !== null)
@@ -674,9 +722,10 @@ async function keepDocument(
 }
 
 /**
- * Starts an application for a child to an intake open today: a child the
- * family has applied for before, or a new one, who becomes a person now so
- * their documents and needs are kept in the systems that keep them.
+ * Starts an application to an intake open today: for the filer themself,
+ * or, where a module lets someone apply for another person, for one they
+ * have applied for before or a new one, who becomes a person now so their
+ * documents and needs are kept in the systems that keep them.
  */
 export const start = writeProcedure
   .input(startApplicationSchema)
@@ -685,17 +734,19 @@ export const start = writeProcedure
     const intake = await intakeOf(context, input.intakeId);
     if (intakeWindow(intake, context.today) !== "open" || !intake.formVersionId)
       throw new ORPCError("CONFLICT", { message: "application.intake_closed" });
-    let applicantId = input.applicantId;
-    if (applicantId) {
+    if (input.self === forOthers(context))
+      throw new ORPCError("BAD_REQUEST", { message: "application.self_only" });
+    let applicantId = input.self ? context.actor.userId : input.applicantId;
+    if (!input.self && applicantId) {
       if (
         !(await appliedFor(context.tx, {
           ...org(context),
-          familyUserId: context.actor.userId,
+          filedByUserId: context.actor.userId,
           applicantUserId: applicantId,
         }))
       )
         throw new ORPCError("NOT_FOUND");
-    } else if (input.child) {
+    } else if (!input.self && input.child) {
       const created = await insertPerson(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
@@ -725,7 +776,7 @@ export const start = writeProcedure
       ...org(context),
       intakeId: intake.id,
       formVersionId: intake.formVersionId,
-      familyUserId: context.actor.userId,
+      filedByUserId: context.actor.userId,
       applicantUserId: applicantId,
       locale: input.locale,
       form: emptyApplicationForm(),
@@ -996,13 +1047,16 @@ export const submit = writeProcedure
     const intake = await intakeOf(context, row.intakeId);
     if (intakeWindow(intake, context.today) !== "open")
       throw new ORPCError("CONFLICT", { message: "application.intake_closed" });
-    const [version, child, relations] = await Promise.all([
+    const self = row.applicantUserId === row.filedByUserId;
+    const filing = self ? null : await filingModule(context);
+    if (!self && !filing)
+      throw new ORPCError("BAD_REQUEST", { message: "application.self_only" });
+    const [version, child] = await Promise.all([
       formVersionById(context.tx, {
         tenantId: context.tenantId,
         id: row.formVersionId,
       }),
       readPerson(context.tx, row.applicantUserId),
-      descriptors(context, "relation"),
     ]);
     if (!version || !child) throw new ORPCError("NOT_FOUND");
     if (!child.birthDate || !child.sexId)
@@ -1021,18 +1075,15 @@ export const submit = writeProcedure
           fit === "young" ? "application.age_young" : "application.age_old",
       });
     const form = row.form;
-    const relation = relations.find((each) => each.id === form.relationId);
-    if (!relation?.meaning)
-      throw new ORPCError("BAD_REQUEST", { message: "application.relation" });
-    if (!form.responsible)
-      throw new ORPCError("BAD_REQUEST", {
-        message: "application.responsible",
-      });
-    const otherRelation = form.other
-      ? relations.find((each) => each.id === form.other?.relationId)
-      : null;
-    if (form.other && !otherRelation?.meaning)
-      throw new ORPCError("BAD_REQUEST", { message: "application.relation" });
+    // Someone applying for themself consents for themself, which only one of
+    // the age the school's learners decide from may do.
+    if (
+      self &&
+      !(await decidingLearners(context, [child.id], context.today)).has(
+        child.id,
+      )
+    )
+      throw new ORPCError("BAD_REQUEST", { message: "application.self_minor" });
     const read = readApplicationAnswers(version, input.locale, form.answers);
     if (!read.ok)
       throw new ORPCError("BAD_REQUEST", {
@@ -1081,86 +1132,11 @@ export const submit = writeProcedure
     )
       throw new ORPCError("CONFLICT", { message: "application.consent_words" });
 
-    const relationshipId = await insertRelationship(context.tx, {
-      tenantId: context.tenantId,
-      studentId: child.id,
-      relatedUserId: context.actor.userId,
-      relationId: relation.id,
-      relationMeaning: relation.meaning,
-      flags: {
-        legalGuardian: true,
-        portalAccess: false,
-        receivesNotifications: false,
-        primaryContact: true,
-        emergencyContact: false,
-        residence: null,
-        pickup: null,
-      },
-      from: context.today,
-      verifiedByUserId: null,
-    });
+    const filed = filing
+      ? await filing.sent(context, { applicantId: child.id, form })
+      : null;
+    const otherId = filed?.otherId ?? null;
     const schoolCountry = await country(context);
-    let otherId: string | null = null;
-    if (form.other && otherRelation?.meaning) {
-      const created = await insertPerson(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        names: form.other.names,
-      });
-      otherId = created.id;
-      const phone = form.other.phone
-        ? toE164(form.other.phone, schoolCountry)
-        : null;
-      if (form.other.phone && phone)
-        await addContact(context.tx, {
-          tenantId: context.tenantId,
-          userId: otherId,
-          kind: "phone",
-          value: form.other.phone,
-          normalized: phone,
-          label: "mobile",
-          source: "self_service",
-        });
-      if (form.other.email)
-        await addContact(context.tx, {
-          tenantId: context.tenantId,
-          userId: otherId,
-          kind: "email",
-          value: form.other.email,
-          normalized: form.other.email,
-          label: "personal",
-          source: "self_service",
-        });
-      await insertRelationship(context.tx, {
-        tenantId: context.tenantId,
-        studentId: child.id,
-        relatedUserId: otherId,
-        relationId: otherRelation.id,
-        relationMeaning: otherRelation.meaning,
-        flags: {
-          legalGuardian: null,
-          portalAccess: false,
-          receivesNotifications: false,
-          primaryContact: false,
-          emergencyContact: false,
-          residence: form.other.livesWithChild ? "primary" : null,
-          pickup: null,
-        },
-        from: context.today,
-        verifiedByUserId: null,
-      });
-      await audit(context, {
-        action: "user.create",
-        objectType: "user",
-        objectId: otherId,
-        subjectUserId: otherId,
-        change: {
-          table: "core.users",
-          before: null,
-          after: nameColumns(form.other.names),
-        },
-      });
-    }
     const phone = form.phone ? toE164(form.phone, schoolCountry) : null;
     if (form.phone && phone)
       await addContact(context.tx, {
@@ -1177,14 +1153,14 @@ export const submit = writeProcedure
     for (const consent of consents) {
       if (!consent.notice || !answered.has(consent.notice.id)) continue;
       const agreed = answered.get(consent.notice.id) === true;
-      await insertAnswer(context.tx, {
+      const consentId = await insertAnswer(context.tx, {
         tenantId: context.tenantId,
         studentId: child.id,
         purposeId: consent.purposeId,
         decision: agreed ? "granted" : "refused",
         noticeId: consent.notice.id,
         givenById: context.actor.userId,
-        relationshipId,
+        capacity: filed ? "guardian" : "self",
         method: "electronic",
         evidenceFileId: null,
         recordedById: context.actor.userId,
@@ -1197,6 +1173,8 @@ export const submit = writeProcedure
         }),
         note: null,
       });
+      if (filed)
+        await keepConsentLink(context, { consentId, linkId: filed.linkId });
       await audit(context, {
         action: "consent.record",
         objectType: "consent_record",
@@ -1271,15 +1249,14 @@ export const submit = writeProcedure
         kind: "phone",
         normalized: applicantPhone,
       });
-    if (form.other?.email)
+    const other = filed ? form.other : null;
+    if (other?.email)
       contacts.push({
         as: "other",
         kind: "email",
-        normalized: form.other.email,
+        normalized: other.email,
       });
-    const otherPhone = form.other?.phone
-      ? toE164(form.other.phone, schoolCountry)
-      : null;
+    const otherPhone = other?.phone ? toE164(other.phone, schoolCountry) : null;
     if (otherPhone)
       contacts.push({ as: "other", kind: "phone", normalized: otherPhone });
     const guardians: {
@@ -1306,11 +1283,7 @@ export const submit = writeProcedure
           });
     const parents = [context.actor.userId, ...guardians.map((each) => each.id)];
     const [siblings, staffParent] = await Promise.all([
-      currentChildrenOf(context.tx, {
-        ...org(context),
-        parentIds: parents,
-        today: context.today,
-      }),
+      filing ? filing.relatives(context, parents) : Promise.resolve([]),
       holdsStaffRole(context.tx, {
         ...org(context),
         userIds: parents,
@@ -1335,7 +1308,7 @@ export const submit = writeProcedure
         ...org(context),
         id: enquiry.id,
         expectedVersion: enquiry.version,
-        familyUserId: context.actor.userId,
+        enquirerUserId: context.actor.userId,
         applicantUserId: child.id,
       }))
     ) {
@@ -1531,8 +1504,8 @@ export const answer = writeProcedure
         params: {
           title: row.applicant.nameEn ?? row.applicant.nameAr ?? "",
           titleAr: row.applicant.nameAr ?? undefined,
-          actorName: row.family.nameEn ?? row.family.nameAr ?? "",
-          actorNameAr: row.family.nameAr ?? undefined,
+          actorName: row.filer.nameEn ?? row.filer.nameAr ?? "",
+          actorNameAr: row.filer.nameAr ?? undefined,
           intakeName: intake.titleEn ?? intake.titleAr ?? undefined,
           intakeNameAr: intake.titleAr ?? undefined,
           outcome: to,

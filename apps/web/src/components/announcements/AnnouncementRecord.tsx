@@ -35,6 +35,7 @@ import {
   useReaderWidth,
 } from "~/components/system/ReaderWidth";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import {
@@ -62,6 +63,7 @@ import {
   URGENCY_LABEL,
   URGENCY_TONE,
 } from "./format";
+import { audienceKinds } from "./slots";
 
 type RecordData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof announcementQuery>["queryFn"]>>
@@ -258,6 +260,7 @@ export function AnnouncementRecord({ id }: AnnouncementRecordProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(announcementQuery(id)).data;
+  const kinds = useSlot(audienceKinds);
   const viewer: ContentLocale = getLocale() === "ar" ? "ar" : "en";
   const [locale, setLocale] = useState<ContentLocale>(
     data.translation && viewer === otherLocale(data.primaryLocale)
@@ -352,7 +355,9 @@ export function AnnouncementRecord({ id }: AnnouncementRecordProps) {
       ? [
           {
             label: m.annAudience(),
-            value: formatList(data.audiences.map(audienceLabel)),
+            value: formatList(
+              data.audiences.map((row) => audienceLabel(row, kinds)),
+            ),
           },
         ]
       : []),

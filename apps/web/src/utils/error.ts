@@ -495,8 +495,8 @@ export function getMessageFromError(error: unknown): string {
         return m.consentErrEmpty();
       case "consents.words_only":
         return m.consentErrWordsOnly();
-      case "consents.not_guardian":
-        return m.consentErrNotGuardian();
+      case "consents.not_answerer":
+        return m.consentErrNotAnswerer();
       case "consents.superseded":
         return m.consentErrSuperseded();
       case "consents.future":
@@ -839,6 +839,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errAdmissionsFull();
       case "enrol.not_matched":
         return m.errEnrolNotMatched();
+      case "enrol.self_matched":
+        return m.errEnrolSelfMatched();
       case "defer.later_year":
         return m.errDeferLaterYear();
       case "event.times":
@@ -877,6 +879,10 @@ export function getMessageFromError(error: unknown): string {
         return m.errApplicationItemState();
       case "application.not_sent":
         return m.errApplicationNotSent();
+      case "application.self_only":
+        return m.errApplicationSelfOnly();
+      case "application.self_minor":
+        return m.errApplicationSelfMinor();
       case "application.exists":
         return m.errApplicationExists();
       case "register.no_mail":

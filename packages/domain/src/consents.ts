@@ -58,7 +58,12 @@ export const recordConsentSchema = v.pipe(
   v.object({
     studentId: id,
     purposeId: id,
-    relationshipId: id,
+    /**
+     * Who gave it: the learner themself, the office on their behalf where
+     * they do not decide for themselves, or someone acting for them through
+     * a module's link.
+     */
+    answeredBy: v.union([v.picklist(["self", "office"]), id]),
     agreed: v.boolean(),
     method: v.picklist(OFFICE_METHODS),
     givenOn: v.pipe(v.string(), v.isoDate()),

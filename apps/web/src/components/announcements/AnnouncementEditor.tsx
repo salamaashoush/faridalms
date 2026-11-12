@@ -71,6 +71,7 @@ import {
 } from "~/components/system/DocumentPage";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { announcementOptionsQuery } from "~/queries/announcements";
@@ -86,6 +87,7 @@ import { getMessageFromError } from "~/utils/error";
 
 import { AudienceList, audienceIssue, audienceSummary } from "./AudienceList";
 import { STATE_LABEL, STATE_TONE, URGENCY_LABEL } from "./format";
+import { audienceKinds } from "./slots";
 
 type EditorData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof announcementEditorQuery>["queryFn"]>>
@@ -278,6 +280,7 @@ export function AnnouncementEditor({
   onCreated,
 }: AnnouncementEditorProps) {
   const options: Options = useSuspenseQuery(announcementOptionsQuery).data;
+  const kinds = useSlot(audienceKinds);
   const queryClient = useQueryClient();
   const documentMedia = useDocumentMedia();
   const id = useRef(existing?.id ?? "");
@@ -325,7 +328,7 @@ export function AnnouncementEditor({
   );
   const telling = draft.audiences.length > 0;
   const reachable =
-    audienceIssue(draft.audiences) === null && (telling || isPublic);
+    audienceIssue(draft.audiences, kinds) === null && (telling || isPublic);
 
   const persist = useCallback(
     async (value: Draft) => {
@@ -481,7 +484,7 @@ export function AnnouncementEditor({
     if (!primaryTitle.trim()) found.push(m.annTitleNeeded());
     if (!documentWritten(draft.body)) found.push(m.annBodyNeeded());
     if (!reachable) {
-      found.push(audienceIssue(draft.audiences) ?? m.annErrAudience());
+      found.push(audienceIssue(draft.audiences, kinds) ?? m.annErrAudience());
       setDetailsOpen(true);
     }
     if (wordIssues.length) {
@@ -701,7 +704,7 @@ export function AnnouncementEditor({
         summary={[
           ...(isPublic ? [m.annWherePublic()] : []),
           telling
-            ? audienceSummary(draft.audiences, options)
+            ? audienceSummary(draft.audiences, options, kinds)
             : m.annAudienceNone(),
           URGENCY_LABEL[draft.urgency](),
           draft.bilingual

@@ -114,7 +114,7 @@ async function recordFor(office: Session) {
     loginAt("northwind", "parent", 17),
   );
   const me = await mother.api.identity.currentUser();
-  const child = (await mother.api.people.person({ id: me.id })).children[0];
+  const child = (await mother.api.guardians.children({ userId: me.id }))[0];
   if (!child) throw new Error("the seeded mother follows a child");
   const { kinds } = await office.api.records.health({
     studentId: child.studentId,
@@ -414,7 +414,7 @@ describe("custody papers", () => {
     const tenantId = tenantOf("northwind");
     const studentId =
       (await office.api.people.students({ q: "NO1012" })).rows[0]?.id ?? "";
-    const [link] = (await office.api.records.custody({ studentId })).links;
+    const [link] = (await office.api.guardians.custody({ studentId })).links;
     if (!link) throw new Error("the seeded student has no guardian link");
     const file = await upload(office, {
       purpose: "legal_document",
@@ -426,12 +426,12 @@ describe("custody papers", () => {
       encryption: "tenant_dek",
     });
 
-    await office.api.records.attachCourtOrder({
+    await office.api.guardians.attachCourtOrder({
       studentId,
       relationshipId: link.relationshipId,
       order: { fileId: file.id, name: file.name },
     });
-    const kept = (await office.api.records.custody({ studentId })).links.find(
+    const kept = (await office.api.guardians.custody({ studentId })).links.find(
       (row) => row.relationshipId === link.relationshipId,
     );
     expect(kept?.courtOrder?.fileId).toBe(file.id);
@@ -444,12 +444,12 @@ describe("custody papers", () => {
     );
     expect((await raw("northwind", teacher.token, path)).status).toBe(404);
 
-    await office.api.records.removeCourtOrder({
+    await office.api.guardians.removeCourtOrder({
       studentId,
       relationshipId: link.relationshipId,
     });
     expect(
-      (await office.api.records.custody({ studentId })).links.find(
+      (await office.api.guardians.custody({ studentId })).links.find(
         (row) => row.relationshipId === link.relationshipId,
       )?.courtOrder,
     ).toBeNull();

@@ -19,6 +19,7 @@ import type {
   Names,
   NewsletterPlan,
   SchoolPlan,
+  SeedAudience,
   SeededTenant,
   Tx,
   Visitor,
@@ -2553,7 +2554,7 @@ async function notices(
   today: string,
 ) {
   const everyone: Audience = { scope: "school", classId: null };
-  const families: Audience = {
+  const families: SeedAudience = {
     scope: "families",
     classId: null,
   };

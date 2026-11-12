@@ -14,6 +14,7 @@ import { availableModules, SCHOOL_NOTICES } from "@faridalms/domain/plans";
 import { SCHOOL_STANDINGS, standingOf } from "@faridalms/domain/provisioning";
 import { daysBetween } from "@faridalms/domain/school";
 import { LIMIT_KEYS, usableModules } from "@faridalms/domain/subscriptions";
+import { Alert, AlertDescription, AlertTitle } from "@faridalms/ui/alert";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { AttentionList } from "@faridalms/ui/system/attention-list";
@@ -998,6 +999,11 @@ function EntitlementsSheet({
   const [submitted, setSubmitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { formatNumber } = useDesignSystem();
+  // As the school's cell last reported them.
+  const restrictions = school.usage?.facts.restricted_guardian_links ?? 0;
+  const dropsFamilies =
+    entitled.modules.includes("families") && !modules.includes("families");
   return (
     <SheetForm
       open={open}
@@ -1054,6 +1060,22 @@ function EntitlementsSheet({
           onChange={setModules}
           hint="The school's administrators turn available modules on or off in their settings."
         />
+        {dropsFamilies && restrictions > 0 ? (
+          <Alert>
+            <ShieldAlert aria-hidden />
+            <AlertTitle>
+              {restrictions === 1
+                ? "1 custody restriction in force"
+                : `${formatNumber(restrictions)} custody restrictions in force`}
+            </AlertTitle>
+            <AlertDescription>
+              Such as a person who may not collect a child. Without families the
+              school's staff no longer see them, at the front desk or anywhere
+              else, and no guardian has access at all. They apply again if
+              families is turned back on. Tell the school before you save.
+            </AlertDescription>
+          </Alert>
+        ) : null}
       </SettingsGroup>
       <SettingsGroup title="Limits and trial">
         <div className="grid items-start gap-6 @md:grid-cols-2">

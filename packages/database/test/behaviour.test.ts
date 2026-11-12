@@ -1373,7 +1373,7 @@ describe("teaching", () => {
     const seen = await probe<{ reached: number }>("app", a.tenantId, [
       {
         text: `select count(*)::int as reached
-               from app.visible_students($1, $2, '2026-10-01', false)`,
+               from app.visible_students($1, $2, '2026-10-01', false, '{}'::uuid[])`,
         params: [taught.teacher, school.id],
       },
     ]);

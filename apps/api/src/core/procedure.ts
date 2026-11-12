@@ -17,6 +17,7 @@ import { ORPCError, os } from "@orpc/server";
 import type { RequestContext, SchoolContext, UnitContext } from "./context";
 
 import { accessAt } from "../people/access";
+import { learnersActedFor } from "../people/acting";
 import { bearer, LIFETIME, parseToken, SHARED_LIFETIME } from "./session";
 
 /** The school slug the web backend forwards, taken from the host or the school cookie. */
@@ -151,18 +152,25 @@ export async function openUnit<T>(
         );
       const schoolId = context.school.schoolId;
       const today = schoolDate(await schoolZone(tx, schoolId), now);
-      const resolved = await accessAt(
-        {
-          tx,
-          tenantId: token.tenantId,
-          schoolId,
-          school: context.school,
-          extensions: context.extensions,
-        },
-        { userId: session.userId, today, context: session.context },
-      );
+      const scope = {
+        tx,
+        tenantId: token.tenantId,
+        schoolId,
+        school: context.school,
+        extensions: context.extensions,
+      };
+      const resolved = await accessAt(scope, {
+        userId: session.userId,
+        today,
+        context: session.context,
+      });
       if (!resolved.contexts.includes(session.context))
         throw new ORPCError("UNAUTHORIZED");
+      const follows = await learnersActedFor(scope, {
+        userId: session.userId,
+        on: today,
+        purpose: "follow",
+      });
       return run({
         tx,
         tenantId: token.tenantId,
@@ -180,6 +188,7 @@ export async function openUnit<T>(
           roles: resolved.roles,
           capabilities: resolved.capabilities,
           contexts: resolved.contexts,
+          follows: [...new Set(follows.map((link) => link.studentId))],
         },
         afterCommit: (task) => {
           deferred.push(task);

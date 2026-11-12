@@ -59,6 +59,8 @@ export const attendanceSettings = core.table.withRLS(
     registerClosesMinutes: smallint("register_closes_minutes")
       .notNull()
       .default(30),
+    /** Learners who decide for themselves report their own absence. */
+    learnersReport: boolean("learners_report").notNull().default(false),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [

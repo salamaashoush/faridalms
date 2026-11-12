@@ -71,13 +71,24 @@ describe("a school's own setup", () => {
   });
 
   it("counts a step done only once every one of its items is", () => {
-    const applies = onboardingItems({ modules: [], onTrial: true });
+    const applies = onboardingItems({ modules: ["families"], onTrial: true });
     const students = (done: OnboardingItem[]) =>
       setupProgress(applies, new Set(done)).find(
         (step) => step.id === "students",
       )?.done;
     expect(students(["students_imported"])).toBe(false);
     expect(students(["students_imported", "guardians_linked"])).toBe(true);
+  });
+
+  it("asks a school without families for no guardians or family sign-ins", () => {
+    const applies = onboardingItems({ modules: [], onTrial: true });
+    expect(applies).not.toContain("guardians_linked");
+    expect(applies).not.toContain("families_signed_in");
+    expect(
+      setupProgress(applies, new Set(["students_imported"])).find(
+        (step) => step.id === "students",
+      )?.done,
+    ).toBe(true);
   });
 
   it("is finished without the optional website and admissions", () => {

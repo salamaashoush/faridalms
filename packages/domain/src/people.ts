@@ -63,7 +63,7 @@ export type StudentStatus = (typeof STUDENT_STATUSES)[number];
 export const studentDirectorySchema = v.object({
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
   status: v.optional(v.array(v.picklist(STUDENT_STATUSES)), []),
-  missing: v.optional(v.array(v.picklist(["guardian", "account"])), []),
+  missing: v.optional(v.array(v.picklist(["account"])), []),
   /** By name, by reference, or by a module's column under its key. */
   sort: v.optional(v.pipe(v.string(), v.regex(/^[a-z]{1,20}$/)), "name"),
   dir: v.optional(v.picklist(["asc", "desc"]), "asc"),
@@ -79,36 +79,14 @@ export type StudentDirectoryQuery = v.InferOutput<
   typeof studentDirectorySchema
 >;
 
-export const RESIDENCES = ["primary", "secondary", "none"] as const;
-export type Residence = (typeof RESIDENCES)[number];
-
-export const relationshipFlagsSchema = v.object({
-  relationId: id,
-  legalGuardian: v.nullable(v.boolean()),
-  portalAccess: v.boolean(),
-  receivesNotifications: v.boolean(),
-  primaryContact: v.boolean(),
-  emergencyContact: v.boolean(),
-  residence: v.nullable(v.picklist(RESIDENCES)),
-  pickup: v.nullable(v.picklist(["allowed", "not_allowed", "ask_office"])),
-});
-export type RelationshipFlags = v.InferOutput<typeof relationshipFlagsSchema>;
-
 const phone = v.pipe(v.string(), v.trim(), v.maxLength(40));
 const email = v.pipe(v.string(), v.trim(), v.toLowerCase(), v.maxLength(254));
 
-export const newGuardianSchema = v.object({
-  names: personNamesSchema,
+/** A phone or email to find who already holds it. */
+export const contactLookupSchema = v.object({
   phone: v.optional(phone, ""),
-  email: v.optional(v.union([v.literal(""), v.pipe(email, v.email())]), ""),
+  email: v.optional(email, ""),
 });
-
-export const guardianLinkSchema = v.object({
-  existingUserId: v.optional(id),
-  person: v.optional(newGuardianSchema),
-  flags: relationshipFlagsSchema,
-});
-export type GuardianLinkInput = v.InferInput<typeof guardianLinkSchema>;
 
 export const saveStudentSchema = v.object({
   id: v.optional(id),
@@ -126,10 +104,6 @@ export const saveStudentSchema = v.object({
   sexId: v.optional(v.union([v.literal(""), id]), ""),
   /** What modules keep about the student, each read by its own schema. */
   parts: v.optional(v.record(v.string(), v.unknown()), {}),
-  guardians: v.optional(
-    v.pipe(v.array(guardianLinkSchema), v.maxLength(6)),
-    [],
-  ),
 });
 export type SaveStudentInput = v.InferInput<typeof saveStudentSchema>;
 
@@ -161,25 +135,6 @@ export const studentMatchesSchema = v.object({
   names: personNamesSchema,
   birthDate: isoDate,
   exceptId: v.optional(id),
-});
-
-export const guardianLookupSchema = v.object({
-  phone: v.optional(phone, ""),
-  email: v.optional(email, ""),
-});
-
-export const saveRelationshipSchema = v.object({
-  studentId: id,
-  relationshipId: v.optional(id),
-  expectedVersion: v.optional(version),
-  existingUserId: v.optional(id),
-  person: v.optional(newGuardianSchema),
-  flags: relationshipFlagsSchema,
-});
-
-export const endRelationshipSchema = v.object({
-  relationshipId: id,
-  expectedVersion: version,
 });
 
 export const staffDirectorySchema = v.object({
@@ -284,29 +239,30 @@ export const removeHealthReportSchema = v.object({
 });
 
 /**
- * The kinds of health record a permitted guardian reads in the child's
- * medical summary and may ask the school to change, by their meaning.
- * Everything else the school records stays with its health staff.
+ * The kinds of health record the medical summary holds, which a learner,
+ * or someone permitted to act for them, reads and may ask the school to
+ * change, by their meaning. Everything else the school records stays with
+ * its health staff.
  */
-export const FAMILY_HEALTH_KINDS = [
+export const SUMMARY_KINDS = [
   "allergy",
   "chronic_condition",
   "medication",
   "dietary_requirement",
   "doctor",
 ] as const;
-export type FamilyHealthKind = (typeof FAMILY_HEALTH_KINDS)[number];
+export type SummaryKind = (typeof SUMMARY_KINDS)[number];
 
 /**
- * A guardian's proposed change to the medical summary: a record of one of
- * the family's kinds to add, or to change from the version they read, or a
- * new phone for one of the child's emergency contacts.
+ * A proposed change to the medical summary: a record of one of its kinds
+ * to add, or to change from the version the asker read, or a new phone for
+ * one of the learner's emergency contacts.
  */
 export const askHealthChangeSchema = v.variant("target", [
   v.object({
     target: v.literal("record"),
     studentId: id,
-    kind: v.picklist(FAMILY_HEALTH_KINDS),
+    kind: v.picklist(SUMMARY_KINDS),
     recordId: v.optional(id),
     expectedVersion: v.optional(version),
     text: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(2000)),
@@ -320,7 +276,7 @@ export const askHealthChangeSchema = v.variant("target", [
   v.object({
     target: v.literal("contact"),
     studentId: id,
-    relationshipId: id,
+    contactId: id,
     phone: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(40)),
   }),
 ]);
@@ -332,7 +288,7 @@ export const healthChangesSchema = v.object({
 
 /**
  * The office's answer to a change: accepting applies it to the version of
- * the record the office compared, and may make the report the family sent
+ * the record the office compared, and may make the report the asker sent
  * the record's own; declining says why.
  */
 export const decideHealthChangeSchema = v.variant("decision", [
@@ -436,28 +392,6 @@ export const saveContactsSchema = v.object({
 });
 export type SaveContactsInput = v.InferInput<typeof saveContactsSchema>;
 
-export const saveCustodySchema = v.object({
-  studentId: id,
-  relationshipId: id,
-  expectedVersion: version,
-  contactRestrictions: optionalText(250),
-  educationalRights: v.picklist(["full", "restricted", "none"]),
-  communicationIsolated: v.boolean(),
-  pickup: v.nullable(v.picklist(["allowed", "not_allowed", "ask_office"])),
-});
-
-export const attachCourtOrderSchema = v.object({
-  studentId: id,
-  relationshipId: id,
-  order: v.object(healthReportSchema.entries, "validation.report_required"),
-});
-export type AttachCourtOrderInput = v.InferInput<typeof attachCourtOrderSchema>;
-
-export const removeCourtOrderSchema = v.object({
-  studentId: id,
-  relationshipId: id,
-});
-
 export const personSearchSchema = v.object({
   q: v.pipe(v.string(), v.trim(), v.minLength(2), v.maxLength(100)),
 });
@@ -512,6 +446,13 @@ export const saveSchoolSchema = v.object({
   digits: v.optional(v.picklist(DIGITS), "latn"),
   /** Mathematics within Arabic text: left to right, or in Arabic notation. */
   arabicMath: v.optional(v.picklist(ARABIC_MATH), "ltr"),
+  /**
+   * The age from which learners sign, ask and report for themselves, by
+   * their date of birth on the school's day; left out to keep it.
+   */
+  learnersDecideFrom: v.optional(
+    v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(25)),
+  ),
   phone: optionalText(40),
   email: optionalText(254),
   /**

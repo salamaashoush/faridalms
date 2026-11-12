@@ -188,8 +188,8 @@ export interface BoardRow {
   applicantEn: string | null;
   applicantAr: string | null;
   birthDate: string | null;
-  familyEn: string | null;
-  familyAr: string | null;
+  filerEn: string | null;
+  filerAr: string | null;
   priorities: PriorityRule[];
   /** Required checklist steps not yet verified or waived. */
   outstanding: number;
@@ -218,8 +218,8 @@ export async function boardOf(
     applicant_en: string | null;
     applicant_ar: string | null;
     birth_date: string | null;
-    family_en: string | null;
-    family_ar: string | null;
+    filer_en: string | null;
+    filer_ar: string | null;
     priorities: PriorityRule[];
     outstanding: number;
     matched: BoardRow["matchedStudents"] | null;
@@ -229,14 +229,14 @@ export async function boardOf(
       case when a.submitted_at is null then null else ${isoOf(sql`a.submitted_at`)} end as submitted_at,
       a.offer_expires_on::text as offer_expires_on,
       c.full_name_en as applicant_en, c.full_name_ar as applicant_ar, c.birth_date::text as birth_date,
-      p.full_name_en as family_en, p.full_name_ar as family_ar, a.priorities,
+      p.full_name_en as filer_en, p.full_name_ar as filer_ar, a.priorities,
       (select count(*)::int from core.admission_items t where t.tenant_id = a.tenant_id
         and t.application_id = a.id and t.status = 'active' and t.required
         and t.state not in ('verified', 'waived')) as outstanding,
       a.matches -> 'students' as matched
     from core.admission_applications a
     join core.users c on c.tenant_id = a.tenant_id and c.id = a.applicant_user_id
-    join core.users p on p.tenant_id = a.tenant_id and p.id = a.family_user_id
+    join core.users p on p.tenant_id = a.tenant_id and p.id = a.filed_by_user_id
     where a.tenant_id = ${input.tenantId}::uuid and a.org_id = ${input.orgId}::uuid
       and a.intake_id = ${input.intakeId}::uuid and a.status = 'active' and a.state <> 'draft'
     order by a.submitted_at, a.id`);
@@ -252,8 +252,8 @@ export async function boardOf(
     applicantEn: row.applicant_en,
     applicantAr: row.applicant_ar,
     birthDate: row.birth_date,
-    familyEn: row.family_en,
-    familyAr: row.family_ar,
+    filerEn: row.filer_en,
+    filerAr: row.filer_ar,
     priorities: row.priorities,
     outstanding: row.outstanding,
     matchedStudents: Array.isArray(row.matched) ? row.matched : [],
@@ -277,9 +277,9 @@ export async function insertDeferred(
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.admission_applications (tenant_id, org_id, intake_id, form_version_id,
-      family_user_id, applicant_user_id, enquiry_id, state, reference, locale, form, answers,
+      filed_by_user_id, applicant_user_id, enquiry_id, state, reference, locale, form, answers,
       additional_needs, priorities, matches, submitted_at, deferred_from_id)
-    select a.tenant_id, a.org_id, ${input.intakeId}::uuid, a.form_version_id, a.family_user_id,
+    select a.tenant_id, a.org_id, ${input.intakeId}::uuid, a.form_version_id, a.filed_by_user_id,
       a.applicant_user_id, a.enquiry_id, 'submitted', ${input.reference}, a.locale, a.form, a.answers,
       a.additional_needs, ${textArray(input.priorities)}, a.matches, statement_timestamp(), a.id
     from core.admission_applications a
@@ -299,9 +299,9 @@ export async function insertDeferred(
 }
 
 /**
- * Ends a family's applying role at the school on a day, once none of their
- * applications is still open: the day their child starts, so the family
- * keeps their workspace until the family role their links give takes over.
+ * Ends someone's applying role at the school on a day, once none of the
+ * applications they filed is still open: the day their applicant starts,
+ * so they keep their workspace until the role enrolment gives takes over.
  * Answers whether it was ended.
  */
 export async function closeApplicantRole(
@@ -314,12 +314,12 @@ export async function closeApplicantRole(
         then valid_during else daterange(lower(valid_during), ${input.endsOn}::date, '[)') end,
       status = case when lower(valid_during) >= ${input.endsOn}::date then 'tobedeleted' else status end
     where tenant_id = ${input.tenantId}::uuid and user_id = ${input.userId}::uuid
-      and org_id = ${input.orgId}::uuid and role = 'applicant_family' and status = 'active'
+      and org_id = ${input.orgId}::uuid and role in ('applicant_family', 'applicant') and status = 'active'
       and (upper_inf(valid_during) or upper(valid_during) > ${input.endsOn}::date)
       and not exists (
         select 1 from core.admission_applications a
         where a.tenant_id = ${input.tenantId}::uuid and a.org_id = ${input.orgId}::uuid
-          and a.family_user_id = ${input.userId}::uuid and a.status = 'active'
+          and a.filed_by_user_id = ${input.userId}::uuid and a.status = 'active'
           and a.state in ('draft', 'submitted', 'in_review', 'decided', 'offered', 'waitlisted'))
     returning id`);
   return rows.length > 0;
@@ -330,14 +330,14 @@ export async function closeApplicantRole(
  * own student they were found to be, when a former student applies again:
  * the identity document (unless the student has one of its kind), the
  * consents given (recorded again for the student, the ledger keeping the
- * first), and the application's other rows. The applicant person, now a
+ * first, whose ids it answers), and the application's other rows. The applicant person, now a
  * duplicate, is tombstoned. Health records move separately, behind their
  * purpose.
  */
 export async function adoptApplicant(
   tx: Tx,
   input: { tenantId: string; fromUserId: string; toUserId: string },
-) {
+): Promise<string[]> {
   const t = input.tenantId;
   await tx.execute(sql`
     update core.external_ids e set user_id = ${input.toUserId}::uuid
@@ -345,24 +345,22 @@ export async function adoptApplicant(
       and not exists (select 1 from core.external_ids x where x.tenant_id = e.tenant_id
         and x.user_id = ${input.toUserId}::uuid and x.status = 'active'
         and x.system_descriptor_id = e.system_descriptor_id)`);
-  await tx.execute(sql`
+  const consents = await tx.execute<{ id: string }>(sql`
     insert into core.consent_records (tenant_id, subject_user_id, purpose_descriptor_id, decision,
-      notice_id, given_by_user_id, capacity, relationship_id, legal_basis, explicit, written, method,
+      notice_id, given_by_user_id, capacity, legal_basis, explicit, written, method,
       evidence_file_id, recorded_by_user_id, valid_during, subject_age_at_decision, refresh_due_on, note)
     select c.tenant_id, ${input.toUserId}::uuid, c.purpose_descriptor_id, c.decision, c.notice_id,
       c.given_by_user_id, c.capacity,
-      (select r.id from core.user_relationships r
-        where r.tenant_id = c.tenant_id and r.student_user_id = ${input.toUserId}::uuid
-          and r.related_user_id = c.given_by_user_id and r.status = 'active'
-        order by r.created_at desc limit 1),
       c.legal_basis, c.explicit, c.written, c.method, c.evidence_file_id, c.recorded_by_user_id,
       c.valid_during, c.subject_age_at_decision, c.refresh_due_on, c.note
     from core.consent_records c
     where c.tenant_id = ${t}::uuid and c.subject_user_id = ${input.fromUserId}::uuid
-    order by c.created_at`);
+    order by c.created_at
+    returning id`);
   await tx.execute(sql`
     update core.users set status = 'tobedeleted'
     where tenant_id = ${t}::uuid and id = ${input.fromUserId}::uuid and status = 'active'`);
+  return consents.map((row) => row.id);
 }
 
 /** Hands an applicant's health records to the student they were found to be. Run with the health purpose set. */
@@ -440,15 +438,15 @@ export async function letterHolder(
   input: { tenantId: string; letterId: string },
 ): Promise<{
   applicationId: string;
-  familyUserId: string;
+  filedByUserId: string;
   orgId: string;
 } | null> {
   const [row] = await tx.execute<{
     application_id: string;
-    family_user_id: string;
+    filed_by_user_id: string;
     org_id: string;
   }>(sql`
-    select l.application_id, a.family_user_id, a.org_id
+    select l.application_id, a.filed_by_user_id, a.org_id
     from core.admission_letters l
     join core.admission_applications a on a.tenant_id = l.tenant_id and a.id = l.application_id
       and a.status = 'active'
@@ -456,7 +454,7 @@ export async function letterHolder(
   return row
     ? {
         applicationId: row.application_id,
-        familyUserId: row.family_user_id,
+        filedByUserId: row.filed_by_user_id,
         orgId: row.org_id,
       }
     : null;

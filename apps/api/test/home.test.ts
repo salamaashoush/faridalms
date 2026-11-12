@@ -24,7 +24,7 @@ describe("home pages", () => {
 
   test("a family sees each of their children, and only their own", async () => {
     const family = await signedIn("northwind", login("parent"));
-    const home = await family.home.family({});
+    const home = await family.home.followed({});
     expect(home.choices.length).toBeGreaterThan(0);
     expect(home.children.map((row) => row.studentId)).toEqual(
       home.choices.map((row) => row.studentId),
@@ -33,10 +33,10 @@ describe("home pages", () => {
       expect(child.attention.length).toBeLessThanOrEqual(3);
     const [first] = home.choices;
     if (!first) throw new Error("the seeded parent has no child");
-    const one = await family.home.family({ studentId: first.studentId });
+    const one = await family.home.followed({ studentId: first.studentId });
     expect(one.children.map((row) => row.studentId)).toEqual([first.studentId]);
     expect(
-      await rejection(family.home.family({ studentId: crypto.randomUUID() })),
+      await rejection(family.home.followed({ studentId: crypto.randomUUID() })),
     ).toMatchObject({ code: "NOT_FOUND" });
   });
 
@@ -122,22 +122,22 @@ describe("home pages", () => {
 
   test("a guardian reads what the school holds about their child and asks the office to correct it", async () => {
     const family = await signedIn("northwind", login("parent"));
-    const [first] = (await family.home.family({})).choices;
+    const [first] = (await family.home.followed({})).choices;
     if (!first) throw new Error("the seeded parent has no child");
-    const held = await family.home.child({ studentId: first.studentId });
+    const held = await family.home.details({ studentId: first.studentId });
     expect(held).toMatchObject({ studentId: first.studentId, decides: true });
     expect(held.fullNameEn).toBeTruthy();
     expect(held.reference).toMatch(/^NO/);
     expect(held.place?.labelEn).toBeTruthy();
     expect(
-      await rejection(family.home.child({ studentId: crypto.randomUUID() })),
+      await rejection(family.home.details({ studentId: crypto.randomUUID() })),
     ).toMatchObject({ code: "NOT_FOUND" });
 
     const asked = await family.privacy.askCorrection({
       studentId: first.studentId,
       details: "The date of birth should be 2 March 2014.",
     });
-    expect(asked.dueOn >= (await family.home.family({})).today).toBe(true);
+    expect(asked.dueOn >= (await family.home.followed({})).today).toBe(true);
     // It is in the office's register, on the clock the school's law sets.
     const office = await signedIn("northwind", login("principal"));
     const logged = (await office.privacy.overview()).requests.find(

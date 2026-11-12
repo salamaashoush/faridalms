@@ -578,7 +578,7 @@ export const sessions = core.table.withRLS(
     ck(
       "sessions",
       "active_role",
-      sql`active_role in ('student', 'teacher', 'aide', 'counselor', 'principal', 'site_administrator', 'district_administrator', 'system_administrator', 'proctor', 'staff', 'parent', 'guardian', 'relative', 'applicant_family')`,
+      sql`active_role in ('student', 'teacher', 'aide', 'counselor', 'principal', 'site_administrator', 'district_administrator', 'system_administrator', 'proctor', 'staff', 'parent', 'guardian', 'relative', 'applicant_family', 'applicant')`,
     ),
     ck(
       "sessions",

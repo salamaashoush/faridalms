@@ -156,6 +156,10 @@ alter table core.broadcast_audiences force row level security;
 grant select, insert, update on core.broadcast_audiences to app, worker, cell_io;
 grant select on core.broadcast_audiences to retention;
 
+alter table core.broadcast_families force row level security;
+grant select, insert, update on core.broadcast_families to app, worker, cell_io;
+grant select on core.broadcast_families to retention;
+
 alter table core.broadcast_grades force row level security;
 grant select, insert, update on core.broadcast_grades to app, worker, cell_io;
 grant select on core.broadcast_grades to retention;
@@ -176,6 +180,10 @@ grant select on core.calendar_dates to integration, retention;
 alter table core.calendar_event_audiences force row level security;
 grant select, insert, update on core.calendar_event_audiences to app, worker, cell_io;
 grant select on core.calendar_event_audiences to retention;
+
+alter table core.calendar_event_families force row level security;
+grant select, insert, update on core.calendar_event_families to app, worker, cell_io;
+grant select on core.calendar_event_families to retention;
 
 alter table core.calendar_event_grades force row level security;
 grant select, insert, update on core.calendar_event_grades to app, worker, cell_io;
@@ -235,6 +243,10 @@ grant select on core.class_years to integration, retention;
 alter table core.classes force row level security;
 grant select, insert, update on core.classes to app, worker, cell_io;
 grant select on core.classes to integration, retention;
+
+alter table core.consent_guardians force row level security;
+grant select, insert on core.consent_guardians to app, worker, cell_io;
+grant select on core.consent_guardians to retention;
 
 alter table core.consent_records force row level security;
 grant select, insert on core.consent_records to app, worker, cell_io;
@@ -581,7 +593,7 @@ grant select (tenant_id, id, type, parent_id, name_en, name_ar, time_zone, defau
   site;
 grant update (name_en, name_ar, identifier, time_zone, default_locale, week_start, weekend_days,
   country_code, address, phone, email, logo_file_id, status, metadata, secondary_calendar, digits,
-  arabic_math) on core.orgs to app;
+  arabic_math, learners_decide_from) on core.orgs to app;
 
 alter table core.paced_lessons force row level security;
 grant select, insert, update on core.paced_lessons to app, worker, cell_io;
@@ -843,6 +855,10 @@ grant update (status, metadata) on core.work_sittings to retention;
 alter table core.year_rollovers force row level security;
 grant select, insert, update on core.year_rollovers to app, worker, cell_io;
 grant select on core.year_rollovers to retention;
+
+alter table health.contact_changes force row level security;
+grant select, insert on health.contact_changes to app, worker, cell_io;
+grant select, delete on health.contact_changes to retention;
 
 alter table health.records force row level security;
 grant select, insert, update on health.records to app, worker, cell_io;

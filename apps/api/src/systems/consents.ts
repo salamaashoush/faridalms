@@ -3,7 +3,6 @@ import type { Descriptor } from "@faridalms/database/stores/descriptors";
 
 import {
   answerCounts,
-  answerersOf,
   answersFor,
   currentAnswers,
   discardDraft,
@@ -20,7 +19,7 @@ import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import { markActed } from "@faridalms/database/stores/notifications";
-import { childrenOf } from "@faridalms/database/stores/persons";
+import { namesOf } from "@faridalms/database/stores/persons";
 import { endPublicationsShowing } from "@faridalms/database/stores/site";
 import { person } from "@faridalms/database/stores/students";
 import { translationReview } from "@faridalms/database/stores/translations";
@@ -55,10 +54,16 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { publishWords, saveWords, wordsIssues } from "../core/publication";
-import { requireStudent, scopeFor } from "../core/reach";
+import { reachesStudent, requireStudent, studentsReached } from "../core/reach";
 import { checkTranslation } from "../core/translation-review";
 import { registerHostReader, registerHostWriter } from "../files/authorize";
 import { withFileGate } from "../files/gate";
+import {
+  actorsFor,
+  answerersFor,
+  keepConsentLink,
+  learnersAnsweredBy,
+} from "../people/acting";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -331,9 +336,10 @@ export const reviewForm = writeProcedure
   });
 
 /**
- * Puts a draft in front of families. Its words freeze, every answer given
- * to it points at exactly them, and each legal guardian who can answer in
- * the app is asked once, whatever number of children they have here.
+ * Puts a draft in front of those who answer it. Its words freeze, every
+ * answer given to it points at exactly them, and each learner who decides
+ * for themself, and each person who answers for a learner and can be asked
+ * in the app, is asked once, whatever number of learners they answer for.
  */
 export const publishForm = writeProcedure
   .input(consentFormRefSchema)
@@ -378,16 +384,31 @@ export const publishForm = writeProcedure
           schoolId: context.schoolId,
           today: context.today,
         });
-    const answerers = await answerersOf(context.tx, {
-      tenantId: context.tenantId,
-      studentIds: students,
-      today: context.today,
-    });
+    const [answerers, contactable] = await Promise.all([
+      answerersFor(context, {
+        studentIds: students,
+        on: context.today,
+        purpose: "consent",
+      }),
+      actorsFor(context, {
+        studentIds: students,
+        on: context.today,
+        purpose: "contact",
+      }),
+    ]);
     const asked = await notify(
       context,
-      answerers
-        .filter((answerer) => answerer.contactable)
-        .map((answerer) => answerer.userId),
+      [
+        ...new Set(
+          answerers
+            .filter(
+              (answerer) =>
+                answerer.linkId === null ||
+                contactable.some((link) => link.linkId === answerer.linkId),
+            )
+            .map((answerer) => answerer.userId),
+        ),
+      ],
       {
         kind: "consent",
         subject: host(row.id),
@@ -439,9 +460,40 @@ const answerView = (answer: ConsentAnswer) => ({
   refreshDueOn: answer.refreshDueOn,
   note: answer.note,
   evidenceFileId: answer.evidenceFileId,
+  capacity: answer.capacity,
   givenBy: answer.givenBy,
   recordedBy: answer.recordedBy,
 });
+
+/**
+ * Who may answer for a learner on the office's paper: the learner who
+ * decides for themself, those who act for them, and the office itself
+ * where the learner does not decide.
+ */
+async function officeAnswerers(context: UnitContext, studentId: string) {
+  const links = await answerersFor(context, {
+    studentIds: [studentId],
+    on: context.today,
+    purpose: "consent",
+  });
+  const names = await namesOf(
+    context.tx,
+    context.tenantId,
+    links.map((link) => link.userId),
+  );
+  return {
+    links,
+    answerers: links.map((link) => {
+      const name = names.find((row) => row.id === link.userId);
+      return {
+        answeredBy: link.linkId ?? "self",
+        nameEn: name?.fullNameEn ?? null,
+        nameAr: name?.fullNameAr ?? null,
+      };
+    }),
+    office: !links.some((link) => link.linkId === null),
+  };
+}
 
 /** A student's consents: the answer in force for each purpose asked, with the ones before it. */
 export const student = readProcedure
@@ -455,11 +507,7 @@ export const student = readProcedure
         tenantId: context.tenantId,
         studentId: input.id,
       }),
-      answerersOf(context.tx, {
-        tenantId: context.tenantId,
-        studentIds: [input.id],
-        today: context.today,
-      }),
+      officeAnswerers(context, input.id),
     ]);
     return {
       purposes: asked.map(({ purpose, notice }) => {
@@ -471,25 +519,25 @@ export const student = readProcedure
           earlier: given.slice(1).map(answerView),
         });
       }),
-      answerers: answerers.map((row) => ({
-        relationshipId: row.relationshipId,
-        nameEn: row.nameEn,
-        nameAr: row.nameAr,
-      })),
+      answerers: answerers.answerers,
+      office: answerers.office,
       canRecord: can(context, "people:manage"),
       today: context.today,
     };
   });
 
-/** Clears a guardian's request once every child they answer for has answered this version. */
+/** Clears someone's request once every learner they answer for has answered this version. */
 async function settleRequest(
   context: UnitContext,
   userId: string,
   formId: string,
 ) {
-  const links = (
-    await childrenOf(context.tx, scopeFor(context, "consents"), userId)
-  ).filter((link) => link.consents);
+  const links = await learnersAnsweredBy(context, {
+    userId,
+    on: context.today,
+    purpose: "consent",
+    learner: true,
+  });
   const answers = await currentAnswers(context.tx, {
     tenantId: context.tenantId,
     studentIds: links.map((link) => link.studentId),
@@ -544,8 +592,10 @@ async function writeAnswer(
     purpose: Descriptor;
     formId: string;
     agreed: boolean;
-    givenById: string;
-    relationshipId: string;
+    /** Who gave it, or null when the office answered on the learner's behalf. */
+    givenById: string | null;
+    /** The module's link they gave it through, if they act for the learner. */
+    linkId: string | null;
     method: "electronic" | "paper_scanned" | "verbal_recorded";
     givenOn: string;
     fileId: string | null;
@@ -571,7 +621,12 @@ async function writeAnswer(
     decision,
     noticeId: input.formId,
     givenById: input.givenById,
-    relationshipId: input.relationshipId,
+    capacity:
+      input.givenById === null
+        ? "school_on_behalf"
+        : input.linkId === null
+          ? "self"
+          : "guardian",
     method: input.method,
     evidenceFileId: input.fileId,
     recordedById: context.actor.userId,
@@ -584,6 +639,11 @@ async function writeAnswer(
     }),
     note: input.note,
   });
+  if (input.linkId)
+    await keepConsentLink(context, {
+      consentId: answerId,
+      linkId: input.linkId,
+    });
   if (input.fileId) {
     const fileId = input.fileId;
     const linked = await withFileGate(context.tx, "evidence", (tx) =>
@@ -612,13 +672,16 @@ async function writeAnswer(
   });
   if (decision !== "granted" && input.purpose.meaning === "photo_website")
     await takeDownPhotos(context, input.studentId);
-  await settleRequest(context, input.givenById, input.formId);
+  if (input.givenById)
+    await settleRequest(context, input.givenById, input.formId);
   return { id: answerId, decision };
 }
 
 /**
- * The office records an answer a legal guardian gave on paper or in person.
- * A paper answer keeps its scan; either names the guardian and the day.
+ * The office records an answer given on paper or in person: by the learner
+ * who decides for themself, by someone acting for them, or by the office on
+ * their behalf where they do not decide. A paper answer keeps its scan;
+ * each names who gave it and the day.
  */
 export const record = writeProcedure
   .input(recordConsentSchema)
@@ -631,15 +694,16 @@ export const record = writeProcedure
       (row) => row.purpose.id === input.purposeId,
     );
     if (!entry) throw new ORPCError("NOT_FOUND");
-    const answerer = (
-      await answerersOf(context.tx, {
-        tenantId: context.tenantId,
-        studentIds: [input.studentId],
-        today: context.today,
-      })
-    ).find((row) => row.relationshipId === input.relationshipId);
+    const { links, office } = await officeAnswerers(context, input.studentId);
+    const answerer =
+      input.answeredBy === "office"
+        ? office
+          ? { userId: null, linkId: null }
+          : null
+        : (links.find((link) => (link.linkId ?? "self") === input.answeredBy) ??
+          null);
     if (!answerer)
-      throw new ORPCError("FORBIDDEN", { message: "consents.not_guardian" });
+      throw new ORPCError("FORBIDDEN", { message: "consents.not_answerer" });
     if (input.fileId) {
       const fileId = input.fileId;
       const [file] = await withFileGate(context.tx, "evidence", (tx) =>
@@ -654,7 +718,7 @@ export const record = writeProcedure
       formId: entry.notice.id,
       agreed: input.agreed,
       givenById: answerer.userId,
-      relationshipId: answerer.relationshipId,
+      linkId: answerer.linkId,
       method: input.method,
       givenOn: input.givenOn,
       fileId: input.fileId || null,
@@ -662,22 +726,49 @@ export const record = writeProcedure
     });
   });
 
-/** The forms a family is asked to answer and each child's answers, in the family app. */
-export const family = readProcedure.handler(async ({ context }) => {
-  requireCapability(context, "children:read");
-  if (context.actor.context !== "family") throw new ORPCError("FORBIDDEN");
-  const links = (
-    await childrenOf(
-      context.tx,
-      scopeFor(context, "consents"),
-      context.actor.userId,
-    )
-  ).filter((link) => link.follows);
+/**
+ * The learners the viewer may see consents for in the app: themself when
+ * they are a learner, and those they follow. Each says whether the viewer
+ * answers for them: a learner who decides for themself, or someone a
+ * module lets consent for them.
+ */
+async function learnersOfViewer(context: UnitContext) {
+  const own = context.actor.context === "student" ? [context.actor.userId] : [];
+  const reached = await studentsReached(context, "consents", [
+    ...own,
+    ...context.actor.follows,
+  ]);
+  const ids = [...own, ...context.actor.follows].filter((learner) =>
+    reached.has(learner),
+  );
+  const answers = await learnersAnsweredBy(context, {
+    userId: context.actor.userId,
+    on: context.today,
+    purpose: "consent",
+    learner: own.length > 0,
+  });
+  const names = await namesOf(context.tx, context.tenantId, ids);
+  return names.map((row) => {
+    const link = answers.find((answer) => answer.studentId === row.id);
+    return {
+      studentId: row.id,
+      fullNameEn: row.fullNameEn,
+      fullNameAr: row.fullNameAr,
+      self: row.id === context.actor.userId,
+      mayAnswer: link !== undefined,
+      linkId: link?.linkId ?? null,
+    };
+  });
+}
+
+/** The forms the viewer is asked to answer, and each learner's answers, in the app. */
+export const mine = readProcedure.handler(async ({ context }) => {
+  const learners = await learnersOfViewer(context);
   const asked = await publishedForms(context);
   const [answers, texts] = await Promise.all([
     currentAnswers(context.tx, {
       tenantId: context.tenantId,
-      studentIds: links.map((link) => link.studentId),
+      studentIds: learners.map((learner) => learner.studentId),
     }),
     Promise.all(asked.map(({ notice }) => consentWords(context, notice.id))),
   ]);
@@ -694,13 +785,14 @@ export const family = readProcedure.handler(async ({ context }) => {
       body: texts[index]?.body ?? null,
       translation: texts[index]?.translation ?? null,
     })),
-    children: links.map((link) => ({
-      studentId: link.studentId,
-      fullNameEn: link.fullNameEn,
-      fullNameAr: link.fullNameAr,
-      mayAnswer: link.consents,
+    learners: learners.map((learner) => ({
+      studentId: learner.studentId,
+      fullNameEn: learner.fullNameEn,
+      fullNameAr: learner.fullNameAr,
+      self: learner.self,
+      mayAnswer: learner.mayAnswer,
       answers: answers
-        .filter((row) => row.studentId === link.studentId)
+        .filter((row) => row.studentId === learner.studentId)
         .map((row) => ({
           purposeId: row.purposeId,
           formId: row.noticeId,
@@ -715,22 +807,18 @@ export const family = readProcedure.handler(async ({ context }) => {
   };
 });
 
-/** A legal guardian answers a form for one child in the app. */
+/** The viewer answers a form for one learner they answer for, in the app. */
 export const answer = writeProcedure
   .input(answerConsentSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "children:read");
-    if (context.actor.context !== "family") throw new ORPCError("FORBIDDEN");
-    const link = (
-      await childrenOf(
-        context.tx,
-        scopeFor(context, "consents"),
-        context.actor.userId,
-      )
-    ).find((row) => row.studentId === input.studentId && row.follows);
-    if (!link) throw new ORPCError("NOT_FOUND");
-    if (!link.consents)
-      throw new ORPCError("FORBIDDEN", { message: "consents.not_guardian" });
+    if (!(await reachesStudent(context, "consents", input.studentId)))
+      throw new ORPCError("NOT_FOUND");
+    const learner = (await learnersOfViewer(context)).find(
+      (row) => row.studentId === input.studentId,
+    );
+    if (!learner) throw new ORPCError("NOT_FOUND");
+    if (!learner.mayAnswer)
+      throw new ORPCError("FORBIDDEN", { message: "consents.not_answerer" });
     const entry = (await publishedForms(context)).find(
       (row) => row.notice.id === input.noticeId,
     );
@@ -742,7 +830,7 @@ export const answer = writeProcedure
       formId: entry.notice.id,
       agreed: input.agreed,
       givenById: context.actor.userId,
-      relationshipId: link.relationshipId,
+      linkId: learner.linkId,
       method: "electronic",
       givenOn: context.today,
       fileId: null,

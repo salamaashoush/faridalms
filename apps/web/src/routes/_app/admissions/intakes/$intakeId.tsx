@@ -167,7 +167,7 @@ const COLUMNS: Column<Row>[] = [
   {
     id: "family",
     header: m.aplColFamily(),
-    cell: (row) => <bdi>{inLocale(row.familyEn, row.familyAr)}</bdi>,
+    cell: (row) => <bdi>{inLocale(row.filerEn, row.filerAr)}</bdi>,
   },
   {
     id: "priorities",
@@ -195,7 +195,7 @@ const COLUMNS: Column<Row>[] = [
 const CARD = {
   title: (row: Row) => <Child row={row} />,
   status: (row: Row) => <Standing row={row} />,
-  fact: (row: Row) => inLocale(row.familyEn, row.familyAr),
+  fact: (row: Row) => inLocale(row.filerEn, row.filerAr),
 };
 
 interface PlacesProps {

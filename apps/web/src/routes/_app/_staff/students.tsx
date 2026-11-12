@@ -46,7 +46,6 @@ import { NewMessage } from "~/components/messages/NewMessage";
 import { CreateSignIns } from "~/components/people/CreateSignIns";
 import {
   displayName,
-  formatPhone,
   otherName,
   STATUS_LABEL,
   STATUS_TONE,
@@ -55,6 +54,7 @@ import { LeaveSchool } from "~/components/people/LeaveSchool";
 import {
   studentClassesParts,
   studentColumns as studentColumnSlot,
+  studentFamilyParts,
   studentFilters,
 } from "~/components/people/slots";
 import { inLocale, useCapability } from "~/hooks/useCurrentUser";
@@ -211,18 +211,6 @@ function studentColumns(
       cell: (row) => <Status row={row} />,
     },
     {
-      id: "guardian",
-      header: m.studentsGuardianPhone(),
-      cell: (row) =>
-        row.guardianPhone ? (
-          <bdi dir="ltr" className="tabular-nums">
-            {formatPhone(row.guardianPhone)}
-          </bdi>
-        ) : (
-          <StatusText tone="warning">{m.studentsMissingGuardian()}</StatusText>
-        ),
-    },
-    {
       id: "account",
       header: m.studentsAccount(),
       cell: (row) =>
@@ -261,14 +249,12 @@ function exportStudents(
       m.adminReference(),
       ...columns.map((column) => column.header),
       m.studentStatus(),
-      m.studentsGuardianPhone(),
     ],
     ...rows.map((row) => [
       displayName(row),
       row.reference ?? "",
       ...columns.map((column) => column.text(row)),
       STATUS_LABEL[row.status](),
-      row.guardianPhone ?? "",
     ]),
   ]);
 }
@@ -292,6 +278,7 @@ function StudentsPage() {
     null,
   );
   const words = useSlot(groupWords)[0];
+  const family = useSlot(studentFamilyParts)[0];
   const mover = useSlot(studentClassesParts)[0]?.move;
   const [leaving, setLeaving] = useState<{ id: string; name: string }[] | null>(
     null,
@@ -355,17 +342,11 @@ function StudentsPage() {
   const attentionFacet: Facet = {
     id: "missing",
     label: m.studentsNeedsAttention(),
-    options: [
-      { value: "guardian", label: m.studentsMissingGuardian() },
-      { value: "account", label: m.studentsMissingAccount() },
-    ],
+    options: [{ value: "account", label: m.studentsMissingAccount() }],
     selected: search.missing,
     onChange: (missing) =>
       patch({
-        missing: missing.filter(
-          (value): value is "guardian" | "account" =>
-            value === "guardian" || value === "account",
-        ),
+        missing: missing.filter((value) => value === "account"),
         page: 1,
       }),
   };
@@ -453,10 +434,10 @@ function StudentsPage() {
                 },
               ]
             : []),
-          ...(canMessage
+          ...(canMessage && family
             ? [
                 {
-                  label: m.studentMessageGuardians(),
+                  label: family.messageLabel(),
                   icon: MessageSquare,
                   onSelect: (rows: StudentRow[]) =>
                     setWriting(

@@ -71,12 +71,3 @@ export function linkRefusal(
     ? "relationship.non_relative_portal"
     : null;
 }
-
-/**
- * What a guardian's link to a child is asked to allow, from the least to
- * the most: following the child in the portal, being contacted about them,
- * and reading their medical summary. `app.guardian_permits` in the cell
- * database decides each from the link's flags.
- */
-export const GUARDIAN_PURPOSES = ["follow", "contact", "health"] as const;
-export type GuardianPurpose = (typeof GUARDIAN_PURPOSES)[number];

@@ -23,28 +23,33 @@ const mobile = () =>
 
 /** A student of the school's own, placed nowhere, with a mother who has no account. */
 export async function newStudent(api: Api, family: string) {
-  const options = await api.people.options();
+  const options = {
+    ...(await api.people.options()),
+    relations: await api.guardians.relations(),
+  };
   const mother = options.relations.find((row) => row.code === "mother");
   if (!mother) throw new Error("the school has no mother relation");
   const reference = `SA-${crypto.randomUUID().slice(0, 8)}`;
   const saved = await api.people.saveStudent({
     names: names("Salama", family),
     reference,
-    guardians: [
-      {
-        person: { names: names("Mona", family), phone: mobile() },
-        flags: {
-          relationId: mother.id,
-          legalGuardian: true,
-          portalAccess: false,
-          receivesNotifications: false,
-          primaryContact: true,
-          emergencyContact: true,
-          residence: "primary",
-          pickup: "allowed",
+    parts: {
+      families: [
+        {
+          person: { names: names("Mona", family), phone: mobile() },
+          flags: {
+            relationId: mother.id,
+            legalGuardian: true,
+            portalAccess: false,
+            receivesNotifications: false,
+            primaryContact: true,
+            emergencyContact: true,
+            residence: "primary",
+            pickup: "allowed",
+          },
         },
-      },
-    ],
+      ],
+    },
   });
   return { id: saved.id, reference, name: `Salama ${family}` };
 }

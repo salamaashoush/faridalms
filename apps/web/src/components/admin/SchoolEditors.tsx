@@ -16,7 +16,7 @@ import { PictureField } from "~/components/site/PictureField";
 import * as m from "~/i18n/messages";
 import { schoolProfileQuery } from "~/queries/school-settings";
 import { saveSchoolProfile } from "~/server/school-settings";
-import { formatWeekday } from "~/utils/datetime";
+import { formatNumber, formatWeekday } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 type Profile = Awaited<
@@ -39,7 +39,10 @@ interface ProfileDraft {
   phone: string;
   email: string;
   logoFileId: string;
+  learnersDecideFrom: number;
 }
+
+const DECIDING_AGES = Array.from({ length: 25 }, (_, index) => index + 1);
 
 function draftOf(profile: Profile): ProfileDraft {
   return {
@@ -56,6 +59,7 @@ function draftOf(profile: Profile): ProfileDraft {
     phone: profile.phone ?? "",
     email: profile.email ?? "",
     logoFileId: profile.logoFileId ?? "",
+    learnersDecideFrom: profile.learnersDecideFrom,
   };
 }
 
@@ -238,6 +242,20 @@ export function SchoolProfileSection() {
             { value: "rtl", label: m.settingsArabicMathRtl() },
           ]}
           onChange={(value) => set("arabicMath", value)}
+          width="name"
+        />
+      </SettingsGroup>
+      <SettingsGroup title={m.settingsGroupLearners()}>
+        <SelectField
+          id="school-learners-decide"
+          label={m.settingsLearnersDecide()}
+          hint={m.settingsLearnersDecideHint()}
+          value={String(draft.learnersDecideFrom)}
+          options={DECIDING_AGES.map((age) => ({
+            value: String(age),
+            label: m.settingsLearnersDecideAge({ age: formatNumber(age) }),
+          }))}
+          onChange={(value) => set("learnersDecideFrom", Number(value))}
           width="name"
         />
       </SettingsGroup>

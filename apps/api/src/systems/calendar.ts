@@ -19,7 +19,7 @@ import {
   specialDays,
   updateEvent,
 } from "@faridalms/database/stores/events";
-import { childrenOf } from "@faridalms/database/stores/persons";
+import { namesOf } from "@faridalms/database/stores/persons";
 import { translationReview } from "@faridalms/database/stores/translations";
 import {
   cancelEventSchema,
@@ -63,7 +63,7 @@ import {
   saveWords,
   wordsIssues,
 } from "../core/publication";
-import { isStaff, scopeFor, teaches } from "../core/reach";
+import { isStaff, studentsReached, teaches } from "../core/reach";
 import { checkTranslation } from "../core/translation-review";
 import { registerHostReader, registerHostWriter } from "../files/authorize";
 
@@ -206,27 +206,26 @@ registerHostWriter("calendar_event", async (context, hostId) => {
 });
 
 /**
- * Who the viewer is to the audiences, narrowed to one of their children when
- * a family asks: that child's classes, and what goes to every
- * student or family.
+ * Who the viewer is to the audiences, narrowed to one learner they follow
+ * when they ask: that learner's classes, and what goes to every student
+ * or to those who act for them.
  */
 async function reachFor(context: UnitContext, childId: string) {
-  const children = can(context, "children:read")
-    ? await childrenOf(
-        context.tx,
-        scopeFor(context, "own"),
-        context.actor.userId,
-      )
-    : [];
+  const reached = await studentsReached(context, "own", context.actor.follows);
+  const children = await namesOf(
+    context.tx,
+    context.tenantId,
+    context.actor.follows.filter((learner) => reached.has(learner)),
+  );
   if (!childId) return { reach: await calendarReach(context), children };
-  if (!children.some((child) => child.studentId === childId))
+  if (!children.some((child) => child.id === childId))
     throw new ORPCError("NOT_FOUND");
   const theirs = await reachAt(context, {
     userId: childId,
     on: context.today,
   });
   return {
-    reach: { ...theirs, staff: false, student: true, guardian: true },
+    reach: { ...theirs, staff: false, student: true, actsFor: true },
     children,
   };
 }
@@ -305,7 +304,7 @@ export const range = readProcedure
       canManage: manages(context),
       canAuthor: manages(context) || can(context, "calendar:author"),
       children: children.map((child) => ({
-        id: child.studentId,
+        id: child.id,
         nameEn: child.fullNameEn,
         nameAr: child.fullNameAr,
       })),

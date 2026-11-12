@@ -93,15 +93,6 @@ export function useOfficeDay(): DayCards {
           },
         ]
       : []),
-    ...(data.guardians
-      ? [
-          {
-            key: "guardians",
-            label: m.homeWithoutGuardian({ count: data.guardians }),
-            link: { to: "/students", search: { missing: ["guardian"] } },
-          },
-        ]
-      : []),
     ...extra.filter((need) => need !== null),
     ...(data.failed
       ? [

@@ -5,23 +5,30 @@ import type {
 
 import { classById } from "@faridalms/database/stores/classes";
 import { studentWork } from "@faridalms/database/stores/coursework";
-import { noticeGuardians } from "@faridalms/database/stores/messages";
 import { schoolDate } from "@faridalms/domain/school";
 
 import type { UnitContext } from "../core/context";
+import type { ModuleScope } from "../core/extension";
 import type { NoticeScope } from "../core/notify";
 
 import { notifyIn } from "../core/notify";
 import { schoolZone } from "../core/procedure";
+import { actorsFor } from "../people/acting";
 
-/** Where a teaching notice is written: a unit of work and the school's day. */
-export type TeachingScope = NoticeScope & { today: string };
+/**
+ * Where a teaching notice is written: a unit of work and the school's day,
+ * with the modules on there, which say who else hears for a learner.
+ */
+export type TeachingScope = NoticeScope &
+  Pick<ModuleScope, "school" | "extensions"> & { today: string };
 
 export function teachingScope(context: UnitContext): TeachingScope {
   return {
     tx: context.tx,
     tenantId: context.tenantId,
     schoolId: context.schoolId,
+    school: context.school,
+    extensions: context.extensions,
     actorUserId: context.actor.userId,
     now: context.now,
     channels: context.channels,
@@ -66,9 +73,9 @@ async function classNames(
 }
 
 /**
- * Tells the students themselves, then each one's guardians who take
- * notices, naming the child, as one producer: the child's family hears what
- * the child hears.
+ * Tells the students themselves, then whoever takes the school's notices
+ * for each, naming the learner, as one producer: those who act for a
+ * learner hear what the learner hears.
  */
 async function tellLearners(
   scope: TeachingScope,
@@ -79,16 +86,21 @@ async function tellLearners(
     params: NoticeParams;
   },
 ): Promise<number> {
-  const families = await Promise.all(
-    learners.map(async (learner) => ({
-      learner,
-      guardians: await noticeGuardians(scope.tx, {
-        tenantId: scope.tenantId,
-        studentId: learner.studentId,
-        on: scope.today,
-      }),
-    })),
-  );
+  const actors = await actorsFor(scope, {
+    studentIds: learners.map((learner) => learner.studentId),
+    on: scope.today,
+    purpose: "notice",
+  });
+  const families = learners.map((learner) => ({
+    learner,
+    guardians: [
+      ...new Set(
+        actors
+          .filter((link) => link.studentId === learner.studentId)
+          .map((link) => link.userId),
+      ),
+    ],
+  }));
   const told = await Promise.all([
     notifyIn(
       scope,
@@ -112,7 +124,7 @@ async function tellLearners(
   return told.reduce((sum, count) => sum + count, 0);
 }
 
-/** Tells everyone the work was set for, and their families, that it is out. */
+/** Tells everyone the work was set for, and those who hear for them, that it is out. */
 export async function tellAssigned(
   scope: TeachingScope,
   assignment: Assignment,
@@ -138,7 +150,7 @@ export async function tellAssigned(
   });
 }
 
-/** Tells students, and their families, that their work came back marked or for revision. */
+/** Tells students, and those who hear for them, that their work came back marked or for revision. */
 export async function tellReturned(
   scope: TeachingScope,
   assignment: Assignment,
@@ -157,7 +169,7 @@ export async function tellReturned(
   });
 }
 
-/** Tells students, and their families, that a grade held back on returned work is now shown. */
+/** Tells students, and those who hear for them, that a grade held back on returned work is now shown. */
 export async function tellGradeShown(
   scope: TeachingScope,
   assignment: Assignment,
@@ -175,7 +187,7 @@ export async function tellGradeShown(
   });
 }
 
-/** Tells students, and their families, that a class's grades for a period are out. */
+/** Tells students, and those who hear for them, that a class's grades for a period are out. */
 export async function tellPeriodGrades(
   scope: TeachingScope,
   input: {

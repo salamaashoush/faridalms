@@ -2,6 +2,8 @@ import type { ModuleFillings } from "./utils/extension";
 
 import { ADMISSIONS_BY_GRADE } from "./components/admissions/grades";
 import { ADMISSIONS_IN_YEARS } from "./components/admissions/years";
+import { COURSEWORK_WITH_FAMILIES } from "./components/coursework/family-shares";
+import { FAMILIES } from "./components/families/contributions";
 import { GRADE_LEVELS } from "./components/grade-levels/contributions";
 import { GRADE_LEVELS_WITH_COURSEWORK } from "./components/grade-levels/coursework";
 import { GRADE_LEVELS_IN_YEARS } from "./components/grade-levels/years";
@@ -20,8 +22,10 @@ import { SCHOOL_YEARS } from "./components/years/contributions";
 export const MODULE_FILLINGS: readonly ModuleFillings[] = [
   ADMISSIONS_BY_GRADE,
   ADMISSIONS_IN_YEARS,
+  COURSEWORK_WITH_FAMILIES,
   ELEARNING,
   ELEARNING_WITH_COURSEWORK,
+  FAMILIES,
   GRADE_LEVELS,
   GRADE_LEVELS_IN_YEARS,
   GRADE_LEVELS_WITH_COURSEWORK,

@@ -27,7 +27,9 @@ import {
   messageDrafts,
   accounts,
   calendarFeeds,
+  consentGuardians,
   consentRecords,
+  contactChanges,
   descriptorOverrides,
   descriptors,
   devices,
@@ -450,25 +452,34 @@ export async function completeFixture(
     documentId,
     publishedAt: new Date(),
   });
-  await tx.insert(consentRecords).values({
-    tenantId,
-    subjectUserId: relationship.student,
-    purposeDescriptorId: await descriptor(
-      tx,
+  const [consent] = await tx
+    .insert(consentRecords)
+    .values({
       tenantId,
-      "consent_purpose",
-      "photo_school_website",
-    ),
-    decision: "granted",
-    noticeId,
-    givenByUserId: userId,
-    capacity: "school_on_behalf",
-    legalBasis: "consent",
-    explicit: true,
-    written: true,
-    method: "electronic",
-    recordedByUserId: userId,
-    validDuring: "[2026-09-01,)",
+      subjectUserId: relationship.student,
+      purposeDescriptorId: await descriptor(
+        tx,
+        tenantId,
+        "consent_purpose",
+        "photo_school_website",
+      ),
+      decision: "granted",
+      noticeId,
+      givenByUserId: userId,
+      capacity: "school_on_behalf",
+      legalBasis: "consent",
+      explicit: true,
+      written: true,
+      method: "electronic",
+      recordedByUserId: userId,
+      validDuring: "[2026-09-01,)",
+    })
+    .returning({ id: consentRecords.id });
+  if (!consent) throw new Error("consent fixture missing");
+  await tx.insert(consentGuardians).values({
+    tenantId,
+    consentRecordId: consent.id,
+    relationshipId: relationship.id,
   });
 
   const erasedSubject = id();
@@ -1090,6 +1101,44 @@ export async function completeFixture(
       ciphertext: bytes(64),
     }),
   );
+  const [contactAsked] = await tx
+    .insert(recordsRequests)
+    .values({
+      tenantId,
+      orgId: schoolId,
+      subjectUserId: relationship.student,
+      requestedBy: "Salama Ashoush",
+      relation: "parent",
+      kind: "correction",
+      law: "egypt",
+      receivedOn: "2026-09-01",
+      clockFrom: "2026-09-01",
+      dueOn: "2026-10-01",
+      loggedByUserId: relationship.related,
+      topic: "health",
+    })
+    .returning({ id: recordsRequests.id });
+  if (!contactAsked) throw new Error("contact change request fixture missing");
+  await withPurpose(tx, "health", async (inner) => {
+    const [change] = await inner
+      .insert(healthChanges)
+      .values({
+        tenantId,
+        requestId: contactAsked.id,
+        studentUserId: relationship.student,
+        requestedByUserId: relationship.related,
+        target: "contact",
+        keyVersion: healthKey.key_version,
+        ciphertext: bytes(64),
+      })
+      .returning({ id: healthChanges.id });
+    if (!change) throw new Error("contact change fixture missing");
+    await inner.insert(contactChanges).values({
+      tenantId,
+      changeId: change.id,
+      relationshipId: relationship.id,
+    });
+  });
   await tx.insert(programmeCategories).values({
     tenantId,
     programmeId: programme.id,
@@ -1123,6 +1172,12 @@ export async function completeFixture(
     eventId: calendarEvent.id,
     gradeLevelDescriptorId: grade8,
   });
+  await tx.execute(sql`
+    insert into core.broadcast_families (tenant_id, broadcast_id)
+    values (${tenantId}::uuid, ${broadcast.id}::uuid) on conflict do nothing`);
+  await tx.execute(sql`
+    insert into core.calendar_event_families (tenant_id, event_id)
+    values (${tenantId}::uuid, ${calendarEvent.id}::uuid) on conflict do nothing`);
   const [lessonSlot] = await tx.execute<{
     class_id: string;
     class_period_id: string;
@@ -1298,7 +1353,7 @@ export async function completeFixture(
     orgId: schoolId,
     intakeId: intake.id,
     formVersionId: admissionVersion.id,
-    familyUserId: userId,
+    filedByUserId: userId,
     applicantUserId: relationship.student,
     locale: "en",
     form: emptyApplicationForm(),

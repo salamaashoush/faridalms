@@ -70,7 +70,6 @@ export const users = core.table.withRLS(
     preferredLocale: text("preferred_locale").$type<"ar" | "en">(),
     primaryOrgId: uuid("primary_org_id"),
     medicalAlert: boolean("medical_alert").notNull().default(false),
-    custodyAlert: boolean("custody_alert").notNull().default(false),
     erasedAt: instant("erased_at"),
     importRunId: uuid("import_run_id"),
     ...entityColumns(),

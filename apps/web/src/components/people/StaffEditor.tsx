@@ -18,7 +18,7 @@ import * as m from "~/i18n/messages";
 import { staffMemberQuery } from "~/queries/staff";
 import { peopleOptionsQuery } from "~/queries/students";
 import { saveStaff } from "~/server/staff";
-import { findGuardians } from "~/server/students";
+import { findByContact } from "~/server/students";
 import { formatList } from "~/utils/datetime";
 import { refusalOf } from "~/utils/error";
 import { schemaErrors } from "~/utils/validation";
@@ -37,7 +37,7 @@ import { displayName, labelOf, roleLabel } from "./format";
 type Member = Awaited<
   ReturnType<NonNullable<ReturnType<typeof staffMemberQuery>["queryFn"]>>
 >;
-type Found = Awaited<ReturnType<typeof findGuardians>>[number];
+type Found = Awaited<ReturnType<typeof findByContact>>[number];
 type Role = (typeof STAFF_ROLE_CHOICES)[number];
 
 interface Draft {
@@ -242,9 +242,9 @@ export function StaffEditor({ member = null, onClose }: StaffEditorProps) {
     if (adding && identity !== matches?.identity) {
       setChecking(true);
       const people = await Promise.all([
-        findGuardians({ data: { email: draft.email.trim(), phone: "" } }),
+        findByContact({ data: { email: draft.email.trim(), phone: "" } }),
         draft.phone.trim()
-          ? findGuardians({ data: { phone: draft.phone.trim(), email: "" } })
+          ? findByContact({ data: { phone: draft.phone.trim(), email: "" } })
           : Promise.resolve([]),
       ])
         .then(([byEmail, byPhone]) => {

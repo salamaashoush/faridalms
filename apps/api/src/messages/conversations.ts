@@ -11,7 +11,6 @@ import {
   linkOutsideParticipant,
   mailedMembers,
   membersOf,
-  messagingGuardians,
   postMessage,
   threadById,
 } from "@faridalms/database/stores/messages";
@@ -20,16 +19,19 @@ import { contentPlainText } from "@faridalms/domain/content";
 import { MAILBOXES } from "@faridalms/domain/messages";
 
 import type { UnitContext } from "../core/context";
+import type { ModuleScope } from "../core/extension";
 import type { NoticeScope } from "../core/notify";
 
 import { notifyIn } from "../core/notify";
+import { actorsFor } from "../people/acting";
 
 /**
  * Where a conversation is written from: a person's procedure, or a unit
  * the system opened for a visitor's form or a reply that came by email,
  * where nobody signed in is the actor.
  */
-export interface ConversationScope extends NoticeScope {
+export interface ConversationScope
+  extends NoticeScope, Pick<ModuleScope, "school" | "extensions"> {
   today: string;
 }
 
@@ -37,6 +39,8 @@ export const scopeOf = (context: UnitContext): ConversationScope => ({
   tx: context.tx,
   tenantId: context.tenantId,
   schoolId: context.schoolId,
+  school: context.school,
+  extensions: context.extensions,
   actorUserId: context.actor.userId,
   now: context.now,
   channels: context.channels,
@@ -130,17 +134,23 @@ export async function writeEntry(
 ): Promise<{ id: string; createdAt: string }> {
   const thread = await threadById(scope.tx, scope.tenantId, input.threadId);
   if (!thread) throw new Error("conversation not found");
-  // The attendance office's conversation about a child is with the child's
-  // family as it is today: a guardian linked since it began joins it.
+  // The attendance office's conversation about a learner is with those who
+  // act for them as they are today: someone linked since it began joins it.
   if (thread.mailbox === "attendance" && thread.studentId)
     await addMembers(scope.tx, {
       tenantId: scope.tenantId,
       threadId: thread.id,
-      userIds: await messagingGuardians(scope.tx, {
-        tenantId: scope.tenantId,
-        studentId: thread.studentId,
-        on: scope.today,
-      }),
+      userIds: [
+        ...new Set(
+          (
+            await actorsFor(scope, {
+              studentIds: [thread.studentId],
+              on: scope.today,
+              purpose: "contact",
+            })
+          ).map((link) => link.userId),
+        ),
+      ],
       role: "member",
     });
   const plainText = input.content ? contentPlainText(input.content) : "";
