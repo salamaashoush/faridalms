@@ -12,7 +12,7 @@ import {
   SettingsSection,
 } from "@faridalms/ui/system/settings-section";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { Suspense, useState } from "react";
 import * as v from "valibot";
@@ -37,15 +37,17 @@ import {
 } from "~/components/admin/SubjectCatalogue";
 import { AttendanceRules } from "~/components/attendance/AttendanceRules";
 import { UsageBar } from "~/components/files/UsageBar";
+import { GradingSettings } from "~/components/grading/GradingSettings";
 import { FeaturesCard } from "~/components/learning/FeaturesCard";
 import { lastDay } from "~/components/people/format";
 import { ReadingNorms } from "~/components/reading/ReadingNorms";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
 import { assistantSettingsQuery } from "~/queries/assistant";
 import { attendanceSettingsQuery } from "~/queries/attendance";
 import { subjectsQuery } from "~/queries/classes";
+import { gradingHistoryQuery, gradingOverviewQuery } from "~/queries/grading";
 import { readingNormsQuery } from "~/queries/reading";
 import {
   pictureSourcesQuery,
@@ -65,6 +67,7 @@ const searchSchema = v.object({
       "subjects",
       "attendance",
       "reading",
+      "grading",
       "access",
       "assistant",
     ]),
@@ -87,9 +90,22 @@ export const Route = createFileRoute("/_app/_staff/settings")({
   loaderDeps: ({ search }) => ({ section: search.section }),
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    requirePage(user, "school:manage");
+    requirePage(user, "school:manage", "grading:manage");
+    const grading = gradesHere(user);
+    // Someone who sets up only grading lands on its tab; a tab nobody here
+    // may open falls back to the one they can.
+    if (deps.section === "grading" ? !grading : !keepsSchool(user))
+      throw redirect({
+        to: "/settings",
+        search: { section: grading ? "grading" : "school" },
+      });
     const { queryClient } = context;
-    if (deps.section === "school")
+    if (deps.section === "grading")
+      await Promise.all([
+        queryClient.ensureQueryData(gradingOverviewQuery),
+        queryClient.ensureQueryData(gradingHistoryQuery(1)),
+      ]);
+    else if (deps.section === "school")
       await Promise.all([
         queryClient.ensureQueryData(schoolProfileQuery),
         queryClient.ensureQueryData(schoolFeaturesQuery),
@@ -113,6 +129,17 @@ export const Route = createFileRoute("/_app/_staff/settings")({
   component: SettingsRoute,
 });
 
+interface Viewer {
+  capabilities: readonly string[];
+  modules: { gradebook: boolean };
+}
+
+const keepsSchool = (user: Viewer) =>
+  user.capabilities.includes("school:manage");
+
+const gradesHere = (user: Viewer) =>
+  user.modules.gradebook && user.capabilities.includes("grading:manage");
+
 /**
  * A sheet opened from the URL. It stays mounted while it closes, so it can
  * animate out with its content, and opening it again starts a fresh form.
@@ -130,6 +157,7 @@ function useUrlSheet(value: string | undefined) {
 function SettingsRoute() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const user = useCurrentUser();
   // An empty catalogue offers Add subject in its empty state instead, so the
   // page keeps one primary button.
   const subjects = (
@@ -166,12 +194,29 @@ function SettingsRoute() {
       <RecordTabs
         label={m.adminSettingsTitle()}
         tabs={[
-          { value: "school", label: m.settingsSchoolTab() },
-          { value: "subjects", label: m.adminSubjectsSection() },
-          { value: "attendance", label: m.attendanceTitle() },
-          { value: "reading", label: m.readingSettingsTab() },
-          { value: "access", label: m.adminPermissionsSection() },
-          { value: "assistant", label: m.assistantTab() },
+          ...(keepsSchool(user)
+            ? [
+                { value: "school" as const, label: m.settingsSchoolTab() },
+                {
+                  value: "subjects" as const,
+                  label: m.adminSubjectsSection(),
+                },
+                { value: "attendance" as const, label: m.attendanceTitle() },
+                { value: "reading" as const, label: m.readingSettingsTab() },
+              ]
+            : []),
+          ...(gradesHere(user)
+            ? [{ value: "grading" as const, label: m.gradingTitle() }]
+            : []),
+          ...(keepsSchool(user)
+            ? [
+                {
+                  value: "access" as const,
+                  label: m.adminPermissionsSection(),
+                },
+                { value: "assistant" as const, label: m.assistantTab() },
+              ]
+            : []),
         ]}
         value={search.section}
         onChange={(section) => void navigate({ search: { section } })}
@@ -188,6 +233,8 @@ function SettingsRoute() {
           <SettingsPage>
             <ReadingNorms />
           </SettingsPage>
+        ) : search.section === "grading" ? (
+          <GradingSettings />
         ) : search.section === "assistant" ? (
           <AssistantSettings />
         ) : (

@@ -48,7 +48,6 @@ import { Route as AppStaffAttendanceRouteImport } from './routes/_app/_staff/att
 import { Route as AppStaffBillingRouteImport } from './routes/_app/_staff/billing'
 import { Route as AppStaffClassEditorRouteImport } from './routes/_app/_staff/class-editor'
 import { Route as AppStaffClassesRouteImport } from './routes/_app/_staff/classes'
-import { Route as AppStaffGradeScalesRouteImport } from './routes/_app/_staff/grade-scales'
 import { Route as AppStaffGradebookRouteImport } from './routes/_app/_staff/gradebook'
 import { Route as AppStaffGradingRouteImport } from './routes/_app/_staff/grading'
 import { Route as AppStaffLessonEditorRouteImport } from './routes/_app/_staff/lesson-editor'
@@ -331,11 +330,6 @@ const AppStaffClassEditorRoute = AppStaffClassEditorRouteImport.update({
 const AppStaffClassesRoute = AppStaffClassesRouteImport.update({
   id: '/classes',
   path: '/classes',
-  getParentRoute: () => AppStaffRoute,
-} as any)
-const AppStaffGradeScalesRoute = AppStaffGradeScalesRouteImport.update({
-  id: '/grade-scales',
-  path: '/grade-scales',
   getParentRoute: () => AppStaffRoute,
 } as any)
 const AppStaffGradebookRoute = AppStaffGradebookRouteImport.update({
@@ -824,7 +818,6 @@ export interface FileRoutesByFullPath {
   '/billing': typeof AppStaffBillingRoute
   '/class-editor': typeof AppStaffClassEditorRoute
   '/classes': typeof AppStaffClassesRoute
-  '/grade-scales': typeof AppStaffGradeScalesRoute
   '/gradebook': typeof AppStaffGradebookRoute
   '/grading': typeof AppStaffGradingRoute
   '/lesson-editor': typeof AppStaffLessonEditorRoute
@@ -947,7 +940,6 @@ export interface FileRoutesByTo {
   '/billing': typeof AppStaffBillingRoute
   '/class-editor': typeof AppStaffClassEditorRoute
   '/classes': typeof AppStaffClassesRoute
-  '/grade-scales': typeof AppStaffGradeScalesRoute
   '/gradebook': typeof AppStaffGradebookRoute
   '/grading': typeof AppStaffGradingRoute
   '/lesson-editor': typeof AppStaffLessonEditorRoute
@@ -1077,7 +1069,6 @@ export interface FileRoutesById {
   '/_app/_staff/billing': typeof AppStaffBillingRoute
   '/_app/_staff/class-editor': typeof AppStaffClassEditorRoute
   '/_app/_staff/classes': typeof AppStaffClassesRoute
-  '/_app/_staff/grade-scales': typeof AppStaffGradeScalesRoute
   '/_app/_staff/gradebook': typeof AppStaffGradebookRoute
   '/_app/_staff/grading': typeof AppStaffGradingRoute
   '/_app/_staff/lesson-editor': typeof AppStaffLessonEditorRoute
@@ -1205,7 +1196,6 @@ export interface FileRouteTypes {
     | '/billing'
     | '/class-editor'
     | '/classes'
-    | '/grade-scales'
     | '/gradebook'
     | '/grading'
     | '/lesson-editor'
@@ -1328,7 +1318,6 @@ export interface FileRouteTypes {
     | '/billing'
     | '/class-editor'
     | '/classes'
-    | '/grade-scales'
     | '/gradebook'
     | '/grading'
     | '/lesson-editor'
@@ -1457,7 +1446,6 @@ export interface FileRouteTypes {
     | '/_app/_staff/billing'
     | '/_app/_staff/class-editor'
     | '/_app/_staff/classes'
-    | '/_app/_staff/grade-scales'
     | '/_app/_staff/gradebook'
     | '/_app/_staff/grading'
     | '/_app/_staff/lesson-editor'
@@ -1843,13 +1831,6 @@ declare module '@tanstack/react-router' {
       path: '/classes'
       fullPath: '/classes'
       preLoaderRoute: typeof AppStaffClassesRouteImport
-      parentRoute: typeof AppStaffRoute
-    }
-    '/_app/_staff/grade-scales': {
-      id: '/_app/_staff/grade-scales'
-      path: '/grade-scales'
-      fullPath: '/grade-scales'
-      preLoaderRoute: typeof AppStaffGradeScalesRouteImport
       parentRoute: typeof AppStaffRoute
     }
     '/_app/_staff/gradebook': {
@@ -2474,7 +2455,6 @@ interface AppStaffRouteChildren {
   AppStaffBillingRoute: typeof AppStaffBillingRoute
   AppStaffClassEditorRoute: typeof AppStaffClassEditorRoute
   AppStaffClassesRoute: typeof AppStaffClassesRoute
-  AppStaffGradeScalesRoute: typeof AppStaffGradeScalesRoute
   AppStaffGradebookRoute: typeof AppStaffGradebookRoute
   AppStaffGradingRoute: typeof AppStaffGradingRoute
   AppStaffLessonEditorRoute: typeof AppStaffLessonEditorRoute
@@ -2507,7 +2487,6 @@ const AppStaffRouteChildren: AppStaffRouteChildren = {
   AppStaffBillingRoute: AppStaffBillingRoute,
   AppStaffClassEditorRoute: AppStaffClassEditorRoute,
   AppStaffClassesRoute: AppStaffClassesRoute,
-  AppStaffGradeScalesRoute: AppStaffGradeScalesRoute,
   AppStaffGradebookRoute: AppStaffGradebookRoute,
   AppStaffGradingRoute: AppStaffGradingRoute,
   AppStaffLessonEditorRoute: AppStaffLessonEditorRoute,

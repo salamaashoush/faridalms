@@ -8,7 +8,7 @@ test("a school adds a grade scale and changes its grades one at a time", async (
   // Each browser runs this against the same school, so its scale is its own.
   const scaleName = `School IGCSE ${crypto.randomUUID().slice(0, 6)}`;
   await signIn(page, "admin");
-  await page.goto("/grade-scales?tab=scales");
+  await page.goto("/settings?section=grading");
   await untilHydrated(page);
   await page.getByRole("button", { name: "Add scale" }).first().click();
   const adding = page.getByRole("dialog", { name: "Add scale" });
@@ -82,7 +82,7 @@ test("a programme's categories are added one at a time and weigh 100 together", 
   // Each browser runs this against the same school, so its programme is its own.
   const programmeName = `School diploma ${crypto.randomUUID().slice(0, 6)}`;
   await signIn(page, "admin");
-  await page.goto("/grade-scales?tab=programmes");
+  await page.goto("/settings?section=grading");
   await untilHydrated(page);
   await page.getByRole("button", { name: "Add programme" }).first().click();
   const programme = page.getByRole("dialog", { name: "Add programme" });
@@ -119,6 +119,8 @@ test("a programme's categories are added one at a time and weigh 100 together", 
   await programme.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Changes saved")).toBeVisible();
   await expect(
-    page.getByRole("row", { name: new RegExp(programmeName) }),
+    page
+      .getByRole("table", { name: "Programmes" })
+      .getByRole("row", { name: new RegExp(programmeName) }),
   ).toContainText("Homework");
 });

@@ -15,7 +15,7 @@ const PAGES: Partial<Record<ModuleId, readonly string[]>> = {
     "/me/assignments",
     "/family/assignments",
   ],
-  gradebook: ["/gradebook", "/grade-scales", "/me/grades", "/family/grades"],
+  gradebook: ["/gradebook", "/me/grades", "/family/grades"],
   attendance: [
     "/attendance",
     "/me/attendance",

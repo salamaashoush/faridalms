@@ -15,7 +15,7 @@ import {
 import { setClassGrading } from "~/server/grading";
 import { getMessageFromError } from "~/utils/error";
 
-import type { GradingOverview } from "./ScalesTab";
+import type { GradingOverview } from "./Scales";
 
 import { bandsLine, weightsLine } from "./format";
 

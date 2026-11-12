@@ -10479,7 +10479,6 @@
   "homeAnnouncements": "الإعلانات",
   "homeRecentAnnouncements": "آخر الإعلانات",
   "gradingTitle": "التقييم",
-  "gradingSubtitle": "سلالم التقدير التي تُقيِّم بها المدرسة، والبرامج التي تستخدمها فصولها.",
   "gradingHistory": "السجل",
   "gradingHistoryHint": "كل تغيير في سلالم التقدير والبرامج وتقييم الفصول، ومن أجراه ولماذا.",
   "gradingHistoryEmpty": "لم يتغير شيء بعد.",
@@ -10491,6 +10490,7 @@
   "gradingReasonNeeded": "اذكر السبب ليُحفظ في السجل.",
   "gradingMonthNeeded": "اختر الشهر.",
   "gradingRetire": "إيقاف",
-  "navGrading": "التقييم",
-  "capGradingManage": "إعداد سلالم التقدير والبرامج"
+  "capGradingManage": "إعداد سلالم التقدير والبرامج",
+  "gradingScalesHint": "كيف تتحول الدرجة إلى تقدير. يسري تغيير التقديرات من اليوم الذي تختاره، فتحتفظ الأعمال السابقة بتقديرها.",
+  "gradingProgrammesHint": "أي الصفوف تُقيَّم بأي سلم، وكيف تُوزن أعمالها في تقدير الفصل الدراسي."
 }

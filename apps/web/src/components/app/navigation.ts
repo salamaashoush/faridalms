@@ -6,7 +6,6 @@ import type { LucideIcon } from "lucide-react";
 import { MEDIA_USERS } from "@faridalms/domain/media";
 import { TEMPLATE_AUTHORS } from "@faridalms/domain/templates";
 import {
-  Award,
   BookMarked,
   BookOpen,
   CalendarCheck,
@@ -140,13 +139,6 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           capability: ["timetable:read", "timetable:manage"],
         },
         {
-          to: "/grade-scales",
-          label: m.navGrading,
-          icon: Award,
-          capability: "grading:manage",
-          more: true,
-        },
-        {
           to: "/standards",
           label: m.navStandards,
           icon: ListTree,
@@ -248,7 +240,7 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           to: "/settings",
           label: m.navSettings,
           icon: Settings,
-          capability: "school:manage",
+          capability: ["school:manage", "grading:manage"],
         },
         {
           to: "/website",

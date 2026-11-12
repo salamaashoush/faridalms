@@ -10011,7 +10011,6 @@
   "homeAnnouncements": "Announcements",
   "homeRecentAnnouncements": "Recent announcements",
   "gradingTitle": "Grading",
-  "gradingSubtitle": "The grade scales the school grades on, and the programmes whose classes use them.",
   "gradingHistory": "History",
   "gradingHistoryHint": "Every change to the grade scales, programmes and classes' grading, who made it and why.",
   "gradingHistoryEmpty": "Nothing has changed yet.",
@@ -10023,6 +10022,7 @@
   "gradingReasonNeeded": "Say why, for the history.",
   "gradingMonthNeeded": "Choose the month.",
   "gradingRetire": "Retire",
-  "navGrading": "Grading",
-  "capGradingManage": "Set up grade scales and programmes"
+  "capGradingManage": "Set up grade scales and programmes",
+  "gradingScalesHint": "How a mark becomes a grade. A change to its grades applies from the day you choose, so earlier work keeps the grade it had.",
+  "gradingProgrammesHint": "Which grade levels grade on which scale, and how their work weighs in a term grade."
 }

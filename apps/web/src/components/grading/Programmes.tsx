@@ -32,7 +32,7 @@ import { retireProgramme, saveProgramme } from "~/server/grading";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import type { GradingOverview } from "./ScalesTab";
+import type { GradingOverview } from "./Scales";
 
 import { weightsLine } from "./format";
 
