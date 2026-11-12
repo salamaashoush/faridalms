@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import type { CheckBlock, LessonDocument, LessonResponse } from "./learning";
 
-import { ccItem } from "./cartridge";
 import { attemptQuiz, attemptScore, quizIssue } from "./coursework";
 import {
   isAuto,
@@ -16,7 +15,6 @@ import {
   studentQuiz,
 } from "./learning";
 import { contentOfLesson, drawnQuestion, quizOfBrief } from "./lesson-content";
-import { qtiItem } from "./qti";
 
 const id = (n: number) =>
   `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -301,19 +299,6 @@ describe("marks on the same answers", () => {
       new Map([[draw.id, drawn ? [drawn] : []]]),
     );
     expect(attempt).toMatchSnapshot("attempt");
-  });
-
-  it("exports every question as it did", () => {
-    expect(
-      asked.blocks.map((block, index) => ({
-        qti: qtiItem(block, {
-          identifier: `q${index}`,
-          title: `Q${index}`,
-          picture: () => null,
-        }),
-        cc: ccItem(block, { ident: `q${index}`, picture: () => null }),
-      })),
-    ).toMatchSnapshot("exports");
   });
 
   it("lets the lesson go to students as it did", () => {

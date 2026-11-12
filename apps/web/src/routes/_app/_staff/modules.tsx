@@ -14,12 +14,10 @@ import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
-import { CalendarRange, Import, Layers, Pencil, Plus } from "lucide-react";
-import { useState } from "react";
+import { CalendarRange, Layers, Pencil, Plus } from "lucide-react";
 import * as v from "valibot";
 
 import { classChoices, classTitle } from "~/components/classes/format";
-import { CartridgeImport } from "~/components/learning/CartridgeImport";
 import {
   shownState,
   STATE_LABEL,
@@ -140,7 +138,6 @@ function ModulesPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const data = useSuspenseQuery(teachingModulesQuery(search.classId)).data;
-  const [importing, setImporting] = useState(false);
   const patch = (change: Partial<Search>) => {
     void navigate({
       resetScroll: false,
@@ -219,22 +216,10 @@ function ModulesPage() {
                       search: search.classId ? { classId: search.classId } : {},
                     }),
                 },
-                {
-                  label: m.lrnImportCourse(),
-                  icon: Import,
-                  onSelect: () => setImporting(true),
-                },
               ]
             : []
         }
       />
-      {importing ? (
-        <CartridgeImport
-          open
-          classes={data.classes}
-          onClose={() => setImporting(false)}
-        />
-      ) : null}
       <RecordTabs
         label={m.lrnSections()}
         tabs={TABS.map((value) => ({

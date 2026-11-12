@@ -9,11 +9,10 @@ import { isSafeContentUrl } from "./content";
 import { embedPage, embedSource } from "./embed";
 
 /**
- * A document as plain HTML for another system to show, a Common Cartridge
- * page among them: its words, lists, tables, pictures, recordings, files
- * and embedded pages, without the look this app gives them. Questions and
- * what only this app can run (gates, draws, links to its outside tools)
- * are left to whoever writes the package, as they travel in other forms.
+ * A document as plain HTML for another system to show, such as the body of
+ * an email: its words, lists, tables, pictures, recordings, files and
+ * embedded pages, without the look this app gives them. Questions and what
+ * only this app can run (gates, draws) are left out.
  */
 export interface HtmlOptions {
   /** Where a stored file is found from the page; none leaves it out. */

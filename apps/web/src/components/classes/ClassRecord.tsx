@@ -25,14 +25,7 @@ import {
 } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  ArrowRightLeft,
-  Package,
-  Pencil,
-  Plus,
-  QrCode,
-  UserMinus,
-} from "lucide-react";
+import { ArrowRightLeft, Pencil, Plus, QrCode, UserMinus } from "lucide-react";
 import { useState } from "react";
 
 import type { AreaView } from "~/components/files/AreaFiles";
@@ -568,18 +561,6 @@ export function ClassRecord({
                   }),
               }
             : undefined
-        }
-        menu={
-          data.access.export
-            ? [
-                {
-                  label: m.classesExportCanvas(),
-                  icon: Package,
-                  onSelect: () =>
-                    window.location.assign(`/exports/classes/${data.id}`),
-                },
-              ]
-            : []
         }
       />
       <RecordTabs

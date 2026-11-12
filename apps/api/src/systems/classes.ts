@@ -52,13 +52,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import {
-  isStaff,
-  reachesClass,
-  requireStudent,
-  scopeFor,
-  teaches,
-} from "../core/reach";
+import { isStaff, reachesClass, requireStudent, scopeFor } from "../core/reach";
 import { yearOf } from "../core/years";
 import { mayKeepArea } from "../files/authorize";
 
@@ -217,10 +211,6 @@ export const record = readProcedure
           year.lifecycle !== "closed",
         staff: staffViewer,
         files: await mayKeepArea(context, { type: "class", id: input.id }),
-        /** Takes the class's modules and coursework away as a cartridge. */
-        export:
-          can(context, "assignments:author") &&
-          (await teaches(context, "classes", input.id)),
       },
     };
   });

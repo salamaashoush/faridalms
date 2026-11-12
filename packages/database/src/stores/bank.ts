@@ -169,29 +169,6 @@ export async function drawFromBank(
     limit ${input.count}`);
 }
 
-/**
- * Every question a draw of this tag could ask, in the order they were
- * kept, for a quiz leaving the school with its pool beside it.
- */
-export async function bankPool(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    orgId: string;
-    authorUserId: string;
-    tag: string;
-  },
-): Promise<{ id: string; content: Record<string, unknown> }[]> {
-  return tx.execute<{ id: string; content: Record<string, unknown> }>(sql`
-    select q.id, d.content
-    from core.bank_questions q
-    join core.documents d on d.tenant_id = q.tenant_id
-      and d.host_type = 'bank_question' and d.host_id = q.id and d.status = 'active'
-    where ${drawable(input)} and ${input.tag} = any(q.tags)
-    order by q.created_at, q.id
-    limit 500`);
-}
-
 export async function bankQuestionById(
   tx: Tx,
   tenantId: string,

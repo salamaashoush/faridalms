@@ -46,7 +46,6 @@ import {
   BookA,
   BookOpenText,
   LibraryBig,
-  FileInput,
   FileText,
   CodeXml,
   FileCode,
@@ -237,8 +236,7 @@ export type BlockType =
   | "standards"
   | "glossary"
   | "bibliography"
-  | "word"
-  | "qtiImport";
+  | "word";
 
 /** The groups the insert menus show blocks in, in this order. */
 export const BLOCK_GROUPS = [
@@ -911,25 +909,6 @@ export const blockDefinitions: BlockDefinition[] = [
     keywords: ["bank", "kept", "saved", "reuse", "library", "بنك", "محفوظ"],
     question: true,
     bank: true,
-  },
-  {
-    type: "qtiImport",
-    group: "reuse",
-    icon: FileInput,
-    label: (s) => s.qtiImport,
-    hint: (s) => s.qtiImportHint,
-    keywords: [
-      "qti",
-      "import",
-      "canvas",
-      "quiz",
-      "questions",
-      "استيراد",
-      "أسئلة",
-      "اختبار",
-    ],
-    question: true,
-    media: true,
   },
   {
     type: "bankDraw",

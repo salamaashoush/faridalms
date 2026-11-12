@@ -1,8 +1,7 @@
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
-import { strFromU8, unzipSync } from "fflate";
 
-import { client, login, raw, rejection, sessionFor, signedIn } from "./harness";
+import { client, login, rejection, sessionFor, signedIn } from "./harness";
 
 const teacher = (index = 0) =>
   signedIn("northwind", login("teacher", 0, index));
@@ -177,19 +176,6 @@ describe("shared blocks", () => {
     expect(await rejection(other.documents.history(host))).toMatchObject({
       code: "NOT_FOUND",
     });
-
-    // A module taken to another system carries the block's words in place.
-    const exported = await raw(
-      "northwind",
-      session.token,
-      `/v1/modules/${module.id}/cartridge.imscc`,
-    );
-    expect(exported.status).toBe(200);
-    const files = unzipSync(new Uint8Array(await exported.arrayBuffer()));
-    const page = Object.entries(files).find(([name]) => name.endsWith(".html"));
-    expect(page ? strFromU8(page[1]) : "").toContain(
-      "Bring water, a hat and sun cream.",
-    );
   });
 
   test("the office shows one in an announcement, which goes on the website as it reads when published", async () => {

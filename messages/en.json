@@ -1023,31 +1023,6 @@
   "editorWordReading": "Reading the document and keeping its pictures…",
   "editorWordDone": "Brought in where the caret was.",
   "editorWordFailed": "This file could not be read as a Word document.",
-  "editorQtiImport": "Questions from a file",
-  "editorQtiImportHint": "A QTI package or item, as Canvas, TAO and other assessment systems export them",
-  "editorQtiReading": "Reading the questions…",
-  "editorQtiDone": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "Brought in {count} question.",
-        "countPlural=*": "Brought in {count} questions."
-      }
-    }
-  ],
-  "editorQtiToCheck": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "{count} could only be read roughly; check it before students see it.",
-        "countPlural=*": "{count} could only be read roughly; check them before students see them."
-      }
-    }
-  ],
-  "editorQtiNone": "No questions were found in this file. It must be a QTI 2 or 3 package or item.",
-  "editorQtiFailed": "The file could not be read. Try a QTI package exported as a .zip.",
   "editorWordPicturesSkipped": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
@@ -2361,7 +2336,6 @@
   "classesCoTeacher": "Co-teacher",
   "classesDetails": "Class",
   "classesEdit": "Edit class",
-  "classesExportCanvas": "Export for Canvas (Common Cartridge 1.3)",
   "classesEmptyBody": "Add the year's classes, then place students in them from here or from each student's record.",
   "classesEmptyTitle": "No classes in this year yet",
   "classesHomeroom": "Class",
@@ -3955,9 +3929,6 @@
   "lrnDoneScore": "The score reaches a pass mark",
   "lrnDoneView": "The student opens it",
   "lrnDuplicate": "Duplicate",
-  "lrnExportQuestions": "Export questions (QTI)",
-  "lrnExportCanvasQuizzes": "Export quizzes for Canvas (QTI 1.2)",
-  "lrnExportCartridge": "Export for Moodle or Canvas (Common Cartridge)",
   "lrnDuplicated": "Copy made as a draft",
   "lrnCopyLesson": "Copy to a module",
   "lrnCopyLessonTitle": "Copy “{title}”",
@@ -4013,76 +3984,6 @@
   "lrnMoveUp": "Move up",
   "lrnNewLesson": "New lesson",
   "lrnNewModule": "New module",
-  "lrnImportCourse": "Import from Moodle or Canvas",
-  "lrnImportTitle": "Import a course",
-  "lrnImportSubmit": "Import",
-  "lrnImportHint": "Choose a course exported as a Common Cartridge (.imscc) from Moodle, Canvas or another LMS. Each of its modules comes in as a draft module, its pages, quizzes, links and files as lessons, and its assignments as draft assignments in the classes you choose. Canvas's module rules come too: what finishes each lesson, and which modules come first.",
-  "lrnImportBanks": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "Keep its question bank in my question bank",
-        "countPlural=*": "Keep its {count} question banks in my question bank"
-      }
-    }
-  ],
-  "lrnImportBanksHint": "Each question is tagged with its bank's name, to find it again.",
-  "lrnImportedBank": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "Kept {count} question in your question bank.",
-        "countPlural=*": "Kept {count} questions in your question bank."
-      }
-    }
-  ],
-  "lrnImportedAssignments": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "{count} assignment came in as a draft in each class chosen.",
-        "countPlural=*": "{count} assignments came in as drafts in each class chosen."
-      }
-    }
-  ],
-  "lrnImportFile": "Course file",
-  "lrnImportChoose": "Choose a course file first.",
-  "lrnImportNoModules": "Choose at least one module to bring in.",
-  "lrnImportUnreadable": "This file is not a course export we can read. Export the course from your LMS as a Common Cartridge and try again.",
-  "lrnImportItems": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "{count} item",
-        "countPlural=*": "{count} items"
-      }
-    }
-  ],
-  "lrnImportProgress": "Bringing in {done} of {total}…",
-  "lrnImported": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "Brought in {count} lesson.",
-        "countPlural=*": "Brought in {count} lessons."
-      }
-    }
-  ],
-  "lrnImportToCheck": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "{count} part came in only roughly; check it before students see it.",
-        "countPlural=*": "{count} parts came in only roughly; check them before students see them."
-      }
-    }
-  ],
   "lrnNext": "Next lesson",
   "lrnNoClasses": "No classes to teach",
   "lrnNoClassesBody": "Modules are set for classes you teach this year.",
@@ -8971,7 +8872,6 @@
   "auditTimetableCreate": "Added a timetable",
   "auditTimetableUpdate": "Changed a timetable",
   "auditTimetableRemove": "Removed a timetable",
-  "auditClassCartridgeExported": "Class downloaded as a course package",
   "auditClassLessonSounds": "Lesson sounds changed",
   "auditConsentFormPublish": "Consent form published",
   "auditConsentRecord": "Consent recorded",
@@ -9011,7 +8911,6 @@
   "auditMessageThreadCreate": "Conversation started",
   "auditMessageThreadMembers": "Conversation members changed",
   "auditModuleArchive": "Module archived",
-  "auditModuleCartridgeExported": "Module downloaded as a course package",
   "auditModuleDuplicate": "Module duplicated",
   "auditModuleFromTemplate": "Module added from a template",
   "auditModulePlan": "Module planned",

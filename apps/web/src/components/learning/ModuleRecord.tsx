@@ -38,10 +38,8 @@ import {
   ClipboardList,
   Copy,
   EyeOff,
-  FileDown,
   Hourglass,
   Layers,
-  Package,
   Pencil,
   Plus,
   Radio,
@@ -987,26 +985,6 @@ export function ModuleRecord({
             label: m.tplSaveTitle(),
             icon: BookMarked,
             onSelect: () => setSharing(true),
-          },
-          {
-            label: m.lrnExportCartridge(),
-            icon: Package,
-            onSelect: () =>
-              window.location.assign(
-                `/exports/modules/${data.id}?as=cartridge`,
-              ),
-          },
-          {
-            label: m.lrnExportQuestions(),
-            icon: FileDown,
-            onSelect: () =>
-              window.location.assign(`/exports/modules/${data.id}?as=qti`),
-          },
-          {
-            label: m.lrnExportCanvasQuizzes(),
-            icon: FileDown,
-            onSelect: () =>
-              window.location.assign(`/exports/modules/${data.id}?as=canvas`),
           },
           ...(data.state !== "archived"
             ? [

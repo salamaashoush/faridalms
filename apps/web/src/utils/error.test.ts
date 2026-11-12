@@ -59,8 +59,8 @@ describe("a refusal nothing words", () => {
   });
 
   it("keeps a message already written for the person", () => {
-    expect(getMessageFromError(new Error(m.lrnImportChoose()))).toBe(
-      m.lrnImportChoose(),
+    expect(getMessageFromError(new Error(m.courseworkDraftNotSaved()))).toBe(
+      m.courseworkDraftNotSaved(),
     );
   });
 });

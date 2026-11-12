@@ -112,8 +112,6 @@ import { Route as AppStudentsStudentIdRouteImport } from './routes/_app/students
 import { Route as AppYearsYearIdRouteImport } from './routes/_app/years.$yearId'
 import { Route as AuthAuthHandoffRouteImport } from './routes/_auth/auth.handoff'
 import { Route as ExportsAssignmentsAssignmentIdRouteImport } from './routes/exports/assignments.$assignmentId'
-import { Route as ExportsClassesClassIdRouteImport } from './routes/exports/classes.$classId'
-import { Route as ExportsModulesModuleIdRouteImport } from './routes/exports/modules.$moduleId'
 import { Route as ExportsStudentsStudentIdRouteImport } from './routes/exports/students.$studentId'
 import { Route as FeedsSchoolFileRouteImport } from './routes/feeds/$school/$file'
 import { Route as FilesFileIdPartsRouteImport } from './routes/files/$fileId.parts'
@@ -658,16 +656,6 @@ const ExportsAssignmentsAssignmentIdRoute =
     path: '/exports/assignments/$assignmentId',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ExportsClassesClassIdRoute = ExportsClassesClassIdRouteImport.update({
-  id: '/exports/classes/$classId',
-  path: '/exports/classes/$classId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExportsModulesModuleIdRoute = ExportsModulesModuleIdRouteImport.update({
-  id: '/exports/modules/$moduleId',
-  path: '/exports/modules/$moduleId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ExportsStudentsStudentIdRoute =
   ExportsStudentsStudentIdRouteImport.update({
     id: '/exports/students/$studentId',
@@ -876,8 +864,6 @@ export interface FileRoutesByFullPath {
   '/years/$yearId': typeof AppYearsYearIdRoute
   '/auth/handoff': typeof AuthAuthHandoffRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
-  '/exports/classes/$classId': typeof ExportsClassesClassIdRoute
-  '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
   '/exports/students/$studentId': typeof ExportsStudentsStudentIdRoute
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
@@ -998,8 +984,6 @@ export interface FileRoutesByTo {
   '/years/$yearId': typeof AppYearsYearIdRoute
   '/auth/handoff': typeof AuthAuthHandoffRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
-  '/exports/classes/$classId': typeof ExportsClassesClassIdRoute
-  '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
   '/exports/students/$studentId': typeof ExportsStudentsStudentIdRoute
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
@@ -1127,8 +1111,6 @@ export interface FileRoutesById {
   '/_app/years/$yearId': typeof AppYearsYearIdRoute
   '/_auth/auth/handoff': typeof AuthAuthHandoffRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
-  '/exports/classes/$classId': typeof ExportsClassesClassIdRoute
-  '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
   '/exports/students/$studentId': typeof ExportsStudentsStudentIdRoute
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
@@ -1254,8 +1236,6 @@ export interface FileRouteTypes {
     | '/years/$yearId'
     | '/auth/handoff'
     | '/exports/assignments/$assignmentId'
-    | '/exports/classes/$classId'
-    | '/exports/modules/$moduleId'
     | '/exports/students/$studentId'
     | '/feeds/$school/$file'
     | '/files/$fileId/parts'
@@ -1376,8 +1356,6 @@ export interface FileRouteTypes {
     | '/years/$yearId'
     | '/auth/handoff'
     | '/exports/assignments/$assignmentId'
-    | '/exports/classes/$classId'
-    | '/exports/modules/$moduleId'
     | '/exports/students/$studentId'
     | '/feeds/$school/$file'
     | '/files/$fileId/parts'
@@ -1504,8 +1482,6 @@ export interface FileRouteTypes {
     | '/_app/years/$yearId'
     | '/_auth/auth/handoff'
     | '/exports/assignments/$assignmentId'
-    | '/exports/classes/$classId'
-    | '/exports/modules/$moduleId'
     | '/exports/students/$studentId'
     | '/feeds/$school/$file'
     | '/files/$fileId/parts'
@@ -1551,8 +1527,6 @@ export interface RootRouteChildren {
   SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
   TeachSplatRoute: typeof TeachSplatRoute
   ExportsAssignmentsAssignmentIdRoute: typeof ExportsAssignmentsAssignmentIdRoute
-  ExportsClassesClassIdRoute: typeof ExportsClassesClassIdRoute
-  ExportsModulesModuleIdRoute: typeof ExportsModulesModuleIdRoute
   ExportsStudentsStudentIdRoute: typeof ExportsStudentsStudentIdRoute
   FeedsSchoolFileRoute: typeof FeedsSchoolFileRoute
   PublicMediaPTokenNameRoute: typeof PublicMediaPTokenNameRoute
@@ -2281,20 +2255,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExportsAssignmentsAssignmentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/exports/classes/$classId': {
-      id: '/exports/classes/$classId'
-      path: '/exports/classes/$classId'
-      fullPath: '/exports/classes/$classId'
-      preLoaderRoute: typeof ExportsClassesClassIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/exports/modules/$moduleId': {
-      id: '/exports/modules/$moduleId'
-      path: '/exports/modules/$moduleId'
-      fullPath: '/exports/modules/$moduleId'
-      preLoaderRoute: typeof ExportsModulesModuleIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/exports/students/$studentId': {
       id: '/exports/students/$studentId'
       path: '/exports/students/$studentId'
@@ -2747,8 +2707,6 @@ const rootRouteChildren: RootRouteChildren = {
   SiteSchoolRoute: SiteSchoolRouteWithChildren,
   TeachSplatRoute: TeachSplatRoute,
   ExportsAssignmentsAssignmentIdRoute: ExportsAssignmentsAssignmentIdRoute,
-  ExportsClassesClassIdRoute: ExportsClassesClassIdRoute,
-  ExportsModulesModuleIdRoute: ExportsModulesModuleIdRoute,
   ExportsStudentsStudentIdRoute: ExportsStudentsStudentIdRoute,
   FeedsSchoolFileRoute: FeedsSchoolFileRoute,
   PublicMediaPTokenNameRoute: PublicMediaPTokenNameRoute,

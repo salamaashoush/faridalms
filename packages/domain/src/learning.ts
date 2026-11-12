@@ -86,7 +86,7 @@ export const MAX_FORM_OPTIONS = 20;
 export const MAX_ACCEPTED_ANSWERS = 10;
 export const MAX_GAPS = 20;
 export const MAX_PAIRS = 8;
-export const MAX_DISTRACTORS = 4;
+const MAX_DISTRACTORS = 4;
 export const MAX_ORDER_ITEMS = 10;
 export const MAX_HINTS = 5;
 /** Languages a code puzzle's lines are written in; only Python marks indentation. */
@@ -103,11 +103,11 @@ export const MAX_PROGRAM_TESTS = 12;
 export const MAX_PROGRAM_CHARS = 20_000;
 export const MAX_PARSONS_DISTRACTORS = 6;
 export const MAX_INDENT = 6;
-export const MAX_SORT_GROUPS = 4;
+const MAX_SORT_GROUPS = 4;
 /** The most questions one draw asks of each attempt. */
 export const MAX_DRAW = 20;
 const MAX_DRAW_TAG = 40;
-export const MAX_SORT_ITEMS = 20;
+const MAX_SORT_ITEMS = 20;
 export const MAX_MODULE_CLASSES = 20;
 /**
  * How long a spoken answer may run, as Seesaw lets a teacher cap a child's
@@ -116,7 +116,7 @@ export const MAX_MODULE_CLASSES = 20;
 export const RECORD_SECONDS = [15, 45, 90, 180] as const;
 export type RecordSeconds = (typeof RECORD_SECONDS)[number];
 /** The longest passage a student reads aloud, about a page of text. */
-export const MAX_PASSAGE = 5000;
+const MAX_PASSAGE = 5000;
 /**
  * Answers made as a picture: drawn with a finger on the screen, or a photo
  * of something made on paper or with blocks, as Seesaw's young learners
@@ -150,7 +150,7 @@ export const MAX_LABEL_EXTRAS = 6;
  */
 export const HOTSPOT_SLACK = 0.03;
 /** Words a highlight question asks to be found, few enough to tap through on a phone. */
-export const MAX_TARGETS = 20;
+const MAX_TARGETS = 20;
 /** Places on a number line, so its ticks stay readable on a phone. */
 export const MAX_LINE_STEPS = 200;
 /** Taken off a check's credit for each try after the first, as Moodle's interactive mode does. */

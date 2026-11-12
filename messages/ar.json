@@ -1078,38 +1078,6 @@
   "editorWordReading": "تُقرأ الوثيقة وتُحفظ صورها…",
   "editorWordDone": "أُدرج حيث كان المؤشر.",
   "editorWordFailed": "تعذّرت قراءة هذا الملف كمستند وورد.",
-  "editorQtiImport": "أسئلة من ملف",
-  "editorQtiImportHint": "حزمة أو سؤال بصيغة QTI، كما تصدّرها Canvas وTAO وأنظمة التقييم الأخرى",
-  "editorQtiReading": "جارٍ قراءة الأسئلة…",
-  "editorQtiDone": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=zero": "لم يُجلب أي سؤال.",
-        "countPlural=one": "جُلب سؤال واحد.",
-        "countPlural=two": "جُلب سؤالان.",
-        "countPlural=few": "جُلبت {count} أسئلة.",
-        "countPlural=many": "جُلب {count} سؤالًا.",
-        "countPlural=*": "جُلب {count} سؤال."
-      }
-    }
-  ],
-  "editorQtiToCheck": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "سؤال واحد قُرئ تقريبيًا؛ راجعه قبل أن يراه الطلاب.",
-        "countPlural=two": "سؤالان قُرئا تقريبيًا؛ راجعهما قبل أن يراهما الطلاب.",
-        "countPlural=few": "{count} أسئلة قُرئت تقريبيًا؛ راجعها قبل أن يراها الطلاب.",
-        "countPlural=many": "{count} سؤالًا قُرئ تقريبيًا؛ راجعها قبل أن يراها الطلاب.",
-        "countPlural=*": "{count} سؤال قُرئ تقريبيًا؛ راجعها قبل أن يراها الطلاب."
-      }
-    }
-  ],
-  "editorQtiNone": "لم يُعثر على أسئلة في هذا الملف. يجب أن يكون حزمة أو سؤالًا بصيغة QTI 2 أو 3.",
-  "editorQtiFailed": "تعذّرت قراءة الملف. جرّب حزمة QTI مصدّرة بصيغة ‎.zip.",
   "editorWordPicturesSkipped": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
@@ -2486,7 +2454,6 @@
   "classesCoTeacher": "معلم مشارك",
   "classesDetails": "الفصل",
   "classesEdit": "تعديل الفصل",
-  "classesExportCanvas": "تصدير إلى Canvas ‏(Common Cartridge 1.3)",
   "classesEmptyBody": "أضف فصول العام، ثم وزّع الطلاب عليها من هنا أو من سجل كل طالب.",
   "classesEmptyTitle": "لا توجد فصول في هذا العام بعد",
   "classesHomeroom": "الفصل",
@@ -4173,9 +4140,6 @@
   "lrnDoneScore": "تبلغ الدرجة حدّ النجاح",
   "lrnDoneView": "يفتحه الطالب",
   "lrnDuplicate": "نسخ",
-  "lrnExportQuestions": "تصدير الأسئلة (QTI)",
-  "lrnExportCanvasQuizzes": "تصدير الاختبارات إلى Canvas ‏(QTI 1.2)",
-  "lrnExportCartridge": "تصدير إلى Moodle أو Canvas (Common Cartridge)",
   "lrnDuplicated": "أُنشئت نسخة كمسودة",
   "lrnCopyLesson": "نسخ إلى وحدة",
   "lrnCopyLessonTitle": "نسخ «{title}»",
@@ -4231,98 +4195,6 @@
   "lrnMoveUp": "نقل للأعلى",
   "lrnNewLesson": "درس جديد",
   "lrnNewModule": "وحدة جديدة",
-  "lrnImportCourse": "استيراد من Moodle أو Canvas",
-  "lrnImportTitle": "استيراد مقرر",
-  "lrnImportSubmit": "استيراد",
-  "lrnImportHint": "اختر مقررًا مصدّرًا بصيغة Common Cartridge ‏(‎.imscc) من Moodle أو Canvas أو نظام آخر. تصل كل وحدة فيه وحدةً في المسودة، وتصبح صفحاتها واختباراتها وروابطها وملفاتها دروسًا، وواجباتها واجباتٍ في المسودة في الفصول التي تختارها. وتصل قواعد وحدات Canvas أيضًا: ما يُنهي كل درس، وأي الوحدات تسبق غيرها.",
-  "lrnImportBanks": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "احفظ بنك أسئلته في بنك أسئلتي",
-        "countPlural=two": "احفظ بنكَي أسئلته في بنك أسئلتي",
-        "countPlural=few": "احفظ بنوك أسئلته الـ{count} في بنك أسئلتي",
-        "countPlural=many": "احفظ بنوك أسئلته الـ{count} في بنك أسئلتي",
-        "countPlural=*": "احفظ بنوك أسئلته الـ{count} في بنك أسئلتي"
-      }
-    }
-  ],
-  "lrnImportBanksHint": "يُوسَم كل سؤال باسم بنكه لتجده مرة أخرى.",
-  "lrnImportedBank": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=zero": "لم يُحفظ أي سؤال في بنك أسئلتك.",
-        "countPlural=one": "حُفظ سؤال واحد في بنك أسئلتك.",
-        "countPlural=two": "حُفظ سؤالان في بنك أسئلتك.",
-        "countPlural=few": "حُفظت {count} أسئلة في بنك أسئلتك.",
-        "countPlural=many": "حُفظ {count} سؤالًا في بنك أسئلتك.",
-        "countPlural=*": "حُفظ {count} سؤال في بنك أسئلتك."
-      }
-    }
-  ],
-  "lrnImportedAssignments": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=zero": "لم تصل أي واجبات.",
-        "countPlural=one": "وصل واجب واحد مسودةً في كل فصل مختار.",
-        "countPlural=two": "وصل واجبان مسودتين في كل فصل مختار.",
-        "countPlural=few": "وصلت {count} واجبات مسوداتٍ في كل فصل مختار.",
-        "countPlural=many": "وصل {count} واجبًا مسوداتٍ في كل فصل مختار.",
-        "countPlural=*": "وصل {count} واجب مسوداتٍ في كل فصل مختار."
-      }
-    }
-  ],
-  "lrnImportFile": "ملف المقرر",
-  "lrnImportChoose": "اختر ملف المقرر أولًا.",
-  "lrnImportNoModules": "اختر وحدة واحدة على الأقل لاستيرادها.",
-  "lrnImportUnreadable": "هذا الملف ليس تصديرًا لمقرر نستطيع قراءته. صدّر المقرر من نظامك بصيغة Common Cartridge وحاول مرة أخرى.",
-  "lrnImportItems": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=zero": "لا عناصر",
-        "countPlural=one": "عنصر واحد",
-        "countPlural=two": "عنصران",
-        "countPlural=few": "{count} عناصر",
-        "countPlural=many": "{count} عنصرًا",
-        "countPlural=*": "{count} عنصر"
-      }
-    }
-  ],
-  "lrnImportProgress": "جارٍ استيراد {done} من {total}…",
-  "lrnImported": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=zero": "لم يُستورد أي درس.",
-        "countPlural=one": "استُورد درس واحد.",
-        "countPlural=two": "استُورد درسان.",
-        "countPlural=few": "استُوردت {count} دروس.",
-        "countPlural=many": "استُورد {count} درسًا.",
-        "countPlural=*": "استُورد {count} درس."
-      }
-    }
-  ],
-  "lrnImportToCheck": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "جزء واحد وصل تقريبيًا؛ راجعه قبل أن يراه الطلاب.",
-        "countPlural=two": "جزآن وصلا تقريبيًا؛ راجعهما قبل أن يراهما الطلاب.",
-        "countPlural=few": "{count} أجزاء وصلت تقريبيًا؛ راجعها قبل أن يراها الطلاب.",
-        "countPlural=many": "{count} جزءًا وصل تقريبيًا؛ راجعها قبل أن يراها الطلاب.",
-        "countPlural=*": "{count} جزء وصل تقريبيًا؛ راجعها قبل أن يراها الطلاب."
-      }
-    }
-  ],
   "lrnNext": "الدرس التالي",
   "lrnNoClasses": "لا صفوف لتدريسها",
   "lrnNoClassesBody": "تُسند الوحدات إلى الصفوف التي تدرّسها هذا العام.",
@@ -9393,7 +9265,6 @@
   "auditTimetableCreate": "أضاف جدولًا",
   "auditTimetableUpdate": "عدّل جدولًا",
   "auditTimetableRemove": "حذف جدولًا",
-  "auditClassCartridgeExported": "نُزّل الفصل حزمة مقرر",
   "auditClassLessonSounds": "عُدّلت أصوات الدرس",
   "auditConsentFormPublish": "نُشر نموذج الموافقة",
   "auditConsentRecord": "سُجّلت موافقة",
@@ -9433,7 +9304,6 @@
   "auditMessageThreadCreate": "بدأت محادثة",
   "auditMessageThreadMembers": "تغيّر أعضاء المحادثة",
   "auditModuleArchive": "أُرشفت الوحدة",
-  "auditModuleCartridgeExported": "نُزّلت الوحدة حزمة مقرر",
   "auditModuleDuplicate": "نُسخت الوحدة",
   "auditModuleFromTemplate": "أُضيفت وحدة من قالب",
   "auditModulePlan": "خُطّطت الوحدة",

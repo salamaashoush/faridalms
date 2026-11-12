@@ -31,8 +31,7 @@
     "./Editor": "./src/Editor.tsx",
     "./headless": "./src/headless.ts",
     "./large-document": "./src/large-document.ts",
-    "./html-import": "./src/html-import.ts",
-    "./packages": "./src/packages.ts"
+    "./html-import": "./src/html-import.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
