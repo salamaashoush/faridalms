@@ -45,6 +45,7 @@ import type {
   BuiltInGroup,
   StartingPiece,
 } from "~/components/content/Templates";
+import type { announcementEditorQuery } from "~/queries/announcements";
 
 import { contentIssueMessages } from "~/components/content/checks";
 import { ContentEditor } from "~/components/content/ContentEditor";
@@ -72,11 +73,7 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import type {
-  announcementEditorQuery} from "~/queries/announcements";
-import {
-  announcementOptionsQuery,
-} from "~/queries/announcements";
+import { announcementOptionsQuery } from "~/queries/announcements";
 import {
   archiveAnnouncement,
   getAnnouncementEditor,
@@ -877,10 +874,7 @@ export function AnnouncementEditor({
               }}
             />
             <DetailsSection title={m.annSectionDelivery()}>
-              <AnnouncementSettings
-                draft={draft}
-                onChange={change}
-              />
+              <AnnouncementSettings draft={draft} onChange={change} />
               {live ? (
                 <p className="text-[13px] leading-[18px] text-muted-foreground">
                   {m.bcastPublishedHint()}
@@ -998,10 +992,7 @@ interface AnnouncementSettingsProps {
 }
 
 /** How an announcement behaves for its readers: urgency, pinning, expiry and acknowledgement. */
-function AnnouncementSettings({
-  draft,
-  onChange,
-}: AnnouncementSettingsProps) {
+function AnnouncementSettings({ draft, onChange }: AnnouncementSettingsProps) {
   return (
     <>
       <SelectField
