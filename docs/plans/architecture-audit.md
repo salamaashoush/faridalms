@@ -7,7 +7,8 @@ sign-in move touches `systems/site.ts`, `components/site/render/*`), those
 files were read at `HEAD`. Line numbers are from `HEAD` unless noted.
 
 This is a dated snapshot. By 2026-11-12 findings 1 to 5, 8 to 14 and 19
-to 21 are fixed, and what is left of the others is listed under
+to 21 are fixed or settled by design, and what is left of the others is
+listed under
 Architecture leftovers in [open-work.md](open-work.md).
 
 Priorities: **P0** = fix before onboarding schools, **P1** = soon,

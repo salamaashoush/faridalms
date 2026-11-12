@@ -2,6 +2,7 @@ import type { OnboardingItem } from "@faridalms/domain/onboarding";
 
 import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import { addDays } from "@faridalms/domain/school";
+import { STAFF_ROLES as ALL_STAFF_ROLES } from "@faridalms/domain/workspace";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -14,7 +15,9 @@ const ADMINISTRATOR_ROLES = [
   "system_administrator",
 ];
 const FAMILY_ROLES = ["family"];
-const STAFF_ROLES = ["principal", "teacher", "aide", "counselor", "staff"];
+const STAFF_ROLES = ALL_STAFF_ROLES.filter(
+  (role) => !ADMINISTRATOR_ROLES.includes(role),
+);
 
 /**
  * What the cell sees of a school's first steps, from its own data: who has
