@@ -40,8 +40,6 @@ Settled, nothing to build:
 - No office editing in the browser; download, a new version and PDF
   previews stay.
 - English and Arabic stay the interface languages.
-- LTI and QTI stay at their current scope: LTI 1.3 Advantage as a
-  platform, QTI 3 and Common Cartridge import and export.
 - Messages: anyone signed in with a staff role counts as staff, whatever
   their capabilities.
 

@@ -62,8 +62,8 @@ From `foundations.md`. W1 to W5 are merged.
 From `architecture-audit.md`, as checked against the code on 2026-11-12.
 
 - **Lesson blocks** (finding 7): `LessonBlock`/`LessonDocument` is still a
-  live shape between the editor document and starters, patterns, print,
-  Common Cartridge, QTI and the young checks. Size L.
+  live shape between the editor document and starters, patterns, print
+  and the young checks. Size L.
 - **Forms convention** (finding 22): AGENTS.md asks for
   `@tanstack/react-form`, which three files use; six editors keep their own
   `FIELD_ERRORS` map. Change the doc or the code: the owner's call.

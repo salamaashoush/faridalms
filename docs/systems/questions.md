@@ -24,10 +24,8 @@ Before this model, questions were written down three ways.
   (`lesson_responses`), quizzes (`quiz_answers`), bank questions
   (`bank_questions`, a document of one question, `bank.ts`), the quiz's
   draws from the bank (`quiz_draws`, each the drawn node), mixed reviews
-  (`practice.ts`), the printed paper (`print/PaperQuestion.tsx`), QTI 3.0
-  and 1.2 and Common Cartridge (`qti.ts`, `qti12.ts`, `qti-read.ts`,
-  `cartridge*.ts`), the teacher's answer boards and the Right now view
-  all read it this way. Grading scales (`grading.ts`) are grades, not
+  (`practice.ts`), the printed paper (`print/PaperQuestion.tsx`), the
+  teacher's answer boards and the Right now view all read it this way. Grading scales (`grading.ts`) are grades, not
   questions.
 - **Website form questions.** Items of the `form` site section
   (`site-sections.ts`): a label, a hint, `required`, a kind of `short`,

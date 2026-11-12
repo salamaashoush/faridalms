@@ -860,56 +860,9 @@ Scratch Text to Speech, Translate and tutorials.
    bolted on rather than what a school needs.
 2. **QTI 3 and Common Cartridge** import and export, so content comes in
    from Moodle and Canvas and leaves again.
-   Done: a module exports its questions as a QTI 3 package, each kind QTI
-   can hold an item that scores itself out of the question's points, a
-   test for each lesson, the pictures beside them; the items validate
-   against 1EdTech's schema. The editor's Insert menu reads a QTI 2 or 3
-   package or item back into questions at the caret. A module also exports
-   as a Common Cartridge 1.1, the one version both Moodle and Canvas
-   import, checked with Moodle's own schemas: each lesson a page, its
-   questions a quiz after it in CC's QTI profile, other kinds as essays
-   with the key for the marker, its tool links and its files. The modules
-   page imports a cartridge: pages, discussions and briefs read as a paste
-   is, with their files stored; quizzes from CC's profile and Canvas's own
-   question kinds; links, embeds and files as lessons. A lesson this
-   school exported comes back whole from the copy kept beside it. A
-   cartridge's assignments (CC 1.3's own, or Canvas's settings beside a
-   page) come in as draft assignments in each class chosen, with their
-   points, how work is handed in, and a due date still ahead. Canvas's
-   `module_meta.xml` brings its rules: what finishes each lesson (opened,
-   marked done, handed in, or a minimum score as a share of the quiz's
-   points), which modules run in order, and the module to finish first.
-   A cartridge's question banks (CC's own, and Canvas's beside its full
-   quizzes) can be kept in the teacher's question bank, each question
-   tagged with its bank's name. A module's quizzes also export as Canvas
-   writes its own for QTI (QTI 1.2 with Canvas's question types, the zip
-   Canvas's quizzes and New Quizzes import): choices, true or false,
-   short answers, numbers with their margin or range, blanks typed or
-   chosen, matching, sorting as matching to its groups, highlights as
-   multiple answers, and any other kind as an essay with its key. Running
-   the converter Canvas runs on import (QTIMigrationTool) and Canvas's own
-   question converter over the export, every kind arrived with its type,
-   points and right answers.
-   A class exports whole for Canvas as a Common Cartridge 1.3 (its
-   record's menu, for its teachers): its modules in the order the class
-   takes them, then its coursework, each assignment with its brief,
-   points, how work is handed in and, in Canvas's own block, when it is
-   due, quizzes in CC's profile and discussions as topics. A quiz that
-   draws from the question bank asks as many of the pool as it would
-   draw, worth the draw's points, and the whole pool leaves beside it as
-   a CC question bank. Manifest and descriptors validate against
-   1EdTech's CC 1.3 schemas and Canvas's own; Moodle reads only CC 1.1,
-   which the module export stays.
-   Tried against a real Moodle 4.5: a module's CC 1.1 export restores as
-   pages, each followed by its quiz with every question of the kind
-   expected (multiple choice, short answer, essays for the kinds CC has
-   no form for, polls at no marks); Moodle puts the first folder of any
-   cartridge in its general section. Moodle's own CC export, which 4.5
-   reaches only through its converter, leaves quizzes out and names
-   unnamed sections by number; its pages, links and forums come into
-   Farida, the sections named after the course. Canvas was tried through
-   its own import converters run over the exports, not a live site.
-   Left: a live Canvas site, to confirm what its converters showed.
+   Withdrawn: the QTI and Common Cartridge exports, the course import and
+   the editor's QTI import were removed in November 2026, as the owner
+   decided they are bolted on rather than what a school needs.
 3. **Results shaped for xAPI** (score, duration, completion).
    Withdrawn with outside tools: the statements export, sending to a
    school's record store and cmi5 course packages were removed in
