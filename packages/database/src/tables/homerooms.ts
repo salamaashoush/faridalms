@@ -129,7 +129,7 @@ export const homeroomMembers = core.table.withRLS(
       ],
     ).onUpdate("cascade"),
     ck("homeroom_members", "source", sql`source in ('manual', 'rollover')`),
-    ck("homeroom_members", "valid_during", range.bounded("valid_during")),
+    ck("homeroom_members", "valid_during", range.started("valid_during")),
     index("homeroom_members_homeroom_idx")
       .on(t.tenantId, t.homeroomClassId)
       .where(sql`status = 'active'`),

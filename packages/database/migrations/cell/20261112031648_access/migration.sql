@@ -210,6 +210,10 @@ alter table core.class_periods force row level security;
 grant select, insert, update on core.class_periods to app, worker, cell_io;
 grant select on core.class_periods to integration, retention;
 
+alter table core.class_years force row level security;
+grant select, insert, update on core.class_years to app, worker, cell_io;
+grant select on core.class_years to integration, retention;
+
 alter table core.classes force row level security;
 grant select, insert, update on core.classes to app, worker, cell_io;
 grant select on core.classes to integration, retention;
@@ -693,6 +697,11 @@ grant update (status, metadata) on core.standard_observations to retention;
 alter table core.standards force row level security;
 grant select, insert, update on core.standards to app, worker, cell_io;
 grant select on core.standards to retention;
+
+alter table core.student_departures force row level security;
+grant select, insert, update on core.student_departures to app, worker, cell_io;
+grant select on core.student_departures to retention;
+grant update (status, metadata) on core.student_departures to retention;
 
 alter table core.student_movements force row level security;
 grant select, insert, update on core.student_movements to app, worker, cell_io;

@@ -198,10 +198,6 @@ describe("temporal keys", () => {
         params: [a.tenantId, school.year],
       },
       {
-        text: `update core.enrollments set valid_during = '[2026-09-13,2027-06-10)' where tenant_id = $1 and school_year_id = $2`,
-        params: [a.tenantId, school.year],
-      },
-      {
         text: `update core.class_meetings set valid_during = '[2026-09-13,2027-06-10)' where tenant_id = $1 and school_year_id = $2`,
         params: [a.tenantId, school.year],
       },
@@ -1224,14 +1220,14 @@ describe("documents", () => {
 });
 
 describe("teaching", () => {
-  test("a student is in one homeroom at a time, and no enrollment outlasts its year", async () => {
+  test("a student is in one homeroom at a time, and no active enrollment outlasts its class", async () => {
     const { a } = harness();
     const school = await schoolOf(a.tenantId);
     const second = await probe("app", a.tenantId, [
       {
-        text: `insert into core.classes (tenant_id, org_id, school_year_id, code, title_en)
-               values ($1, $2, $3, 'X-B', 'XB') returning id`,
-        params: [a.tenantId, school.id, school.year],
+        text: `insert into core.classes (tenant_id, org_id, code, title_en, runs)
+               values ($1, $2, 'X-B', 'XB', '[2026-09-13,2027-06-18)') returning id`,
+        params: [a.tenantId, school.id],
       },
       {
         text: `insert into core.homerooms (tenant_id, org_id, class_id)
@@ -1239,13 +1235,13 @@ describe("teaching", () => {
         params: [a.tenantId, school.id],
       },
       {
-        text: `insert into core.enrollments (tenant_id, id, class_id, school_year_id, org_id, user_id, role,
+        text: `insert into core.enrollments (tenant_id, id, class_id, org_id, user_id, role,
                  valid_during, source)
                select m.tenant_id, '00000000-0000-4000-8000-0000000000b1',
                  (select id from core.classes where tenant_id = $1 and code = 'X-B'),
-                 $2, m.org_id, m.student_user_id, 'student', '[2026-10-01,2027-06-18)', 'homeroom'
+                 m.org_id, m.student_user_id, 'student', '[2026-10-01,2027-06-18)', 'homeroom'
                from core.homeroom_members m where m.tenant_id = $1 order by m.id limit 1`,
-        params: [a.tenantId, school.year],
+        params: [a.tenantId],
       },
       {
         text: `insert into core.homeroom_members (tenant_id, org_id, homeroom_class_id, enrollment_id,
@@ -1266,6 +1262,79 @@ describe("teaching", () => {
       },
     ]);
     expect(outlast.error?.code).toBe("23503");
+    expect(outlast.error?.message).toContain("active_class_id");
+  });
+
+  test("a class that ends keeps a tombstoned enrollment past it, never an active one", async () => {
+    const { a } = harness();
+    const school = await schoolOf(a.tenantId);
+    const steps = (end: string) => [
+      {
+        text: `insert into core.classes (tenant_id, id, org_id, code, title_en, runs)
+               values ($1, '00000000-0000-4000-8000-0000000000c1', $2, 'END-1', 'Ending', '[2026-09-13,)')`,
+        params: [a.tenantId, school.id],
+      },
+      {
+        text: `insert into core.enrollments (tenant_id, class_id, org_id, user_id, role, valid_during, source, status)
+               select $1, '00000000-0000-4000-8000-0000000000c1', $2, user_id, 'student', '[2027-01-10,)', 'manual', 'tobedeleted'
+               from core.user_roles where tenant_id = $1 and org_id = $2 and role = 'student' order by user_id limit 1`,
+        params: [a.tenantId, school.id],
+      },
+      {
+        text: `update core.classes set runs = daterange('2026-09-13', $2::date)
+               where tenant_id = $1 and id = '00000000-0000-4000-8000-0000000000c1'`,
+        params: [a.tenantId, end],
+      },
+      {
+        text: `update core.enrollments set status = 'active'
+               where tenant_id = $1 and class_id = '00000000-0000-4000-8000-0000000000c1'`,
+        params: [a.tenantId],
+      },
+    ];
+    const ended = await probe(
+      "app",
+      a.tenantId,
+      steps("2027-01-01").slice(0, 3),
+    );
+    expect(ended.error).toBeUndefined();
+    const revived = await probe("app", a.tenantId, steps("2027-01-01"));
+    expect(revived.error?.code).toBe("23503");
+  });
+
+  test("a class code is the school's own among classes that run at the same time", async () => {
+    const { a } = harness();
+    const school = await schoolOf(a.tenantId);
+    const insert = (runs: string) => ({
+      text: `insert into core.classes (tenant_id, org_id, code, title_en, runs)
+             values ($1, $2, 'SAME-1', 'Same', $3::daterange)`,
+      params: [a.tenantId, school.id, runs],
+    });
+    const overlapping = await probe("app", a.tenantId, [
+      insert("[2026-09-13,2027-06-18)"),
+      insert("[2027-01-01,)"),
+    ]);
+    expect(overlapping.error?.code).toBe("23P01");
+    expect(overlapping.error?.message).toContain("classes_code_excl");
+    const after = await probe("app", a.tenantId, [
+      insert("[2026-09-13,2027-06-18)"),
+      insert("[2027-06-18,)"),
+    ]);
+    expect(after.error).toBeUndefined();
+  });
+
+  test("a class belongs to one school year at a time", async () => {
+    const { a } = harness();
+    const school = await schoolOf(a.tenantId);
+    const twice = await probe("app", a.tenantId, [
+      {
+        text: `insert into core.class_years (tenant_id, org_id, class_id, school_year_id)
+               select tenant_id, org_id, class_id, school_year_id from core.class_years
+               where tenant_id = $1 and org_id = $2 and status = 'active' order by id limit 1`,
+        params: [a.tenantId, school.id],
+      },
+    ]);
+    expect(twice.error?.code).toBe("23505");
+    expect(twice.error?.message).toContain("class_years_class_key");
   });
 
   test("a teacher reaches the students of the classes they teach, and no others", async () => {
@@ -1279,8 +1348,8 @@ describe("teaching", () => {
       `select t.user_id as teacher,
               (select count(*)::int from core.enrollments s
                  where s.tenant_id = t.tenant_id and s.class_id = t.class_id and s.role = 'student') as reached,
-              (select count(*)::int from core.student_school_years p
-                 where p.tenant_id = t.tenant_id and p.org_id = $2) as placed
+              (select count(*)::int from core.user_roles p
+                 where p.tenant_id = t.tenant_id and p.org_id = $2 and p.role = 'student') as placed
        from core.enrollments t
        join core.homerooms h on h.tenant_id = t.tenant_id and h.class_id = t.class_id
        where t.tenant_id = $1 and t.role = 'teacher' and h.org_id = $2 limit 1`,

@@ -12,6 +12,7 @@ import {
 import * as v from "valibot";
 
 import { classTitle } from "~/components/classes/format";
+import { classEditorParts } from "~/components/classes/slots";
 import {
   ExistingHomeroomEditor,
   HomeroomEditor,
@@ -20,6 +21,7 @@ import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
 import { homeroomOfClassQuery } from "~/queries/homerooms";
 import { currentUserQuery } from "~/queries/user";
+import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/_staff/homeroom-editor")({
@@ -27,8 +29,8 @@ export const Route = createFileRoute("/_app/_staff/homeroom-editor")({
     trail: <EditorTrail />,
     section: "/classes",
   },
-  validateSearch: v.object({
-    year: v.pipe(v.string(), v.uuid()),
+  // Loose, so the view of a module the form was opened from rides along.
+  validateSearch: v.looseObject({
     id: v.optional(v.pipe(v.string(), v.uuid())),
   }),
   loaderDeps: ({ search }) => search,
@@ -43,6 +45,10 @@ export const Route = createFileRoute("/_app/_staff/homeroom-editor")({
       deps.id
         ? context.queryClient.ensureQueryData(homeroomOfClassQuery(deps.id))
         : null,
+      ...filled(context.extensions, user.modules, classEditorParts).map(
+        (part) =>
+          context.queryClient.ensureQueryData(part.query(deps.id ?? null)),
+      ),
     ]);
   },
   component: HomeroomEditorPage,
@@ -78,7 +84,8 @@ function EditTrail({ classId }: EditTrailProps) {
 }
 
 function HomeroomEditorPage() {
-  const { year, id } = Route.useSearch();
+  const search = Route.useSearch();
+  const { id } = search;
   const navigate = Route.useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
@@ -90,8 +97,8 @@ function HomeroomEditorPage() {
     void navigate({ to: "/classes", search: {} });
   };
   return id ? (
-    <ExistingHomeroomEditor key={id} id={id} onClose={close} />
+    <ExistingHomeroomEditor key={id} id={id} search={search} onClose={close} />
   ) : (
-    <HomeroomEditor yearId={year} onClose={close} />
+    <HomeroomEditor search={search} onClose={close} />
   );
 }

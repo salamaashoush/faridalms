@@ -45,6 +45,7 @@ import * as messagesSystem from "./systems/messages";
 import * as notificationsSystem from "./systems/notifications";
 import * as peerSystem from "./systems/peer";
 import * as peopleSystem from "./systems/people";
+import * as periodsSystem from "./systems/periods";
 import * as picturesSystem from "./systems/pictures";
 import * as privacySystem from "./systems/privacy";
 import * as productSystem from "./systems/product";
@@ -52,6 +53,7 @@ import * as readingSystem from "./systems/reading";
 import * as recordsSystem from "./systems/records";
 import * as rolloverSystem from "./systems/rollover";
 import * as schoolSystem from "./systems/school";
+import * as schoolDaysSystem from "./systems/school-days";
 import * as searchSystem from "./systems/search";
 import * as sharedSystem from "./systems/shared";
 import * as siteSystem from "./systems/site";
@@ -122,6 +124,8 @@ export const router = {
   homerooms: owned("homerooms", homeroomsSystem),
   consents: owned("consents", consentsSystem),
   years: owned("years", yearsSystem),
+  schoolDays: owned("schoolDays", schoolDaysSystem),
+  periods: owned("periods", periodsSystem),
   files: owned("files", filesSystem),
   documents: owned("documents", documentsSystem),
   comments: owned("comments", commentsSystem),

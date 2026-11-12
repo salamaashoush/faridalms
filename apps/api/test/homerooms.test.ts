@@ -3,6 +3,31 @@ import { describe, expect, test } from "bun:test";
 
 import { login, rejection, signedIn } from "./harness";
 
+/** The working year's days and the link to it, as a homeroom made in it carries. */
+async function days(api: Parameters<typeof inYear>[0]) {
+  const { endsBefore: _, ...found } = await inYear(api);
+  return found;
+}
+
+async function inYear(api: {
+  years: {
+    options: () => Promise<{
+      years: { id: string; startsOn: string; endsBefore: string }[];
+      workingYearId: string | null;
+    }>;
+  };
+}) {
+  const options = await api.years.options();
+  const year = options.years.find((row) => row.id === options.workingYearId);
+  if (!year) throw new Error("seed working year");
+  return {
+    startsOn: year.startsOn,
+    endsOn: addDays(year.endsBefore, -1),
+    endsBefore: year.endsBefore,
+    parts: { year: { yearId: year.id } },
+  };
+}
+
 async function principal() {
   return signedIn("northwind", login("principal"));
 }
@@ -81,7 +106,7 @@ describe("saving homerooms", () => {
   test("a homeroom is created with subjects, then a subject is dropped and a teacher changed", async () => {
     const api = await principal();
     const options = await api.classes.options();
-    const year = options.workingYearId ?? "";
+    const { endsBefore: _, ...year } = await inYear(api);
     const [first, second] = options.teachers.filter((row) => row.teaches);
     const [arabic, science] = [
       options.subjects.find((row) => row.code === "arabic"),
@@ -90,7 +115,7 @@ describe("saving homerooms", () => {
     if (!first || !second || !arabic || !science)
       throw new Error("seed options");
     const saved = await api.homerooms.save({
-      yearId: year,
+      ...year,
       code: "T-B",
       titleEn: "Test B",
       titleAr: "اختبار ب",
@@ -111,7 +136,7 @@ describe("saving homerooms", () => {
     await api.homerooms.save({
       id: saved.id,
       expectedVersion: saved.version,
-      yearId: year,
+      ...year,
       code: "T-B",
       titleEn: "Test B",
       titleAr: "اختبار ب",
@@ -130,7 +155,7 @@ describe("saving homerooms", () => {
     expect(
       await rejection(
         api.homerooms.save({
-          yearId: year,
+          ...year,
           code: "T-B",
           titleEn: "Duplicate",
           subjects: [],
@@ -149,7 +174,7 @@ describe("saving homerooms", () => {
     await api.homerooms.save({
       id: homeroom.id,
       expectedVersion: homeroom.version,
-      yearId: options.workingYearId ?? "",
+      ...(await days(api)),
       code: homeroom.code,
       titleEn: homeroom.titleEn ?? "",
       titleAr: homeroom.titleAr ?? "",
@@ -184,7 +209,7 @@ describe("saving homerooms", () => {
     await api.homerooms.save({
       id: homeroom.id,
       expectedVersion: changed?.version ?? homeroom.version,
-      yearId: options.workingYearId ?? "",
+      ...(await days(api)),
       code: homeroom.code,
       titleEn: homeroom.titleEn ?? "",
       titleAr: homeroom.titleAr ?? "",
@@ -207,11 +232,11 @@ describe("saving homerooms", () => {
 
   test("a teacher cannot save homerooms", async () => {
     const teacher = await signedIn("northwind", login("teacher"));
-    const options = await (await principal()).classes.options();
+    const year = await days(await principal());
     expect(
       await rejection(
         teacher.homerooms.save({
-          yearId: options.workingYearId ?? "",
+          ...year,
           code: "NOPE",
           titleEn: "Nope",
           subjects: [],
@@ -262,8 +287,8 @@ describe("a student's place in a homeroom", () => {
     const [a, b, c] = list;
     if (!a || !b || !c) throw new Error("seed homerooms");
     const student = (await api.classes.record({ id: c.id })).roster[1];
-    const year = (await api.classes.directory({})).year;
-    if (!student || !year) throw new Error("seed student");
+    const year = await inYear(api);
+    if (!student) throw new Error("seed student");
     const later = addDays(year.endsBefore, -20);
     const scheduled = await api.homerooms.place({
       studentId: student.userId,
@@ -290,6 +315,56 @@ describe("a student's place in a homeroom", () => {
       expectedVersion: future.version,
       on: later,
     });
+  });
+
+  test("a place due after the homeroom ends, in a later year, does not block a move", async () => {
+    const api = await principal();
+    const list = (await api.homerooms.directory({})).rows.filter(
+      (row) => row.students > 0,
+    );
+    const [a, , c] = list;
+    if (!a || !c) throw new Error("seed homerooms");
+    // The last of them, whom no test above moves, so their year holds one placement.
+    const student = (await api.classes.record({ id: c.id })).roster.at(-1);
+    if (!student) throw new Error("seed student");
+    const later = await api.years.save({
+      titleEn: "Salama's later year",
+      titleAr: "",
+      startsOn: "2051-09-03",
+      endsOn: "2052-06-14",
+      terms: [],
+    });
+    const { id: nextId } = await api.homerooms.save({
+      code: "SA-LATER",
+      titleEn: "Salama later",
+      subjects: [],
+      startsOn: "2051-09-03",
+      endsOn: "2052-06-14",
+      parts: { year: { yearId: later.id } },
+    });
+    const scheduled = await api.homerooms.place({
+      studentId: student.userId,
+      classId: nextId,
+      from: "2051-09-03",
+    });
+    const moved = await api.homerooms.place({
+      studentId: student.userId,
+      classId: a.id,
+    });
+    expect(moved.moved).toBe(true);
+    // Put back, so the other suites find the student where the seed put them.
+    const { rows } = await api.homerooms.history({
+      studentId: student.userId,
+    });
+    const future = rows.find((row) => row.enrollmentId === scheduled.id);
+    if (!future) throw new Error("the scheduled place");
+    await api.homerooms.leave({
+      studentId: student.userId,
+      enrollmentId: future.enrollmentId,
+      expectedVersion: future.version,
+      on: "2051-09-03",
+    });
+    await api.homerooms.place({ studentId: student.userId, classId: c.id });
   });
 
   test("a backdated move cannot reach over a register already taken", async () => {
@@ -353,7 +428,7 @@ describe("a student's place in a homeroom", () => {
     expect(
       kept
         .filter((row) => row.source === "homeroom")
-        .every((row) => row.to <= leaving),
+        .every((row) => row.to !== null && row.to <= leaving),
     ).toBe(true);
     await subjectsFollow(api, homeroom.id, leaving);
   });

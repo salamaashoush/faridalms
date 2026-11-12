@@ -4,6 +4,7 @@ import type {
   CheckInWay,
   RegisterMark,
 } from "@faridalms/domain/attendance";
+import type { OpenSpan } from "@faridalms/domain/school";
 import type { SQL } from "drizzle-orm";
 
 import { DEFAULT_ATTENDANCE_SETTINGS } from "@faridalms/domain/attendance";
@@ -13,6 +14,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type { RegisterState } from "../tables/attendance";
 
+import { rangeOf } from "./classes";
 import { dayPlan, heldOn } from "./day-plan";
 import { holds, isoOf, uuidArray } from "./sql";
 
@@ -909,6 +911,8 @@ export async function attendanceReport(
     tenantId: string;
     schoolId: string;
     yearId: string;
+    /** The year's days, over which its classes run. */
+    during: OpenSpan;
     from: string;
     to: string;
     by: "student" | "class";
@@ -970,7 +974,7 @@ export async function attendanceReport(
     left join core.attendance_events e on e.tenant_id = g.tenant_id and e.taken_on = g.taken_on
       and e.register_id = g.id and e.status = 'active'
     where c.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.schoolId}::uuid
-      and c.school_year_id = ${input.yearId}::uuid and c.status = 'active'
+      and c.runs && ${rangeOf(input.during)}::daterange and c.status = 'active'
       and (${holds(input.q, [sql`c.title_en`, sql`c.title_ar`, sql`c.code`])})
     group by c.id, c.code, c.title_en, c.title_ar
     having c.id = any(${uuidArray(input.dailyClassIds)}) or count(g.id) > 0
@@ -1068,6 +1072,20 @@ export async function lastMarkInClasses(
     where e.tenant_id = ${input.tenantId}::uuid and e.student_user_id = ${input.studentId}::uuid
       and e.taken_on >= ${input.from}::date and e.status = 'active' and g.status = 'active'
       and g.class_id = any(${uuidArray(input.classIds)})`);
+  return row?.last ?? null;
+}
+
+/** The last day on or after the date that a register of the class marks anyone. */
+export async function lastMarkInClass(
+  tx: Tx,
+  input: { tenantId: string; classId: string; from: string },
+): Promise<string | null> {
+  const [row] = await tx.execute<{ last: string | null }>(sql`
+    select to_char(max(e.taken_on), 'YYYY-MM-DD') as last
+    from core.attendance_events e
+    join core.attendance_registers g on g.tenant_id = e.tenant_id and g.id = e.register_id
+    where e.tenant_id = ${input.tenantId}::uuid and g.class_id = ${input.classId}::uuid
+      and e.taken_on >= ${input.from}::date and e.status = 'active' and g.status = 'active'`);
   return row?.last ?? null;
 }
 

@@ -1,17 +1,18 @@
-import type { NextYearIntention } from "@faridalms/domain/rollover";
 import type { Tone } from "@faridalms/ui/system/status";
 import type { LinkProps } from "@tanstack/react-router";
 
-import { NEXT_YEAR_INTENTIONS } from "@faridalms/domain/rollover";
 import { Button } from "@faridalms/ui/button";
-import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
 import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordColumns } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
-import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useSuspenseQueries,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import {
   createFileRoute,
   Link,
@@ -19,7 +20,7 @@ import {
 } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { House, LoaderCircle, Smile } from "lucide-react";
-import { useState } from "react";
+import { Fragment } from "react";
 import * as v from "valibot";
 
 import { classTitle } from "~/components/classes/format";
@@ -29,15 +30,18 @@ import {
   HomeList,
   itemLink,
 } from "~/components/home/parts";
+import { familyChildParts } from "~/components/home/slots";
 import { displayName } from "~/components/people/format";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSessionChange } from "~/hooks/useSessionChange";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { familyHomeQuery } from "~/queries/home";
+import { currentUserQuery } from "~/queries/user";
 import { startChildMode } from "~/server/auth";
-import { setIntention } from "~/server/rollover";
 import { formatInstant, formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { filled } from "~/utils/extension";
 
 export const Route = createFileRoute("/_app/family/")({
   validateSearch: v.object({
@@ -48,8 +52,18 @@ export const Route = createFileRoute("/_app/family/")({
   }),
   search: { middlewares: [stripSearchParams({ child: "" })] },
   loaderDeps: ({ search }) => ({ child: search.child }),
-  loader: ({ context, deps }) =>
-    context.queryClient.ensureQueryData(familyHomeQuery(deps.child)),
+  loader: async ({ context, deps }) => {
+    const user = await context.queryClient.ensureQueryData(currentUserQuery);
+    await Promise.all([
+      context.queryClient.ensureQueryData(familyHomeQuery(deps.child)),
+      ...filled(context.extensions, user.modules, familyChildParts).flatMap(
+        (part) => {
+          const query = part.query(user.capabilities);
+          return query ? [context.queryClient.ensureQueryData(query)] : [];
+        },
+      ),
+    ]);
+  },
   component: FamilyHome,
 });
 
@@ -147,72 +161,6 @@ function HandOver({ child }: HandOverProps) {
   );
 }
 
-const INTENTION_LABEL = {
-  returning: m.familyNextYearReturning,
-  undecided: m.familyNextYearUndecided,
-  leaving: m.familyNextYearLeaving,
-} satisfies Record<NextYearIntention, () => string>;
-
-interface NextYearProps {
-  child: Child;
-  nextYear: NonNullable<Child["nextYear"]>;
-}
-
-/**
- * The school's question about a child's next year, for a guardian who
- * decides for them: each choice is kept as it is made, and can change
- * while the school is asking.
- */
-function NextYear({ child, nextYear }: NextYearProps) {
-  const save = useServerFn(setIntention);
-  const [chosen, setChosen] = useState(nextYear.intention);
-  const answer = useMutation({
-    mutationFn: (intention: NextYearIntention) =>
-      save({ data: { studentId: child.studentId, intention } }),
-    meta: { inlineError: true },
-  });
-  const legend = m.familyNextYearTitle({
-    name: displayName(child),
-    year: inLocale(nextYear.titleEn, nextYear.titleAr),
-  });
-  return (
-    <fieldset className="grid gap-2 border-t pt-4">
-      <legend className="float-start mb-1 text-sm font-semibold">
-        <bdi>{legend}</bdi>
-      </legend>
-      <RadioGroup
-        value={chosen ?? ""}
-        onValueChange={(value) => {
-          const intention = NEXT_YEAR_INTENTIONS.find((item) => item === value);
-          if (!intention) return;
-          setChosen(intention);
-          answer.mutate(intention);
-        }}
-        className="grid gap-1"
-      >
-        {NEXT_YEAR_INTENTIONS.map((intention) => (
-          <label
-            key={intention}
-            className="flex min-h-8 items-center gap-3 text-sm leading-5 max-md:min-h-10"
-          >
-            <RadioGroupItem value={intention} disabled={answer.isPending} />
-            {INTENTION_LABEL[intention]()}
-          </label>
-        ))}
-      </RadioGroup>
-      {answer.error ? (
-        <p role="alert" className="text-[13px] leading-[18px] text-destructive">
-          {getMessageFromError(answer.error)}
-        </p>
-      ) : (
-        <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {chosen ? m.familyNextYearKept() : m.familyNextYearHint()}
-        </p>
-      )}
-    </fieldset>
-  );
-}
-
 interface ChildCardProps {
   child: Child;
   single: boolean;
@@ -220,6 +168,18 @@ interface ChildCardProps {
 
 function ChildCard({ child, single }: ChildCardProps) {
   const presence = PRESENCE[child.presence];
+  const { capabilities } = useCurrentUser();
+  const parts = useSlot(familyChildParts).flatMap((part) => {
+    const query = part.query(capabilities);
+    return query ? [{ part, query }] : [];
+  });
+  const reads = useSuspenseQueries({
+    queries: parts.map((row) => row.query),
+  });
+  const childParts = parts.map((row, index) => ({
+    part: row.part,
+    read: reads[index]?.data,
+  }));
   return (
     <HomeCard
       title={displayName(child)}
@@ -304,9 +264,9 @@ function ChildCard({ child, single }: ChildCardProps) {
             title={m.homeChildClear()}
           />
         ) : null}
-        {child.nextYear ? (
-          <NextYear child={child} nextYear={child.nextYear} />
-        ) : null}
+        {childParts.map((part, index) => (
+          <Fragment key={index}>{part.part.partOf(part.read, child)}</Fragment>
+        ))}
         {child.young ? <HandOver child={child} /> : null}
       </div>
     </HomeCard>

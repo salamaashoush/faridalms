@@ -7,23 +7,21 @@ import {
   memberships,
 } from "@faridalms/database/stores/homerooms";
 import {
-  dayIn,
-  holdYear,
-  schoolYears,
-  workingYear,
-} from "@faridalms/database/stores/years";
-import {
-  homeroomDirectorySchema,
+  homeroomDirectoryInputSchema,
   leaveHomeroomSchema,
   ofClassSchema,
   placeSchema,
   saveHomeroomSchema,
 } from "@faridalms/domain/homerooms";
+import { addDays, dayWithin, spanHolds } from "@faridalms/domain/school";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
-import type { UnitContext } from "../core/context";
-
+import {
+  classViewOf,
+  requireChangeable,
+  saveClassParts,
+} from "../classes/points";
 import {
   audit,
   can,
@@ -33,7 +31,6 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { reachesClass, requireStudent, scopeFor } from "../core/reach";
-import { yearOf } from "../core/years";
 import {
   homeroomClass,
   leaveHomeroom,
@@ -43,38 +40,33 @@ import {
 
 const id = v.pipe(v.string(), v.uuid());
 
-async function openYear(context: UnitContext, yearId: string) {
-  const { year } = await yearOf(context, yearId);
-  if (!year) throw new ORPCError("NOT_FOUND");
-  const lifecycle = await holdYear(context.tx, context.tenantId, year.id);
-  if (!lifecycle) throw new ORPCError("NOT_FOUND");
-  if (lifecycle === "closed")
-    throw new ORPCError("CONFLICT", { message: "school_year.closed" });
-  return year;
-}
-
-/** The homerooms of a year, each with its teachers, size and subject classes. */
+/**
+ * The school's homerooms, each with its teachers, size and subject classes:
+ * those a module's view names, else those still running or yet to start,
+ * or those ended.
+ */
 export const directory = readProcedure
-  .input(homeroomDirectorySchema)
+  .input(homeroomDirectoryInputSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "classes:read", "classes:manage");
-    const { year } = await yearOf(context, input.year);
-    if (!year) return { yearId: null, rows: [], manage: false };
+    const view = await classViewOf(context, input.views);
+    const on = view?.on ?? context.today;
     const rows = await homeroomDirectory(
       context.tx,
       scopeFor(context, "classes"),
       {
-        yearId: year.id,
-        on: dayIn(year, context.today),
+        on,
+        classIds: view?.classIds ?? null,
+        ended: input.ended,
         q: input.q,
         gradeIds: input.grade,
         locale: localeOf(context),
       },
     );
     return {
-      yearId: year.id,
+      on,
       rows,
-      manage: can(context, "classes:manage") && year.lifecycle !== "closed",
+      manage: can(context, "classes:manage") && !view?.settled,
     };
   });
 
@@ -122,20 +114,17 @@ export const ofClass = readProcedure
     };
   });
 
-/** How many of the working year's homerooms have no teacher today. */
+/** How many of the homerooms running today have no teacher. */
 export const unstaffed = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "classes:read", "classes:manage");
-  const year = workingYear(
-    await schoolYears(context.tx, context.tenantId, context.schoolId),
-    context.today,
-  );
-  if (!year) return { count: 0 };
+  const view = await classViewOf(context, {});
   const rows = await homeroomDirectory(
     context.tx,
     scopeFor(context, "school"),
     {
-      yearId: year.id,
-      on: context.today,
+      on: view?.on ?? context.today,
+      classIds: view?.classIds ?? null,
+      ended: false,
       q: "",
       gradeIds: [],
       locale: "en",
@@ -148,9 +137,20 @@ export const save = writeProcedure
   .input(saveHomeroomSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "classes:manage");
-    const year = await openYear(context, input.yearId);
     const before = input.id ? await homeroomClass(context, input.id) : null;
-    const homeroomId = await writeHomeroom(context, year, input);
+    if (input.id && !before) throw new ORPCError("NOT_FOUND");
+    if (before) await requireChangeable(context, before.id);
+    const runs = {
+      from: input.startsOn,
+      to: input.endsOn ? addDays(input.endsOn, 1) : null,
+    };
+    const { homeroomId, classIds } = await writeHomeroom(context, runs, input);
+    await saveClassParts(context, {
+      classIds,
+      runs,
+      parts: input.parts,
+      created: !before,
+    });
     await audit(context, {
       action: input.id ? "class.update" : "class.create",
       objectType: "class",
@@ -166,6 +166,7 @@ export const save = writeProcedure
         titleAr: input.titleAr || null,
         gradeId: input.gradeId || null,
         locationId: input.locationId || null,
+        runs,
       }),
     });
     const saved = await homeroomClass(context, homeroomId);
@@ -183,16 +184,15 @@ export const place = writeProcedure
     await requireStudent(context, "classes", input.studentId);
     const homeroom = await homeroomClass(context, input.classId);
     if (!homeroom) throw new ORPCError("NOT_FOUND");
-    const year = await openYear(context, homeroom.schoolYearId);
-    const from = input.from || dayIn(year, context.today);
-    if (from < year.startsOn || from >= year.endsBefore)
+    await requireChangeable(context, homeroom.id);
+    const from = input.from || dayWithin(homeroom.runs, context.today);
+    if (!spanHolds(homeroom.runs, { from, to: addDays(from, 1) }))
       throw new ORPCError("BAD_REQUEST", {
-        message: "enrollment.outside_year",
+        message: "enrollment.outside_class",
       });
     const placed = await placeInHomeroom(context, {
       studentId: input.studentId,
       homeroom,
-      year,
       from,
       source: "manual",
     });
@@ -222,8 +222,8 @@ export const leave = writeProcedure
       (row) => row.enrollmentId === input.enrollmentId,
     );
     if (!seat) throw new ORPCError("NOT_FOUND");
-    const year = await openYear(context, seat.schoolYearId);
-    const on = input.on || dayIn(year, context.today);
+    await requireChangeable(context, seat.classId);
+    const on = input.on || dayWithin(seat, context.today);
     const classId = await leaveHomeroom(context, { ...input, on });
     await audit(context, {
       action: "enrollment.end",
@@ -244,7 +244,9 @@ export const history = readProcedure
     await requireStudent(context, "classes", input.studentId);
     const rows = await memberships(context.tx, context, input.studentId);
     const current = rows.find(
-      (row) => row.from <= context.today && context.today < row.to,
+      (row) =>
+        row.from <= context.today &&
+        (row.to === null || context.today < row.to),
     );
     const teachers = current
       ? (

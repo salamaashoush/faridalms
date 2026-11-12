@@ -1,15 +1,12 @@
-import { paintDaysSchema, targetDaysSchema } from "@faridalms/domain/calendar";
+import { targetDaysSchema } from "@faridalms/domain/calendar";
 import { historyQuerySchema } from "@faridalms/domain/history";
 import {
-  periodsQuerySchema,
-  removeBellScheduleSchema,
-  runDayAsSchema,
-  saveBellScheduleSchema,
-  savePeriodsSchema,
-  scheduleDaysSchema,
-} from "@faridalms/domain/timetable";
-import { saveYearSchema, yearLifecycleSchema } from "@faridalms/domain/years";
+  saveArrivalSchema,
+  saveYearSchema,
+  yearLifecycleSchema,
+} from "@faridalms/domain/years";
 import { createServerFn } from "@tanstack/react-start";
+import * as v from "valibot";
 
 import { backend, record } from "./backend";
 import { byId, checked } from "./input";
@@ -34,38 +31,32 @@ export const changeYearLifecycle = createServerFn({ method: "POST" })
   .validator(checked(yearLifecycleSchema))
   .handler(({ data }) => backend().years.lifecycle(data));
 
-export const getYearDays = createServerFn({ method: "GET" })
-  .validator(byId)
-  .handler(({ data }) => record(backend().years.days(data)));
-
-export const paintYearDays = createServerFn({ method: "POST" })
-  .validator(checked(paintDaysSchema))
-  .handler(({ data }) => backend().years.paint(data));
-
 export const setYearTarget = createServerFn({ method: "POST" })
   .validator(checked(targetDaysSchema))
   .handler(({ data }) => backend().years.target(data));
 
-export const getYearPeriods = createServerFn({ method: "GET" })
-  .validator(checked(periodsQuerySchema))
-  .handler(({ data }) => record(backend().years.periods(data)));
+export const getYearOptions = createServerFn({ method: "GET" }).handler(() =>
+  record(backend().years.options()),
+);
 
-export const saveYearPeriods = createServerFn({ method: "POST" })
-  .validator(checked(savePeriodsSchema))
-  .handler(({ data }) => backend().years.savePeriods(data));
+const uuid = v.pipe(v.string(), v.uuid());
 
-export const saveBellSchedule = createServerFn({ method: "POST" })
-  .validator(checked(saveBellScheduleSchema))
-  .handler(({ data }) => backend().years.saveSchedule(data));
+export const getClassYear = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ classId: uuid })))
+  .handler(({ data }) => record(backend().years.ofClass(data)));
 
-export const removeBellSchedule = createServerFn({ method: "POST" })
-  .validator(checked(removeBellScheduleSchema))
-  .handler(({ data }) => backend().years.removeSchedule(data));
+export const getStudentClassYears = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ studentId: uuid })))
+  .handler(({ data }) => record(backend().years.ofStudentClasses(data)));
 
-export const scheduleYearDays = createServerFn({ method: "POST" })
-  .validator(checked(scheduleDaysSchema))
-  .handler(({ data }) => backend().years.scheduleRange(data));
+export const getPlacements = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ studentId: uuid })))
+  .handler(({ data }) => record(backend().years.placementsOf(data)));
 
-export const runYearDayAs = createServerFn({ method: "POST" })
-  .validator(checked(runDayAsSchema))
-  .handler(({ data }) => backend().years.runDay(data));
+export const saveArrival = createServerFn({ method: "POST" })
+  .validator(checked(saveArrivalSchema))
+  .handler(({ data }) => backend().years.saveArrival(data));
+
+export const getYearEnd = createServerFn({ method: "GET" }).handler(() =>
+  record(backend().years.yearEnd()),
+);

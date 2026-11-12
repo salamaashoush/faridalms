@@ -323,19 +323,16 @@ as $$
     where o.tenant_id = app.tenant_id() and o.id = p_school and o.type = 'school'
       and o.lifecycle = 'active' and o.status = 'active'
   ), members as (
-    select s.student_user_id from core.student_school_years s, school
-    where s.tenant_id = app.tenant_id() and s.org_id = school.id and s.status = 'active'
-    union
-    select r.user_id from core.user_roles r, school
+    select r.user_id as student_user_id from core.user_roles r, school
     where r.tenant_id = app.tenant_id() and r.org_id = school.id and r.role = 'student' and r.status = 'active'
   ), staying as (
-    select s.student_user_id from core.student_school_years s, school
-    where s.tenant_id = app.tenant_id() and s.org_id = school.id and s.status = 'active'
-      and upper(s.valid_during) > p_on
-    union
-    select r.user_id from core.user_roles r, school
+    select r.user_id as student_user_id from core.user_roles r, school
     where r.tenant_id = app.tenant_id() and r.org_id = school.id and r.role = 'student' and r.status = 'active'
       and (upper_inf(r.valid_during) or upper(r.valid_during) > p_on)
+    union
+    select d.student_user_id from core.student_departures d, school
+    where d.tenant_id = app.tenant_id() and d.org_id = school.id and d.status = 'active'
+      and d.access_ends_on > p_on
   ), taught as (
     select c.id as class_id
     from core.enrollments t
@@ -464,6 +461,9 @@ as $$
         where s.tenant_id = o.tenant_id and s.user_id = o.user_id and s.org_id = p_school
           and s.role = 'student' and s.status = 'active'
           and (upper_inf(s.valid_during) or upper(s.valid_during) > p_on))
+      and not exists (select 1 from core.student_departures d
+        where d.tenant_id = o.tenant_id and d.student_user_id = o.user_id and d.org_id = p_school
+          and d.status = 'active' and d.access_ends_on > p_on)
   )
   select f.user_id, true from full_reach f
   union
@@ -526,7 +526,7 @@ $$;
 revoke all on function app.normalize_name(text) from public;
 grant execute on function app.normalize_name(text) to app, worker;
 
-create function app.search(q text, types text[], org_scope uuid[] default null, after_rank real default null, after_id uuid default null, max_rows integer default 50, prefer_year uuid default null, within uuid[] default null)
+create function app.search(q text, types text[], org_scope uuid[] default null, after_rank real default null, after_id uuid default null, max_rows integer default 50, prefer_on date default null, within uuid[] default null)
 returns table (result_type text, result_id uuid, rank real)
 language sql stable security definer
 set search_path = pg_catalog, pg_temp
@@ -549,10 +549,10 @@ as $$
            or e.text_vector @@ query.en)
   ), best as (
     select h.result_type, h.result_id,
-           (max(h.rank) + case when prefer_year is not null and h.result_type = 'class'
+           (max(h.rank) + case when prefer_on is not null and h.result_type = 'class'
               and exists (select 1 from core.classes c
                           where c.tenant_id = app.tenant_id() and c.id = h.result_id
-                            and c.school_year_id = prefer_year)
+                            and c.runs @> prefer_on)
               then 1 else 0 end)::real as rank
     from hits h group by h.result_type, h.result_id
   )
@@ -561,8 +561,8 @@ as $$
   order by b.rank desc, b.result_id desc
   limit least(max_rows, 200)
 $$;
-revoke all on function app.search(text, text[], uuid[], real, uuid, integer, uuid, uuid[]) from public;
-grant execute on function app.search(text, text[], uuid[], real, uuid, integer, uuid, uuid[]) to
+revoke all on function app.search(text, text[], uuid[], real, uuid, integer, date, uuid[]) from public;
+grant execute on function app.search(text, text[], uuid[], real, uuid, integer, date, uuid[]) to
   app, worker;
 
 create function app.index_user() returns trigger

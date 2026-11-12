@@ -1,4 +1,4 @@
-import type { ClassDirectoryQuery } from "@faridalms/domain/classes";
+import type { ClassDirectoryQuery, Views } from "@faridalms/domain/classes";
 
 import { queryOptions } from "@tanstack/react-query";
 
@@ -17,16 +17,25 @@ export const classOptionsQuery = queryOptions({
   staleTime: 60_000,
 });
 
-export const classDirectoryQuery = (query: ClassDirectoryQuery) =>
-  queryOptions({
-    queryKey: ["classes", "directory", query],
-    queryFn: () => getClassDirectory({ data: query }),
+export const classDirectoryQuery = (
+  query: ClassDirectoryQuery & { views: Views },
+) => {
+  const data = {
+    q: query.q,
+    grade: query.grade,
+    ended: query.ended,
+    views: query.views,
+  };
+  return queryOptions({
+    queryKey: ["classes", "directory", data],
+    queryFn: () => getClassDirectory({ data }),
   });
+};
 
-export const myClassesQuery = (year: string) =>
+export const myClassesQuery = (views: Views) =>
   queryOptions({
-    queryKey: ["classes", "mine", year],
-    queryFn: () => getMyClasses({ data: { year } }),
+    queryKey: ["classes", "mine", views],
+    queryFn: () => getMyClasses({ data: { views } }),
   });
 
 export const classRecordQuery = (id: string, on = "") =>

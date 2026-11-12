@@ -34,7 +34,9 @@ describe("students", () => {
     const api = await signedIn("northwind", login("principal"));
     expect(
       await rejection(
-        api.people.students({ year: "01a1aa00-0000-7000-8000-000000000000" }),
+        api.people.students({
+          views: { year: "01a1aa00-0000-7000-8000-000000000000" },
+        }),
       ),
     ).toMatchObject({ code: "NOT_FOUND" });
   });
@@ -104,7 +106,7 @@ describe("students", () => {
       names: names("Laila Ashoush", "ليلى عشوش"),
       reference: "NO9001",
       birthDate: "2014-03-02",
-      gradeId: grade.id,
+      parts: { year: { gradeId: grade.id } },
       guardians: [
         {
           person: {
@@ -127,7 +129,10 @@ describe("students", () => {
     const record = await api.people.student({ id: created.id });
     expect(record.reference).toBe("NO9001");
     expect(record.status).toBe("enrolled");
-    expect(record.placement?.gradeId).toBe(grade.id);
+    expect(
+      (await api.years.placementsOf({ studentId: created.id })).current
+        ?.gradeId,
+    ).toBe(grade.id);
     expect(record.guardians?.[0]?.contacts[0]?.normalized).toBe(
       "+201005550101",
     );
@@ -287,17 +292,18 @@ describe("students", () => {
     const api = await signedIn("northwind", login("principal"));
     const options = await api.people.options();
     const grade = options.grades.find((row) => row.code === "grade_7");
-    const transfer = options.entryTypes.find(
+    const transfer = (await api.years.options()).entryTypes.find(
       (row) => row.code === "transfer_in",
     );
     if (!grade || !transfer) throw new Error("options");
     const { id: studentId } = await api.people.saveStudent({
       names: names("Salama Ashoush", "سلامة عشوش"),
       reference: "NO9731",
-      gradeId: grade.id,
+      parts: { year: { gradeId: grade.id } },
     });
-    const placement = (await api.people.student({ id: studentId }))
-      .placements[0];
+    const firstPlacement = async () =>
+      (await api.years.placementsOf({ studentId })).placements[0];
+    const placement = await firstPlacement();
     if (!placement) throw new Error("the student was not placed");
     expect(placement).toMatchObject({
       entryTypeId: null,
@@ -305,30 +311,29 @@ describe("students", () => {
     });
 
     const arrival = { studentId, placementId: placement.id };
-    await api.people.saveArrival({
+    await api.years.saveArrival({
       ...arrival,
       entryTypeId: transfer.id,
       previousSchool: "  Nile Valley School ",
     });
-    expect(
-      (await api.people.student({ id: studentId })).placements[0],
-    ).toMatchObject({
+    expect(await firstPlacement()).toMatchObject({
       entryTypeId: transfer.id,
       previousSchool: "Nile Valley School",
     });
     // Cleared again, both read as not recorded.
-    await api.people.saveArrival({
+    await api.years.saveArrival({
       ...arrival,
       entryTypeId: "",
       previousSchool: "",
     });
-    expect(
-      (await api.people.student({ id: studentId })).placements[0],
-    ).toMatchObject({ entryTypeId: null, previousSchool: null });
+    expect(await firstPlacement()).toMatchObject({
+      entryTypeId: null,
+      previousSchool: null,
+    });
 
     expect(
       await rejection(
-        api.people.saveArrival({
+        api.years.saveArrival({
           ...arrival,
           placementId: crypto.randomUUID(),
           entryTypeId: transfer.id,
@@ -338,7 +343,7 @@ describe("students", () => {
     ).toMatchObject({ code: "NOT_FOUND" });
     expect(
       await rejection(
-        api.people.saveArrival({
+        api.years.saveArrival({
           ...arrival,
           entryTypeId: crypto.randomUUID(),
           previousSchool: "",
@@ -348,7 +353,7 @@ describe("students", () => {
     const teacher = await signedIn("northwind", login("teacher"));
     expect(
       await rejection(
-        teacher.people.saveArrival({
+        teacher.years.saveArrival({
           ...arrival,
           entryTypeId: "",
           previousSchool: "",
@@ -660,7 +665,7 @@ describe("sign-in", () => {
         await api.people.saveStudent({
           names: names("Salama Ashoush", "سلامة عشوش"),
           reference,
-          gradeId: grade.id,
+          parts: { year: { gradeId: grade.id } },
         })
       ).id;
     const [numbered, named, second] = [
@@ -736,7 +741,7 @@ describe("sign-in", () => {
         ar: { given: "سلامة", family: "عشوش" },
       },
       reference: "7",
-      gradeId: grade.id,
+      parts: { year: { gradeId: grade.id } },
     });
     expect(
       await api.people.createSignIns({
@@ -1025,8 +1030,9 @@ describe("leaving the school", () => {
   async function enrolled(reference: string, email: string) {
     const api = await signedIn("northwind", login("principal"));
     const options = await api.people.options();
+    const years = await api.years.options();
     const mother = options.relations.find((row) => row.code === "mother");
-    const year = options.years.find((row) => row.id === options.workingYearId);
+    const year = years.years.find((row) => row.id === years.workingYearId);
     const room = (await api.homerooms.directory({})).rows[0];
     if (!mother || !year || !room) throw new Error("seed");
     const { id: studentId } = await api.people.saveStudent({
@@ -1065,7 +1071,7 @@ describe("leaving the school", () => {
       loginName: email,
       password,
     });
-    const reason = options.exitTypes.find((row) => row.code === "transfer_out");
+    const reason = years.exitTypes.find((row) => row.code === "transfer_out");
     if (!reason) throw new Error("the seed lacks a transfer as a reason");
     const today = (await api.people.students({})).today;
     return {
@@ -1089,18 +1095,27 @@ describe("leaving the school", () => {
     const left = await api.people.recordLeaving({
       studentId,
       lastDay: yesterday,
-      exitTypeId: reasonId,
-      destination: "Nile Valley School",
-      access: "year_end",
+      accessUntil: addDays(year.endsBefore, -1),
+      parts: {
+        year: { exitTypeId: reasonId, destination: "Nile Valley School" },
+      },
     });
     expect(left.lastDay).toBe(yesterday);
-    expect(left.accessUntil >= year.endsBefore).toBe(true);
+    expect(left.accessEndsOn).toBe(year.endsBefore);
 
     const record = await api.people.student({ id: studentId });
     expect(record.status).toBe("left");
-    expect(record.placement).toBeNull();
-    expect(record.accessUntil).toBe(left.accessUntil);
-    expect(record.placements[0]).toMatchObject({
+    expect(record.departure).toEqual({
+      leftOn: today,
+      accessEndsOn: year.endsBefore,
+    });
+    // The day they left is the day their student role ends, whatever the
+    // access the family keeps.
+    expect(record.roles.at(-1)?.to).toBe(today);
+    const placed = await api.years.placementsOf({ studentId });
+    expect(placed.current).toBeNull();
+    expect(placed.status).toBe("left");
+    expect(placed.placements[0]).toMatchObject({
       to: today,
       exitMeaning: "transfer_out",
       destinationSchool: "Nile Valley School",
@@ -1130,10 +1145,9 @@ describe("leaving the school", () => {
     const left = await api.people.recordLeaving({
       studentId,
       lastDay: yesterday,
-      exitTypeId: reasonId,
-      access: "last_day",
+      parts: { year: { exitTypeId: reasonId } },
     });
-    expect(left.accessUntil).toBe(today);
+    expect(left.accessEndsOn).toBe(today);
     // With no child left to follow, the mother's family session stops.
     expect(await rejection(family.home.family({}))).toMatchObject({
       code: "UNAUTHORIZED",
@@ -1144,8 +1158,10 @@ describe("leaving the school", () => {
     });
     const record = await api.people.student({ id: studentId });
     expect(record.status).toBe("enrolled");
-    expect(record.accessUntil).toBeNull();
-    expect(record.placements[0]).toMatchObject({
+    expect(record.departure).toBeNull();
+    expect(
+      (await api.years.placementsOf({ studentId })).placements[0],
+    ).toMatchObject({
       to: year.endsBefore,
       exitTypeId: null,
       destinationSchool: null,
@@ -1169,14 +1185,13 @@ describe("leaving the school", () => {
     await api.people.recordLeaving({
       studentId,
       lastDay: yesterday,
-      exitTypeId: reasonId,
-      access: "last_day",
+      parts: { year: { exitTypeId: reasonId } },
     });
   });
 
   test("a register that marks the student later, a day they were not enrolled and a teacher are refused", async () => {
     const api = await signedIn("northwind", login("principal"));
-    const options = await api.people.options();
+    const options = await api.years.options();
     const reason = options.exitTypes.find((row) => row.code === "withdrawn");
     const year = options.years.find((row) => row.id === options.workingYearId);
     if (!reason || !year) throw new Error("seed");
@@ -1184,8 +1199,7 @@ describe("leaving the school", () => {
     const me = await student.identity.currentUser();
     const leaving = {
       studentId: me.id,
-      exitTypeId: reason.id,
-      access: "year_end" as const,
+      parts: { year: { exitTypeId: reason.id } },
     };
     // The seed's registers mark the student in the days after this one.
     expect(
@@ -1211,7 +1225,7 @@ describe("leaving the school", () => {
         api.people.recordLeaving({
           ...leaving,
           lastDay: year.startsOn,
-          exitTypeId: crypto.randomUUID(),
+          parts: { year: { exitTypeId: crypto.randomUUID() } },
         }),
       ),
     ).toMatchObject({ code: "NOT_FOUND" });

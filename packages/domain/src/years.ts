@@ -191,3 +191,84 @@ export function yearStanding(
   if (year.lifecycle !== "upcoming") return year.lifecycle;
   return year.startsOn > today ? "upcoming" : "open";
 }
+
+/**
+ * Where a student stands in the school's years by their placements:
+ * unplaced with none, enrolled in one that holds today, pre-enrolled when
+ * only a later one is to come, and otherwise as their latest one ended.
+ */
+export function placementStatus(
+  placements: readonly {
+    validFrom: string;
+    validTo: string;
+    exitMeaning: string | null;
+  }[],
+  today: string,
+): "enrolled" | "pre_enrolled" | "left" | "graduated" | "unplaced" {
+  if (placements.length === 0) return "unplaced";
+  if (placements.some((row) => row.validFrom <= today && today < row.validTo))
+    return "enrolled";
+  const latest = placements.toSorted((a, b) =>
+    b.validTo.localeCompare(a.validTo),
+  )[0];
+  if (latest && latest.validFrom > today) return "pre_enrolled";
+  if (latest?.exitMeaning === "graduated") return "graduated";
+  if (latest?.exitMeaning) return "left";
+  // A year that ended without an exit is a student who continues.
+  return "enrolled";
+}
+
+/**
+ * The day a leaver's reading of the record would close to keep the year
+ * they left in: the day the next one begins, since results and reports come
+ * out after lessons end, or the year's own end where no later year is set up.
+ */
+export function nextYearBegins(
+  years: readonly { startsOn: string }[],
+  year: { endsBefore: string },
+): string {
+  return (
+    years
+      .map((row) => row.startsOn)
+      .filter((starts) => starts >= year.endsBefore)
+      .toSorted()[0] ?? year.endsBefore
+  );
+}
+
+/** The year a list is narrowed to, or every class or student whatever their year. */
+export const yearViewSchema = v.union([v.literal("all"), id]);
+
+/** A class's year, chosen on the class form; empty leaves it in none. */
+export const classYearPartSchema = v.object({
+  yearId: v.union([v.literal(""), id]),
+});
+
+/** A student's grade in the working year, chosen on the student form. */
+export const studentYearPartSchema = v.object({
+  gradeId: v.union([v.literal(""), id]),
+});
+
+const optionalText = (max: number) =>
+  v.optional(
+    v.pipe(
+      v.string(),
+      v.trim(),
+      v.maxLength(max),
+      v.transform((value) => (value === "" ? null : value)),
+    ),
+    "",
+  );
+
+/** Why a student left and where they went, recorded on their placement. */
+export const leavingYearPartSchema = v.object({
+  exitTypeId: id,
+  destination: optionalText(160),
+});
+
+export const saveArrivalSchema = v.object({
+  studentId: id,
+  placementId: id,
+  entryTypeId: v.union([v.literal(""), id]),
+  previousSchool: optionalText(160),
+});
+export type SaveArrivalInput = v.InferInput<typeof saveArrivalSchema>;

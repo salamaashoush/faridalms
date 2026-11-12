@@ -35,8 +35,8 @@ export async function candidates(
     orgScope: readonly string[];
     after: { rank: number; id: string } | null;
     max: number;
-    /** Classes of this year come first. */
-    preferYear?: string | null;
+    /** A class running on this day ranks first. */
+    preferOn?: string | null;
     within: SQL;
   },
 ): Promise<Candidate[]> {
@@ -48,7 +48,7 @@ export async function candidates(
     select result_type, result_id, rank
     from app.search(${input.q}, ${textArray(input.types)}, ${uuidArray(input.orgScope)},
       ${input.after?.rank ?? null}::real, ${input.after?.id ?? null}::uuid, ${input.max},
-      ${input.preferYear ?? null}::uuid, array${input.within})`);
+      ${input.preferOn ?? null}::date, array${input.within})`);
   return rows.map((row) => ({
     type: row.result_type,
     id: row.result_id,
@@ -137,7 +137,11 @@ export const peopleReached = (scope: Scope) =>
     where not exists (select 1 from core.user_roles r
       where r.tenant_id = ${scope.tenantId}::uuid and r.org_id = ${scope.schoolId}::uuid
         and r.user_id = v.user_id and r.role = 'student' and r.status = 'active'
-        and r.valid_during @> ${scope.today}::date))`;
+        and r.valid_during @> ${scope.today}::date)
+      and not exists (select 1 from core.student_departures d
+        where d.tenant_id = ${scope.tenantId}::uuid and d.org_id = ${scope.schoolId}::uuid
+          and d.student_user_id = v.user_id and d.status = 'active'
+          and d.left_on <= ${scope.today}::date and d.access_ends_on > ${scope.today}::date))`;
 
 /** The classes the viewer reaches, with those a module opens to them besides. */
 export const classesReached = (scope: Scope, besides: readonly string[]) =>
@@ -193,15 +197,10 @@ export async function classesAmong(
   return found(
     await tx.execute<Raw>(sql`
       select c.id, 'class' as type, ${titled(input.ar, "c")} as title, null as snippet,
-        concat_ws(' · ', c.code, ${
-          input.ar
-            ? sql`coalesce(y.title_ar, y.title_en)`
-            : sql`coalesce(y.title_en, y.title_ar)`
-        }, case when y.title_ar is null and y.title_en is null
-          then concat(y.school_year - 1, '–', y.school_year) end) as context,
+        concat_ws(' · ', c.code, to_char(lower(c.runs), 'YYYY-MM-DD') || ' – ' ||
+          coalesce(to_char(upper(c.runs) - 1, 'YYYY-MM-DD'), '')) as context,
         null as "when", null as flag, null as roles
       from core.classes c
-      join core.academic_sessions y on y.tenant_id = c.tenant_id and y.id = c.school_year_id
       where c.tenant_id = ${scope.tenantId}::uuid and c.id = any(${uuidArray(input.ids)}) and c.status = 'active'
         and c.id in ${classesReached(scope, input.besides)}`),
   );

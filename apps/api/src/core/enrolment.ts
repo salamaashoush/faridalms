@@ -14,14 +14,16 @@ import {
 } from "@faridalms/database/stores/descriptors";
 import {
   calendarFor,
+  place,
+  placements,
+  saveArrival,
+} from "@faridalms/database/stores/placements";
+import {
   guardiansOf,
   insertRelationship,
   person as readPerson,
-  place,
-  placements,
   referenceOf,
   refreshCustodyAlert,
-  saveArrival,
   setReference,
   syncFamilyRoles,
   updateRelationship,

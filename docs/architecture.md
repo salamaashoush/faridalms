@@ -96,8 +96,8 @@ grants, functions, triggers, partitioned tables, exclusion constraints)
 lives in custom migrations beside the generated ones. Every table of
 `core`, `health` and `audit` belongs to core or to one module of
 `packages/domain/src/modules.ts`, as every API namespace does, and its keys
-and the columns that carry a module's concept without a key (a year inside
-a composite key to `core.classes`, a homeroom named by its class) reach only
+and the columns that carry a module's concept without a key (a homeroom
+named by its class, a school year's teaching days kept on a calendar) reach only
 what that owner may (`packages/database/src/ownership.ts`), so a module's
 data points at core and at the modules it requires, never the reverse.
 
@@ -422,6 +422,25 @@ their profile only as far as `recordLinks` in `core/reach.ts` says the
 viewer reaches them; showing the name grants nothing.
 
 Which of a child's guardians the school may do something for is one database function, `app.guardian_permits(link, on, purpose)`, and every store and reach function that decides it joins it. Following the child in the portal needs a current link with portal access. Contact in the portal also needs the school not to have cut the guardian off (`communication_isolated`). The school's notices need a link that takes them and no such cut, and a call needs only a current link and no such cut. The medical summary also needs a legal guardian the office confirmed, whose educational rights no court order has limited. A guardian it permits reads the child's medical summary in the family workspace (`/family/health`): allergies with their severity, conditions, medicines, dietary needs, the doctor and the emergency contacts, never the plans and notes the health staff keep. The stores that read those records and keep a family's changes join the same function, so the screen, the procedure and the store cannot disagree. A health record may hold one report, such as a doctor's letter, which the health staff attach and may share with the family: a guardian the function permits sees that a report exists, and opens it only once it is shared. A family may send a report with a change it asks for, which the health staff read beside the change and, accepting it, may keep on the record. A family's change to the summary is a correction request in the records register (`records_requests.topic = 'health'`), which gives it the deadline the school's law sets; the change itself, with the record as the family read it and any reason for declining, is sealed in `health.requested_changes` behind the health purpose. Nothing changes until someone holding `health:write` accepts it in Medical updates (`/health-changes`), which applies it in the same transaction, closes the request, audits it with who asked, and tells the family through `notify`. The privacy office sees such a request in its register but answers it there only through Medical updates. The changes are erased with the student and kept until then, like the records they change.
+
+A class runs over its own days (`core.classes.runs`, open-ended for one
+that keeps going), and no two classes of a school running at once share a
+code. An enrolment lies inside its class's days, which a key on the class's
+active row holds: a class cannot be narrowed past an enrolment, and an
+enrolment cannot be reopened outside its class. Core keeps a student's
+leaving in `core.student_departures`: the day they left, how long they and
+their family go on reading the record, and exactly what the leaving ended,
+so taking it back restores the role, those enrolments and module records and
+nothing else. The student role ends on the day they left and the reading
+window lives on the departure, so retention counted from the role's end
+does not move with how long the family reads. The
+school years module adds the year a class belongs to (`core.class_years`,
+one active year per class, the class's days inside it) and a student's
+placement in a year; its rules run in its own API. A class whose days left
+its year while the module was off loses the link the next time the module
+acts on it. Coursework, attendance, the timetable and the gradebook read the
+year, so a class with no year takes no assignment, register or timetable
+entry, and its gradebook is refused.
 
 An assignment is authored against a class by its teachers. Its brief is a
 document, with the files it hands out as blocks; its audience (the class,

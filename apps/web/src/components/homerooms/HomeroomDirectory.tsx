@@ -18,10 +18,12 @@ import { Pencil, Plus, School } from "lucide-react";
 
 import type { ClassesTabProps } from "~/components/classes/slots";
 
+import { useClassFacets } from "~/components/classes/class-facets";
 import { classTitle, subjectName } from "~/components/classes/format";
+import { classFilters, viewsOf } from "~/components/classes/slots";
 import { displayName, labelOf } from "~/components/people/format";
-import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery } from "~/queries/classes";
 import { homeroomDirectoryQuery } from "~/queries/homerooms";
@@ -140,7 +142,7 @@ const card = {
   ),
 };
 
-/** The homerooms of a school year with their subject classes, to find and manage. */
+/** The school's homerooms with their subject classes, to find and manage. */
 export function HomeroomDirectory({
   search,
   onSearch: patch,
@@ -148,35 +150,11 @@ export function HomeroomDirectory({
   frame,
 }: ClassesTabProps) {
   const navigate = useNavigate();
-  const data = useSuspenseQuery(homeroomDirectoryQuery(search)).data;
+  const filters = useSlot(classFilters);
+  const views = viewsOf(filters, search);
+  const data = useSuspenseQuery(homeroomDirectoryQuery(search, views)).data;
   const options = useSuspenseQuery(classOptionsQuery).data;
-  const year = options.years.find((row) => row.id === data.yearId);
-  if (!year)
-    return (
-      <Page width="list">
-        <PageHeader title={title} />
-        {frame(<NoSchoolYear shows={m.noYearShowsClasses()} />)}
-      </Page>
-    );
-  const yearFacet: Facet = {
-    id: "year",
-    label: m.workingYear(),
-    single: true,
-    options: options.years.map((row) => ({
-      value: row.id,
-      label: inLocale(row.titleEn, row.titleAr),
-      hint:
-        row.id === options.workingYearId
-          ? m.workingYearDefaultHint()
-          : row.lifecycle === "closed"
-            ? m.classesYearClosed()
-            : undefined,
-    })),
-    selected: [year.id],
-    defaultSelected: options.workingYearId ? [options.workingYearId] : [],
-    onChange: ([next = ""]) =>
-      patch({ year: next === options.workingYearId ? "" : next }),
-  };
+  const moduleFacets = useClassFacets(search, patch);
   const gradeFacet: Facet = {
     id: "grade",
     label: m.studentGrade(),
@@ -191,7 +169,7 @@ export function HomeroomDirectory({
     ? {
         label: m.homeroomsAdd(),
         icon: Plus,
-        link: { to: "/homeroom-editor", search: { year: year.id } },
+        link: { to: "/homeroom-editor", search: views },
       }
     : undefined;
   const rowActions = (row: ClassRow): RowAction[] =>
@@ -203,7 +181,7 @@ export function HomeroomDirectory({
             onSelect: () =>
               navigate({
                 to: "/homeroom-editor",
-                search: { year: year.id, id: row.id },
+                search: { id: row.id },
               }),
           },
         ]
@@ -215,8 +193,13 @@ export function HomeroomDirectory({
       label: m.classesSearchHint(),
       placeholder: m.classesSearchPlaceholder(),
     },
-    facets: [yearFacet, gradeFacet],
-    onReset: () => patch({ q: "", grade: [], year: "" }),
+    facets: [...moduleFacets, gradeFacet],
+    onReset: () =>
+      patch({
+        q: "",
+        grade: [],
+        ...Object.fromEntries(filters.map((filter) => [filter.key, undefined])),
+      }),
   };
   return (
     <Page width="list">
@@ -241,7 +224,7 @@ export function HomeroomDirectory({
             title: m.homeroomsEmptyTitle(),
             description: m.homeroomsEmptyBody(),
             action: data.manage ? (
-              <ButtonLink to="/homeroom-editor" search={{ year: year.id }}>
+              <ButtonLink to="/homeroom-editor" search={views}>
                 <Plus aria-hidden />
                 {m.homeroomsAdd()}
               </ButtonLink>

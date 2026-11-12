@@ -45,6 +45,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { gridOwnerOf, gridsOf, plannedElsewhere } from "../timetable/grids";
+import { classYear, daysOf } from "../years/years";
 
 async function yearOn(context: UnitContext, day: string) {
   const years = await schoolYears(
@@ -173,7 +174,7 @@ export const day = readProcedure
         yearTeachers(context.tx, {
           tenantId: context.tenantId,
           schoolId: context.schoolId,
-          yearId: year.id,
+          during: daysOf(year),
         }),
         roomsOf(context.tx, context.tenantId, context.schoolId),
         isSchoolDay(context.tx, {
@@ -184,8 +185,8 @@ export const day = readProcedure
         gridOwners(context.tx, {
           tenantId: context.tenantId,
           schoolId: context.schoolId,
-          yearId: year.id,
-          except: await plannedElsewhere(context, year.id),
+          during: daysOf(year),
+          except: await plannedElsewhere(context, daysOf(year)),
         }),
       ]);
     const [away, changed] = await Promise.all([
@@ -320,6 +321,7 @@ export const options = readProcedure
         tenantId: context.tenantId,
         schoolId: context.schoolId,
         yearId: year.id,
+        during: daysOf(year),
         classId: input.classId,
         knownClassIds: [
           ...new Set([
@@ -389,7 +391,7 @@ export const setAbsence = writeProcedure
       yearTeachers(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
-        yearId: year.id,
+        during: daysOf(year),
       }),
       periodsOn(context.tx, {
         tenantId: context.tenantId,
@@ -462,7 +464,7 @@ export const changeLesson = writeProcedure
       classById(context.tx, context, input.classId),
       lessonAt(context, input),
     ]);
-    if (!classRow || classRow.schoolYearId !== year.id)
+    if (!classRow || (await classYear(context, classRow.id)).id !== year.id)
       throw new ORPCError("NOT_FOUND");
     if (!lesson && !(await oneDaySlot(context, { ...input, yearId: year.id })))
       throw new ORPCError("NOT_FOUND");
@@ -487,6 +489,7 @@ export const changeLesson = writeProcedure
           tenantId: context.tenantId,
           schoolId: context.schoolId,
           yearId: year.id,
+          during: daysOf(year),
           classId: input.classId,
           knownClassIds: [
             ...new Set([

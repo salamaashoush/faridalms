@@ -29,20 +29,18 @@ import { changesOn } from "@faridalms/database/stores/cover";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import { eventsBetween } from "@faridalms/database/stores/events";
 import { expiringDocuments } from "@faridalms/database/stores/identifiers";
-import { decidingGuardians } from "@faridalms/database/stores/invites";
 import { studentModules } from "@faridalms/database/stores/learning";
 import { threadsOf, unreadThreads } from "@faridalms/database/stores/messages";
 import { deliveryLog } from "@faridalms/database/stores/notifications";
 import { onboardingSeen } from "@faridalms/database/stores/onboarding";
 import { childrenOf } from "@faridalms/database/stores/persons";
+import { placements } from "@faridalms/database/stores/placements";
 import {
   preferenceOf,
   savePreference,
 } from "@faridalms/database/stores/preferences";
-import { openReenrolments } from "@faridalms/database/stores/rollovers";
 import {
   person as readPerson,
-  placements,
   referenceOf,
   studentDirectory,
   youngStudents,
@@ -51,11 +49,7 @@ import {
   meetingsOn,
   studentClasses,
 } from "@faridalms/database/stores/timetable";
-import {
-  schoolYears,
-  workingYear,
-  yearDirectory,
-} from "@faridalms/database/stores/years";
+import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import { ATTENDANCE_MEANINGS, summarise } from "@faridalms/domain/attendance";
 import { GRACE_MS, learnerState } from "@faridalms/domain/coursework";
 import {
@@ -89,7 +83,7 @@ import {
 } from "../core/procedure";
 import { recordLinks, scopeFor } from "../core/reach";
 import { studentGroupsOf } from "../core/student-groups";
-import { yearAfter } from "../core/years";
+import { daysOf } from "../years/years";
 
 async function yearOf(context: UnitContext) {
   return workingYear(
@@ -304,7 +298,6 @@ export const teacher = readProcedure.handler(async ({ context }) => {
   const [classes, periods, meetings, work, clock] = await Promise.all([
     classesTaughtBy(context.tx, context, {
       userId: context.actor.userId,
-      yearId: year.id,
       on: context.today,
     }),
     periodsOn(context.tx, {
@@ -337,7 +330,7 @@ export const teacher = readProcedure.handler(async ({ context }) => {
     yearId: year.id,
     day: context.today,
     officialPeriodId: periods.find((period) => period.official)?.id ?? null,
-    dailyClassIds: await dailyClassIds(context, year.id),
+    dailyClassIds: await dailyClassIds(context, daysOf(year)),
   });
   const registers = new Map(
     board.map((row) => [`${row.classId}:${row.periodId}`, row.state]),
@@ -706,39 +699,6 @@ export const family = readProcedure
       today: context.today,
     });
     const children = [];
-    const chosenIds = chosen.map((link) => link.studentId);
-    const [asking, deciding, years] = await Promise.all([
-      openReenrolments(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        studentIds: chosenIds,
-        today: context.today,
-      }),
-      decidingGuardians(context.tx, {
-        tenantId: context.tenantId,
-        studentIds: chosenIds,
-        today: context.today,
-      }),
-      schoolYears(context.tx, context.tenantId, context.schoolId),
-    ]);
-    // What the school asks of each child's next year, for a guardian who decides for them.
-    const nextYearOf = (studentId: string) => {
-      const open = asking.find((row) => row.studentId === studentId);
-      const decides = deciding.some(
-        (row) =>
-          row.studentId === studentId &&
-          row.guardianId === context.actor.userId,
-      );
-      const year = open && years.find((row) => row.id === open.yearId);
-      const next = year ? yearAfter(years, year) : null;
-      return open && decides && next
-        ? {
-            intention: open.intention,
-            titleEn: next.titleEn,
-            titleAr: next.titleAr,
-          }
-        : null;
-    };
     for (const link of chosen) {
       const day = await studentDay(context, link.studentId);
       const attention = [
@@ -780,7 +740,6 @@ export const family = readProcedure
         fullNameEn: link.fullNameEn,
         fullNameAr: link.fullNameAr,
         young: young.has(link.studentId),
-        nextYear: nextYearOf(link.studentId),
         presence: day.presence,
         now: day.slots.find((slot) => slot.when === "now") ?? null,
         next: day.slots.find((slot) => slot.when === "next") ?? null,
@@ -902,8 +861,7 @@ export const student = readProcedure.handler(async ({ context }) => {
 
 /**
  * The office's day: what needs action, attendance today and this week, the
- * next week's events, recent communications with how many read them, and a
- * checklist for the next year once this one is eight weeks from its end.
+ * next week's events, and recent communications with how many read them.
  */
 export const admin = readProcedure.handler(async ({ context }) => {
   if (context.actor.profile !== "staff_admin") throw new ORPCError("FORBIDDEN");
@@ -950,7 +908,7 @@ export const admin = readProcedure.handler(async ({ context }) => {
       yearId: year.id,
       day: context.today,
       officialPeriodId: periods.find((period) => period.official)?.id ?? null,
-      dailyClassIds: await dailyClassIds(context, year.id),
+      dailyClassIds: await dailyClassIds(context, daysOf(year)),
     });
     const missing = board.filter((row) => row.state === "not_started");
     registers = {
@@ -973,11 +931,12 @@ export const admin = readProcedure.handler(async ({ context }) => {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       yearId: year.id,
+      during: daysOf(year),
       from: weekStart,
       to: context.today,
       by: "class",
       q: "",
-      dailyClassIds: await dailyClassIds(context, year.id),
+      dailyClassIds: await dailyClassIds(context, daysOf(year)),
     });
     attendance = { today: rateOf(board), week: rateOf(week) };
     absences = (
@@ -993,11 +952,10 @@ export const admin = readProcedure.handler(async ({ context }) => {
     ).length;
   }
   let guardians: number | null = null;
-  if (year && can(context, "people:read")) {
+  if (can(context, "people:read")) {
     guardians = (
       await studentDirectory(context.tx, scopeFor(context, "school"), {
-        yearId: year.id,
-        working: true,
+        given: null,
         q: "",
         phone: null,
         documentHolders: [],
@@ -1046,30 +1004,6 @@ export const admin = readProcedure.handler(async ({ context }) => {
           read: row.read,
         }))
     : [];
-  let checklist: {
-    yearEnds: string;
-    nextYear: boolean;
-    nextClasses: number;
-    nextStudents: number;
-  } | null = null;
-  if (year && can(context, "years:manage")) {
-    const lastDay = addDays(year.endsBefore, -1);
-    if (addDays(context.today, 56) >= lastDay) {
-      const directory = await yearDirectory(
-        context.tx,
-        context.tenantId,
-        context.schoolId,
-        context.today,
-      );
-      const next = directory.find((row) => row.startsOn >= year.endsBefore);
-      checklist = {
-        yearEnds: lastDay,
-        nextYear: Boolean(next),
-        nextClasses: next?.classes ?? 0,
-        nextStudents: next?.students ?? 0,
-      };
-    }
-  }
   const documents = can(context, "people:manage")
     ? (
         await expiringDocuments(context.tx, {
@@ -1091,7 +1025,6 @@ export const admin = readProcedure.handler(async ({ context }) => {
     attendance,
     events,
     communications: announcements,
-    checklist,
     onboarding: await onboardingFor(context),
   };
 });

@@ -180,9 +180,9 @@ const enrolled = (input: {
   schoolId: string;
   today: string;
 }) =>
-  sql`select y.student_user_id from core.student_school_years y
-    where y.tenant_id = ${input.tenantId}::uuid and y.org_id = ${input.schoolId}::uuid
-      and y.status = 'active' and y.valid_during @> ${input.today}::date`;
+  sql`select r.user_id as student_user_id from core.user_roles r
+    where r.tenant_id = ${input.tenantId}::uuid and r.org_id = ${input.schoolId}::uuid and r.role = 'student'
+      and r.status = 'active' and r.valid_during @> ${input.today}::date`;
 
 /** How the students at school today have answered each purpose. */
 export async function answerCounts(

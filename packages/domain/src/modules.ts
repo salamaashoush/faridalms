@@ -41,7 +41,12 @@ export interface ModuleSpec {
 }
 
 export const MODULES: Record<ModuleId, ModuleSpec> = {
-  school_years: { requires: [], basic: true, schoolSwitch: false, systems: [] },
+  school_years: {
+    requires: [],
+    basic: true,
+    schoolSwitch: false,
+    systems: ["years", "rollover"],
+  },
   grade_levels: { requires: [], basic: true, schoolSwitch: false, systems: [] },
   homerooms: {
     requires: [],
@@ -150,7 +155,9 @@ export const CORE_SYSTEMS = [
   "school",
   "classes",
   "consents",
-  "years",
+  "schoolDays",
+  // Registers are taken by period with the timetable off as well.
+  "periods",
   "files",
   "documents",
   "comments",
@@ -165,7 +172,6 @@ export const CORE_SYSTEMS = [
   // lessons and briefs alike; the record's own module still decides that.
   "assistant",
   "privacy",
-  "rollover",
   "messages",
   "announcements",
   "calendar",

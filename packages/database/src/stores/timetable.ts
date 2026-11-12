@@ -1,3 +1,4 @@
+import type { OpenSpan } from "@faridalms/domain/school";
 import type { Cycle } from "@faridalms/domain/timetable";
 import type { SQL } from "drizzle-orm";
 
@@ -7,6 +8,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type { DayPlan } from "./day-plan";
 
+import { rangeOf } from "./classes";
 import { dayPlan, dayPlans } from "./day-plan";
 import { textArray, uuidArray } from "./sql";
 
@@ -19,13 +21,13 @@ export interface GridOwner {
   titleAr: string | null;
 }
 
-/** The classes of a year a timetable is planned by, but those planned in another's grid. */
+/** The classes running over some of the days a timetable is planned by, but those planned in another's grid. */
 export async function gridOwners(
   tx: Tx,
   input: {
     tenantId: string;
     schoolId: string;
-    yearId: string;
+    during: OpenSpan;
     except: readonly string[];
   },
 ): Promise<GridOwner[]> {
@@ -37,7 +39,7 @@ export async function gridOwners(
   }>(sql`
     select c.id, c.code, c.title_en, c.title_ar from core.classes c
     where c.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.schoolId}::uuid
-      and c.school_year_id = ${input.yearId}::uuid and c.status = 'active'
+      and c.runs && ${rangeOf(input.during)}::daterange and c.status = 'active'
       and c.id <> all(${uuidArray(input.except)})
     order by c.code`);
   return rows.map((row) => ({
@@ -534,7 +536,7 @@ export interface TeacherOption {
 /** Everyone who teaches or assists a class of the year, for the picker. */
 export async function yearTeachers(
   tx: Tx,
-  input: { tenantId: string; schoolId: string; yearId: string },
+  input: { tenantId: string; schoolId: string; during: OpenSpan },
 ): Promise<TeacherOption[]> {
   const rows = await tx.execute<{
     id: string;
@@ -544,7 +546,7 @@ export async function yearTeachers(
     select distinct u.id, u.full_name_en, u.full_name_ar from core.enrollments e
     join core.users u on u.tenant_id = e.tenant_id and u.id = e.user_id
     where e.tenant_id = ${input.tenantId}::uuid and e.org_id = ${input.schoolId}::uuid
-      and e.school_year_id = ${input.yearId}::uuid and e.status = 'active'
+      and e.valid_during && ${rangeOf(input.during)}::daterange and e.status = 'active'
       and e.role in ('teacher', 'aide')
     order by u.full_name_en, u.id`);
   return rows.map((row) => ({

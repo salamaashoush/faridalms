@@ -1,3 +1,5 @@
+import type { OpenSpan } from "@faridalms/domain/school";
+
 import { ComboboxField } from "@faridalms/ui/system/combobox-field";
 import { TextField } from "@faridalms/ui/system/form-field";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
@@ -13,12 +15,6 @@ import { getMessageFromError } from "~/utils/error";
 
 import { displayName, lastDay } from "../people/format";
 
-export interface YearBounds {
-  id: string;
-  startsOn: string;
-  endsBefore: string;
-}
-
 export function useRefresh() {
   const queryClient = useQueryClient();
   return () =>
@@ -28,11 +24,26 @@ export function useRefresh() {
     ]);
 }
 
-export function clamp(day: string, min: string, max: string) {
+export function clamp(day: string, min: string, max: string | undefined) {
   if (day < min) return min;
-  if (day > max) return max;
+  if (max !== undefined && day > max) return max;
   return day;
 }
+
+/** The last day of a span, or none for one that runs on. */
+export const lastOf = (span: OpenSpan) =>
+  span.to === null ? undefined : lastDay(span.to);
+
+/** Why a day is outside a span, as the sheets say it. */
+export const outsideSpan = (span: OpenSpan) => {
+  const last = lastOf(span);
+  return last
+    ? m.enrolmentDateRange({
+        from: formatDate(span.from),
+        to: formatDate(last),
+      })
+    : m.enrolmentDateFrom({ from: formatDate(span.from) });
+};
 
 /**
  * Does one thing for each in turn, in the order given, and goes on past a
@@ -56,9 +67,8 @@ export async function eachInTurn<T>(
 
 export interface WithdrawSheetProps {
   student: { id: string; name: string };
-  enrollment: { id: string; version: number; from: string };
+  enrollment: { id: string; version: number; from: string; to: string | null };
   className: string;
-  year: YearBounds;
   today: string;
   open: boolean;
   onClose: () => void;
@@ -76,14 +86,13 @@ export function WithdrawSheet({
   student,
   enrollment,
   className,
-  year,
   today,
   open,
   onClose,
   withdraw = (input) => withdrawStudent({ data: input }),
 }: WithdrawSheetProps) {
   const refresh = useRefresh();
-  const max = lastDay(year.endsBefore);
+  const max = lastOf(enrollment);
   const [on, setOn] = useState(clamp(today, enrollment.from, max));
   const [error, setError] = useState<string | null>(null);
   const mutation = useMutation({
@@ -105,13 +114,8 @@ export function WithdrawSheet({
       pending={mutation.isPending}
       error={mutation.error ? getMessageFromError(mutation.error) : null}
       onSubmit={async () => {
-        if (!on || on < enrollment.from || on > max) {
-          setError(
-            m.enrolmentDateRange({
-              from: formatDate(enrollment.from),
-              to: formatDate(max),
-            }),
-          );
+        if (!on || on < enrollment.from || (max !== undefined && on > max)) {
+          setError(outsideSpan(enrollment));
           return;
         }
         await mutation.mutateAsync().then(
@@ -148,7 +152,8 @@ export function WithdrawSheet({
 export interface AddStudentSheetProps {
   classId: string;
   className: string;
-  year: YearBounds;
+  /** The days the class runs, which the student's first day lies in. */
+  runs: OpenSpan;
   today: string;
   open: boolean;
   onClose: () => void;
@@ -162,7 +167,7 @@ export interface AddStudentSheetProps {
 export function AddStudentSheet({
   classId,
   className,
-  year,
+  runs,
   today,
   open,
   onClose,
@@ -171,8 +176,8 @@ export function AddStudentSheet({
   const refresh = useRefresh();
   const [search, setSearch] = useState("");
   const [studentId, setStudentId] = useState("");
-  const max = lastDay(year.endsBefore);
-  const [from, setFrom] = useState(clamp(today, year.startsOn, max));
+  const max = lastOf(runs);
+  const [from, setFrom] = useState(clamp(today, runs.from, max));
   const [error, setError] = useState<string | null>(null);
   const needle = search.trim();
   const hits = (
@@ -237,7 +242,7 @@ export function AddStudentSheet({
         label={m.enrolmentFrom()}
         type="date"
         width="date"
-        min={year.startsOn}
+        min={runs.from}
         max={max}
         value={from}
         onChange={(event) => setFrom(event.target.value)}

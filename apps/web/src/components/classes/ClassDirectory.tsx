@@ -1,4 +1,3 @@
-import type { ClassDirectoryQuery } from "@faridalms/domain/classes";
 import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 import type {
   Facet,
@@ -18,10 +17,14 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Pencil, Plus, School } from "lucide-react";
 
+import type { ClassesSearch } from "~/components/classes/slots";
+
+import { useClassFacets } from "~/components/classes/class-facets";
 import { classTitle, subjectName } from "~/components/classes/format";
+import { classFilters, viewsOf } from "~/components/classes/slots";
 import { displayName, labelOf } from "~/components/people/format";
-import { NoSchoolYear } from "~/components/years/NoSchoolYear";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { classDirectoryQuery, classOptionsQuery } from "~/queries/classes";
 import { formatNumber } from "~/utils/datetime";
@@ -131,14 +134,14 @@ const card = {
 };
 
 export interface ClassDirectoryProps {
-  search: ClassDirectoryQuery;
-  onSearch: (change: Partial<ClassDirectoryQuery>) => void;
+  search: ClassesSearch;
+  onSearch: (change: Partial<ClassesSearch>) => void;
   title: string;
   /** Places the list where the page wants it, below the header. */
   frame: (content: ReactNode) => ReactNode;
 }
 
-/** Every class the viewer reaches in a school year, to find and manage. */
+/** Every class the viewer reaches, to find and manage. */
 export function ClassDirectory({
   search,
   onSearch: patch,
@@ -146,34 +149,26 @@ export function ClassDirectory({
   frame,
 }: ClassDirectoryProps) {
   const navigate = useNavigate();
-  const data = useSuspenseQuery(classDirectoryQuery(search)).data;
+  const filters = useSlot(classFilters);
+  const views = viewsOf(filters, search);
+  const data = useSuspenseQuery(classDirectoryQuery({ ...search, views })).data;
   const options = useSuspenseQuery(classOptionsQuery).data;
-  if (!data.year)
-    return (
-      <Page width="list">
-        <PageHeader title={title} />
-        {frame(<NoSchoolYear shows={m.noYearShowsClasses()} />)}
-      </Page>
-    );
-  const year = data.year;
-  const yearFacet: Facet = {
-    id: "year",
-    label: m.workingYear(),
+  const moduleFacets = useClassFacets(search, patch);
+  const narrowed = filters.some((filter) => {
+    const value = search[filter.key];
+    return filter.narrows(typeof value === "string" ? value : undefined);
+  });
+  const endedFacet: Facet = {
+    id: "ended",
+    label: m.classesWhen(),
     single: true,
-    options: options.years.map((row) => ({
-      value: row.id,
-      label: inLocale(row.titleEn, row.titleAr),
-      hint:
-        row.id === options.workingYearId
-          ? m.workingYearDefaultHint()
-          : row.lifecycle === "closed"
-            ? m.classesYearClosed()
-            : undefined,
-    })),
-    selected: [year.id],
-    defaultSelected: options.workingYearId ? [options.workingYearId] : [],
-    onChange: ([next = ""]) =>
-      patch({ year: next === options.workingYearId ? "" : next }),
+    options: [
+      { value: "", label: m.classesRunning() },
+      { value: "ended", label: m.classesEnded() },
+    ],
+    selected: [search.ended ? "ended" : ""],
+    defaultSelected: [""],
+    onChange: ([next = ""]) => patch({ ended: next === "ended" }),
   };
   const gradeFacet: Facet = {
     id: "grade",
@@ -189,7 +184,7 @@ export function ClassDirectory({
     ? {
         label: m.classesAdd(),
         icon: Plus,
-        link: { to: "/class-editor", search: { year: year.id } },
+        link: { to: "/class-editor", search: views },
       }
     : undefined;
   const rowActions = (row: ClassRow): RowAction[] =>
@@ -201,7 +196,7 @@ export function ClassDirectory({
             onSelect: () =>
               navigate({
                 to: "/class-editor",
-                search: { year: year.id, id: row.id },
+                search: { id: row.id },
               }),
           },
         ]
@@ -213,8 +208,14 @@ export function ClassDirectory({
       label: m.classesSearchHint(),
       placeholder: m.classesSearchPlaceholder(),
     },
-    facets: [yearFacet, gradeFacet],
-    onReset: () => patch({ q: "", grade: [], year: "" }),
+    facets: [...moduleFacets, ...(narrowed ? [] : [endedFacet]), gradeFacet],
+    onReset: () =>
+      patch({
+        q: "",
+        grade: [],
+        ended: false,
+        ...Object.fromEntries(filters.map((filter) => [filter.key, undefined])),
+      }),
   };
   return (
     <Page width="list">
@@ -239,7 +240,7 @@ export function ClassDirectory({
             title: m.classesEmptyTitle(),
             description: m.classesEmptyBody(),
             action: data.manage ? (
-              <ButtonLink to="/class-editor" search={{ year: year.id }}>
+              <ButtonLink to="/class-editor" search={views}>
                 <Plus aria-hidden />
                 {m.classesAdd()}
               </ButtonLink>

@@ -95,6 +95,7 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "class.create": m.auditClassCreate,
   "class.lesson_sounds": m.auditClassLessonSounds,
   "class.update": m.auditClassUpdate,
+  "class.year_unlinked": m.auditClassYearUnlinked,
   "class_periods.replace": m.auditClassPeriodsReplace,
   "consent.record": m.auditConsentRecord,
   "consent_form.publish": m.auditConsentFormPublish,

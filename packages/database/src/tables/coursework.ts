@@ -44,7 +44,6 @@ export const classGroups = core.table.withRLS(
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
     classId: uuid("class_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
     titleEn: text("title_en"),
     titleAr: text("title_ar"),
     createdByUserId: uuid("created_by_user_id"),
@@ -55,8 +54,8 @@ export const classGroups = core.table.withRLS(
     ...baseConstraints("class_groups", t, tenants),
     fk(
       "class_groups",
-      [t.tenantId, t.classId, t.schoolYearId, t.orgId],
-      [classes.tenantId, classes.id, classes.schoolYearId, classes.orgId],
+      [t.tenantId, t.classId, t.orgId],
+      [classes.tenantId, classes.id, classes.orgId],
     ),
     fk(
       "class_groups",
@@ -214,8 +213,8 @@ export const assignments = core.table.withRLS(
     ...baseConstraints("assignments", t, tenants),
     fk(
       "assignments",
-      [t.tenantId, t.classId, t.schoolYearId, t.orgId],
-      [classes.tenantId, classes.id, classes.schoolYearId, classes.orgId],
+      [t.tenantId, t.classId, t.orgId],
+      [classes.tenantId, classes.id, classes.orgId],
     ),
     fk(
       "assignments",
@@ -1257,8 +1256,8 @@ export const periodGrades = core.table.withRLS(
     ...baseConstraints("period_grades", t, tenants),
     fk(
       "period_grades",
-      [t.tenantId, t.classId, t.schoolYearId, t.orgId],
-      [classes.tenantId, classes.id, classes.schoolYearId, classes.orgId],
+      [t.tenantId, t.classId, t.orgId],
+      [classes.tenantId, classes.id, classes.orgId],
     ),
     fk(
       "period_grades",

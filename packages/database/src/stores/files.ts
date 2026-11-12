@@ -1022,9 +1022,9 @@ export async function schoolCounts(
       group by m.user_id
     )
     select
-      (select count(distinct y.student_user_id)::int from core.student_school_years y
-        where y.tenant_id = ${input.tenantId}::uuid and y.org_id = ${input.orgId}::uuid
-          and y.status = 'active' and y.valid_during @> ${input.today}::date) as students,
+      (select count(distinct r.user_id)::int from core.user_roles r
+        where r.tenant_id = ${input.tenantId}::uuid and r.org_id = ${input.orgId}::uuid and r.role = 'student'
+          and r.status = 'active' and r.valid_during @> ${input.today}::date) as students,
       (select count(*)::int from signing where staff) as staff_accounts,
       (select count(*)::int from signing where last_at > ${week}::timestamptz) as signed_in_7d,
       (select count(*)::int from signing where last_at > ${month}::timestamptz) as signed_in_30d`);

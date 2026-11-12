@@ -73,10 +73,17 @@ export async function effectiveAccess(
       contexts: [],
     };
   const depth = new Map(path.map((id, index) => [id, index]));
+  // A student who has left reads their record as a student until the
+  // departure's access ends, without being one of the school's students.
   const roleRows = await tx.execute<{ role: string }>(sql`
     select distinct role from core.user_roles
     where tenant_id = ${input.tenantId}::uuid and user_id = ${input.userId}::uuid
-      and org_id in ${path} and status = 'active' and valid_during @> ${input.today}::date`);
+      and org_id in ${path} and status = 'active' and valid_during @> ${input.today}::date
+    union
+    select 'student' from core.student_departures
+    where tenant_id = ${input.tenantId}::uuid and student_user_id = ${input.userId}::uuid
+      and org_id in ${path} and status = 'active'
+      and left_on <= ${input.today}::date and access_ends_on > ${input.today}::date`);
   const roles = roleRows.map((row) => row.role);
   const assigned = await tx.execute<{
     replaces_builtin: boolean;
@@ -123,11 +130,16 @@ export async function effectiveAccess(
     const portal = await tx.execute<{ found: boolean }>(sql`
       select exists (
         select 1 from core.user_relationships r
-        join core.user_roles s on s.tenant_id = r.tenant_id and s.user_id = r.student_user_id
-          and s.role = 'student' and s.status = 'active' and s.org_id in ${path}
-          and s.valid_during @> ${input.today}::date
         where r.tenant_id = ${input.tenantId}::uuid and r.related_user_id = ${input.userId}::uuid
           and app.guardian_permits(r, ${input.today}::date, 'follow')
+          and (exists (select 1 from core.user_roles s
+                 where s.tenant_id = r.tenant_id and s.user_id = r.student_user_id
+                   and s.role = 'student' and s.status = 'active' and s.org_id in ${path}
+                   and s.valid_during @> ${input.today}::date)
+               or exists (select 1 from core.student_departures d
+                 where d.tenant_id = r.tenant_id and d.student_user_id = r.student_user_id
+                   and d.status = 'active' and d.org_id in ${path}
+                   and d.left_on <= ${input.today}::date and d.access_ends_on > ${input.today}::date))
       ) as found`);
     if (!portal[0]?.found)
       contexts = contexts.filter((context) => context !== "family");

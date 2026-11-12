@@ -23,7 +23,11 @@ import {
   audiencesOf,
   classesOfModule,
 } from "@faridalms/database/stores/learning";
-import { dayIn, schoolYears } from "@faridalms/database/stores/years";
+import {
+  dayIn,
+  schoolYears,
+  yearOfClass,
+} from "@faridalms/database/stores/years";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import { isLater } from "@faridalms/domain/publication";
@@ -32,6 +36,7 @@ import { otherLocale } from "@faridalms/domain/translations";
 import type { UnitContext } from "./context";
 
 import { placeMedia } from "../files/authorize";
+import { withYear } from "../years/years";
 import { teachingScope, tellAssigned } from "./teaching-notices";
 
 /**
@@ -206,13 +211,13 @@ export async function spreadDiscussion(
   for (const part of parts) {
     if (part.id === lead.id || part.state === "archived") continue;
     if (!classes.some((row) => row.id === part.classId)) continue;
-    const classRow = await classById(tx, context, part.classId);
-    if (!classRow) continue;
+    const found = await classById(tx, context, part.classId);
+    if (!found) continue;
     const saved = await updateAssignment(tx, {
       tenantId,
       id: part.id,
       expectedVersion: part.version,
-      classRow,
+      classRow: await withYear(context, found),
       ...sharedFields(lead),
       audience: part.audience,
       gradingPeriodId: part.gradingPeriodId,
@@ -230,8 +235,10 @@ export async function spreadDiscussion(
   }
   for (const row of classes) {
     if (parts.some((part) => part.classId === row.id)) continue;
-    const classRow = await classById(tx, context, row.id);
-    if (classRow?.schoolYearId !== lead.schoolYearId) continue;
+    const found = await classById(tx, context, row.id);
+    const yearId = await yearOfClass(tx, tenantId, row.id);
+    if (!found || yearId !== lead.schoolYearId) continue;
+    const classRow = { ...found, schoolYearId: yearId };
     const { audience } = await audienceIn(context, moduleId, row.id);
     const created = await insertAssignment(tx, {
       tenantId,

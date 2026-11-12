@@ -11,6 +11,9 @@ import { Plus, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { ClassDaysValue } from "~/components/classes/ClassDays";
+
+import { ClassDaysSection, useClassDays } from "~/components/classes/ClassDays";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
@@ -32,26 +35,33 @@ interface Draft {
   gradeId: string;
   locationId: string;
   teacherIds: string[];
+  startsOn: string;
+  endsOn: string;
+  /** What modules keep about the class, by their keys. */
+  parts: Record<string, unknown>;
 }
 
-type Field = "code" | "titles";
+type Field = "code" | "titles" | "endsOn";
 
 const FIELD_OF: Partial<Record<string, Field>> = {
   code: "code",
   titleEn: "titles",
   titleAr: "titles",
+  endsOn: "endsOn",
 };
 
 /** Refusals from the server that are about one field, shown on that field. */
 const FIELD_ERRORS: Partial<Record<string, Field>> = {
   "class.code_taken": "code",
   "validation.class_code": "code",
+  "validation.ends_before_start": "endsOn",
 };
 
 const NONE = "none";
 
-function initialDraft(record: ClassData | null): Draft {
+function initialDraft(record: ClassData | null, days: ClassDaysValue): Draft {
   return {
+    ...days,
     code: record?.code ?? "",
     titleEn: record?.titleEn ?? "",
     titleAr: record?.titleAr ?? "",
@@ -67,33 +77,40 @@ function initialDraft(record: ClassData | null): Draft {
 
 export interface ExistingClassEditorProps {
   id: string;
+  search: Readonly<Record<string, unknown>>;
   onClose: () => void;
 }
 
-export function ExistingClassEditor({ id, onClose }: ExistingClassEditorProps) {
+export function ExistingClassEditor({
+  id,
+  search,
+  onClose,
+}: ExistingClassEditorProps) {
   const record = useSuspenseQuery(classRecordQuery(id)).data;
-  return (
-    <ClassEditor yearId={record.year.id} record={record} onClose={onClose} />
-  );
+  return <ClassEditor record={record} search={search} onClose={onClose} />;
 }
 
 export interface ClassEditorProps {
-  yearId: string;
   record?: ClassData | null;
+  /** The form's address, which may carry the view of a module it was opened from. */
+  search: Readonly<Record<string, unknown>>;
   onClose: () => void;
 }
 
-/** A class: its names and code, what it teaches if anything, its room and teachers. */
+/**
+ * A class: its names and code, the days it runs, what it teaches if
+ * anything, its room and teachers, and what modules keep about it.
+ */
 export function ClassEditor({
-  yearId,
   record = null,
+  search,
   onClose,
 }: ClassEditorProps) {
   const options = useSuspenseQuery(classOptionsQuery).data;
   const queryClient = useQueryClient();
-  const year = options.years.find((row) => row.id === yearId);
+  const classDays = useClassDays(record, search, options.today);
   const leaving = useRef(false);
-  const [initial] = useState(() => initialDraft(record));
+  const [initial] = useState(() => initialDraft(record, classDays.initial()));
   const [draft, setDraft] = useState(initial);
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
@@ -101,16 +118,20 @@ export function ClassEditor({
       ...current,
       ...(key === "code" ? { code: undefined } : {}),
       ...(key === "titleEn" || key === "titleAr" ? { titles: undefined } : {}),
+      ...(key === "startsOn" || key === "endsOn" ? { endsOn: undefined } : {}),
     }));
     setDraft((current) => ({ ...current, [key]: value }));
   };
+
   const teachers = options.teachers
     .toSorted((a, b) => Number(b.teaches) - Number(a.teaches))
     .map((row) => ({ value: row.id, label: displayName(row) }));
   const payload = {
     ...(record ? { id: record.id, expectedVersion: record.version } : {}),
-    yearId,
     code: draft.code.trim(),
+    startsOn: draft.startsOn,
+    endsOn: draft.endsOn,
+    parts: draft.parts,
     titleEn: draft.titleEn,
     titleAr: draft.titleAr,
     subjectId: draft.subjectId,
@@ -135,11 +156,6 @@ export function ClassEditor({
   return (
     <RecordForm
       title={record ? m.classesEdit() : m.classesAdd()}
-      description={
-        year
-          ? m.classesInYear({ year: inLocale(year.titleEn, year.titleAr) })
-          : undefined
-      }
       onSubmit={async () => {
         const found = validate();
         setErrors(found);
@@ -243,6 +259,21 @@ export function ClassEditor({
           width="name"
         />
       </FormSection>
+      <ClassDaysSection
+        parts={classDays.parts}
+        reads={classDays.reads}
+        search={search}
+        value={{
+          startsOn: draft.startsOn,
+          endsOn: draft.endsOn,
+          parts: draft.parts,
+        }}
+        onChange={(days) => {
+          setErrors((current) => ({ ...current, endsOn: undefined }));
+          setDraft((current) => ({ ...current, ...days }));
+        }}
+        error={errors.endsOn}
+      />
       <FormSection
         title={m.classesTeachers()}
         description={m.classesTeachersHint()}

@@ -176,6 +176,15 @@ authorisation, school isolation or database ownership.
   of them from anywhere but the module, a module that requires it and the
   composition roots. Name a point for what its consumer needs, and add none
   that nothing consumes.
+- **What two modules do together lives in a link file.** A module that adds
+  to a point or slot of a module it does not require (homerooms carried by
+  the school-year rollover, say) does so from a file of its own listed in
+  `LINK_FILES` with its owner and what it needs. Its contributions declare
+  the same `needs`, so they run only where the owner and every need are on,
+  and only the composition roots import the file. An import of a module's
+  files that is not yet carved away is listed in `PENDING_IMPORTS`, grouped
+  by the work that removes it; the source check fails on one missing from
+  the list and on an entry that no longer occurs.
 - **The database cannot tell whether a module is on.** A module's rule that
   must stop when the module is off runs in its stores, called from its API;
   a trigger or key holds only what is true either way. A module keeps what

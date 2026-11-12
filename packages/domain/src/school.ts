@@ -185,12 +185,29 @@ export function datesInRange(from: string, to: string): string[] {
   return out;
 }
 
+/** Days from `from` up to, not including, `to`; with no `to` they run on. */
+export interface OpenSpan {
+  from: string;
+  to: string | null;
+}
+
 /** Whether two spans share a day; each runs up to, not including, its end, and one without an end runs on. */
-export function spansOverlap(
-  a: { from: string; to: string | null },
-  b: { from: string; to: string | null },
-): boolean {
+export function spansOverlap(a: OpenSpan, b: OpenSpan): boolean {
   return (a.to === null || b.from < a.to) && (b.to === null || a.from < b.to);
+}
+
+/** Whether every day of `inner` is a day of `outer`. */
+export function spanHolds(outer: OpenSpan, inner: OpenSpan): boolean {
+  if (inner.from < outer.from) return false;
+  if (outer.to === null) return true;
+  return inner.to !== null && inner.to <= outer.to;
+}
+
+/** The day a span is read on: today inside it, else its first or last day. */
+export function dayWithin(span: OpenSpan, today: string): string {
+  if (today < span.from) return span.from;
+  if (span.to === null || today < span.to) return today;
+  return addDays(span.to, -1);
 }
 
 export function isWithin(date: string, from: string, to: string): boolean {

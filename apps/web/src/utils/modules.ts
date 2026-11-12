@@ -8,6 +8,12 @@ import * as m from "~/i18n/messages";
  * found, both from this one list, so a page and its link cannot disagree.
  */
 const PAGES: Partial<Record<ModuleId, readonly string[]>> = {
+  school_years: [
+    "/academic-years",
+    "/academic-year-editor",
+    "/rollover",
+    "/years",
+  ],
   coursework: [
     "/assignments",
     "/assignment-editor",

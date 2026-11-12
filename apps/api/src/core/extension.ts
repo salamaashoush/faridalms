@@ -28,9 +28,14 @@ export const contribute = <T>(to: Point<T>, value: T): Contribution => ({
   value,
 });
 
-/** What one module contributes, made only where it is on. */
+/**
+ * What one module contributes, made only where it is on, and where the
+ * modules it `needs` are on too: a contribution to the point of a module it
+ * does not require is the code's link between the two.
+ */
 export interface ModuleContributions {
   module: ModuleId;
+  needs?: readonly ModuleId[];
   contributions: readonly Contribution[];
 }
 
@@ -41,7 +46,7 @@ export async function contributionsTo<T>(
 ): Promise<T[]> {
   const on = await modulesOf(context);
   return context.extensions.flatMap((entry) =>
-    on[entry.module]
+    on[entry.module] && (entry.needs ?? []).every((need) => on[need])
       ? entry.contributions
           .filter((contribution) => contribution.point === to)
           .map((contribution) => contribution.value as T)

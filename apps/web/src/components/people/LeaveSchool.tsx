@@ -1,67 +1,69 @@
-import type { LeaverAccess } from "@faridalms/domain/people";
-
-import { leaverAccessEnd } from "@faridalms/domain/people";
-import { addDays } from "@faridalms/domain/school";
-import {
-  ChoiceField,
-  SelectField,
-  TextField,
-} from "@faridalms/ui/system/form-field";
+import { ChoiceField, TextField } from "@faridalms/ui/system/form-field";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import {
   useMutation,
   useQueryClient,
-  useSuspenseQuery,
+  useSuspenseQueries,
 } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { YearBounds } from "~/components/classes/Enrolment";
-
 import { clamp, eachInTurn } from "~/components/classes/Enrolment";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
-import { peopleOptionsQuery } from "~/queries/students";
 import { recordLeaving } from "~/server/students";
 import { formatDate, formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import { labelOf, lastDay } from "./format";
+import { leavingParts } from "./slots";
 
 export interface LeaveSchoolProps {
   students: readonly { id: string; name: string }[];
-  /** The year they leave in, whose dates bound the last day. */
-  year: YearBounds;
-  /** The first day one student was placed, when that is later than the year's. */
+  /** The first day one student was at the school, which the last day cannot come before. */
   from?: string;
   today: string;
   onClose: () => void;
 }
 
 /**
- * Records that students have left the school: their last day, why they
- * left, where they went, and how long they and their families go on reading
- * the record. Each student is recorded on their own, so one the school
+ * Records that students have left the school: their last day, how long
+ * they and their families go on reading the record, and what modules keep
+ * of a departure. Each student is recorded on their own, so one the school
  * cannot record yet is named with the reason and the rest go through.
  */
 export function LeaveSchool({
   students,
-  year,
   from,
   today,
   onClose,
 }: LeaveSchoolProps) {
   const queryClient = useQueryClient();
-  const options = useSuspenseQuery(peopleOptionsQuery).data;
-  const min = from && from > year.startsOn ? from : year.startsOn;
-  const max = lastDay(year.endsBefore);
-  const [last, setLast] = useState(clamp(today, min, max));
-  const [exitTypeId, setExitTypeId] = useState("");
-  const [destination, setDestination] = useState("");
-  const [access, setAccess] = useState<LeaverAccess>("year_end");
-  const [errors, setErrors] = useState<{ last?: string; reason?: string }>({});
+  const parts = useSlot(leavingParts);
+  const reads = useSuspenseQueries({
+    queries: parts.map((part) => part.query()),
+  });
+  const min = from ?? "";
+  const [last, setLast] = useState(min ? clamp(today, min, undefined) : today);
+  const [values, setValues] = useState<Record<string, unknown>>(() =>
+    Object.fromEntries(parts.map((part) => [part.key, part.initial()])),
+  );
+  const [tried, setTried] = useState(false);
+  const offered = parts.flatMap((part, index) =>
+    part.access(reads[index]?.data, last || today),
+  );
+  const [access, setAccess] = useState(offered[0]?.value ?? "last_day");
+  const [until, setUntil] = useState("");
+  const [errors, setErrors] = useState<{ last?: string; until?: string }>({});
   const [only] = students;
   const one = students.length === 1 && only ? only : null;
-  const dated = Boolean(last) && last >= min && last <= max;
+  const dated = Boolean(last) && (!min || last >= min);
+  const accessUntil =
+    access === "last_day"
+      ? ""
+      : access === "until"
+        ? until
+        : (offered.find((option) => option.value === access)?.until ?? "");
+  const problems = parts.map((part) => part.problem(values[part.key]));
   const mutation = useMutation({
     mutationFn: () =>
       eachInTurn(students, (student) =>
@@ -69,9 +71,8 @@ export function LeaveSchool({
           data: {
             studentId: student.id,
             lastDay: last,
-            exitTypeId,
-            destination,
-            access,
+            accessUntil,
+            parts: values,
           },
         }),
       ),
@@ -87,15 +88,13 @@ export function LeaveSchool({
       error={refusal}
       onSubmit={async () => {
         const found: typeof errors = {};
-        if (!dated)
-          found.last = m.enrolmentDateRange({
-            from: formatDate(min),
-            to: formatDate(max),
-          });
-        if (!exitTypeId) found.reason = m.validationSelection();
+        if (!dated) found.last = m.enrolmentDateFrom({ from: formatDate(min) });
+        if (access === "until" && (!until || until < last))
+          found.until = m.leaveAccessUntilAfter();
         setErrors(found);
+        setTried(true);
         setRefusal(null);
-        if (Object.keys(found).length > 0) return;
+        if (Object.keys(found).length > 0 || problems.some(Boolean)) return;
         const { done, failed } = await mutation.mutateAsync();
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["people"] }),
@@ -138,8 +137,7 @@ export function LeaveSchool({
         hint={m.leaveLastDayHint()}
         type="date"
         width="date"
-        min={min}
-        max={max}
+        min={min || undefined}
         value={last}
         onChange={(event) => {
           setErrors((current) => ({ ...current, last: undefined }));
@@ -147,50 +145,30 @@ export function LeaveSchool({
         }}
         errors={errors.last ? [errors.last] : undefined}
       />
-      <SelectField
-        id="leave-reason"
-        label={m.leaveReason()}
-        value={exitTypeId}
-        options={options.exitTypes.map((row) => ({
-          value: row.id,
-          label: labelOf(row) ?? row.code,
-        }))}
-        onChange={(value) => {
-          setErrors((current) => ({ ...current, reason: undefined }));
-          setExitTypeId(value);
-        }}
-        errors={errors.reason ? [errors.reason] : undefined}
-        width="name"
-      />
-      <TextField
-        id="leave-destination"
-        label={m.leaveDestination()}
-        hint={m.leaveDestinationHint()}
-        optional
-        width="name"
-        maxLength={160}
-        value={destination}
-        onChange={(event) => setDestination(event.target.value)}
-      />
+      {parts.map((part, index) => (
+        <part.Fields
+          key={part.key}
+          read={reads[index]?.data}
+          value={values[part.key]}
+          onChange={(value) =>
+            setValues((current) => ({ ...current, [part.key]: value }))
+          }
+          problem={tried ? (problems[index] ?? null) : null}
+        />
+      ))}
       <ChoiceField
         label={m.leaveAccess()}
         value={access}
         options={[
+          ...offered.map((option) => ({
+            value: option.value,
+            label: option.label,
+            hint: option.hint,
+          })),
           {
-            value: "year_end",
-            label: m.leaveAccessYearEnd(),
-            hint: m.leaveAccessYearEndHint({
-              date: formatDate(
-                lastDay(
-                  leaverAccessEnd({
-                    years: options.years,
-                    year,
-                    left: addDays(dated ? last : max, 1),
-                    access: "year_end",
-                  }),
-                ),
-              ),
-            }),
+            value: "until",
+            label: m.leaveAccessUntilDay(),
+            hint: m.leaveAccessUntilDayHint(),
           },
           {
             value: "last_day",
@@ -200,6 +178,21 @@ export function LeaveSchool({
         ]}
         onChange={setAccess}
       />
+      {access === "until" ? (
+        <TextField
+          id="leave-access-until"
+          label={m.leaveAccessUntil()}
+          type="date"
+          width="date"
+          min={last || undefined}
+          value={until}
+          onChange={(event) => {
+            setErrors((current) => ({ ...current, until: undefined }));
+            setUntil(event.target.value);
+          }}
+          errors={errors.until ? [errors.until] : undefined}
+        />
+      ) : null}
       {dated ? (
         <output className="block rounded-lg bg-muted p-3 text-sm leading-5">
           {one
@@ -209,6 +202,9 @@ export function LeaveSchool({
                 value: formatNumber(students.length),
                 date: formatDate(last),
               })}
+          {accessUntil
+            ? ` ${m.leaveSummaryReads({ date: formatDate(accessUntil) })}`
+            : null}
         </output>
       ) : null}
     </SheetForm>

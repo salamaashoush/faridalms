@@ -36,6 +36,8 @@ function RegisterTrail() {
   return <BreadcrumbCurrent>{classTitle(data.class)}</BreadcrumbCurrent>;
 }
 
+const textOf = (value: unknown) => (typeof value === "string" ? value : "");
+
 function RegisterPage() {
   const { classId } = Route.useParams();
   const search = Route.useSearch();
@@ -43,10 +45,10 @@ function RegisterPage() {
   // The address changes as soon as another day or period is chosen, while
   // the register shown stays the last one loaded until the next arrives.
   const askedDate = useRouterState({
-    select: (state) => state.location.search.date ?? "",
+    select: (state) => textOf(state.location.search.date),
   });
   const askedPeriod = useRouterState({
-    select: (state) => state.location.search.periodId ?? "",
+    select: (state) => textOf(state.location.search.periodId),
   });
   const switching =
     askedDate !== search.date || askedPeriod !== (search.periodId ?? "");

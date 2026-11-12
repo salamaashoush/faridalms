@@ -1,5 +1,5 @@
 import {
-  homeroomDirectorySchema,
+  homeroomDirectoryInputSchema,
   leaveHomeroomSchema,
   ofClassSchema,
   placeSchema,
@@ -12,7 +12,7 @@ import { backend, record } from "./backend";
 import { checked } from "./input";
 
 export const getHomeroomDirectory = createServerFn({ method: "GET" })
-  .validator(checked(homeroomDirectorySchema))
+  .validator(checked(homeroomDirectoryInputSchema))
   .handler(({ data }) => record(backend().homerooms.directory(data)));
 
 export const getHomeroomOfClass = createServerFn({ method: "GET" })

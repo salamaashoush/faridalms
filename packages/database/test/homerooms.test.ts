@@ -9,7 +9,7 @@ import {
   endEnrollment,
   endStudentEnrollmentsFrom,
   insertClass,
-  reopenStudentEnrollments,
+  restoreStudentEnrollments,
 } from "../src/stores/classes";
 import {
   followHomeroom,
@@ -45,7 +45,6 @@ async function inSchool(
 
 interface Seat {
   homeroom: string;
-  year: string;
   student: string;
   enrollment: string;
   from: string;
@@ -54,7 +53,7 @@ interface Seat {
 /** Two of the school's homerooms and a student in the first. */
 async function seats(tx: CellTransaction, tenantId: string) {
   const rows = await tx.execute<Seat>(sql`
-    select m.homeroom_class_id as homeroom, c.school_year_id as year,
+    select m.homeroom_class_id as homeroom,
       m.student_user_id as student, m.enrollment_id as enrollment,
       to_char(lower(m.valid_during), 'YYYY-MM-DD') as "from"
     from core.homeroom_members m
@@ -134,7 +133,7 @@ describe("a homeroom's subject classes follow its places", () => {
       await placeMember(tx, {
         tenantId,
         orgId: schoolId,
-        homeroom: { id: other.homeroom, schoolYearId: other.year },
+        homeroomClassId: other.homeroom,
         studentId: first.student,
         from: day,
         endsBefore: YEAR.end,
@@ -156,7 +155,7 @@ describe("a homeroom's subject classes follow its places", () => {
       const refused = await placeMember(tx, {
         tenantId,
         orgId: schoolId,
-        homeroom: { id: other.homeroom, schoolYearId: other.year },
+        homeroomClassId: other.homeroom,
         studentId: first.student,
         from: "2026-11-01",
         endsBefore: YEAR.end,
@@ -176,7 +175,7 @@ describe("a homeroom's subject classes follow its places", () => {
       const made = await insertClass(tx, {
         tenantId,
         orgId: schoolId,
-        schoolYearId: first.year,
+        runs: { from: YEAR.start, to: YEAR.end },
         code: "LATE-1",
         titleEn: "Late",
         titleAr: null,
@@ -210,7 +209,7 @@ describe("a homeroom's subject classes follow its places", () => {
     await inSchool(async (tx, { tenantId, schoolId }) => {
       const { first } = await seats(tx, tenantId);
       const left = "2026-11-15";
-      await endStudentEnrollmentsFrom(
+      const ended = await endStudentEnrollmentsFrom(
         tx,
         { tenantId, schoolId },
         { studentId: first.student, on: left },
@@ -219,15 +218,10 @@ describe("a homeroom's subject classes follow its places", () => {
         `[${first.from},${left})`,
       );
       expect(await drift(tx, tenantId, first.homeroom)).toEqual([]);
-      await reopenStudentEnrollments(
+      await restoreStudentEnrollments(
         tx,
         { tenantId, schoolId },
-        {
-          studentId: first.student,
-          yearId: first.year,
-          endedOn: left,
-          endsBefore: YEAR.end,
-        },
+        { studentId: first.student, ...ended },
       );
       expect((await placeOf(tx, tenantId, first.enrollment))?.days).toBe(
         `[${first.from},${YEAR.end})`,

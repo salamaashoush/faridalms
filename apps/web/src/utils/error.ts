@@ -4,6 +4,8 @@ import { validationMessage } from "~/utils/validation";
 
 /** Followed by the last day a register marks the student, which the change would undo. */
 const REGISTERS_AFTER = "enrollment.registers_after:";
+/** Followed by the last day a register of the class was taken, which ending it would undo. */
+const CLASS_REGISTERS_AFTER = "class.registers_after:";
 /** Followed by the first day a register was taken in a period the change rewrites. */
 export const PERIOD_REGISTERS_AFTER = "class_period.registers_after:";
 /** Followed by the first day cover is arranged in a period the change ends. */
@@ -55,6 +57,10 @@ export const isErrorCode = (message: string) => CODE.test(message);
  * generic error rather than given copy of their own.
  */
 const INTERNAL_CODES: ReadonlySet<string> = new Set([
+  "classes.part_unknown",
+  "classes.view_unknown",
+  "people.part_unknown",
+  "people.view_unknown",
   "academic_session.parent_invalid",
   "academic_week.number_taken",
   "academic_week.overlapping",
@@ -405,9 +411,20 @@ export function getMessageFromError(error: unknown): string {
         return m.errorLeavingNotEnrolled();
       case "leaving.none":
         return m.errorLeavingNone();
-      case "enrollment.outside_year":
       case "enrollment.outside_dates":
-        return m.errorEnrollmentOutsideYear();
+        return m.errorEnrollmentOutsideDates();
+      case "enrollment.outside_class":
+        return m.errorEnrollmentOutsideClass();
+      case "leaving.recorded":
+        return m.errorLeavingRecorded();
+      case "leaving.reason_required":
+        return m.errorLeavingReasonRequired();
+      case "class.runs_enrolments":
+        return m.errorClassRunsEnrolments();
+      case "class.no_school_year":
+        return m.errorClassNoSchoolYear();
+      case "school_year.class_outside":
+        return m.errorClassOutsideYear();
       case "enrollment.overlapping":
         return m.errorAlreadyEnrolled();
       case "enrollment.homeroom_overlapping":
@@ -1142,6 +1159,10 @@ export function getMessageFromError(error: unknown): string {
     if (error.message.startsWith(REGISTERS_AFTER))
       return m.enrollmentRegistersAfter({
         date: formatDate(error.message.slice(REGISTERS_AFTER.length)),
+      });
+    if (error.message.startsWith(CLASS_REGISTERS_AFTER))
+      return m.classesRegistersAfter({
+        date: formatDate(error.message.slice(CLASS_REGISTERS_AFTER.length)),
       });
     if (error.message.startsWith(PERIOD_REGISTERS_AFTER))
       return m.periodsRegistersAfter({

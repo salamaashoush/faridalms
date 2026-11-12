@@ -1,4 +1,5 @@
 import type { ClassLabel } from "@faridalms/database/stores/classes";
+import type { OpenSpan } from "@faridalms/domain/school";
 
 import { classLabels } from "@faridalms/database/stores/classes";
 
@@ -18,8 +19,8 @@ export interface TimetableGrids {
   ): Promise<Map<string, string>>;
   /** The classes a grid places, or null when it is not one of this module's. */
   classesOf(context: UnitContext, ownerId: string): Promise<string[] | null>;
-  /** The classes of a year planned in another class's grid. */
-  plannedElsewhere(context: UnitContext, yearId: string): Promise<string[]>;
+  /** The classes running over some of the days that are planned in another class's grid. */
+  plannedElsewhere(context: UnitContext, during: OpenSpan): Promise<string[]>;
 }
 
 export const timetableGrids = point<TimetableGrids>("timetable grids");
@@ -66,14 +67,14 @@ export async function gridLessonClassIds(
   return [...new Set([ownerId, ...(await gridClassIds(context, ownerId))])];
 }
 
-/** The classes of a year that own no grid, being planned in another's. */
+/** The classes running over some of the days that own no grid, being planned in another's. */
 export async function plannedElsewhere(
   context: UnitContext,
-  yearId: string,
+  during: OpenSpan,
 ): Promise<string[]> {
   const found = await Promise.all(
     (await contributionsTo(context, timetableGrids)).map((contribution) =>
-      contribution.plannedElsewhere(context, yearId),
+      contribution.plannedElsewhere(context, during),
     ),
   );
   return [...new Set(found.flat())];

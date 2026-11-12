@@ -1,9 +1,11 @@
+import type { OpenSpan } from "@faridalms/domain/school";
 import type { StaffAbsenceReason } from "@faridalms/domain/timetable";
 
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
+import { rangeOf } from "./classes";
 import { dayPlan, heldOn } from "./day-plan";
 import { bounds, textArray, uuidArray } from "./sql";
 
@@ -289,6 +291,8 @@ export async function coverCandidates(
     tenantId: string;
     schoolId: string;
     yearId: string;
+    /** The year's days, over which staff teach. */
+    during: OpenSpan;
     classId: string;
     /** The class and those it is planned with. */
     knownClassIds: readonly string[];
@@ -309,7 +313,7 @@ export async function coverCandidates(
     with staff as (
       select distinct e.user_id from core.enrollments e
       where e.tenant_id = ${input.tenantId}::uuid and e.org_id = ${input.schoolId}::uuid
-        and e.school_year_id = ${input.yearId}::uuid and e.status = 'active'
+        and e.valid_during && ${rangeOf(input.during)}::daterange and e.status = 'active'
         and e.role in ('teacher', 'aide')
     ),
     teaching as (
@@ -339,7 +343,7 @@ export async function coverCandidates(
       exists (select 1 from core.enrollments e
         join core.classes c on c.tenant_id = e.tenant_id and c.id = e.class_id
         where e.tenant_id = u.tenant_id and e.user_id = u.id and e.status = 'active'
-          and e.role in ('teacher', 'aide') and e.school_year_id = ${input.yearId}::uuid
+          and e.role in ('teacher', 'aide') and e.valid_during && ${rangeOf(input.during)}::daterange
           and c.subject_descriptor_id is not null
           and c.subject_descriptor_id = (select subject_descriptor_id from lesson)) as same_subject,
       (select count(*)::int from core.lesson_changes x

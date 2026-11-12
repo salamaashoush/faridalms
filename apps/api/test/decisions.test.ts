@@ -358,9 +358,9 @@ describe("enrolling", () => {
     });
     const student = await office.people.student({ id: studentId });
     expect(student.reference).toBe(before.reference);
-    const placement = student.placements.find(
-      (row) => row.yearTitleEn === "2027–2028",
-    );
+    const placement = (
+      await office.years.placementsOf({ studentId })
+    ).placements.find((row) => row.yearTitleEn === "2027–2028");
     expect(placement).toMatchObject({ from: "2027-09-12" });
     expect(placement?.previousSchool).toBe("Little Steps Nursery");
     const parent = student.guardians?.find(

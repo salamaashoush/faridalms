@@ -7,9 +7,9 @@ import { addDays } from "@faridalms/domain/school";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
-import type { RolloverState } from "../tables/calendar";
+import type { RolloverState } from "../tables/school-years";
 
-import { yearRollovers } from "../tables/calendar";
+import { yearRollovers } from "../tables/school-years";
 import { uuidArray } from "./sql";
 
 type Tx = CellTransaction;

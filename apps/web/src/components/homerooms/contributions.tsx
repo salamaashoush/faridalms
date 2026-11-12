@@ -29,8 +29,8 @@ export const HOMEROOMS: ModuleFillings = {
     fill(classesTabs, {
       value: "homerooms",
       label: m.homeroomsTab,
-      prefetch: (queryClient, search) =>
-        queryClient.ensureQueryData(homeroomDirectoryQuery(search)),
+      prefetch: (queryClient, search, views) =>
+        queryClient.ensureQueryData(homeroomDirectoryQuery(search, views)),
       Tab: HomeroomDirectory,
     }),
     fill(classRecordParts, {

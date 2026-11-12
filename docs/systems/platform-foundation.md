@@ -750,8 +750,8 @@ or a namespace column may reach what core owns, what its own table's owner
 owns, what that owner requires in every alternative of its `requires` and
 what those require in turn, and what a module it needs owns; a core table
 reaches core alone. A column that carries a module's concept without a key
-to its tables, such as `school_year_id` travelling inside a composite key to
-`core.classes` or `homeroom_class_id` naming a homeroom by its class, is a
+to its tables, such as `target_days` keeping a school year's teaching days
+on `core.calendars` or `homeroom_class_id` naming a homeroom by its class, is a
 concept column owned by that module
 wherever it appears, and a table holding one is held to the same rule. The
 owners are `packages/database/src/ownership.ts`, the
@@ -1033,8 +1033,9 @@ Notes on the functions:
   own columns (`accounts.state`, `academic_sessions.lifecycle`,
   `files.state`, `orgs.lifecycle`) so that disabling a sign-in never looks like
   deleting a record, as OneRoster separates `enabledUser` from `status` ([R3]
-  section 1). A student who leaves is not tombstoned: their school year gets
-  an exit (section 6.8).
+  section 1). A student who leaves is not tombstoned: core records the
+  departure, and where the school has school years their placement gets an
+  exit (section 6.8).
 - **Deleting** is `update ... set status = 'tobedeleted'`. The row keeps its
   id, `date_last_modified` moves, and delta readers see the deletion. No
   runtime role can `DELETE` a tenant row except `retention` (section 5).
@@ -3040,7 +3041,8 @@ create index student_school_years_year_idx on core.student_school_years
 create index student_school_years_delta_idx on core.student_school_years (tenant_id, date_last_modified);
 ```
 
-A student's placement at a school for one school year: Ed-Fi
+The school years module owns this table. A student's placement at a school
+for one school year: Ed-Fi
 `StudentSchoolAssociation` (entry date, `EntryGradeLevel`, `EntryType`,
 `ExitWithdrawType`, `Calendar`), and the source of OneRoster `User.grades`
 ([R1]). It is the foundation's answer to "which grade is this child in",
@@ -3062,18 +3064,63 @@ by grade, the grade chip on the student list, OneRoster and rollover all ask:
   Graduate, or promote); applying the rollover creates next year's rows
   (promote: next grade, retain: same grade, entry `continuing`) and sets exit
   types on this year's rows for those who leave or graduate.
-- **Status on the student list** derives from these rows, never from
-  `status = 'tobedeleted'`: enrolled (a current row), pre-enrolled (only a
-  future row), left or graduated (the latest row has that exit), unplaced (no
-  row). The Archive bulk action ends the current row with an exit type.
+- **Status on the student list** derives, never from
+  `status = 'tobedeleted'`, from the student role and the departure below:
+  enrolled (a current role), pre-enrolled (only a future one), left (a
+  departure, or a role that has ended). Where the school has school years,
+  these rows add graduated (the latest row has that exit) and unplaced (no
+  row), and the list reads the year it shows.
 - **The young student profile** (K-2 home) applies when the current row's
   grade meaning is `pre_kg` through `grade_2`; a student with no grade gets the
   standard student profile. Birth date plays no part in it (section 6.7).
-- The Enrolment history tab lists these rows with the teaching spec's class
-  enrollments.
+- The Enrolment history tab lists these rows with the class enrolments,
+  naming each class's year.
 - The Ed-Fi export writes one `StudentSchoolAssociation` per row: entry date
   `lower(valid_during)`, exit date `upper(valid_during) - 1` when an exit is
   set, `End of school year` when the year ended without one.
+
+```sql
+create table core.student_departures (
+  tenant_id uuid not null,
+  id uuid not null default uuidv7(),
+  org_id uuid not null,
+  org_type text not null default 'school' check (org_type = 'school'),
+  student_user_id uuid not null,
+  left_on date not null,
+  access_ends_on date not null,
+  ended jsonb not null
+    check (jsonb_typeof(ended) = 'object' and octet_length(ended::text) <= 262144),
+  status text not null default 'active' check (status in ('active', 'tobedeleted')),
+  date_last_modified timestamptz not null default statement_timestamp(),
+  version integer not null default 1 check (version > 0),
+  metadata jsonb not null default '{}'
+    check (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
+  created_at timestamptz not null default statement_timestamp(),
+  primary key (tenant_id, id),
+  constraint student_departures_access_check check (access_ends_on >= left_on)
+);
+create unique index student_departures_student_key on core.student_departures
+  (tenant_id, org_id, student_user_id) where status = 'active';
+```
+
+A student's leaving a school, which core keeps whatever modules the school
+has:
+
+- `left_on` is the first day they are no longer at the school; their
+  student role and their class enrolments end on it.
+- `access_ends_on` is the day they and their families stop reading the
+  record, on or after `left_on`. `app.visible_students` keeps a leaver
+  visible to their families until then, and `app.reached_people` leaves a
+  leaver out of a teacher's reach from `left_on`.
+- `ended` records exactly what the leaving changed: the student role's end
+  as it was, the enrolments ended and those dropped, and what each module
+  recorded under its key. Undoing the leaving restores those and nothing
+  else, then tombstones the row.
+- The reading window after `left_on` lives here and never on the role, so a
+  retention period counted from the role's end starts on the day the student
+  left, however long the family goes on reading.
+- One active departure per student at a school; erasure removes it with the
+  student.
 
 ```sql
 create table core.user_roles (

@@ -23,11 +23,10 @@ import {
   RecordSection,
   RecordTabs,
 } from "@faridalms/ui/system/record-page";
-import { StatusText } from "@faridalms/ui/system/status";
-import { Value } from "@faridalms/ui/system/value";
 import {
   useQueryClient,
   useSuspenseInfiniteQuery,
+  useSuspenseQueries,
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -53,7 +52,6 @@ import { StudentConsents } from "~/components/consents/StudentConsents";
 import { StudentCoursework } from "~/components/coursework/StudentCoursework";
 import { NewMessage } from "~/components/messages/NewMessage";
 import { StudentSkills } from "~/components/standards/Progress";
-import { inLocale } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import {
@@ -89,7 +87,7 @@ import {
   HealthSection,
 } from "./RecordSections";
 import { SignInSection } from "./SignInSection";
-import { studentClassesParts } from "./slots";
+import { studentClassesParts, studentRecordParts } from "./slots";
 import {
   StudentAttendanceSummary,
   StudentNotices,
@@ -170,9 +168,6 @@ function useLabels() {
   const options = useSuspenseQuery(peopleOptionsQuery).data;
   return {
     options,
-    grade: (id: string | null) => labelIn(options.grades, id),
-    entry: (id: string | null) => labelIn(options.entryTypes, id),
-    exit: (id: string | null) => labelIn(options.exitTypes, id),
     relation: (id: string) => labelIn(options.relations, id),
     sex: (id: string | null) => labelIn(options.sexes, id),
   };
@@ -218,95 +213,33 @@ function PersonalSection({ data, onEdit }: PersonalSectionProps) {
   );
 }
 
-interface PlacementSectionProps {
-  data: StudentData;
-  onEdit?: () => void;
-}
-
-function PlacementSection({ data, onEdit }: PlacementSectionProps) {
-  const labels = useLabels();
-  const placement = data.placement;
-  return (
-    <RecordSection
-      title={m.studentPlacement()}
-      edit={
-        onEdit ? { label: m.studentChangeGrade(), onClick: onEdit } : undefined
-      }
-    >
-      <Facts>
-        <Fact label={m.studentSchoolYear()} notApplicable={!placement}>
-          {placement
-            ? inLocale(placement.yearTitleEn, placement.yearTitleAr)
-            : null}
-        </Fact>
-        <Fact label={m.studentGrade()} notApplicable={!placement}>
-          {placement ? labels.grade(placement.gradeId) : null}
-        </Fact>
-        <Fact label={m.enrollmentStarts()} notApplicable={!placement}>
-          {placement ? formatDate(placement.from) : null}
-        </Fact>
-      </Facts>
-    </RecordSection>
-  );
-}
-
-interface ArrivalSectionProps {
-  data: StudentData;
-  onEdit?: () => void;
-}
-
-/**
- * How a student came to the school, from their first placement here: the
- * day, as what kind of entrant, and the school they came from.
- */
-function ArrivalSection({ data, onEdit }: ArrivalSectionProps) {
-  const labels = useLabels();
-  const first = data.placements.at(-1);
-  if (!first) return null;
-  return (
-    <RecordSection
-      title={m.arrivalTitle()}
-      edit={onEdit ? { label: m.arrivalEdit(), onClick: onEdit } : undefined}
-    >
-      <Facts>
-        <Fact label={m.arrivalJoinedOn()}>{formatDate(first.from)}</Fact>
-        <Fact label={m.arrivalJoinedAs()}>
-          {labels.entry(first.entryTypeId)}
-        </Fact>
-        <Fact label={m.arrivalPreviousSchool()}>
-          {first.previousSchool ? (
-            <span dir="auto">{first.previousSchool}</span>
-          ) : null}
-        </Fact>
-      </Facts>
-    </RecordSection>
-  );
-}
-
 interface DepartureSectionProps {
   data: StudentData;
+  /** What modules recorded of the departure. */
+  facts: readonly { label: string; value: ReactNode }[];
 }
 
 /**
- * How a student left: their last day, why, where they went, and the day
- * they and their family stop reading the record.
+ * How a student left: their last day, what modules recorded of it, and the
+ * day they and their family stop reading the record.
  */
-function DepartureSection({ data }: DepartureSectionProps) {
-  const labels = useLabels();
-  const [latest] = data.placements;
-  if (!latest?.exitTypeId) return null;
+function DepartureSection({ data, facts }: DepartureSectionProps) {
+  const departure = data.departure;
+  if (!departure) return null;
+  const reads = departure.accessEndsOn > departure.leftOn;
   return (
     <RecordSection title={m.leaveSectionTitle()}>
       <Facts>
-        <Fact label={m.leaveLastDay()}>{formatDate(lastDay(latest.to))}</Fact>
-        <Fact label={m.leaveReason()}>{labels.exit(latest.exitTypeId)}</Fact>
-        <Fact label={m.leaveDestination()}>
-          {latest.destinationSchool ? (
-            <span dir="auto">{latest.destinationSchool}</span>
-          ) : null}
+        <Fact label={m.leaveLastDay()}>
+          {formatDate(lastDay(departure.leftOn))}
         </Fact>
-        <Fact label={m.leaveAccessUntil()} notApplicable={!data.accessUntil}>
-          {data.accessUntil ? formatDate(lastDay(data.accessUntil)) : null}
+        {facts.map((fact) => (
+          <Fact key={fact.label} label={fact.label}>
+            {fact.value}
+          </Fact>
+        ))}
+        <Fact label={m.leaveAccessUntil()} notApplicable={!reads}>
+          {reads ? formatDate(lastDay(departure.accessEndsOn)) : null}
         </Fact>
       </Facts>
     </RecordSection>
@@ -460,74 +393,6 @@ function SiblingsSection({ studentId }: SiblingsSectionProps) {
   );
 }
 
-interface EnrollmentHistoryProps {
-  data: StudentData;
-}
-
-function EnrollmentHistory({ data }: EnrollmentHistoryProps) {
-  const labels = useLabels();
-  return (
-    <RecordSection
-      title={m.enrollmentHistoryTitle()}
-      description={m.studentPlacementHistoryHint()}
-    >
-      {data.placements.length === 0 ? (
-        <RecordEmpty>{m.enrollmentHistoryEmpty()}</RecordEmpty>
-      ) : (
-        <RecordList>
-          {data.placements.map((placement) => {
-            const current =
-              placement.from <= data.today && data.today < placement.to;
-            return (
-              <li
-                key={placement.id}
-                className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 py-3"
-              >
-                <div className="grid min-w-0 gap-0.5">
-                  <span className="flex flex-wrap items-center gap-x-3 text-sm leading-5 font-medium">
-                    <Value>{labels.grade(placement.gradeId)}</Value>
-                    {current ? (
-                      <StatusText tone="success">
-                        {m.enrollmentCurrent()}
-                      </StatusText>
-                    ) : null}
-                  </span>
-                  <span className="text-[13px] leading-[18px] text-muted-foreground">
-                    {[
-                      inLocale(placement.yearTitleEn, placement.yearTitleAr),
-                      placement.exitTypeId
-                        ? labels.exit(placement.exitTypeId)
-                        : null,
-                    ]
-                      .filter((part) => part !== null)
-                      .join(" · ")}
-                  </span>
-                </div>
-                <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm leading-5">
-                  <div>
-                    <dt className="text-[13px] leading-[18px] text-muted-foreground">
-                      {m.enrollmentStarts()}
-                    </dt>
-                    <dd className="mt-0.5">{formatDate(placement.from)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[13px] leading-[18px] text-muted-foreground">
-                      {m.enrollmentEnds()}
-                    </dt>
-                    <dd className="mt-0.5">
-                      {formatDate(lastDay(placement.to))}
-                    </dd>
-                  </div>
-                </dl>
-              </li>
-            );
-          })}
-        </RecordList>
-      )}
-    </RecordSection>
-  );
-}
-
 interface StudentHistoryProps {
   studentId: string;
 }
@@ -564,8 +429,20 @@ export function StudentRecord({
     open: boolean;
     key: number;
   }>({ guardian: null, open: false, key: 0 });
-  const labels = useLabels();
   const endLink = useEndLink(studentId);
+  const recordParts = useSlot(studentRecordParts);
+  const partReads = useSuspenseQueries({
+    queries: recordParts.map((part) => part.query(studentId)),
+  });
+  const parts = recordParts.flatMap((part, index) => {
+    const found = part.partOf(partReads[index]?.data);
+    return found ? [found] : [];
+  });
+  const partProps = {
+    student: { id: studentId, name: displayName(data) },
+    today: data.today,
+    manage: data.access.manage,
+  };
   const navigate = useNavigate();
   const [sheet, setSheet] = useState<{
     sheet: StudentSheet;
@@ -598,11 +475,8 @@ export function StudentRecord({
       label: m.familyReference(),
       value: <span dir="ltr">{data.reference}</span>,
     });
-  if (data.placement)
-    facts.push({
-      label: m.studentGrade(),
-      value: labels.grade(data.placement.gradeId),
-    });
+  for (const part of parts) facts.push(...part.facts);
+  const departureFacts = parts.flatMap((part) => part.departure);
   const groupTeacher = words[0]?.teacher() ?? m.classesClassTeacher();
   if (data.group && data.group.teachers.length > 0)
     facts.push({
@@ -644,13 +518,7 @@ export function StudentRecord({
     });
 
   const menu: ActionItem[] = [];
-  // A year that is closed takes no moves, so none is offered.
-  const movable =
-    access.manage &&
-    labels.options.years.some(
-      (year) => year.id === data.workingYearId && year.lifecycle !== "closed",
-    );
-  if (movable && mover)
+  if (access.manage && mover)
     menu.push({
       label: mover.label(),
       icon: ArrowRightLeft,
@@ -662,25 +530,14 @@ export function StudentRecord({
       icon: MessageSquare,
       onSelect: () => setWriting(true),
     });
-  // A closed year's enrolment is its record, so leaving is recorded and
-  // taken back only in a year that still takes changes.
-  const openYear = (yearId: string | undefined) =>
-    labels.options.years.find(
-      (year) => year.id === yearId && year.lifecycle !== "closed",
-    );
-  const leavingYear = access.manage
-    ? openYear(data.placement?.schoolYearId)
-    : undefined;
-  const [latest] = data.placements;
-  // One who has left has no placement to show, only how they left.
-  const gone = Boolean(latest?.exitTypeId) && !data.placement;
-  if (leavingYear)
+  const gone = data.departure !== null;
+  if (access.manage && !gone && data.status === "enrolled")
     menu.push({
       label: m.studentLeave(),
       icon: LogOut,
       onSelect: () => setLeaving(true),
     });
-  if (access.manage && latest?.exitTypeId && openYear(latest.schoolYearId))
+  if (access.manage && gone)
     menu.push({
       label: m.leaveUndo(),
       icon: Undo2,
@@ -749,8 +606,12 @@ export function StudentRecord({
                   />
                 </Deferred>
               ) : null}
-              <DepartureSection data={data} />
-              {gone ? null : <PlacementSection data={data} />}
+              <DepartureSection data={data} facts={departureFacts} />
+              {gone
+                ? null
+                : parts.map((part, index) => (
+                    <part.Overview key={index} {...partProps} />
+                  ))}
               {access.contacts ? <GuardiansSection data={data} /> : null}
               {access.manage ? (
                 <Deferred>
@@ -829,31 +690,17 @@ export function StudentRecord({
                   manage={access.manage}
                 />
               </Deferred>
-              <EnrollmentHistory data={data} />
+              {parts.map((part, index) => (
+                <part.Enrolment key={index} {...partProps} />
+              ))}
             </>
           }
           aside={
             <>
-              <DepartureSection data={data} />
-              {gone ? null : (
-                <PlacementSection
-                  data={data}
-                  onEdit={
-                    access.manage && data.workingYearId
-                      ? open({ kind: "grade" })
-                      : undefined
-                  }
-                />
-              )}
-              <ArrivalSection
-                data={data}
-                onEdit={
-                  access.manage &&
-                  openYear(data.placements.at(-1)?.schoolYearId)
-                    ? open({ kind: "arrival" })
-                    : undefined
-                }
-              />
+              <DepartureSection data={data} facts={departureFacts} />
+              {parts.map((part, index) => (
+                <part.EnrolmentAside key={index} {...partProps} />
+              ))}
             </>
           }
         />
@@ -939,10 +786,15 @@ export function StudentRecord({
         photoUrl={data.photoFileId ? `/files/${data.photoFileId}` : null}
         onPhoto={access.manage ? () => setPhotoOpen(true) : undefined}
         facts={facts}
-        status={{
-          label: STATUS_LABEL[data.status](),
-          tone: STATUS_TONE[data.status],
-        }}
+        status={
+          parts.find((part) => part.status)?.status ??
+          (data.status
+            ? {
+                label: STATUS_LABEL[data.status](),
+                tone: STATUS_TONE[data.status],
+              }
+            : undefined)
+        }
         alerts={alerts}
         action={
           access.manage
@@ -976,12 +828,11 @@ export function StudentRecord({
           />
         </Suspense>
       ) : null}
-      {leaving && leavingYear ? (
+      {leaving ? (
         <Suspense fallback={null}>
           <LeaveSchool
             students={[{ id: studentId, name }]}
-            year={leavingYear}
-            from={data.placement?.from}
+            from={data.roles[0]?.from}
             today={data.today}
             onClose={() => setLeaving(false)}
           />

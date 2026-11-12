@@ -8,6 +8,7 @@ import {
   newYear,
   refusal,
   schoolDaysTo,
+  workingYear,
 } from "./fixtures/school";
 import { signIn, untilHydrated } from "./fixtures/sign-in";
 
@@ -51,8 +52,7 @@ test("class moves keep other school years and return to a class as a new episode
     yearId: earlier.id,
     title: `Salama earlier ${unique}`,
   });
-  const { workingYearId } = await admin.classes.options();
-  if (!workingYearId) throw new Error("the school has no working year");
+  const { id: workingYearId } = await workingYear(admin);
   const [first, second] = await Promise.all([
     newClass(admin, { yearId: workingYearId, title: `Salama A ${unique}` }),
     newClass(admin, { yearId: workingYearId, title: `Salama B ${unique}` }),
@@ -155,7 +155,9 @@ test("class moves keep other school years and return to a class as a new episode
   expect(returns).toHaveLength(2);
   expect(returns.find((row) => row.from === joined)?.to).toBe(left);
   expect(
-    returns.filter((row) => row.from <= today && today < row.to),
+    returns.filter(
+      (row) => row.from <= today && (row.to === null || today < row.to),
+    ),
   ).toHaveLength(1);
   expect(history.some((row) => row.classId === second.id)).toBe(false);
   const listed = (await admin.people.students({ q: student.reference }))
@@ -191,8 +193,7 @@ test("class moves keep other school years and return to a class as a new episode
 test("a backdated move cannot reach over a register already taken, and each day keeps its roster", async () => {
   const admin = await apiAs("admin");
   const unique = crypto.randomUUID().slice(0, 6);
-  const { workingYearId } = await admin.classes.options();
-  if (!workingYearId) throw new Error("the school has no working year");
+  const { id: workingYearId } = await workingYear(admin);
   const [registered, moved] = await Promise.all([
     newClass(admin, {
       yearId: workingYearId,

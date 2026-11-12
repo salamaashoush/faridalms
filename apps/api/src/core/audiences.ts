@@ -1,9 +1,8 @@
 import type { Audience } from "@faridalms/database/stores/audiences";
 import type { AudienceInput } from "@faridalms/domain/announcements";
 
-import { gradesInYear, reachOf } from "@faridalms/database/stores/audiences";
-import { classesOfYear } from "@faridalms/database/stores/classes";
-import { schoolYears, workingYear } from "@faridalms/database/stores/years";
+import { gradesRunning, reachOf } from "@faridalms/database/stores/audiences";
+import { classesRunning } from "@faridalms/database/stores/classes";
 
 import type { UnitContext } from "./context";
 
@@ -17,21 +16,16 @@ export function audienceOf(input: AudienceInput): Audience {
   };
 }
 
-/** The classes and grades of the working year a broadcast can go to. */
+/** The classes running today, and their grades, a broadcast can go to. */
 export async function audienceChoices(context: UnitContext) {
-  const year = workingYear(
-    await schoolYears(context.tx, context.tenantId, context.schoolId),
-    context.today,
-  );
-  if (!year) return { classes: [], grades: [] };
   const scope = {
     tenantId: context.tenantId,
     schoolId: context.schoolId,
-    yearId: year.id,
+    on: context.today,
   };
   const [classes, grades] = await Promise.all([
-    classesOfYear(context.tx, scope),
-    gradesInYear(context.tx, scope),
+    classesRunning(context.tx, scope),
+    gradesRunning(context.tx, scope),
   ]);
   return { classes, grades };
 }

@@ -25,6 +25,12 @@ describe("the days a member sits in a subject class", () => {
     });
   });
 
+  it("run on with a member whose place in the homeroom has no end", () => {
+    expect(
+      followingSpan({ from: "2026-09-13", to: null }, "2026-11-01"),
+    ).toEqual({ from: "2026-11-01", to: null });
+  });
+
   it("are none when the member left before the class joined", () => {
     expect(
       followingSpan({ from: "2026-09-13", to: "2026-10-01" }, "2026-11-01"),
@@ -65,7 +71,7 @@ describe("ending a span on a day", () => {
 describe("the forms", () => {
   it("refuse a homeroom with a subject twice", () => {
     const result = v.safeParse(saveHomeroomSchema, {
-      yearId: id(1),
+      startsOn: "2026-09-13",
       code: "8-A",
       titleEn: "8A",
       subjects: [
@@ -79,11 +85,23 @@ describe("the forms", () => {
 
   it("take a class with no subject, course, grade or teacher", () => {
     const result = v.safeParse(saveClassSchema, {
-      yearId: id(1),
       code: "PY-101",
       titleEn: "Python from scratch",
       teacherIds: [],
+      startsOn: "2026-09-13",
     });
     expect(result.success).toBe(true);
+    expect(result.output).toMatchObject({ endsOn: "" });
+  });
+
+  it("refuse a class that ends before it starts", () => {
+    const result = v.safeParse(saveClassSchema, {
+      code: "PY-101",
+      titleEn: "Python from scratch",
+      teacherIds: [],
+      startsOn: "2026-09-13",
+      endsOn: "2026-09-12",
+    });
+    expect(result.issues?.[0]?.message).toBe("validation.ends_before_start");
   });
 });

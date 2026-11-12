@@ -1787,7 +1787,7 @@ export async function saveGroup(
     tenantId: string;
     orgId: string;
     id?: string;
-    classRow: { id: string; schoolYearId: string };
+    classId: string;
     titleEn: string | null;
     titleAr: string | null;
     studentIds: readonly string[];
@@ -1801,11 +1801,10 @@ export async function saveGroup(
       where tenant_id = ${input.tenantId}::uuid and id = ${groupId}::uuid`);
   else {
     const [row] = await tx.execute<{ id: string }>(sql`
-      insert into core.class_groups (tenant_id, org_id, class_id, school_year_id,
+      insert into core.class_groups (tenant_id, org_id, class_id,
         title_en, title_ar, created_by_user_id)
-      values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
-        ${input.classRow.schoolYearId}::uuid, ${input.titleEn},
-        ${input.titleAr}, ${input.userId}::uuid)
+      values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classId}::uuid,
+        ${input.titleEn}, ${input.titleAr}, ${input.userId}::uuid)
       returning id`);
     if (!row) throw new Error("group was not created");
     groupId = row.id;

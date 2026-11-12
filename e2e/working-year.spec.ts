@@ -85,14 +85,14 @@ const WIDENED = {
   },
 } as const;
 
-async function placement(api: Api, year: string, name: string) {
-  const listed = await api.people.students({ year, q: name });
-  return {
-    year: listed.year?.id,
-    classes: listed.rows
-      .filter((row) => row.fullNameEn === name)
-      .map((row) => row.group?.classId ?? null),
-  };
+async function placement(api: Api, year: string | null, name: string) {
+  const listed = await api.people.students({
+    q: name,
+    views: year ? { year } : {},
+  });
+  return listed.rows
+    .filter((row) => row.fullNameEn === name)
+    .map((row) => row.group?.classId ?? null);
 }
 
 test("directories answer for the year asked, refuse an unknown one and place students on that year's dates", async ({
@@ -123,16 +123,17 @@ test("directories answer for the year asked, refuse an unknown one and place stu
     ),
   );
 
-  const own = await admin.classes.directory({ year: source.id });
-  expect(own.year).toMatchObject({ id: source.id, lifecycle: "upcoming" });
+  const own = await admin.classes.directory({ views: { year: source.id } });
+  expect(own.on).toBe(years.from.endsOn);
   expect(own.rows.map((row) => row.id).toSorted()).toEqual(
     [first.id, second.id].toSorted(),
   );
   const working = await admin.classes.directory({ q: first.title });
-  expect(working.year?.lifecycle).toBe("current");
   expect(working.rows).toEqual([]);
   expect(
-    await refusal(admin.classes.directory({ year: crypto.randomUUID() })),
+    await refusal(
+      admin.classes.directory({ views: { year: crypto.randomUUID() } }),
+    ),
   ).toMatchObject({ code: "NOT_FOUND" });
 
   const target = await newYear(admin, years.to);
@@ -155,15 +156,9 @@ test("directories answer for the year asked, refuse an unknown one and place stu
   )?.classId;
   if (!successor) throw new Error("the rollover made no class from A");
 
-  expect(await placement(admin, source.id, promoted.name)).toEqual({
-    year: source.id,
-    classes: [first.id],
-  });
-  expect(await placement(admin, target.id, promoted.name)).toEqual({
-    year: target.id,
-    classes: [successor],
-  });
-  expect((await placement(admin, "", promoted.name)).classes).toEqual([null]);
+  expect(await placement(admin, source.id, promoted.name)).toEqual([first.id]);
+  expect(await placement(admin, target.id, promoted.name)).toEqual([successor]);
+  expect(await placement(admin, null, promoted.name)).toEqual([null]);
 
   const { years: listed } = await admin.years.directory();
   const version = listed.find((row) => row.id === source.id)?.version;
@@ -173,8 +168,10 @@ test("directories answer for the year asked, refuse an unknown one and place stu
     expectedVersion: version,
     action: "close",
   });
-  expect(await admin.classes.record({ id: first.id })).toMatchObject({
+  expect(await admin.years.ofClass({ classId: first.id })).toMatchObject({
     year: { id: source.id, lifecycle: "closed" },
+  });
+  expect(await admin.classes.record({ id: first.id })).toMatchObject({
     access: { manage: false, enrol: false },
   });
   expect(

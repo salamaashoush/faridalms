@@ -112,9 +112,9 @@ export async function leaversOf(
     left_on: string;
   }>(sql`
     with spans as (
-      select y.student_user_id as user_id, 'student' as kind, y.org_id, y.valid_during
-      from core.student_school_years y
-      where y.tenant_id = ${scope.tenantId}::uuid and y.status = 'active'
+      select r.user_id, 'student' as kind, r.org_id, r.valid_during
+      from core.user_roles r
+      where r.tenant_id = ${scope.tenantId}::uuid and r.status = 'active' and r.role = 'student'
       union all
       select r.user_id, 'staff', r.org_id, r.valid_during
       from core.user_roles r
@@ -176,10 +176,7 @@ export async function holdsOf(tx: Tx, scope: OrgScope): Promise<HoldRow[]> {
     join core.users u on u.tenant_id = h.tenant_id and u.id = h.subject_user_id
     join core.users b on b.tenant_id = h.tenant_id and b.id = h.placed_by_user_id
     where h.tenant_id = ${scope.tenantId}::uuid and h.status = 'active' and h.released_at is null
-      and (exists (select 1 from core.student_school_years y
-                   where y.tenant_id = h.tenant_id and y.student_user_id = h.subject_user_id
-                     and y.org_id = ${scope.orgId}::uuid and y.status = 'active')
-           or exists (select 1 from core.user_roles r
+      and (exists (select 1 from core.user_roles r
                       where r.tenant_id = h.tenant_id and r.user_id = h.subject_user_id
                         and r.org_id = ${scope.orgId}::uuid and r.status = 'active'))
     order by h.created_at desc, h.id`);
@@ -244,13 +241,10 @@ export async function hadAtSchool(
   scope: OrgScope & { userId: string },
 ): Promise<boolean> {
   const rows = await tx.execute<{ found: boolean }>(sql`
-    select exists (select 1 from core.student_school_years y
-                   where y.tenant_id = ${scope.tenantId}::uuid and y.student_user_id = ${scope.userId}::uuid
-                     and y.org_id = ${scope.orgId}::uuid and y.status = 'active')
-        or exists (select 1 from core.user_roles r
+    select exists (select 1 from core.user_roles r
                    where r.tenant_id = ${scope.tenantId}::uuid and r.user_id = ${scope.userId}::uuid
                      and r.org_id = ${scope.orgId}::uuid and r.status = 'active'
-                     and r.role = any(app.staff_roles())) as found`);
+                     and (r.role = 'student' or r.role = any(app.staff_roles()))) as found`);
   return rows[0]?.found ?? false;
 }
 

@@ -3,7 +3,6 @@ import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { boolean, index, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
-import { academicSessions } from "./calendar";
 import {
   baseConstraints,
   ck,
@@ -94,7 +93,8 @@ export const courses = core.table.withRLS(
 );
 
 /**
- * OneRoster classes: a group that is taught. A course and a subject are
+ * OneRoster classes: a group that is taught, over the dates it runs, open
+ * at the end for a class that keeps enrolling. A course and a subject are
  * both optional; whoever is in the class is its enrollments.
  */
 export const classes = core.table.withRLS(
@@ -103,11 +103,10 @@ export const classes = core.table.withRLS(
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
     orgType: text("org_type").notNull().default("school"),
-    schoolYearId: uuid("school_year_id").notNull(),
-    schoolYearType: text("school_year_type").notNull().default("school_year"),
     code: text("code").notNull(),
     titleEn: text("title_en"),
     titleAr: text("title_ar"),
+    runs: daterange("runs").notNull(),
     courseId: uuid("course_id"),
     subjectDescriptorId: uuid("subject_descriptor_id"),
     subjectNs: text("subject_ns")
@@ -131,24 +130,12 @@ export const classes = core.table.withRLS(
   },
   (t): PgTableExtraConfigValue[] => [
     pk("classes", t.tenantId, t.id),
-    uq("classes", t.tenantId, t.id, t.schoolYearId, t.orgId),
     uq("classes", t.tenantId, t.id, t.orgId),
     ...baseConstraints("classes", t, tenants),
     fk(
       "classes",
       [t.tenantId, t.orgId, t.orgType],
       [orgs.tenantId, orgs.id, orgs.type],
-    ),
-    fk(
-      "classes",
-      [t.tenantId, t.schoolYearId, t.schoolYearType, t.schoolYearId, t.orgId],
-      [
-        academicSessions.tenantId,
-        academicSessions.id,
-        academicSessions.type,
-        academicSessions.schoolYearId,
-        academicSessions.orgId,
-      ],
     ),
     fk(
       "classes",
@@ -181,16 +168,13 @@ export const classes = core.table.withRLS(
       [gradeScales.tenantId, gradeScales.id],
     ),
     ck("classes", "org_type", sql`org_type = 'school'`),
-    ck("classes", "school_year_type", sql`school_year_type = 'school_year'`),
     ck("classes", "code", sql`code ~ '^[A-Za-z0-9_.-]{1,40}$'`),
     ck("classes", "title_en", sql`char_length(title_en) between 1 and 120`),
     ck("classes", "title_ar", sql`char_length(title_ar) between 1 and 120`),
     ck("classes", "title", sql`num_nonnulls(title_en, title_ar) >= 1`),
-    uniqueIndex("classes_code_key")
-      .on(t.tenantId, t.orgId, t.schoolYearId, t.code)
-      .where(sql`status = 'active'`),
-    index("classes_year_idx")
-      .on(t.tenantId, t.orgId, t.schoolYearId)
+    ck("classes", "runs", range.started("runs")),
+    index("classes_school_idx")
+      .on(t.tenantId, t.orgId)
       .where(sql`status = 'active'`),
     index("classes_delta_idx").on(t.tenantId, t.dateLastModified),
     ...entityProfile({ integration: true }),
@@ -199,16 +183,14 @@ export const classes = core.table.withRLS(
 
 /**
  * OneRoster enrollments: who is in a class, in which role, and when. Dated
- * inside the class's school year, so a transfer ends one row and starts
- * another instead of rewriting either.
+ * inside the days the class runs (`enrollments_tenant_id_active_class_id_valid_during_fkey`),
+ * so a transfer ends one row and starts another instead of rewriting either.
  */
 export const enrollments = core.table.withRLS(
   "enrollments",
   {
     ...tenantColumns(),
     classId: uuid("class_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
-    schoolYearType: text("school_year_type").notNull().default("school_year"),
     orgId: uuid("org_id").notNull(),
     userId: uuid("user_id").notNull(),
     role: text("role").$type<EnrollmentRole>().notNull(),
@@ -221,6 +203,14 @@ export const enrollments = core.table.withRLS(
     source: text("source").$type<EnrollmentSource>().notNull(),
     importRunId: uuid("import_run_id"),
     ...entityColumns(),
+    /**
+     * The class while the enrollment is active: a tombstoned one keeps the
+     * days it had, which may lie outside a class that later ended, so the
+     * key holding enrollments inside their class passes it over.
+     */
+    activeClassId: uuid("active_class_id").generatedAlwaysAs(
+      sql`case when status = 'active' then class_id end`,
+    ),
   },
   (t): PgTableExtraConfigValue[] => [
     pk("enrollments", t.tenantId, t.id),
@@ -237,8 +227,8 @@ export const enrollments = core.table.withRLS(
     ...baseConstraints("enrollments", t, tenants),
     fk(
       "enrollments",
-      [t.tenantId, t.classId, t.schoolYearId, t.orgId],
-      [classes.tenantId, classes.id, classes.schoolYearId, classes.orgId],
+      [t.tenantId, t.classId, t.orgId],
+      [classes.tenantId, classes.id, classes.orgId],
     ),
     fk("enrollments", [t.tenantId, t.userId], [users.tenantId, users.id]),
     fk(
@@ -250,11 +240,6 @@ export const enrollments = core.table.withRLS(
       "enrollments",
       [t.tenantId, t.importRunId],
       [importRuns.tenantId, importRuns.id],
-    ),
-    ck(
-      "enrollments",
-      "school_year_type",
-      sql`school_year_type = 'school_year'`,
     ),
     ck(
       "enrollments",
@@ -272,7 +257,7 @@ export const enrollments = core.table.withRLS(
       "source",
       sql`source in ('manual', 'import', 'sis', 'oneroster', 'rollover', 'homeroom')`,
     ),
-    ck("enrollments", "valid_during", range.bounded("valid_during")),
+    ck("enrollments", "valid_during", range.started("valid_during")),
     index("enrollments_class_idx")
       .on(t.tenantId, t.classId)
       .where(sql`status = 'active'`),

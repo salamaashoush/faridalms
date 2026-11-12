@@ -53,11 +53,11 @@ export async function onboardingSeen(
         and r.org_id = ${org} and r.status = 'active'
         and r.role = any(${textArray(STAFF_ROLES)})) as staff_invited,
       ${signedIn(STAFF_ROLES)} as staff_signed_in,
-      exists (select 1 from core.student_school_years s where s.tenant_id = ${tenant}
-        and s.org_id = ${org} and s.status = 'active') as students_imported,
+      exists (select 1 from core.enrollments s where s.tenant_id = ${tenant}
+        and s.org_id = ${org} and s.role = 'student' and s.status = 'active') as students_imported,
       exists (select 1 from core.user_relationships u
-        join core.student_school_years s on s.tenant_id = u.tenant_id
-          and s.student_user_id = u.student_user_id and s.org_id = ${org} and s.status = 'active'
+        join core.enrollments s on s.tenant_id = u.tenant_id and s.user_id = u.student_user_id
+          and s.org_id = ${org} and s.role = 'student' and s.status = 'active'
         where u.tenant_id = ${tenant} and u.status = 'active') as guardians_linked,
       exists (select 1 from core.class_meetings c
         join core.academic_sessions y on y.tenant_id = c.tenant_id and y.id = c.school_year_id

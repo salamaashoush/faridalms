@@ -3,10 +3,13 @@ import type { Keyset } from "@faridalms/domain/paging";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import {
+  getClassYear,
+  getPlacements,
+  getStudentClassYears,
   getYear,
-  getYearDays,
+  getYearEnd,
   getYearHistory,
-  getYearPeriods,
+  getYearOptions,
   getYears,
 } from "~/server/years";
 
@@ -30,14 +33,37 @@ export const yearHistoryQuery = (id: string) =>
     getNextPageParam: (last) => last.next ?? undefined,
   });
 
-export const yearDaysQuery = (id: string) =>
-  queryOptions({
-    queryKey: ["years", "days", id],
-    queryFn: () => getYearDays({ data: { id } }),
-  });
+// Plain options, so a page's slot reads them as it reads its own.
+export const yearOptionsQuery = {
+  queryKey: ["years", "options"],
+  queryFn: () => getYearOptions(),
+};
 
-export const yearPeriodsQuery = (id: string, on = "") =>
-  queryOptions({
-    queryKey: ["years", "periods", id, on],
-    queryFn: () => getYearPeriods({ data: { id, on } }),
-  });
+export const classYearQuery = (classId: string) => ({
+  queryKey: ["years", "class", classId],
+  queryFn: () => getClassYear({ data: { classId } }),
+});
+
+export const studentClassYearsQuery = (studentId: string) => ({
+  queryKey: ["people", "student", studentId, "class-years"],
+  queryFn: () => getStudentClassYears({ data: { studentId } }),
+});
+
+export const placementsQuery = (studentId: string) => ({
+  queryKey: ["people", "student", studentId, "placements"],
+  queryFn: () => getPlacements({ data: { studentId } }),
+});
+
+export const yearEndQuery = {
+  queryKey: ["years", "year-end"],
+  queryFn: () => getYearEnd(),
+};
+
+/** What the class form's year part starts from: the years, and the class's own. */
+export const classYearPartQuery = (classId: string | null) => ({
+  queryKey: ["years", "class-part", classId ?? ""],
+  queryFn: async () => ({
+    options: await getYearOptions(),
+    linked: classId ? (await getClassYear({ data: { classId } })).year : null,
+  }),
+});

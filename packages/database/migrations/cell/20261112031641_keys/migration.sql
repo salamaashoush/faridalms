@@ -71,15 +71,22 @@ alter table core.access_role_assignments add constraint access_role_assignments_
   (tenant_id with =, user_id with =, access_role_id with =, org_id with =, valid_during with &&)
   where (status = 'active');
 
+-- A class's code is its own among the school's classes that run at the same
+-- time, so a class carried into the next year keeps it.
+alter table core.classes add unique (tenant_id, id, runs without overlaps);
+alter table core.classes add constraint classes_code_excl exclude using gist
+  (tenant_id with =, org_id with =, code with =, runs with &&) where (status = 'active');
+
+-- An active enrollment lies inside the days its class runs. A tombstoned one
+-- has no active_class_id and keeps whatever days it had.
 alter table core.enrollments
-  add foreign key (tenant_id, school_year_id, school_year_type, period valid_during)
-  references core.academic_sessions (tenant_id, id, type, period span);
+  add foreign key (tenant_id, active_class_id, period valid_during)
+  references core.classes (tenant_id, id, period runs);
 alter table core.enrollments add constraint enrollments_excl exclude using gist
   (tenant_id with =, class_id with =, user_id with =, role with =, valid_during with &&)
   where (status = 'active');
 
--- A student holds one place in a homeroom at a time. A school's years never
--- overlap, so this holds within each year as well.
+-- A student holds one place in a homeroom at a time.
 alter table core.homeroom_members add constraint homeroom_members_excl exclude using gist
   (tenant_id with =, org_id with =, student_user_id with =, valid_during with &&)
   where (status = 'active');

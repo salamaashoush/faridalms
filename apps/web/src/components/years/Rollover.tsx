@@ -9,6 +9,7 @@ import type {
 import type { Tone } from "@faridalms/ui/system/status";
 
 import {
+  followsClass,
   NEXT_YEAR_INTENTIONS,
   rolloverPlanIssue,
 } from "@faridalms/domain/rollover";
@@ -41,6 +42,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery } from "~/queries/classes";
 import { rolloverQuery } from "~/queries/rollover";
@@ -56,6 +58,7 @@ import { getMessageFromError } from "~/utils/error";
 import { classTitle } from "../classes/format";
 import { displayName, labelOf } from "../people/format";
 import { yearTitle } from "./format";
+import { rolloverCarrierWords } from "./slots";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof rolloverQuery>["queryFn"]>>
@@ -156,12 +159,17 @@ function RolloverApplied({ data }: RolloverAppliedProps) {
 interface ClassRowProps {
   row: RolloverClass;
   source: Data["sources"][number] | undefined;
+  /** How many of the class's students join it, as the plan decides them now. */
+  following: number;
   data: Data;
   onChange: (change: Partial<RolloverClass>) => void;
 }
 
-function ClassRow({ row, source, data, onChange }: ClassRowProps) {
+function ClassRow({ row, source, following, data, onChange }: ClassRowProps) {
   const options = useSuspenseQuery(classOptionsQuery).data;
+  const words = useSlot(rolloverCarrierWords).find(
+    (each) => each.carrier === row.carrier,
+  );
   const name = source ? classTitle(source) : row.code;
   const taken = data.takenCodes.some(
     (code) => code.toLowerCase() === row.code.trim().toLowerCase(),
@@ -228,7 +236,7 @@ function ClassRow({ row, source, data, onChange }: ClassRowProps) {
             />
             <SelectField
               id={`roll-teacher-${row.key}`}
-              label={m.classesClassTeacher()}
+              label={words ? words.teacher() : m.classesTeacher()}
               optional
               value={row.teacherId || "none"}
               options={[
@@ -243,9 +251,22 @@ function ClassRow({ row, source, data, onChange }: ClassRowProps) {
               }
             />
           </div>
-          <p className="text-[13px] leading-[18px] text-muted-foreground">
-            {m.rolloverSubjectsCarry({ count: row.subjects.length })}
-          </p>
+          {words ? (
+            <p className="text-[13px] leading-[18px] text-muted-foreground">
+              {words.describe(row)}
+            </p>
+          ) : (
+            <label className="flex min-h-9 cursor-pointer items-center gap-3 text-sm leading-5 max-md:min-h-10">
+              <Checkbox
+                checked={row.students}
+                onCheckedChange={(next) => onChange({ students: next })}
+              />
+              {m.rolloverStudentsFollow({
+                count: following,
+                value: formatNumber(following),
+              })}
+            </label>
+          )}
         </>
       ) : (
         <p className="text-[13px] leading-[18px] text-muted-foreground">
@@ -399,23 +420,25 @@ function StudentRow({
         )}
         onChange={(outcome) => onChange({ outcome })}
       />
-      <SelectField
-        id={`roll-target-${student.id}`}
-        label={m.rolloverTargetFor({ name })}
-        labelHidden
-        disabled={leaving}
-        value={leaving ? "none" : row.targetKey || "none"}
-        options={[
-          ...targets,
-          {
-            value: "none",
-            label: leaving ? m.rolloverNoClass() : m.rolloverChooseClass(),
-          },
-        ]}
-        onChange={(value) =>
-          onChange({ targetKey: value === "none" ? "" : value })
-        }
-      />
+      {targets.length > 0 ? (
+        <SelectField
+          id={`roll-target-${student.id}`}
+          label={m.rolloverTargetFor({ name })}
+          labelHidden
+          disabled={leaving}
+          value={leaving ? "none" : row.targetKey || "none"}
+          options={[
+            ...targets,
+            {
+              value: "none",
+              label: leaving ? m.rolloverNoClass() : m.rolloverChooseClass(),
+            },
+          ]}
+          onChange={(value) =>
+            onChange({ targetKey: value === "none" ? "" : value })
+          }
+        />
+      ) : null}
     </li>
   );
 }
@@ -465,9 +488,13 @@ function RolloverDraft({
     meta: { inlineError: true },
   });
   const source = new Map(data.sources.map((row) => [row.id, row]));
+  const outcomeOf = new Map(
+    plan.students.map((row) => [row.studentId, row.outcome]),
+  );
   const followerOf = (classId: string | null) =>
-    plan.classes.find((row) => row.include && row.sourceClassId === classId)
-      ?.key ?? "";
+    plan.classes.find(
+      (row) => row.include && row.carrier && row.sourceClassId === classId,
+    )?.key ?? "";
   const setClass = (key: string, change: Partial<RolloverClass>) => {
     setProblem(null);
     setPlan((current) => ({
@@ -501,7 +528,7 @@ function RolloverDraft({
     }));
   };
   const targets = plan.classes
-    .filter((row) => row.include)
+    .filter((row) => row.include && row.carrier)
     .map((row) => ({
       value: row.key,
       label: inLocale(row.titleEn || null, row.titleAr || null) || row.code,
@@ -589,6 +616,11 @@ function RolloverDraft({
                 key={row.key}
                 row={row}
                 source={source.get(row.sourceClassId)}
+                following={
+                  (source.get(row.sourceClassId)?.studentIds ?? []).filter(
+                    (studentId) => followsClass(outcomeOf.get(studentId)),
+                  ).length
+                }
                 data={data}
                 onChange={(change) => setClass(row.key, change)}
               />

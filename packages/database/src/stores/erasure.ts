@@ -536,6 +536,11 @@ export async function eraseSubject(
     sql`student_user_id = ${s}::uuid`,
   );
   await tombstone(
+    "student_departures",
+    sql`core.student_departures`,
+    sql`student_user_id = ${s}::uuid`,
+  );
+  await tombstone(
     "user_roles",
     sql`core.user_roles`,
     sql`user_id = ${s}::uuid`,
@@ -749,10 +754,7 @@ export async function erasuresOf(
     join core.users u on u.tenant_id = a.tenant_id and u.id = a.subject_user_id
     join core.users b on b.tenant_id = a.tenant_id and b.id = a.approved_by_user_id
     where a.tenant_id = ${scope.tenantId}::uuid
-      and (exists (select 1 from core.student_school_years y
-                   where y.tenant_id = a.tenant_id and y.student_user_id = a.subject_user_id
-                     and y.org_id = ${scope.orgId}::uuid)
-           or exists (select 1 from core.user_roles r
+      and (exists (select 1 from core.user_roles r
                       where r.tenant_id = a.tenant_id and r.user_id = a.subject_user_id
                         and r.org_id = ${scope.orgId}::uuid))
     order by a.created_at desc, a.id`);

@@ -178,7 +178,7 @@ describe("creating a school from the operator console", () => {
       endsOn: addDays(today, 200),
       terms: [],
     });
-    const day = await api.years.periods({ id: year.id, on: "" });
+    const day = await api.periods.periods({ id: year.id, on: "" });
     expect(
       day.periods.map((period) => [
         period.nameEn,
@@ -208,7 +208,9 @@ describe("creating a school from the operator console", () => {
     const [subject] = options.subjects;
     if (!grade || !subject) throw new Error("the catalogue has no grades");
     const homeroom = await api.homerooms.save({
-      yearId: year.id,
+      startsOn: addDays(today, -40),
+      endsOn: addDays(today, 200),
+      parts: { year: { yearId: year.id } },
       code: "1A",
       titleEn: "1A",
       titleAr: "",
@@ -253,7 +255,7 @@ describe("creating a school from the operator console", () => {
       from: addDays(today, -40),
     });
 
-    const { days } = await api.years.days({ id: year.id });
+    const { days } = await api.schoolDays.days({ id: year.id });
     const taught = days
       .filter((row) => row.day <= today && row.meaning === "instructional_day")
       .at(-1)?.day;
@@ -324,7 +326,9 @@ describe("creating a school from the operator console", () => {
       roles: ["teacher"],
     });
     const course = await api.classes.save({
-      yearId: year.id,
+      startsOn: addDays(today, -40),
+      endsOn: addDays(today, 200),
+      parts: { year: { yearId: year.id } },
       code: "PY-101",
       titleEn: "Python from scratch",
       titleAr: "",
@@ -386,16 +390,18 @@ describe("creating a school from the operator console", () => {
     ])
       expect(await rejection(ask())).toMatchObject({ code: "NOT_FOUND" });
 
-    const { days } = await api.years.days({ id: year.id });
+    const { days } = await api.schoolDays.days({ id: year.id });
     const taught = days
       .filter((row) => row.day <= today && row.meaning === "instructional_day")
       .at(-1)?.day;
     if (!taught) throw new Error("the year has no school day yet");
     const grid = await api.timetable.grid({ classId: course.id, on: taught });
     expect(grid.classes.map((row) => row.id)).toEqual([course.id]);
-    const official = new Set((await api.years.periods({ id: year.id, on: "" })).periods
-      .filter((period) => period.official)
-      .map((period) => period.id));
+    const official = new Set(
+      (await api.periods.periods({ id: year.id, on: "" })).periods
+        .filter((period) => period.official)
+        .map((period) => period.id),
+    );
     const lesson = grid.periods.find((period) => !official.has(period.id));
     if (!lesson) throw new Error("no lesson period");
     await api.timetable.place({

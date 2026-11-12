@@ -29,3 +29,7 @@ export const openReenrolment = createServerFn({ method: "POST" })
 export const setIntention = createServerFn({ method: "POST" })
   .validator(checked(setIntentionSchema))
   .handler(({ data }) => backend().rollover.setIntention(data));
+
+export const getAsking = createServerFn({ method: "GET" }).handler(() =>
+  record(backend().rollover.asking()),
+);

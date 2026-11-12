@@ -33,7 +33,6 @@ import {
   threadsAmong,
   threadsReached,
 } from "@faridalms/database/stores/search";
-import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import { mailboxesOf } from "@faridalms/domain/messages";
 import {
   mentionNamesSchema,
@@ -267,20 +266,14 @@ async function pageOf(
   },
 ): Promise<{ group: SearchGroup; next: string | null }> {
   const { within, resolve } = await resolverOf(context, input.kind, input.q);
-  const preferYear =
-    input.kind === "classes"
-      ? (workingYear(
-          await schoolYears(context.tx, context.tenantId, context.schoolId),
-          context.today,
-        )?.id ?? null)
-      : null;
+  const preferOn = input.kind === "classes" ? context.today : null;
   const found = await candidates(context.tx, {
     q: input.q,
     types: TYPES[input.kind],
     orgScope: input.orgScope,
     after: input.after,
     max: input.size + 1,
-    preferYear,
+    preferOn,
     within,
   });
   const page = found.slice(0, input.size);

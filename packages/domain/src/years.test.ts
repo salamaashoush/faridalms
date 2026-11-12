@@ -2,6 +2,8 @@ import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
 import {
+  nextYearBegins,
+  placementStatus,
   saveYearSchema,
   termIssue,
   yearStanding,
@@ -139,5 +141,60 @@ describe("yearStanding", () => {
         "2026-10-01",
       ),
     ).toBe("closed");
+  });
+});
+
+describe("placementStatus", () => {
+  const placement = {
+    validFrom: "2026-09-13",
+    validTo: "2027-06-18",
+    exitMeaning: null,
+  };
+
+  it("reads a current placement as enrolled and none as unplaced", () => {
+    expect(placementStatus([placement], "2026-10-01")).toBe("enrolled");
+    expect(placementStatus([], "2026-10-01")).toBe("unplaced");
+  });
+
+  it("reads only a future placement as pre-enrolled", () => {
+    expect(placementStatus([placement], "2026-09-01")).toBe("pre_enrolled");
+  });
+
+  it("reads the latest placement's exit as left or graduated", () => {
+    expect(
+      placementStatus(
+        [{ ...placement, exitMeaning: "graduated" }],
+        "2027-07-01",
+      ),
+    ).toBe("graduated");
+    expect(
+      placementStatus(
+        [{ ...placement, exitMeaning: "withdrawn" }],
+        "2027-07-01",
+      ),
+    ).toBe("left");
+  });
+
+  it("keeps a student whose year ended without an exit enrolled over the summer", () => {
+    expect(placementStatus([placement], "2027-07-15")).toBe("enrolled");
+  });
+});
+
+describe("nextYearBegins", () => {
+  const ending = { endsBefore: "2027-06-18" };
+
+  it("is the day the next school year begins, summer included", () => {
+    expect(
+      nextYearBegins(
+        [{ startsOn: "2026-09-13" }, { startsOn: "2027-09-12" }],
+        ending,
+      ),
+    ).toBe("2027-09-12");
+  });
+
+  it("is the end of the year where the school has set up no later one", () => {
+    expect(nextYearBegins([{ startsOn: "2026-09-13" }], ending)).toBe(
+      "2027-06-18",
+    );
   });
 });

@@ -214,9 +214,13 @@ export function TeachingSection({
   return (
     <RecordSection
       title={title}
-      description={m.personTeachingHint({
-        year: inLocale(teaching.year.titleEn, teaching.year.titleAr),
-      })}
+      description={
+        teaching.within
+          ? m.personTeachingWithin({
+              name: inLocale(teaching.within.titleEn, teaching.within.titleAr),
+            })
+          : m.personTeachingToday()
+      }
     >
       {teaching.classes.length === 0 ? (
         <RecordEmpty>{empty}</RecordEmpty>

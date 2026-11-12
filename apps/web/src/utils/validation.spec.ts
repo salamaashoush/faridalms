@@ -10,13 +10,12 @@ import { validationMessage } from "./validation";
 describe("localized form validation", () => {
   it("explains missing class details and subject selections", () => {
     const result = v.safeParse(saveHomeroomSchema, {
-      yearId: "",
+      startsOn: "2026-09-13",
       code: " ",
       subjects: [{ subjectId: "", teacherIds: [""] }],
     });
     expect(result.success).toBe(false);
     expect(result.issues?.map(validationMessage)).toEqual([
-      m.validationSelection(),
       m.validationClassCode(),
       m.validationSelection(),
       m.validationSelection(),

@@ -27,7 +27,7 @@ async function leaver(
     names: names("Salama Leaver", "سلامة المغادر"),
     reference,
     birthDate: "2002-05-20",
-    gradeId: grade.id,
+    parts: { year: { gradeId: grade.id } },
     guardians: [],
   });
   await meanwhile(created.id);

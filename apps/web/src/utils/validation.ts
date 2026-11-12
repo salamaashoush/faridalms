@@ -51,6 +51,8 @@ export function validationMessage(issue: { message?: string }): string {
       return m.validationClassCode();
     case "validation.subject_twice":
       return m.classesSubjectTwice();
+    case "validation.ends_before_start":
+      return m.validationEndsBeforeStart();
   }
   if (!("type" in issue))
     return issue.message === undefined ||

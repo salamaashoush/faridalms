@@ -28,13 +28,13 @@ import { CheckboxRow } from "~/components/people/fields";
 import { cycleDayLabel } from "~/components/timetable/cycle";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { yearDaysQuery } from "~/queries/years";
+import { yearDaysQuery } from "~/queries/school-days";
 import {
   paintYearDays,
   runYearDayAs,
   scheduleYearDays,
-  setYearTarget,
-} from "~/server/years";
+} from "~/server/school-days";
+import { setYearTarget } from "~/server/years";
 import {
   formatWeekday,
   formatDate,

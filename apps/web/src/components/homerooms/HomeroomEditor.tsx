@@ -18,6 +18,9 @@ import { CircleAlert, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { ClassDaysValue } from "~/components/classes/ClassDays";
+
+import { ClassDaysSection, useClassDays } from "~/components/classes/ClassDays";
 import { displayName, labelOf } from "~/components/people/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -50,26 +53,33 @@ interface Draft {
   locationId: string;
   homeroomTeacherId: string;
   subjects: SubjectDraft[];
+  days: ClassDaysValue;
 }
 
-type Field = "code" | "titles" | "subjects";
+type Field = "code" | "titles" | "subjects" | "endsOn";
 
 const FIELD_OF: Partial<Record<string, Field>> = {
   code: "code",
   titleEn: "titles",
   titleAr: "titles",
   subjects: "subjects",
+  endsOn: "endsOn",
 };
 
 /** Refusals from the server that are about one field, shown on that field. */
 const FIELD_ERRORS: Partial<Record<string, Field>> = {
   "class.code_taken": "code",
   "validation.class_code": "code",
+  "validation.ends_before_start": "endsOn",
 };
 
-function initialDraft(homeroom: HomeroomRecord | null): Draft {
+function initialDraft(
+  homeroom: HomeroomRecord | null,
+  days: ClassDaysValue,
+): Draft {
   if (!homeroom)
     return {
+      days,
       code: "",
       titleEn: "",
       titleAr: "",
@@ -80,6 +90,7 @@ function initialDraft(homeroom: HomeroomRecord | null): Draft {
     };
   const { record, subjects } = homeroom;
   return {
+    days,
     code: record.code,
     titleEn: record.titleEn ?? "",
     titleAr: record.titleAr ?? "",
@@ -323,18 +334,20 @@ function ClassSubjects({
 
 export interface ExistingHomeroomEditorProps {
   id: string;
+  search: Readonly<Record<string, unknown>>;
   onClose: () => void;
 }
 
 export function ExistingHomeroomEditor({
   id,
+  search,
   onClose,
 }: ExistingHomeroomEditorProps) {
   const record = useSuspenseQuery(classRecordQuery(id)).data;
   const of = useSuspenseQuery(homeroomOfClassQuery(id)).data;
   return (
     <HomeroomEditor
-      yearId={record.year.id}
+      search={search}
       homeroom={{
         record,
         subjects: of.kind === "homeroom" ? of.subjects : [],
@@ -345,24 +358,28 @@ export function ExistingHomeroomEditor({
 }
 
 export interface HomeroomEditorProps {
-  yearId: string;
+  /** The form's address, which may carry the view of a module it was opened from. */
+  search: Readonly<Record<string, unknown>>;
   homeroom?: HomeroomRecord | null;
   onClose: () => void;
 }
 
-/** A homeroom with its class teacher and subjects, each subject a class taught to it. */
+/**
+ * A homeroom with its days, class teacher and subjects, each subject a
+ * class taught to it over the same days.
+ */
 export function HomeroomEditor({
-  yearId,
+  search,
   homeroom = null,
   onClose,
 }: HomeroomEditorProps) {
   const record = homeroom?.record ?? null;
   const options = useSuspenseQuery(classOptionsQuery).data;
   const queryClient = useQueryClient();
-  const year = options.years.find((row) => row.id === yearId);
+  const classDays = useClassDays(record, search, options.today);
   const leaving = useRef(false);
   const nextKey = useRef((homeroom?.subjects.length ?? 0) + 1);
-  const [initial] = useState(() => initialDraft(homeroom));
+  const [initial] = useState(() => initialDraft(homeroom, classDays.initial()));
   const [draft, setDraft] = useState(initial);
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
@@ -389,7 +406,9 @@ export function HomeroomEditor({
   };
   const payload = {
     ...(record ? { id: record.id, expectedVersion: record.version } : {}),
-    yearId,
+    startsOn: draft.days.startsOn,
+    endsOn: draft.days.endsOn,
+    parts: draft.days.parts,
     code: draft.code.trim(),
     titleEn: draft.titleEn,
     titleAr: draft.titleAr,
@@ -414,11 +433,6 @@ export function HomeroomEditor({
   return (
     <RecordForm
       title={record ? m.homeroomsEdit() : m.homeroomsAdd()}
-      description={
-        year
-          ? m.classesInYear({ year: inLocale(year.titleEn, year.titleAr) })
-          : undefined
-      }
       onSubmit={async () => {
         const found = validate();
         setErrors(found);
@@ -519,6 +533,17 @@ export function HomeroomEditor({
           width="name"
         />
       </FormSection>
+      <ClassDaysSection
+        parts={classDays.parts}
+        reads={classDays.reads}
+        search={search}
+        value={draft.days}
+        onChange={(days) => {
+          setErrors((current) => ({ ...current, endsOn: undefined }));
+          setDraft((current) => ({ ...current, days }));
+        }}
+        error={errors.endsOn}
+      />
       <FormSection
         title={m.classesSubjects()}
         description={m.classesSubjectsHint()}

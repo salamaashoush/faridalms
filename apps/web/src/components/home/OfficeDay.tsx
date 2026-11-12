@@ -1,6 +1,5 @@
 import { Button } from "@faridalms/ui/button";
 import { Fact, Facts } from "@faridalms/ui/system/record-page";
-import { StatusText } from "@faridalms/ui/system/status";
 import {
   useMutation,
   useQueryClient,
@@ -22,7 +21,7 @@ import {
   itemLink,
 } from "~/components/home/parts";
 import { SchoolSetup } from "~/components/home/SchoolSetup";
-import { officeNeeds } from "~/components/home/slots";
+import { officeCards, officeNeeds } from "~/components/home/slots";
 import { displayName } from "~/components/people/format";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
@@ -37,8 +36,7 @@ type Need = OfficeNeed;
 /**
  * The office's day: the school's setup first while it is under way, then
  * what needs someone to act, how attendance is going, what is coming, how
- * recent announcements were read, and the next year's setup when this one
- * is ending.
+ * recent announcements were read, and what modules add beside them.
  */
 export function useOfficeDay(): DayCards {
   const data = useSuspenseQuery(adminHomeQuery).data;
@@ -51,6 +49,16 @@ export function useOfficeDay(): DayCards {
     queries: asked.map((row) => row.query),
   });
   const extra = asked.map((row, index) => row.part.needOf(read[index]?.data));
+  const carded = useSlot(officeCards).flatMap((part) => {
+    const query = part.query(capabilities);
+    return query ? [{ part, query }] : [];
+  });
+  const cardReads = useSuspenseQueries({
+    queries: carded.map((row) => row.query),
+  });
+  const cards = carded.map((row, index) =>
+    row.part.cardOf(cardReads[index]?.data),
+  );
   const queryClient = useQueryClient();
   const remind = useMutation({
     mutationFn: () =>
@@ -203,52 +211,7 @@ export function useOfficeDay(): DayCards {
     ) : null,
   ].filter(Boolean);
   const aside = [
-    data.checklist ? (
-      <HomeCard
-        key="checklist"
-        title={m.homeNextYear()}
-        description={m.homeYearEnds({
-          date: formatDate(data.checklist.yearEnds),
-        })}
-        action={{
-          label: m.homeOpenYears(),
-          link: { to: "/academic-years", search: {} },
-        }}
-      >
-        <HomeList>
-          <HomeItem
-            title={<span className="text-sm">{m.homeChecklistYear()}</span>}
-            status={
-              <StatusText
-                tone={data.checklist.nextYear ? "success" : "warning"}
-              >
-                {data.checklist.nextYear ? m.homeDone() : m.homeToDo()}
-              </StatusText>
-            }
-          />
-          <HomeItem
-            title={<span className="text-sm">{m.homeChecklistClasses()}</span>}
-            status={
-              <StatusText
-                tone={data.checklist.nextClasses ? "success" : "warning"}
-              >
-                {data.checklist.nextClasses ? m.homeDone() : m.homeToDo()}
-              </StatusText>
-            }
-          />
-          <HomeItem
-            title={<span className="text-sm">{m.homeChecklistStudents()}</span>}
-            status={
-              <StatusText
-                tone={data.checklist.nextStudents ? "success" : "warning"}
-              >
-                {data.checklist.nextStudents ? m.homeDone() : m.homeToDo()}
-              </StatusText>
-            }
-          />
-        </HomeList>
-      </HomeCard>
-    ) : null,
+    ...cards,
     data.documents.length > 0 ? (
       <HomeCard key="documents" title={m.homeDocumentsExpiring()}>
         <HomeList>

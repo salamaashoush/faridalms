@@ -47,6 +47,7 @@ import {
   scopeOf as conversationScope,
   writeEntry,
 } from "../messages/conversations";
+import { daysOf } from "../years/years";
 
 /** Missing half the sessions or more: absent more than present. */
 const SEVERE_PERCENT = 50;
@@ -132,6 +133,7 @@ export const day = readProcedure
         tenantId: context.tenantId,
         schoolId: context.schoolId,
         yearId: year.id,
+        during: daysOf(year),
         from: year.startsOn,
         to: last < context.today ? last : context.today,
         by: "student",

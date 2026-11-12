@@ -39,8 +39,8 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { requireStudent } from "../core/reach";
-import { yearOf } from "../core/years";
 import { publishedQuiz } from "../quizzes/quiz";
+import { yearOf } from "../years/years";
 
 const id = v.pipe(v.string(), v.uuid());
 

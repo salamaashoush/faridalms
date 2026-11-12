@@ -18,10 +18,8 @@ import { WithdrawSheet } from "~/components/classes/Enrolment";
 import { classTitle } from "~/components/classes/format";
 import { GroupTeachers } from "~/components/classes/StudentClasses";
 import { lastDay } from "~/components/people/format";
-import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { homeroomHistoryQuery } from "~/queries/homerooms";
-import { peopleOptionsQuery } from "~/queries/students";
 import { leaveHomeroom } from "~/server/homerooms";
 import { formatDate } from "~/utils/datetime";
 
@@ -29,44 +27,30 @@ import { MoveClassSheet } from "./Placement";
 
 type Sheet = "move" | "withdraw" | null;
 
-/**
- * Where a student sits today: their homeroom, and the school year a move
- * would be made in, which is that class's or else the year being worked
- * in. A closed year takes no moves.
- */
+const holdsToday = (row: { from: string; to: string | null }, today: string) =>
+  row.from <= today && (row.to === null || today < row.to);
+
+/** Where a student sits today: their homeroom, with its teachers. */
 function useSeat(studentId: string, today: string) {
   const { rows: episodes, teachers } = useSuspenseQuery(
     homeroomHistoryQuery(studentId),
   ).data;
-  const options = useSuspenseQuery(peopleOptionsQuery).data;
-  const current = episodes.find((row) => row.from <= today && today < row.to);
-  const year = options.years.find(
-    (row) => row.id === (current?.schoolYearId ?? options.workingYearId),
-  );
-  return {
-    episodes,
-    teachers,
-    current,
-    year,
-    closed: year?.lifecycle === "closed",
-  };
+  const current = episodes.find((row) => holdsToday(row, today));
+  return { episodes, teachers, current };
 }
 
 /**
  * Moves a student to another homeroom from anywhere on their record: the
- * sheet their homeroom opens, with what it needs read here. Nothing opens
- * where the year takes no moves.
+ * sheet their homeroom opens, with what it needs read here.
  */
 export function MoveStudent({ student, today, onClose }: MoveOneProps) {
-  const { current, year, closed } = useSeat(student.id, today);
-  if (!year || closed) return null;
+  const { current } = useSeat(student.id, today);
   return (
     <MoveClassSheet
       student={student}
       current={
         current ? { classId: current.classId, from: current.from } : null
       }
-      year={year}
       today={today}
       open
       onClose={onClose}
@@ -76,10 +60,7 @@ export function MoveStudent({ student, today, onClose }: MoveOneProps) {
 
 /** A student's places in the school's homerooms, with moving and leaving. */
 export function StudentHomeroom({ student, today, manage }: StudentPartProps) {
-  const { episodes, teachers, current, year, closed } = useSeat(
-    student.id,
-    today,
-  );
+  const { episodes, teachers, current } = useSeat(student.id, today);
   const [sheet, setSheet] = useState<{ which: Sheet; key: number }>({
     which: null,
     key: 0,
@@ -93,7 +74,7 @@ export function StudentHomeroom({ student, today, manage }: StudentPartProps) {
         title={m.homeroomWord()}
         description={m.homeroomPlacesHint()}
         action={
-          manage && year && !closed ? (
+          manage ? (
             <div className="flex flex-wrap gap-1">
               <Button
                 type="button"
@@ -124,7 +105,7 @@ export function StudentHomeroom({ student, today, manage }: StudentPartProps) {
         ) : (
           <RecordList>
             {episodes.map((episode) => {
-              const now = episode.from <= today && today < episode.to;
+              const now = holdsToday(episode, today);
               return (
                 <li
                   key={episode.enrollmentId}
@@ -149,9 +130,6 @@ export function StudentHomeroom({ student, today, manage }: StudentPartProps) {
                         </StatusText>
                       ) : null}
                     </span>
-                    <span className="text-[13px] leading-[18px] text-muted-foreground">
-                      {inLocale(episode.yearTitleEn, episode.yearTitleAr)}
-                    </span>
                     {now && teachers.length > 0 ? (
                       <span className="flex flex-wrap gap-x-1 text-[13px] leading-[18px] text-muted-foreground">
                         {m.studentHomeroomTeacher()}:
@@ -160,10 +138,12 @@ export function StudentHomeroom({ student, today, manage }: StudentPartProps) {
                     ) : null}
                   </div>
                   <span className="text-sm leading-5 text-muted-foreground">
-                    {m.accessDuring({
-                      from: formatDate(episode.from),
-                      to: formatDate(lastDay(episode.to)),
-                    })}
+                    {episode.to
+                      ? m.accessDuring({
+                          from: formatDate(episode.from),
+                          to: formatDate(lastDay(episode.to)),
+                        })
+                      : m.personSince({ date: formatDate(episode.from) })}
                   </span>
                 </li>
               );
@@ -171,20 +151,19 @@ export function StudentHomeroom({ student, today, manage }: StudentPartProps) {
           </RecordList>
         )}
       </RecordSection>
-      {manage && year && sheet.which === "move" ? (
+      {manage && sheet.which === "move" ? (
         <MoveClassSheet
           key={sheet.key}
           student={student}
           current={
             current ? { classId: current.classId, from: current.from } : null
           }
-          year={year}
           today={today}
           open
           onClose={close}
         />
       ) : null}
-      {manage && year && current && sheet.which === "withdraw" ? (
+      {manage && current && sheet.which === "withdraw" ? (
         <WithdrawSheet
           key={sheet.key}
           student={student}
@@ -192,9 +171,9 @@ export function StudentHomeroom({ student, today, manage }: StudentPartProps) {
             id: current.enrollmentId,
             version: current.version,
             from: current.from,
+            to: current.to,
           }}
           className={classTitle(current)}
-          year={year}
           today={today}
           open
           onClose={close}

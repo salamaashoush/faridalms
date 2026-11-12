@@ -16,12 +16,12 @@ import type {
   ClassRecordData,
   RosterKeeping,
 } from "~/components/classes/slots";
+import type { homeroomOfClassQuery } from "~/queries/homerooms";
 
 import { classTitle, subjectName } from "~/components/classes/format";
 import { displayName } from "~/components/people/format";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery } from "~/queries/classes";
-import type { homeroomOfClassQuery } from "~/queries/homerooms";
 import { leaveHomeroom, placeInHomeroom } from "~/server/homerooms";
 
 import { MoveClassSheet } from "./Placement";
@@ -110,11 +110,10 @@ function homeroomRoster(record: ClassRecordData): RosterKeeping {
   return {
     add: (input) => placeInHomeroom({ data: { ...input, classId: record.id } }),
     withdraw: (input) => leaveHomeroom({ data: input }),
-    move: ({ student, year, today, onClose }) => (
+    move: ({ student, today, onClose }) => (
       <MoveClassSheet
         student={{ id: student.userId, name: student.name }}
         current={{ classId: record.id, from: student.from }}
-        year={year}
         today={today}
         open
         onClose={onClose}
@@ -139,7 +138,7 @@ export function homeroomPart(
             onClick: () =>
               void navigate({
                 to: "/homeroom-editor",
-                search: { year: record.year.id, id: record.id },
+                search: { id: record.id },
               }),
           }
         : null,

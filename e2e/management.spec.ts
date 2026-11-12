@@ -1,9 +1,11 @@
 import type { Locator } from "@playwright/test";
 
 import { plainContent } from "@faridalms/domain/content-conversion";
+import { addDays } from "@faridalms/domain/school";
 import { expect, test } from "@playwright/test";
 
 import { apiAs } from "./fixtures/api";
+import { workingYear } from "./fixtures/school";
 import { openWith, signIn, untilHydrated } from "./fixtures/sign-in";
 
 async function fillNames(
@@ -220,16 +222,16 @@ test("administrators edit a student record in side sheets and confirm a class mo
   // Placed in a class of its own since the year began, so the move below
   // ends a placement no other spec reads.
   const admin = await apiAs("admin");
-  const options = await admin.classes.options();
-  const year = options.years.find((row) => row.id === options.workingYearId);
-  if (!year) throw new Error("no working year");
+  const year = await workingYear(admin);
   const classOf = async (label: string) =>
     admin.homerooms.save({
-      yearId: year.id,
       code: `S-${unique}-${label}`,
       titleEn: `Salama ${unique} ${label}`,
       titleAr: "",
       subjects: [],
+      startsOn: year.startsOn,
+      endsOn: addDays(year.endsBefore, -1),
+      parts: { year: { yearId: year.id } },
     });
   const first = `Salama ${unique} one`;
   const second = `Salama ${unique} two`;

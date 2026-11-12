@@ -85,10 +85,7 @@ describe("adding a staff member", () => {
       sexes: [],
       positions: [],
       religions: [],
-      entryTypes: [],
-      exitTypes: [],
-      years: [],
-      workingYearId: null,
+      today: "2026-09-27",
     });
     vi.mocked(findGuardians).mockResolvedValue([]);
     vi.mocked(saveStaff).mockResolvedValue(SAVED);

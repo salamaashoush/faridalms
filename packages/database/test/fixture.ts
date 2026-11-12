@@ -121,6 +121,7 @@ import {
   userRelationships,
   users,
   loginIdentities,
+  studentDepartures,
   yearRollovers,
 } from "../src/tables/index";
 
@@ -1263,6 +1264,16 @@ export async function completeFixture(
     sourceYearId: current.id,
     targetYearId: nextYear,
     plan: { classes: [], students: [] },
+  });
+  // A departure taken back, so it reads as history and no student here has left.
+  await tx.insert(studentDepartures).values({
+    tenantId,
+    orgId: schoolId,
+    studentUserId: relationship.student,
+    leftOn: "2026-10-01",
+    accessEndsOn: "2026-10-01",
+    ended: { role: null, enrollments: [], dropped: [], parts: {} },
+    status: "tobedeleted",
   });
   // An enquiry staff logged by phone, not yet given its conversation.
   const loggedEnquiry = id();

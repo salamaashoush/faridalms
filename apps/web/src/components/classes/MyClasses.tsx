@@ -1,4 +1,5 @@
 import type { Column } from "@faridalms/ui/system/data-table";
+import type { IndexToolbarProps } from "@faridalms/ui/system/index-toolbar";
 import type { ReactNode } from "react";
 
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
@@ -9,8 +10,12 @@ import { Value } from "@faridalms/ui/system/value";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { School } from "lucide-react";
 
+import type { ClassesSearch } from "~/components/classes/slots";
+
+import { useClassFacets } from "~/components/classes/class-facets";
 import { classTitle, subjectName } from "~/components/classes/format";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { classFilters, viewsOf } from "~/components/classes/slots";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, myClassesQuery } from "~/queries/classes";
 import { formatNumber } from "~/utils/datetime";
@@ -86,30 +91,26 @@ const card = {
 };
 
 export interface MyClassesProps {
-  year: string;
+  search: ClassesSearch;
+  onSearch: (change: Partial<ClassesSearch>) => void;
   title: string;
   /** Places the list where the page wants it, below the header. */
   frame: (content: ReactNode) => ReactNode;
 }
 
-/** The classes the viewer teaches or assists in, in one school year. */
-export function MyClasses({ year, title, frame }: MyClassesProps) {
-  const data = useSuspenseQuery(myClassesQuery(year)).data;
+/** The classes the viewer teaches or assists in, in the views modules offer. */
+export function MyClasses({ search, onSearch, title, frame }: MyClassesProps) {
+  const views = viewsOf(useSlot(classFilters), search);
+  const data = useSuspenseQuery(myClassesQuery(views)).data;
   const options = useSuspenseQuery(classOptionsQuery).data;
+  const facets = useClassFacets(search, onSearch);
+  const toolbar: IndexToolbarProps | undefined =
+    facets.length > 0 ? { facets } : undefined;
   return (
     <Page width="list">
-      <PageHeader
-        title={title}
-        description={
-          data.year
-            ? m.classesInYear({
-                year: inLocale(data.year.titleEn, data.year.titleAr),
-              })
-            : undefined
-        }
-      />
+      <PageHeader title={title} />
       {frame(
-        data.rows.length === 0 ? (
+        data.rows.length === 0 && !toolbar ? (
           <EmptyState
             icon={School}
             title={m.teachNoClasses()}
@@ -121,8 +122,13 @@ export function MyClasses({ year, title, frame }: MyClassesProps) {
             rows={data.rows}
             columns={taughtColumns(options)}
             rowLabel={(row) => classTitle(row)}
+            toolbar={toolbar}
             card={card}
-            empty={{ icon: School, title: m.teachNoClasses() }}
+            empty={{
+              icon: School,
+              title: m.teachNoClasses(),
+              description: m.classesNoneTaughtBody(),
+            }}
           />
         ),
       )}

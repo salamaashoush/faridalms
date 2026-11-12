@@ -10,13 +10,12 @@ import {
   guardianLookupSchema,
   personSearchSchema,
   recordLeavingSchema,
-  saveArrivalSchema,
   saveContactsSchema,
   saveRelationshipSchema,
   saveSignInSchema,
   saveStudentSchema,
   setPhotoSchema,
-  studentDirectorySchema,
+  studentDirectoryInputSchema,
   studentMatchesSchema,
 } from "@faridalms/domain/people";
 import { createServerFn } from "@tanstack/react-start";
@@ -30,7 +29,7 @@ export const getPeopleOptions = createServerFn({ method: "GET" }).handler(() =>
 );
 
 export const getStudents = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(studentDirectorySchema, input))
+  .validator((input: unknown) => v.parse(studentDirectoryInputSchema, input))
   .handler(({ data }) => record(backend().people.students(data)));
 
 export const getStudentRecord = createServerFn({ method: "GET" })
@@ -90,10 +89,6 @@ export const sendSignInLink = createServerFn({ method: "POST" })
 export const recordLeaving = createServerFn({ method: "POST" })
   .validator(checked(recordLeavingSchema))
   .handler(({ data }) => backend().people.recordLeaving(data));
-
-export const saveArrival = createServerFn({ method: "POST" })
-  .validator(checked(saveArrivalSchema))
-  .handler(({ data }) => backend().people.saveArrival(data));
 
 export const cancelLeaving = createServerFn({ method: "POST" })
   .validator(checked(cancelLeavingSchema))

@@ -715,9 +715,9 @@ describe("usage reports", () => {
         "read",
         (tx) =>
           tx.execute<{ n: number }>(sql`
-            select count(distinct student_user_id)::int as n from core.student_school_years
+            select count(distinct user_id)::int as n from core.user_roles
             where tenant_id = ${tenantId}::uuid and org_id = ${school.id}::uuid
-              and status = 'active' and valid_during @> ${today}::date`),
+              and role = 'student' and status = 'active' and valid_during @> ${today}::date`),
       );
       const enrolled = placed?.n ?? 0;
       expect(enrolled).toBeGreaterThan(0);

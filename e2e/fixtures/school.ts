@@ -1,4 +1,5 @@
 import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
+import { addDays } from "@faridalms/domain/school";
 
 import type { Api } from "./api";
 
@@ -48,7 +49,15 @@ export async function newStudent(api: Api, family: string) {
   return { id: saved.id, reference, name: `Salama ${family}` };
 }
 
-/** A homeroom of a year, with the subjects and teachers given. */
+/** The year the school works in today. */
+export async function workingYear(api: Api) {
+  const { years, workingYearId } = await api.years.options();
+  const year = years.find((row) => row.id === workingYearId);
+  if (!year) throw new Error("the school has no working year");
+  return year;
+}
+
+/** A homeroom running for the whole of a year, with the subjects and teachers given. */
 export async function newClass(
   api: Api,
   input: {
@@ -58,17 +67,24 @@ export async function newClass(
     subjects?: { subjectId: string; teacherIds: string[] }[];
   },
 ) {
-  const options = await api.classes.options();
+  const [options, { years }] = await Promise.all([
+    api.classes.options(),
+    api.years.options(),
+  ]);
   const grade = options.grades[0];
   if (!grade) throw new Error("the school has no grades");
+  const year = years.find((row) => row.id === input.yearId);
+  if (!year) throw new Error("the school has no such year");
   const saved = await api.homerooms.save({
-    yearId: input.yearId,
     code: `SA-${crypto.randomUUID().slice(0, 6)}`,
     titleEn: input.title,
     titleAr: "",
     gradeId: grade.id,
     homeroomTeacherId: input.homeroomTeacherId ?? "",
     subjects: input.subjects ?? [],
+    startsOn: year.startsOn,
+    endsOn: addDays(year.endsBefore, -1),
+    parts: { year: { yearId: year.id } },
   });
   return { id: saved.id, title: input.title };
 }
@@ -89,7 +105,7 @@ export async function newYear(
 
 /** The school days of a year up to and including a day, earliest first. */
 export async function schoolDaysTo(api: Api, yearId: string, last: string) {
-  const { days } = await api.years.days({ id: yearId });
+  const { days } = await api.schoolDays.days({ id: yearId });
   return days
     .filter(
       (day) => day.day <= last && SCHOOL_DAY_MEANINGS.includes(day.meaning),

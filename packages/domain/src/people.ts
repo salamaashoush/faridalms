@@ -1,6 +1,7 @@
 import * as v from "valibot";
 
 import { CAPABILITIES } from "./capabilities";
+import { viewsSchema } from "./classes";
 import { loginNameSchema } from "./first-sign-in";
 import { SWITCHED_MODULES } from "./modules";
 import { pageField, pageSizeField } from "./paging";
@@ -60,7 +61,6 @@ export const STUDENT_STATUSES = [
 export type StudentStatus = (typeof STUDENT_STATUSES)[number];
 
 export const studentDirectorySchema = v.object({
-  year: v.optional(v.union([v.literal(""), id]), ""),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
   grade: v.optional(v.array(id), []),
   status: v.optional(v.array(v.picklist(STUDENT_STATUSES)), []),
@@ -70,6 +70,11 @@ export const studentDirectorySchema = v.object({
   page: pageField,
   pageSize: pageSizeField,
 });
+export const studentDirectoryInputSchema = v.object({
+  ...studentDirectorySchema.entries,
+  views: viewsSchema,
+});
+
 export type StudentDirectoryQuery = v.InferOutput<
   typeof studentDirectorySchema
 >;
@@ -119,8 +124,8 @@ export const saveStudentSchema = v.object({
   ),
   birthDate: v.optional(v.union([v.literal(""), isoDate]), ""),
   sexId: v.optional(v.union([v.literal(""), id]), ""),
-  /** The grade for the working year; empty leaves the student unplaced. */
-  gradeId: v.optional(v.union([v.literal(""), id]), ""),
+  /** What modules keep about the student, each read by its own schema. */
+  parts: v.optional(v.record(v.string(), v.unknown()), {}),
   guardians: v.optional(
     v.pipe(v.array(guardianLinkSchema), v.maxLength(6)),
     [],
@@ -128,53 +133,29 @@ export const saveStudentSchema = v.object({
 });
 export type SaveStudentInput = v.InferInput<typeof saveStudentSchema>;
 
-/**
- * How long a student who has left stays a student to the app: to the end of
- * the school year, so the family still reads the last reports, or no longer
- * than the last day.
- */
-export const LEAVER_ACCESS = ["year_end", "last_day"] as const;
-export type LeaverAccess = (typeof LEAVER_ACCESS)[number];
-
-export const recordLeavingSchema = v.object({
-  studentId: id,
-  lastDay: isoDate,
-  exitTypeId: id,
-  destination: optionalText(160),
-  access: v.picklist(LEAVER_ACCESS),
-});
+export const recordLeavingSchema = v.pipe(
+  v.object({
+    studentId: id,
+    lastDay: isoDate,
+    /**
+     * The last day the student and their family still read the record;
+     * empty when that ends with the last day at school.
+     */
+    accessUntil: v.optional(v.union([v.literal(""), isoDate]), ""),
+    /** What modules record of the departure, each read by its own schema. */
+    parts: v.optional(v.record(v.string(), v.unknown()), {}),
+  }),
+  v.forward(
+    v.check(
+      (value) => value.accessUntil === "" || value.accessUntil >= value.lastDay,
+      "validation.ends_before_start",
+    ),
+    ["accessUntil"],
+  ),
+);
 export type RecordLeavingInput = v.InferInput<typeof recordLeavingSchema>;
 
 export const cancelLeavingSchema = v.object({ studentId: id });
-
-export const saveArrivalSchema = v.object({
-  studentId: id,
-  placementId: id,
-  entryTypeId: v.union([v.literal(""), id]),
-  previousSchool: optionalText(160),
-});
-export type SaveArrivalInput = v.InferInput<typeof saveArrivalSchema>;
-
-/**
- * The day a leaver's sign-in, and their family's view of them, close. The
- * school year they left in is theirs to the day the next one begins, since
- * results and reports come out after lessons end; a school with no later
- * year set up gives the year's own end.
- */
-export function leaverAccessEnd(input: {
-  years: readonly { startsOn: string }[];
-  year: { endsBefore: string };
-  /** The day after the student's last. */
-  left: string;
-  access: LeaverAccess;
-}): string {
-  if (input.access === "last_day") return input.left;
-  const next = input.years
-    .map((row) => row.startsOn)
-    .filter((starts) => starts >= input.year.endsBefore)
-    .toSorted()[0];
-  return next ?? input.year.endsBefore;
-}
 
 export const studentMatchesSchema = v.object({
   names: personNamesSchema,
@@ -572,25 +553,22 @@ export const endAccessAssignmentSchema = v.object({
 });
 
 /** Status on the student list, from the student's placements (never from a tombstone). */
-export function studentStatus(
-  placements: readonly {
-    validFrom: string;
-    validTo: string;
-    exitMeaning: string | null;
-  }[],
+/**
+ * Where a student stands at the school by their student roles: enrolled
+ * while one holds, enrolling before one begins, left once they have ended.
+ */
+export function roleStatus(
+  roles: readonly { from: string; to: string | null }[],
   today: string,
-): StudentStatus {
-  if (placements.length === 0) return "unplaced";
-  if (placements.some((row) => row.validFrom <= today && today < row.validTo))
+): StudentStatus | null {
+  if (roles.length === 0) return null;
+  if (
+    roles.some(
+      (row) => row.from <= today && (row.to === null || today < row.to),
+    )
+  )
     return "enrolled";
-  const latest = placements.toSorted((a, b) =>
-    b.validTo.localeCompare(a.validTo),
-  )[0];
-  if (latest && latest.validFrom > today) return "pre_enrolled";
-  if (latest?.exitMeaning === "graduated") return "graduated";
-  if (latest?.exitMeaning) return "left";
-  // A year that ended without an exit is a student who continues.
-  return "enrolled";
+  return roles.some((row) => row.from > today) ? "pre_enrolled" : "left";
 }
 
 /** A person's photo, or none to take it away. */

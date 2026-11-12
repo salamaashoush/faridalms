@@ -40,19 +40,14 @@ import {
 } from "../core/procedure";
 import { requireStudent, teaches } from "../core/reach";
 import { teachingScope, tellPeriodGrades } from "../core/teaching-notices";
+import { classYear } from "../years/years";
 
 async function taughtClass(context: UnitContext, classId: string) {
   const classRow = await classById(context.tx, context, classId);
   if (!classRow || !(await teaches(context, "teaching", classRow.id)))
     throw new ORPCError("NOT_FOUND");
-  const years = await schoolYears(
-    context.tx,
-    context.tenantId,
-    context.schoolId,
-  );
-  const year = years.find((row) => row.id === classRow.schoolYearId);
-  if (!year) throw new ORPCError("NOT_FOUND");
-  return { classRow, year };
+  const year = await classYear(context, classRow.id);
+  return { classRow: { ...classRow, schoolYearId: year.id }, year };
 }
 
 /**

@@ -7,8 +7,7 @@ import { toast } from "sonner";
 
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { classOptionsQuery } from "~/queries/classes";
-import { yearQuery } from "~/queries/years";
+import { yearOptionsQuery, yearQuery } from "~/queries/years";
 import { regradeTerm } from "~/server/grading";
 import { getMessageFromError } from "~/utils/error";
 
@@ -23,7 +22,7 @@ export interface RegradeSheetProps {
  */
 export function RegradeSheet({ open, onClose }: RegradeSheetProps) {
   const queryClient = useQueryClient();
-  const yearId = useQuery(classOptionsQuery).data?.workingYearId ?? "";
+  const yearId = useQuery(yearOptionsQuery).data?.workingYearId ?? "";
   const terms =
     useQuery({ ...yearQuery(yearId), enabled: Boolean(yearId) }).data?.terms ??
     [];

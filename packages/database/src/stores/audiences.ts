@@ -116,10 +116,10 @@ export async function reachedAmong(
   return rows.map((row) => row.user_id);
 }
 
-/** The grades a year's classes teach, for choosing an audience. */
-export async function gradesInYear(
+/** The grades the classes running on the date teach, for choosing an audience. */
+export async function gradesRunning(
   tx: Tx,
-  input: { tenantId: string; schoolId: string; yearId: string },
+  input: { tenantId: string; schoolId: string; on: string },
 ): Promise<{ id: string; labelEn: string | null; labelAr: string | null }[]> {
   const rows = await tx.execute<{
     id: string;
@@ -129,7 +129,7 @@ export async function gradesInYear(
     select distinct d.id, d.label_en, d.label_ar, d.sort_order from core.classes c
     join core.descriptors d on d.tenant_id = c.tenant_id and d.id = c.grade_level_descriptor_id
     where c.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.schoolId}::uuid
-      and c.school_year_id = ${input.yearId}::uuid and c.status = 'active'
+      and c.runs @> ${input.on}::date and c.status = 'active'
     order by d.sort_order`);
   return rows.map((row) => ({
     id: row.id,

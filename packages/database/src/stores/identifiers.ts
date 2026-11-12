@@ -241,10 +241,10 @@ export async function expiringDocuments(
       and upper(e.valid_during) > ${input.today}::date
       and upper(e.valid_during) <= ${input.until}::date
       and exists (
-        select 1 from core.student_school_years y
-        where y.tenant_id = e.tenant_id and y.student_user_id = e.user_id
-          and y.org_id = ${input.schoolId}::uuid and y.status = 'active'
-          and y.valid_during @> ${input.today}::date)
+        select 1 from core.user_roles r
+        where r.tenant_id = e.tenant_id and r.user_id = e.user_id and r.role = 'student'
+          and r.org_id = ${input.schoolId}::uuid and r.status = 'active'
+          and r.valid_during @> ${input.today}::date)
       and not exists (
         select 1 from core.external_ids n
         where n.tenant_id = e.tenant_id and n.user_id = e.user_id and n.status = 'active'

@@ -1,5 +1,5 @@
 import type { ClassRow } from "@faridalms/database/stores/classes";
-import type { SchoolYear } from "@faridalms/database/stores/years";
+import type { OpenSpan } from "@faridalms/domain/school";
 
 import {
   classById,
@@ -22,14 +22,16 @@ import {
   placeMember,
   unlinkClass,
 } from "@faridalms/database/stores/homerooms";
-import { calendarFor, place } from "@faridalms/database/stores/students";
-import { dayIn } from "@faridalms/database/stores/years";
+import { dayWithin } from "@faridalms/domain/school";
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
-import { joinedClasses, refuseOverRegisters } from "../classes/enrolment";
-import { scopeFor } from "../core/reach";
+import {
+  joinedClasses,
+  moveClass,
+  refuseOverRegisters,
+} from "../classes/enrolment";
 
 function subjectCode(code: string) {
   return (
@@ -65,30 +67,35 @@ export async function homeroomClass(
 }
 
 /** Writes a homeroom's subject classes again from its places and gives the joiners their open work. */
-export async function follow(context: UnitContext, homeroomClassId: string) {
+export async function follow(
+  context: UnitContext,
+  homeroomClassId: string,
+  from: string,
+) {
   await joinedClasses(
     context,
     await followHomeroom(context.tx, {
       tenantId: context.tenantId,
       homeroomClassId,
     }),
+    from,
   );
 }
 
 /**
- * Creates or changes a homeroom with its subject classes and teachers.
- * Teacher changes take effect today (or on the year's first day), so the old
- * teacher's dates stay on record; a subject removed from the homeroom
- * retires its class, and one added joins it from that day. The caller has
- * checked the year is open.
+ * Creates or changes a homeroom with its subject classes and teachers, all
+ * running over the homeroom's days. Teacher changes take effect today (or
+ * on the homeroom's first day), so the old teacher's dates stay on record;
+ * a subject removed from the homeroom retires its class, and one added
+ * joins it from that day. Answers the homeroom and every class it keeps.
  */
 export async function writeHomeroom(
   context: UnitContext,
-  year: SchoolYear,
+  runs: OpenSpan,
   input: HomeroomInput,
-): Promise<string> {
+): Promise<{ homeroomId: string; classIds: string[] }> {
   const tx = context.tx;
-  const from = dayIn(year, context.today);
+  const from = dayWithin(runs, context.today);
   const [subjects, positions] = await Promise.all([
     descriptorsFor(tx, {
       tenantId: context.tenantId,
@@ -109,8 +116,7 @@ export async function writeHomeroom(
   let homeroomId: string;
   if (input.id) {
     const existing = await homeroomClass(context, input.id);
-    if (!existing || existing.schoolYearId !== year.id)
-      throw new ORPCError("NOT_FOUND");
+    if (!existing) throw new ORPCError("NOT_FOUND");
     const saved = await updateClass(tx, {
       tenantId: context.tenantId,
       id: input.id,
@@ -124,11 +130,16 @@ export async function writeHomeroom(
     if (!saved)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
     homeroomId = input.id;
+    await moveClass(context, homeroomId, existing.runs, runs);
+    for (const offering of await linkedClasses(tx, context, homeroomId)) {
+      const before = await classById(tx, context, offering.id);
+      if (before) await moveClass(context, offering.id, before.runs, runs);
+    }
   } else {
     const created = await insertClass(tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
-      schoolYearId: year.id,
+      runs,
       code: input.code,
       titleEn: input.titleEn,
       titleAr: input.titleAr,
@@ -146,11 +157,11 @@ export async function writeHomeroom(
   }
   await setClassTeachers(tx, {
     tenantId: context.tenantId,
-    classRow: { id: homeroomId, schoolYearId: year.id },
+    classId: homeroomId,
     orgId: context.schoolId,
     teacherIds: input.homeroomTeacherId ? [input.homeroomTeacherId] : [],
     from,
-    endsBefore: year.endsBefore,
+    endsBefore: runs.to,
     positionId: teacherOfRecord,
   });
   const current = await linkedClasses(tx, context, homeroomId);
@@ -186,7 +197,7 @@ export async function writeHomeroom(
         await insertClass(tx, {
           tenantId: context.tenantId,
           orgId: context.schoolId,
-          schoolYearId: year.id,
+          runs,
           code: `${input.code}-${subjectCode(known.code)}`.slice(0, 40),
           titleEn:
             input.titleEn && known.labelEn
@@ -212,16 +223,16 @@ export async function writeHomeroom(
     }
     await setClassTeachers(tx, {
       tenantId: context.tenantId,
-      classRow: { id: offeringId, schoolYearId: year.id },
+      classId: offeringId,
       orgId: context.schoolId,
       teacherIds: subject.teacherIds,
       from,
-      endsBefore: year.endsBefore,
+      endsBefore: runs.to,
       positionId: teacherOfRecord,
     });
   }
-  await follow(context, homeroomId);
-  return homeroomId;
+  await follow(context, homeroomId, from);
+  return { homeroomId, classIds: await classesOf(context, homeroomId) };
 }
 
 /** The classes a member of the homeroom sits in: the homeroom and its subject classes. */
@@ -237,22 +248,27 @@ async function classesOf(context: UnitContext, homeroomClassId: string) {
 /**
  * Puts a student in a homeroom from a date. A current place ends that day,
  * so a move leaves both on record; a place already due to start after the
- * date must be dealt with first.
+ * date, while the new one would still run, must be dealt with first. One
+ * due after the homeroom ends (next year's, say) stays as it is.
  */
 export async function placeInHomeroom(
   context: UnitContext,
   input: {
     studentId: string;
     homeroom: ClassRow;
-    year: SchoolYear;
     from: string;
     source: "manual" | "rollover";
   },
 ): Promise<{ enrollmentId: string; movedFrom: string | null }> {
   const held = (await memberships(context.tx, context, input.studentId)).filter(
-    (row) => row.schoolYearId === input.year.id && row.to > input.from,
+    (row) => row.to === null || row.to > input.from,
   );
-  if (held.some((row) => row.from > input.from))
+  const until = input.homeroom.runs.to;
+  if (
+    held.some(
+      (row) => row.from > input.from && (until === null || row.from < until),
+    )
+  )
     throw new ORPCError("CONFLICT", {
       message: "enrollment.future_placement",
     });
@@ -271,35 +287,23 @@ export async function placeInHomeroom(
       starts: current.from,
       on: input.from,
     });
-    await follow(context, current.classId);
+    await follow(context, current.classId, input.from);
   }
   const enrollmentId = await placeMember(context.tx, {
     tenantId: context.tenantId,
     orgId: context.schoolId,
-    homeroom: input.homeroom,
+    homeroomClassId: input.homeroom.id,
     studentId: input.studentId,
     from: input.from,
-    endsBefore: input.year.endsBefore,
+    endsBefore: input.homeroom.runs.to,
     source: input.source,
   });
   await joinedClasses(
     context,
     new Map([[input.homeroom.id, [input.studentId]]]),
+    input.from,
   );
-  await follow(context, input.homeroom.id);
-  if (input.homeroom.gradeId)
-    await place(context.tx, scopeFor(context, "classes"), {
-      studentId: input.studentId,
-      year: input.year,
-      gradeId: input.homeroom.gradeId,
-      calendarId: await calendarFor(
-        context.tx,
-        context.tenantId,
-        input.year.id,
-      ),
-      from: input.from,
-      source: input.source,
-    });
+  await follow(context, input.homeroom.id, input.from);
   return { enrollmentId, movedFrom: current?.classId ?? null };
 }
 
@@ -317,7 +321,7 @@ export async function leaveHomeroom(
     (row) => row.enrollmentId === input.enrollmentId,
   );
   if (!seat) throw new ORPCError("NOT_FOUND");
-  if (input.on < seat.from || input.on >= seat.to)
+  if (input.on < seat.from || (seat.to !== null && input.on >= seat.to))
     throw new ORPCError("BAD_REQUEST", {
       message: "enrollment.outside_dates",
     });
@@ -333,6 +337,6 @@ export async function leaveHomeroom(
     on: input.on,
   });
   if (!ended) throw new ORPCError("CONFLICT", { message: "conflict.version" });
-  await follow(context, seat.classId);
+  await follow(context, seat.classId, input.on);
   return seat.classId;
 }

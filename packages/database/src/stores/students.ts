@@ -6,16 +6,15 @@ import { fullName } from "@faridalms/domain/people";
 import { and, eq, sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
+import type { DepartureEnded } from "../tables/membership";
 import type { PostalAddress } from "../tables/tenancy";
 
 import {
-  contactPoints,
-  externalIds,
-  studentSchoolYears,
+  studentDepartures,
   userRelationships,
   userRoles,
-  users,
-} from "../tables/index";
+} from "../tables/membership";
+import { contactPoints, externalIds, users } from "../tables/people";
 import { bounds, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
@@ -32,25 +31,18 @@ export interface Scope {
 const visible = (scope: Scope) =>
   sql`(select student_user_id from app.visible_students(${scope.viewerId}::uuid, ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}))`;
 
-/** The status the list shows, from placements at this school (mirrors `studentStatus`). */
+const roleRows = (scope: Pick<Scope, "tenantId" | "schoolId">) =>
+  sql`core.user_roles r where r.tenant_id = ${scope.tenantId}::uuid and r.org_id = ${scope.schoolId}::uuid
+    and r.role = 'student' and r.status = 'active'`;
+
+/** The status the list shows, from the student's roles at this school (mirrors `roleStatus`). */
 const statusSql = (scope: Scope) => sql`(
   case
-    when exists (select 1 from core.student_school_years s where s.tenant_id = u.tenant_id
-                   and s.student_user_id = u.id and s.org_id = ${scope.schoolId}::uuid
-                   and s.status = 'active' and s.valid_during @> ${scope.today}::date) then 'enrolled'
-    when not exists (select 1 from core.student_school_years s where s.tenant_id = u.tenant_id
-                   and s.student_user_id = u.id and s.org_id = ${scope.schoolId}::uuid
-                   and s.status = 'active') then 'unplaced'
-    else (select case
-                   when lower(s.valid_during) > ${scope.today}::date then 'pre_enrolled'
-                   when x.system_meaning = 'graduated' then 'graduated'
-                   when x.system_meaning is not null then 'left'
-                   else 'enrolled' end
-          from core.student_school_years s
-          left join core.descriptors x on x.tenant_id = s.tenant_id and x.id = s.exit_type_descriptor_id
-          where s.tenant_id = u.tenant_id and s.student_user_id = u.id
-            and s.org_id = ${scope.schoolId}::uuid and s.status = 'active'
-          order by upper(s.valid_during) desc limit 1)
+    when exists (select 1 from ${roleRows(scope)} and r.user_id = u.id
+                   and r.valid_during @> ${scope.today}::date) then 'enrolled'
+    when exists (select 1 from ${roleRows(scope)} and r.user_id = u.id
+                   and lower(r.valid_during) > ${scope.today}::date) then 'pre_enrolled'
+    else 'left'
   end)`;
 
 const referenceSql = (scope: Scope) => sql`(
@@ -60,10 +52,19 @@ const referenceSql = (scope: Scope) => sql`(
     and (upper_inf(e.valid_during) or upper(e.valid_during) > ${scope.today}::date)
   order by e.assigning_org_id nulls last limit 1)`;
 
+/**
+ * The students a module's view names, with the status and grade it gives
+ * each in place of the role's: a year's students, say, with their placement.
+ */
+export interface GivenStudents {
+  ids: readonly string[];
+  statuses: readonly StudentStatus[];
+  grades: readonly (string | null)[];
+}
+
 export interface DirectoryFilter {
-  yearId: string;
-  /** The year the list defaults to; students with a current role but no placement show in it. */
-  working: boolean;
+  /** Absent, the list is the school's students: current, coming, and with the `left` status those gone. */
+  given: GivenStudents | null;
   q: string;
   phone: string | null;
   /** Students whose identity document number the search matched exactly. */
@@ -109,7 +110,7 @@ export async function studentDirectory(
     filter.sort === "reference"
       ? sql`reference ${direction} nulls last, ${nameKey}, u.id`
       : filter.sort === "grade"
-        ? sql`array_position(${uuidArray(filter.gradeOrder)}, p.grade_level_descriptor_id) ${direction} nulls last, ${nameKey}, u.id`
+        ? sql`array_position(${uuidArray(filter.gradeOrder)}, u.grade_id) ${direction} nulls last, ${nameKey}, u.id`
         : sql`${nameKey} ${direction}, u.id`;
   const q = filter.q.trim();
   const words =
@@ -142,23 +143,19 @@ export async function studentDirectory(
     custody_alert: boolean;
     total: number;
   }>(sql`
-    with placed as (
-      select distinct on (s.student_user_id) s.student_user_id, s.grade_level_descriptor_id
-      from core.student_school_years s
-      where s.tenant_id = ${scope.tenantId}::uuid and s.org_id = ${scope.schoolId}::uuid
-        and s.school_year_id = ${filter.yearId}::uuid and s.status = 'active'
-      order by s.student_user_id, upper(s.valid_during) desc
+    with given as (
+      select g.id as student_user_id, g.status, nullif(g.grade, '')::uuid as grade_id
+      from unnest(${uuidArray([...(filter.given?.ids ?? [])])}, ${textArray([...(filter.given?.statuses ?? [])])},
+        ${textArray((filter.given?.grades ?? []).map((grade) => grade ?? ""))}) as g(id, status, grade)
     ), members as (
-      select student_user_id from placed
+      select student_user_id, status, grade_id from given
       union
-      select r.user_id from core.user_roles r
-      where ${filter.working} and r.tenant_id = ${scope.tenantId}::uuid and r.org_id = ${scope.schoolId}::uuid
-        and r.role = 'student' and r.status = 'active' and r.valid_during @> ${scope.today}::date
+      select distinct r.user_id, null::text, null::uuid from ${roleRows(scope)} and ${filter.given === null}
     ), listed as (
       select u.id, u.full_name_en, u.full_name_ar, u.photo_file_id, u.medical_alert, u.custody_alert,
-             p.grade_level_descriptor_id as grade_id,
+             m.grade_id,
              ${referenceSql(scope)} as reference,
-             ${statusSql(scope)} as status,
+             coalesce(m.status, ${statusSql(scope)}) as status,
              (select c.normalized from core.user_relationships r
                 join core.contact_points c on c.tenant_id = r.tenant_id and c.user_id = r.related_user_id
                 where r.tenant_id = u.tenant_id and r.student_user_id = u.id and r.status = 'active'
@@ -174,13 +171,12 @@ export async function studentDirectory(
                   and a.state = 'active') as has_account
       from members m
       join core.users u on u.tenant_id = ${scope.tenantId}::uuid and u.id = m.student_user_id and u.status = 'active'
-      left join placed p on p.student_user_id = u.id
       where u.id in ${visible(scope)}
     )
     select u.*, count(*) over ()::int as total
     from listed u
-    left join placed p on p.student_user_id = u.id
     where ${search}
+      and (${filter.given !== null} or u.status <> 'left' or 'left' = any(${textArray(filter.statuses)}))
       and (${filter.gradeIds.length === 0} or u.grade_id = any(${uuidArray(filter.gradeIds)}))
       and (${filter.statuses.length === 0} or u.status = any(${textArray(filter.statuses)}))
       and (not ${filter.missingGuardian} or not u.has_guardian)
@@ -283,179 +279,138 @@ export async function signInSeeds(
   }));
 }
 
-export interface Placement {
-  id: string;
-  version: number;
-  schoolYearId: string;
-  yearTitleEn: string | null;
-  yearTitleAr: string | null;
-  from: string;
-  to: string;
-  gradeId: string | null;
-  entryTypeId: string | null;
-  exitTypeId: string | null;
-  exitMeaning: string | null;
-  previousSchool: string | null;
-  destinationSchool: string | null;
-}
-
-export async function placements(
+/** A student's days at the school, as their student roles there hold them, earliest first. */
+export async function studentRoles(
   tx: Tx,
   scope: Pick<Scope, "tenantId" | "schoolId">,
   studentId: string,
-): Promise<Placement[]> {
-  const rows = await tx.execute<{
-    id: string;
-    version: number;
-    school_year_id: string;
-    title_en: string | null;
-    title_ar: string | null;
-    valid_during: string;
-    grade_id: string | null;
-    entry_id: string | null;
-    exit_id: string | null;
-    exit_meaning: string | null;
-    previous_school: string | null;
-    destination_school: string | null;
-  }>(sql`
-    select s.id, s.version, s.school_year_id, y.title_en, y.title_ar, s.valid_during::text as valid_during,
-           s.grade_level_descriptor_id as grade_id, s.entry_type_descriptor_id as entry_id,
-           s.exit_type_descriptor_id as exit_id, x.system_meaning as exit_meaning, s.previous_school,
-           s.destination_school
-    from core.student_school_years s
-    join core.academic_sessions y on y.tenant_id = s.tenant_id and y.id = s.school_year_id
-    left join core.descriptors x on x.tenant_id = s.tenant_id and x.id = s.exit_type_descriptor_id
-    where s.tenant_id = ${scope.tenantId}::uuid and s.student_user_id = ${studentId}::uuid
-      and s.org_id = ${scope.schoolId}::uuid and s.status = 'active'
-    order by lower(s.valid_during) desc`);
-  return rows.map((row) => {
-    const range = bounds(row.valid_during);
-    return {
-      id: row.id,
-      version: row.version,
-      schoolYearId: row.school_year_id,
-      yearTitleEn: row.title_en,
-      yearTitleAr: row.title_ar,
-      from: range.from,
-      to: range.to ?? range.from,
-      gradeId: row.grade_id,
-      entryTypeId: row.entry_id,
-      exitTypeId: row.exit_id,
-      exitMeaning: row.exit_meaning,
-      previousSchool: row.previous_school,
-      destinationSchool: row.destination_school,
-    };
-  });
+): Promise<{ from: string; to: string | null }[]> {
+  const rows = await tx.execute<{ valid_during: string }>(sql`
+    select r.valid_during::text as valid_during from ${roleRows(scope)} and r.user_id = ${studentId}::uuid
+    order by lower(r.valid_during)`);
+  return rows.map((row) => bounds(row.valid_during));
 }
 
-/** Records how a student came to a placement, and from which school. */
-export async function saveArrival(
+export interface Departure {
+  id: string;
+  /** The first day the student is not at the school. */
+  leftOn: string;
+  /** The first day they and their family no longer read the record. */
+  accessEndsOn: string;
+  ended: DepartureEnded;
+}
+
+/** The departure that stands for a student at the school, if they have left. */
+export async function departureOf(
   tx: Tx,
-  input: {
-    tenantId: string;
-    placementId: string;
-    entryTypeId: string | null;
-    previousSchool: string | null;
-  },
-) {
-  await tx
-    .update(studentSchoolYears)
-    .set({
-      entryTypeDescriptorId: input.entryTypeId,
-      previousSchool: input.previousSchool,
+  scope: Pick<Scope, "tenantId" | "schoolId">,
+  studentId: string,
+): Promise<Departure | null> {
+  const [row] = await tx
+    .select({
+      id: studentDepartures.id,
+      leftOn: studentDepartures.leftOn,
+      accessEndsOn: studentDepartures.accessEndsOn,
+      ended: studentDepartures.ended,
     })
+    .from(studentDepartures)
     .where(
       and(
-        eq(studentSchoolYears.tenantId, input.tenantId),
-        eq(studentSchoolYears.id, input.placementId),
+        eq(studentDepartures.tenantId, scope.tenantId),
+        eq(studentDepartures.orgId, scope.schoolId),
+        eq(studentDepartures.studentUserId, studentId),
+        eq(studentDepartures.status, "active"),
       ),
     );
+  return row ?? null;
 }
 
 /**
- * Ends a placement in a departure: its last day, why the student left and
- * where they went. A placement that ends there anyway keeps its dates.
+ * Records a student leaving: their student role ends on the day they left
+ * (one that was only to begin later is dropped), and the departure keeps
+ * that day, the day the record closes to them and their family, and what
+ * leaving ended, for a return to give back.
  */
-export async function endPlacement(
+export async function recordDeparture(
   tx: Tx,
+  scope: Pick<Scope, "tenantId" | "schoolId">,
   input: {
-    tenantId: string;
-    placementId: string;
-    /** The day after the student's last. */
-    on: string;
-    exitTypeId: string;
-    destination: string | null;
+    studentId: string;
+    leftOn: string;
+    accessEndsOn: string;
+    ended: Omit<DepartureEnded, "role">;
   },
-) {
-  await tx.execute(sql`
-    update core.student_school_years
-    set valid_during = daterange(lower(valid_during), least(upper(valid_during), ${input.on}::date)),
-        exit_type_descriptor_id = ${input.exitTypeId}::uuid, destination_school = ${input.destination}
-    where tenant_id = ${input.tenantId}::uuid and id = ${input.placementId}::uuid`);
-}
-
-/** Takes a departure back: the placement runs to the end of its year again. */
-export async function reopenPlacement(
-  tx: Tx,
-  input: { tenantId: string; placementId: string; endsBefore: string },
-) {
-  await tx.execute(sql`
-    update core.student_school_years
-    set valid_during = daterange(lower(valid_during), ${input.endsBefore}::date),
-        exit_type_descriptor_id = null, destination_school = null
-    where tenant_id = ${input.tenantId}::uuid and id = ${input.placementId}::uuid`);
-}
-
-/** Drops the placements a student was to start on or after the date. */
-export async function voidPlacementsFrom(
-  tx: Tx,
-  scope: Pick<Scope, "tenantId" | "schoolId">,
-  input: { studentId: string; from: string },
-): Promise<string[]> {
-  const rows = await tx.execute<{ id: string }>(sql`
-    update core.student_school_years set status = 'tobedeleted'
-    where tenant_id = ${scope.tenantId}::uuid and org_id = ${scope.schoolId}::uuid
-      and student_user_id = ${input.studentId}::uuid and status = 'active'
-      and lower(valid_during) >= ${input.from}::date
-    returning id`);
-  return rows.map((row) => row.id);
-}
-
-/**
- * The day a student's role at the school ends, for one who has left; null
- * while the role runs on, and for someone who never held one.
- */
-export async function studentRoleEnd(
-  tx: Tx,
-  scope: Pick<Scope, "tenantId" | "schoolId">,
-  studentId: string,
-): Promise<string | null> {
-  const [row] = await tx.execute<{ ends: string | null }>(sql`
-    select upper(valid_during)::text as ends from core.user_roles
-    where tenant_id = ${scope.tenantId}::uuid and org_id = ${scope.schoolId}::uuid
-      and user_id = ${studentId}::uuid and role = 'student' and status = 'active'
-    order by upper_inf(valid_during) desc, upper(valid_during) desc limit 1`);
-  return row?.ends ?? null;
-}
-
-/**
- * Ends a student's role at the school on the date, which is when their
- * sign-in as a student and their family's view of them close. A role that
- * was only to start by then never does.
- */
-export async function endStudentRole(
-  tx: Tx,
-  scope: Pick<Scope, "tenantId" | "schoolId">,
-  input: { studentId: string; until: string },
-) {
+): Promise<string> {
   const held = sql`tenant_id = ${scope.tenantId}::uuid and org_id = ${scope.schoolId}::uuid
     and user_id = ${input.studentId}::uuid and role = 'student' and status = 'active'`;
-  await tx.execute(sql`
-    update core.user_roles set status = 'tobedeleted'
-    where ${held} and lower(valid_during) >= ${input.until}::date`);
-  await tx.execute(sql`
-    update core.user_roles set valid_during = daterange(lower(valid_during), ${input.until}::date)
-    where ${held} and (upper_inf(valid_during) or upper(valid_during) > ${input.until}::date)`);
+  const [role] = await tx.execute<{
+    id: string;
+    starts: string;
+    until: string | null;
+  }>(sql`
+    select id, lower(valid_during)::text as starts, upper(valid_during)::text as until
+    from core.user_roles
+    where ${held} and (upper_inf(valid_during) or upper(valid_during) > ${input.leftOn}::date)
+    order by lower(valid_during) desc limit 1`);
+  if (role && role.starts >= input.leftOn)
+    await tx.execute(sql`
+      update core.user_roles set status = 'tobedeleted'
+      where tenant_id = ${scope.tenantId}::uuid and id = ${role.id}::uuid`);
+  else if (role)
+    await tx.execute(sql`
+      update core.user_roles set valid_during = daterange(lower(valid_during), ${input.leftOn}::date)
+      where tenant_id = ${scope.tenantId}::uuid and id = ${role.id}::uuid`);
+  const [row] = await tx
+    .insert(studentDepartures)
+    .values({
+      tenantId: scope.tenantId,
+      orgId: scope.schoolId,
+      studentUserId: input.studentId,
+      leftOn: input.leftOn,
+      accessEndsOn: input.accessEndsOn,
+      ended: {
+        role: role
+          ? {
+              id: role.id,
+              until: role.until,
+              dropped: role.starts >= input.leftOn,
+            }
+          : null,
+        ...input.ended,
+      },
+    })
+    .returning({ id: studentDepartures.id });
+  if (!row) throw new Error("departure was not recorded");
+  return row.id;
+}
+
+/**
+ * Takes a departure back: the student role runs as it did before, and the
+ * departure stands no more. The caller gives back the enrollments it ended.
+ */
+export async function withdrawDeparture(
+  tx: Tx,
+  scope: Pick<Scope, "tenantId" | "schoolId">,
+  departure: Departure,
+) {
+  const role = departure.ended.role;
+  if (role?.dropped)
+    await tx.execute(sql`
+      update core.user_roles set status = 'active'
+      where tenant_id = ${scope.tenantId}::uuid and id = ${role.id}::uuid`);
+  else if (role)
+    await tx.execute(sql`
+      update core.user_roles set valid_during = daterange(lower(valid_during), ${role.until}::date)
+      where tenant_id = ${scope.tenantId}::uuid and id = ${role.id}::uuid`);
+  await tx
+    .update(studentDepartures)
+    .set({ status: "tobedeleted" })
+    .where(
+      and(
+        eq(studentDepartures.tenantId, scope.tenantId),
+        eq(studentDepartures.id, departure.id),
+      ),
+    );
 }
 
 export interface StudentPerson {
@@ -865,106 +820,46 @@ export async function setReference(
   });
 }
 
-/**
- * Places a student in a grade for a year. A student already placed that year
- * in another grade moves: the old placement ends and a new one starts, unless
- * it only began today, when it changes in place.
- */
-export async function place(
-  tx: Tx,
-  scope: Scope,
-  input: {
-    studentId: string;
-    year: { id: string; startsOn: string; endsBefore: string };
-    gradeId: string;
-    calendarId: string | null;
-    /** The day the grade takes effect; today by default, never before the year. */
-    from?: string;
-    entryTypeId?: string | null;
-    source?: "manual" | "rollover" | "admission";
-  },
-) {
-  const wanted = input.from ?? scope.today;
-  const start = wanted > input.year.startsOn ? wanted : input.year.startsOn;
-  const existing = (await placements(tx, scope, input.studentId)).find(
-    (row) =>
-      row.schoolYearId === input.year.id && row.from <= start && start < row.to,
-  );
-  if (existing?.gradeId === input.gradeId) return { changed: false };
-  if (existing && existing.from === start)
-    await tx
-      .update(studentSchoolYears)
-      .set({ gradeLevelDescriptorId: input.gradeId })
-      .where(
-        and(
-          eq(studentSchoolYears.tenantId, scope.tenantId),
-          eq(studentSchoolYears.id, existing.id),
-        ),
-      );
-  else {
-    if (existing)
-      await tx
-        .update(studentSchoolYears)
-        .set({ validDuring: `[${existing.from},${start})` })
-        .where(
-          and(
-            eq(studentSchoolYears.tenantId, scope.tenantId),
-            eq(studentSchoolYears.id, existing.id),
-          ),
-        );
-    await tx.insert(studentSchoolYears).values({
-      tenantId: scope.tenantId,
-      studentUserId: input.studentId,
-      orgId: scope.schoolId,
-      schoolYearId: input.year.id,
-      validDuring: `[${start},${input.year.endsBefore})`,
-      gradeLevelDescriptorId: input.gradeId,
-      calendarId: input.calendarId,
-      entryTypeDescriptorId: input.entryTypeId ?? null,
-      source: input.source ?? "manual",
-    });
-  }
-  await ensureStudentRole(tx, scope, input.studentId, start);
-  return { changed: true };
-}
-
 export async function ensureStudentRole(
   tx: Tx,
   scope: Scope,
   studentId: string,
   from: string,
 ) {
-  const rows = await tx.execute<{ id: string; ends: boolean }>(sql`
-    select id, not upper_inf(valid_during) as ends from core.user_roles
+  const rows = await tx.execute<{
+    id: string;
+    starts: string;
+    ends: boolean;
+  }>(sql`
+    select id, lower(valid_during)::text as starts, not upper_inf(valid_during) as ends from core.user_roles
     where tenant_id = ${scope.tenantId}::uuid and user_id = ${studentId}::uuid and org_id = ${scope.schoolId}::uuid
       and role = 'student' and status = 'active' and (upper_inf(valid_during) or upper(valid_during) > ${from}::date)
-    order by lower(valid_during) desc`);
-  const [held] = rows;
-  if (held) {
-    // A leaver's role ends with the time they keep; one who is placed again
-    // is a student of the school for as long as any other.
-    if (held.ends)
-      await tx.execute(sql`
-        update core.user_roles set valid_during = daterange(lower(valid_during), null)
-        where tenant_id = ${scope.tenantId}::uuid and id = ${held.id}::uuid`);
+    order by lower(valid_during)`);
+  const first = rows[0];
+  const last = rows.at(-1);
+  if (!first || !last) {
+    await tx.insert(userRoles).values({
+      tenantId: scope.tenantId,
+      userId: studentId,
+      orgId: scope.schoolId,
+      orgType: "school",
+      role: "student",
+      validDuring: `[${from},)`,
+      source: "derived",
+    });
     return;
   }
-  await tx.insert(userRoles).values({
-    tenantId: scope.tenantId,
-    userId: studentId,
-    orgId: scope.schoolId,
-    orgType: "school",
-    role: "student",
-    validDuring: `[${from},)`,
-    source: "derived",
-  });
-}
-
-export async function calendarFor(tx: Tx, tenantId: string, yearId: string) {
-  const rows = await tx.execute<{ id: string }>(sql`
-    select id from core.calendars where tenant_id = ${tenantId}::uuid and school_year_id = ${yearId}::uuid
-      and kind = 'school' and status = 'active' limit 1`);
-  return rows[0]?.id ?? null;
+  // A student in the school's classes from a day is its student from then.
+  if (first.starts > from)
+    await tx.execute(sql`
+      update core.user_roles set valid_during = daterange(${from}::date, upper(valid_during))
+      where tenant_id = ${scope.tenantId}::uuid and id = ${first.id}::uuid`);
+  // One who left and is placed again is a student of the school for as
+  // long as any other.
+  if (last.ends)
+    await tx.execute(sql`
+      update core.user_roles set valid_during = daterange(lower(valid_during), null)
+      where tenant_id = ${scope.tenantId}::uuid and id = ${last.id}::uuid`);
 }
 
 /**
@@ -988,9 +883,15 @@ export async function syncFamilyRoles(
   }>(sql`
     select r.relation_meaning, r.portal_access, r.legal_guardian, r.access_basis, s.org_id
     from core.user_relationships r
-    join core.user_roles s on s.tenant_id = r.tenant_id and s.user_id = r.student_user_id
-      and s.role = 'student' and s.status = 'active'
-      and (upper_inf(s.valid_during) or upper(s.valid_during) > ${today}::date)
+    join lateral (
+      select s.org_id from core.user_roles s
+      where s.tenant_id = r.tenant_id and s.user_id = r.student_user_id
+        and s.role = 'student' and s.status = 'active'
+        and (upper_inf(s.valid_during) or upper(s.valid_during) > ${today}::date)
+      union
+      select d.org_id from core.student_departures d
+      where d.tenant_id = r.tenant_id and d.student_user_id = r.student_user_id
+        and d.status = 'active' and d.access_ends_on > ${today}::date) s on true
     where r.tenant_id = ${tenantId}::uuid and r.related_user_id = ${personId}::uuid and r.status = 'active'
       and (upper_inf(r.valid_during) or upper(r.valid_during) > ${today}::date)`);
   const wanted = new Set<string>();

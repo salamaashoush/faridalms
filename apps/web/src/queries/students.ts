@@ -1,3 +1,4 @@
+import type { Views } from "@faridalms/domain/classes";
 import type { CreateSignInsInput } from "@faridalms/domain/first-sign-in";
 import type { Keyset } from "@faridalms/domain/paging";
 import type { StudentDirectoryQuery } from "@faridalms/domain/people";
@@ -23,11 +24,23 @@ export const peopleOptionsQuery = queryOptions({
   staleTime: 60_000,
 });
 
-export const studentsQuery = (query: StudentDirectoryQuery) =>
-  queryOptions({
-    queryKey: ["people", "students", query],
-    queryFn: () => getStudents({ data: query }),
+export const studentsQuery = (query: StudentDirectoryQuery, views: Views) => {
+  const data = {
+    q: query.q,
+    grade: query.grade,
+    status: query.status,
+    missing: query.missing,
+    sort: query.sort,
+    dir: query.dir,
+    page: query.page,
+    pageSize: query.pageSize,
+    views,
+  };
+  return queryOptions({
+    queryKey: ["people", "students", data],
+    queryFn: () => getStudents({ data }),
   });
+};
 
 export const studentRecordQuery = (id: string) =>
   queryOptions({

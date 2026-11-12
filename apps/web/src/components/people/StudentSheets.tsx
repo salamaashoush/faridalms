@@ -16,7 +16,6 @@ import { peopleOptionsQuery } from "~/queries/students";
 import {
   endRelationship,
   findGuardians,
-  saveArrival,
   saveRelationship,
   saveStudent,
 } from "~/server/students";
@@ -40,8 +39,6 @@ type Guardian = NonNullable<StudentData["guardians"]>[number];
 
 export type StudentSheet =
   | { kind: "personal" }
-  | { kind: "grade" }
-  | { kind: "arrival" }
   | { kind: "guardian"; guardian: Guardian }
   | { kind: "add-guardian" };
 
@@ -93,8 +90,6 @@ function choices(
 function useOptions() {
   const options = useSuspenseQuery(peopleOptionsQuery).data;
   return {
-    grades: choices(options.grades),
-    entryTypes: choices(options.entryTypes),
     relations: choices(options.relations),
     sexes: choices(options.sexes),
     relationByCode: (code: string) =>
@@ -198,78 +193,6 @@ function PersonalSheet({ student, open, onClose }: PersonalSheetProps) {
           { value: "none", label: m.commonNotRecorded() },
         ]}
         onChange={(value) => setSexId(value === "none" ? "" : value)}
-        width="name"
-      />
-    </SheetForm>
-  );
-}
-
-interface GradeSheetProps {
-  student: StudentData;
-  open: boolean;
-  onClose: () => void;
-}
-
-function GradeSheet({ student, open, onClose }: GradeSheetProps) {
-  const options = useOptions();
-  const refresh = useRefresh(student.id);
-  const current =
-    student.placement?.schoolYearId === student.workingYearId
-      ? student.placement
-      : null;
-  const [gradeId, setGradeId] = useState(current?.gradeId ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const mutation = useMutation({
-    mutationFn: () =>
-      saveStudent({
-        data: {
-          id: student.id,
-          expectedVersion: student.version,
-          names: namesInput(namesFrom(student)),
-          preferredName: student.preferredGivenName ?? "",
-          reference: student.reference ?? "",
-          birthDate: student.birthDate ?? "",
-          sexId: student.sexId ?? "",
-          gradeId,
-        },
-      }),
-    meta: { inlineError: true },
-  });
-  return (
-    <SheetForm
-      open={open}
-      onOpenChange={(next) => (next ? undefined : onClose())}
-      title={m.studentChangeGrade()}
-      pending={mutation.isPending}
-      error={mutation.error ? getMessageFromError(mutation.error) : null}
-      onSubmit={async () => {
-        if (!gradeId) {
-          setError(m.validationSelection());
-          return;
-        }
-        await mutation.mutateAsync().then(
-          async () => {
-            await refresh();
-            toast.success(m.managementSaved());
-            onClose();
-          },
-          () => undefined,
-        );
-      }}
-    >
-      <p className="text-sm leading-5 text-muted-foreground">
-        {m.studentChangeGradeHint()}
-      </p>
-      <SelectField
-        id="sheet-grade"
-        label={m.studentGrade()}
-        value={gradeId}
-        options={options.grades}
-        onChange={(value) => {
-          setError(null);
-          setGradeId(value);
-        }}
-        errors={error ? [error] : undefined}
         width="name"
       />
     </SheetForm>
@@ -551,80 +474,6 @@ function AddGuardianSheet({ student, open, onClose }: AddGuardianSheetProps) {
   );
 }
 
-interface ArrivalSheetProps {
-  student: StudentData;
-  open: boolean;
-  onClose: () => void;
-}
-
-/**
- * How a student came to the school: as what kind of entrant, and from which
- * school. It is kept on their first placement here.
- */
-function ArrivalSheet({ student, open, onClose }: ArrivalSheetProps) {
-  const options = useOptions();
-  const refresh = useRefresh(student.id);
-  const first = student.placements.at(-1);
-  const [entryTypeId, setEntryTypeId] = useState(first?.entryTypeId ?? "");
-  const [previousSchool, setPreviousSchool] = useState(
-    first?.previousSchool ?? "",
-  );
-  const mutation = useMutation({
-    mutationFn: () =>
-      saveArrival({
-        data: {
-          studentId: student.id,
-          placementId: first?.id ?? "",
-          entryTypeId,
-          previousSchool,
-        },
-      }),
-    meta: { inlineError: true },
-  });
-  return (
-    <SheetForm
-      open={open}
-      onOpenChange={(next) => (next ? undefined : onClose())}
-      title={m.arrivalEdit()}
-      pending={mutation.isPending}
-      error={mutation.error ? getMessageFromError(mutation.error) : null}
-      onSubmit={async () => {
-        await mutation.mutateAsync().then(
-          async () => {
-            await refresh();
-            toast.success(m.managementSaved());
-            onClose();
-          },
-          () => undefined,
-        );
-      }}
-    >
-      <SelectField
-        id="sheet-entry-type"
-        label={m.arrivalJoinedAs()}
-        optional
-        value={entryTypeId}
-        options={[
-          { value: "", label: m.commonNotRecorded() },
-          ...options.entryTypes,
-        ]}
-        onChange={setEntryTypeId}
-        width="name"
-      />
-      <TextField
-        id="sheet-previous-school"
-        label={m.arrivalPreviousSchool()}
-        hint={m.arrivalPreviousSchoolHint()}
-        optional
-        width="name"
-        maxLength={160}
-        value={previousSchool}
-        onChange={(event) => setPreviousSchool(event.target.value)}
-      />
-    </SheetForm>
-  );
-}
-
 export interface StudentSheetsProps {
   student: StudentData;
   sheet: StudentSheet;
@@ -640,10 +489,6 @@ export function StudentSheets({
 }: StudentSheetsProps) {
   if (sheet.kind === "personal")
     return <PersonalSheet student={student} open={open} onClose={onClose} />;
-  if (sheet.kind === "grade")
-    return <GradeSheet student={student} open={open} onClose={onClose} />;
-  if (sheet.kind === "arrival")
-    return <ArrivalSheet student={student} open={open} onClose={onClose} />;
   if (sheet.kind === "guardian")
     return (
       <GuardianSheet

@@ -1,17 +1,29 @@
 import type { YearEndStudent } from "@faridalms/database/stores/rollovers";
 import type { SchoolYear } from "@faridalms/database/stores/years";
 import type {
+  RolloverClass,
   RolloverOutcome,
   RolloverPlan,
   RolloverQuery,
   RolloverStudent,
   NextYearIntention,
 } from "@faridalms/domain/rollover";
+import type { OpenSpan } from "@faridalms/domain/school";
 
+import {
+  endStudentEnrollmentsFrom,
+  enrolStudent,
+  insertClass,
+  rosterOf,
+  setClassTeachers,
+  teachersOf,
+} from "@faridalms/database/stores/classes";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import { decidingGuardians } from "@faridalms/database/stores/invites";
 import { markActed } from "@faridalms/database/stores/notifications";
 import { copyPeriods } from "@faridalms/database/stores/periods";
+import { childrenOf } from "@faridalms/database/stores/persons";
+import { calendarFor, place } from "@faridalms/database/stores/placements";
 import {
   markRolloverApplied,
   recordExits,
@@ -24,11 +36,15 @@ import {
   recordIntention,
 } from "@faridalms/database/stores/rollovers";
 import {
-  calendarFor,
-  endStudentRole,
-  place,
+  departureOf,
+  recordDeparture,
 } from "@faridalms/database/stores/students";
-import { holdYear, schoolYears } from "@faridalms/database/stores/years";
+import {
+  classesOfYear,
+  holdYear,
+  linkClass,
+  schoolYears,
+} from "@faridalms/database/stores/years";
 import {
   applyRolloverSchema,
   rolloverPlanIssue,
@@ -37,6 +53,7 @@ import {
   rolloverYearsIssue,
   saveRolloverSchema,
   firstOutcome,
+  followsClass,
   openReenrolmentSchema,
   setIntentionSchema,
 } from "@faridalms/domain/rollover";
@@ -46,8 +63,9 @@ import { sql } from "drizzle-orm";
 import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
-import type { SourceClass } from "../rollover/carry";
+import type { RolloverCarrier, SourceClass } from "../years/carry";
 
+import { joinedClasses } from "../classes/enrolment";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -57,8 +75,8 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { scopeFor } from "../core/reach";
-import { yearAfter, yearOf } from "../core/years";
-import { carrierOf } from "../rollover/carry";
+import { carriersOf } from "../years/carry";
+import { daysOf, yearAfter, yearOf } from "../years/years";
 
 async function yearsOf(context: UnitContext, query: RolloverQuery) {
   const years = await schoolYears(
@@ -88,29 +106,84 @@ function refusePlan(plan: RolloverPlan) {
 
 type StayingStudent = YearEndStudent & { classId: string | null };
 
-/** The classes the rollover carries, and the source class of each student staying. */
+interface Source extends SourceClass {
+  /** The carrier's key, or empty for a class carried as itself. */
+  carrier: string;
+  /** Students in the class on the year's last day. */
+  studentIds: string[];
+}
+
+/**
+ * The year's classes as the rollover carries them: each carrier's, with
+ * the classes it carries as their parts, then every other class of the
+ * year as itself; and the class each student sits in where a carrier
+ * places students one at a time.
+ */
 async function sourcesOf(
   context: UnitContext,
   year: SchoolYear,
   studentIds: readonly string[],
 ) {
-  const carrier = await carrierOf(context);
-  if (!carrier)
-    return { classes: [], classOf: new Map<string, string>(), carrier };
-  const [classes, classOf] = await Promise.all([
-    carrier.sources(context, year),
-    carrier.classesOf(context, studentIds, addDays(year.endsBefore, -1)),
-  ]);
-  return { classes, classOf, carrier };
+  const on = addDays(year.endsBefore, -1);
+  const classes = await classesOfYear(context.tx, context.tenantId, year.id);
+  const carriers = await carriersOf(context);
+  const claimed = new Set<string>();
+  const sources: Source[] = [];
+  const classOf = new Map<string, string>();
+  for (const carrier of carriers) {
+    for (const row of await carrier.sources(
+      context,
+      classes.map((item) => item.id),
+      on,
+    )) {
+      if (claimed.has(row.id)) continue;
+      for (const id of [row.id, ...row.partIds]) claimed.add(id);
+      sources.push({
+        ...row,
+        carrier: carrier.key,
+        studentIds: await rosterOf(context.tx, context.tenantId, row.id, on),
+      });
+    }
+    for (const [studentId, classId] of await carrier.classesOf(
+      context,
+      studentIds,
+      on,
+    ))
+      if (!classOf.has(studentId)) classOf.set(studentId, classId);
+  }
+  const own = classes.filter((row) => !claimed.has(row.id));
+  const teachers = await teachersOf(
+    context.tx,
+    context.tenantId,
+    own.map((row) => row.id),
+    on,
+  );
+  for (const row of own)
+    sources.push({
+      id: row.id,
+      code: row.code,
+      titleEn: row.titleEn,
+      titleAr: row.titleAr,
+      gradeId: row.gradeId,
+      locationId: row.locationId,
+      teacherId:
+        teachers.get(row.id)?.find((teacher) => teacher.isPrimary)?.userId ??
+        null,
+      subjects: [],
+      carrier: "",
+      studentIds: await rosterOf(context.tx, context.tenantId, row.id, on),
+    });
+  return { sources, classOf, carriers };
 }
 
 /**
- * A first proposal: every class carried goes over with its code, names,
- * room and teachers into the next grade, and every student is promoted into
- * the class that follows their own.
+ * A first proposal: every class goes over with its code, names, room and
+ * teachers into the next grade; a student a carrier places is promoted into
+ * the class that follows their own, and a class of its own takes its
+ * staying students with it.
  */
 function propose(
-  sources: readonly SourceClass[],
+  sources: readonly Source[],
   students: readonly StayingStudent[],
   grades: { id: string }[],
 ): RolloverPlan {
@@ -125,7 +198,9 @@ function propose(
     classes: sources.map((row) => ({
       key: keys.get(row.id) ?? crypto.randomUUID(),
       sourceClassId: row.id,
+      carrier: row.carrier,
       include: true,
+      students: row.carrier === "",
       code: row.code,
       titleEn: row.titleEn ?? "",
       titleAr: row.titleAr ?? "",
@@ -169,7 +244,7 @@ function reconcile(plan: RolloverPlan, students: readonly StayingStudent[]) {
   const current = new Set(students.map((row) => row.studentId));
   const keys = new Map(
     plan.classes
-      .filter((row) => row.include)
+      .filter((row) => row.include && row.carrier)
       .map((row) => [row.sourceClassId, row.key]),
   );
   let changed = plan.students.some((row) => !current.has(row.studentId));
@@ -200,6 +275,15 @@ function readPlan(value: unknown): RolloverPlan {
   return parsed.output;
 }
 
+/** The codes of the school's classes that run over some of the days, already taken there. */
+async function codesTaken(context: UnitContext, days: OpenSpan) {
+  const rows = await context.tx.execute<{ code: string }>(sql`
+    select code from core.classes
+    where tenant_id = ${context.tenantId}::uuid and org_id = ${context.schoolId}::uuid
+      and runs && daterange(${days.from}::date, ${days.to}::date) and status = 'active'`);
+  return rows.map((row) => row.code);
+}
+
 export const preview = readProcedure
   .input(rolloverQuerySchema)
   .handler(async ({ input, context }) => {
@@ -210,7 +294,7 @@ export const preview = readProcedure
       schoolId: context.schoolId,
       year: source,
     });
-    const [carried, saved, grades, targetClasses] = await Promise.all([
+    const [carried, saved, grades, takenCodes] = await Promise.all([
       sourcesOf(
         context,
         source,
@@ -223,10 +307,7 @@ export const preview = readProcedure
         namespace: "grade_level",
         today: context.today,
       }),
-      context.tx.execute<{ code: string }>(sql`
-          select code from core.classes
-          where tenant_id = ${context.tenantId}::uuid and school_year_id = ${target.id}::uuid
-            and status = 'active'`),
+      codesTaken(context, daysOf(target)),
     ]);
     const students = placed.map((row) => ({
       ...row,
@@ -234,7 +315,7 @@ export const preview = readProcedure
     }));
     let plan: RolloverPlan;
     let reconciled = false;
-    if (!saved) plan = propose(carried.classes, students, grades);
+    if (!saved) plan = propose(carried.sources, students, grades);
     else if (saved.state === "applied") plan = readPlan(saved.plan);
     else {
       const result = reconcile(readPlan(saved.plan), students);
@@ -250,13 +331,15 @@ export const preview = readProcedure
       plan,
       outcome: (saved?.outcome ?? null) as RolloverOutcome | null,
       issue: rolloverYearsIssue(source, target, context.today),
-      takenCodes: targetClasses.map((row) => row.code),
-      sources: carried.classes.map((row) => ({
+      takenCodes,
+      sources: carried.sources.map((row) => ({
         id: row.id,
         code: row.code,
         titleEn: row.titleEn,
         titleAr: row.titleAr,
         gradeId: row.gradeId,
+        carrier: row.carrier,
+        studentIds: row.studentIds,
       })),
       students: students.map((row) => ({
         id: row.studentId,
@@ -330,10 +413,51 @@ export const save = writeProcedure
     return saved;
   });
 
+/** Makes a class of its own in the target year from a plan's row. */
+async function carryOwn(
+  context: UnitContext,
+  runs: OpenSpan,
+  row: RolloverClass,
+): Promise<string> {
+  const { id } = await insertClass(context.tx, {
+    tenantId: context.tenantId,
+    orgId: context.schoolId,
+    runs,
+    code: row.code,
+    titleEn: row.titleEn || null,
+    titleAr: row.titleAr || null,
+    courseId: null,
+    subjectId: null,
+    gradeId: row.gradeId || null,
+    locationId: row.locationId || null,
+  });
+  const positions = await descriptorsFor(context.tx, {
+    tenantId: context.tenantId,
+    schoolId: context.schoolId,
+    namespace: "classroom_position",
+    today: context.today,
+  });
+  await setClassTeachers(context.tx, {
+    tenantId: context.tenantId,
+    classId: id,
+    orgId: context.schoolId,
+    teacherIds: row.teacherId ? [row.teacherId] : [],
+    from: runs.from,
+    endsBefore: runs.to,
+    positionId:
+      positions.find((item) => item.meaning === "teacher_of_record")?.id ??
+      null,
+  });
+  return id;
+}
+
+const staying = (outcome: RolloverStudent["outcome"]) =>
+  outcome === "promote" || outcome === "retain";
+
 /**
  * Creates the target year's classes and placements from the saved draft in
- * one transaction, and records departures on the source placements. Nothing
- * of the source year moves and no coursework is copied. Applying again,
+ * one transaction, and records departures for those who leave. Nothing of
+ * the source year moves and no coursework is copied. Applying again,
  * including concurrently, returns the recorded outcome.
  */
 export const apply = writeProcedure
@@ -366,26 +490,53 @@ export const apply = writeProcedure
       year: source,
     });
     const carried = await sourcesOf(context, source, []);
-    const known = new Set(carried.classes.map((row) => row.id));
+    const known = new Map(carried.sources.map((row) => [row.id, row]));
     const planned = new Set(plan.students.map((row) => row.studentId));
     if (
-      plan.classes.some((row) => !known.has(row.sourceClassId)) ||
+      plan.classes.some(
+        (row) => known.get(row.sourceClassId)?.carrier !== row.carrier,
+      ) ||
       students.length !== planned.size ||
       students.some((row) => !planned.has(row.studentId))
     )
       throw new ORPCError("CONFLICT", { message: "rollover.plan_stale" });
-
+    const runs = daysOf(target);
+    const carrierOf = new Map<string, RolloverCarrier>(
+      carried.carriers.map((carrier) => [carrier.key, carrier]),
+    );
     const created: RolloverOutcome["classes"] = [];
+    const outcomeOf = new Map(
+      plan.students.map((row) => [row.studentId, row.outcome]),
+    );
+    const following = new Map<string, string[]>();
     for (const row of plan.classes.filter((item) => item.include)) {
-      if (!carried.carrier)
+      const carrier = row.carrier ? carrierOf.get(row.carrier) : undefined;
+      if (row.carrier && !carrier)
         throw new ORPCError("CONFLICT", { message: "rollover.plan_stale" });
-      const classId = await carried.carrier.carry(context, target, row);
-      created.push({ key: row.key, classId, code: row.code });
+      const made = carrier
+        ? await carrier.carry(context, runs, row)
+        : await carryOwn(context, runs, row).then((classId) => ({
+            classId,
+            classIds: [classId],
+          }));
+      for (const classId of made.classIds)
+        await linkClass(tx, {
+          tenantId: context.tenantId,
+          schoolId: context.schoolId,
+          classId,
+          yearId: target.id,
+        });
+      created.push({ key: row.key, classId: made.classId, code: row.code });
+      if (!carrier && row.students)
+        following.set(
+          made.classId,
+          (known.get(row.sourceClassId)?.studentIds ?? []).filter((studentId) =>
+            followsClass(outcomeOf.get(studentId)),
+          ),
+        );
     }
     const classOf = new Map(created.map((row) => [row.key, row.classId]));
-    const gradeOf = new Map(
-      plan.classes.map((row) => [row.key, row.gradeId || null]),
-    );
+    const rowOf = new Map(plan.classes.map((row) => [row.key, row]));
     const [entryTypes, exitTypes] = await Promise.all(
       ["school_entry_type", "school_exit_type"].map((namespace) =>
         descriptorsFor(tx, {
@@ -403,17 +554,26 @@ export const apply = writeProcedure
     const scope = scopeFor(context, "school");
     const calendarId = await calendarFor(tx, context.tenantId, target.id);
     const byStudent = new Map(students.map((row) => [row.studentId, row]));
+    const carriedGrade = new Map(
+      plan.classes
+        .filter((row) => !row.carrier && row.include && row.students)
+        .flatMap((row) =>
+          (known.get(row.sourceClassId)?.studentIds ?? []).map(
+            (studentId) => [studentId, row.gradeId || null] as const,
+          ),
+        ),
+    );
     let placed = 0;
     for (const student of plan.students) {
-      const classId = classOf.get(student.targetKey);
       const placement = byStudent.get(student.studentId);
-      if (!classId || !placement || !carried.carrier) continue;
-      await carried.carrier.join(context, {
-        classId,
-        studentId: student.studentId,
-        target,
-      });
-      const gradeId = gradeOf.get(student.targetKey) ?? placement.gradeId;
+      if (!placement || !staying(student.outcome)) continue;
+      const row = rowOf.get(student.targetKey);
+      const gradeId =
+        (row?.gradeId || null) ??
+        (student.outcome === "promote"
+          ? carriedGrade.get(student.studentId)
+          : null) ??
+        placement.gradeId;
       if (gradeId)
         await place(tx, scope, {
           studentId: student.studentId,
@@ -426,6 +586,31 @@ export const apply = writeProcedure
         });
       placed += 1;
     }
+    // Placed first, so joining a class does not place them again otherwise.
+    for (const student of plan.students) {
+      const classId = classOf.get(student.targetKey);
+      const row = rowOf.get(student.targetKey);
+      const carrier = row?.carrier ? carrierOf.get(row.carrier) : undefined;
+      if (classId && carrier && staying(student.outcome))
+        await carrier.join(context, {
+          classId,
+          studentId: student.studentId,
+          from: runs.from,
+          until: runs.to,
+        });
+    }
+    for (const [classId, studentIds] of following)
+      for (const studentId of studentIds)
+        await enrolStudent(tx, {
+          tenantId: context.tenantId,
+          orgId: context.schoolId,
+          classId,
+          studentId,
+          from: runs.from,
+          endsBefore: runs.to,
+          source: "rollover",
+        });
+    await joinedClasses(context, following, runs.from);
     await setNextYearOutcomes(
       tx,
       context.tenantId,
@@ -447,14 +632,34 @@ export const apply = writeProcedure
       if (exitType && leaving.length > 0)
         await recordExits(tx, context.tenantId, leaving, exitType);
     }
-    // Those who leave or graduate are students of the school, to the app and
-    // to their families, until the new year begins without them.
-    for (const row of plan.students)
-      if (row.outcome === "leave" || row.outcome === "graduate")
-        await endStudentRole(tx, scope, {
-          studentId: row.studentId,
-          until: target.startsOn,
-        });
+    // Those who leave or graduate leave on the source year's last day and
+    // read their record, as their families do, until the new year begins.
+    for (const row of plan.students) {
+      if (row.outcome !== "leave" && row.outcome !== "graduate") continue;
+      const placement = byStudent.get(row.studentId);
+      if (!placement || (await departureOf(tx, scope, row.studentId))) continue;
+      const leftOn = source.endsBefore;
+      const ended = await endStudentEnrollmentsFrom(tx, scope, {
+        studentId: row.studentId,
+        on: leftOn,
+      });
+      await recordDeparture(tx, scope, {
+        studentId: row.studentId,
+        leftOn,
+        accessEndsOn: target.startsOn > leftOn ? target.startsOn : leftOn,
+        ended: {
+          enrollments: ended.ended,
+          dropped: ended.dropped,
+          parts: {
+            year: {
+              placementId: placement.placementId,
+              until: leftOn,
+              dropped: [],
+            },
+          },
+        },
+      });
+    }
     await copyPeriods(tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
@@ -593,3 +798,49 @@ export const setIntention = writeProcedure
     });
     return { intention: input.intention };
   });
+
+/**
+ * What the school asks a guardian of each child's next year, for the
+ * children they decide for, while the question stands.
+ */
+export const asking = readProcedure.handler(async ({ context }) => {
+  requireCapability(context, "children:read");
+  const studentIds = (
+    await childrenOf(context.tx, scopeFor(context, "own"), context.actor.userId)
+  )
+    .filter((link) => link.visible)
+    .map((link) => link.studentId);
+  const [open, deciding, years] = await Promise.all([
+    openReenrolments(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      studentIds,
+      today: context.today,
+    }),
+    decidingGuardians(context.tx, {
+      tenantId: context.tenantId,
+      studentIds,
+      today: context.today,
+    }),
+    schoolYears(context.tx, context.tenantId, context.schoolId),
+  ]);
+  return open.flatMap((row) => {
+    const year = years.find((item) => item.id === row.yearId);
+    const next = year ? yearAfter(years, year) : null;
+    const decides = deciding.some(
+      (item) =>
+        item.studentId === row.studentId &&
+        item.guardianId === context.actor.userId,
+    );
+    return next && decides
+      ? [
+          {
+            studentId: row.studentId,
+            intention: row.intention,
+            titleEn: next.titleEn,
+            titleAr: next.titleAr,
+          },
+        ]
+      : [];
+  });
+});

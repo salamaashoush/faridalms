@@ -1,24 +1,45 @@
+import type { OpenSpan } from "@faridalms/domain/school";
+
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { YearBounds } from "~/components/classes/Enrolment";
-
-import { clamp, eachInTurn, useRefresh } from "~/components/classes/Enrolment";
+import {
+  clamp,
+  eachInTurn,
+  lastOf,
+  outsideSpan,
+  useRefresh,
+} from "~/components/classes/Enrolment";
 import { classTitle } from "~/components/classes/format";
-import { lastDay } from "~/components/people/format";
 import * as m from "~/i18n/messages";
 import { homeroomDirectoryQuery } from "~/queries/homerooms";
 import { placeInHomeroom } from "~/server/homerooms";
 import { formatDate, formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+const ANY = { q: "", grade: [], ended: false };
+
+/** The days a student may join a homeroom on: its own, from no earlier than their current place began. */
+function within(
+  runs: OpenSpan | undefined,
+  after: string | undefined,
+): OpenSpan {
+  const from = runs?.from ?? "";
+  return {
+    from: after && after > from ? after : from,
+    to: runs?.to ?? null,
+  };
+}
+
+const holds = (span: OpenSpan, day: string) =>
+  day >= span.from && (span.to === null || day < span.to);
+
 export interface MoveClassSheetProps {
   student: { id: string; name: string };
   current: { classId: string; from: string } | null;
-  year: YearBounds;
   today: string;
   open: boolean;
   onClose: () => void;
@@ -31,24 +52,22 @@ export interface MoveClassSheetProps {
 export function MoveClassSheet({
   student,
   current,
-  year,
   today,
   open,
   onClose,
 }: MoveClassSheetProps) {
   const refresh = useRefresh();
-  const classes = useQuery(
-    homeroomDirectoryQuery({ year: year.id, q: "", grade: [] }),
-  );
-  const min = current ? current.from : year.startsOn;
-  const max = lastDay(year.endsBefore);
+  const classes = useQuery(homeroomDirectoryQuery(ANY, {}));
   const [classId, setClassId] = useState("");
-  const [from, setFrom] = useState(clamp(today, min, max));
+  const [from, setFrom] = useState(
+    current ? clamp(today, current.from, undefined) : today,
+  );
   const [errors, setErrors] = useState<{ classId?: string; from?: string }>({});
   const choices = (classes.data?.rows ?? []).filter(
     (row) => row.id !== current?.classId,
   );
   const target = choices.find((row) => row.id === classId);
+  const days = within(target?.runs, current?.from);
   const mutation = useMutation({
     mutationFn: () =>
       placeInHomeroom({ data: { studentId: student.id, classId, from } }),
@@ -69,11 +88,7 @@ export function MoveClassSheet({
       onSubmit={async () => {
         const found: typeof errors = {};
         if (!classId) found.classId = m.validationSelection();
-        if (!from || from < min || from > max)
-          found.from = m.enrolmentDateRange({
-            from: formatDate(min),
-            to: formatDate(max),
-          });
+        if (!from || !holds(days, from)) found.from = outsideSpan(days);
         setErrors(found);
         if (Object.keys(found).length > 0) return;
         await mutation.mutateAsync().then(
@@ -115,8 +130,8 @@ export function MoveClassSheet({
         hint={m.enrolmentFromHint()}
         type="date"
         width="date"
-        min={min}
-        max={max}
+        min={days.from || undefined}
+        max={lastOf(days)}
         value={from}
         onChange={(event) => {
           setErrors((currentErrors) => ({ ...currentErrors, from: undefined }));
@@ -138,7 +153,6 @@ export function MoveClassSheet({
 
 export interface MoveManySheetProps {
   students: readonly { id: string; name: string }[];
-  year: YearBounds;
   today: string;
   onClose: () => void;
 }
@@ -150,21 +164,17 @@ export interface MoveManySheetProps {
  */
 export function MoveManySheet({
   students,
-  year,
   today,
   onClose,
 }: MoveManySheetProps) {
   const refresh = useRefresh();
-  const classes = useQuery(
-    homeroomDirectoryQuery({ year: year.id, q: "", grade: [] }),
-  );
-  const min = year.startsOn;
-  const max = lastDay(year.endsBefore);
+  const classes = useQuery(homeroomDirectoryQuery(ANY, {}));
   const [classId, setClassId] = useState("");
-  const [from, setFrom] = useState(clamp(today, min, max));
+  const [from, setFrom] = useState(today);
   const [errors, setErrors] = useState<{ classId?: string; from?: string }>({});
   const choices = classes.data?.rows ?? [];
   const target = choices.find((row) => row.id === classId);
+  const days = within(target?.runs, undefined);
   const mutation = useMutation({
     mutationFn: () =>
       eachInTurn(students, (student) =>
@@ -182,11 +192,7 @@ export function MoveManySheet({
       onSubmit={async () => {
         const found: typeof errors = {};
         if (!classId) found.classId = m.validationSelection();
-        if (!from || from < min || from > max)
-          found.from = m.enrolmentDateRange({
-            from: formatDate(min),
-            to: formatDate(max),
-          });
+        if (!from || !holds(days, from)) found.from = outsideSpan(days);
         setErrors(found);
         if (Object.keys(found).length > 0) return;
         const { done, failed } = await mutation.mutateAsync();
@@ -237,8 +243,8 @@ export function MoveManySheet({
         hint={m.enrolmentFromHint()}
         type="date"
         width="date"
-        min={min}
-        max={max}
+        min={days.from || undefined}
+        max={lastOf(days)}
         value={from}
         onChange={(event) => {
           setErrors((currentErrors) => ({ ...currentErrors, from: undefined }));

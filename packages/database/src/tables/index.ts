@@ -22,6 +22,7 @@ export * from "./people";
 export * from "./previews";
 export * from "./privacy";
 export * from "./records";
+export * from "./school-years";
 export * from "./site";
 export * from "./teaching";
 export * from "./tenancy";

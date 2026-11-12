@@ -29,6 +29,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowRightLeft, Pencil, Plus, QrCode, UserMinus } from "lucide-react";
 import { useState } from "react";
 
+import type { ClassPart } from "~/components/classes/slots";
 import type { AreaView } from "~/components/files/AreaFiles";
 
 import { ClassAttendance } from "~/components/attendance/ClassAttendance";
@@ -52,7 +53,7 @@ import { formatDate } from "~/utils/datetime";
 import type { ClassRecordData, RosterKeeping } from "./slots";
 
 import { CheckboxRow } from "../people/fields";
-import { displayName, labelOf } from "../people/format";
+import { displayName, labelOf, lastDay } from "../people/format";
 import { Deferred } from "../people/record-parts";
 import { AddStudentSheet, WithdrawSheet } from "./Enrolment";
 import { classTitle, subjectName } from "./format";
@@ -225,7 +226,6 @@ function StudentsSection({ data, note, keeping }: StudentsSectionProps) {
   const open = (next: Sheet) =>
     setSheet((current) => ({ sheet: next, open: true, key: current.key + 1 }));
   const close = () => setSheet((current) => ({ ...current, open: false }));
-  const year = data.year;
   const title = classTitle(data);
   let sheetNode: ReactNode = null;
   if (canEnrol) {
@@ -236,7 +236,7 @@ function StudentsSection({ data, note, keeping }: StudentsSectionProps) {
           key={sheet.key}
           classId={data.id}
           className={title}
-          year={year}
+          runs={data.runs}
           today={data.on}
           open={sheet.open}
           onClose={close}
@@ -253,7 +253,7 @@ function StudentsSection({ data, note, keeping }: StudentsSectionProps) {
               version: student.version,
               from: student.from,
             },
-            year,
+            runs: data.runs,
             today: data.on,
             onClose: close,
           })
@@ -267,9 +267,9 @@ function StudentsSection({ data, note, keeping }: StudentsSectionProps) {
             id: student.enrollmentId,
             version: student.version,
             from: student.from,
+            to: student.to,
           }}
           className={title}
-          year={year}
           today={data.on}
           open={sheet.open}
           onClose={close}
@@ -394,10 +394,22 @@ export function ClassRecord({
   const read = useSuspenseQueries({
     queries: parts.map((each) => each.query(classId)),
   });
-  const part =
-    parts
-      .map((each, index) => each.partOf(read[index]?.data, data, navigate))
-      .find((found) => found !== null) ?? null;
+  const found = parts.flatMap((each, index) => {
+    const one = each.partOf(read[index]?.data, data, navigate);
+    return one ? [one] : [];
+  });
+  // Each module answers for what it sets; the first to set a thing has it.
+  const part: ClassPart | null =
+    found.length === 0
+      ? null
+      : found.reduce<ClassPart>(
+          (all, each) => ({
+            ...each,
+            ...all,
+            facts: [...(all.facts ?? []), ...(each.facts ?? [])],
+          }),
+          {},
+        );
   const modules = useCurrentUser().modules;
   const seesAttendance = useCapability("attendance:read") && modules.attendance;
   const seesTimetable = useCapability("timetable:read") && modules.timetable;
@@ -416,9 +428,15 @@ export function ClassRecord({
   const room = options.rooms.find((row) => row.id === data.locationId);
   const facts: HeaderFact[] = [
     {
-      label: m.studentSchoolYear(),
-      value: inLocale(data.year.titleEn, data.year.titleAr),
+      label: m.classesRuns(),
+      value: data.runs.to
+        ? m.classesRunsBetween({
+            from: formatDate(data.runs.from),
+            to: formatDate(lastDay(data.runs.to)),
+          })
+        : m.classesRunsFrom({ from: formatDate(data.runs.from) }),
     },
+    ...(part?.facts ?? []),
   ];
   if (grade) facts.push({ label: m.studentGrade(), value: grade });
   if (data.subjectId)
@@ -488,7 +506,7 @@ export function ClassRecord({
             {keepsGrading || teaches ? (
               <ClassGradingSection
                 classId={data.id}
-                canEdit={keepsGrading && data.year.lifecycle !== "closed"}
+                canEdit={keepsGrading && data.access.manage}
               />
             ) : null}
           </>
@@ -502,9 +520,10 @@ export function ClassRecord({
         initials={initialsOf(title)}
         facts={facts}
         status={
-          data.year.lifecycle === "closed"
-            ? { label: m.classesYearClosed(), tone: "neutral" }
-            : undefined
+          part?.status ??
+          (data.runs.to !== null && data.runs.to <= data.today
+            ? { label: m.classesEnded(), tone: "neutral" }
+            : undefined)
         }
         action={
           part && "edit" in part
@@ -516,7 +535,7 @@ export function ClassRecord({
                   onClick: () =>
                     void navigate({
                       to: "/class-editor",
-                      search: { year: data.year.id, id: data.id },
+                      search: { id: data.id },
                     }),
                 }
               : undefined

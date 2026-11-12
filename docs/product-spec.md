@@ -65,9 +65,14 @@ and notifications sit in the sidebar header.
 A class is a group that is taught: a name and code, an optional subject,
 grade and room, and its teachers, the first of them its primary teacher.
 Whoever is in a class is its enrolments; no class takes its students from
-another. A school with every module off creates classes and enrols people in
-them directly, and coursework, attendance, the timetable, the gradebook and
-e-learning all work on such a class.
+another. A class runs over its own dates, a first day and, for one that
+ends, a last day; a student joins on a day inside them, and the dates cannot
+be narrowed past a student still in the class. The class list shows the
+classes running or about to start, or those that ended. A school with every
+module off creates classes and enrols people in them directly. Coursework,
+attendance, the timetable and the gradebook read the school year, so a class
+with no year is refused an assignment, a register, a timetable entry and a
+gradebook with a message that says why.
 
 The class is the hub for everything taught in it.
 
@@ -170,6 +175,14 @@ never rewritten.
 
 ## School year
 
+School years are a module. Where it is on, a class may belong to one year,
+its dates inside the year's (choosing a year on the class form sets them to
+the year's), the class and student lists open on the working year with a
+year filter kept in the address, a student is placed in a year with a grade,
+and a student's class history names each class's year. A closed year's
+classes take no change and its list offers no new class. Where it is off,
+none of that shows and the year pages answer not found.
+
 Years are Upcoming, Current or Closed, with terms and holidays. Rollover is a
 re-entrant draft: create next year, copy classes and allocations, promote by
 class mapping with per-student Retain / Leave / Graduate, copy or skip the
@@ -186,6 +199,10 @@ is a separate, explicit step; the old year becomes read-only.
   year it comes from; applying again, even at the same moment, answers with
   the outcome already recorded, and a stale plan or a closed year is
   refused.
+- Classes of their own carry into the new year as themselves, on the new
+  year's dates, with their students but those leaving or graduating; a
+  student the year never placed goes with their class. Homerooms carry as
+  homerooms where the school has both.
 - Lists that span years show the year in the URL. With none named they show
   the current year, else the year that holds today, else the latest; a year
   that does not exist answers not found rather than showing another.
@@ -243,6 +260,13 @@ is a separate, explicit step; the old year becomes read-only.
   results.
 - **Moving a student:** target class and date, impact on timetable and
   registers, confirm; the old enrolment is end-dated.
+- **Leaving:** the office records a student's last day and how long they and
+  their family go on reading the record (to the last day, to a day it
+  chooses, or, where the school has years, to the end of the year); the
+  student's classes end on that day and modules record what they keep, such
+  as the reason and next school. Undoing the leaving restores exactly what
+  it ended. Retention counts from the last day, however long the family
+  goes on reading.
 
 ## Roles and access
 

@@ -9,6 +9,7 @@ import { Value } from "@faridalms/ui/system/value";
 import {
   useMutation,
   useQueryClient,
+  useSuspenseQueries,
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -16,6 +17,7 @@ import { Plus, TriangleAlert, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { peopleOptionsQuery, studentRecordQuery } from "~/queries/students";
 import {
@@ -39,6 +41,7 @@ import {
   RelationshipFields,
 } from "./fields";
 import { displayName, labelOf } from "./format";
+import { studentEditorParts } from "./slots";
 
 type Match = Awaited<ReturnType<typeof getStudentMatches>>[number];
 type Found = Awaited<ReturnType<typeof findGuardians>>[number];
@@ -59,7 +62,8 @@ interface Draft {
   reference: string;
   birthDate: string;
   sexId: string;
-  gradeId: string;
+  /** What modules keep about the student, by their keys. */
+  parts: Record<string, unknown>;
   guardians: GuardianDraft[];
 }
 
@@ -278,14 +282,17 @@ function GuardianBlock({
   );
 }
 
-function initialDraft(record: StudentRecordData | null): Draft {
+function initialDraft(
+  record: StudentRecordData | null,
+  parts: Record<string, unknown>,
+): Draft {
   return {
     names: record ? namesFrom(record) : EMPTY_NAMES,
     preferred: record?.preferredGivenName ?? "",
     reference: record?.reference ?? "",
     birthDate: record?.birthDate ?? "",
     sexId: record?.sexId ?? "",
-    gradeId: "",
+    parts,
     guardians: [],
   };
 }
@@ -325,7 +332,18 @@ export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
   const nextKey = useRef(1);
   const intent = useRef<string | undefined>(undefined);
   const leaving = useRef(false);
-  const [initial] = useState(() => initialDraft(record));
+  const parts = useSlot(studentEditorParts);
+  const partReads = useSuspenseQueries({
+    queries: parts.map((part) => part.query(record?.id ?? null)),
+  });
+  const startingParts = () =>
+    Object.fromEntries(
+      parts.map((part, index) => [
+        part.key,
+        part.initial(partReads[index]?.data),
+      ]),
+    );
+  const [initial] = useState(() => initialDraft(record, startingParts()));
   const [draft, setDraft] = useState<Draft>(initial);
   const [errors, setErrors] = useState<
     Partial<Record<keyof Draft | `guardian-${number}`, string>>
@@ -364,7 +382,7 @@ export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
     reference: value.reference,
     birthDate: value.birthDate,
     sexId: value.sexId,
-    gradeId: adding ? value.gradeId : "",
+    parts: value.parts,
     guardians: adding
       ? value.guardians.map((guardian) =>
           guardian.choice === "new"
@@ -435,8 +453,8 @@ export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
             "",
         }),
       );
-      // The next student often joins the same grade.
-      setDraft({ ...initialDraft(null), gradeId: draft.gradeId });
+      // The next student is often entered with the same choices.
+      setDraft({ ...initialDraft(null, draft.parts) });
       mutation.reset();
       setMatches(null);
       setFocusFirst((count) => count + 1);
@@ -530,43 +548,21 @@ export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
           />
         ) : null}
       </FormSection>
-      <FormSection title={m.studentTabEnrollment()}>
-        {adding ? (
-          <SelectField
-            id="student-grade"
-            label={m.studentGrade()}
-            optional
-            hint={m.studentGradeHint()}
-            value={draft.gradeId || "none"}
-            options={[
-              ...options.grades.map((row) => ({
-                value: row.id,
-                label: labelOf(row) ?? row.code,
-              })),
-              { value: "none", label: m.studentNotPlacedYet() },
-            ]}
-            onChange={(value) => set("gradeId", value === "none" ? "" : value)}
-            width="name"
+      {parts.map((part, index) => (
+        <FormSection key={part.key} title={part.title()}>
+          <part.Field
+            read={partReads[index]?.data}
+            student={record ? { id: record.id, version: record.version } : null}
+            value={draft.parts[part.key]}
+            onChange={(value) =>
+              setDraft((current) => ({
+                ...current,
+                parts: { ...current.parts, [part.key]: value },
+              }))
+            }
           />
-        ) : (
-          <ShownValue
-            label={m.studentGrade()}
-            link={{
-              id: record.id,
-              tab: "enrollment",
-              label: m.studentChangeGrade(),
-            }}
-          >
-            {record.placement
-              ? labelOf(
-                  options.grades.find(
-                    (row) => row.id === record.placement?.gradeId,
-                  ) ?? null,
-                )
-              : m.studentStatusUnplaced()}
-          </ShownValue>
-        )}
-      </FormSection>
+        </FormSection>
+      ))}
       <FormSection title={m.studentGuardians()}>
         {adding ? (
           <>
@@ -645,7 +641,7 @@ export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
   );
 }
 
-interface ShownValueProps {
+export interface ShownValueProps {
   label: string;
   link: { id: string; tab: "enrollment" | "family"; label: string };
   children: ReactNode;
@@ -655,7 +651,7 @@ interface ShownValueProps {
  * A value this form shows but does not change: a grade change and guardian
  * links each take the record's own confirmed steps.
  */
-function ShownValue({ label, link, children }: ShownValueProps) {
+export function ShownValue({ label, link, children }: ShownValueProps) {
   return (
     <fieldset className="min-w-0">
       <legend className="mb-2 text-sm leading-5 font-medium">{label}</legend>

@@ -1,9 +1,17 @@
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
-import { boolean, index, smallint, text, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  date,
+  index,
+  jsonb,
+  smallint,
+  text,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
-import { calendars, academicSessions } from "./calendar";
 import {
   baseConstraints,
   ck,
@@ -26,147 +34,6 @@ import { files } from "./files";
 import { users } from "./people";
 import { importRuns } from "./records";
 import { orgs, tenants } from "./tenancy";
-
-export type NextYearOutcome = "promote" | "retain" | "leave" | "graduate";
-
-export const studentSchoolYears = core.table.withRLS(
-  "student_school_years",
-  {
-    ...tenantColumns(),
-    studentUserId: uuid("student_user_id").notNull(),
-    orgId: uuid("org_id").notNull(),
-    schoolYearId: uuid("school_year_id").notNull(),
-    schoolYearType: text("school_year_type").notNull().default("school_year"),
-    validDuring: daterange("valid_during").notNull(),
-    gradeLevelDescriptorId: uuid("grade_level_descriptor_id"),
-    gradeLevelNs: text("grade_level_ns")
-      .notNull()
-      .generatedAlwaysAs(sql`'grade_level'`),
-    calendarId: uuid("calendar_id"),
-    entryTypeDescriptorId: uuid("entry_type_descriptor_id"),
-    entryTypeNs: text("entry_type_ns")
-      .notNull()
-      .generatedAlwaysAs(sql`'school_entry_type'`),
-    exitTypeDescriptorId: uuid("exit_type_descriptor_id"),
-    exitTypeNs: text("exit_type_ns")
-      .notNull()
-      .generatedAlwaysAs(sql`'school_exit_type'`),
-    nextYearOutcome: text("next_year_outcome").$type<NextYearOutcome>(),
-    /** Whether the family means the student to return next year, as they or the office said. */
-    nextYearIntention: text("next_year_intention").$type<
-      "returning" | "undecided" | "leaving"
-    >(),
-    intentionByUserId: uuid("intention_by_user_id"),
-    intentionAt: instant("intention_at"),
-    /** The school a student came from, as their papers or family say. */
-    previousSchool: text("previous_school"),
-    /** Where a student who left went on to, as the family told the office. */
-    destinationSchool: text("destination_school"),
-    source: text("source")
-      .$type<
-        "manual" | "import" | "sis" | "oneroster" | "rollover" | "admission"
-      >()
-      .notNull(),
-    importRunId: uuid("import_run_id"),
-    ...entityColumns(),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("student_school_years", t.tenantId, t.id),
-    ...baseConstraints("student_school_years", t, tenants),
-    fk(
-      "student_school_years",
-      [t.tenantId, t.studentUserId],
-      [users.tenantId, users.id],
-    ),
-    fk(
-      "student_school_years",
-      [t.tenantId, t.schoolYearId, t.schoolYearType, t.schoolYearId, t.orgId],
-      [
-        academicSessions.tenantId,
-        academicSessions.id,
-        academicSessions.type,
-        academicSessions.schoolYearId,
-        academicSessions.orgId,
-      ],
-    ),
-    fk(
-      "student_school_years",
-      [t.tenantId, t.gradeLevelDescriptorId, t.gradeLevelNs],
-      [descriptors.tenantId, descriptors.id, descriptors.namespace],
-    ),
-    fk(
-      "student_school_years",
-      [t.tenantId, t.calendarId, t.schoolYearId],
-      [calendars.tenantId, calendars.id, calendars.schoolYearId],
-    ),
-    fk(
-      "student_school_years",
-      [t.tenantId, t.entryTypeDescriptorId, t.entryTypeNs],
-      [descriptors.tenantId, descriptors.id, descriptors.namespace],
-    ),
-    fk(
-      "student_school_years",
-      [t.tenantId, t.exitTypeDescriptorId, t.exitTypeNs],
-      [descriptors.tenantId, descriptors.id, descriptors.namespace],
-    ),
-    fk(
-      "student_school_years",
-      [t.tenantId, t.importRunId],
-      [importRuns.tenantId, importRuns.id],
-    ),
-    fk(
-      "student_school_years",
-      [t.tenantId, t.intentionByUserId],
-      [users.tenantId, users.id],
-    ),
-    ck(
-      "student_school_years",
-      "school_year_type",
-      sql`school_year_type = 'school_year'`,
-    ),
-    ck(
-      "student_school_years",
-      "next_year_outcome",
-      sql`next_year_outcome in ('promote', 'retain', 'leave', 'graduate')`,
-    ),
-    ck(
-      "student_school_years",
-      "next_year_intention",
-      sql`next_year_intention in ('returning', 'undecided', 'leaving')`,
-    ),
-    ck(
-      "student_school_years",
-      "intention_recorded",
-      sql`(next_year_intention is null) = (intention_at is null)`,
-    ),
-
-    ck(
-      "student_school_years",
-      "source",
-      sql`source in ('manual', 'import', 'sis', 'oneroster', 'rollover', 'admission')`,
-    ),
-    ck("student_school_years", "valid_during", range.bounded("valid_during")),
-    ck(
-      "student_school_years",
-      "previous_school",
-      sql`char_length(previous_school) between 1 and 160`,
-    ),
-    ck(
-      "student_school_years",
-      "destination_school",
-      sql`char_length(destination_school) between 1 and 160`,
-    ),
-    index("student_school_years_student_idx")
-      .on(t.tenantId, t.studentUserId)
-      .where(sql`status = 'active'`),
-    index("student_school_years_year_idx")
-      .on(t.tenantId, t.schoolYearId, t.gradeLevelDescriptorId)
-      .where(sql`status = 'active'`),
-    index("student_school_years_delta_idx").on(t.tenantId, t.dateLastModified),
-    ...entityProfile({ integration: true }),
-    ...erase(erasureOf("student_user_id")),
-  ],
-);
 
 export const NATURAL_ROLES = [
   "student",
@@ -255,6 +122,70 @@ export const userRoles = core.table.withRLS(
     index("user_roles_delta_idx").on(t.tenantId, t.dateLastModified),
     ...entityProfile({ integration: true }),
     ...erase(erasureOf("user_id")),
+  ],
+);
+
+/** What leaving the school ended, as it stood, so a return gives back exactly that. */
+export interface DepartureEnded {
+  /**
+   * The student role, and the day after its last before the student left
+   * (null ran on); one only to begin later was dropped whole.
+   */
+  role: { id: string; until: string | null; dropped: boolean } | null;
+  /** Class enrollments cut short on the leaving day, each with its end before. */
+  enrollments: { id: string; until: string | null }[];
+  /** Enrollments that were to begin after and were dropped. */
+  dropped: string[];
+  /** What each module ended with the departure, by module, for it to give back. */
+  parts: Record<string, unknown>;
+}
+
+/**
+ * A student leaving the school: the day they are no longer one, which their
+ * student role ends on, and the day the record closes to them and their
+ * family, which may be later so they read the last reports. What leaving
+ * ended is kept so a return restores it. One stands at a time; a return
+ * tombstones it.
+ */
+export const studentDepartures = core.table.withRLS(
+  "student_departures",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    orgType: text("org_type").notNull().default("school"),
+    studentUserId: uuid("student_user_id").notNull(),
+    /** The first day the student is not at the school. */
+    leftOn: date("left_on", { mode: "string" }).notNull(),
+    /** The first day the student and their family no longer read the record. */
+    accessEndsOn: date("access_ends_on", { mode: "string" }).notNull(),
+    ended: jsonb("ended").$type<DepartureEnded>().notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("student_departures", t.tenantId, t.id),
+    ...baseConstraints("student_departures", t, tenants),
+    fk(
+      "student_departures",
+      [t.tenantId, t.orgId, t.orgType],
+      [orgs.tenantId, orgs.id, orgs.type],
+    ),
+    fk(
+      "student_departures",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("student_departures", "org_type", sql`org_type = 'school'`),
+    ck("student_departures", "access", sql`access_ends_on >= left_on`),
+    ck(
+      "student_departures",
+      "ended",
+      sql`jsonb_typeof(ended) = 'object' and octet_length(ended::text) <= 262144`,
+    ),
+    uniqueIndex("student_departures_student_key")
+      .on(t.tenantId, t.orgId, t.studentUserId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    ...erase(erasureOf("student_user_id")),
   ],
 );
 

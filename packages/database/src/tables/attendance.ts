@@ -125,8 +125,8 @@ export const attendanceRegisters = core.table.withRLS(
     ...baseConstraints("attendance_registers", t, tenants),
     fk(
       "attendance_registers",
-      [t.tenantId, t.classId, t.schoolYearId, t.orgId],
-      [classes.tenantId, classes.id, classes.schoolYearId, classes.orgId],
+      [t.tenantId, t.classId, t.orgId],
+      [classes.tenantId, classes.id, classes.orgId],
     ),
     fk(
       "attendance_registers",

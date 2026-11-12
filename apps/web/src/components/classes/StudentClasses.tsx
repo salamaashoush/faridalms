@@ -7,22 +7,21 @@ import {
   RecordSection,
 } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { UserMinus } from "lucide-react";
 import { useState } from "react";
 
 import { studentClassesParts } from "~/components/people/slots";
-import { inLocale } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { enrollmentHistoryQuery } from "~/queries/classes";
-import { peopleOptionsQuery } from "~/queries/students";
 import { formatDate } from "~/utils/datetime";
 
 import { displayName, lastDay } from "../people/format";
 import { WithdrawSheet } from "./Enrolment";
 import { classTitle } from "./format";
+import { classHistoryNotes } from "./slots";
 
 export interface GroupTeachersProps {
   teachers: readonly {
@@ -71,16 +70,20 @@ export function StudentClasses({
   manage,
 }: StudentClassesProps) {
   const episodes = useSuspenseQuery(enrollmentHistoryQuery(student.id)).data;
-  const options = useSuspenseQuery(peopleOptionsQuery).data;
   const parts = useSlot(studentClassesParts);
+  const notes = useSlot(classHistoryNotes);
+  const noteReads = useSuspenseQueries({
+    queries: notes.map((note) => note.query(student.id)),
+  });
+  const notesOf = (classId: string) =>
+    notes.flatMap(
+      (note, index) => note.noteOf(noteReads[index]?.data, classId) ?? [],
+    );
   const [withdrawing, setWithdrawing] = useState<{
     id: string;
     key: number;
   } | null>(null);
-  const yearOf = (yearId: string) =>
-    options.years.find((row) => row.id === yearId);
   const ending = episodes.find((row) => row.id === withdrawing?.id);
-  const endingYear = ending ? yearOf(ending.schoolYearId) : undefined;
   return (
     <>
       {parts.map((part) => (
@@ -100,13 +103,13 @@ export function StudentClasses({
         ) : (
           <RecordList>
             {episodes.map((episode) => {
-              const now = episode.from <= today && today < episode.to;
-              const year = yearOf(episode.schoolYearId);
+              const now =
+                episode.from <= today &&
+                (episode.to === null || today < episode.to);
               const endable =
                 manage &&
                 now &&
-                year !== undefined &&
-                year.lifecycle !== "closed" &&
+                episode.changeable &&
                 !parts.some((part) => part.keeps(episode));
               return (
                 <li
@@ -132,15 +135,22 @@ export function StudentClasses({
                         </StatusText>
                       ) : null}
                     </span>
-                    <span className="text-[13px] leading-[18px] text-muted-foreground">
-                      {inLocale(episode.yearTitleEn, episode.yearTitleAr)}
-                    </span>
+                    {notesOf(episode.classId).map((note) => (
+                      <span
+                        key={note}
+                        className="text-[13px] leading-[18px] text-muted-foreground"
+                      >
+                        {note}
+                      </span>
+                    ))}
                   </div>
                   <span className="flex items-center gap-2 text-sm leading-5 text-muted-foreground">
-                    {m.accessDuring({
-                      from: formatDate(episode.from),
-                      to: formatDate(lastDay(episode.to)),
-                    })}
+                    {episode.to
+                      ? m.accessDuring({
+                          from: formatDate(episode.from),
+                          to: formatDate(lastDay(episode.to)),
+                        })
+                      : m.personSince({ date: formatDate(episode.from) })}
                     {endable ? (
                       <ActionMenu
                         label={m.enrolmentActions({
@@ -166,7 +176,7 @@ export function StudentClasses({
           </RecordList>
         )}
       </RecordSection>
-      {withdrawing && ending && endingYear ? (
+      {withdrawing && ending ? (
         <WithdrawSheet
           key={withdrawing.key}
           student={student}
@@ -174,9 +184,9 @@ export function StudentClasses({
             id: ending.id,
             version: ending.version,
             from: ending.from,
+            to: ending.to,
           }}
           className={classTitle(ending)}
-          year={endingYear}
           today={today}
           open
           onClose={() => setWithdrawing(null)}

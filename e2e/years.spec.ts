@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { apiAs } from "./fixtures/api";
-import { newYear } from "./fixtures/school";
+import { newYear, workingYear } from "./fixtures/school";
 import { chooseFromMenu, signIn, untilHydrated } from "./fixtures/sign-in";
 
 // Browser projects share one school and years may not overlap, so each adds
@@ -43,12 +43,16 @@ test("the office sets a year's periods and their days, and a later change keeps 
   const year = await newYear(admin, dates);
   // A new year takes the school day of the year before it, which may be
   // another browser's, changed by this same spec; it starts from the seed's.
-  const { workingYearId } = await admin.classes.options();
-  if (!workingYearId) throw new Error("the school has no working year");
-  const { startsOn } = await admin.years.record({ id: workingYearId });
-  const seeded = await admin.years.periods({ id: workingYearId, on: startsOn });
-  const copied = await admin.years.periods({ id: year.id, on: dates.startsOn });
-  await admin.years.savePeriods({
+  const { id: workingYearId, startsOn } = await workingYear(admin);
+  const seeded = await admin.periods.periods({
+    id: workingYearId,
+    on: startsOn,
+  });
+  const copied = await admin.periods.periods({
+    id: year.id,
+    on: dates.startsOn,
+  });
+  await admin.periods.savePeriods({
     yearId: year.id,
     from: dates.startsOn,
     known: copied.periods.map(({ id, version }) => ({ id, version })),
@@ -153,9 +157,7 @@ test("a change to the school day cannot reach back over a register already taken
   page,
 }) => {
   const admin = await apiAs("admin");
-  const { workingYearId } = await admin.classes.options();
-  if (!workingYearId) throw new Error("the school has no working year");
-  const { startsOn } = await admin.years.record({ id: workingYearId });
+  const { id: workingYearId, startsOn } = await workingYear(admin);
   await signIn(page, "admin");
   await page.goto(`/years/${workingYearId}?tab=periods&on=${startsOn}`);
   await untilHydrated(page);

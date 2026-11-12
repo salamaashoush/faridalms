@@ -1,7 +1,7 @@
 import {
-  classDirectorySchema,
+  classDirectoryInputSchema,
+  classesMineSchema,
   classRecordSchema,
-  classYearSchema,
   enrolStudentSchema,
   saveClassSchema,
   saveSubjectSchema,
@@ -18,11 +18,11 @@ export const getClassOptions = createServerFn({ method: "GET" }).handler(() =>
 );
 
 export const getClassDirectory = createServerFn({ method: "GET" })
-  .validator(checked(classDirectorySchema))
+  .validator(checked(classDirectoryInputSchema))
   .handler(({ data }) => record(backend().classes.directory(data)));
 
 export const getMyClasses = createServerFn({ method: "GET" })
-  .validator(checked(classYearSchema))
+  .validator(checked(classesMineSchema))
   .handler(({ data }) => record(backend().classes.mine(data)));
 
 export const getClassRecord = createServerFn({ method: "GET" })

@@ -253,6 +253,7 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     why: "The safeguarding record of who arrived, left and collected a child.",
     reviewed: false,
   },
+  "core.student_departures": { rule: "erased" },
   "core.student_school_years": { rule: "erased" },
   "core.submission_attempts": {
     rule: "to_erase",

@@ -19,12 +19,12 @@ import { CalendarClock, Clock, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { yearPeriodsQuery } from "~/queries/years";
+import type { yearPeriodsQuery } from "~/queries/periods";
 
 import { CheckboxRow } from "~/components/people/fields";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { removeBellSchedule, saveBellSchedule } from "~/server/years";
+import { removeBellSchedule, saveBellSchedule } from "~/server/periods";
 import { formatList, formatNumber, formatTime } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 import { schemaErrors } from "~/utils/validation";

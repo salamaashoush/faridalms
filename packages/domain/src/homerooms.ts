@@ -1,5 +1,10 @@
 import * as v from "valibot";
 
+import type { OpenSpan } from "./school";
+
+import { viewsSchema } from "./classes";
+import { spansOverlap } from "./school";
+
 const id = v.pipe(v.string(), v.uuid());
 const version = v.pipe(v.number(), v.integer(), v.minValue(1));
 const isoDate = v.pipe(v.string(), v.isoDate());
@@ -17,19 +22,23 @@ const optionalText = (max: number) =>
   );
 
 export const homeroomDirectorySchema = v.object({
-  year: optionalId,
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
   grade: v.optional(v.array(id), []),
+  ended: v.optional(v.boolean(), false),
 });
 export type HomeroomDirectoryQuery = v.InferOutput<
   typeof homeroomDirectorySchema
 >;
 
+export const homeroomDirectoryInputSchema = v.object({
+  ...homeroomDirectorySchema.entries,
+  views: viewsSchema,
+});
+
 export const saveHomeroomSchema = v.pipe(
   v.object({
     id: v.optional(id),
     expectedVersion: v.optional(version),
-    yearId: id,
     code: v.pipe(
       v.string(),
       v.trim(),
@@ -49,7 +58,19 @@ export const saveHomeroomSchema = v.pipe(
       ),
       v.maxLength(30),
     ),
+    startsOn: isoDate,
+    /** Its last day; empty for a homeroom that keeps running. */
+    endsOn: v.optional(v.union([v.literal(""), isoDate]), ""),
+    /** What modules keep about the homeroom's classes, each read by its own schema. */
+    parts: v.optional(v.record(v.string(), v.unknown()), {}),
   }),
+  v.forward(
+    v.check(
+      (value) => value.endsOn === "" || value.endsOn >= value.startsOn,
+      "validation.ends_before_start",
+    ),
+    ["endsOn"],
+  ),
   v.forward(
     v.check(
       (value) => Boolean(value.titleEn || value.titleAr),
@@ -87,27 +108,26 @@ export const leaveHomeroomSchema = v.object({
   on: v.optional(v.union([v.literal(""), isoDate]), ""),
 });
 
-/** A span of days, `to` the first day after it. */
-export interface Span {
-  from: string;
-  to: string;
-}
-
 /**
  * The days a member of a homeroom sits in one of its subject classes: their
  * days in the homeroom from the day the class joined it, or none.
  */
-export function followingSpan(member: Span, linkedOn: string): Span | null {
+export function followingSpan(
+  member: OpenSpan,
+  linkedOn: string,
+): OpenSpan | null {
   const from = member.from > linkedOn ? member.from : linkedOn;
-  return from < member.to ? { from, to: member.to } : null;
+  return member.to === null || from < member.to
+    ? { from, to: member.to }
+    : null;
 }
 
 /**
  * What ending a span on a day leaves of it: the days before, or nothing
  * when it had not begun by then; a span already over by then is kept.
  */
-export function endedOn(span: Span, on: string): Span | null | "kept" {
-  if (span.to <= on) return "kept";
+export function endedOn(span: OpenSpan, on: string): OpenSpan | null | "kept" {
+  if (span.to !== null && span.to <= on) return "kept";
   return span.from < on ? { from: span.from, to: on } : null;
 }
 
@@ -118,15 +138,13 @@ export function endedOn(span: Span, on: string): Span | null | "kept" {
  * whole so the two never overlap.
  */
 export function followingSpans(
-  members: readonly Span[],
+  members: readonly OpenSpan[],
   linkedOn: string,
-  besides: readonly Span[],
-): Span[] {
+  besides: readonly OpenSpan[],
+): OpenSpan[] {
   return members.flatMap((member) => {
     const span = followingSpan(member, linkedOn);
     if (!span) return [];
-    return besides.some((other) => other.from < span.to && span.from < other.to)
-      ? []
-      : [span];
+    return besides.some((other) => spansOverlap(other, span)) ? [] : [span];
   });
 }

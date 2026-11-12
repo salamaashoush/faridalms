@@ -119,8 +119,8 @@ export const classMeetings = core.table.withRLS(
     ...baseConstraints("class_meetings", t, tenants),
     fk(
       "class_meetings",
-      [t.tenantId, t.classId, t.schoolYearId, t.orgId],
-      [classes.tenantId, classes.id, classes.schoolYearId, classes.orgId],
+      [t.tenantId, t.classId, t.orgId],
+      [classes.tenantId, classes.id, classes.orgId],
     ),
     fk(
       "class_meetings",

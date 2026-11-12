@@ -43,11 +43,18 @@ export const setIntentionSchema = v.object({
   intention: v.picklist(NEXT_YEAR_INTENTIONS),
 });
 
-/** A class of the target year, proposed from a class of the source year. */
+/**
+ * A class of the target year, proposed from a class of the source year:
+ * carried by the module that keeps classes like it (a homeroom with its
+ * subject classes), or as a class of its own when `carrier` is empty.
+ */
 export const rolloverClassSchema = v.object({
   key: id,
   sourceClassId: id,
+  carrier: v.optional(v.pipe(v.string(), v.regex(/^[a-z_]{0,20}$/)), ""),
   include: v.boolean(),
+  /** A class of its own takes its staying students with it. */
+  students: v.optional(v.boolean(), false),
   code: v.pipe(
     v.string(),
     v.trim(),
@@ -65,7 +72,10 @@ export const rolloverClassSchema = v.object({
 });
 export type RolloverClass = v.InferOutput<typeof rolloverClassSchema>;
 
-/** What happens to one student: the outcome, and the target class for those who stay. */
+/**
+ * What happens to one student: the outcome, and for one who stays, the
+ * class a carrier places them in, if any.
+ */
 export const rolloverStudentSchema = v.object({
   studentId: id,
   outcome: v.picklist(NEXT_YEAR_OUTCOMES),
@@ -102,6 +112,14 @@ const staying = (outcome: NextYearOutcome) =>
   outcome === "promote" || outcome === "retain";
 
 /**
+ * Whether a student of a class carried as itself joins it in the new year:
+ * all but those leaving or graduating, including a student the year never
+ * placed, whom no outcome is decided for.
+ */
+export const followsClass = (outcome: NextYearOutcome | undefined) =>
+  outcome === undefined || staying(outcome);
+
+/**
  * The first thing wrong with a plan, as a message key, or null. A student who
  * stays needs an included target class and one who leaves or graduates needs
  * none, every student appears once, and target codes are unique in the year.
@@ -127,11 +145,10 @@ export function rolloverPlanIssue(plan: RolloverPlan): string | null {
   for (const student of plan.students) {
     if (students.has(student.studentId)) return "rollover.duplicate_student";
     students.add(student.studentId);
-    if (!staying(student.outcome)) {
-      if (student.targetKey) return "rollover.target_for_leaver";
-    } else if (!included.has(student.targetKey)) {
+    if (!student.targetKey) continue;
+    if (!staying(student.outcome)) return "rollover.target_for_leaver";
+    if (!included.get(student.targetKey)?.carrier)
       return "rollover.missing_target";
-    }
   }
   return null;
 }

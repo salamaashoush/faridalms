@@ -43,6 +43,7 @@ create trigger row_meta before insert or update on core.class_group_members for 
 create trigger row_meta before insert or update on core.class_groups for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.class_meetings for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.class_periods for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.class_years for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.classes for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.contact_points for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.courses for each row execute function app.row_meta();
@@ -148,6 +149,7 @@ create trigger row_meta before insert or update on core.standard_frameworks for 
 create trigger row_meta before insert or update on core.standard_observations
   for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.standards for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.student_departures for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.student_movements for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.student_school_years
   for each row execute function app.row_meta();

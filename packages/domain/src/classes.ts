@@ -21,16 +21,32 @@ const code = v.pipe(
   v.regex(/^[A-Za-z0-9_.-]{1,40}$/, "validation.class_code"),
 );
 
+/**
+ * What a module narrows a list to, by the key it answers for: a year, say.
+ * Each value is read by the module's own schema.
+ */
+export const viewsSchema = v.optional(
+  v.record(
+    v.pipe(v.string(), v.regex(/^[a-z]{1,20}$/)),
+    v.pipe(v.string(), v.maxLength(64)),
+  ),
+  {},
+);
+export type Views = v.InferOutput<typeof viewsSchema>;
+
 export const classDirectorySchema = v.object({
-  year: v.optional(v.union([v.literal(""), id]), ""),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
   grade: v.optional(v.array(id), []),
+  ended: v.optional(v.boolean(), false),
 });
 export type ClassDirectoryQuery = v.InferOutput<typeof classDirectorySchema>;
 
-export const classYearSchema = v.object({
-  year: v.optional(v.union([v.literal(""), id]), ""),
+export const classDirectoryInputSchema = v.object({
+  ...classDirectorySchema.entries,
+  views: viewsSchema,
 });
+
+export const classesMineSchema = v.object({ views: viewsSchema });
 
 export const classRecordSchema = v.object({
   id,
@@ -41,7 +57,6 @@ export const saveClassSchema = v.pipe(
   v.object({
     id: v.optional(id),
     expectedVersion: v.optional(version),
-    yearId: id,
     code,
     titleEn: optionalText(120),
     titleAr: optionalText(120),
@@ -50,6 +65,11 @@ export const saveClassSchema = v.pipe(
     locationId: v.optional(v.union([v.literal(""), id]), ""),
     /** The first is the class's primary teacher. */
     teacherIds: v.pipe(v.array(id), v.maxLength(4)),
+    startsOn: isoDate,
+    /** Its last day; empty for a class that keeps running. */
+    endsOn: v.optional(v.union([v.literal(""), isoDate]), ""),
+    /** What modules keep about the class, each read by its own schema. */
+    parts: v.optional(v.record(v.string(), v.unknown()), {}),
   }),
   v.forward(
     v.check(
@@ -57,6 +77,13 @@ export const saveClassSchema = v.pipe(
       "validation.name_required",
     ),
     ["titleEn"],
+  ),
+  v.forward(
+    v.check(
+      (value) => value.endsOn === "" || value.endsOn >= value.startsOn,
+      "validation.ends_before_start",
+    ),
+    ["endsOn"],
   ),
 );
 export type SaveClassInput = v.InferInput<typeof saveClassSchema>;

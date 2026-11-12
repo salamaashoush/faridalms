@@ -111,10 +111,9 @@ const RECORD: StudentData = {
   createdAt: new Date("2024-09-01T00:00:00Z"),
   reference: "TEST-0001",
   status: "enrolled",
-  placement: null,
-  placements: [],
+  roles: [{ from: "2024-09-01", to: null }],
+  departure: null,
   group: null,
-  accessUntil: null,
   guardians: [
     guardian(
       "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a10",
@@ -128,7 +127,6 @@ const RECORD: StudentData = {
     ),
   ],
   account: null,
-  workingYearId: null,
   today: "2026-09-27",
   noPhotos: false,
   access: {
@@ -191,10 +189,7 @@ describe("student guardians", () => {
       sexes: [],
       positions: [],
       religions: [],
-      entryTypes: [],
-      exitTypes: [],
-      years: [],
-      workingYearId: null,
+      today: "2026-09-27",
     });
     vi.mocked(endRelationship).mockResolvedValue({ ended: true });
   });

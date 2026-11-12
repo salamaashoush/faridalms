@@ -4,6 +4,7 @@ import type { RolloverPlan } from "./rollover";
 
 import {
   firstOutcome,
+  followsClass,
   rolloverPlanIssue,
   rolloverYearsIssue,
 } from "./rollover";
@@ -13,7 +14,9 @@ const key = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
 const cls = {
   key: key(1),
   sourceClassId: key(5),
+  carrier: "homerooms",
   include: true,
+  students: false,
   code: "8-A",
   titleEn: "8A",
   titleAr: "",
@@ -58,7 +61,32 @@ describe("rolloverPlanIssue", () => {
     expect(
       rolloverPlanIssue(
         plan({
+          students: [
+            { studentId: key(7), outcome: "promote", targetKey: key(4) },
+          ],
+        }),
+      ),
+    ).toBe("rollover.missing_target");
+  });
+
+  it("accepts a staying student with no target, as a school without a carrier has", () => {
+    expect(
+      rolloverPlanIssue(
+        plan({
           students: [{ studentId: key(7), outcome: "promote", targetKey: "" }],
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it("refuses a class of its own as a student's target, since its students follow it", () => {
+    expect(
+      rolloverPlanIssue(
+        plan({
+          classes: [{ ...cls, carrier: "", students: true }],
+          students: [
+            { studentId: key(7), outcome: "promote", targetKey: key(1) },
+          ],
         }),
       ),
     ).toBe("rollover.missing_target");
@@ -135,5 +163,15 @@ describe("firstOutcome", () => {
     expect(firstOutcome("retain", "leaving")).toBe("retain");
     expect(firstOutcome("promote", "leaving")).toBe("promote");
     expect(firstOutcome("graduate", null)).toBe("graduate");
+  });
+});
+
+describe("followsClass", () => {
+  it("takes every student into the carried class but those leaving or graduating", () => {
+    expect(followsClass("promote")).toBe(true);
+    expect(followsClass("retain")).toBe(true);
+    expect(followsClass(undefined)).toBe(true);
+    expect(followsClass("leave")).toBe(false);
+    expect(followsClass("graduate")).toBe(false);
   });
 });

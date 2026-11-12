@@ -1,6 +1,7 @@
+import { MODULE_IDS } from "@faridalms/domain/modules";
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, signedIn } from "./harness";
+import { login, rejection, seeded, setPlan, signedIn } from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 
@@ -111,8 +112,13 @@ describe("year rollover", () => {
       ),
     ).toMatchObject({ code: "CONFLICT", message: "rollover.applied" });
 
-    const target = await api.homerooms.directory({ year: targetId });
-    expect(target.rows).toHaveLength(first.plan.classes.length - 1);
+    const target = await api.homerooms.directory({
+      views: { year: targetId },
+    });
+    expect(target.rows).toHaveLength(
+      first.plan.classes.filter((row) => row.carrier === "homerooms").length -
+        1,
+    );
     const carried = target.rows.find((row) => row.code === `${kept.code}-N`);
     if (!carried) throw new Error("carried class");
     expect(carried.subjects).toHaveLength(kept.subjects.length);
@@ -124,19 +130,25 @@ describe("year rollover", () => {
     expect(record.roster.map((row) => row.userId)).toContain(repeater.id);
     expect(record.roster.map((row) => row.userId)).not.toContain(leaver.id);
 
-    const left = await api.people.student({ id: graduate.id });
+    const left = await api.years.placementsOf({ studentId: graduate.id });
     expect(
       left.placements.find((row) => row.schoolYearId === source.id)
         ?.exitMeaning,
     ).toBe("graduated");
-    // Those who go stay students of the school until the new year begins
-    // without them; those who stay have no such day.
-    expect(left.accessUntil).toBe("2031-09-07");
-    expect((await api.people.student({ id: leaver.id })).accessUntil).toBe(
-      "2031-09-07",
+    // Those who go leave on the year's last day and read their record until
+    // the new year begins without them; those who stay have no such day.
+    const departure = {
+      leftOn: source.endsBefore,
+      accessEndsOn: "2031-09-07",
+    };
+    expect((await api.people.student({ id: graduate.id })).departure).toEqual(
+      departure,
+    );
+    expect((await api.people.student({ id: leaver.id })).departure).toEqual(
+      departure,
     );
     expect(
-      (await api.people.student({ id: repeater.id })).accessUntil,
+      (await api.people.student({ id: repeater.id })).departure,
     ).toBeNull();
     const sourceRecord = await api.classes.record({
       id: kept.sourceClassId,
@@ -154,6 +166,72 @@ describe("year rollover", () => {
       targetYearId: source.id,
     });
     expect(preview.issue).toBe("rollover.source_not_started");
+  });
+});
+
+describe("a rollover in a school without homerooms", () => {
+  test("carries the year's classes as themselves, their staying students with them", async () => {
+    const school = seeded()
+      .tenants.flatMap((tenant) => tenant.schools)
+      .find((row) => row.slug === "acme");
+    if (!school) throw new Error("no acme school");
+    await setPlan(school.id, {
+      modules: MODULE_IDS.filter((module) => module !== "homerooms"),
+    });
+    try {
+      const api = await signedIn("acme", login("principal", 1));
+      const { years } = await api.years.directory();
+      const source = years.find((row) => row.lifecycle === "current");
+      if (!source) throw new Error("seed current year");
+      const { id: targetId } = await api.years.save({
+        titleEn: "2033–2034",
+        titleAr: "",
+        startsOn: "2033-09-04",
+        endsOn: "2034-06-15",
+        terms: [],
+      });
+      const query = { sourceYearId: source.id, targetYearId: targetId };
+      const first = await api.rollover.preview(query);
+      expect(first.plan.classes.length).toBeGreaterThan(0);
+      expect(
+        first.plan.classes.every(
+          (row) => row.carrier === "" && row.include && row.students,
+        ),
+      ).toBe(true);
+      expect(first.plan.students.every((row) => row.targetKey === "")).toBe(
+        true,
+      );
+      const followed = first.sources.find((row) => row.studentIds.length > 0);
+      if (!followed) throw new Error("seed class with students");
+      const saved = await api.rollover.save({
+        ...query,
+        expectedVersion: 0,
+        plan: first.plan,
+      });
+      const applied = await api.rollover.apply({
+        ...query,
+        expectedVersion: saved.version,
+      });
+      expect(applied.classes).toHaveLength(first.plan.classes.length);
+      const made = applied.classes.find(
+        (row) =>
+          row.key ===
+          first.plan.classes.find((item) => item.sourceClassId === followed.id)
+            ?.key,
+      );
+      if (!made) throw new Error("carried class");
+      const record = await api.classes.record({
+        id: made.classId,
+        on: "2033-09-04",
+      });
+      expect(record.runs).toEqual({ from: "2033-09-04", to: "2034-06-16" });
+      expect(record.roster).toHaveLength(followed.studentIds.length);
+      expect(
+        (await api.years.ofClass({ classId: made.classId })).year?.id,
+      ).toBe(targetId);
+    } finally {
+      await setPlan(school.id, null);
+    }
   });
 });
 

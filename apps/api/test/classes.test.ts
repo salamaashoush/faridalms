@@ -1,10 +1,24 @@
+import { plainContent } from "@faridalms/domain/content-conversion";
+import { MODULE_IDS } from "@faridalms/domain/modules";
 import { addDays } from "@faridalms/domain/school";
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, signedIn } from "./harness";
+import { login, rejection, seeded, setPlan, signedIn } from "./harness";
 
 async function principal() {
   return signedIn("northwind", login("principal"));
+}
+
+/** The working year, as a class in it is made. */
+async function workingYear(api: Awaited<ReturnType<typeof principal>>) {
+  const options = await api.years.options();
+  const year = options.years.find((row) => row.id === options.workingYearId);
+  if (!year) throw new Error("seed working year");
+  return {
+    ...year,
+    lastDay: addDays(year.endsBefore, -1),
+    part: { year: { yearId: year.id } },
+  };
 }
 
 describe("class directory and records", () => {
@@ -67,18 +81,27 @@ describe("a class of its own", () => {
   test("is made without a course or subject, takes a student and gives one back", async () => {
     const api = await principal();
     const options = await api.classes.options();
-    const year = options.workingYearId ?? "";
+    const year = await workingYear(api);
     const [teacher] = options.teachers.filter((row) => row.teaches);
     if (!teacher) throw new Error("seed teacher");
     const saved = await api.classes.save({
-      yearId: year,
+      startsOn: year.startsOn,
+      endsOn: year.lastDay,
+      parts: year.part,
       code: "CLUB-1",
       titleEn: "Chess club",
       titleAr: "نادي الشطرنج",
       teacherIds: [teacher.id],
     });
     const made = await api.classes.record({ id: saved.id });
-    expect(made).toMatchObject({ subjectId: null, courseId: null });
+    expect(made).toMatchObject({
+      subjectId: null,
+      courseId: null,
+      runs: { from: year.startsOn, to: year.endsBefore },
+    });
+    expect((await api.years.ofClass({ classId: saved.id })).year?.id).toBe(
+      year.id,
+    );
     expect(made.teachers.map((row) => row.userId)).toEqual([teacher.id]);
     expect(made.roster).toEqual([]);
 
@@ -113,11 +136,10 @@ describe("a class of its own", () => {
 
   test("a teacher cannot save classes", async () => {
     const teacher = await signedIn("northwind", login("teacher"));
-    const options = await (await principal()).classes.options();
     expect(
       await rejection(
         teacher.classes.save({
-          yearId: options.workingYearId ?? "",
+          startsOn: "2026-09-13",
           code: "NOPE",
           titleEn: "Nope",
           teacherIds: [],
@@ -126,19 +148,385 @@ describe("a class of its own", () => {
     ).toMatchObject({ code: "FORBIDDEN" });
   });
 
-  test("a code already used this year is refused", async () => {
+  test("a code used by a class whose dates overlap is refused, and is free for one that starts after it ends", async () => {
     const api = await principal();
-    const options = await api.classes.options();
+    const year = await workingYear(api);
     expect(
       await rejection(
         api.classes.save({
-          yearId: options.workingYearId ?? "",
+          startsOn: year.startsOn,
+          endsOn: year.lastDay,
+          parts: year.part,
           code: "7-A",
           titleEn: "Duplicate",
           teacherIds: [],
         }),
       ),
     ).toMatchObject({ code: "CONFLICT", message: "class.code_taken" });
+    const later = await api.classes.save({
+      startsOn: year.endsBefore,
+      endsOn: addDays(year.endsBefore, 20),
+      code: "7-A",
+      titleEn: "Seven A over the summer",
+      teacherIds: [],
+    });
+    expect((await api.classes.record({ id: later.id })).runs).toEqual({
+      from: year.endsBefore,
+      to: addDays(year.endsBefore, 21),
+    });
+  });
+
+  test("a class in a year keeps its dates inside it", async () => {
+    const api = await principal();
+    const year = await workingYear(api);
+    expect(
+      await rejection(
+        api.classes.save({
+          startsOn: year.startsOn,
+          parts: year.part,
+          code: "OPEN-YEAR",
+          titleEn: "Runs on past its year",
+          teacherIds: [],
+        }),
+      ),
+    ).toMatchObject({
+      code: "BAD_REQUEST",
+      message: "school_year.class_outside",
+    });
+    const saved = await api.classes.save({
+      startsOn: year.startsOn,
+      endsOn: year.lastDay,
+      parts: year.part,
+      code: "IN-YEAR",
+      titleEn: "In its year",
+      teacherIds: [],
+    });
+    const made = await api.classes.record({ id: saved.id });
+    expect(
+      await rejection(
+        api.classes.save({
+          id: saved.id,
+          expectedVersion: made.version,
+          startsOn: year.startsOn,
+          code: "IN-YEAR",
+          titleEn: "In its year",
+          teacherIds: [],
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "school_year.class_outside" });
+  });
+
+  test("a closed year's classes take no enrolments, and a class with no year takes no assignment", async () => {
+    const api = await principal();
+    const created = await api.years.save({
+      titleEn: "Salama's closed year",
+      titleAr: "",
+      startsOn: "2041-09-01",
+      endsOn: "2042-06-15",
+      terms: [],
+    });
+    const saved = await api.classes.save({
+      startsOn: "2041-09-01",
+      endsOn: "2042-06-15",
+      parts: { year: { yearId: created.id } },
+      code: "CLOSED-1",
+      titleEn: "In a closed year",
+      teacherIds: [],
+    });
+    await api.years.lifecycle({
+      id: created.id,
+      expectedVersion: created.version,
+      action: "close",
+    });
+    const someone = (
+      await api.classes.record({
+        id:
+          (await api.classes.directory({})).rows.find((row) => row.students > 0)
+            ?.id ?? "",
+      })
+    ).roster[0];
+    if (!someone) throw new Error("seed student");
+    expect(
+      await rejection(
+        api.classes.enrol({ studentId: someone.userId, classId: saved.id }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "school_year.closed" });
+    expect((await api.classes.record({ id: saved.id })).access.enrol).toBe(
+      false,
+    );
+
+    const yearless = await api.classes.save({
+      startsOn: "2026-09-13",
+      code: "NO-YEAR-1",
+      titleEn: "In no year",
+      teacherIds: [],
+    });
+    expect(
+      await rejection(
+        api.coursework.save({
+          classId: yearless.id,
+          title: "Work for a class in no year",
+          brief: plainContent("Instructions."),
+          audience: "class",
+          latePolicy: "accept",
+          submissionFormat: "both",
+          points: 10,
+          rubric: null,
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "class.no_school_year" });
+    expect(
+      await api.timetable.classWeek({ classId: yearless.id }),
+    ).toMatchObject({ week: null, canPlan: false });
+    expect(
+      await api.attendance.classSummary({ classId: yearless.id }),
+    ).toMatchObject({ registers: 0, canRecord: false });
+    expect(
+      (await api.classes.directory({ views: { year: created.id } })).manage,
+    ).toBe(false);
+  });
+
+  test("ending a class ends its enrolments on the day, and widening it carries them on", async () => {
+    const api = await principal();
+    const year = await workingYear(api);
+    const saved = await api.classes.save({
+      startsOn: year.startsOn,
+      code: "END-ME",
+      titleEn: "Ends early",
+      teacherIds: [],
+    });
+    const someone = (
+      await api.classes.record({
+        id:
+          (await api.homerooms.directory({})).rows.find(
+            (row) => row.students > 0,
+          )?.id ?? "",
+      })
+    ).roster[0];
+    if (!someone) throw new Error("seed student");
+    await api.classes.enrol({
+      studentId: someone.userId,
+      classId: saved.id,
+      from: year.startsOn,
+    });
+    const before = await api.classes.record({ id: saved.id });
+    expect(before.roster[0]?.to).toBeNull();
+    const end = addDays(year.startsOn, 30);
+    await api.classes.save({
+      id: saved.id,
+      expectedVersion: before.version,
+      startsOn: year.startsOn,
+      endsOn: end,
+      code: "END-ME",
+      titleEn: "Ends early",
+      teacherIds: [],
+    });
+    const ended = await api.classes.record({
+      id: saved.id,
+      on: year.startsOn,
+    });
+    expect(ended.runs.to).toBe(addDays(end, 1));
+    expect(ended.roster[0]?.to).toBe(addDays(end, 1));
+    await api.classes.save({
+      id: saved.id,
+      expectedVersion: ended.version,
+      startsOn: year.startsOn,
+      code: "END-ME",
+      titleEn: "Ends early",
+      teacherIds: [],
+    });
+    expect(
+      (await api.classes.record({ id: saved.id, on: year.startsOn })).roster[0]
+        ?.to,
+    ).toBeNull();
+  });
+});
+
+const schoolOf = (slug: string) => {
+  const school = seeded()
+    .tenants.flatMap((tenant) => tenant.schools)
+    .find((row) => row.slug === slug);
+  if (!school) throw new Error(`no ${slug} school`);
+  return school;
+};
+
+/** Runs with the school's plan leaving these modules out, then puts its plan back. */
+async function without(
+  slug: string,
+  modules: readonly string[],
+  run: () => Promise<void>,
+) {
+  await setPlan(schoolOf(slug).id, {
+    modules: MODULE_IDS.filter((module) => !modules.includes(module)),
+  });
+  try {
+    await run();
+  } finally {
+    await setPlan(schoolOf(slug).id, null);
+  }
+}
+
+for (const off of [["school_years"], ["school_years", "homerooms"]])
+  describe(`a school without ${off.join(" or ")}`, () => {
+    test("makes a class that keeps running, enrols a student, lists it with no year, and ends it", async () => {
+      await without("acme", off, async () => {
+        const api = await signedIn("acme", login("principal", 1));
+        const options = await api.classes.options();
+        const student = (
+          await api.people.students({ q: "", pageSize: 25 })
+        ).rows.find((row) => row.status === "enrolled");
+        if (!student) throw new Error("seed student");
+        const code = `PY-${off.length}`;
+        const saved = await api.classes.save({
+          startsOn: options.today,
+          code,
+          titleEn: "Python from scratch",
+          teacherIds: [],
+        });
+        await api.classes.enrol({ studentId: student.id, classId: saved.id });
+        const listed = await api.classes.directory({});
+        expect(listed.rows.map((row) => row.code)).toContain(code);
+        const record = await api.classes.record({ id: saved.id });
+        expect(record).not.toHaveProperty("year");
+        expect(record.runs).toEqual({ from: options.today, to: null });
+        expect(record.roster.map((row) => row.userId)).toEqual([student.id]);
+        expect(record.roster[0]?.to).toBeNull();
+        const history = await api.classes.history({ studentId: student.id });
+        expect(history.find((row) => row.classId === saved.id)?.to).toBeNull();
+
+        expect(
+          await rejection(api.classes.directory({ views: { year: "all" } })),
+        ).toMatchObject({
+          code: "BAD_REQUEST",
+          message: "classes.view_unknown",
+        });
+        expect(
+          await rejection(
+            api.classes.save({
+              startsOn: options.today,
+              code: `${code}-B`,
+              titleEn: "A year part",
+              teacherIds: [],
+              parts: { year: { yearId: "" } },
+            }),
+          ),
+        ).toMatchObject({
+          code: "BAD_REQUEST",
+          message: "classes.part_unknown",
+        });
+        for (const call of [
+          () => api.years.directory(),
+          () => api.years.options(),
+          () => api.rollover.asking(),
+        ])
+          expect(await rejection(call())).toMatchObject({ code: "NOT_FOUND" });
+
+        const end = addDays(options.today, 10);
+        await api.classes.save({
+          id: saved.id,
+          expectedVersion: record.version,
+          startsOn: options.today,
+          endsOn: end,
+          code,
+          titleEn: "Python from scratch",
+          teacherIds: [],
+        });
+        const ended = await api.classes.record({ id: saved.id });
+        expect(ended.roster[0]?.to).toBe(addDays(end, 1));
+        const next = await api.classes.save({
+          startsOn: addDays(end, 1),
+          code,
+          titleEn: "Python again",
+          teacherIds: [],
+        });
+        expect(next.id).not.toBe(saved.id);
+      });
+    });
+
+    test("lists students by their roles, and a leaver leaves and comes back as they were", async () => {
+      await without("acme", off, async () => {
+        const api = await signedIn("acme", login("principal", 1));
+        const list = await api.people.students({ q: "", pageSize: 50 });
+        expect(list).not.toHaveProperty("year");
+        expect(list.rows.length).toBeGreaterThan(0);
+        expect(list.rows.every((row) => row.grade === null)).toBe(true);
+        const student = list.rows.find((row) => row.status === "enrolled");
+        if (!student) throw new Error("seed student");
+        const before = await api.people.student({ id: student.id });
+        const classesOf = async () =>
+          (await api.classes.history({ studentId: student.id })).map(
+            ({ version: _, ...row }) => row,
+          );
+        const classesBefore = await classesOf();
+        const lastDay = addDays(before.today, -1);
+        await api.people.recordLeaving({
+          studentId: student.id,
+          lastDay,
+          accessUntil: addDays(lastDay, 30),
+        });
+        const gone = await api.people.student({ id: student.id });
+        expect(gone.status).toBe("left");
+        expect(gone.departure).toEqual({
+          leftOn: addDays(lastDay, 1),
+          accessEndsOn: addDays(lastDay, 31),
+        });
+        expect(
+          (await api.people.students({ q: "", pageSize: 50 })).rows.some(
+            (row) => row.id === student.id,
+          ),
+        ).toBe(false);
+        expect(
+          (
+            await api.people.students({ q: "", status: ["left"], pageSize: 50 })
+          ).rows.some((row) => row.id === student.id),
+        ).toBe(true);
+        await api.people.cancelLeaving({ studentId: student.id });
+        const back = await api.people.student({ id: student.id });
+        expect(back.status).toBe("enrolled");
+        expect(back.departure).toBeNull();
+        expect(back.roles).toEqual(before.roles);
+        expect(await classesOf()).toEqual(classesBefore);
+      });
+    });
+  });
+
+describe("a class whose dates left its year while the module was off", () => {
+  test("is the year's no longer once the module next acts on it", async () => {
+    const api = await signedIn("acme", login("principal", 1));
+    const year = await workingYear(api);
+    const saved = await api.classes.save({
+      startsOn: year.startsOn,
+      endsOn: year.lastDay,
+      parts: year.part,
+      code: "DRIFT-1",
+      titleEn: "Drifts",
+      teacherIds: [],
+    });
+    await without("acme", ["school_years"], async () => {
+      const record = await api.classes.record({ id: saved.id });
+      await api.classes.save({
+        id: saved.id,
+        expectedVersion: record.version,
+        startsOn: year.startsOn,
+        code: "DRIFT-1",
+        titleEn: "Drifts",
+        teacherIds: [],
+      });
+    });
+    expect((await api.years.ofClass({ classId: saved.id })).year?.id).toBe(
+      year.id,
+    );
+    const student = (
+      await api.people.students({ q: "", pageSize: 25 })
+    ).rows.find((row) => row.status === "enrolled");
+    if (!student) throw new Error("seed student");
+    await api.classes.enrol({ studentId: student.id, classId: saved.id });
+    expect((await api.years.ofClass({ classId: saved.id })).year).toBeNull();
+    expect(
+      (await api.classes.directory({ views: { year: year.id } })).rows.some(
+        (row) => row.id === saved.id,
+      ),
+    ).toBe(false);
   });
 });
 

@@ -36,8 +36,8 @@ import { CheckboxRow } from "~/components/people/fields";
 import { BellSchedules } from "~/components/years/BellSchedules";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { yearPeriodsQuery } from "~/queries/years";
-import { saveYearPeriods } from "~/server/years";
+import { yearPeriodsQuery } from "~/queries/periods";
+import { saveYearPeriods } from "~/server/periods";
 import {
   formatDate,
   formatList,

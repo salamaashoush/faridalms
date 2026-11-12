@@ -2,7 +2,7 @@ import { plainContent } from "@faridalms/domain/content-conversion";
 import { expect, test } from "@playwright/test";
 
 import { apiAs, signedInApi } from "./fixtures/api";
-import { newClass, newStudent } from "./fixtures/school";
+import { newClass, newStudent, workingYear } from "./fixtures/school";
 import { ACCOUNTS } from "./fixtures/sign-in";
 
 test("a notice about an assignment still opens it after the student moves to another class", async () => {
@@ -12,17 +12,17 @@ test("a notice about an assignment still opens it after the student moves to ano
   const teacherId = (await teacher.identity.currentUser()).id;
   const options = await admin.classes.options();
   const arabic = options.subjects.find((row) => row.code === "arabic");
-  if (!options.workingYearId || !arabic)
-    throw new Error("the school has no working year or no Arabic");
+  if (!arabic) throw new Error("the school has no Arabic");
+  const year = await workingYear(admin);
   const subjects = [{ subjectId: arabic.id, teacherIds: [teacherId] }];
   const [first, second] = await Promise.all([
     newClass(admin, {
-      yearId: options.workingYearId,
+      yearId: year.id,
       title: `Salama first ${unique}`,
       subjects,
     }),
     newClass(admin, {
-      yearId: options.workingYearId,
+      yearId: year.id,
       title: `Salama second ${unique}`,
       subjects,
     }),

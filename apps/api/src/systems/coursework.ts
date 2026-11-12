@@ -224,6 +224,7 @@ import { translatedQuiz } from "@faridalms/domain/lesson-translation";
 import { PAGE_SIZE } from "@faridalms/domain/paging";
 import { practised, practiceStanding } from "@faridalms/domain/practice";
 import { isLater } from "@faridalms/domain/publication";
+import { dayWithin } from "@faridalms/domain/school";
 import {
   documentWritten,
   otherLocale,
@@ -299,6 +300,7 @@ import {
   rescoreQuiz,
   responsesOf,
 } from "../quizzes/quiz";
+import { classYear, daysOf, withYear } from "../years/years";
 
 const AUDIT_ACTIONS = {
   return: "submission.return",
@@ -560,7 +562,10 @@ export const options = readProcedure.handler(async ({ context }) => {
   if (!year) return { year: null, classes: [], rubrics: [], terms: [] };
   const on = dayIn(year, context.today);
   const scope = scopeFor(context, "teaching");
-  const kept = await classesKeptBy(context.tx, scope, { yearId: year.id, on });
+  const kept = await classesKeptBy(context.tx, scope, {
+    during: daysOf(year),
+    on,
+  });
   const rubrics = await rubricsOf(
     context.tx,
     context.tenantId,
@@ -799,9 +804,10 @@ export const reuse = writeProcedure
         !(await teaches(context, "teaching", source.classId)))
     )
       throw new ORPCError("NOT_FOUND");
-    const classRow = await classById(tx, context, input.classId);
-    if (!classRow || !(await teaches(context, "teaching", classRow.id)))
+    const found = await classById(tx, context, input.classId);
+    if (!found || !(await teaches(context, "teaching", found.id)))
       throw new ORPCError("NOT_FOUND");
+    const classRow = await withYear(context, found);
     await requireOpenYear(context, classRow.schoolYearId);
     const categories = await classCategories(tx, {
       tenantId: context.tenantId,
@@ -917,9 +923,10 @@ export const save = writeProcedure
         message: "coursework.rubric_total",
       });
     const tx = context.tx;
-    const classRow = await classById(tx, context, input.classId);
-    if (!classRow || !(await teaches(context, "teaching", classRow.id)))
+    const found = await classById(tx, context, input.classId);
+    if (!found || !(await teaches(context, "teaching", found.id)))
       throw new ORPCError("NOT_FOUND");
+    const classRow = await withYear(context, found);
     await requireOpenYear(context, classRow.schoolYearId);
     if (
       input.categoryId &&
@@ -1133,16 +1140,14 @@ export const save = writeProcedure
         ? { groupIds: input.groupIds, studentIds: input.studentIds }
         : { groupIds: [], studentIds: [] };
     if (published || input.audience === "selected") {
-      const year = (
-        await schoolYears(tx, context.tenantId, context.schoolId)
-      ).find((row) => row.id === classRow.schoolYearId);
+      const year = await classYear(context, classRow.id);
       await setRecipients(tx, {
         tenantId: context.tenantId,
         assignmentId,
         classId: classRow.id,
         audience: published ? input.audience : "selected",
         selection,
-        on: year ? dayIn(year, context.today) : context.today,
+        on: dayIn(year, context.today),
       });
     }
     if (input.discussion?.moduleId) {
@@ -3219,17 +3224,11 @@ export const groups = readProcedure
     const classRow = await classById(context.tx, context, input.classId);
     if (!classRow || !(await teaches(context, "teaching", classRow.id)))
       throw new ORPCError("NOT_FOUND");
-    const years = await schoolYears(
-      context.tx,
-      context.tenantId,
-      context.schoolId,
-    );
-    const year = years.find((row) => row.id === classRow.schoolYearId);
     const roster = await rosterOf(
       context.tx,
       context.tenantId,
       classRow.id,
-      year ? dayIn(year, context.today) : context.today,
+      dayWithin(classRow.runs, context.today),
     );
     const names = await namesOf(context.tx, context.tenantId, roster);
     return {
@@ -3253,7 +3252,7 @@ export const saveClassGroup = writeProcedure
       tenantId: context.tenantId,
       orgId: context.schoolId,
       id: input.id,
-      classRow,
+      classId: classRow.id,
       titleEn: input.titleEn || null,
       titleAr: input.titleAr || null,
       studentIds: input.studentIds,

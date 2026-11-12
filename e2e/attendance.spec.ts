@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 import { apiAs } from "./fixtures/api";
-import { newClass, newStudent, schoolDaysTo } from "./fixtures/school";
+import {
+  newClass,
+  newStudent,
+  schoolDaysTo,
+  workingYear,
+} from "./fixtures/school";
 import {
   PASSWORD,
   signIn,
@@ -128,8 +133,7 @@ test("an unsaved register asks before it is left, and a register saved meanwhile
 }) => {
   const admin = await apiAs("admin");
   const unique = crypto.randomUUID().slice(0, 6);
-  const { workingYearId } = await admin.classes.options();
-  if (!workingYearId) throw new Error("the school has no working year");
+  const { id: workingYearId } = await workingYear(admin);
   const klass = await newClass(admin, {
     yearId: workingYearId,
     title: `Salama register ${unique}`,

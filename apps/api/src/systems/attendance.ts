@@ -77,7 +77,7 @@ import {
   undoCheckInSchema,
 } from "@faridalms/domain/attendance";
 import { paged, pageWindow } from "@faridalms/domain/paging";
-import { addDays } from "@faridalms/domain/school";
+import { addDays, dayWithin } from "@faridalms/domain/school";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -95,6 +95,7 @@ import {
 } from "../core/procedure";
 import { reachesClass, reachesStudent, teaches } from "../core/reach";
 import { badgeHash } from "../core/session";
+import { classYear, daysOf, linkedYear } from "../years/years";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -160,13 +161,8 @@ function periodView(period: PeriodRow) {
 }
 
 /** The register's year, or not found; a date outside it is refused. */
-async function yearOfClass(
-  context: UnitContext,
-  schoolYearId: string,
-  day: string,
-) {
-  const year = (await years(context)).find((row) => row.id === schoolYearId);
-  if (!year) throw new ORPCError("NOT_FOUND");
+async function yearOfClass(context: UnitContext, classId: string, day: string) {
+  const year = await classYear(context, classId);
   if (day < year.startsOn || day >= year.endsBefore)
     throw new ORPCError("BAD_REQUEST", {
       message: "attendance.outside_year",
@@ -246,7 +242,6 @@ export const day = readProcedure
     const [classes, periods] = await Promise.all([
       classesTaughtBy(context.tx, context, {
         userId: context.actor.userId,
-        yearId: year.id,
         on,
       }),
       periodsOn(context.tx, {
@@ -263,7 +258,7 @@ export const day = readProcedure
         yearId: year.id,
         day: on,
         officialPeriodId: periods.find((period) => period.official)?.id ?? null,
-        dailyClassIds: await dailyClassIds(context, year.id),
+        dailyClassIds: await dailyClassIds(context, daysOf(year)),
       }),
       changesOn(context.tx, {
         tenantId: context.tenantId,
@@ -341,7 +336,7 @@ export const register = readProcedure
       (input.periodId && !allows(taking, input.periodId))
     )
       throw new ORPCError("NOT_FOUND");
-    const year = await yearOfClass(context, classRow.schoolYearId, input.date);
+    const year = await yearOfClass(context, classRow.id, input.date);
     const periods = await periodsOn(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
@@ -365,7 +360,7 @@ export const register = readProcedure
           ) ??
           defaultPeriod(
             periods,
-            (await dailyClassIds(context, year.id)).includes(classRow.id),
+            (await dailyClassIds(context, daysOf(year))).includes(classRow.id),
           ))
         : periods.find((row) => allows(taking, row.id));
     if (!period)
@@ -512,7 +507,7 @@ async function checkInRegister(
     )
   )
     throw new ORPCError("NOT_FOUND");
-  const year = await yearOfClass(context, classRow.schoolYearId, input.date);
+  const year = await yearOfClass(context, classRow.id, input.date);
   const access = await editability(context, year, input.date);
   if (!access.editable)
     throw new ORPCError("CONFLICT", { message: LOCKED[access.reason] });
@@ -776,13 +771,9 @@ export const save = writeProcedure
       )
     )
       throw new ORPCError("NOT_FOUND");
-    const lifecycle = await holdYear(
-      context.tx,
-      context.tenantId,
-      classRow.schoolYearId,
-    );
+    const year = await yearOfClass(context, classRow.id, input.date);
+    const lifecycle = await holdYear(context.tx, context.tenantId, year.id);
     if (!lifecycle) throw new ORPCError("NOT_FOUND");
-    const year = await yearOfClass(context, classRow.schoolYearId, input.date);
     const access = await editability(context, year, input.date);
     if (!access.editable)
       throw new ORPCError("CONFLICT", { message: LOCKED[access.reason] });
@@ -931,7 +922,7 @@ export const board = readProcedure
       yearId: year.id,
       day: date,
       officialPeriodId: periods.find((period) => period.official)?.id ?? null,
-      dailyClassIds: await dailyClassIds(context, year.id),
+      dailyClassIds: await dailyClassIds(context, daysOf(year)),
     });
     return {
       date,
@@ -1085,11 +1076,12 @@ export const report = readProcedure
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       yearId: year.id,
+      during: daysOf(year),
       from,
       to,
       by: input.by,
       q: input.q,
-      dailyClassIds: await dailyClassIds(context, year.id),
+      dailyClassIds: await dailyClassIds(context, daysOf(year)),
     });
     return {
       terms: terms.map((row) => ({
@@ -1213,11 +1205,10 @@ export const classSummary = readProcedure
     requireCapability(context, "attendance:read");
     const classRow = await classById(context.tx, context, input.classId);
     if (!classRow) throw new ORPCError("NOT_FOUND");
-    const year = (await years(context)).find(
-      (row) => row.id === classRow.schoolYearId,
-    );
-    if (!year) throw new ORPCError("NOT_FOUND");
-    const on = dayIn(year, context.today);
+    const year = await linkedYear(context, classRow.id);
+    const on = year
+      ? dayIn(year, context.today)
+      : dayWithin(classRow.runs, context.today);
     if (
       !(await teaches(context, "registers", classRow.id)) &&
       !(await reachesClass(context, "attendance", classRow.id, on))
@@ -1245,6 +1236,7 @@ export const classSummary = readProcedure
       canRecord:
         (can(context, "attendance:record") ||
           can(context, "attendance:manage")) &&
+        year !== null &&
         year.lifecycle !== "closed" &&
         (await teaches(context, "registers", classRow.id)),
       students: names.map((row) => {

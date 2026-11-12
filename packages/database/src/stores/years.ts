@@ -1,5 +1,12 @@
+import type { OpenSpan } from "@faridalms/domain/school";
+
 import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
-import { addDays, teachingWeeks, weekdayOf } from "@faridalms/domain/school";
+import {
+  addDays,
+  spanHolds,
+  teachingWeeks,
+  weekdayOf,
+} from "@faridalms/domain/school";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -11,7 +18,9 @@ import {
   calendarDates,
   calendars,
 } from "../tables/calendar";
-import { bounds, isoOf, textArray } from "./sql";
+import { classYears } from "../tables/school-years";
+import { classColumns, classOf, moveClassRuns } from "./classes";
+import { bounds, isoOf, textArray, uuidArray } from "./sql";
 
 export interface SchoolYear {
   id: string;
@@ -93,7 +102,8 @@ export class YearChangeError extends Error {
     public readonly code:
       | "conflict.version"
       | "school_year.closed"
-      | "school_year.end_year_fixed",
+      | "school_year.end_year_fixed"
+      | "school_year.rows_outside_dates",
   ) {
     super(code);
   }
@@ -141,9 +151,10 @@ export async function yearDirectory(
       (select count(*)::int from core.academic_sessions t
         where t.tenant_id = y.tenant_id and t.school_year_id = y.id and t.type = 'term'
           and t.status = 'active') as terms,
-      (select count(*)::int from core.classes c
-        where c.tenant_id = y.tenant_id and c.school_year_id = y.id
-          and c.status = 'active') as classes,
+      (select count(*)::int from core.class_years k
+        join core.classes c on c.tenant_id = k.tenant_id and c.id = k.class_id and c.status = 'active'
+        where k.tenant_id = y.tenant_id and k.school_year_id = y.id
+          and k.status = 'active') as classes,
       (select count(distinct r.student_user_id)::int from core.student_school_years r
         where r.tenant_id = y.tenant_id and r.school_year_id = y.id and r.status = 'active'
           and r.valid_during @> least(greatest(${today}::date, lower(y.span)), upper(y.span) - 1)) as students
@@ -623,10 +634,10 @@ const range = (from: string, to: string) =>
   sql`daterange(${from}::date, ${to}::date, '[)')`;
 
 /**
- * Brings the year's weeks, periods, placements and class enrollments inside
- * `[from, to)` before its dates narrow. Setup rows wholly outside are
- * tombstoned; a placement or enrollment wholly outside is real data, so it is
- * left for `app.change_year_span` to refuse.
+ * Brings the year's weeks, periods and placements inside `[from, to)` before
+ * its dates narrow. Setup rows wholly outside are tombstoned; a placement
+ * wholly outside is real data, so it is left for `app.change_year_span` to
+ * refuse.
  */
 async function narrowChildren(
   tx: CellTransaction,
@@ -655,7 +666,6 @@ async function narrowChildren(
     sql`core.class_periods`,
     sql`core.class_meetings`,
     sql`core.student_school_years`,
-    sql`core.enrollments`,
   ])
     await tx.execute(sql`
       update ${table} set valid_during = valid_during * ${span}
@@ -663,9 +673,9 @@ async function narrowChildren(
 }
 
 /**
- * After the year's dates widen, periods, placements and enrollments that ran
- * to its old first or last day run to the new one, as a student placed for
- * the whole year stays placed for the whole year.
+ * After the year's dates widen, periods and placements that ran to its old
+ * first or last day run to the new one, as a student placed for the whole
+ * year stays placed for the whole year.
  */
 async function widenChildren(
   tx: CellTransaction,
@@ -679,7 +689,6 @@ async function widenChildren(
     sql`core.class_periods`,
     sql`core.class_meetings`,
     sql`core.student_school_years`,
-    sql`core.enrollments`,
   ]) {
     if (after.to > before.to)
       await tx.execute(sql`
@@ -879,8 +888,10 @@ export async function createYear(
 /**
  * Changes a year's names, dates and terms. Narrowing clips what crosses the
  * new edges; widening marks the new days on the calendar, extends the weeks
- * and carries whole-year rows to the new edges. `app.change_year_span`
- * refuses when real data would fall outside.
+ * and carries whole-year rows to the new edges. The year's classes move with
+ * it, and their enrollments with them. Real data that would fall wholly
+ * outside is refused: a class's by `moveClassesWithYear`, the rest by
+ * `app.change_year_span`.
  */
 export async function updateYear(
   tx: CellTransaction,
@@ -916,6 +927,12 @@ export async function updateYear(
   });
   const moved = before.from !== after.from || before.to !== after.to;
   if (moved) {
+    await moveClassesWithYear(tx, {
+      tenantId: input.tenantId,
+      yearId: input.id,
+      before,
+      after,
+    });
     await narrowChildren(tx, input.tenantId, input.id, after.from, after.to);
     await tx.execute(sql`
       select app.change_year_span(${input.id}::uuid, ${range(after.from, after.to)}, ${row.version})`);
@@ -986,3 +1003,139 @@ export async function setYearLifecycle(
   if (!row) throw new YearChangeError("conflict.version");
   return { replaced };
 }
+
+/**
+ * Moves the year's classes to its new dates and their enrollments with them:
+ * a class's edge that was the year's moves to the new one, and an edge past
+ * the new dates is clipped to them, ending what runs past or starting late
+ * what began before. A class with an active enrollment wholly outside the
+ * new dates refuses the change, since that is a student's real days. A
+ * class whose days had already left the year, as they may while the
+ * module is off, is the year's no longer and does not move.
+ */
+async function moveClassesWithYear(
+  tx: CellTransaction,
+  input: {
+    tenantId: string;
+    yearId: string;
+    before: { from: string; to: string };
+    after: { from: string; to: string };
+  },
+) {
+  const { before, after } = input;
+  const linked = await classesOfYear(tx, input.tenantId, input.yearId);
+  const classes = [];
+  for (const row of linked)
+    if (spanHolds(before, row.runs)) classes.push(row);
+    else
+      await tx.execute(sql`
+        update core.class_years set status = 'tobedeleted'
+        where tenant_id = ${input.tenantId}::uuid and class_id = ${row.id}::uuid and status = 'active'`);
+  if (classes.length === 0) return;
+  const [outside] = await tx.execute<{ found: boolean }>(sql`
+    select exists (select 1 from core.enrollments e
+      where e.tenant_id = ${input.tenantId}::uuid and e.status = 'active'
+        and e.class_id = any(${uuidArray(classes.map((row) => row.id))})
+        and not e.valid_during && ${range(after.from, after.to)}) as found`);
+  if (outside?.found)
+    throw new YearChangeError("school_year.rows_outside_dates");
+  for (const row of classes) {
+    const from =
+      row.runs.from === before.from || row.runs.from < after.from
+        ? after.from
+        : row.runs.from;
+    const to =
+      row.runs.to === null ||
+      row.runs.to === before.to ||
+      row.runs.to > after.to
+        ? after.to
+        : row.runs.to;
+    if (from >= to) throw new YearChangeError("school_year.rows_outside_dates");
+    if (from === row.runs.from && to === row.runs.to) continue;
+    if (from > row.runs.from)
+      await tx.execute(sql`
+        update core.enrollments set valid_during = daterange(${from}::date, upper(valid_during))
+        where tenant_id = ${input.tenantId}::uuid and class_id = ${row.id}::uuid and status = 'active'
+          and lower(valid_during) < ${from}::date`);
+    await moveClassRuns(tx, {
+      tenantId: input.tenantId,
+      classId: row.id,
+      before: row.runs,
+      after: { from, to },
+    });
+  }
+}
+
+/** The classes linked to a year, whatever their dates. */
+export async function classesOfYear(
+  tx: CellTransaction,
+  tenantId: string,
+  yearId: string,
+) {
+  const rows = await tx.execute<Parameters<typeof classOf>[0]>(sql`
+    select ${classColumns} from core.class_years k
+    join core.classes c on c.tenant_id = k.tenant_id and c.id = k.class_id and c.status = 'active'
+    where k.tenant_id = ${tenantId}::uuid and k.school_year_id = ${yearId}::uuid and k.status = 'active'
+    order by c.code`);
+  return rows.map(classOf);
+}
+
+/** The year each of these classes is linked to, where it is linked to one. */
+export async function yearsOfClasses(
+  tx: CellTransaction,
+  tenantId: string,
+  classIds: readonly string[],
+): Promise<Map<string, string>> {
+  if (classIds.length === 0) return new Map();
+  const rows = await tx.execute<{ class_id: string; school_year_id: string }>(
+    sql`
+    select class_id, school_year_id from core.class_years
+    where tenant_id = ${tenantId}::uuid and class_id = any(${uuidArray([...classIds])})
+      and status = 'active'`,
+  );
+  return new Map(rows.map((row) => [row.class_id, row.school_year_id]));
+}
+
+/** The year a class is linked to, or null. */
+export async function yearOfClass(
+  tx: CellTransaction,
+  tenantId: string,
+  classId: string,
+): Promise<string | null> {
+  return (await yearsOfClasses(tx, tenantId, [classId])).get(classId) ?? null;
+}
+
+/**
+ * Puts a class in a year, in place of any it was in, or in none. The
+ * caller has checked the year is open and holds the class's dates.
+ */
+export async function linkClass(
+  tx: CellTransaction,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    classId: string;
+    yearId: string | null;
+  },
+) {
+  const current = await yearOfClass(tx, input.tenantId, input.classId);
+  if (current === input.yearId) return;
+  if (current)
+    await tx.execute(sql`
+      update core.class_years set status = 'tobedeleted'
+      where tenant_id = ${input.tenantId}::uuid and class_id = ${input.classId}::uuid
+        and status = 'active'`);
+  if (input.yearId)
+    await tx.insert(classYears).values({
+      tenantId: input.tenantId,
+      orgId: input.schoolId,
+      classId: input.classId,
+      schoolYearId: input.yearId,
+    });
+}
+
+/** Whether a year's dates hold a span of days. */
+export const yearHolds = (
+  year: { startsOn: string; endsBefore: string },
+  span: OpenSpan,
+) => spanHolds({ from: year.startsOn, to: year.endsBefore }, span);

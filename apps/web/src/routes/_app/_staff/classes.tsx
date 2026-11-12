@@ -7,11 +7,11 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import * as v from "valibot";
 
-import type { ClassesTab } from "~/components/classes/slots";
+import type { ClassesSearch, ClassesTab } from "~/components/classes/slots";
 
 import { ClassDirectory } from "~/components/classes/ClassDirectory";
 import { MyClasses } from "~/components/classes/MyClasses";
-import { classesTabs } from "~/components/classes/slots";
+import { classesTabs, classFilters, viewsOf } from "~/components/classes/slots";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
@@ -23,14 +23,15 @@ import {
 import { currentUserQuery } from "~/queries/user";
 import { filled } from "~/utils/extension";
 
-const searchSchema = v.object({
+// Loose, so a module's view rides in the address under its own key.
+const searchSchema = v.looseObject({
   ...classDirectorySchema.entries,
   scope: v.fallback(
     v.optional(v.pipe(v.string(), v.regex(/^[a-z]{1,20}$/))),
     undefined,
   ),
 });
-type Search = v.InferOutput<typeof searchSchema>;
+type Search = ClassesSearch & v.InferOutput<typeof searchSchema>;
 
 const DEFAULT_SEARCH = v.parse(searchSchema, {});
 
@@ -64,18 +65,25 @@ export const Route = createFileRoute("/_app/_staff/classes")({
   search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
-    const [user, mine] = await Promise.all([
-      context.queryClient.ensureQueryData(currentUserQuery),
-      context.queryClient.ensureQueryData(myClassesQuery(deps.year)),
+    const user = await context.queryClient.ensureQueryData(currentUserQuery);
+    const filters = filled(context.extensions, user.modules, classFilters);
+    const views = viewsOf(filters, deps);
+    const [mine] = await Promise.all([
+      context.queryClient.ensureQueryData(myClassesQuery(views)),
       context.queryClient.ensureQueryData(classOptionsQuery),
+      ...filters.map((filter) =>
+        context.queryClient.ensureQueryData(filter.query()),
+      ),
     ]);
     const tabs = filled(context.extensions, user.modules, classesTabs);
     const scopes = scopesOf(user.capabilities, mine.rows.length > 0, tabs);
     const scope = scopeOf(deps, scopes);
     const tab = tabs.find((row) => row.value === scope);
-    if (tab) await tab.prefetch(context.queryClient, deps);
+    if (tab) await tab.prefetch(context.queryClient, deps, views);
     else if (scope === "all")
-      await context.queryClient.ensureQueryData(classDirectoryQuery(deps));
+      await context.queryClient.ensureQueryData(
+        classDirectoryQuery({ ...deps, views }),
+      );
   },
   component: ClassesPage,
 });
@@ -85,7 +93,8 @@ function ClassesPage() {
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
   const tabs = useSlot(classesTabs);
-  const mine = useSuspenseQuery(myClassesQuery(search.year)).data;
+  const views = viewsOf(useSlot(classFilters), search);
+  const mine = useSuspenseQuery(myClassesQuery(views)).data;
   const scopes = scopesOf(user.capabilities, mine.rows.length > 0, tabs);
   const scope = scopeOf(search, scopes);
   const labelOf = (value: string) =>
@@ -129,6 +138,6 @@ function ClassesPage() {
       frame={frame}
     />
   ) : (
-    <MyClasses year={search.year} title={title} frame={frame} />
+    <MyClasses search={search} onSearch={patch} title={title} frame={frame} />
   );
 }

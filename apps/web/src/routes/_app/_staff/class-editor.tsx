@@ -16,9 +16,11 @@ import {
   ExistingClassEditor,
 } from "~/components/classes/ClassEditor";
 import { classTitle } from "~/components/classes/format";
+import { classEditorParts } from "~/components/classes/slots";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
 import { currentUserQuery } from "~/queries/user";
+import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/_staff/class-editor")({
@@ -26,8 +28,8 @@ export const Route = createFileRoute("/_app/_staff/class-editor")({
     trail: <EditorTrail />,
     section: "/classes",
   },
-  validateSearch: v.object({
-    year: v.pipe(v.string(), v.uuid()),
+  // Loose, so the view of a module the form was opened from rides along.
+  validateSearch: v.looseObject({
     id: v.optional(v.pipe(v.string(), v.uuid())),
   }),
   loaderDeps: ({ search }) => search,
@@ -39,6 +41,10 @@ export const Route = createFileRoute("/_app/_staff/class-editor")({
       deps.id
         ? context.queryClient.ensureQueryData(classRecordQuery(deps.id))
         : null,
+      ...filled(context.extensions, user.modules, classEditorParts).map(
+        (part) =>
+          context.queryClient.ensureQueryData(part.query(deps.id ?? null)),
+      ),
     ]);
   },
   component: ClassEditorPage,
@@ -74,7 +80,8 @@ function EditTrail({ classId }: EditTrailProps) {
 }
 
 function ClassEditorPage() {
-  const { year, id } = Route.useSearch();
+  const search = Route.useSearch();
+  const { id } = search;
   const navigate = Route.useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
@@ -86,8 +93,8 @@ function ClassEditorPage() {
     void navigate({ to: "/classes", search: {} });
   };
   return id ? (
-    <ExistingClassEditor key={id} id={id} onClose={close} />
+    <ExistingClassEditor key={id} id={id} search={search} onClose={close} />
   ) : (
-    <ClassEditor yearId={year} onClose={close} />
+    <ClassEditor search={search} onClose={close} />
   );
 }

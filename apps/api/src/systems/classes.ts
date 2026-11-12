@@ -1,5 +1,3 @@
-import type { SchoolYear } from "@faridalms/database/stores/years";
-
 import { changeOf } from "@faridalms/database/audit";
 import {
   classById,
@@ -22,29 +20,33 @@ import {
   relabelDescriptor,
 } from "@faridalms/database/stores/descriptors";
 import { staffDirectory } from "@faridalms/database/stores/staff";
-import { calendarFor, place } from "@faridalms/database/stores/students";
+import { ensureStudentRole } from "@faridalms/database/stores/students";
 import {
-  dayIn,
-  holdYear,
-  schoolYears,
-  workingYear,
-} from "@faridalms/database/stores/years";
-import {
-  classDirectorySchema,
+  classDirectoryInputSchema,
+  classesMineSchema,
   classRecordSchema,
-  classYearSchema,
   enrolStudentSchema,
   saveClassSchema,
   saveSubjectSchema,
   withdrawStudentSchema,
 } from "@faridalms/domain/classes";
+import { addDays, dayWithin, spanHolds } from "@faridalms/domain/school";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
-import type { UnitContext } from "../core/context";
-
-import { joinedClasses, refuseOverRegisters } from "../classes/enrolment";
-import { classGroupsOf, endingRefusal } from "../classes/points";
+import {
+  joinedClasses,
+  moveClass,
+  refuseOverRegisters,
+} from "../classes/enrolment";
+import {
+  changeRefusal,
+  classGroupsOf,
+  classViewOf,
+  endingRefusal,
+  requireChangeable,
+  saveClassParts,
+} from "../classes/points";
 import {
   audit,
   can,
@@ -54,28 +56,9 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { isStaff, reachesClass, requireStudent, scopeFor } from "../core/reach";
-import { yearOf } from "../core/years";
 import { mayKeepArea } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
-
-async function requireOpen(context: UnitContext, year: SchoolYear) {
-  const lifecycle = await holdYear(context.tx, context.tenantId, year.id);
-  if (!lifecycle) throw new ORPCError("NOT_FOUND");
-  if (lifecycle === "closed")
-    throw new ORPCError("CONFLICT", { message: "school_year.closed" });
-}
-
-function yearView(year: SchoolYear) {
-  return {
-    id: year.id,
-    titleEn: year.titleEn,
-    titleAr: year.titleAr,
-    startsOn: year.startsOn,
-    endsBefore: year.endsBefore,
-    lifecycle: year.lifecycle,
-  };
-}
 
 /** The choices the class forms offer. */
 export const options = readProcedure.handler(async ({ context }) => {
@@ -87,11 +70,10 @@ export const options = readProcedure.handler(async ({ context }) => {
       namespace,
       today: context.today,
     });
-  const [grades, subjects, rooms, years, staff] = await Promise.all([
+  const [grades, subjects, rooms, staff] = await Promise.all([
     load("grade_level"),
     load("subject"),
     roomsOf(context.tx, context.tenantId, context.schoolId),
-    schoolYears(context.tx, context.tenantId, context.schoolId),
     staffDirectory(context.tx, scopeFor(context, "classes"), {
       q: "",
       phone: null,
@@ -107,8 +89,7 @@ export const options = readProcedure.handler(async ({ context }) => {
     grades,
     subjects,
     rooms,
-    years: years.map(yearView),
-    workingYearId: workingYear(years, context.today)?.id ?? null,
+    today: context.today,
     teachers: staff.rows.map((row) => ({
       id: row.id,
       fullNameEn: row.fullNameEn,
@@ -118,48 +99,50 @@ export const options = readProcedure.handler(async ({ context }) => {
   };
 });
 
-/** The classes of a year, each with its teachers and size. */
+/**
+ * The school's classes, each with its teachers and size: those a module's
+ * view names, else those still running or yet to start, or those ended.
+ */
 export const directory = readProcedure
-  .input(classDirectorySchema)
+  .input(classDirectoryInputSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "classes:read", "classes:manage");
-    const { year } = await yearOf(context, input.year);
-    if (!year) return { year: null, rows: [], manage: false };
+    const view = await classViewOf(context, input.views);
+    const on = view?.on ?? context.today;
     const rows = await classDirectory(
       context.tx,
       scopeFor(context, "classes"),
       {
-        yearId: year.id,
-        on: dayIn(year, context.today),
+        on,
+        classIds: view?.classIds ?? null,
+        ended: input.ended,
         q: input.q,
         gradeIds: input.grade,
         locale: localeOf(context),
       },
     );
     return {
-      year: yearView(year),
+      on,
       rows,
-      manage: can(context, "classes:manage") && year.lifecycle !== "closed",
+      manage: can(context, "classes:manage") && !view?.settled,
     };
   });
 
-/** The classes the viewer teaches or assists in a year. */
+/** The classes the viewer teaches or assists in, of those a module's view names if one does. */
 export const mine = readProcedure
-  .input(classYearSchema)
+  .input(classesMineSchema)
   .handler(async ({ input, context }) => {
-    const { year } = await yearOf(context, input.year);
-    if (!year) return { year: null, rows: [] };
+    const view = await classViewOf(context, input.views);
     const rows = await classesTaughtBy(context.tx, context, {
       userId: context.actor.userId,
-      yearId: year.id,
-      on: dayIn(year, context.today),
+      on: view?.on ?? context.today,
+      classIds: view?.classIds ?? null,
     });
     const groups = await classGroupsOf(
       context,
       rows.map((row) => row.id),
     );
     return {
-      year: yearView(year),
       rows: rows.map((row) => ({ ...row, group: groups.get(row.id) ?? null })),
     };
   });
@@ -173,9 +156,7 @@ export const record = readProcedure
   .handler(async ({ input, context }) => {
     const found = await classById(context.tx, context, input.id);
     if (!found) throw new ORPCError("NOT_FOUND");
-    const { year } = await yearOf(context, found.schoolYearId);
-    if (!year) throw new ORPCError("NOT_FOUND");
-    const on = input.on || dayIn(year, context.today);
+    const on = input.on || dayWithin(found.runs, context.today);
     const scope = scopeFor(context, "classes");
     if (!(await reachesClass(context, "classes", input.id, on)))
       throw new ORPCError("NOT_FOUND");
@@ -189,16 +170,17 @@ export const record = readProcedure
       on,
       !staffViewer,
     );
+    const changeable = !(await changeRefusal(context, detail.id));
     return {
       ...detail,
-      year: yearView(year),
       on,
+      today: context.today,
       roster,
       access: {
-        manage: can(context, "classes:manage") && year.lifecycle !== "closed",
+        manage: can(context, "classes:manage") && changeable,
         enrol:
           (can(context, "classes:manage") || can(context, "people:manage")) &&
-          year.lifecycle !== "closed",
+          changeable,
         staff: staffViewer,
         files: await mayKeepArea(context, { type: "class", id: input.id }),
       },
@@ -211,21 +193,29 @@ export const history = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:read", "people:manage", "classes:read");
     await requireStudent(context, "classes", input.studentId);
-    return enrollmentHistory(context.tx, context, input.studentId);
+    const episodes = await enrollmentHistory(
+      context.tx,
+      context,
+      input.studentId,
+    );
+    const locked = new Set<string>();
+    for (const classId of new Set(episodes.map((row) => row.classId)))
+      if (await changeRefusal(context, classId)) locked.add(classId);
+    return episodes.map((row) => ({
+      ...row,
+      changeable: !locked.has(row.classId),
+    }));
   });
 
 export const save = writeProcedure
   .input(saveClassSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "classes:manage");
-    const { year } = await yearOf(context, input.yearId);
-    if (!year) throw new ORPCError("NOT_FOUND");
-    await requireOpen(context, year);
     const before = input.id
       ? await classById(context.tx, context, input.id)
       : null;
-    if (input.id && before?.schoolYearId !== year.id)
-      throw new ORPCError("NOT_FOUND");
+    if (input.id && !before) throw new ORPCError("NOT_FOUND");
+    if (before) await requireChangeable(context, before.id);
     if (input.subjectId) {
       const subjects = await descriptorsFor(context.tx, {
         tenantId: context.tenantId,
@@ -238,6 +228,10 @@ export const save = writeProcedure
           message: "class.subject_invalid",
         });
     }
+    const runs = {
+      from: input.startsOn,
+      to: input.endsOn ? addDays(input.endsOn, 1) : null,
+    };
     const fields = {
       tenantId: context.tenantId,
       code: input.code,
@@ -248,24 +242,38 @@ export const save = writeProcedure
       locationId: input.locationId || null,
     };
     let classId: string;
-    if (input.id) {
+    if (before) {
       const saved = await updateClass(context.tx, {
         ...fields,
-        id: input.id,
+        id: before.id,
         expectedVersion: input.expectedVersion ?? 0,
       });
       if (!saved)
         throw new ORPCError("CONFLICT", { message: "conflict.version" });
-      classId = input.id;
-    } else
+      classId = before.id;
+      await saveClassParts(context, {
+        classIds: [classId],
+        runs,
+        parts: input.parts,
+        created: false,
+      });
+      await moveClass(context, classId, before.runs, runs);
+    } else {
       classId = (
         await insertClass(context.tx, {
           ...fields,
           orgId: context.schoolId,
-          schoolYearId: year.id,
+          runs,
           courseId: null,
         })
       ).id;
+      await saveClassParts(context, {
+        classIds: [classId],
+        runs,
+        parts: input.parts,
+        created: true,
+      });
+    }
     const positions = await descriptorsFor(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
@@ -274,11 +282,11 @@ export const save = writeProcedure
     });
     await setClassTeachers(context.tx, {
       tenantId: context.tenantId,
-      classRow: { id: classId, schoolYearId: year.id },
+      classId,
       orgId: context.schoolId,
       teacherIds: input.teacherIds,
-      from: dayIn(year, context.today),
-      endsBefore: year.endsBefore,
+      from: dayWithin(runs, context.today),
+      endsBefore: runs.to,
       positionId:
         positions.find((row) => row.meaning === "teacher_of_record")?.id ??
         null,
@@ -295,13 +303,14 @@ export const save = writeProcedure
         subjectId: input.subjectId || null,
         gradeId: input.gradeId || null,
         locationId: input.locationId || null,
+        runs,
       }),
     });
     const saved = await classById(context.tx, context, classId);
     return { id: classId, version: saved?.version ?? 1 };
   });
 
-/** Puts a student in a class from a date to the end of its year. */
+/** Puts a student in a class from a date to the class's end, or on with it. */
 export const enrol = writeProcedure
   .input(enrolStudentSchema)
   .handler(async ({ input, context }) => {
@@ -309,31 +318,31 @@ export const enrol = writeProcedure
     await requireStudent(context, "classes", input.studentId);
     const target = await classById(context.tx, context, input.classId);
     if (!target) throw new ORPCError("NOT_FOUND");
-    const { year } = await yearOf(context, target.schoolYearId);
-    if (!year) throw new ORPCError("NOT_FOUND");
-    await requireOpen(context, year);
-    const from = input.from || dayIn(year, context.today);
-    if (from < year.startsOn || from >= year.endsBefore)
+    await requireChangeable(context, target.id);
+    const from = input.from || dayWithin(target.runs, context.today);
+    if (!spanHolds(target.runs, { from, to: addDays(from, 1) }))
       throw new ORPCError("BAD_REQUEST", {
-        message: "enrollment.outside_year",
+        message: "enrollment.outside_class",
       });
     const enrollmentId = await enrolStudent(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
-      classRow: target,
+      classId: target.id,
       studentId: input.studentId,
       from,
-      endsBefore: year.endsBefore,
+      endsBefore: target.runs.to,
     });
-    await joinedClasses(context, new Map([[target.id, [input.studentId]]]));
-    if (target.gradeId)
-      await place(context.tx, scopeFor(context, "classes"), {
-        studentId: input.studentId,
-        year,
-        gradeId: target.gradeId,
-        calendarId: await calendarFor(context.tx, context.tenantId, year.id),
-        from,
-      });
+    await ensureStudentRole(
+      context.tx,
+      scopeFor(context, "classes"),
+      input.studentId,
+      from,
+    );
+    await joinedClasses(
+      context,
+      new Map([[target.id, [input.studentId]]]),
+      from,
+    );
     await audit(context, {
       action: "enrollment.create",
       objectType: "enrollment",
@@ -359,9 +368,7 @@ export const withdraw = writeProcedure
     );
     const episode = episodes.find((row) => row.id === input.enrollmentId);
     if (!episode) throw new ORPCError("NOT_FOUND");
-    const { year } = await yearOf(context, episode.schoolYearId);
-    if (!year) throw new ORPCError("NOT_FOUND");
-    await requireOpen(context, year);
+    await requireChangeable(context, episode.classId);
     const refusal = await endingRefusal(context, {
       id: episode.id,
       classId: episode.classId,
@@ -369,8 +376,8 @@ export const withdraw = writeProcedure
       source: episode.source,
     });
     if (refusal) throw new ORPCError("CONFLICT", { message: refusal });
-    const on = input.on || dayIn(year, context.today);
-    if (on < episode.from || on >= episode.to)
+    const on = input.on || dayWithin(episode, context.today);
+    if (on < episode.from || (episode.to !== null && on >= episode.to))
       throw new ORPCError("BAD_REQUEST", {
         message: "enrollment.outside_dates",
       });

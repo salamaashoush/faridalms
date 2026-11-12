@@ -1,35 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import { fullName, leaverAccessEnd, studentStatus } from "./people";
+import { fullName, roleStatus } from "./people";
 import { toE164 } from "./phone";
 
-const year = {
-  validFrom: "2026-09-13",
-  validTo: "2027-06-18",
-  exitMeaning: null,
-};
+describe("roleStatus", () => {
+  const role = { from: "2026-09-13", to: null };
 
-describe("studentStatus", () => {
-  it("reads a current placement as enrolled and none as unplaced", () => {
-    expect(studentStatus([year], "2026-10-01")).toBe("enrolled");
-    expect(studentStatus([], "2026-10-01")).toBe("unplaced");
+  it("reads a student role that holds today as enrolled", () => {
+    expect(roleStatus([role], "2026-10-01")).toBe("enrolled");
   });
 
-  it("reads only a future placement as pre-enrolled", () => {
-    expect(studentStatus([year], "2026-09-01")).toBe("pre_enrolled");
+  it("reads a role that begins later as pre-enrolled", () => {
+    expect(roleStatus([role], "2026-09-01")).toBe("pre_enrolled");
   });
 
-  it("reads the latest placement's exit as left or graduated", () => {
-    expect(
-      studentStatus([{ ...year, exitMeaning: "graduated" }], "2027-07-01"),
-    ).toBe("graduated");
-    expect(
-      studentStatus([{ ...year, exitMeaning: "withdrawn" }], "2027-07-01"),
-    ).toBe("left");
+  it("reads a role that has ended as left, whatever year it was", () => {
+    expect(roleStatus([{ ...role, to: "2026-10-12" }], "2026-10-12")).toBe(
+      "left",
+    );
   });
 
-  it("keeps a student whose year ended without an exit enrolled over the summer", () => {
-    expect(studentStatus([year], "2027-07-15")).toBe("enrolled");
+  it("has nothing to say of someone who never held one", () => {
+    expect(roleStatus([], "2026-10-01")).toBeNull();
   });
 });
 
@@ -56,35 +48,5 @@ describe("toE164", () => {
   it("refuses what cannot be a number", () => {
     expect(toE164("call me", "EG")).toBeNull();
     expect(toE164("12", "EG")).toBeNull();
-  });
-});
-
-describe("how long a leaver stays a student to the app", () => {
-  const leaving = {
-    years: [{ startsOn: "2026-09-13" }, { startsOn: "2027-09-12" }],
-    year: { endsBefore: "2027-06-18" },
-    left: "2026-10-11",
-  };
-
-  it("is to the day the next school year begins, summer included", () => {
-    expect(leaverAccessEnd({ ...leaving, access: "year_end" })).toBe(
-      "2027-09-12",
-    );
-  });
-
-  it("is to the end of their year where the school has set up no later one", () => {
-    expect(
-      leaverAccessEnd({
-        ...leaving,
-        years: [{ startsOn: "2026-09-13" }],
-        access: "year_end",
-      }),
-    ).toBe("2027-06-18");
-  });
-
-  it("is no longer than the last day when the office says so", () => {
-    expect(leaverAccessEnd({ ...leaving, access: "last_day" })).toBe(
-      "2026-10-11",
-    );
   });
 });

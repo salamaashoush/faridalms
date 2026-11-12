@@ -277,6 +277,7 @@ import {
 } from "../files/authorize";
 import { copyLesson, copyModule, planHost } from "../learning/module-copy";
 import { plannedElsewhere } from "../timetable/grids";
+import { daysOf } from "../years/years";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -323,7 +324,6 @@ async function authoringClasses(context: UnitContext) {
   if (!year) return { year: null, classes: [] };
   const taught = await classesTaughtBy(context.tx, context, {
     userId: context.actor.userId,
-    yearId: year.id,
     on: context.today,
   });
   const own = taught.map((row) => ({
@@ -338,8 +338,8 @@ async function authoringClasses(context: UnitContext) {
   const rows = await gridOwners(context.tx, {
     tenantId: context.tenantId,
     schoolId: context.schoolId,
-    yearId: year.id,
-    except: await plannedElsewhere(context, year.id),
+    during: daysOf(year),
+    except: await plannedElsewhere(context, daysOf(year)),
   });
   const mine = new Set(own.map((row) => row.id));
   return {

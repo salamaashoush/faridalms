@@ -30,9 +30,14 @@ export interface SlotQuery<D> {
   queryFn: () => Promise<D>;
 }
 
-/** What one module puts in the slots, shown only where it is on. */
+/**
+ * What one module puts in the slots, shown only where it is on, and where
+ * the modules it `needs` are on too: a filling of the slot of a module it
+ * does not require is the page's link between the two.
+ */
 export interface ModuleFillings {
   module: ModuleId;
+  needs?: readonly ModuleId[];
   fillings: readonly Filling[];
 }
 
@@ -43,7 +48,7 @@ export function filled<T>(
   to: Slot<T>,
 ): T[] {
   return extensions.flatMap((entry) =>
-    modules[entry.module]
+    modules[entry.module] && (entry.needs ?? []).every((need) => modules[need])
       ? entry.fillings
           .filter((filling) => filling.slot === to)
           .map((filling) => filling.value as T)

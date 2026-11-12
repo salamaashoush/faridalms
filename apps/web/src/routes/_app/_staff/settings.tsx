@@ -1,12 +1,10 @@
 import type { HeaderAction } from "@faridalms/ui/system/page-header";
 
 import { Skeleton } from "@faridalms/ui/skeleton";
-import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { RowLink } from "@faridalms/ui/system/data-table";
-import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
-import { Fact, Facts, RecordTabs } from "@faridalms/ui/system/record-page";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
 import {
   SettingsPage,
   SettingsSection,
@@ -28,6 +26,7 @@ import {
 import { AssistantSettings } from "~/components/admin/AssistantSettings";
 import { CommonsPictures } from "~/components/admin/CommonsPictures";
 import { SchoolProfileSection } from "~/components/admin/SchoolEditors";
+import { schoolSettingsSections } from "~/components/admin/slots";
 import {
   filterSubjects,
   SUBJECT_PAGE_SIZE,
@@ -39,9 +38,9 @@ import { AttendanceRules } from "~/components/attendance/AttendanceRules";
 import { UsageBar } from "~/components/files/UsageBar";
 import { GradingSettings } from "~/components/grading/GradingSettings";
 import { FeaturesCard } from "~/components/learning/FeaturesCard";
-import { lastDay } from "~/components/people/format";
 import { ReadingNorms } from "~/components/reading/ReadingNorms";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
 import { assistantSettingsQuery } from "~/queries/assistant";
@@ -55,9 +54,8 @@ import {
   schoolProfileQuery,
   schoolStorageQuery,
 } from "~/queries/school-settings";
-import { peopleOptionsQuery } from "~/queries/students";
 import { currentUserQuery } from "~/queries/user";
-import { formatDate } from "~/utils/datetime";
+import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
 
 const searchSchema = v.object({
@@ -110,7 +108,9 @@ export const Route = createFileRoute("/_app/_staff/settings")({
         queryClient.ensureQueryData(schoolProfileQuery),
         queryClient.ensureQueryData(schoolFeaturesQuery),
         queryClient.ensureQueryData(pictureSourcesQuery),
-        queryClient.ensureQueryData(peopleOptionsQuery),
+        ...filled(context.extensions, user.modules, schoolSettingsSections).map(
+          (section) => queryClient.ensureQueryData(section.query()),
+        ),
       ]);
     else if (deps.section === "subjects")
       await queryClient.ensureQueryData(subjectsQuery);
@@ -248,38 +248,13 @@ function SettingsRoute() {
 }
 
 function SchoolTab() {
-  const options = useSuspenseQuery(peopleOptionsQuery).data;
-  const year = options.years.find((row) => row.id === options.workingYearId);
+  const sections = useSlot(schoolSettingsSections);
   return (
     <SettingsPage>
       <SchoolProfileSection />
-      <SettingsSection
-        title={m.settingsWorkingYear()}
-        description={m.settingsWorkingYearHint()}
-        footer={
-          <ButtonLink
-            to="/academic-years"
-            variant="outline"
-            className="max-md:h-10"
-          >
-            {m.academicYearsManage()}
-          </ButtonLink>
-        }
-      >
-        {year ? (
-          <Facts short>
-            <Fact label={m.academicYearName()}>
-              {inLocale(year.titleEn, year.titleAr)}
-            </Fact>
-            <Fact label={m.adminStartsOn()}>{formatDate(year.startsOn)}</Fact>
-            <Fact label={m.adminEndsOn()}>
-              {formatDate(lastDay(year.endsBefore))}
-            </Fact>
-          </Facts>
-        ) : (
-          <EmptyState placement="section" title={m.settingsNoWorkingYear()} />
-        )}
-      </SettingsSection>
+      {sections.map((section) => (
+        <section.Section key={section.key} />
+      ))}
       <FeaturesCard />
       <CommonsPictures />
       <StorageSection />

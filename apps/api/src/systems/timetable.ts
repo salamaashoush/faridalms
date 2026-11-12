@@ -45,7 +45,7 @@ import {
   timetableOn,
   weekdayOfCycleDay,
 } from "@faridalms/domain/cycle";
-import { addDays } from "@faridalms/domain/school";
+import { addDays, dayWithin } from "@faridalms/domain/school";
 import {
   clashCheckSchema,
   classWeekSchema,
@@ -87,6 +87,7 @@ import {
   gridsOf,
   plannedElsewhere,
 } from "../timetable/grids";
+import { daysOf, linkedYear, withYear } from "../years/years";
 
 async function currentYear(context: UnitContext) {
   return workingYear(
@@ -399,7 +400,11 @@ async function gridClass(context: UnitContext, classId: string) {
     gridClassIds(context, row.id),
     gridLessonClassIds(context, row.id),
   ]);
-  return { owner: row, classIds: placed, lessonClassIds: shown };
+  return {
+    owner: await withYear(context, row),
+    classIds: placed,
+    lessonClassIds: shown,
+  };
 }
 
 /** Where the grids start: every class of the year that owns its grid. */
@@ -418,14 +423,14 @@ export const options = readProcedure.handler(async ({ context }) => {
     gridOwners(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
-      yearId: year.id,
-      except: await plannedElsewhere(context, year.id),
+      during: daysOf(year),
+      except: await plannedElsewhere(context, daysOf(year)),
     }),
     roomsOf(context.tx, context.tenantId, context.schoolId),
     yearTeachers(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
-      yearId: year.id,
+      during: daysOf(year),
     }),
   ]);
   return {
@@ -559,7 +564,7 @@ export const place = writeProcedure
       const teachers = await yearTeachers(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
-        yearId: year.id,
+        during: daysOf(year),
       });
       if (!teachers.some((row) => row.userId === input.teacherId))
         throw new ORPCError("BAD_REQUEST", { message: "timetable.teacher" });
@@ -815,14 +820,16 @@ export const classWeek = readProcedure
     requireCapability(context, "timetable:read");
     const row = await classById(context.tx, context, input.classId);
     if (!row) throw new ORPCError("NOT_FOUND");
-    const year = await yearById(context, row.schoolYearId);
-    if (!year) throw new ORPCError("NOT_FOUND");
-    const on = dayIn(year, input.on || context.today);
+    const year = await linkedYear(context, row.id);
+    const on = year
+      ? dayIn(year, input.on || context.today)
+      : dayWithin(row.runs, input.on || context.today);
     if (
       !(await teaches(context, "timetable", row.id)) &&
       !(await reachesClass(context, "timetable", row.id, on))
     )
       throw new ORPCError("NOT_FOUND");
+    if (!year) return { week: null, canPlan: false, gridClassId: null };
     const shape = await frame(context, year, on);
     const meetings = await meetingsOn(context.tx, {
       tenantId: context.tenantId,

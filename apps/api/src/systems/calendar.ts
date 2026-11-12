@@ -27,7 +27,6 @@ import {
 } from "@faridalms/database/stores/events";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import { translationReview } from "@faridalms/database/stores/translations";
-import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import {
   cancelEventSchema,
   eventRefSchema,
@@ -326,14 +325,8 @@ export const range = readProcedure
 export const options = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "calendar:manage", "calendar:author");
   if (manages(context)) return audienceChoices(context);
-  const year = workingYear(
-    await schoolYears(context.tx, context.tenantId, context.schoolId),
-    context.today,
-  );
-  if (!year) return { classes: [], grades: [] };
   const taught = await classesTaughtBy(context.tx, context, {
     userId: context.actor.userId,
-    yearId: year.id,
     on: context.today,
   });
   return {

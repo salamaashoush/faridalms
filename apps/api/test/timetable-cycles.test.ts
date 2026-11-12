@@ -20,7 +20,9 @@ async function homeroom(api: Api, title = "8A") {
 }
 
 async function weekOf(api: Api, classId: string, on: string) {
-  return (await api.timetable.classWeek({ classId, on })).week;
+  const { week } = await api.timetable.classWeek({ classId, on });
+  if (!week) throw new Error("the class is in no school year");
+  return week;
 }
 
 const lessonsOn = (
@@ -201,7 +203,7 @@ describe("timetables from a date", () => {
       noteAr: "",
       provisional: false,
     };
-    await api.years.paint({ ...holiday, kind: "school_holiday" });
+    await api.schoolDays.paint({ ...holiday, kind: "school_holiday" });
     try {
       const kept = await weekOf(api, classId, WEEK_A);
       expect(kept.dates.map((row) => row.cycleDay)).toEqual([1, 2, null, 4, 5]);
@@ -224,7 +226,7 @@ describe("timetables from a date", () => {
         4,
       ]);
     } finally {
-      await api.years.paint({ ...holiday, kind: "normal" });
+      await api.schoolDays.paint({ ...holiday, kind: "normal" });
       const { timetables } = await api.timetable.timetables({ yearId });
       const saved = timetables.find((row) => row.id === id);
       if (saved)
@@ -237,7 +239,7 @@ describe("the times a day keeps", () => {
   test("a period keeps other times on a weekday, and a bell schedule sets a day's", async () => {
     const api = await principal();
     const { classId, yearId } = await homeroom(api);
-    const day = await api.years.periods({ id: yearId, on: WEEK_A });
+    const day = await api.periods.periods({ id: yearId, on: WEEK_A });
     const lessons = day.periods.filter((row) => row.kind === "lesson");
     const first = lessons[0];
     const second = lessons[1];
@@ -248,7 +250,7 @@ describe("the times a day keeps", () => {
       endTime: first.endTime,
     };
     const save = (dayTimes: (typeof wednesday)[], current = day) =>
-      api.years.savePeriods({
+      api.periods.savePeriods({
         yearId,
         from: WEEK_A,
         known: current.periods.map((row) => ({
@@ -278,13 +280,13 @@ describe("the times a day keeps", () => {
     });
     expect(week.periods[0]?.startTime).toBe(first.startTime);
 
-    const schedule = await api.years.saveSchedule({
+    const schedule = await api.periods.saveSchedule({
       yearId,
       nameEn: "Exam day",
       nameAr: "يوم امتحان",
       times: [{ code: second.code, startTime: "10:00", endTime: "11:30" }],
     });
-    const run = await api.years.scheduleRange({
+    const run = await api.schoolDays.scheduleRange({
       yearId,
       from: "2027-05-24",
       to: "2027-05-24",
@@ -305,19 +307,22 @@ describe("the times a day keeps", () => {
       expect(cover.cover?.periods.map((row) => row.id)).toEqual(
         monday?.periods.map((row) => row.id),
       );
-      const days = await api.years.days({ id: yearId });
+      const days = await api.schoolDays.days({ id: yearId });
       expect(
         days.days.find((row) => row.day === "2027-05-24")?.scheduleId,
       ).toBe(schedule.id);
     } finally {
-      const { schedules } = await api.years.periods({ id: yearId, on: WEEK_A });
+      const { schedules } = await api.periods.periods({
+        id: yearId,
+        on: WEEK_A,
+      });
       const saved = schedules.find((row) => row.id === schedule.id);
       if (saved)
-        await api.years.removeSchedule({
+        await api.periods.removeSchedule({
           id: saved.id,
           version: saved.version,
         });
-      await save([], await api.years.periods({ id: yearId, on: WEEK_A }));
+      await save([], await api.periods.periods({ id: yearId, on: WEEK_A }));
     }
     const back = await weekOf(api, classId, WEEK_A);
     const monday = back.dates.find((row) => row.date === "2027-05-24");
@@ -339,18 +344,20 @@ describe("a date run as another day", () => {
     expect(slots(before, TUESDAY)).not.toEqual(slots(before, WEEK_A));
 
     expect(
-      await rejection(api.years.runDay({ yearId, day: TUESDAY, runsAs: 6 })),
+      await rejection(
+        api.schoolDays.runDay({ yearId, day: TUESDAY, runsAs: 6 }),
+      ),
     ).toMatchObject({ code: "BAD_REQUEST", message: "calendar.runs_as_day" });
     expect(
       await rejection(
-        api.years.runDay({ yearId, day: "2027-05-28", runsAs: SUNDAY }),
+        api.schoolDays.runDay({ yearId, day: "2027-05-28", runsAs: SUNDAY }),
       ),
     ).toMatchObject({
       code: "BAD_REQUEST",
       message: "calendar.runs_as_closed",
     });
 
-    await api.years.runDay({ yearId, day: TUESDAY, runsAs: SUNDAY });
+    await api.schoolDays.runDay({ yearId, day: TUESDAY, runsAs: SUNDAY });
     try {
       const week = await weekOf(api, classId, WEEK_A);
       const tuesday = week.dates.find((row) => row.date === TUESDAY);
@@ -359,10 +366,10 @@ describe("a date run as another day", () => {
       expect(week.dates.map((row) => row.cycleDay)).toEqual([7, 1, 7, 3, 4]);
       expect(slots(week, TUESDAY)).toEqual(slots(before, WEEK_A));
       expect(slots(week, "2027-05-26")).toEqual(slots(before, "2027-05-26"));
-      const days = await api.years.days({ id: yearId });
+      const days = await api.schoolDays.days({ id: yearId });
       expect(days.days.find((row) => row.day === TUESDAY)?.runsAs).toBe(SUNDAY);
     } finally {
-      await api.years.runDay({ yearId, day: TUESDAY, runsAs: null });
+      await api.schoolDays.runDay({ yearId, day: TUESDAY, runsAs: null });
     }
     const back = await weekOf(api, classId, WEEK_A);
     expect(back.dates.find((row) => row.date === TUESDAY)?.runsAs).toBeNull();
@@ -386,7 +393,7 @@ describe("a date run as another day", () => {
     const { id } = await api.timetable.saveTimetable(cycle);
     const MONDAY = "2027-05-24";
     try {
-      await api.years.runDay({ yearId, day: MONDAY, runsAs: 5 });
+      await api.schoolDays.runDay({ yearId, day: MONDAY, runsAs: 5 });
       const kept = await weekOf(api, classId, WEEK_A);
       expect(kept.dates.map((row) => row.cycleDay)).toEqual([1, 5, 3, 4, 5]);
       const { timetables } = await api.timetable.timetables({ yearId });
@@ -403,7 +410,7 @@ describe("a date run as another day", () => {
       const next = await weekOf(api, classId, WEEK_B);
       expect(next.dates[0]?.cycleDay).toBe(3);
     } finally {
-      await api.years.runDay({ yearId, day: MONDAY, runsAs: null });
+      await api.schoolDays.runDay({ yearId, day: MONDAY, runsAs: null });
       const { timetables } = await api.timetable.timetables({ yearId });
       const saved = timetables.find((row) => row.id === id);
       if (saved)
@@ -417,7 +424,7 @@ describe("a bell schedule's own periods", () => {
     const api = await principal();
     const { classId, yearId } = await homeroom(api);
     const MONDAY = "2027-05-24";
-    const day = await api.years.periods({ id: yearId, on: WEEK_A });
+    const day = await api.periods.periods({ id: yearId, on: WEEK_A });
     const times = day.periods.map((row) => ({
       code: row.code,
       startTime: row.startTime,
@@ -442,7 +449,7 @@ describe("a bell schedule's own periods", () => {
     const taken = day.periods[0]?.code ?? "";
     expect(
       await rejection(
-        api.years.saveSchedule({
+        api.periods.saveSchedule({
           yearId,
           nameEn: "Assembly day",
           nameAr: "يوم الطابور",
@@ -452,7 +459,7 @@ describe("a bell schedule's own periods", () => {
       ),
     ).toMatchObject({ code: "CONFLICT", message: "bell_schedule.code_taken" });
 
-    const schedule = await api.years.saveSchedule({
+    const schedule = await api.periods.saveSchedule({
       yearId,
       nameEn: "Assembly day",
       nameAr: "يوم الطابور",
@@ -460,13 +467,13 @@ describe("a bell schedule's own periods", () => {
       extras: [assembly, exam],
     });
     try {
-      await api.years.scheduleRange({
+      await api.schoolDays.scheduleRange({
         yearId,
         from: MONDAY,
         to: MONDAY,
         scheduleId: schedule.id,
       });
-      const read = await api.years.periods({ id: yearId, on: WEEK_A });
+      const read = await api.periods.periods({ id: yearId, on: WEEK_A });
       const saved = read.schedules.find((row) => row.id === schedule.id);
       expect(saved?.extras.map((row) => row.code)).toEqual(["asm", "exam"]);
       expect(read.periods.map((row) => row.code)).not.toContain("asm");
@@ -559,7 +566,7 @@ describe("a bell schedule's own periods", () => {
       ).toBe(true);
 
       const without = await rejection(
-        api.years.saveSchedule({
+        api.periods.saveSchedule({
           yearId,
           id: schedule.id,
           version: saved?.version ?? 1,
@@ -581,10 +588,13 @@ describe("a bell schedule's own periods", () => {
       const cleared = await weekOf(api, classId, WEEK_A);
       expect(lessonsOn(cleared, MONDAY, examId)).toHaveLength(0);
     } finally {
-      const { schedules } = await api.years.periods({ id: yearId, on: WEEK_A });
+      const { schedules } = await api.periods.periods({
+        id: yearId,
+        on: WEEK_A,
+      });
       const saved = schedules.find((row) => row.id === schedule.id);
       if (saved)
-        await api.years.removeSchedule({
+        await api.periods.removeSchedule({
           id: saved.id,
           version: saved.version,
         });

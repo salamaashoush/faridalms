@@ -1,4 +1,7 @@
-import type { StudentDirectoryQuery } from "@faridalms/domain/people";
+import type {
+  StudentDirectoryQuery,
+  StudentStatus,
+} from "@faridalms/domain/people";
 import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 import type {
   Facet,
@@ -7,7 +10,10 @@ import type {
 import type { HeaderAction } from "@faridalms/ui/system/page-header";
 
 import { PAGE_SIZES } from "@faridalms/domain/paging";
-import { studentDirectorySchema } from "@faridalms/domain/people";
+import {
+  STUDENT_STATUSES,
+  studentDirectorySchema,
+} from "@faridalms/domain/people";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { isFiltered } from "@faridalms/ui/system/index-toolbar";
@@ -15,7 +21,7 @@ import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { StatusText } from "@faridalms/ui/system/status";
 import { Value } from "@faridalms/ui/system/value";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import {
   ArrowRightLeft,
@@ -35,7 +41,7 @@ import * as v from "valibot";
 import type { GroupWords } from "~/components/classes/slots";
 
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
-import { groupWords } from "~/components/classes/slots";
+import { groupWords, viewsOf } from "~/components/classes/slots";
 import { NewMessage } from "~/components/messages/NewMessage";
 import { CreateSignIns } from "~/components/people/CreateSignIns";
 import {
@@ -47,34 +53,51 @@ import {
   STATUS_TONE,
 } from "~/components/people/format";
 import { LeaveSchool } from "~/components/people/LeaveSchool";
-import { studentClassesParts } from "~/components/people/slots";
-import { NoSchoolYear } from "~/components/years/NoSchoolYear";
+import { studentClassesParts, studentFilters } from "~/components/people/slots";
 import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
 import { peopleOptionsQuery, studentsQuery } from "~/queries/students";
 import { currentUserQuery } from "~/queries/user";
 import { downloadCsv } from "~/utils/csv";
+import { filled } from "~/utils/extension";
 import { requirePage } from "~/utils/page-access";
 
 type Sort = StudentDirectoryQuery["sort"];
+
+/** Where a student stands by their role, whatever modules the school has. */
+const CORE_STATUSES: readonly StudentStatus[] = [
+  "enrolled",
+  "pre_enrolled",
+  "left",
+];
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof studentsQuery>["queryFn"]>>
 >;
 type StudentRow = Data["rows"][number];
 
+// Loose, so a module's view rides in the address under its own key.
+const searchSchema = v.looseObject(studentDirectorySchema.entries);
+type Search = StudentDirectoryQuery & Record<string, unknown>;
+
 const DEFAULT_SEARCH = v.parse(studentDirectorySchema, {});
 
 export const Route = createFileRoute("/_app/_staff/students")({
-  validateSearch: studentDirectorySchema,
+  validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "people:read", "people:manage");
+    const filters = filled(context.extensions, user.modules, studentFilters);
     await Promise.all([
-      context.queryClient.ensureQueryData(studentsQuery(deps)),
+      context.queryClient.ensureQueryData(
+        studentsQuery(deps, viewsOf(filters, deps)),
+      ),
       context.queryClient.ensureQueryData(peopleOptionsQuery),
+      ...filters.map((filter) =>
+        context.queryClient.ensureQueryData(filter.query()),
+      ),
     ]);
   },
   component: StudentsPage,
@@ -129,6 +152,7 @@ function Status({ row }: StatusProps) {
 // array would fix at whichever language first loaded the module on the server.
 function studentColumns(
   words: GroupWords | undefined,
+  grades: boolean,
 ): Column<StudentRow, Sort>[] {
   return [
     {
@@ -159,14 +183,18 @@ function studentColumns(
       sort: "reference",
       cell: (row) => <Reference value={row.reference} />,
     },
-    {
-      id: "grade",
-      header: m.studentGrade(),
-      sort: "grade",
-      cell: (row) => (
-        <Value notApplicable={!row.grade}>{labelOf(row.grade)}</Value>
-      ),
-    },
+    ...(grades
+      ? [
+          {
+            id: "grade",
+            header: m.studentGrade(),
+            sort: "grade" as const,
+            cell: (row: StudentRow) => (
+              <Value notApplicable={!row.grade}>{labelOf(row.grade)}</Value>
+            ),
+          },
+        ]
+      : []),
     ...(words
       ? [
           {
@@ -276,38 +304,39 @@ function StudentsPage() {
   const [opening, setOpening] = useState<
     { id: string; name: string; className: string | null }[] | null
   >(null);
-  const data = useSuspenseQuery(studentsQuery(search)).data;
+  const filters = useSlot(studentFilters);
+  const views = viewsOf(filters, search);
+  const data = useSuspenseQuery(studentsQuery(search, views)).data;
   const options = useSuspenseQuery(peopleOptionsQuery).data;
-  // The year the list shows, where it still takes moves and this viewer makes them.
-  const listed = options.years.find((year) => year.id === data.year?.id);
-  const bounds =
-    canManage && listed && listed.lifecycle !== "closed" ? listed : null;
-  const patch = (change: Partial<StudentDirectoryQuery>) => {
+  const reads = useSuspenseQueries({
+    queries: filters.map((filter) => filter.query()),
+  });
+  const patch = (change: Partial<Search>) => {
     void navigate({ search: (previous) => ({ ...previous, ...change }) });
   };
-  if (!data.year)
-    return (
-      <Page width="list">
-        <PageHeader title={m.adminStudentsTitle()} />
-        <NoSchoolYear shows={m.noYearShowsStudents()} />
-      </Page>
+  const moduleFacets = filters.flatMap((filter, index) => {
+    const value = search[filter.key];
+    const facet = filter.facetOf(
+      reads[index]?.data,
+      typeof value === "string" && value ? value : undefined,
+      (next) => patch({ [filter.key]: next, page: 1 }),
     );
-  const yearFacet: Facet = {
-    id: "year",
-    label: m.workingYear(),
-    single: true,
-    options: options.years.map((year) => ({
-      value: year.id,
-      label: inLocale(year.titleEn, year.titleAr),
-      hint:
-        year.id === options.workingYearId
-          ? m.workingYearDefaultHint()
-          : undefined,
-    })),
-    selected: [data.year.id],
-    defaultSelected: options.workingYearId ? [options.workingYearId] : [],
-    onChange: ([year = ""]) =>
-      patch({ year: year === options.workingYearId ? "" : year, page: 1 }),
+    return facet ? [facet] : [];
+  });
+  const grades = filters.some((filter) => filter.givesGrades);
+  const statusFacet: Facet = {
+    id: "status",
+    label: m.studentStatus(),
+    options: [
+      ...CORE_STATUSES,
+      ...filters.flatMap((filter) => filter.statuses),
+    ].map((status) => ({ value: status, label: STATUS_LABEL[status]() })),
+    selected: search.status,
+    onChange: (status) =>
+      patch({
+        status: STUDENT_STATUSES.filter((value) => status.includes(value)),
+        page: 1,
+      }),
   };
   const gradeFacet: Facet = {
     id: "grade",
@@ -374,8 +403,21 @@ function StudentsPage() {
       label: m.studentsSearchHint(),
       placeholder: m.studentsSearchPlaceholder(),
     },
-    facets: [yearFacet, gradeFacet, attentionFacet],
-    onReset: () => patch({ q: "", year: "", grade: [], missing: [], page: 1 }),
+    facets: [
+      ...moduleFacets,
+      ...(grades ? [gradeFacet] : []),
+      statusFacet,
+      attentionFacet,
+    ],
+    onReset: () =>
+      patch({
+        q: "",
+        grade: [],
+        status: [],
+        missing: [],
+        page: 1,
+        ...Object.fromEntries(filters.map((filter) => [filter.key, undefined])),
+      }),
   };
   const firstRun = data.total === 0 && !isFiltered(toolbar);
   return (
@@ -388,7 +430,7 @@ function StudentsPage() {
       <DataTable
         caption={m.adminStudentsCaption()}
         rows={data.rows}
-        columns={studentColumns(words)}
+        columns={studentColumns(words, grades)}
         rowLabel={(row) => displayName(row)}
         toolbar={toolbar}
         sort={{
@@ -398,7 +440,7 @@ function StudentsPage() {
         }}
         rowActions={rowActions}
         batchActions={[
-          ...(bounds && mover
+          ...(canManage && mover
             ? [
                 {
                   label: mover.label(),
@@ -428,7 +470,7 @@ function StudentsPage() {
                 },
               ]
             : []),
-          ...(bounds
+          ...(canManage
             ? [
                 {
                   label: m.studentLeave(),
@@ -491,18 +533,16 @@ function StudentsPage() {
           ) : undefined,
         }}
       />
-      {moving && bounds && mover ? (
+      {moving && mover ? (
         <mover.Many
           students={moving}
-          year={bounds}
           today={data.today}
           onClose={() => setMoving(null)}
         />
       ) : null}
-      {leaving && bounds ? (
+      {leaving ? (
         <LeaveSchool
           students={leaving}
-          year={bounds}
           today={data.today}
           onClose={() => setLeaving(null)}
         />

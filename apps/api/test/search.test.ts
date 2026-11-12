@@ -1,6 +1,7 @@
 import type { SearchResult } from "@faridalms/domain/search";
 
 import { plainContent } from "@faridalms/domain/content-conversion";
+import { addDays } from "@faridalms/domain/school";
 import { describe, expect, test } from "bun:test";
 
 import { login, rejection, sessionFor, signedIn } from "./harness";
@@ -14,6 +15,8 @@ const ids = (result: SearchResult, kind: string) =>
   result.groups
     .filter((group) => group.kind === kind)
     .flatMap((group) => group.rows.map((row) => row.id));
+
+const lastOf = (year: { endsBefore: string }) => addDays(year.endsBefore, -1);
 
 describe("search", () => {
   test("staff find a student by either script, with their grade", async () => {
@@ -101,7 +104,7 @@ describe("search", () => {
     expect(ids(theirs, "assignments")).toHaveLength(0);
   });
 
-  test("classes of the same name in several years carry their year, this year's first", async () => {
+  test("classes of the same name at different times carry their dates, the one running today first", async () => {
     // The group's second school, so the classes made here change no count
     // another suite reads.
     const office = await signedIn("northwind-east", login("principal", 0, 1));
@@ -112,16 +115,19 @@ describe("search", () => {
       endsOn: "2046-06-14",
       terms: [],
     });
-    const { years, workingYearId, grades } = await office.classes.options();
+    const { years, workingYearId } = await office.years.options();
+    const { grades } = await office.classes.options();
     const working = years.find((row) => row.id === workingYearId);
     const next = years.find((row) => row.id === added.id);
     const [grade] = grades;
     if (!working || !next || !grade) throw new Error("the seed has no year");
     const name = "Salama Ashoush tutor group";
-    const save = async (yearId: string) =>
+    const save = async (year: typeof working) =>
       (
         await office.classes.save({
-          yearId,
+          startsOn: year.startsOn,
+          endsOn: lastOf(year),
+          parts: { year: { yearId: year.id } },
           code: "SAT",
           titleEn: name,
           titleAr: "",
@@ -129,16 +135,16 @@ describe("search", () => {
           teacherIds: [],
         })
       ).id;
-    // The later year's class is made last, so its id alone would rank it first.
-    const currentClass = await save(working.id);
-    const laterClass = await save(next.id);
+    // The later class is made last, so its id alone would rank it first.
+    const currentClass = await save(working);
+    const laterClass = await save(next);
 
     const found = await office.search.find({ q: name, kind: "classes" });
     const rows = found.groups[0]?.rows ?? [];
     expect(rows.map((row) => row.id)).toEqual([currentClass, laterClass]);
     expect(rows.map((row) => row.context)).toEqual([
-      `SAT · ${working.titleEn}`,
-      `SAT · ${next.titleEn}`,
+      `SAT · ${working.startsOn} – ${lastOf(working)}`,
+      `SAT · ${next.startsOn} – ${lastOf(next)}`,
     ]);
     const preview = await office.search.find({ q: name });
     expect(ids(preview, "classes")[0]).toBe(currentClass);

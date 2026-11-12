@@ -55,17 +55,19 @@ function PeopleSheet({ fileId, channel, open, onClose }: PeopleSheetProps) {
   const needle = search.trim();
   const hits =
     useQuery({
-      ...studentsQuery({
-        year: "",
-        q: needle,
-        grade: [],
-        status: [],
-        missing: [],
-        sort: "name",
-        dir: "asc",
-        page: 1,
-        pageSize: 25,
-      }),
+      ...studentsQuery(
+        {
+          q: needle,
+          grade: [],
+          status: [],
+          missing: [],
+          sort: "name",
+          dir: "asc",
+          page: 1,
+          pageSize: 25,
+        },
+        {},
+      ),
       enabled: needle.length >= 2,
     }).data?.rows ?? [];
   const tagged = picture?.people ?? [];

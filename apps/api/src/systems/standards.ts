@@ -51,6 +51,7 @@ import {
   DEVELOPMENT_MATTERS_ARABIC,
 } from "@faridalms/domain/development-matters";
 import { EYFS_GOALS, EYFS_GOALS_ARABIC } from "@faridalms/domain/early-goals";
+import { dayWithin } from "@faridalms/domain/school";
 import {
   awaitsConfirming,
   classGoalsSchema,
@@ -90,6 +91,7 @@ import {
   requireTaught,
   teaches,
 } from "../core/reach";
+import { linkedYear } from "../years/years";
 
 /** Whoever writes lessons or assignments reads the school's standards to tag them. */
 function requireReader(context: UnitContext) {
@@ -548,24 +550,18 @@ async function described(context: UnitContext, rows: EvidenceRows) {
   );
 }
 
-/** A class the viewer teaches, its year, and its students on the day. */
+/** A class the viewer teaches, its year if it has one, and its students on the day. */
 async function taughtClass(context: UnitContext, classId: string) {
   requireCapability(context, "submissions:grade");
   const classRow = await classById(context.tx, context, classId);
   if (!classRow || !(await teaches(context, "teaching", classId)))
     throw new ORPCError("NOT_FOUND");
-  const years = await schoolYears(
-    context.tx,
-    context.tenantId,
-    context.schoolId,
-  );
-  const year = years.find((row) => row.id === classRow.schoolYearId);
-  if (!year) throw new ORPCError("NOT_FOUND");
+  const year = await linkedYear(context, classRow.id);
   const roster = await rosterOf(
     context.tx,
     context.tenantId,
     classId,
-    dayIn(year, context.today),
+    year ? dayIn(year, context.today) : dayWithin(classRow.runs, context.today),
   );
   return { year, roster };
 }
@@ -838,7 +834,7 @@ export const classGoals = readProcedure
       ),
       /** How many of the class's families see the report, and when it was last shared. */
       report: { shared: shared.length, sharedAt: shared.at(-1) ?? null },
-      canJudge: year.lifecycle !== "closed",
+      canJudge: year?.lifecycle !== "closed",
       canAddGoals: can(context, "standards:manage"),
     };
   });
@@ -955,7 +951,7 @@ export const judgeGoal = writeProcedure
   .input(judgeGoalSchema)
   .handler(async ({ input, context }) => {
     const { year, roster } = await taughtClass(context, input.classId);
-    if (year.lifecycle === "closed")
+    if (year?.lifecycle === "closed")
       throw new ORPCError("CONFLICT", { message: "school_year.closed" });
     if (!roster.includes(input.studentId)) throw new ORPCError("NOT_FOUND");
     await ownStandard(context, input.standardId);

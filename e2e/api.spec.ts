@@ -112,7 +112,7 @@ test("administrative writes reject family accounts and cross-school references",
       northwind.people.saveStudent({
         names: names("Salama", "Ashoush"),
         reference,
-        gradeId: foreignGrade.id,
+        parts: { year: { gradeId: foreignGrade.id } },
       }),
     ),
   ).toMatchObject({ code: "BAD_REQUEST" });

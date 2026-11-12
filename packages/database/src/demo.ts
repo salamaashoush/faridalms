@@ -305,7 +305,7 @@ async function taughtClasses(
       and t.role = 'teacher' and t.is_primary
     join core.enrollments ht on ht.tenant_id = h.tenant_id and ht.class_id = h.id
       and ht.role = 'teacher' and ht.is_primary
-    where k.tenant_id = ${school.tenantId}::uuid and c.school_year_id = ${school.yearId}::uuid
+    where k.tenant_id = ${school.tenantId}::uuid and c.id in (select y.class_id from core.class_years y where y.tenant_id = c.tenant_id and y.school_year_id = ${school.yearId}::uuid and y.status = 'active')
       and k.status = 'active'
     order by h.code, c.code`);
   return rows.map((row) => ({
@@ -391,7 +391,8 @@ async function lessonsTaken(tx: Tx, school: FilledSchool, today: string) {
   const rosters = new Map<string, string[]>();
   for (const row of await tx.execute<{ class_id: string; student: string }>(sql`
     select class_id, user_id as student from core.enrollments
-    where tenant_id = ${school.tenantId}::uuid and school_year_id = ${school.yearId}::uuid
+    where tenant_id = ${school.tenantId}::uuid and class_id in (select y.class_id from core.class_years y
+        where y.tenant_id = ${school.tenantId}::uuid and y.school_year_id = ${school.yearId}::uuid and y.status = 'active')
       and role = 'student' and status = 'active' and valid_during @> ${today}::date`))
     rosters.set(row.class_id, [
       ...(rosters.get(row.class_id) ?? []),

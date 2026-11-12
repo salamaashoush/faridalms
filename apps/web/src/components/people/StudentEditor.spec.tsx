@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
-  createRootRoute,
+  createRootRouteWithContext,
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
@@ -10,6 +10,8 @@ import userEvent from "@testing-library/user-event";
 import { Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { ModuleFillings } from "~/utils/extension";
+
 import {
   getPeopleOptions,
   getStudentMatches,
@@ -17,7 +19,39 @@ import {
 } from "~/server/students";
 import { render } from "~/testUtils";
 
+import { SCHOOL_YEARS } from "../years/contributions";
 import { StudentEditor } from "./StudentEditor";
+
+// The grade a new student is placed in is the school years' part of the form.
+vi.mock("~/server/auth", () => ({
+  getCurrentUser: vi.fn(() =>
+    Promise.resolve({
+      nameEn: "Salama Ashoush",
+      nameAr: null,
+      preferredName: null,
+      loginName: null,
+      photoFileId: null,
+      capabilities: [],
+      modules: { school_years: true },
+      school: { nameEn: "Acme School", nameAr: null },
+    }),
+  ),
+}));
+
+vi.mock("~/server/years", () => ({
+  getYearOptions: vi.fn(() =>
+    Promise.resolve({
+      years: [],
+      workingYearId: null,
+      entryTypes: [],
+      exitTypes: [],
+      today: "2026-09-27",
+    }),
+  ),
+  getPlacements: vi.fn(),
+  getClassYear: vi.fn(),
+  getYearEnd: vi.fn(),
+}));
 
 vi.mock("~/server/students", () => ({
   getPeopleOptions: vi.fn(),
@@ -71,10 +105,7 @@ const OPTIONS = {
   sexes: [],
   positions: [],
   religions: [],
-  entryTypes: [],
-  exitTypes: [],
-  years: [],
-  workingYearId: null,
+  today: "2026-09-27",
 };
 
 const MATCH = {
@@ -90,7 +121,10 @@ function renderEditor(onClose: () => void) {
     defaultOptions: { queries: { retry: false } },
   });
   const router = createRouter({
-    routeTree: createRootRoute({
+    context: { extensions: [SCHOOL_YEARS] },
+    routeTree: createRootRouteWithContext<{
+      extensions: readonly ModuleFillings[];
+    }>()({
       component: () => (
         <QueryClientProvider client={queryClient}>
           <Suspense fallback={null}>
@@ -225,7 +259,7 @@ describe("adding a student", () => {
       data: {
         names: { en: { given: "Salama", family: "Ashoush" } },
         reference: "TEST-0001",
-        gradeId: GRADE,
+        parts: { year: { gradeId: GRADE } },
         guardians: [],
       },
     });
