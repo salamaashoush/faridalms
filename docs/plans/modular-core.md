@@ -81,7 +81,9 @@ courses from a start date, for adults, with no year, cannot be represented.
 - **`families`**: guardians and relationships, custody restrictions, the
   family workspace, what a guardian may see, sign and be told. Requires
   nothing. A learner without the module, or without a guardian, acts for
-  themself.
+  themself. Most of what ties core to families is a person acting as a
+  guardian, which no key shows, so this module's work is found by reading
+  the code, not by the gate.
 
 ## Modules that change
 
@@ -98,8 +100,20 @@ courses from a start date, for adults, with no year, cannot be represented.
 - **`admissions`**: an intake has dates; its year and grade are links
   needing `school_years` and `grade_levels`. A guardian applicant needs
   `families`; an adult applies for themself.
-- **`student_records`, `standards`, `badges`, `website`**: every year,
-  grade and guardian reference follows the same rule.
+- **`coursework`** owns grading: a class's programme and grade scale are a
+  link table of its own, not columns of the class. An assignment's place in
+  a learning module is a link table of `elearning` needing `coursework`.
+- **`standards`** requires coursework or e-learning, so it is certain of
+  neither: evidence and goal judgements keep the standard and the student,
+  and where each came from is a link table per source, one needing
+  `coursework` (the submission) and one needing `elearning` (the lesson).
+- **`website`**: the category an announcement is published under on the
+  site is a link table of the website's, not a column of the announcement.
+- **`sso`**: the provider a sign-in identity came from is a link table of
+  `sso`, not a column of the identity.
+- **`student_records`, `badges`**: every year, grade and guardian reference
+  follows the same rule. A requested change to a health record names the
+  person who asked; that they are a guardian is a link needing `families`.
 - **`peer_review`, `sso`, `sms`** become real gates in the API and the web,
   and the editor's insert entries are offered by module as well as by the
   kind of document.
@@ -116,9 +130,11 @@ a guardian or a period belongs to that module and is absent without it.
 
 ## What keeps it true
 
-- **An ownership gate** in `db:verify`: every table declares its owner; the
-  catalogue is read and a foreign key from a table to one whose owner it may
-  not reach fails the build. While the work is in progress the gate carries a
+- **An ownership gate** in `db:verify`: every table, every descriptor
+  namespace and every column named for a module's concept (a year, a
+  homeroom, a period) declares its owner; the catalogue is read and a key,
+  a namespace column or a concept column in a table that may not reach its
+  owner fails the build. While the work is in progress the gate carries a
   list of the violations still to remove, which only shrinks; the last
   change deletes the list.
 - **A school on core and the teaching modules alone** in the seed, beside
@@ -152,11 +168,13 @@ Each step leaves `bun run ready` green.
 5. Periods and bell schedules into the timetable; school days into core;
    registers by class and date.
 6. Coursework, e-learning and gradebook off the year; term grades needing
-   `school_years`.
+   `school_years`; grading off the class; the assignment's module link; the
+   standards source links.
 7. Grade levels; admissions links.
 8. Families.
 9. Surfaces: setup guide, Today, sidebar, settings, search, wording; the
-   gate leaks; the web and editor gates.
+   gate leaks; the web and editor gates; the website category and sign-in
+   provider links.
 10. The core-only school in the seed and its browser spec.
 11. Removal of everything left without a reader, the violations list, and a
     last rewrite of the baseline; documents brought up to date
