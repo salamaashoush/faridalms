@@ -3,7 +3,7 @@ import type { RouterClient } from "@orpc/server";
 import { openDirectoryAdmin } from "@faridalms/database/directory/admin";
 import { SEED_PASSWORD } from "@faridalms/database/seed";
 import { billingQuery, verifyIntake } from "@faridalms/domain/intake";
-import { MODULE_IDS } from "@faridalms/domain/modules";
+import { MODULE_IDS, MODULES } from "@faridalms/domain/modules";
 import { cardModules } from "@faridalms/domain/plans";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
@@ -276,28 +276,83 @@ describe("leads for the operator console", () => {
     expect(await card()).toContain("sms");
   });
 
-  test("every module can be taken off offer and put back", async () => {
+  test("a module with no decision is as it declares, and the operator's decision overrides it", async () => {
+    const { directory } = seeded();
     const admin = openDirectoryAdmin(testDirectory().operatorUrl);
     try {
-      const others = MODULE_IDS.filter((id) => id !== "sso");
-      const change = (offered: boolean) =>
+      expect(
+        (await admin.offers()).filter((row) =>
+          ["sso", "video"].includes(row.module),
+        ),
+      ).toEqual([]);
+      expect(await directory.offered()).not.toContain("sso");
+      expect(await directory.offered()).toContain("video");
+      await admin.setOffer({
+        module: "sso",
+        offered: true,
+        operatorId: "salama-test",
+        reason: "Provider sign-in shipped",
+      });
+      await admin.setOffer({
+        module: "video",
+        offered: false,
+        operatorId: "salama-test",
+        reason: "Not selling video this term",
+      });
+      expect(await directory.offered()).toContain("sso");
+      expect(await directory.offered()).not.toContain("video");
+      expect(
+        (await admin.changes({ type: "module" })).slice(0, 2),
+      ).toMatchObject([
+        {
+          subjectId: "video",
+          before: { offered: true },
+          after: { offered: false },
+        },
+        {
+          subjectId: "sso",
+          before: { offered: false },
+          after: { offered: true },
+        },
+      ]);
+    } finally {
+      await admin.setOffer({
+        module: "sso",
+        offered: false,
+        operatorId: "salama-test",
+        reason: "Back as declared",
+      });
+      await admin.setOffer({
+        module: "video",
+        offered: true,
+        operatorId: "salama-test",
+        reason: "Back as declared",
+      });
+      await admin.close();
+    }
+  });
+
+  test("every module can be moved off its declared offer and back", async () => {
+    const admin = openDirectoryAdmin(testDirectory().operatorUrl);
+    try {
+      const change = (flip: boolean) =>
         Promise.all(
-          others.map((module) =>
+          MODULE_IDS.map((module) =>
             admin.setOffer({
               module,
-              offered,
+              offered: MODULES[module].offered !== flip,
               operatorId: "salama-test",
               reason: "Check",
             }),
           ),
         );
-      expect(await change(false)).toEqual(others.map(() => true));
-      expect(await change(true)).toEqual(others.map(() => true));
+      expect(await change(true)).toEqual(MODULE_IDS.map(() => true));
+      expect(await change(false)).toEqual(MODULE_IDS.map(() => true));
       expect(
-        (await admin.offers())
-          .filter((row) => !row.offered)
-          .map((row) => row.module),
-      ).toEqual(["sso"]);
+        (await admin.offers()).every(
+          (row) => row.offered === MODULES[row.module].offered,
+        ),
+      ).toBe(true);
     } finally {
       await admin.close();
     }

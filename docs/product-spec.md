@@ -48,12 +48,22 @@ A school's administrators see their plan in Settings: every module the
 school has, marked Included, and each module it lacks that the platform
 offers, with Ask about this, which sends the console a lead. Which modules
 are on offer is the operator's decision, made in the console's catalogue
-and kept in the directory, which every cell reads within a minute; a
-module is on offer until the operator takes it off. A module the school
-neither has nor could buy is not named, and the API refuses a question
-about one. Single sign-on starts off offer, since it has no provider
-sign-in yet. The e-learning and early years switches stay at the top of
+and kept in the directory, which every cell reads within a minute. Until
+the operator decides, a module is as it declares itself: on offer, except
+one with no working feature to sell yet, which today is single sign-on,
+since it has no provider sign-in. The operator's decision overrides the
+declaration either way. A module the school neither has nor could buy is
+not named, and the API refuses a question about one. The e-learning and early years switches stay at the top of
 the card as before.
+
+A school with grade levels chooses what it calls them on the module's
+settings tab: Grades, Levels, Year groups or Stages. Every sentence that
+names them is written out for each word in English and Arabic, with its
+own agreement (a stage, «مرحلة», is feminine); a year group reads «الصف»
+in Arabic, as British-curriculum schools in the region say it. Until a
+school chooses, it reads as before, and its tab is "Grades and levels".
+The names of the grades themselves are the school's own and never change.
+The choice is audited and made by whoever manages the school.
 
 Whether a class and its learners are young belongs to the early years
 module. Whoever manages classes marks a class "For young children" on its

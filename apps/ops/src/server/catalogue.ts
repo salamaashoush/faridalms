@@ -9,7 +9,7 @@ import {
 } from "@faridalms/database/business/catalogue";
 import { eventsOf } from "@faridalms/database/business/events";
 import { MODULE_IDS } from "@faridalms/domain/modules";
-import { setOfferSchema } from "@faridalms/domain/plans";
+import { isOffered, setOfferSchema } from "@faridalms/domain/plans";
 import {
   addOnVersionSchema,
   businessToday,
@@ -197,22 +197,20 @@ export const getAddOn = createServerFn({ method: "GET" })
 
 /**
  * Every module with whether it is offered to schools that do not have it,
- * and when the operator last decided; a module never decided on is offered.
+ * and when the operator last decided; a module never decided on is as it
+ * declares.
  */
 export const getOffers = createServerFn({ method: "GET" }).handler(async () => {
   await requireArea("catalogue");
-  const decided = new Map(
-    (await directory().offers()).map((row) => [row.module, row]),
-  );
-  return MODULE_IDS.map((module) => {
-    const row = decided.get(module);
-    return {
-      id: module,
-      module,
-      offered: row?.offered ?? true,
-      changedAt: row ? row.updatedAt.toISOString() : null,
-    };
-  });
+  const rows = await directory().offers();
+  const decided = new Map(rows.map((row) => [row.module, row.offered]));
+  const changed = new Map(rows.map((row) => [row.module, row.updatedAt]));
+  return MODULE_IDS.map((module) => ({
+    id: module,
+    module,
+    offered: isOffered(module, decided),
+    changedAt: changed.get(module)?.toISOString() ?? null,
+  }));
 });
 
 /**

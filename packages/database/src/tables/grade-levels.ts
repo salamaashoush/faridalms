@@ -1,3 +1,4 @@
+import type { GradeTerm } from "@faridalms/domain/grade-levels";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
@@ -32,6 +33,31 @@ export type StudentGradeSource =
   | "homeroom"
   | "rollover"
   | "admission";
+
+/** The word a school uses for its grades; a school without a row has not chosen. */
+export const gradeLevelSettings = core.table.withRLS(
+  "grade_level_settings",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    term: text("term").$type<GradeTerm>().notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("grade_level_settings", t.tenantId, t.id),
+    ...baseConstraints("grade_level_settings", t, tenants),
+    fk("grade_level_settings", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    ck(
+      "grade_level_settings",
+      "term",
+      sql`term in ('grade', 'level', 'year_group', 'stage')`,
+    ),
+    uniqueIndex("grade_level_settings_org_key")
+      .on(t.tenantId, t.orgId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
 
 /** The grade or level a class teaches. */
 export const classGrades = core.table.withRLS(

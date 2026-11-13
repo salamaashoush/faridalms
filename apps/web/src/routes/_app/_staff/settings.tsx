@@ -140,10 +140,7 @@ export const Route = createFileRoute("/_app/_staff/settings")({
   loaderDeps: ({ search }) => ({ section: search.section }),
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    const tabs = tabsFor(
-      user,
-      filled(context.extensions, user.modules, settingsTabs),
-    );
+    const tabs = tabsFor(user, filled(context.extensions, user, settingsTabs));
     const first = tabs[0];
     if (!first) return requirePage(user, "school:manage");
     const tab = tabs.find((each) => each.value === deps.section);
@@ -154,7 +151,7 @@ export const Route = createFileRoute("/_app/_staff/settings")({
     await Promise.all([
       tab.load(queryClient),
       ...(tab.value === "school"
-        ? filled(context.extensions, user.modules, schoolSettingsSections).map(
+        ? filled(context.extensions, user, schoolSettingsSections).map(
             (section) => queryClient.ensureQueryData(section.query()),
           )
         : []),

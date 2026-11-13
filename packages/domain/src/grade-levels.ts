@@ -69,6 +69,23 @@ export const orderGradeLevelsSchema = v.object({
 
 export const retireGradeLevelSchema = v.object({ id });
 
+/** The word a school uses for its grades, each written out in full in every sentence that names them. */
+export const GRADE_TERMS = ["grade", "level", "year_group", "stage"] as const;
+export type GradeTerm = (typeof GRADE_TERMS)[number];
+
+/** The school's word as its sentences choose: `unset` until it chooses, which reads as it always has. */
+export type GradeWording = GradeTerm | "unset";
+
+/** What the school chose, as the module's word on the current user's face says it. */
+export function gradeWordingOf(word: string | undefined): GradeWording {
+  return GRADE_TERMS.find((term) => term === word) ?? "unset";
+}
+
+export const setGradeTermSchema = v.object({
+  term: v.picklist(GRADE_TERMS),
+  expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
+});
+
 /** One stretch of a student's grade: from a day, until the day it ends, or open. */
 export interface GradeStretch {
   id: string;

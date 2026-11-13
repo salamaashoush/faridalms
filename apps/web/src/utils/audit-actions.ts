@@ -211,6 +211,7 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "class.young": m.auditClassYoung,
   "class.not_young": m.auditClassNotYoung,
   "grade_level.create": m.auditGradeLevelCreate,
+  "grade_level.term": m.auditGradeLevelTerm,
   "grade_level.update": m.auditGradeLevelUpdate,
   "grade_level.order": m.auditGradeLevelOrder,
   "grade_level.retire": m.auditGradeLevelRetire,

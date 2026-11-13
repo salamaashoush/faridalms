@@ -206,11 +206,13 @@ export function openDirectory(url: string, ttlMs = 60_000) {
     /** The modules the platform offers to schools that do not have them. */
     offered: () =>
       cached("offered", async () => {
-        const withheld = await db
-          .select({ module: moduleOffers.module })
-          .from(moduleOffers)
-          .where(eq(moduleOffers.offered, false));
-        return offeredModules(withheld.map((row) => row.module));
+        const decisions = await db
+          .select({
+            module: moduleOffers.module,
+            offered: moduleOffers.offered,
+          })
+          .from(moduleOffers);
+        return offeredModules(decisions);
       }),
     /**
      * Notes the entitlements version a unit of work read from the tenant's

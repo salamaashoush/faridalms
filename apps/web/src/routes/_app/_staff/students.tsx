@@ -91,8 +91,8 @@ export const Route = createFileRoute("/_app/_staff/students")({
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "people:read", "people:manage");
-    const filters = filled(context.extensions, user.modules, studentFilters);
-    const columns = filled(context.extensions, user.modules, studentColumnSlot);
+    const filters = filled(context.extensions, user, studentFilters);
+    const columns = filled(context.extensions, user, studentColumnSlot);
     await Promise.all([
       context.queryClient.ensureQueryData(
         studentsQuery(deps, viewsOf(filters, deps)),

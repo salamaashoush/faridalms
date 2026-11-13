@@ -216,6 +216,10 @@ export async function completeFixture(
   });
 
   await tx.execute(sql`
+    insert into core.grade_level_settings (tenant_id, org_id, term)
+    values (${tenantId}::uuid, ${schoolId}::uuid, 'level')
+    on conflict do nothing`);
+  await tx.execute(sql`
     insert into core.gradebook_settings (tenant_id, org_id, running_shown)
     values (${tenantId}::uuid, ${schoolId}::uuid, false)
     on conflict do nothing`);

@@ -104,7 +104,7 @@ export const Route = createFileRoute("/_app/_staff/timetable")({
       await queryClient.ensureQueryData(teacherWeekQuery());
       return;
     }
-    const filters = filled(context.extensions, user.modules, classFilters);
+    const filters = filled(context.extensions, user, classFilters);
     const [options] = await Promise.all([
       queryClient.ensureQueryData(
         timetableOptionsQuery(classViewsOf(filters, deps)),

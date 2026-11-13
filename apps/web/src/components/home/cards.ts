@@ -3,7 +3,12 @@ import type { ReactNode } from "react";
 
 import { useSuspenseQueries } from "@tanstack/react-query";
 
-import type { ModuleFillings, Slot, SlotQuery } from "~/utils/extension";
+import type {
+  ModuleFillings,
+  SchoolFace,
+  Slot,
+  SlotQuery,
+} from "~/utils/extension";
 
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
@@ -21,16 +26,13 @@ export interface PlacedCard {
 export function loadCards(
   queryClient: QueryClient,
   extensions: readonly ModuleFillings[],
-  user: {
-    modules: Parameters<typeof filled>[1];
-    capabilities: readonly string[];
-  },
+  user: SchoolFace & { capabilities: readonly string[] },
   to: Slot<{
     query(capabilities: readonly string[]): SlotQuery<unknown> | null;
   }>,
 ) {
   return Promise.all(
-    filled(extensions, user.modules, to).flatMap((card) => {
+    filled(extensions, user, to).flatMap((card) => {
       const query = card.query(user.capabilities);
       return query ? [queryClient.ensureQueryData(query)] : [];
     }),

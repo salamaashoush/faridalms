@@ -33,7 +33,7 @@ const viewer = (capabilities: readonly Capability[]): Viewer => ({
 /** The staff workspace's sections at a school with every module on. */
 const STAFF = navigationOf(
   "staff",
-  filled(MODULE_FILLINGS, everyModule, navItems),
+  filled(MODULE_FILLINGS, { modules: everyModule, wording: {} }, navItems),
 );
 
 /** The staff sections as one person sees them: links in view, then folded. */

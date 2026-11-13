@@ -427,6 +427,10 @@ alter table core.gradebook_settings force row level security;
 grant select, insert, update on core.gradebook_settings to app, worker, cell_io;
 grant select on core.gradebook_settings to retention;
 
+alter table core.grade_level_settings force row level security;
+grant select, insert, update on core.grade_level_settings to app, worker, cell_io;
+grant select on core.grade_level_settings to retention;
+
 alter table core.homeroom_classes force row level security;
 grant select, insert, update on core.homeroom_classes to app, worker, cell_io;
 grant select on core.homeroom_classes to retention;

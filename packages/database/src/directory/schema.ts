@@ -348,7 +348,7 @@ export const schoolEntitlements = pgTable(
 
 /**
  * Whether the platform offers a module to schools that do not have it, as
- * the operator decided. A module with no row is on offer.
+ * the operator decided. A module with no row is as `MODULES` declares it.
  */
 export const moduleOffers = pgTable(
   "module_offers",

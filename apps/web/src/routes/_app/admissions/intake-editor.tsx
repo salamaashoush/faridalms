@@ -33,7 +33,7 @@ export const Route = createFileRoute("/_app/admissions/intake-editor")({
       deps.id
         ? context.queryClient.ensureQueryData(intakeQuery(deps.id))
         : null,
-      ...filled(context.extensions, user.modules, intakeParts).map((part) =>
+      ...filled(context.extensions, user, intakeParts).map((part) =>
         context.queryClient.ensureQueryData(part.query()),
       ),
     ]);

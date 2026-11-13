@@ -30,9 +30,8 @@ export const Route = createFileRoute("/_app/classes/$classId")({
     await Promise.all([
       context.queryClient.ensureQueryData(classRecordQuery(params.classId)),
       context.queryClient.ensureQueryData(classOptionsQuery),
-      ...filled(context.extensions, user.modules, classRecordParts).map(
-        (part) =>
-          context.queryClient.ensureQueryData(part.query(params.classId)),
+      ...filled(context.extensions, user, classRecordParts).map((part) =>
+        context.queryClient.ensureQueryData(part.query(params.classId)),
       ),
     ]);
   },

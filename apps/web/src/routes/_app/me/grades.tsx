@@ -20,8 +20,8 @@ export const Route = createFileRoute("/_app/me/grades")({
   loader: async ({ context }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     await Promise.all(
-      own(filled(context.extensions, user.modules, gradesSections)).map(
-        (section) => context.queryClient.ensureQueryData(section.query("")),
+      own(filled(context.extensions, user, gradesSections)).map((section) =>
+        context.queryClient.ensureQueryData(section.query("")),
       ),
     );
   },

@@ -6,6 +6,7 @@ import type {
   SchoolEntitlements,
 } from "@faridalms/domain/plans";
 
+import { MODULES } from "@faridalms/domain/modules";
 import { SQL } from "bun";
 import { and, asc, desc, eq, gte, ilike, inArray, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
@@ -343,7 +344,8 @@ export function openDirectoryAdmin(url: string) {
           .from(moduleOffers)
           .where(eq(moduleOffers.module, input.module))
           .for("update");
-        if ((before?.offered ?? true) === input.offered) return false;
+        const was = before?.offered ?? MODULES[input.module].offered;
+        if (was === input.offered) return false;
         await tx
           .insert(moduleOffers)
           .values({ module: input.module, offered: input.offered })
@@ -356,7 +358,7 @@ export function openDirectoryAdmin(url: string) {
           subjectType: "module",
           subjectId: input.module,
           action: input.offered ? "module.offer" : "module.withdraw",
-          before: { offered: before?.offered ?? true },
+          before: { offered: was },
           after: { offered: input.offered },
           reason: input.reason,
         });

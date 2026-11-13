@@ -62,7 +62,7 @@ export const Route = createFileRoute("/_app/_staff/school-days")({
     const span = spanOf(deps.start ?? user.today.slice(0, 7));
     await Promise.all([
       context.queryClient.ensureQueryData(schoolDaysQuery(span.from, span.to)),
-      ...filled(context.extensions, user.modules, dayPlannerParts).map((part) =>
+      ...filled(context.extensions, user, dayPlannerParts).map((part) =>
         context.queryClient.ensureQueryData(part.query(span.from, span.to)),
       ),
     ]);

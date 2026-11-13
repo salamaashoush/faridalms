@@ -71,17 +71,16 @@ export const Route = createFileRoute("/_app/_staff/classes")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    const filters = filled(context.extensions, user.modules, classFilters);
+    const filters = filled(context.extensions, user, classFilters);
     const views = viewsOf(filters, deps);
     const [mine] = await Promise.all([
       context.queryClient.ensureQueryData(myClassesQuery(views)),
       context.queryClient.ensureQueryData(classOptionsQuery),
-      ...[
-        ...filters,
-        ...filled(context.extensions, user.modules, classColumns),
-      ].map((part) => context.queryClient.ensureQueryData(part.query())),
+      ...[...filters, ...filled(context.extensions, user, classColumns)].map(
+        (part) => context.queryClient.ensureQueryData(part.query()),
+      ),
     ]);
-    const tabs = filled(context.extensions, user.modules, classesTabs);
+    const tabs = filled(context.extensions, user, classesTabs);
     const scopes = scopesOf(user.capabilities, mine.rows.length > 0, tabs);
     const scope = scopeOf(deps, scopes);
     const tab = tabs.find((row) => row.value === scope);

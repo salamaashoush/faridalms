@@ -38,6 +38,7 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "packages/database/src/stores/class-grades.ts",
     "packages/database/src/stores/student-grades.ts",
     "packages/database/src/stores/grade-audiences.ts",
+    "packages/database/src/stores/grade-words.ts",
     "packages/domain/src/grade-levels.ts",
     "apps/api/src/grade-levels/",
     "apps/api/src/systems/grade-levels.ts",

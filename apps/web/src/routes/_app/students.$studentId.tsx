@@ -39,7 +39,7 @@ export const Route = createFileRoute("/_app/students/$studentId")({
     // A tab this viewer cannot open would show the overview under a URL that
     // still names the tab, and a shared link would keep naming it.
     const user = await queryClient.ensureQueryData(currentUserQuery);
-    const added = filled(context.extensions, user.modules, studentRecordTabs);
+    const added = filled(context.extensions, user, studentRecordTabs);
     if (
       !studentTabOpens(record.access, deps.tab, added) &&
       !(deps.tab === "family" && record.access.contacts)

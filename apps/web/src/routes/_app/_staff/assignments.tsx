@@ -60,7 +60,7 @@ export const Route = createFileRoute("/_app/_staff/assignments")({
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "assignments:author", "submissions:grade");
-    const filters = filled(context.extensions, user.modules, classFilters);
+    const filters = filled(context.extensions, user, classFilters);
     await Promise.all([
       context.queryClient.ensureQueryData(
         courseworkListQuery({ ...deps, views: viewsOf(filters, deps) }),

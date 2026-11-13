@@ -52,14 +52,12 @@ export const Route = createFileRoute("/_app/family/")({
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     const [home] = await Promise.all([
       context.queryClient.ensureQueryData(followedHomeQuery(deps.child)),
-      ...filled(context.extensions, user.modules, familyChildParts).flatMap(
-        (part) => {
-          const query = part.query(user.capabilities);
-          return query ? [context.queryClient.ensureQueryData(query)] : [];
-        },
-      ),
+      ...filled(context.extensions, user, familyChildParts).flatMap((part) => {
+        const query = part.query(user.capabilities);
+        return query ? [context.queryClient.ensureQueryData(query)] : [];
+      }),
     ]);
-    const parts = filled(context.extensions, user.modules, childDayParts);
+    const parts = filled(context.extensions, user, childDayParts);
     await Promise.all(
       home.children.flatMap((child) =>
         parts.flatMap((part) => {

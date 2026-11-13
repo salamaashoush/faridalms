@@ -51,7 +51,7 @@ const COLUMNS: Column<Offer>[] = [
       offer.changedAt ? (
         formatWhen(offer.changedAt)
       ) : (
-        <span className="text-muted-foreground">On offer from the start</span>
+        <span className="text-muted-foreground">As the module declares</span>
       ),
   },
 ];

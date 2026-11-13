@@ -73,8 +73,14 @@ what it leaves to do.
 - **Public catalogue and checkout** for selling a course.
 - **Sign-in through an identity provider**: the `sso` module owns the
   provider tables and has no sign-in flow or API.
-- **A school's own word for "grade" or "level"**, so a coding school's
-  levels are not called grades.
+- **A school's own word for its grades, on the surfaces still to do.**
+  The setting, its settings tab, the student and class fields, columns,
+  filters and facets, and the setup step read the chosen word (Grade,
+  Level, Year group or Stage). Still saying "grade" for every school:
+  announcement audiences (including the families and core audience
+  hints), the years rollover and a student's years, gradebook programmes,
+  reading norms, admissions, the grade levels module's error messages and
+  its audit entries.
 - **Class groups have no screen that writes them.** `classes.saveGroup` and
   `classes.removeGroup` exist and nothing in the web calls them.
 - **Starter content that speaks of families and years**: the website page

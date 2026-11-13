@@ -45,9 +45,8 @@ export const Route = createFileRoute("/_app/_staff/homeroom-editor")({
       deps.id
         ? context.queryClient.ensureQueryData(homeroomOfClassQuery(deps.id))
         : null,
-      ...filled(context.extensions, user.modules, classEditorParts).map(
-        (part) =>
-          context.queryClient.ensureQueryData(part.query(deps.id ?? null)),
+      ...filled(context.extensions, user, classEditorParts).map((part) =>
+        context.queryClient.ensureQueryData(part.query(deps.id ?? null)),
       ),
     ]);
   },

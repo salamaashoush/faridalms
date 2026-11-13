@@ -34,8 +34,8 @@ export const Route = createFileRoute("/_app/_staff/rollover")({
         rolloverQuery({ sourceYearId: deps.source, targetYearId: deps.target }),
       ),
       context.queryClient.ensureQueryData(classOptionsQuery),
-      ...filled(context.extensions, user.modules, rolloverClassParts).map(
-        (part) => context.queryClient.ensureQueryData(part.query()),
+      ...filled(context.extensions, user, rolloverClassParts).map((part) =>
+        context.queryClient.ensureQueryData(part.query()),
       ),
     ]);
   },

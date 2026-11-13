@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { MODULE_FILLINGS } from "~/extensions";
 
+import { fillingsOf } from "./extension";
 import { modulePages, pageOn, pageOwnersOf } from "./pages";
 
 const without = (...off: ModuleId[]) =>
@@ -51,7 +52,7 @@ describe("the pages a school shows", () => {
   it("answers every page a module declares as not there while the module is off", () => {
     const shown: string[] = [];
     for (const entry of MODULE_FILLINGS)
-      for (const filling of entry.fillings)
+      for (const filling of fillingsOf(entry, {}))
         if (filling.slot === modulePages)
           for (const prefix of filling.value as readonly string[]) {
             for (const off of [entry.module, ...(entry.needs ?? [])]) {
@@ -60,7 +61,7 @@ describe("the pages a school shows", () => {
                   other !== entry &&
                   other.module !== off &&
                   !(other.needs ?? []).includes(off) &&
-                  other.fillings.some(
+                  fillingsOf(other, {}).some(
                     (each) =>
                       each.slot === modulePages &&
                       (each.value as readonly string[]).includes(prefix),

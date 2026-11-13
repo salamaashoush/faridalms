@@ -17,6 +17,10 @@ import * as classGroups from "./classes/groups";
 import { modulesOf } from "./core/modules";
 import { today as courseworkToday } from "./coursework/today";
 import {
+  setTerm as setGradeTerm,
+  term as gradeTerm,
+} from "./grade-levels/words";
+import {
   running,
   runningDefault,
   runningShown,
@@ -150,7 +154,11 @@ export const router = {
   classes: owned("classes", { ...classesSystem, ...classGroups }),
   homerooms: owned("homerooms", homeroomsSystem),
   earlyYears: owned("earlyYears", earlyYearsSystem),
-  gradeLevels: owned("gradeLevels", gradeLevelsSystem),
+  gradeLevels: owned("gradeLevels", {
+    ...gradeLevelsSystem,
+    term: gradeTerm,
+    setTerm: setGradeTerm,
+  }),
   consents: owned("consents", consentsSystem),
   years: owned("years", yearsSystem),
   schoolDays: owned("schoolDays", schoolDaysSystem),

@@ -96,7 +96,7 @@ export const Route = createFileRoute("/_app/_staff/attendance")({
     const tabs = tabsOf(
       user,
       teaches,
-      filled(context.extensions, user.modules, attendanceTabs),
+      filled(context.extensions, user, attendanceTabs),
     );
     requirePage(user, "attendance:record", "attendance:manage");
     const tab = tabOf(deps, tabs);

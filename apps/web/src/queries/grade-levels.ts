@@ -2,6 +2,7 @@ import { getClassRecord } from "~/server/classes";
 import {
   getGradeOptions,
   getGradeSettings,
+  getGradeTerm,
   getStudentGrades,
 } from "~/server/grade-levels";
 
@@ -21,6 +22,11 @@ export const studentGradesQuery = (studentId: string) => ({
 export const gradeSettingsQuery = {
   queryKey: ["grade-levels", "settings"],
   queryFn: () => getGradeSettings(),
+};
+
+export const gradeTermQuery = {
+  queryKey: ["grade-levels", "term"],
+  queryFn: () => getGradeTerm(),
 };
 
 /** What the class form reads for a class's grade: the school's grades and the class's own. */

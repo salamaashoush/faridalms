@@ -6,8 +6,7 @@ import type { SeededTenant } from "../seed";
 
 /**
  * Registers seeded tenants and their schools in the directory, with the
- * change rows every directory write carries, and takes single sign-on off
- * offer, since it has no provider sign-in yet. The connection must be the
+ * change rows every directory write carries. The connection must be the
  * operator's role, directory_admin.
  */
 export async function registerTenants(
@@ -19,13 +18,6 @@ export async function registerTenants(
     await tx`insert into cells (id, jurisdiction, provider, region, app_host, api_base_url, state)
       values (${cell.id}, 'EG', 'local', 'local', ${cell.appHost}, ${cell.apiBaseUrl}, 'open')
       on conflict (id) do nothing`;
-    const [withdrawn] =
-      await tx`insert into module_offers (module, offered) values ('sso', false)
-      on conflict (module) do nothing returning module`;
-    if (withdrawn)
-      await tx`insert into changes (actor, subject_type, subject_id, action, before, after, reason)
-        values (${`cell:${cell.id}`}, 'module', 'sso', 'module.withdraw', '{"offered": true}'::jsonb,
-          '{"offered": false}'::jsonb, 'Development seed')`;
     for (const tenant of tenants) {
       await tx`insert into tenants (id, kind, name_en, name_ar, cell_id, jurisdictions, state)
         values (${tenant.tenantId}, ${tenant.spec.kind}, ${tenant.spec.nameEn ?? null},

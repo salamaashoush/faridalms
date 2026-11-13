@@ -99,6 +99,7 @@ export const CONFLICTS: Record<string, string> = {
   year_rollovers_years_key: "rollover.exists",
   attendance_settings_org_key: "conflict.version",
   gradebook_settings_org_key: "conflict.version",
+  grade_level_settings_org_key: "conflict.version",
   class_running_grades_class_key: "conflict.version",
   retention_settings_org_key: "conflict.version",
   attendance_registers_key: "conflict.version",

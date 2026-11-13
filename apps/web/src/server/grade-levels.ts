@@ -2,6 +2,7 @@ import {
   orderGradeLevelsSchema,
   retireGradeLevelSchema,
   saveGradeLevelSchema,
+  setGradeTermSchema,
   setStudentGradeSchema,
 } from "@faridalms/domain/grade-levels";
 import { createServerFn } from "@tanstack/react-start";
@@ -37,3 +38,11 @@ export const orderGradeLevels = createServerFn({ method: "POST" })
 export const retireGradeLevel = createServerFn({ method: "POST" })
   .validator(checked(retireGradeLevelSchema))
   .handler(({ data }) => backend().gradeLevels.retire(data));
+
+export const getGradeTerm = createServerFn({ method: "GET" }).handler(() =>
+  backend().gradeLevels.term(),
+);
+
+export const setGradeTerm = createServerFn({ method: "POST" })
+  .validator(checked(setGradeTermSchema))
+  .handler(({ data }) => backend().gradeLevels.setTerm(data));

@@ -26,6 +26,11 @@ import {
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import type { GradeWords } from "./words";
+
+import { GradeTermSection } from "./GradeTermSection";
+import { useGradeWords } from "./words";
+
 type Settings = Awaited<
   ReturnType<NonNullable<(typeof gradeSettingsQuery)["queryFn"]>>
 >;
@@ -34,17 +39,17 @@ type Level = Settings["rows"][number];
 type Editing = { kind: "new" } | { kind: "rename"; level: Level } | null;
 
 // Built per render: headers read the request's locale.
-function levelColumns(): Column<Level>[] {
+function levelColumns(words: GradeWords): Column<Level>[] {
   return [
     {
       id: "name",
-      header: m.gradeLevelsName(),
+      header: words.name(),
       primary: true,
       cell: (row) => (
         <span className="flex flex-wrap items-center gap-x-3">
           <span>{inLocale(row.labelEn, row.labelAr) || row.code}</span>
           {row.retired ? (
-            <StatusText tone="neutral">{m.gradeLevelsRetired()}</StatusText>
+            <StatusText tone="neutral">{words.retired()}</StatusText>
           ) : null}
         </span>
       ),
@@ -71,6 +76,7 @@ function levelColumns(): Column<Level>[] {
 /** The school's grades or levels: their names, their order, and those it stopped using. */
 export function GradeLevelsSettings() {
   const { rows } = useSuspenseQuery(gradeSettingsQuery).data;
+  const words = useGradeWords();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Editing>(null);
   const [key, setKey] = useState(0);
@@ -116,7 +122,7 @@ export function GradeLevelsSettings() {
               title: m.gradeLevelsRetireTitle({
                 name: inLocale(row.labelEn, row.labelAr) || row.code,
               }),
-              body: m.gradeLevelsRetireBody(),
+              body: words.retireBody(),
               label: m.gradeLevelsRetire(),
             },
             onSelect: async () => {
@@ -135,10 +141,11 @@ export function GradeLevelsSettings() {
   ];
   return (
     <SettingsPage>
+      <GradeTermSection />
       <DataTable
-        caption={m.gradeLevelsCaption()}
+        caption={words.caption()}
         rows={rows}
-        columns={levelColumns()}
+        columns={levelColumns(words)}
         rowLabel={(row) => inLocale(row.labelEn, row.labelAr) || row.code}
         rowActions={rowActions}
         actions={
@@ -149,7 +156,7 @@ export function GradeLevelsSettings() {
             onClick={() => open({ kind: "new" })}
           >
             <Plus aria-hidden />
-            {m.gradeLevelsAdd()}
+            {words.add()}
           </Button>
         }
         card={{
@@ -162,12 +169,12 @@ export function GradeLevelsSettings() {
         }}
         empty={{
           icon: GraduationCap,
-          title: m.gradeLevelsEmptyTitle(),
+          title: words.emptyTitle(),
           description: m.gradeLevelsEmptyBody(),
           action: (
             <Button type="button" onClick={() => open({ kind: "new" })}>
               <Plus aria-hidden />
-              {m.gradeLevelsAdd()}
+              {words.add()}
             </Button>
           ),
         }}
@@ -178,6 +185,7 @@ export function GradeLevelsSettings() {
           editing={editing}
           onClose={() => setEditing(null)}
           onSaved={refresh}
+          words={words}
         />
       ) : null}
     </SettingsPage>
@@ -188,10 +196,11 @@ interface LevelSheetProps {
   editing: NonNullable<Editing>;
   onClose: () => void;
   onSaved: () => Promise<unknown>;
+  words: GradeWords;
 }
 
 /** Adds a grade or level of the school's own, or renames one. */
-function LevelSheet({ editing, onClose, onSaved }: LevelSheetProps) {
+function LevelSheet({ editing, onClose, onSaved, words }: LevelSheetProps) {
   const level = editing.kind === "rename" ? editing.level : null;
   const [labelEn, setLabelEn] = useState(level?.labelEn ?? "");
   const [labelAr, setLabelAr] = useState(level?.labelAr ?? "");
@@ -217,7 +226,7 @@ function LevelSheet({ editing, onClose, onSaved }: LevelSheetProps) {
     <SheetForm
       open
       onOpenChange={(open) => (open ? undefined : onClose())}
-      title={level ? m.gradeLevelsRename() : m.gradeLevelsAdd()}
+      title={level ? m.gradeLevelsRename() : words.add()}
       pending={mutation.isPending}
       error={mutation.error ? getMessageFromError(mutation.error) : null}
       onSubmit={async () => {

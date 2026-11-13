@@ -47,7 +47,7 @@ export const Route = createFileRoute("/_app/modules/$moduleId")({
         context.queryClient.ensureQueryData(
           moduleOutlineQuery(params.moduleId, deps.studentId),
         ),
-        ...filled(context.extensions, user.modules, moduleDiscussions).map(
+        ...filled(context.extensions, user, moduleDiscussions).map(
           (discussions) =>
             context.queryClient.ensureQueryData(
               discussions.query(params.moduleId, deps.studentId),

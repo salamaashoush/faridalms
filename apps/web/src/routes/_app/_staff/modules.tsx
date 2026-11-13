@@ -70,7 +70,7 @@ export const Route = createFileRoute("/_app/_staff/modules")({
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "learning:author");
-    const filters = filled(context.extensions, user.modules, classFilters);
+    const filters = filled(context.extensions, user, classFilters);
     await Promise.all([
       context.queryClient.ensureQueryData(
         teachingModulesQuery(deps.classId, {

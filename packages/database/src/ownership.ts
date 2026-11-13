@@ -56,6 +56,7 @@ export const TABLE_OWNERS: Record<string, Ownership> = {
   "core.calendar_feeds": { owner: "core" },
   "core.caption_drafts": { owner: "core" },
   "core.class_grades": { owner: "grade_levels" },
+  "core.grade_level_settings": { owner: "grade_levels" },
   "core.class_grading": { owner: "coursework" },
   "core.class_group_members": { owner: "core" },
   "core.class_groups": { owner: "core" },

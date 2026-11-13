@@ -41,9 +41,8 @@ export const Route = createFileRoute("/_app/_staff/class-editor")({
       deps.id
         ? context.queryClient.ensureQueryData(classRecordQuery(deps.id))
         : null,
-      ...filled(context.extensions, user.modules, classEditorParts).map(
-        (part) =>
-          context.queryClient.ensureQueryData(part.query(deps.id ?? null)),
+      ...filled(context.extensions, user, classEditorParts).map((part) =>
+        context.queryClient.ensureQueryData(part.query(deps.id ?? null)),
       ),
     ]);
   },

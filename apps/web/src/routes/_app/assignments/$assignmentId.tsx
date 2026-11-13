@@ -48,11 +48,8 @@ export const Route = createFileRoute("/_app/assignments/$assignmentId")({
         context.queryClient.ensureQueryData(
           assignmentRecordQuery(params.assignmentId),
         ),
-        ...filled(context.extensions, user.modules, assignmentRecordTabs).map(
-          (part) =>
-            context.queryClient.ensureQueryData(
-              part.query(params.assignmentId),
-            ),
+        ...filled(context.extensions, user, assignmentRecordTabs).map((part) =>
+          context.queryClient.ensureQueryData(part.query(params.assignmentId)),
         ),
       ]);
     }

@@ -90,6 +90,7 @@ create trigger row_meta before insert or update on core.goal_reports for each ro
 create trigger row_meta before insert or update on core.grade_scale_versions
   for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.grade_scales for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.grade_level_settings for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.gradebook_settings for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.homeroom_classes for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.homeroom_members for each row execute function app.row_meta();

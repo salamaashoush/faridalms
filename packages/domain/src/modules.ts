@@ -44,6 +44,11 @@ export interface ModuleSpec {
   basic: boolean;
   /** The school switches it on within its entitlement; otherwise it is on when entitled. */
   schoolSwitch: boolean;
+  /**
+   * Offered to schools that lack it unless the operator decides otherwise:
+   * false for a module with no working feature to sell yet.
+   */
+  offered: boolean;
   /** The API namespaces it owns, answered only where it is on; a nested one is `outer/inner`. */
   systems: readonly string[];
   /** The product's words it owns, which mean something only where it is on. */
@@ -71,6 +76,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: true,
     schoolSwitch: false,
+    offered: true,
     systems: ["years", "rollover"],
     owns: {
       capabilities: ["years:manage", "years:reopen"],
@@ -82,18 +88,21 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: true,
     schoolSwitch: false,
+    offered: true,
     systems: ["gradeLevels"],
   },
   homerooms: {
     requires: [],
     basic: true,
     schoolSwitch: false,
+    offered: true,
     systems: ["homerooms"],
   },
   families: {
     requires: [],
     basic: true,
     schoolSwitch: false,
+    offered: true,
     systems: ["guardians"],
     owns: {
       setupItems: ["guardians_linked", "families_signed_in"],
@@ -109,6 +118,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: true,
     schoolSwitch: false,
+    offered: true,
     // Reading aloud is marked in quizzes and lessons alike; its record and
     // norms stand with the coursework every school has.
     systems: ["coursework", "grading", "bank", "reading"],
@@ -123,6 +133,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [["coursework"]],
     basic: false,
     schoolSwitch: false,
+    offered: true,
     systems: ["peer"],
     owns: { notices: ["peer_review"] },
   },
@@ -130,12 +141,14 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [["coursework"]],
     basic: true,
     schoolSwitch: false,
+    offered: true,
     systems: ["gradebook"],
   },
   attendance: {
     requires: [],
     basic: true,
     schoolSwitch: false,
+    offered: true,
     systems: ["attendance", "absenceReports", "frontDesk", "followUp"],
     owns: {
       setupItems: ["first_register"],
@@ -151,6 +164,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: true,
     schoolSwitch: false,
+    offered: true,
     systems: ["timetable", "cover", "periods"],
     owns: {
       capabilities: ["timetable:read", "timetable:manage"],
@@ -161,6 +175,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: false,
     schoolSwitch: false,
+    offered: true,
     systems: ["site"],
     owns: {
       templateKinds: ["section"],
@@ -171,6 +186,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: false,
     schoolSwitch: false,
+    offered: true,
     systems: ["hosts"],
     owns: { setupItems: ["custom_domain"] },
   },
@@ -178,6 +194,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: false,
     schoolSwitch: false,
+    offered: true,
     systems: ["admissions", "intakes", "applications", "applying", "decisions"],
     owns: {
       setupItems: ["admissions_ready"],
@@ -197,6 +214,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: false,
     schoolSwitch: false,
+    offered: true,
     systems: ["records"],
     owns: { capabilities: ["health:read", "health:write", "support:manage"] },
   },
@@ -204,6 +222,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [["coursework"], ["elearning"]],
     basic: false,
     schoolSwitch: false,
+    offered: true,
     systems: ["standards"],
     owns: { capabilities: ["standards:manage"] },
   },
@@ -211,6 +230,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: false,
     schoolSwitch: true,
+    offered: true,
     systems: ["learning"],
     owns: {
       capabilities: ["learning:author", "learning:read"],
@@ -222,6 +242,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: false,
     schoolSwitch: true,
+    offered: true,
     systems: ["earlyYears"],
   },
   badges: {
@@ -229,6 +250,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [["early_years"]],
     basic: false,
     schoolSwitch: false,
+    offered: true,
     systems: ["badges"],
     owns: { capabilities: ["badges:issue"] },
   },
@@ -236,11 +258,31 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [["coursework"], ["elearning"]],
     basic: false,
     schoolSwitch: false,
+    offered: true,
     systems: [],
   },
-  video: { requires: [], basic: false, schoolSwitch: false, systems: [] },
-  sso: { requires: [], basic: false, schoolSwitch: false, systems: [] },
-  sms: { requires: [], basic: false, schoolSwitch: false, systems: [] },
+  video: {
+    requires: [],
+    basic: false,
+    schoolSwitch: false,
+    offered: true,
+    systems: [],
+  },
+  sso: {
+    requires: [],
+    basic: false,
+    schoolSwitch: false,
+    // Its provider tables have no sign-in flow yet.
+    offered: false,
+    systems: [],
+  },
+  sms: {
+    requires: [],
+    basic: false,
+    schoolSwitch: false,
+    offered: true,
+    systems: [],
+  },
 };
 
 /** A school's administrator asking about a module its plan does not have. */

@@ -54,7 +54,7 @@ export const Route = createFileRoute("/_app/admissions/applications/")({
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "admissions:read", "admissions:manage");
-    const filters = filled(context.extensions, user.modules, intakeFilters);
+    const filters = filled(context.extensions, user, intakeFilters);
     await Promise.all([
       context.queryClient.ensureQueryData(
         applicationsQuery(deps, viewsOf(filters, deps)),

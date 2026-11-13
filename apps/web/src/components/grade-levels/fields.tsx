@@ -33,6 +33,8 @@ import { setStudentGrade } from "~/server/grade-levels";
 import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import { useGradeWords } from "./words";
+
 const NONE = "none";
 
 /** A grade's name as the school gives it, or null for none. */
@@ -68,12 +70,13 @@ export function ClassGradeField({
   value,
   onChange,
 }: ClassEditorPartProps) {
+  const words = useGradeWords();
   const { options } = read as ClassGradeRead;
   const gradeId = gradeIdOf(value);
   return (
     <SelectField
       id="class-grade"
-      label={m.studentGrade()}
+      label={words.grade()}
       optional
       value={gradeId || NONE}
       options={[
@@ -109,14 +112,15 @@ interface NewStudentGradeProps {
 }
 
 function NewStudentGrade({ value, onChange }: NewStudentGradeProps) {
+  const words = useGradeWords();
   const options = useSuspenseQuery(gradeOptionsQuery).data;
   const gradeId = gradeIdOf(value);
   return (
     <SelectField
       id="student-grade"
-      label={m.studentGrade()}
+      label={words.grade()}
       optional
-      hint={m.studentGradeHint()}
+      hint={words.studentHint()}
       value={gradeId || NONE}
       options={[
         ...gradeChoices(options),
@@ -133,14 +137,15 @@ interface HeldGradeProps {
 }
 
 function HeldGrade({ studentId }: HeldGradeProps) {
+  const words = useGradeWords();
   const { rows, today } = useSuspenseQuery(studentGradesQuery(studentId)).data;
   const current = rows.find(
     (row) => row.from <= today && (row.until === null || today < row.until),
   );
   return (
     <ShownValue
-      label={m.studentGrade()}
-      link={{ id: studentId, tab: "enrollment", label: m.studentChangeGrade() }}
+      label={words.grade()}
+      link={{ id: studentId, tab: "enrollment", label: words.change() }}
     >
       {current?.grade
         ? inLocale(current.grade.labelEn, current.grade.labelAr)
@@ -151,6 +156,7 @@ function HeldGrade({ studentId }: HeldGradeProps) {
 
 /** A student's grade today, and a change of grade from a day for whoever keeps students. */
 export function StudentGradeAside({ student, manage }: StudentPartProps) {
+  const words = useGradeWords();
   const { rows, today } = useSuspenseQuery(studentGradesQuery(student.id)).data;
   const [sheet, setSheet] = useState({ open: false, key: 0 });
   const current = rows.find(
@@ -160,11 +166,11 @@ export function StudentGradeAside({ student, manage }: StudentPartProps) {
   return (
     <>
       <RecordSection
-        title={m.studentGrade()}
+        title={words.grade()}
         edit={
           manage
             ? {
-                label: m.studentChangeGrade(),
+                label: words.change(),
                 onClick: () =>
                   setSheet((value) => ({ open: true, key: value.key + 1 })),
               }
@@ -206,6 +212,7 @@ interface GradeSheetProps {
 
 /** Puts a student in a grade from a day; a change already set for later stands. */
 function GradeSheet({ studentId, today, gradeId, onClose }: GradeSheetProps) {
+  const words = useGradeWords();
   const options = useSuspenseQuery(gradeOptionsQuery).data;
   const queryClient = useQueryClient();
   const [chosen, setChosen] = useState(gradeId);
@@ -220,7 +227,7 @@ function GradeSheet({ studentId, today, gradeId, onClose }: GradeSheetProps) {
     <SheetForm
       open
       onOpenChange={(open) => (open ? undefined : onClose())}
-      title={m.studentChangeGrade()}
+      title={words.change()}
       pending={mutation.isPending}
       error={mutation.error ? getMessageFromError(mutation.error) : null}
       onSubmit={async () => {
@@ -243,7 +250,7 @@ function GradeSheet({ studentId, today, gradeId, onClose }: GradeSheetProps) {
     >
       <SelectField
         id="sheet-grade"
-        label={m.studentGrade()}
+        label={words.grade()}
         value={chosen}
         options={gradeChoices(options, chosen)}
         onChange={(next) => {
@@ -267,11 +274,12 @@ function GradeSheet({ studentId, today, gradeId, onClose }: GradeSheetProps) {
 
 /** A student's grades over time, below their classes. */
 export function StudentGradeHistory({ student, today }: StudentPartProps) {
+  const words = useGradeWords();
   const { rows } = useSuspenseQuery(studentGradesQuery(student.id)).data;
   return (
-    <RecordSection title={m.studentGradeHistory()}>
+    <RecordSection title={words.history()}>
       {rows.length === 0 ? (
-        <RecordEmpty>{m.studentGradeHistoryEmpty()}</RecordEmpty>
+        <RecordEmpty>{words.historyEmpty()}</RecordEmpty>
       ) : (
         <RecordList>
           {rows.toReversed().map((row) => (

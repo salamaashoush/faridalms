@@ -299,7 +299,7 @@ version, and a version no longer offered is retired.
 - **Modules on offer** opens from the catalogue's menu: one table of
   every module, its one-line description under its name, whether it is on
   offer (On offer, Not on offer) and when the operator last decided, or
-  On offer from the start. A school that lacks a module on offer sees it
+  As the module declares where no operator has. A school that lacks a module on offer sees it
   on its plan card in Settings and may ask about it; one off offer is not
   named there, and a school always sees the modules it has. Each row's
   menu has Take off offer or Put on offer, which asks why; the change is

@@ -47,7 +47,6 @@ import * as v from "valibot";
 import type { SchoolContext, UnitContext } from "../core/context";
 
 import { confirmAddress } from "../core/confirmed";
-import { modulesOf } from "../core/modules";
 import { channelsOf } from "../core/notify";
 import { sendPasswordReset } from "../core/password-reset";
 import {
@@ -79,6 +78,7 @@ import {
   userAgentSummary,
   WINDOW_MINUTES,
 } from "../core/session";
+import { modulesFace } from "../core/wording";
 import { claimConversations } from "../messages/conversations";
 import { accessAt, accessAtSchool } from "../people/access";
 
@@ -448,7 +448,7 @@ export const currentUser = readProcedure.handler(async ({ context }) => {
     workspace: context.actor.workspace,
     roles: [...context.actor.roles],
     capabilities: [...context.actor.capabilities],
-    modules: await modulesOf(context),
+    ...(await modulesFace(context)),
     /** Whether notices also reach people by text at this school. */
     texts: (await channelsOf(context)).includes("sms"),
     school: {

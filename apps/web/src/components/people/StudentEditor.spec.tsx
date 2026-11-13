@@ -33,6 +33,7 @@ vi.mock("~/server/auth", () => ({
       photoFileId: null,
       capabilities: [],
       modules: { grade_levels: true },
+      wording: {},
       school: { nameEn: "Acme School", nameAr: null },
     }),
   ),

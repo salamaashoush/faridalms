@@ -31,25 +31,45 @@ export interface SlotQuery<D> {
 }
 
 /**
+ * The word a school chose for a module's concept, by module, where the
+ * module offers a choice and the school made one: "level" for a grade.
+ */
+export type Wording = Readonly<Partial<Record<ModuleId, string>>>;
+
+/** What the viewer's school has on, and the words it chose, as the current user's face says. */
+export interface SchoolFace {
+  modules: Readonly<Record<ModuleId, boolean>>;
+  wording: Wording;
+}
+
+/**
  * What one module puts in the slots, shown only where it is on, and where
  * the modules it `needs` are on too: a filling of the slot of a module it
- * does not require is the page's link between the two.
+ * does not require is the page's link between the two. A module whose
+ * words the school chooses gives its fillings in those words.
  */
 export interface ModuleFillings {
   module: ModuleId;
   needs?: readonly ModuleId[];
-  fillings: readonly Filling[];
+  fillings: readonly Filling[] | ((wording: Wording) => readonly Filling[]);
 }
 
-/** What the modules on at the school put in a slot. */
+/** A module's fillings in the words given. */
+export const fillingsOf = (entry: ModuleFillings, wording: Wording) =>
+  typeof entry.fillings === "function"
+    ? entry.fillings(wording)
+    : entry.fillings;
+
+/** What the modules on at the school put in a slot, in the words it chose. */
 export function filled<T>(
   extensions: readonly ModuleFillings[],
-  modules: Readonly<Record<ModuleId, boolean>>,
+  face: SchoolFace,
   to: Slot<T>,
 ): T[] {
+  const { modules, wording } = face;
   return extensions.flatMap((entry) =>
     modules[entry.module] && (entry.needs ?? []).every((need) => modules[need])
-      ? entry.fillings
+      ? fillingsOf(entry, wording)
           .filter((filling) => filling.slot === to)
           .map((filling) => filling.value as T)
       : [],
@@ -73,7 +93,7 @@ export function everyFilling<T>(
   to: Slot<T>,
 ): T[] {
   return extensions.flatMap((entry) =>
-    entry.fillings
+    fillingsOf(entry, {})
       .filter((filling) => filling.slot === to)
       .map((filling) => filling.value as T),
   );

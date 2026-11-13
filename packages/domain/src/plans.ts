@@ -2,7 +2,7 @@ import * as v from "valibot";
 
 import type { ModuleId } from "./modules";
 
-import { BASIC_MODULES, MODULE_IDS } from "./modules";
+import { BASIC_MODULES, MODULE_IDS, MODULES } from "./modules";
 
 const GIB = 1024 * 1024 * 1024;
 const MIB = 1024 * 1024;
@@ -94,10 +94,20 @@ export function availableModules(entitlements: SchoolEntitlements): ModuleId[] {
   return MODULE_IDS.filter((module) => entitlements.modules.includes(module));
 }
 
-/** The modules on offer, given those the operator took off it; any other is on offer. */
-export function offeredModules(withheld: readonly string[]): ModuleId[] {
-  const off = new Set<string>(withheld);
-  return MODULE_IDS.filter((module) => !off.has(module));
+/** Whether a module is on offer: as the operator decided, else as the module declares. */
+export function isOffered(
+  module: ModuleId,
+  decided: ReadonlyMap<string, boolean>,
+): boolean {
+  return decided.get(module) ?? MODULES[module].offered;
+}
+
+/** The modules on offer, given the operator's decisions, module by module. */
+export function offeredModules(
+  decisions: readonly { module: string; offered: boolean }[],
+): ModuleId[] {
+  const decided = new Map(decisions.map((row) => [row.module, row.offered]));
+  return MODULE_IDS.filter((module) => isOffered(module, decided));
 }
 
 /**

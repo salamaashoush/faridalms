@@ -39,11 +39,7 @@ export const Route = createFileRoute("/_app/_staff/assignment-editor")({
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "assignments:author");
-    const parts = filled(
-      context.extensions,
-      user.modules,
-      assignmentEditorParts,
-    );
+    const parts = filled(context.extensions, user, assignmentEditorParts);
     await Promise.all([
       context.queryClient.ensureQueryData(courseworkOptionsQuery),
       deps.id

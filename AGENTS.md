@@ -351,6 +351,14 @@ A sentence that names a module's concept: add the neutral `fooCore` and the
 module's `foo` to both catalogues, show `words(m.fooCore)()` in core, and
 add `replaceWords(m.fooCore, m.foo)` to the module's fillings.
 
+A module whose word the school chooses (grade levels: Grade, Level, Year
+group, Stage) contributes its choice to the `moduleWording` point
+(`apps/api/src/core/wording.ts`), which the current user's face carries
+as `wording`. Its `ModuleFillings.fillings` is then a function of that
+wording, and each sentence is a record with one catalogue sentence per
+word (`apps/web/src/components/grade-levels/words.ts`), so a missing
+variant is a type error and `useWords` reads the chosen one.
+
 ---
 
 ## What this product must not do again

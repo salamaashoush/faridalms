@@ -60,12 +60,10 @@ export const Route = createFileRoute("/_app/_staff/today")({
         : null,
       sides.office ? queryClient.ensureQueryData(adminHomeQuery) : null,
       ...(sides.office
-        ? filled(context.extensions, user.modules, officeNeeds).flatMap(
-            (need) => {
-              const query = need.query(user.capabilities);
-              return query ? [queryClient.ensureQueryData(query)] : [];
-            },
-          )
+        ? filled(context.extensions, user, officeNeeds).flatMap((need) => {
+            const query = need.query(user.capabilities);
+            return query ? [queryClient.ensureQueryData(query)] : [];
+          })
         : []),
     ]);
   },

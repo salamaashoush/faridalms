@@ -2,7 +2,7 @@ import type { ModuleId } from "@faridalms/domain/modules";
 
 import type { ModuleFillings } from "./extension";
 
-import { filled, slot } from "./extension";
+import { filled, fillingsOf, slot } from "./extension";
 
 /**
  * The pages a module owns, by the start of their path. The navigation hides
@@ -73,10 +73,13 @@ export function pageOn(
   modules: Readonly<Record<ModuleId, boolean>>,
   path: string,
 ): boolean {
-  const on = new Set(filled(extensions, modules, modulePages).flat());
+  // Which pages a module has does not depend on the words a school chose.
+  const on = new Set(
+    filled(extensions, { modules, wording: {} }, modulePages).flat(),
+  );
   const all = new Set(
     extensions.flatMap((entry) =>
-      entry.fillings
+      fillingsOf(entry, {})
         .filter((filling) => filling.slot === modulePages)
         .flatMap((filling) => filling.value as readonly string[]),
     ),
@@ -95,7 +98,7 @@ export function pageOwnersOf(
   path: string,
 ): { core: boolean; modules: ModuleId[] } {
   const declared = extensions.flatMap((entry) =>
-    entry.fillings
+    fillingsOf(entry, {})
       .filter((filling) => filling.slot === modulePages)
       .flatMap((filling) =>
         (filling.value as readonly string[]).map((prefix) => ({

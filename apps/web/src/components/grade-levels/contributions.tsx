@@ -4,7 +4,7 @@ import { Value } from "@faridalms/ui/system/value";
 
 import type { ViewValue } from "~/components/classes/slots";
 import type { GradeOptions, StudentGrades } from "~/queries/grade-levels";
-import type { ModuleFillings } from "~/utils/extension";
+import type { Filling, ModuleFillings } from "~/utils/extension";
 
 import { settingsTabs } from "~/components/admin/slots";
 import { audienceKinds } from "~/components/announcements/slots";
@@ -32,6 +32,7 @@ import {
 import { fill } from "~/utils/extension";
 
 import type { ClassGradeRead } from "./fields";
+import type { GradeWords } from "./words";
 
 import {
   ClassGradeField,
@@ -42,43 +43,43 @@ import {
   StudentGradeHistory,
 } from "./fields";
 import { GradeLevelsSettings } from "./GradeLevelsSettings";
+import { gradeWordingIn, gradeWordsIn } from "./words";
 
 /** The grades a list is narrowed to, as several. */
 const chosenOf = (value: ViewValue) =>
   value === undefined ? [] : typeof value === "string" ? [value] : [...value];
 
-function gradeFacet(
-  read: unknown,
-  value: ViewValue,
-  onChange: (value: ViewValue) => void,
-): Facet {
-  return {
+const gradeFacet =
+  (words: GradeWords) =>
+  (
+    read: unknown,
+    value: ViewValue,
+    onChange: (value: ViewValue) => void,
+  ): Facet => ({
     id: "grade",
-    label: m.studentGrade(),
+    label: words.grade(),
     options: gradeChoices(read as GradeOptions, ""),
     selected: chosenOf(value),
     onChange: (grades) => onChange(grades.length > 0 ? grades : undefined),
-  };
-}
+  });
 
 function Nothing() {
   return null;
 }
 
-/** What grades and levels show across the portal, wherever a page has a place for it. */
-export const GRADE_LEVELS: ModuleFillings = {
-  module: "grade_levels",
-  fillings: [
+/** What grades and levels show across the portal, in the school's word, wherever a page has a place for it. */
+function gradeFillings(words: GradeWords): Filling[] {
+  return [
     fill(classFilters, {
       key: "grade",
       directoryOnly: true,
       narrows: () => false,
       query: () => gradeOptionsQuery,
-      facetOf: gradeFacet,
+      facetOf: gradeFacet(words),
     }),
     fill(classColumns, {
       key: "grade",
-      header: m.studentGrade,
+      header: words.grade,
       query: () => gradeOptionsQuery,
       cell: (read, value) => (
         <Value>{gradeName(read as GradeOptions, value)}</Value>
@@ -100,20 +101,18 @@ export const GRADE_LEVELS: ModuleFillings = {
           read as GradeOptions,
           record.columns.grade ?? null,
         );
-        return name
-          ? { facts: [{ label: m.studentGrade(), value: name }] }
-          : null;
+        return name ? { facts: [{ label: words.grade(), value: name }] } : null;
       },
     }),
     fill(studentFilters, {
       key: "grade",
       query: () => gradeOptionsQuery,
-      facetOf: gradeFacet,
+      facetOf: gradeFacet(words),
       statuses: [],
     }),
     fill(studentColumns, {
       key: "grade",
-      header: m.studentGrade,
+      header: words.grade,
       query: () => gradeOptionsQuery,
       cell: (read, value) => (
         <Value>{gradeName(read as GradeOptions, value)}</Value>
@@ -122,7 +121,7 @@ export const GRADE_LEVELS: ModuleFillings = {
     }),
     fill(studentEditorParts, {
       key: "grade",
-      title: m.studentGrade,
+      title: words.grade,
       query: (studentId) =>
         studentId ? studentGradesQuery(studentId) : gradeOptionsQuery,
       initial: () => ({ gradeId: "" }),
@@ -144,7 +143,7 @@ export const GRADE_LEVELS: ModuleFillings = {
           facts: current?.grade
             ? [
                 {
-                  label: m.studentGrade(),
+                  label: words.grade(),
                   value: inLocale(current.grade.labelEn, current.grade.labelAr),
                 },
               ]
@@ -157,7 +156,7 @@ export const GRADE_LEVELS: ModuleFillings = {
         };
       },
     }),
-    fill(placeWords, { place: m.studentGrade }),
+    fill(placeWords, { place: words.grade }),
     fill(audienceKinds, {
       scope: "grade",
       label: m.annScopeGrade,
@@ -167,9 +166,14 @@ export const GRADE_LEVELS: ModuleFillings = {
     fill(settingsTabs, {
       value: "grades",
       place: 40,
-      label: m.gradeLevelsTab,
+      label: words.tab,
       queries: () => [gradeSettingsQuery],
       Tab: GradeLevelsSettings,
     }),
-  ],
+  ];
+}
+
+export const GRADE_LEVELS: ModuleFillings = {
+  module: "grade_levels",
+  fillings: (wording) => gradeFillings(gradeWordsIn(gradeWordingIn(wording))),
 };

@@ -11,6 +11,7 @@ import {
   ownersOfClassGrades,
   setGradeAudiences,
 } from "@faridalms/database/stores/grade-audiences";
+import { gradeTermOf } from "@faridalms/database/stores/grade-words";
 import {
   endGrades,
   gradesOn,
@@ -37,6 +38,7 @@ import {
 import { audienceKinds } from "../core/audiences";
 import { contribute } from "../core/extension";
 import { audit } from "../core/procedure";
+import { moduleWording } from "../core/wording";
 import {
   leavingParts,
   studentColumns,
@@ -103,6 +105,16 @@ export async function changeStudentGrade(
 export const GRADE_LEVELS: ModuleContributions = {
   module: "grade_levels",
   contributions: [
+    contribute(moduleWording, {
+      module: "grade_levels",
+      wordOf: async (context) =>
+        (
+          await gradeTermOf(context.tx, {
+            tenantId: context.tenantId,
+            orgId: context.schoolId,
+          })
+        ).term,
+    }),
     contribute(classViews, {
       key: "grade",
       filter: true,

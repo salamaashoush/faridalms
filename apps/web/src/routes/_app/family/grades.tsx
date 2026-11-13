@@ -32,9 +32,8 @@ export const Route = createFileRoute("/_app/family/grades")({
     const child = deps.studentId ?? children[0]?.studentId;
     if (child)
       await Promise.all(
-        filled(context.extensions, user.modules, gradesSections).map(
-          (section) =>
-            context.queryClient.ensureQueryData(section.query(child)),
+        filled(context.extensions, user, gradesSections).map((section) =>
+          context.queryClient.ensureQueryData(section.query(child)),
         ),
       );
   },
