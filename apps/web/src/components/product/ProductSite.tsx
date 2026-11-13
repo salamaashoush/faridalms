@@ -1,4 +1,3 @@
-import type { LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 
 import { Button, buttonVariants } from "@faridalms/ui/button";
@@ -11,28 +10,19 @@ import {
   SheetTrigger,
 } from "@faridalms/ui/sheet";
 import { ThemeToggle } from "@faridalms/ui/system/theme-toggle";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { Link } from "@tanstack/react-router";
 import {
   ArchiveRestore,
   ArrowUpRight,
-  BookOpen,
-  CalendarDays,
   Check,
   ChevronsLeftRight,
   Code2,
-  FolderLock,
   GraduationCap,
   History,
-  LayoutTemplate,
   LockKeyhole,
   Menu,
-  MessagesSquare,
-  NotebookTabs,
-  School,
+  Play,
   ServerCog,
-  UserRound,
-  Users,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -43,6 +33,7 @@ import { formatNumber } from "~/utils/datetime";
 
 import { DemoForm } from "./DemoForm";
 import { GUIDE, SECURITY, SOURCE } from "./links";
+import { Switchboard } from "./Switchboard";
 
 // The guide's own commands, quoted as it gives them.
 const QUICK_START = [
@@ -55,6 +46,9 @@ const CONTAINER = "mx-auto w-full max-w-6xl px-5 sm:px-6";
 const SECTION = "scroll-mt-16 py-20 sm:py-28";
 const HEADING =
   "product-display text-3xl leading-[1.1] font-semibold tracking-tight text-balance sm:text-[2.75rem]";
+
+const EYEBROW =
+  "text-xs font-semibold tracking-wider text-primary uppercase rtl:tracking-normal";
 
 const CHIP =
   "shrink-0 rounded-full border bg-card px-3 py-1 text-xs font-medium text-foreground";
@@ -144,28 +138,29 @@ function LanguageSwitch({ className }: LanguageSwitchProps) {
 function Header() {
   const [open, setOpen] = useState(false);
   const links = [
-    { href: "#features", label: m.productNavFeatures() },
-    { href: "#roles", label: m.productNavRoles() },
+    { href: "#fit", label: m.productNavFit() },
+    { href: "#who", label: m.productNavWho() },
+    { href: "#day", label: m.productNavDay() },
+    { href: "#modules", label: m.productNavModules() },
     { href: "#languages", label: m.productNavLanguages() },
     { href: "#security", label: m.productNavTrust() },
-    { href: "#self-hosting", label: m.productNavSelfHost() },
   ];
   return (
     <header className="school-sidebar sticky top-0 z-40 border-b border-white/10 bg-brand/95 backdrop-blur supports-[backdrop-filter]:bg-brand/85">
-      <div className={cn(CONTAINER, "flex h-16 items-center gap-6")}>
+      <div className={cn(CONTAINER, "flex h-16 items-center gap-4")}>
         <a
           href="#top"
           className="shrink-0 rounded-md whitespace-nowrap text-white outline-none focus-visible:ring-3 focus-visible:ring-brand-accent/50"
         >
           <Brand />
         </a>
-        <nav aria-label={m.productNavLabel()} className="hidden lg:block">
-          <ul className="flex gap-1">
+        <nav aria-label={m.productNavLabel()} className="hidden xl:block">
+          <ul className="flex">
             {links.map((link) => (
               <li key={link.href}>
                 <a
                   href={link.href}
-                  className="rounded-md px-3 py-2 text-sm text-brand-soft outline-none hover:bg-white/10 hover:text-white focus-visible:ring-3 focus-visible:ring-brand-accent/50"
+                  className="rounded-md px-2.5 py-2 text-sm whitespace-nowrap text-brand-soft outline-none hover:bg-white/10 hover:text-white focus-visible:ring-3 focus-visible:ring-brand-accent/50"
                 >
                   {link.label}
                 </a>
@@ -203,7 +198,7 @@ function Header() {
                   variant="ghost"
                   size="icon"
                   aria-label={m.productMenuOpen()}
-                  className="text-brand-foreground hover:bg-white/10 hover:text-white lg:hidden"
+                  className="text-brand-foreground hover:bg-white/10 hover:text-white xl:hidden"
                 />
               }
             >
@@ -278,7 +273,7 @@ function Compare() {
   const [split, setSplit] = useState(50);
   return (
     <figure>
-      <div className="rounded-[1.25rem] bg-white/10 p-1.5 shadow-[0_24px_64px_-24px_color-mix(in_srgb,var(--brand-shadow)_45%,transparent)] ring-1 ring-white/15 sm:p-2">
+      <div className="rounded-[1.25rem] border bg-card p-1.5 shadow-[0_24px_64px_-24px_color-mix(in_srgb,var(--brand-shadow)_45%,transparent)] sm:p-2">
         <div
           dir="ltr"
           className="relative overflow-hidden rounded-xl bg-background"
@@ -369,19 +364,19 @@ function Hero() {
   return (
     <section
       aria-labelledby="hero-title"
-      className="relative overflow-hidden bg-[linear-gradient(to_bottom,var(--brand)_0,var(--brand-deep)_calc(100%-14rem),var(--background)_calc(100%-14rem))] text-brand-foreground sm:bg-[linear-gradient(to_bottom,var(--brand)_0,var(--brand-deep)_calc(100%-20rem),var(--background)_calc(100%-20rem))]"
+      className="relative overflow-hidden bg-[linear-gradient(to_bottom,var(--brand)_0,var(--brand-deep)_calc(100%-16rem),var(--background)_calc(100%-16rem))] text-brand-foreground"
     >
       <div
         aria-hidden
-        className="product-lattice pointer-events-none absolute inset-x-0 top-0 h-[44rem] text-white/[0.07] [--lattice-fade:radial-gradient(ellipse_70%_80%_at_50%_0%,#000_20%,transparent_75%)]"
+        className="product-lattice pointer-events-none absolute inset-x-0 top-0 h-[46rem] text-white/[0.07] [--lattice-fade:radial-gradient(ellipse_70%_80%_at_50%_0%,#000_20%,transparent_75%)]"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute start-1/2 top-[28rem] h-[30rem] w-[60rem] max-w-[140%] -translate-x-1/2 rounded-full bg-brand-glow/25 blur-[120px] rtl:translate-x-1/2"
+        className="pointer-events-none absolute start-1/2 top-[26rem] h-[30rem] w-[60rem] max-w-[140%] -translate-x-1/2 rounded-full bg-brand-glow/25 blur-[120px] rtl:translate-x-1/2"
       />
       <div className={cn(CONTAINER, "relative pt-16 sm:pt-24")}>
         <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-sm text-brand-sage">
-          <Star className="size-3.5 text-brand-accent" />
+          <Star className="size-3.5 shrink-0 text-brand-accent" />
           {m.productHeroEyebrow()}
         </p>
         <h1
@@ -394,7 +389,7 @@ function Hero() {
               lang={line.lang}
               dir={line.dir}
               className={cn(
-                "product-display block max-w-full text-[2.1rem] leading-[1.08] tracking-[-0.035em] text-balance sm:text-6xl lg:text-[4rem] xl:text-[4.25rem]",
+                "product-display block max-w-full text-[2.3rem] leading-[1.06] tracking-[-0.035em] text-balance sm:text-6xl lg:text-[4.4rem]",
                 index === 0 ? "self-start" : "self-end",
                 line.className,
               )}
@@ -418,59 +413,51 @@ function Hero() {
               >
                 {m.productRequestDemo()}
               </a>
-              <Link
-                to="/sign-in"
+              <a
+                href="#fit"
                 className={cn(
                   buttonVariants({ size: "lg", variant: "ghost" }),
                   "h-11 border border-white/20 px-6 text-base text-brand-foreground hover:bg-white/10 hover:text-white focus-visible:ring-brand-accent/50",
                 )}
               >
-                {m.productHeroSecondary()}
-              </Link>
+                {m.productHeroTry()}
+              </a>
             </div>
             <p className="text-sm text-brand-quiet">{m.productHeroNote()}</p>
           </div>
         </div>
-        <div className="mt-14 sm:mt-16">
-          <Compare />
+        <div id="fit" className="mt-14 scroll-mt-20 sm:mt-16">
+          <Switchboard />
         </div>
+        <p className="mt-4 flex flex-wrap justify-between gap-x-6 gap-y-1 px-1 text-sm text-muted-foreground">
+          <span>{m.productFitCaption()}</span>
+          <span>{m.productFitCaptionTry()}</span>
+        </p>
       </div>
     </section>
   );
 }
 
-function Modules() {
-  const modules = [
-    m.productModuleLessons(),
-    m.productModuleCoursework(),
-    m.productModuleQuizzes(),
-    m.productModuleGradebook(),
-    m.productModuleAttendance(),
-    m.productModuleTimetables(),
-    m.productModuleCalendar(),
-    m.productModuleAnnouncements(),
-    m.productModuleMessages(),
-    m.productModuleRecords(),
-    m.productModuleConsents(),
-    m.productModuleWebsite(),
-    m.productModuleCoding(),
-  ];
+function Strip() {
+  const facts = [
+    [m.productStripOne(), m.productStripOneBody()],
+    [m.productStripMix(), m.productStripMixBody()],
+    [m.productStripLanguages(), m.productStripLanguagesBody()],
+    [m.productStripData(), m.productStripDataBody()],
+  ] as const;
   return (
-    <section aria-labelledby="modules-title" className="pt-16 pb-4 sm:pt-20">
-      <div className={cn(CONTAINER, "product-reveal text-center")}>
-        <h2 id="modules-title" className="text-sm font-semibold text-primary">
-          {m.productModulesTitle()}
-        </h2>
-        <ul className="mx-auto mt-6 flex max-w-4xl flex-wrap items-center justify-center gap-x-5 gap-y-2.5 text-lg font-medium text-foreground/80 sm:gap-x-8 sm:gap-y-3 sm:text-2xl">
-          {modules.map((name) => (
-            <li key={name} className="flex items-center gap-3">
-              <Star className="size-2.5 shrink-0 text-primary/50" />
-              {name}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
+    <div className={cn(CONTAINER, "pt-14")}>
+      <ul className="product-reveal grid overflow-hidden rounded-2xl border bg-card sm:grid-cols-2 lg:grid-cols-4">
+        {facts.map(([title, body]) => (
+          <li key={title} className="-ms-px -mt-px border-s border-t p-6">
+            <p className="font-semibold">{title}</p>
+            <p className="mt-1 text-sm text-pretty text-muted-foreground">
+              {body}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -494,187 +481,6 @@ function Points({ items, className }: PointsProps) {
   );
 }
 
-interface ShotProps {
-  src: string;
-  alt: string;
-  phone?: boolean;
-}
-
-/** A screen of the app on a pale green panel, bleeding off its far edge. */
-function Shot({ src, alt, phone }: ShotProps) {
-  return (
-    <div className="workspace-hero relative aspect-[16/10] overflow-hidden rounded-2xl ring-1 ring-black/5 dark:ring-white/10">
-      <div
-        aria-hidden
-        className="product-lattice absolute inset-0 opacity-[0.09] [--lattice-fade:radial-gradient(ellipse_at_center,#000_30%,transparent_80%)]"
-      />
-      {phone ? (
-        <div className="absolute inset-x-0 top-[7%] mx-auto w-[38%] rounded-[2.2rem] bg-neutral-950 p-2 shadow-2xl ring-1 ring-black/20">
-          <img
-            src={src}
-            alt={alt}
-            width={780}
-            height={1688}
-            loading="lazy"
-            decoding="async"
-            className="block h-auto w-full rounded-[1.7rem]"
-          />
-        </div>
-      ) : (
-        <img
-          src={src}
-          alt={alt}
-          width={1440}
-          height={900}
-          loading="lazy"
-          decoding="async"
-          className="absolute start-[6%] top-[8%] h-auto w-[135%] max-w-none rounded-lg shadow-[0_30px_80px_-20px_color-mix(in_srgb,var(--brand-shadow)_45%,transparent)] ring-1 ring-black/10"
-        />
-      )}
-    </div>
-  );
-}
-
-function Roles() {
-  const locale = shown();
-  const roles: {
-    id: string;
-    icon: LucideIcon;
-    title: string;
-    body: string;
-    points: string[];
-    shot: string;
-    alt: string;
-    phone?: boolean;
-  }[] = [
-    {
-      id: "leaders",
-      icon: School,
-      title: m.productForLeaders(),
-      body: m.productForLeadersBody(),
-      points: [
-        m.productForLeadersPoint1(),
-        m.productForLeadersPoint2(),
-        m.productForLeadersPoint3(),
-      ],
-      shot: `/product/record-${locale}.webp`,
-      alt: m.productShotRecord(),
-    },
-    {
-      id: "teachers",
-      icon: NotebookTabs,
-      title: m.productForTeachers(),
-      body: m.productForTeachersBody(),
-      points: [
-        m.productForTeachersPoint1(),
-        m.productForTeachersPoint2(),
-        m.productForTeachersPoint3(),
-      ],
-      shot: `/product/register-${locale}.webp`,
-      alt: m.productShotRegister(),
-    },
-    {
-      id: "students",
-      icon: UserRound,
-      title: m.productForStudents(),
-      body: m.productForStudentsBody(),
-      points: [
-        m.productForStudentsPoint1(),
-        m.productForStudentsPoint2(),
-        m.productForStudentsPoint3(),
-      ],
-      shot: `/product/student-${locale}.webp`,
-      alt: m.productShotStudent(),
-    },
-    {
-      id: "families",
-      icon: Users,
-      title: m.productForFamilies(),
-      body: m.productForFamiliesBody(),
-      points: [
-        m.productForFamiliesPoint1(),
-        m.productForFamiliesPoint2(),
-        m.productForFamiliesPoint3(),
-      ],
-      shot: `/product/family-${locale}.webp`,
-      alt: m.productShotFamily(),
-      phone: true,
-    },
-  ];
-  return (
-    <section id="roles" aria-labelledby="roles-title" className={SECTION}>
-      <div className={CONTAINER}>
-        <SectionHeading
-          id="roles-title"
-          title={m.productForTitle()}
-          body={m.productForBody()}
-          className="product-reveal"
-        />
-        <Tabs defaultValue="leaders" className="mt-12 gap-10">
-          <TabsList className="grid w-full grid-cols-2 gap-1 rounded-xl bg-muted p-1 group-data-horizontal/tabs:h-auto sm:inline-flex sm:w-fit sm:group-data-horizontal/tabs:h-12">
-            {roles.map(({ id, icon: Icon, title }) => (
-              <TabsTrigger
-                key={id}
-                value={id}
-                className="h-10 flex-none gap-2 rounded-lg px-3 text-sm sm:h-full sm:px-4"
-              >
-                <Icon aria-hidden />
-                {title}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          {roles.map((role) => (
-            <TabsContent
-              key={role.id}
-              value={role.id}
-              className="grid items-center gap-10 text-base lg:grid-cols-[minmax(0,5fr)_minmax(0,8fr)] lg:gap-14"
-            >
-              <div>
-                <h3 className="product-display text-2xl font-semibold tracking-tight">
-                  {role.title}
-                </h3>
-                <p className="mt-3 text-lg leading-relaxed text-pretty text-muted-foreground">
-                  {role.body}
-                </p>
-                <Points items={role.points} className="mt-7" />
-              </div>
-              <Shot src={role.shot} alt={role.alt} phone={role.phone} />
-            </TabsContent>
-          ))}
-        </Tabs>
-      </div>
-    </section>
-  );
-}
-
-interface TileProps {
-  icon: LucideIcon;
-  title: string;
-  body: string;
-  className?: string;
-  children?: ReactNode;
-}
-
-function Tile({ icon: Icon, title, body, className, children }: TileProps) {
-  return (
-    <article
-      className={cn(
-        "product-reveal relative flex flex-col overflow-hidden rounded-2xl border bg-card p-6 sm:p-8",
-        className,
-      )}
-    >
-      <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
-        <Icon aria-hidden className="size-5" />
-      </span>
-      <h3 className="mt-5 text-lg font-semibold">{title}</h3>
-      <p className="mt-2 max-w-md leading-relaxed text-pretty text-muted-foreground">
-        {body}
-      </p>
-      {children}
-    </article>
-  );
-}
-
 /** A drawing of a coding lesson: MicroPython and the micro:bit lights it draws. */
 function CodeSketch() {
   const heart = [
@@ -688,14 +494,14 @@ function CodeSketch() {
     <span className="size-5 rounded-full bg-brand-raised ring-4 ring-brand-edge" />
   );
   return (
-    <div aria-hidden dir="ltr" className="mt-8 grid gap-3">
-      <pre className="overflow-hidden rounded-xl bg-brand-ink px-4 py-3.5 font-mono text-[13px] leading-6 text-brand-code">
+    <div aria-hidden dir="ltr" className="grid gap-3">
+      <pre className="overflow-hidden rounded-xl bg-black/30 px-4 py-3.5 font-mono text-[13px] leading-6 text-brand-code">
         <span className="text-brand-keyword">from</span> microbit{" "}
         <span className="text-brand-keyword">import</span> *{"\n"}
         display.<span className="text-[#9fd3f0]">show</span>(Image.
         <span className="text-[#f2c98a]">HEART</span>)
       </pre>
-      <div className="flex items-center justify-between rounded-xl bg-brand-ink px-6 py-5">
+      <div className="flex items-center justify-between rounded-xl bg-black/30 px-6 py-5">
         {button}
         <div className="grid grid-cols-5 gap-2">
           {heart.flatMap((row, y) =>
@@ -718,113 +524,461 @@ function CodeSketch() {
   );
 }
 
-function Features() {
+/** A drawing of a video course: the lesson playing and the ones around it. */
+function ReelSketch() {
+  const lessons = [
+    m.productWhoReel1(),
+    m.productWhoReel2(),
+    m.productWhoReel3(),
+    m.productWhoReel4(),
+  ];
+  return (
+    <div
+      aria-hidden
+      className="grid gap-4 rounded-xl bg-[linear-gradient(135deg,var(--brand),var(--brand-ink))] p-4 text-white sm:grid-cols-[1.3fr_1fr]"
+    >
+      <div>
+        <div className="grid aspect-video place-items-center rounded-lg bg-[radial-gradient(circle_at_30%_30%,color-mix(in_srgb,var(--brand-glow)_45%,transparent),transparent_60%)] ring-1 ring-white/10">
+          <span className="grid size-12 place-items-center rounded-full bg-brand-accent text-brand shadow-[0_0_0_10px_rgb(255_255_255/0.08)]">
+            <Play className="size-5 translate-x-0.5 fill-current rtl:-translate-x-0.5 rtl:-scale-x-100" />
+          </span>
+        </div>
+        <div className="mt-3 h-1 rounded-full bg-white/15">
+          <div className="h-full w-[38%] rounded-full bg-brand-accent" />
+        </div>
+      </div>
+      <ol className="grid content-start gap-1.5 text-[13px]">
+        {lessons.map((title, index) => (
+          <li
+            key={title}
+            className={cn(
+              "rounded-md px-2.5 py-2",
+              index === 2
+                ? "bg-white/15 font-semibold"
+                : "bg-white/5 text-brand-muted",
+              index < 2 && "line-through decoration-white/30",
+            )}
+          >
+            {formatNumber(index + 1)} · {title}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+interface CaseProps {
+  kicker: string;
+  title: string;
+  body: string;
+  on: string[];
+  off: string[];
+  dark?: boolean;
+  children: ReactNode;
+}
+
+function Case({ kicker, title, body, on, off, dark, children }: CaseProps) {
+  return (
+    <article
+      className={cn(
+        "product-reveal flex flex-col overflow-hidden rounded-2xl border p-6 pb-0 sm:p-8 sm:pb-0",
+        dark ? "school-sidebar border-white/10" : "bg-card",
+      )}
+    >
+      <p
+        className={cn(
+          "text-xs font-semibold tracking-wider uppercase rtl:tracking-normal",
+          dark ? "text-brand-glow" : "text-primary",
+        )}
+      >
+        {kicker}
+      </p>
+      <h3
+        className={cn(
+          "product-display mt-3 text-[1.45rem] leading-snug font-semibold tracking-tight text-balance",
+          dark && "text-white",
+        )}
+      >
+        {title}
+      </h3>
+      <p
+        className={cn(
+          "mt-3 max-w-xl leading-relaxed text-pretty",
+          dark ? "text-brand-muted" : "text-muted-foreground",
+        )}
+      >
+        {body}
+      </p>
+      <ul className="mt-5 flex flex-wrap gap-1.5 text-[13px] font-medium">
+        {on.map((name) => (
+          <li
+            key={name}
+            className={cn(
+              "rounded-full px-2.5 py-1",
+              dark
+                ? "bg-brand-accent/15 text-brand-accent"
+                : "bg-primary/10 text-primary",
+            )}
+          >
+            {name}
+          </li>
+        ))}
+        {off.map((name) => (
+          <li
+            key={name}
+            className={cn(
+              "rounded-full px-2.5 py-1 line-through",
+              dark
+                ? "bg-white/5 text-white/45 decoration-white/30"
+                : "bg-muted text-muted-foreground/70 decoration-muted-foreground/40",
+            )}
+          >
+            <span className="sr-only">{m.productWhoOff()}: </span>
+            {name}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-7 grow content-end pb-6 sm:pb-8">{children}</div>
+    </article>
+  );
+}
+
+interface ScreenProps {
+  src: string;
+  alt: string;
+}
+
+/** A screen of the app, cut off at the foot of its card. */
+function Screen({ src, alt }: ScreenProps) {
+  return (
+    <div className="-mb-6 h-60 overflow-hidden rounded-t-xl border border-b-0 sm:-mb-8">
+      <img
+        src={src}
+        alt={alt}
+        width={1440}
+        height={900}
+        loading="lazy"
+        decoding="async"
+        className="block h-auto w-[150%] max-w-none"
+      />
+    </div>
+  );
+}
+
+function Who() {
   const locale = shown();
   return (
-    <section
-      id="features"
-      aria-labelledby="features-title"
-      className={cn(SECTION, "border-y bg-muted/50")}
-    >
+    <section id="who" aria-labelledby="who-title" className={SECTION}>
       <div className={CONTAINER}>
+        <p className={EYEBROW}>{m.productWhoEyebrow()}</p>
         <SectionHeading
-          id="features-title"
-          title={m.productFeaturesTitle()}
-          body={m.productFeaturesBody()}
-          className="product-reveal"
+          id="who-title"
+          title={m.productWhoTitle()}
+          body={m.productWhoBody()}
+          className="product-reveal mt-3 max-w-3xl"
         />
-        <div className="mt-14 grid gap-4 lg:grid-cols-6">
-          <Tile
-            icon={BookOpen}
-            title={m.productFeatureLearning()}
-            body={m.productFeatureLearningBody()}
-            className="pb-0 sm:pb-0 lg:col-span-4"
+        <div className="mt-12 grid gap-5 lg:grid-cols-2">
+          <Case
+            kicker={m.productFitExampleSchool()}
+            title={m.productWhoSchoolTitle()}
+            body={m.productWhoSchoolBody()}
+            on={[
+              m.moduleSchoolYears(),
+              m.moduleGradeLevels(),
+              m.moduleHomerooms(),
+              m.moduleFamilies(),
+              m.moduleTimetable(),
+              m.moduleGradebook(),
+              m.moduleAdmissions(),
+              m.moduleWebsite(),
+            ]}
+            off={[]}
           >
-            <div className="relative -me-6 mt-8 h-56 sm:-me-8 sm:h-72">
-              <img
-                src={`/product/quiz-${locale}.webp`}
-                alt={m.productShotQuiz()}
-                width={1440}
-                height={900}
-                loading="lazy"
-                decoding="async"
-                className="absolute start-0 top-0 h-auto w-[130%] max-w-none rounded-ss-lg border shadow-xl"
-              />
-            </div>
-          </Tile>
-          <Tile
-            icon={Code2}
-            title={m.productFeatureCoding()}
-            body={m.productFeatureCodingBody()}
-            className="lg:col-span-2"
+            <Screen
+              src={`/product/register-${locale}.webp`}
+              alt={m.productShotRegister()}
+            />
+          </Case>
+          <Case
+            dark
+            kicker={m.productFitExampleCode()}
+            title={m.productWhoCodeTitle()}
+            body={m.productWhoCodeBody()}
+            on={[
+              m.moduleCoding(),
+              m.moduleElearning(),
+              m.moduleCoursework(),
+              m.moduleAttendance(),
+              m.moduleGradeLevels(),
+            ]}
+            off={[m.moduleSchoolYears(), m.moduleHomerooms()]}
           >
-            <div className="mt-auto">
-              <CodeSketch />
-            </div>
-          </Tile>
-          <Tile
-            icon={CalendarDays}
-            title={m.productFeatureSchoolLife()}
-            body={m.productFeatureSchoolLifeBody()}
-            className="lg:col-span-2"
-          />
-          <Tile
-            icon={FolderLock}
-            title={m.productFeatureRecords()}
-            body={m.productFeatureRecordsBody()}
-            className="lg:col-span-2"
-          />
-          <Tile
-            icon={MessagesSquare}
-            title={m.productFeatureMessages()}
-            body={m.productFeatureMessagesBody()}
-            className="lg:col-span-2"
-          />
-          <article className="product-reveal relative grid overflow-hidden rounded-2xl border bg-card lg:col-span-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-            <div className="p-6 sm:p-8 lg:p-10">
-              <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
-                <LayoutTemplate aria-hidden className="size-5" />
-              </span>
-              <h3 className="mt-5 text-lg font-semibold">
-                {m.productFeatureWebsite()}
-              </h3>
-              <p className="mt-2 max-w-md leading-relaxed text-pretty text-muted-foreground">
-                {m.productFeatureWebsiteBody()}
-              </p>
-            </div>
-            <div className="relative h-72 sm:h-[26rem] lg:h-auto lg:min-h-[26rem]">
-              <img
-                src={`/product/website-${locale}.webp`}
-                alt={m.productShotWebsite()}
-                width={1440}
-                height={900}
-                loading="lazy"
-                decoding="async"
-                className="absolute start-6 top-6 h-auto w-[115%] max-w-none rounded-ss-lg border shadow-xl sm:start-8 sm:top-8 sm:w-[120%] lg:w-[112%]"
-              />
-            </div>
-          </article>
+            <CodeSketch />
+          </Case>
+          <Case
+            kicker={m.productFitExampleAcademy()}
+            title={m.productWhoAcademyTitle()}
+            body={m.productWhoAcademyBody()}
+            on={[
+              m.moduleCoursework(),
+              m.moduleAttendance(),
+              m.moduleElearning(),
+              m.moduleAdmissions(),
+              m.moduleWebsite(),
+            ]}
+            off={[
+              m.moduleFamilies(),
+              m.moduleGradeLevels(),
+              m.moduleTimetable(),
+            ]}
+          >
+            <Screen
+              src={`/product/learners-${locale}.webp`}
+              alt={m.productWhoShotAcademy()}
+            />
+          </Case>
+          <Case
+            kicker={m.productFitExampleVideo()}
+            title={m.productWhoVideoTitle()}
+            body={m.productWhoVideoBody()}
+            on={[
+              m.moduleVideo(),
+              m.moduleElearning(),
+              m.moduleCoursework(),
+              m.moduleWebsite(),
+            ]}
+            off={[
+              m.moduleAttendance(),
+              m.moduleTimetable(),
+              m.moduleSchoolYears(),
+            ]}
+          >
+            <ReelSketch />
+          </Case>
         </div>
       </div>
     </section>
   );
 }
 
-function Bilingual() {
-  const sheets = [
+function Day() {
+  const core = m.productFitCore();
+  const beats: { at: string; title: string; body: string; needs: string[] }[] =
+    [
+      {
+        at: "07:45",
+        title: m.productDayToday(),
+        body: m.productDayTodayBody(),
+        needs: [core],
+      },
+      {
+        at: "08:00",
+        title: m.productDayRegister(),
+        body: m.productDayRegisterBody(),
+        needs: [m.moduleAttendance()],
+      },
+      {
+        at: "10:30",
+        title: m.productDayWork(),
+        body: m.productDayWorkBody(),
+        needs: [m.moduleCoursework(), m.moduleElearning()],
+      },
+      {
+        at: "15:10",
+        title: m.productDayMark(),
+        body: m.productDayMarkBody(),
+        needs: [m.moduleCoursework(), m.moduleGradebook()],
+      },
+      {
+        at: "16:00",
+        title: m.productDayTell(),
+        body: m.productDayTellBody(),
+        needs: [core, m.moduleFamilies()],
+      },
+    ];
+  return (
+    <section
+      id="day"
+      aria-labelledby="day-title"
+      className={cn(SECTION, "border-y bg-muted/50")}
+    >
+      <div className={CONTAINER}>
+        <p className={EYEBROW}>{m.productDayEyebrow()}</p>
+        <SectionHeading
+          id="day-title"
+          title={m.productDayTitle()}
+          body={m.productDayBody()}
+          className="product-reveal mt-3"
+        />
+        <ol className="product-reveal mt-12 grid overflow-hidden rounded-2xl border bg-card sm:grid-cols-2 lg:grid-cols-5">
+          {beats.map((beat) => (
+            <li
+              key={beat.at}
+              className="-ms-px -mt-px flex flex-col border-s border-t p-6"
+            >
+              <p
+                dir="ltr"
+                className="text-start text-sm font-semibold text-primary tabular-nums"
+              >
+                {beat.at}
+              </p>
+              <h3 className="mt-3 text-lg font-semibold">{beat.title}</h3>
+              <p className="mt-2 grow text-[15px] leading-relaxed text-pretty text-muted-foreground">
+                {beat.body}
+              </p>
+              <p className="mt-5 text-xs text-muted-foreground/80">
+                {beat.needs.join(" · ")}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
+function Catalogue() {
+  const rules = [
+    [m.productRuleOn(), m.productRuleOnBody()],
+    [m.productRuleOff(), m.productRuleOffBody()],
+    [m.productRuleKept(), m.productRuleKeptBody()],
+  ] as const;
+  const groups: {
+    title: string;
+    hint: string;
+    items: string[];
+    core?: boolean;
+  }[] = [
     {
-      lang: "en",
-      label: m.languageOwnEn(),
-      src: "/product/news-en.webp",
-      alt: m.productShotNewsEnglish(),
+      title: m.productGroupCore(),
+      hint: m.productGroupCoreHint(),
+      core: true,
+      items: [
+        m.productCorePeople(),
+        m.productCoreClasses(),
+        m.productCoreMessages(),
+        m.productCoreAnnouncements(),
+        m.productCoreCalendar(),
+        m.productCoreFiles(),
+        m.productCoreConsents(),
+        m.productCoreRoles(),
+      ],
     },
     {
-      lang: "ar",
-      label: m.languageOwnAr(),
-      src: "/product/news-ar.webp",
-      alt: m.productShotNewsArabic(),
+      title: m.productFitGroupTeaching(),
+      hint: m.productGroupTeachingHint(),
+      items: [
+        m.moduleCoursework(),
+        m.moduleElearning(),
+        m.moduleAttendance(),
+        m.moduleGradebook(),
+        m.moduleCoding(),
+        m.moduleVideo(),
+        m.moduleStandards(),
+        m.modulePeerReview(),
+      ],
+    },
+    {
+      title: m.productGroupOrganised(),
+      hint: m.productGroupOrganisedHint(),
+      items: [
+        m.moduleSchoolYears(),
+        m.moduleGradeLevels(),
+        m.moduleHomerooms(),
+        m.moduleTimetable(),
+        m.moduleFamilies(),
+        m.moduleEarlyYears(),
+        m.moduleStudentRecords(),
+        m.moduleBadges(),
+      ],
+    },
+    {
+      title: m.productFitGroupDoor(),
+      hint: m.productGroupDoorHint(),
+      items: [
+        m.moduleWebsite(),
+        m.moduleAdmissions(),
+        m.moduleCustomDomains(),
+        m.moduleSms(),
+      ],
     },
   ];
+  return (
+    <section id="modules" aria-labelledby="modules-title" className={SECTION}>
+      <div
+        className={cn(
+          CONTAINER,
+          "grid gap-12 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-16",
+        )}
+      >
+        <div className="product-reveal">
+          <p className={EYEBROW}>{m.productCatalogueEyebrow()}</p>
+          <h2
+            id="modules-title"
+            className="product-display mt-3 text-3xl leading-[1.12] font-semibold tracking-tight text-balance sm:text-[2.2rem]"
+          >
+            {m.productCatalogueTitle()}
+          </h2>
+          <dl className="mt-8 grid gap-5">
+            {rules.map(([title, body]) => (
+              <div key={title}>
+                <dt className="font-semibold">{title}</dt>
+                <dd className="mt-1 text-pretty text-muted-foreground">
+                  {body}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        <ul className="grid gap-3.5">
+          {groups.map((group) => (
+            <li
+              key={group.title}
+              className={cn(
+                "product-reveal grid gap-5 rounded-2xl border p-6 sm:grid-cols-[11rem_minmax(0,1fr)] sm:p-7",
+                group.core ? "school-sidebar border-transparent" : "bg-card",
+              )}
+            >
+              <div>
+                <h3 className={cn("font-semibold", group.core && "text-white")}>
+                  {group.title}
+                </h3>
+                <p
+                  className={cn(
+                    "mt-1 text-sm",
+                    group.core ? "text-brand-muted" : "text-muted-foreground",
+                  )}
+                >
+                  {group.hint}
+                </p>
+              </div>
+              <ul
+                className={cn(
+                  "grid gap-x-6 gap-y-2.5 text-[15px] sm:grid-cols-2",
+                  group.core && "text-white",
+                )}
+              >
+                {group.items.map((item) => (
+                  <li key={item} className="flex items-center gap-2.5">
+                    <Star
+                      className={cn(
+                        "size-2.5 shrink-0",
+                        group.core ? "text-brand-accent" : "text-primary/60",
+                      )}
+                    />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function Bilingual() {
   return (
     <section
       id="languages"
@@ -858,32 +1012,8 @@ function Bilingual() {
             aria-hidden
             className="product-lattice absolute -inset-6 text-primary/15 [--lattice-fade:radial-gradient(closest-side,#000,transparent)]"
           />
-          <div className="relative grid gap-5">
-            {sheets.map((sheet, index) => (
-              <figure
-                key={sheet.lang}
-                className={cn(
-                  "overflow-hidden rounded-xl border border-[#e4e4df] bg-white shadow-xl shadow-black/5 dark:border-white/10 dark:shadow-black/30",
-                  index === 0 ? "me-8 sm:me-14" : "ms-8 sm:ms-14",
-                )}
-              >
-                <figcaption
-                  lang={sheet.lang}
-                  className="border-b border-[#ecece7] bg-[#f6f6f2] px-4 py-2 text-xs font-medium text-[#5b6466]"
-                >
-                  {sheet.label}
-                </figcaption>
-                <img
-                  src={sheet.src}
-                  alt={sheet.alt}
-                  width={1100}
-                  height={525}
-                  loading="lazy"
-                  decoding="async"
-                  className="block h-auto w-full"
-                />
-              </figure>
-            ))}
+          <div className="relative">
+            <Compare />
           </div>
         </div>
       </div>
@@ -1090,8 +1220,9 @@ function Footer() {
     {
       title: m.productNavLabel(),
       links: [
-        { href: "#features", label: m.productNavFeatures() },
-        { href: "#roles", label: m.productNavRoles() },
+        { href: "#fit", label: m.productNavFit() },
+        { href: "#who", label: m.productNavWho() },
+        { href: "#modules", label: m.productNavModules() },
         { href: "#languages", label: m.productNavLanguages() },
         { href: "#security", label: m.productNavTrust() },
         { href: "#demo", label: m.productRequestDemo() },
@@ -1179,9 +1310,10 @@ export function ProductSite() {
       <Header />
       <main id="main">
         <Hero />
-        <Modules />
-        <Roles />
-        <Features />
+        <Strip />
+        <Who />
+        <Day />
+        <Catalogue />
         <Bilingual />
         <Trust />
         <SelfHosting />
