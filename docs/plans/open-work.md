@@ -76,10 +76,6 @@ what it leaves to do.
   provider tables and has no sign-in flow or API.
 - **A school's own word for "grade" or "level"**, so a coding school's
   levels are not called grades.
-- **A running grade students can see** without school years: `/me/grades`
-  and `/family/grades` are filled only by term grades (school years) and
-  goals (standards), so a learner at a school with neither never sees the
-  gradebook's running grade.
 - **Class groups have no screen that writes them.** `classes.saveGroup` and
   `classes.removeGroup` exist and nothing in the web calls them.
 - **Brand colours as a school setting.** The portal takes its colours from

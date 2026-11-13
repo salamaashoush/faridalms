@@ -54,6 +54,7 @@ create trigger row_meta before insert or update on core.class_lesson_settings
   for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.class_meetings for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.class_periods for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.class_running_grades for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.class_years for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.classes for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.contact_points for each row execute function app.row_meta();
@@ -89,6 +90,7 @@ create trigger row_meta before insert or update on core.goal_reports for each ro
 create trigger row_meta before insert or update on core.grade_scale_versions
   for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.grade_scales for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.gradebook_settings for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.homeroom_classes for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.homeroom_members for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.homerooms for each row execute function app.row_meta();

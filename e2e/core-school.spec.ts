@@ -14,9 +14,9 @@ import {
   untilHydrated,
 } from "./fixtures/sign-in";
 
-// The seeded academy on core, coursework, attendance and e-learning alone,
-// with its administrator, a teacher, and a learner for each browser so
-// parallel projects never hand in or read each other's work.
+// The seeded academy on core, coursework, the gradebook, attendance and
+// e-learning alone, with its administrator, a teacher, and a learner for
+// each browser so parallel projects never hand in or read each other's work.
 const SCHOOL = "lanternfield";
 const at = portal(SCHOOL);
 const ADMIN = "admin.lanternfield@lanternfield.example.com";
@@ -210,7 +210,7 @@ test("the academy runs a class from setup to a register, an assignment marked an
   await expect(page).toHaveURL(/\/students\/[0-9a-f-]{36}/);
   const studentPath = new URL(page.url()).pathname;
 
-  // Only core's pages and its three modules' are offered.
+  // Only core's pages and its four modules' are offered.
   await page.goto(`${at}/today`);
   await untilHydrated(page);
   await expect(
@@ -220,6 +220,7 @@ test("the academy runs a class from setup to a register, an assignment marked an
     "Classes",
     "To review",
     "Coursework",
+    "Gradebook",
     "Modules",
     "Attendance",
     "Students",

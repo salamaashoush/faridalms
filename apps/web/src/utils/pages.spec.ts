@@ -93,12 +93,12 @@ describe("the pages a school shows", () => {
     );
   });
 
-  it("shows a student's grades where term grades or skills fill them, and nowhere else", () => {
+  it("shows a student's grades wherever the gradebook keeps running grades, and a family's only with families", () => {
     expect(on("/me/grades")).toBe(true);
     expect(on("/me/grades", "school_years")).toBe(true);
     expect(on("/family/grades", "standards")).toBe(true);
-    expect(on("/me/grades", "school_years", "standards")).toBe(false);
-    expect(on("/family/grades", "school_years", "standards")).toBe(false);
+    expect(on("/me/grades", "school_years", "standards")).toBe(true);
+    expect(on("/family/grades", "school_years", "standards")).toBe(true);
     expect(on("/me/grades", "gradebook")).toBe(false);
     expect(on("/family/grades", "families")).toBe(false);
   });

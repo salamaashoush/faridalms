@@ -3,15 +3,32 @@ import { BookOpen } from "lucide-react";
 import type { ModuleFillings } from "~/utils/extension";
 
 import { navItems } from "~/components/app/navigation";
+import { gradingSettingsSections } from "~/components/grading/slots";
 import * as m from "~/i18n/messages";
+import { runningGradesQuery } from "~/queries/gradebook";
 import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 
-/** The gradebook's pages and links; a student's grades page is its links'. */
+import { RunningDefault } from "./RunningChoice";
+import { RunningGrades } from "./RunningGrades";
+import { gradesSections } from "./slots";
+
+/**
+ * The gradebook's pages and links, a learner's running grades on their
+ * Grades page, and the school's default for new classes among its grading
+ * settings.
+ */
 export const GRADEBOOK: ModuleFillings = {
   module: "gradebook",
   fillings: [
-    fill(modulePages, ["/gradebook"]),
+    fill(modulePages, ["/gradebook", "/me/grades", "/family/grades"]),
+    fill(gradesSections, {
+      key: "running",
+      place: 25,
+      query: (studentId) => runningGradesQuery(studentId),
+      Section: RunningGrades,
+    }),
+    fill(gradingSettingsSections, { key: "running", Section: RunningDefault }),
     fill(navItems, {
       workspace: "staff",
       section: "teaching",

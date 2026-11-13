@@ -48,3 +48,36 @@ export const regradeTerm = createServerFn({ method: "POST" })
     ),
   )
   .handler(({ data }) => backend().gradebook.regradeTerm(data));
+
+const uuid = v.pipe(v.string(), v.uuid());
+const version = v.pipe(v.number(), v.integer(), v.minValue(0));
+
+export const getRunningGrades = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ studentId: v.optional(uuid) })))
+  .handler(({ data }) => record(backend().gradebook.running(data)));
+
+export const getRunningShown = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ classId: uuid })))
+  .handler(({ data }) => record(backend().gradebook.runningShown(data)));
+
+export const showRunning = createServerFn({ method: "POST" })
+  .validator(
+    checked(
+      v.object({
+        classId: uuid,
+        shown: v.boolean(),
+        expectedVersion: version,
+      }),
+    ),
+  )
+  .handler(({ data }) => backend().gradebook.showRunning(data));
+
+export const getRunningDefault = createServerFn({ method: "GET" }).handler(() =>
+  record(backend().gradebook.runningDefault()),
+);
+
+export const setRunningDefault = createServerFn({ method: "POST" })
+  .validator(
+    checked(v.object({ runningShown: v.boolean(), expectedVersion: version })),
+  )
+  .handler(({ data }) => backend().gradebook.setRunningDefault(data));

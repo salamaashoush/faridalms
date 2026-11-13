@@ -97,6 +97,8 @@ export const CONFLICTS: Record<string, string> = {
   period_grades_key: "period_grade.exists",
   year_rollovers_years_key: "rollover.exists",
   attendance_settings_org_key: "conflict.version",
+  gradebook_settings_org_key: "conflict.version",
+  class_running_grades_class_key: "conflict.version",
   retention_settings_org_key: "conflict.version",
   attendance_registers_key: "conflict.version",
   attendance_events_key: "conflict.version",

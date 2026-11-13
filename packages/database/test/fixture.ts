@@ -215,6 +215,19 @@ export async function completeFixture(
     labelAr: "الصف الثاني الإعدادي",
   });
 
+  await tx.execute(sql`
+    insert into core.gradebook_settings (tenant_id, org_id, running_shown)
+    values (${tenantId}::uuid, ${schoolId}::uuid, false)
+    on conflict do nothing`);
+  await tx.execute(sql`
+    insert into core.class_running_grades (tenant_id, org_id, class_id, shown)
+    select c.tenant_id, c.org_id, c.id, false from core.classes c
+    where c.tenant_id = ${tenantId}::uuid and c.org_id = ${schoolId}::uuid
+      and c.status = 'active'
+      and not exists (select 1 from core.class_running_grades g
+        where g.tenant_id = c.tenant_id and g.class_id = c.id and g.status = 'active')
+    limit 1`);
+
   await tx.insert(emergencyContacts).values({
     tenantId,
     userId,

@@ -9,6 +9,7 @@ import {
   plainContent,
 } from "@faridalms/domain/content-conversion";
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
+import { SCALE_PRESETS } from "@faridalms/domain/grading";
 import { normaliseIdentifier } from "@faridalms/domain/identifiers";
 import { contentOfLesson } from "@faridalms/domain/lesson-content";
 import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
@@ -74,6 +75,13 @@ import {
 } from "./stores/documents";
 import { insertEnquiry, openEnquiryConversation } from "./stores/enquiries";
 import { actorsOf, keepConsentLink, setToFamilies } from "./stores/families";
+import { setRunningShown } from "./stores/gradebook";
+import {
+  insertScaleVersion,
+  saveProgramme,
+  saveScale,
+  setClassGrading,
+} from "./stores/grading";
 import {
   addHomeroom,
   followHomeroom,
@@ -270,8 +278,8 @@ export interface SeededSchool {
   nameAr: string;
   /**
    * What its plan entitles it to: every module, so the seed shows the whole
-   * product, but Basic for one school and core's teaching modules alone for
-   * the academy.
+   * product, but Basic for one school and core's teaching modules and the
+   * gradebook for the academy.
    */
   modules: readonly ModuleId[];
 }
@@ -818,6 +826,9 @@ async function seedClasses(
   }
 }
 
+/** The class whose teacher shows its students their running grade. */
+const RUNNING_GRADES_CLASS = "8-A-ARAB";
+
 /**
  * Coursework in every subject class: work already due with handed-in,
  * graded and returned attempts, work due later, a draft, a group, a rubric
@@ -831,10 +842,11 @@ async function seedCoursework(
 ) {
   const offerings = await tx.execute<{
     id: string;
+    code: string;
     teacher_id: string;
     title_en: string | null;
   }>(sql`
-    select c.id, e.user_id as teacher_id, c.title_en
+    select c.id, c.code, e.user_id as teacher_id, c.title_en
     from core.classes c
     join core.enrollments e on e.tenant_id = c.tenant_id and e.class_id = c.id and e.role = 'teacher'
     where c.tenant_id = ${tenantId}::uuid and c.id in (select y.class_id from core.class_years y where y.tenant_id = c.tenant_id and y.school_year_id = ${yearId}::uuid and y.status = 'active')
@@ -1047,6 +1059,15 @@ async function seedCoursework(
           releasedAt: new Date("2026-09-26T10:00:00Z"),
         })),
       );
+    // The browser specs' student is the first of this class, which has a
+    // released term grade and a returned piece of work.
+    if (offering.code === RUNNING_GRADES_CLASS)
+      await setRunningShown(tx, {
+        tenantId,
+        classId: offering.id,
+        shown: true,
+        expectedVersion: 0,
+      });
   }
 }
 
@@ -3253,6 +3274,8 @@ const ACADEMY_CLASSES: AcademyClass[] = [
  */
 interface AcademyWork {
   classCode: string;
+  /** Where it counts in the academy's grading. */
+  category: "exercises" | "projects";
   title: string;
   brief: string;
   points: number;
@@ -3269,6 +3292,7 @@ interface AcademyWork {
 const ACADEMY_WORK: AcademyWork[] = [
   {
     classCode: "PY-EVE",
+    category: "exercises",
     title: "Variables and types",
     brief:
       "Write a program that stores your name, your age and your favourite number, then prints a sentence using all three.",
@@ -3305,6 +3329,7 @@ const ACADEMY_WORK: AcademyWork[] = [
   },
   {
     classCode: "PY-EVE",
+    category: "exercises",
     title: "Loops: FizzBuzz",
     brief:
       "Print the numbers from 1 to 100, but Fizz for multiples of three, Buzz for multiples of five and FizzBuzz for both.",
@@ -3322,6 +3347,7 @@ const ACADEMY_WORK: AcademyWork[] = [
   },
   {
     classCode: "PY-EVE",
+    category: "exercises",
     title: "Functions practice",
     brief: "Write three small functions and a test for each.",
     points: 10,
@@ -3331,6 +3357,7 @@ const ACADEMY_WORK: AcademyWork[] = [
   },
   {
     classCode: "WEB-AUT",
+    category: "exercises",
     title: "A page about yourself",
     brief:
       "Build one HTML page with a heading, a photo, a list of three things you enjoy and a link to a site you use every day.",
@@ -3380,6 +3407,7 @@ const ACADEMY_WORK: AcademyWork[] = [
   },
   {
     classCode: "WEB-AUT",
+    category: "projects",
     title: "Style it with CSS",
     brief:
       "Give your page a colour scheme, a readable font and a layout that works on a phone.",
@@ -3390,6 +3418,7 @@ const ACADEMY_WORK: AcademyWork[] = [
   },
   {
     classCode: "WEB-SPR",
+    category: "projects",
     title: "Final project: a small shop site",
     brief:
       "Build a three-page site for a small shop: a home page, a product list and a contact form.",
@@ -3495,11 +3524,75 @@ const ACADEMY_MODULES: AcademyModule[] = [
 ];
 
 /**
- * A coding academy of adults on core and the teaching modules alone: its
- * courses run as classes from their own dates, one still enrolling, one
- * over and one yet to start; teachers and a dozen learners who sign in
- * for themselves; work handed in, marked and returned; lessons and the
- * progress through them; each running class's register for the last
+ * The academy's grading: Egyptian percentage bands, and one programme for
+ * every class weighing projects above exercises.
+ */
+async function seedAcademyGrading(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    adminId: string;
+    from: string;
+    classIds: readonly string[];
+  },
+): Promise<Record<AcademyWork["category"], string>> {
+  const preset = SCALE_PRESETS.find((row) => row.key === "egypt_bands");
+  if (!preset) throw new Error("no Egyptian bands preset");
+  const scale = await saveScale(tx, {
+    tenantId: input.tenantId,
+    orgId: input.schoolId,
+    titleEn: preset.titleEn,
+    titleAr: preset.titleAr,
+    display: preset.display,
+  });
+  if (!scale) throw new Error("the academy's scale was not saved");
+  await insertScaleVersion(tx, {
+    tenantId: input.tenantId,
+    scaleId: scale.id,
+    effectiveFrom: input.from,
+    bands: [...preset.bands],
+    reason: null,
+    userId: input.adminId,
+  });
+  const programme = await saveProgramme(tx, {
+    tenantId: input.tenantId,
+    orgId: input.schoolId,
+    titleEn: "Course grading",
+    titleAr: "تقييم الدورات",
+    scaleId: scale.id,
+    categories: [
+      { titleEn: "Exercises", titleAr: "تمارين", weight: 40 },
+      { titleEn: "Projects", titleAr: "مشاريع", weight: 60 },
+    ],
+  });
+  if (!programme) throw new Error("the academy's programme was not saved");
+  for (const classId of input.classIds)
+    await setClassGrading(tx, {
+      tenantId: input.tenantId,
+      classId,
+      programmeId: programme.id,
+      scaleId: null,
+    });
+  const categories = await tx.execute<{ id: string; title_en: string }>(sql`
+    select id, title_en from core.programme_categories
+    where tenant_id = ${input.tenantId}::uuid and programme_id = ${programme.id}::uuid
+      and status = 'active'`);
+  const idOf = (title: string) => {
+    const found = categories.find((row) => row.title_en === title);
+    if (!found) throw new Error(`no academy category ${title}`);
+    return found.id;
+  };
+  return { exercises: idOf("Exercises"), projects: idOf("Projects") };
+}
+
+/**
+ * A coding academy of adults on core, the teaching modules and the
+ * gradebook: its courses run as classes from their own dates, one still
+ * enrolling, one over and one yet to start; teachers and a dozen learners
+ * who sign in for themselves; work handed in, marked and returned, graded
+ * by one programme, with one class showing its running grades; lessons and
+ * the progress through them; each running class's register for the last
  * school days; and messages and announcements.
  */
 async function seedAcademy(
@@ -3742,6 +3835,20 @@ async function seedAcademy(
       .filter(([, joins]) => day(run.starts + joins) <= on)
       .map(([learner]) => learnerOf(learner).id);
 
+  const categoryIds = await seedAcademyGrading(tx, {
+    tenantId,
+    schoolId,
+    adminId: admin.id,
+    from: day(-240),
+    classIds: [...classIds.values()],
+  });
+  await setRunningShown(tx, {
+    tenantId,
+    classId: classOf("PY-EVE").id,
+    shown: true,
+    expectedVersion: 0,
+  });
+
   for (const work of ACADEMY_WORK) {
     const { id: classId, run, teacher } = classOf(work.classCode);
     const id = Bun.randomUUIDv7();
@@ -3753,6 +3860,7 @@ async function seedAcademy(
       classId,
       authorUserId: teacher.id,
       title: work.title,
+      categoryId: categoryIds[work.category],
       state: published ? "published" : "draft",
       availableFrom: moment(work.opens, 6),
       dueAt: work.due === null ? null : moment(work.due, 20),
@@ -4237,7 +4345,7 @@ export const SEED_TENANTS: {
         slug: "lanternfield",
         nameEn: "Lanternfield Code Academy",
         nameAr: "أكاديمية لانترنفيلد للبرمجة",
-        modules: ["coursework", "attendance", "elearning"],
+        modules: ["coursework", "gradebook", "attendance", "elearning"],
       },
     ],
     domain: "lanternfield.example.com",
@@ -4249,8 +4357,9 @@ export const SEED_TENANTS: {
  * The development seed: a school group of two schools, with a teacher who
  * works at both and a family with children at both, a standalone school in
  * another jurisdiction, a small school entitled to Basic alone, and a
- * coding academy of adults on core and the teaching modules alone. Every
- * adult and some students can sign in with `SEED_PASSWORD`.
+ * coding academy of adults on core, the teaching modules and the
+ * gradebook. Every adult and some students can sign in with
+ * `SEED_PASSWORD`.
  */
 export async function seedCell(
   owner: ReturnType<typeof openOwner>,

@@ -236,6 +236,10 @@ alter table core.class_periods force row level security;
 grant select, insert, update on core.class_periods to app, worker, cell_io;
 grant select on core.class_periods to integration, retention;
 
+alter table core.class_running_grades force row level security;
+grant select, insert, update on core.class_running_grades to app, worker, cell_io;
+grant select on core.class_running_grades to retention;
+
 alter table core.class_years force row level security;
 grant select, insert, update on core.class_years to app, worker, cell_io;
 grant select on core.class_years to integration, retention;
@@ -418,6 +422,10 @@ grant select on core.grade_scale_versions to retention;
 alter table core.grade_scales force row level security;
 grant select, insert, update on core.grade_scales to app, worker, cell_io;
 grant select on core.grade_scales to retention;
+
+alter table core.gradebook_settings force row level security;
+grant select, insert, update on core.gradebook_settings to app, worker, cell_io;
+grant select on core.gradebook_settings to retention;
 
 alter table core.homeroom_classes force row level security;
 grant select, insert, update on core.homeroom_classes to app, worker, cell_io;

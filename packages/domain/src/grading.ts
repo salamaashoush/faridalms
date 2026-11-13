@@ -334,37 +334,128 @@ export interface WorkResult {
   excused: boolean;
 }
 
+const possibleOf = (rows: readonly WorkResult[]) =>
+  rows.reduce((sum, row) => sum + (row.points ?? 0), 0);
+
 /**
- * A term's percentage from its graded work, as Canvas assignment groups
- * and Classroom grade categories work: each category's points earned over
- * points possible, weighted, with the weights shared among the categories
- * that have graded work. Without categories, all work counts by its points.
- * Ungraded and excused work is left out rather than counted as zero.
+ * The share of the grade each piece of work carries, as a fraction, in the
+ * order given; null for work that does not count. As Canvas assignment
+ * groups and Classroom grade categories work: each category's weight is
+ * shared among the categories that have graded work, and within one among
+ * its pieces by their points. Without categories, all work counts by its
+ * points. Ungraded and excused work is left out rather than counted as
+ * zero, and so is work in no category of the class's.
  */
-/** Points earned over points possible, as a percentage. */
-function share(rows: readonly WorkResult[]): number | null {
-  const possible = rows.reduce((sum, row) => sum + (row.points ?? 0), 0);
-  const earned = rows.reduce((sum, row) => sum + (row.score ?? 0), 0);
-  return possible ? (earned / possible) * 100 : null;
+export function workWeights(
+  work: readonly WorkResult[],
+  categories: readonly { id: string; weight: number }[],
+): (number | null)[] {
+  const counts = (row: WorkResult) =>
+    !row.excused && row.score !== null && Boolean(row.points);
+  const graded = work.filter(counts);
+  if (!categories.length) {
+    const possible = possibleOf(graded);
+    return work.map((row) =>
+      possible && counts(row) ? (row.points ?? 0) / possible : null,
+    );
+  }
+  const possible = new Map(
+    categories.map((category) => [
+      category.id,
+      possibleOf(graded.filter((row) => row.categoryId === category.id)),
+    ]),
+  );
+  const weights = categories.reduce(
+    (sum, category) =>
+      (possible.get(category.id) ?? 0) > 0 ? sum + category.weight : sum,
+    0,
+  );
+  return work.map((row) => {
+    const category = categories.find((each) => each.id === row.categoryId);
+    const inCategory = category ? (possible.get(category.id) ?? 0) : 0;
+    if (!category || !weights || !inCategory || !counts(row)) return null;
+    return ((category.weight / weights) * (row.points ?? 0)) / inCategory;
+  });
 }
 
+/** A term's or a run's percentage from its graded work, weighted as `workWeights` shares it. */
 export function termPercent(
   work: readonly WorkResult[],
   categories: readonly { id: string; weight: number }[],
 ): number | null {
-  const graded = work.filter(
-    (row) => !row.excused && row.score !== null && row.points,
-  );
-  if (!categories.length) return share(graded);
-  let weighted = 0;
-  let weights = 0;
-  for (const category of categories) {
-    const percent = share(
-      graded.filter((row) => row.categoryId === category.id),
-    );
-    if (percent === null) continue;
-    weighted += percent * category.weight;
-    weights += category.weight;
+  const weights = workWeights(work, categories);
+  let percent = 0;
+  let counted = false;
+  for (const [index, row] of work.entries()) {
+    const weight = weights[index];
+    if (weight === null || weight === undefined || !row.points) continue;
+    percent += weight * ((row.score ?? 0) / row.points) * 100;
+    counted = true;
   }
-  return weights ? weighted / weights : null;
+  return counted ? percent : null;
+}
+
+/** A student's result on a piece of the class's work, as the gradebook reads it. */
+export interface BookResult {
+  score: number | null;
+  /** The score after any late deduction. */
+  effectiveScore: number | null;
+  excused: boolean;
+  /** Returned to the student, so they can read it. */
+  released: boolean;
+}
+
+/** A piece of work as it counts toward a student's running grade. */
+export interface RunningPart {
+  assignmentId: string;
+  score: number | null;
+  points: number | null;
+  excused: boolean;
+  /** Its share of the grade as a percentage; null when it does not count. */
+  weight: number | null;
+}
+
+/**
+ * A student's running grade in a class: the percentage their work gives,
+ * and what it is made of. The teacher's book counts every mark given;
+ * what a learner is shown counts only work returned to them, so a mark not
+ * yet returned changes nothing they see.
+ */
+export function runningGrade(
+  work: readonly {
+    id: string;
+    categoryId: string | null;
+    points: number | null;
+  }[],
+  resultOf: (assignmentId: string) => BookResult | undefined,
+  categories: readonly { id: string; weight: number }[],
+  counted: "marked" | "returned",
+): { percent: number | null; parts: RunningPart[] } {
+  const rows = work.flatMap((item) => {
+    const result = resultOf(item.id);
+    if (counted === "returned" && !result?.released) return [];
+    return [
+      {
+        assignmentId: item.id,
+        categoryId: item.categoryId,
+        points: item.points,
+        score: result?.effectiveScore ?? result?.score ?? null,
+        excused: result?.excused ?? false,
+      },
+    ];
+  });
+  const weights = workWeights(rows, categories);
+  return {
+    percent: termPercent(rows, categories),
+    parts: rows.map((row, index) => {
+      const weight = weights[index] ?? null;
+      return {
+        assignmentId: row.assignmentId,
+        score: row.score,
+        points: row.points,
+        excused: row.excused,
+        weight: weight === null ? null : weight * 100,
+      };
+    }),
+  };
 }

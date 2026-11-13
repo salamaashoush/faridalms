@@ -16,6 +16,13 @@ import { signIn as badgeSignIn } from "./badges/sign-in";
 import * as classGroups from "./classes/groups";
 import { modulesOf } from "./core/modules";
 import { today as courseworkToday } from "./coursework/today";
+import {
+  running,
+  runningDefault,
+  runningShown,
+  setRunningDefault,
+  showRunning,
+} from "./gradebook/running";
 import { today as learningToday } from "./learning/today";
 import { peerSettings } from "./peer/settings";
 import * as emergencyContactsSystem from "./people/emergency-contacts-system";
@@ -160,7 +167,14 @@ export const router = {
   }),
   peer: owned("peer", { ...peerSystem, settings: peerSettings }),
   reading: owned("reading", readingSystem),
-  gradebook: owned("gradebook", gradebookSystem),
+  gradebook: owned("gradebook", {
+    ...gradebookSystem,
+    running,
+    runningShown,
+    showRunning,
+    runningDefault,
+    setRunningDefault,
+  }),
   grading: owned("grading", gradingSystem),
   privacy: owned("privacy", privacySystem),
   attendance: owned("attendance", {

@@ -16,6 +16,7 @@ export * from "./family-shares";
 export * from "./programmes";
 export * from "./files";
 export * from "./grade-levels";
+export * from "./gradebook";
 export * from "./grading";
 export * from "./homerooms";
 export * from "./intake-grades";

@@ -17,6 +17,16 @@ export const gradingScaleActions = slot<GradingScaleAction>(
   "grading scale actions",
 );
 
+/** A section a module adds to the school's grading settings, after its programmes. */
+export interface GradingSettingsSection {
+  key: string;
+  Section: ComponentType;
+}
+
+export const gradingSettingsSections = slot<GradingSettingsSection>(
+  "grading settings sections",
+);
+
 export interface ProgrammePartFieldProps {
   read: unknown;
   value: unknown;

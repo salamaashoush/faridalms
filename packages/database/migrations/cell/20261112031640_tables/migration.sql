@@ -1311,6 +1311,24 @@ CREATE TABLE "core"."class_periods" (
 );
 --> statement-breakpoint
 ALTER TABLE "core"."class_periods" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "core"."class_running_grades" (
+	"tenant_id" uuid,
+	"id" uuid DEFAULT uuidv7(),
+	"org_id" uuid NOT NULL,
+	"class_id" uuid NOT NULL,
+	"shown" boolean NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"date_last_modified" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL,
+	"metadata" jsonb DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	CONSTRAINT "class_running_grades_pkey" PRIMARY KEY("tenant_id","id"),
+	CONSTRAINT "class_running_grades_status_check" CHECK (status in ('active', 'tobedeleted')),
+	CONSTRAINT "class_running_grades_version_check" CHECK (version > 0),
+	CONSTRAINT "class_running_grades_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384)
+);
+--> statement-breakpoint
+ALTER TABLE "core"."class_running_grades" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "core"."class_years" (
 	"tenant_id" uuid,
 	"id" uuid DEFAULT uuidv7(),
@@ -2336,6 +2354,23 @@ CREATE TABLE "core"."grade_scales" (
 );
 --> statement-breakpoint
 ALTER TABLE "core"."grade_scales" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "core"."gradebook_settings" (
+	"tenant_id" uuid,
+	"id" uuid DEFAULT uuidv7(),
+	"org_id" uuid NOT NULL,
+	"running_shown" boolean DEFAULT false NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"date_last_modified" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL,
+	"metadata" jsonb DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	CONSTRAINT "gradebook_settings_pkey" PRIMARY KEY("tenant_id","id"),
+	CONSTRAINT "gradebook_settings_status_check" CHECK (status in ('active', 'tobedeleted')),
+	CONSTRAINT "gradebook_settings_version_check" CHECK (version > 0),
+	CONSTRAINT "gradebook_settings_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384)
+);
+--> statement-breakpoint
+ALTER TABLE "core"."gradebook_settings" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "health"."requested_changes" (
 	"tenant_id" uuid,
 	"id" uuid DEFAULT uuidv7(),
@@ -5105,6 +5140,7 @@ CREATE UNIQUE INDEX "class_lesson_settings_class_key" ON "core"."class_lesson_se
 CREATE INDEX "class_meetings_class_idx" ON "core"."class_meetings" ("tenant_id","class_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "class_meetings_teacher_idx" ON "core"."class_meetings" ("tenant_id","teacher_user_id") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "class_periods_extra_code_key" ON "core"."class_periods" ("tenant_id","bell_schedule_id","code") WHERE status = 'active' and bell_schedule_id is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "class_running_grades_class_key" ON "core"."class_running_grades" ("tenant_id","class_id") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "class_years_class_key" ON "core"."class_years" ("tenant_id","class_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "class_years_year_idx" ON "core"."class_years" ("tenant_id","school_year_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "classes_school_idx" ON "core"."classes" ("tenant_id","org_id") WHERE status = 'active';--> statement-breakpoint
@@ -5168,6 +5204,7 @@ CREATE UNIQUE INDEX "goal_judgements_key" ON "core"."goal_judgements" ("tenant_i
 CREATE UNIQUE INDEX "goal_reports_key" ON "core"."goal_reports" ("tenant_id","student_user_id","framework_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "grade_scale_versions_scale_idx" ON "core"."grade_scale_versions" ("tenant_id","scale_id","effective_from") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "grade_scales_org_idx" ON "core"."grade_scales" ("tenant_id","org_id") WHERE status = 'active';--> statement-breakpoint
+CREATE UNIQUE INDEX "gradebook_settings_org_key" ON "core"."gradebook_settings" ("tenant_id","org_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "requested_changes_student_idx" ON "health"."requested_changes" ("tenant_id","student_user_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "records_student_idx" ON "health"."records" ("tenant_id","student_user_id") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "homeroom_classes_class_key" ON "core"."homeroom_classes" ("tenant_id","class_id") WHERE status = 'active';--> statement-breakpoint
@@ -5487,6 +5524,8 @@ ALTER TABLE "core"."class_meetings" ADD CONSTRAINT "class_meetings_tenant_id_loc
 ALTER TABLE "core"."class_periods" ADD CONSTRAINT "class_periods_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."class_periods" ADD CONSTRAINT "class_periods_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."class_periods" ADD CONSTRAINT "class_periods_tenant_id_bell_schedule_id_org_id_fkey" FOREIGN KEY ("tenant_id","bell_schedule_id","org_id") REFERENCES "core"."bell_schedules"("tenant_id","id","org_id");--> statement-breakpoint
+ALTER TABLE "core"."class_running_grades" ADD CONSTRAINT "class_running_grades_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
+ALTER TABLE "core"."class_running_grades" ADD CONSTRAINT "class_running_grades_tenant_id_class_id_org_id_fkey" FOREIGN KEY ("tenant_id","class_id","org_id") REFERENCES "core"."classes"("tenant_id","id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."class_years" ADD CONSTRAINT "class_years_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."class_years" ADD CONSTRAINT "class_years_tenant_id_class_id_org_id_fkey" FOREIGN KEY ("tenant_id","class_id","org_id") REFERENCES "core"."classes"("tenant_id","id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."class_years" ADD CONSTRAINT "class_years_tenant_id_school_year_id_school_year_type_scho_fkey" FOREIGN KEY ("tenant_id","school_year_id","school_year_type","school_year_id","org_id") REFERENCES "core"."academic_sessions"("tenant_id","id","type","school_year_id","org_id");--> statement-breakpoint
@@ -5614,6 +5653,8 @@ ALTER TABLE "core"."grade_scale_versions" ADD CONSTRAINT "grade_scale_versions_t
 ALTER TABLE "core"."grade_scale_versions" ADD CONSTRAINT "grade_scale_versions_tenant_id_created_by_user_id_fkey" FOREIGN KEY ("tenant_id","created_by_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."grade_scales" ADD CONSTRAINT "grade_scales_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."grade_scales" ADD CONSTRAINT "grade_scales_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "core"."gradebook_settings" ADD CONSTRAINT "gradebook_settings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
+ALTER TABLE "core"."gradebook_settings" ADD CONSTRAINT "gradebook_settings_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "health"."requested_changes" ADD CONSTRAINT "requested_changes_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "health"."requested_changes" ADD CONSTRAINT "requested_changes_tenant_id_request_id_fkey" FOREIGN KEY ("tenant_id","request_id") REFERENCES "core"."records_requests"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "health"."requested_changes" ADD CONSTRAINT "requested_changes_tenant_id_student_user_id_fkey" FOREIGN KEY ("tenant_id","student_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
@@ -6228,6 +6269,11 @@ CREATE POLICY "p_select" ON "core"."class_periods" AS PERMISSIVE FOR SELECT TO "
 CREATE POLICY "p_insert" ON "core"."class_periods" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_update" ON "core"."class_periods" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_integration_select" ON "core"."class_periods" AS PERMISSIVE FOR SELECT TO "integration" USING (true);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "core"."class_running_grades" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
+CREATE POLICY "owner_all" ON "core"."class_running_grades" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_select" ON "core"."class_running_grades" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
+CREATE POLICY "p_insert" ON "core"."class_running_grades" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_update" ON "core"."class_running_grades" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "core"."class_years" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
 CREATE POLICY "owner_all" ON "core"."class_years" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_select" ON "core"."class_years" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
@@ -6460,6 +6506,11 @@ CREATE POLICY "owner_all" ON "core"."grade_scales" AS PERMISSIVE FOR ALL TO "cel
 CREATE POLICY "p_select" ON "core"."grade_scales" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
 CREATE POLICY "p_insert" ON "core"."grade_scales" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_update" ON "core"."grade_scales" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "core"."gradebook_settings" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
+CREATE POLICY "owner_all" ON "core"."gradebook_settings" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_select" ON "core"."gradebook_settings" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
+CREATE POLICY "p_insert" ON "core"."gradebook_settings" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_update" ON "core"."gradebook_settings" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "health"."requested_changes" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
 CREATE POLICY "owner_all" ON "health"."requested_changes" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_select" ON "health"."requested_changes" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint

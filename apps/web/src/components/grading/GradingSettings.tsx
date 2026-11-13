@@ -3,7 +3,7 @@ import { ChangeLog } from "@faridalms/ui/system/change-log";
 import { RecordSection } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 import { historyEntry, historyLabels } from "~/components/system/history";
 import { inLocale } from "~/hooks/useCurrentUser";
@@ -26,7 +26,7 @@ import {
   ScaleSheet,
   ScalesTable,
 } from "./Scales";
-import { gradingScaleActions } from "./slots";
+import { gradingScaleActions, gradingSettingsSections } from "./slots";
 
 type Open =
   | { kind: "scale"; scale?: ScaleRow }
@@ -135,6 +135,7 @@ export function GradingSettings() {
   const sheet = useSheet();
   const shown = sheet.shown;
   const actions = useSlot(gradingScaleActions);
+  const sections = useSlot(gradingSettingsSections);
   return (
     <div className="grid gap-10">
       <RecordSection
@@ -189,6 +190,11 @@ export function GradingSettings() {
           }
         />
       </RecordSection>
+      {sections.map(({ key, Section }) => (
+        <Suspense key={key} fallback={null}>
+          <Section />
+        </Suspense>
+      ))}
       <GradingChanges overview={grading} />
       {shown?.open.kind === "scale" ? (
         <ScaleSheet

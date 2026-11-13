@@ -10,7 +10,7 @@ import { defaultClass } from "~/components/classes/format";
 import { Gradebook } from "~/components/gradebook/Gradebook";
 import * as m from "~/i18n/messages";
 import { courseworkOptionsQuery } from "~/queries/coursework";
-import { classBookQuery } from "~/queries/gradebook";
+import { classBookQuery, runningShownQuery } from "~/queries/gradebook";
 import { currentUserQuery } from "~/queries/user";
 import { requirePage } from "~/utils/page-access";
 
@@ -34,9 +34,12 @@ export const Route = createFileRoute("/_app/_staff/gradebook")({
     );
     const classId = deps.classId ?? defaultClass(options.classes)?.id;
     if (classId)
-      await context.queryClient.ensureQueryData(
-        classBookQuery(classId, deps.periodId ?? ""),
-      );
+      await Promise.all([
+        context.queryClient.ensureQueryData(
+          classBookQuery(classId, deps.periodId ?? ""),
+        ),
+        context.queryClient.ensureQueryData(runningShownQuery(classId)),
+      ]);
   },
   component: GradebookPage,
 });

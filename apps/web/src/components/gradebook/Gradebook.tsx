@@ -45,6 +45,7 @@ import {
   termCellId,
 } from "./book";
 import { gradebookMarks, NothingYet, ResultMark, WorkHeader } from "./marks";
+import { ShowRunning } from "./RunningChoice";
 import { StudentPanel } from "./StudentPanel";
 import { useTermGrades } from "./useTermGrades";
 
@@ -300,6 +301,7 @@ function Sheet({ book, toolbar, studentId, onStudent }: SheetProps) {
         />
         <div className="grid gap-4">
           <IndexToolbar {...toolbar} />
+          <ShowRunning classId={book.class.id} termed={term !== null} />
           <div className="max-md:hidden">
             <DataGrid<Student>
               caption={words(m.gradebookCaptionCore)()}
@@ -462,6 +464,7 @@ export function Gradebook({
         />
         <div className="grid gap-4">
           <IndexToolbar {...toolbar} />
+          <ShowRunning classId={book.class.id} termed={termOf(book) !== null} />
           <EmptyState icon={BookOpen} title={m.gradebookNoStudents()} />
         </div>
       </Page>

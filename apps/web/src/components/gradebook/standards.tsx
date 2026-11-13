@@ -4,7 +4,6 @@ import { GoalsReport } from "~/components/standards/Goals";
 import { SkillsSection } from "~/components/standards/Progress";
 import { goalsReportQuery, studentProgressQuery } from "~/queries/standards";
 import { fill } from "~/utils/extension";
-import { modulePages } from "~/utils/pages";
 
 import { gradesSections } from "./slots";
 
@@ -13,7 +12,6 @@ export const GRADEBOOK_WITH_STANDARDS: ModuleFillings = {
   module: "gradebook",
   needs: ["standards"],
   fillings: [
-    fill(modulePages, ["/me/grades", "/family/grades"]),
     fill(gradesSections, {
       key: "goals",
       place: 10,

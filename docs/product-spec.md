@@ -216,6 +216,32 @@ a running grade per class; where the school keeps years it also groups by
 term and keeps term grades, released per grading period. Families see
 returned results only.
 
+**Running grades a learner sees.** A class's teacher, or anyone who keeps
+its gradebook, chooses in the class's book whether its students see their
+running grade; it is off until chosen, and the school sets in its grading
+settings whether a new class starts with it on (changing that leaves every
+existing class as it is). Each change is audited. Where a class shows it,
+the learner's Grades page lists the class with its running grade and each
+piece of returned work it is made of: its mark and its share of the grade.
+It is worked out by the same calculation as the book's calculated grade,
+over the class's programme, categories and weights and graded on its scale
+as it stands today, but counts only work returned to the learner: a mark
+not yet returned changes nothing they see. Excused work and work with no
+mark are left out rather than counted as zero, so missing work counts only
+once the teacher marks it and returns the mark; late work counts at its
+score after any late deduction; work in no category of a programme that has
+categories does not count; the weights of categories with no returned work
+are shared among those with some. It is marked provisional on the page.
+Where the class belongs to a year with terms, it covers the current term's
+work, as the book shows it, and the page says that the term grade the school
+releases is the official one; released term grades are shown as before and
+nothing here changes or releases them. Without years it covers the class's
+whole run, for the classes running today. The learner, a guardian the
+families module lets follow them, and staff who reach the learner read it
+under the same rules as released term grades. With the gradebook on, a
+learner's Grades page always exists, showing that no class shows a running
+grade yet when none does.
+
 ## Attendance
 
 - **Homerooms** (a module): a homeroom is a class a student belongs to, one at

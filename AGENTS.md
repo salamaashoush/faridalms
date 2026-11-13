@@ -486,8 +486,8 @@ migration rules in 9). `bun run db:up` starts Postgres in Docker on port
   schools, and prints the logins: a school group of two schools (Northwind,
   `northwind` and `northwind-east`), a standalone school (`acme`), a school
   on Basic alone (`fernhill`), and Lanternfield Code Academy
-  (`lanternfield`), adults on coursework, attendance and e-learning with no
-  years, grades, homerooms, families or timetable. Northwind and Acme are
+  (`lanternfield`), adults on coursework, the gradebook, attendance and
+  e-learning with no years, grades, homerooms, families or timetable. Northwind and Acme are
   entitled to every module. Every seeded account's password is
   `SEED_PASSWORD` (`packages/database/src/seed.ts`); the academy's are
   `admin.lanternfield@lanternfield.example.com`,

@@ -2,9 +2,9 @@
   "type": "diff",
   "version": "9",
   "dialect": "postgres",
-  "id": "29220bd3-5bf6-4d14-888b-7a6882fc124c",
+  "id": "79367697-5f3d-429a-b902-bc44a58d594f",
   "prevIds": [
-    "6184bebe-14fe-4ecd-a75f-6ca88b2741ea"
+    "0e4ce53f-fc10-4790-b91e-10614f23a20b"
   ],
   "footprints": [
     {
@@ -934,6 +934,25 @@
       "statementTarget": [
         "table",
         "core",
+        "class_running_grades"
+      ],
+      "writes": [
+        "s|tbl|core.class_running_grades",
+        "n|tbl|core.class_running_grades",
+        "e|tbl|core.class_running_grades",
+        "n|rel|core.class_running_grades",
+        "n|type|core.class_running_grades",
+        "n|rel|core.class_running_grades_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
         "class_years"
       ],
       "writes": [
@@ -1635,6 +1654,25 @@
         "n|rel|core.grade_scales",
         "n|type|core.grade_scales",
         "n|rel|core.grade_scales_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "gradebook_settings"
+      ],
+      "writes": [
+        "s|tbl|core.gradebook_settings",
+        "n|tbl|core.gradebook_settings",
+        "e|tbl|core.gradebook_settings",
+        "n|rel|core.gradebook_settings",
+        "n|type|core.gradebook_settings",
+        "n|rel|core.gradebook_settings_pkey"
       ],
       "reads": [
         "n|sch|core"
@@ -5053,6 +5091,27 @@
       "statementTarget": [
         "index",
         "core",
+        "class_running_grades",
+        "class_running_grades_class_key"
+      ],
+      "writes": [
+        "s|idx|core.class_running_grades_class_key",
+        "n|idx|core.class_running_grades_class_key",
+        "e|idx|core.class_running_grades_class_key",
+        "n|rel|core.class_running_grades_class_key"
+      ],
+      "reads": [
+        "n|tbl|core.class_running_grades",
+        "n|sch|core",
+        "n|col|core.class_running_grades.tenant_id",
+        "n|col|core.class_running_grades.class_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
         "class_years",
         "class_years_class_key"
       ],
@@ -6397,6 +6456,27 @@
         "n|sch|core",
         "n|col|core.grade_scales.tenant_id",
         "n|col|core.grade_scales.org_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "gradebook_settings",
+        "gradebook_settings_org_key"
+      ],
+      "writes": [
+        "s|idx|core.gradebook_settings_org_key",
+        "n|idx|core.gradebook_settings_org_key",
+        "e|idx|core.gradebook_settings_org_key",
+        "n|rel|core.gradebook_settings_org_key"
+      ],
+      "reads": [
+        "n|tbl|core.gradebook_settings",
+        "n|sch|core",
+        "n|col|core.gradebook_settings.tenant_id",
+        "n|col|core.gradebook_settings.org_id"
       ]
     },
     {
@@ -13787,6 +13867,56 @@
       "statementTarget": [
         "table",
         "core",
+        "class_running_grades"
+      ],
+      "writes": [
+        "s|fk|core.class_running_grades.class_running_grades_tenant_id_fkey",
+        "n|fk|core.class_running_grades.class_running_grades_tenant_id_fkey",
+        "e|fk|core.class_running_grades.class_running_grades_tenant_id_fkey",
+        "n|con|core.class_running_grades.class_running_grades_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.class_running_grades",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.class_running_grades.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_running_grades"
+      ],
+      "writes": [
+        "s|fk|core.class_running_grades.class_running_grades_tenant_id_class_id_org_id_fkey",
+        "n|fk|core.class_running_grades.class_running_grades_tenant_id_class_id_org_id_fkey",
+        "e|fk|core.class_running_grades.class_running_grades_tenant_id_class_id_org_id_fkey",
+        "n|con|core.class_running_grades.class_running_grades_tenant_id_class_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.class_running_grades",
+        "n|sch|core",
+        "n|tbl|core.classes",
+        "n|sch|core",
+        "n|col|core.class_running_grades.tenant_id",
+        "n|col|core.class_running_grades.class_id",
+        "n|col|core.class_running_grades.org_id",
+        "n|col|core.classes.tenant_id",
+        "n|col|core.classes.id",
+        "n|col|core.classes.org_id",
+        "e|uniqueness|core.classes.id.org_id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
         "class_years"
       ],
       "writes": [
@@ -16924,6 +17054,54 @@
         "n|sch|core",
         "n|col|core.grade_scales.tenant_id",
         "n|col|core.grade_scales.org_id",
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "gradebook_settings"
+      ],
+      "writes": [
+        "s|fk|core.gradebook_settings.gradebook_settings_tenant_id_fkey",
+        "n|fk|core.gradebook_settings.gradebook_settings_tenant_id_fkey",
+        "e|fk|core.gradebook_settings.gradebook_settings_tenant_id_fkey",
+        "n|con|core.gradebook_settings.gradebook_settings_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.gradebook_settings",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.gradebook_settings.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "gradebook_settings"
+      ],
+      "writes": [
+        "s|fk|core.gradebook_settings.gradebook_settings_tenant_id_org_id_fkey",
+        "n|fk|core.gradebook_settings.gradebook_settings_tenant_id_org_id_fkey",
+        "e|fk|core.gradebook_settings.gradebook_settings_tenant_id_org_id_fkey",
+        "n|con|core.gradebook_settings.gradebook_settings_tenant_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.gradebook_settings",
+        "n|sch|core",
+        "n|tbl|core.orgs",
+        "n|sch|core",
+        "n|col|core.gradebook_settings.tenant_id",
+        "n|col|core.gradebook_settings.org_id",
         "n|col|core.orgs.tenant_id",
         "n|col|core.orgs.id",
         "e|uniqueness|core.orgs.id.tenant_id"
@@ -30854,6 +31032,107 @@
       "statementTarget": [
         "table",
         "core",
+        "class_running_grades"
+      ],
+      "writes": [
+        "s|pol|core.class_running_grades.tenant_isolation",
+        "n|pol|core.class_running_grades.tenant_isolation",
+        "e|pol|core.class_running_grades.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.class_running_grades",
+        "n|sch|core",
+        "e|rls|core.class_running_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_running_grades"
+      ],
+      "writes": [
+        "s|pol|core.class_running_grades.owner_all",
+        "n|pol|core.class_running_grades.owner_all",
+        "e|pol|core.class_running_grades.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.class_running_grades",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.class_running_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_running_grades"
+      ],
+      "writes": [
+        "s|pol|core.class_running_grades.p_select",
+        "n|pol|core.class_running_grades.p_select",
+        "e|pol|core.class_running_grades.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.class_running_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.class_running_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_running_grades"
+      ],
+      "writes": [
+        "s|pol|core.class_running_grades.p_insert",
+        "n|pol|core.class_running_grades.p_insert",
+        "e|pol|core.class_running_grades.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.class_running_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.class_running_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_running_grades"
+      ],
+      "writes": [
+        "s|pol|core.class_running_grades.p_update",
+        "n|pol|core.class_running_grades.p_update",
+        "e|pol|core.class_running_grades.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.class_running_grades",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.class_running_grades"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "class_years"
       ],
       "writes": [
@@ -35459,6 +35738,107 @@
         "n|role|cell_io",
         "n|role|worker",
         "e|rls|core.grade_scales"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "gradebook_settings"
+      ],
+      "writes": [
+        "s|pol|core.gradebook_settings.tenant_isolation",
+        "n|pol|core.gradebook_settings.tenant_isolation",
+        "e|pol|core.gradebook_settings.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.gradebook_settings",
+        "n|sch|core",
+        "e|rls|core.gradebook_settings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "gradebook_settings"
+      ],
+      "writes": [
+        "s|pol|core.gradebook_settings.owner_all",
+        "n|pol|core.gradebook_settings.owner_all",
+        "e|pol|core.gradebook_settings.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.gradebook_settings",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.gradebook_settings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "gradebook_settings"
+      ],
+      "writes": [
+        "s|pol|core.gradebook_settings.p_select",
+        "n|pol|core.gradebook_settings.p_select",
+        "e|pol|core.gradebook_settings.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.gradebook_settings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.gradebook_settings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "gradebook_settings"
+      ],
+      "writes": [
+        "s|pol|core.gradebook_settings.p_insert",
+        "n|pol|core.gradebook_settings.p_insert",
+        "e|pol|core.gradebook_settings.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.gradebook_settings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.gradebook_settings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "gradebook_settings"
+      ],
+      "writes": [
+        "s|pol|core.gradebook_settings.p_update",
+        "n|pol|core.gradebook_settings.p_update",
+        "e|pol|core.gradebook_settings.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.gradebook_settings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.gradebook_settings"
       ]
     },
     {
@@ -47609,6 +47989,15 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "name": "class_running_grades",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "name": "class_years",
         "isRlsEnabled": true,
         "entityType": "tables"
@@ -47934,6 +48323,15 @@
       "row": {
         "schema": "core",
         "name": "grade_scales",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "gradebook_settings",
         "isRlsEnabled": true,
         "entityType": "tables"
       }
@@ -60378,6 +60776,166 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "class_running_grades",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "class_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "shown",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "class_years",
         "name": "tenant_id",
         "type": "uuid",
@@ -68972,6 +69530,150 @@
       "row": {
         "schema": "core",
         "table": "grade_scales",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "running_shown",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
         "name": "created_at",
         "type": "timestamp with time zone",
         "typeSchema": null,
@@ -94839,6 +95541,37 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "class_running_grades",
+        "name": "class_running_grades_class_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "class_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "class_years",
         "name": "class_years_class_key",
         "nameExplicit": true,
@@ -96977,6 +97710,37 @@
           }
         ],
         "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "gradebook_settings_org_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "org_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
         "where": "status = 'active'",
         "with": "",
         "method": "btree",
@@ -106168,6 +106932,50 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "class_running_grades",
+        "name": "class_running_grades_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "class_running_grades_tenant_id_class_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "class_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "classes",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "org_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "class_years",
         "name": "class_years_tenant_id_fkey",
         "nameExplicit": true,
@@ -108914,6 +109722,48 @@
         "schema": "core",
         "table": "grade_scales",
         "name": "grade_scales_tenant_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "orgs",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "gradebook_settings_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "gradebook_settings_tenant_id_org_id_fkey",
         "nameExplicit": true,
         "columns": [
           "tenant_id",
@@ -117174,6 +118024,20 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "class_running_grades",
+        "name": "class_running_grades_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "class_years",
         "name": "class_years_pkey",
         "columns": [
@@ -117683,6 +118547,20 @@
         "schema": "core",
         "table": "grade_scales",
         "name": "grade_scales_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "gradebook_settings_pkey",
         "columns": [
           "tenant_id",
           "id"
@@ -122970,6 +123848,36 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "class_running_grades",
+        "name": "class_running_grades_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "class_running_grades_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "class_running_grades_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "class_years",
         "name": "class_years_status_check",
         "value": "status in ('active', 'tobedeleted')",
@@ -125923,6 +126831,36 @@
         "table": "grade_scales",
         "name": "grade_scales_title_check",
         "value": "num_nonnulls(title_en, title_ar) >= 1",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "gradebook_settings_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "gradebook_settings_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "gradebook_settings_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
         "entityType": "checks"
       }
     },
@@ -137494,6 +138432,93 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "class_running_grades",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_running_grades",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "class_years",
         "name": "tenant_isolation",
         "as": "RESTRICTIVE",
@@ -141433,6 +142458,93 @@
       "row": {
         "schema": "core",
         "table": "grade_scales",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "gradebook_settings",
         "name": "p_update",
         "as": "PERMISSIVE",
         "for": "UPDATE",

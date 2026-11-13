@@ -140,6 +140,7 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "apps/web/src/queries/peer.ts",
   ],
   gradebook: [
+    "packages/database/src/tables/gradebook.ts",
     "packages/database/src/stores/gradebook.ts",
     "apps/api/src/gradebook/",
     "apps/api/src/systems/gradebook.ts",

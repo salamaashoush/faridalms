@@ -1,9 +1,5 @@
-import { classById, rosterOf } from "@faridalms/database/stores/classes";
-import { classResults, classWork } from "@faridalms/database/stores/gradebook";
-import {
-  classCategories,
-  classGrading,
-} from "@faridalms/database/stores/grading";
+import { rosterOf } from "@faridalms/database/stores/classes";
+import { classResults } from "@faridalms/database/stores/gradebook";
 import { namesOf } from "@faridalms/database/stores/persons";
 import {
   classBookSchema,
@@ -11,12 +7,9 @@ import {
   releasePeriodSchema,
   savePeriodGradesSchema,
 } from "@faridalms/domain/coursework";
-import { termPercent } from "@faridalms/domain/grading";
+import { runningGrade } from "@faridalms/domain/grading";
 import { dayWithin } from "@faridalms/domain/school";
-import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
-
-import type { UnitContext } from "../core/context";
 
 import {
   audit,
@@ -24,16 +17,10 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { requireStudent, teaches } from "../core/reach";
+import { requireStudent } from "../core/reach";
 import { gradeReader } from "../coursework/grades";
 import { requireTermGrading, termGradingOf } from "../gradebook/points";
-
-async function taughtClass(context: UnitContext, classId: string) {
-  const classRow = await classById(context.tx, context, classId);
-  if (!classRow || !(await teaches(context, "teaching", classRow.id)))
-    throw new ORPCError("NOT_FOUND");
-  return classRow;
-}
+import { classRun, taughtClass } from "../gradebook/running";
 
 /**
  * A class's gradebook: its students, its published work with every result,
@@ -52,33 +39,13 @@ export const classBook = readProcedure
       classRow.id,
       dayWithin(classRow.runs, context.today),
     );
-    const [students, results, work] = await Promise.all([
+    const [students, results, run] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
       classResults(context.tx, context.tenantId, classRow.id),
-      classWork(context.tx, context.tenantId, classRow.id),
+      classRun(context, classRow, input.periodId),
     ]);
-    const term = await (
-      await termGradingOf(context)
-    )?.book(context, {
-      classRow,
-      periodId: input.periodId,
-      workIds: work.map((row) => row.id),
-    });
-    const shown = term?.workIds
-      ? work.filter((row) => term.workIds?.has(row.id))
-      : work;
-    const points = new Map(work.map((row) => [row.id, row.points]));
-    const [categories, grading] = await Promise.all([
-      classCategories(context.tx, {
-        tenantId: context.tenantId,
-        classId: classRow.id,
-      }),
-      classGrading(context.tx, {
-        tenantId: context.tenantId,
-        classId: classRow.id,
-        today: context.today,
-      }),
-    ]);
+    const { term, shown, categories, grading } = run;
+    const points = new Map(run.work.map((row) => [row.id, row.points]));
     const grade = await gradeReader(context, [
       ...results.map((row) => row.gradeScaleVersionId),
       ...(term?.grades ?? []).map((row) => row.gradeScaleVersionId),
@@ -87,20 +54,15 @@ export const classBook = readProcedure
     // What the work graded so far comes to, over the term where there is
     // one: for the teacher to apply to a term grade or set aside.
     const calculated = students.map((student) => {
-      const percent = termPercent(
-        shown.map((item) => {
-          const result = results.find(
+      const { percent } = runningGrade(
+        shown,
+        (assignmentId) =>
+          results.find(
             (row) =>
-              row.assignmentId === item.id && row.studentId === student.id,
-          );
-          return {
-            categoryId: item.categoryId,
-            points: item.points,
-            score: result?.effectiveScore ?? result?.score ?? null,
-            excused: result?.excused ?? false,
-          };
-        }),
+              row.assignmentId === assignmentId && row.studentId === student.id,
+          ),
         categories,
+        "marked",
       );
       return {
         studentId: student.id,

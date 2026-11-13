@@ -14,7 +14,7 @@ import * as m from "~/i18n/messages";
 import { studentGradesQuery, workTermQuery } from "~/queries/gradebook";
 import { getWorkTerm } from "~/server/gradebook";
 import { fill } from "~/utils/extension";
-import { modulePages } from "~/utils/pages";
+import { replaceWords } from "~/utils/words";
 
 import { RegradeAction } from "./RegradeSheet";
 import { gradesSections } from "./slots";
@@ -49,7 +49,6 @@ export const GRADEBOOK_IN_YEARS: ModuleFillings = {
   module: "gradebook",
   needs: ["school_years"],
   fillings: [
-    fill(modulePages, ["/me/grades", "/family/grades"]),
     fill(gradesSections, {
       key: "terms",
       place: 20,
@@ -76,5 +75,11 @@ export const GRADEBOOK_IN_YEARS: ModuleFillings = {
       Field: TermField,
     }),
     fill(gradingScaleActions, { key: "regrade", Action: RegradeAction }),
+    replaceWords(
+      m.gradebookRunningProvisionalCore,
+      m.gradebookRunningProvisional,
+    ),
+    replaceWords(m.gradebookRunningSpanCore, m.gradebookRunningSpan),
+    replaceWords(m.gradebookShowRunningHintCore, m.gradebookShowRunningHint),
   ],
 };
