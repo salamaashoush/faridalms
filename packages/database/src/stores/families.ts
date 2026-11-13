@@ -147,25 +147,6 @@ export async function studentsWithGuardians(
   return new Set(rows.map((row) => row.student_user_id));
 }
 
-/** Each student's first guardian's phone on the day, by contact order. */
-export async function guardianPhones(
-  tx: Tx,
-  input: { tenantId: string; studentIds: readonly string[]; on: string },
-): Promise<Map<string, string>> {
-  if (input.studentIds.length === 0) return new Map();
-  const rows = await tx.execute<{ student_user_id: string; phone: string }>(sql`
-    select distinct on (r.student_user_id) r.student_user_id, c.normalized as phone
-    from core.user_relationships r
-    join core.contact_points c on c.tenant_id = r.tenant_id and c.user_id = r.related_user_id
-      and c.status = 'active' and c.kind = 'phone' and c.normalized is not null
-    where r.tenant_id = ${input.tenantId}::uuid and r.status = 'active'
-      and r.valid_during @> ${input.on}::date
-      and r.student_user_id = any(${uuidArray(input.studentIds)})
-    order by r.student_user_id, r.primary_contact desc, r.contact_priority nulls last,
-      c.priority nulls last, c.created_at`);
-  return new Map(rows.map((row) => [row.student_user_id, row.phone]));
-}
-
 /** The students whose guardian holds this phone. */
 export async function studentsByGuardianPhone(
   tx: Tx,
@@ -205,45 +186,6 @@ export async function keepConsentLink(
   await tx.execute(sql`
     insert into core.consent_guardians (tenant_id, consent_record_id, relationship_id)
     values (${input.tenantId}::uuid, ${input.consentId}::uuid, ${input.relationshipId}::uuid)`);
-}
-
-/** The relation each consent answered through a link names, by the consent. */
-export async function consentRelations(
-  tx: Tx,
-  input: { tenantId: string; consentIds: readonly string[] },
-): Promise<
-  Map<
-    string,
-    {
-      relationshipId: string;
-      relationEn: string | null;
-      relationAr: string | null;
-    }
-  >
-> {
-  if (input.consentIds.length === 0) return new Map();
-  const rows = await tx.execute<{
-    consent_record_id: string;
-    relationship_id: string;
-    label_en: string | null;
-    label_ar: string | null;
-  }>(sql`
-    select g.consent_record_id, g.relationship_id, d.label_en, d.label_ar
-    from core.consent_guardians g
-    join core.user_relationships r on r.tenant_id = g.tenant_id and r.id = g.relationship_id
-    left join core.descriptors d on d.tenant_id = r.tenant_id and d.id = r.relation_descriptor_id
-    where g.tenant_id = ${input.tenantId}::uuid
-      and g.consent_record_id = any(${uuidArray(input.consentIds)})`);
-  return new Map(
-    rows.map((row) => [
-      row.consent_record_id,
-      {
-        relationshipId: row.relationship_id,
-        relationEn: row.label_en,
-        relationAr: row.label_ar,
-      },
-    ]),
-  );
 }
 
 export interface Guardian {

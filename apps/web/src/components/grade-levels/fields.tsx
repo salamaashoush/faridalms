@@ -149,21 +149,6 @@ function HeldGrade({ studentId }: HeldGradeProps) {
   );
 }
 
-/** The grade a student is in today, for the record's header. */
-export function CurrentGrade({ studentId }: HeldGradeProps) {
-  const { rows, today } = useSuspenseQuery(studentGradesQuery(studentId)).data;
-  const current = rows.find(
-    (row) => row.from <= today && (row.until === null || today < row.until),
-  );
-  return (
-    <Value>
-      {current?.grade
-        ? inLocale(current.grade.labelEn, current.grade.labelAr)
-        : null}
-    </Value>
-  );
-}
-
 /** A student's grade today, and a change of grade from a day for whoever keeps students. */
 export function StudentGradeAside({ student, manage }: StudentPartProps) {
   const { rows, today } = useSuspenseQuery(studentGradesQuery(student.id)).data;

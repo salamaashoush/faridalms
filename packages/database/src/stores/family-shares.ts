@@ -50,17 +50,6 @@ export async function unshareAttempts(
       and status = 'active'`);
 }
 
-export async function isShared(
-  tx: Tx,
-  tenantId: string,
-  attemptId: string,
-): Promise<boolean> {
-  const [row] = await tx.execute<{ shared: boolean }>(sql`
-    select exists (select 1 from core.family_shares where tenant_id = ${tenantId}::uuid
-      and attempt_id = ${attemptId}::uuid and status = 'active') as shared`);
-  return row?.shared ?? false;
-}
-
 export interface SharedPiece {
   attemptId: string;
   assignmentId: string;

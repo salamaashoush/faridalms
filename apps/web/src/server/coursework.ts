@@ -20,7 +20,6 @@ import {
   saveBankCommentSchema,
   saveCommentSchema,
   saveDraftSchema,
-  saveGroupSchema,
   saveQuizAnswerSchema,
   saveRubricSchema,
   studentWorkActionSchema,
@@ -217,10 +216,6 @@ export const markQuizAnswer = createServerFn({ method: "POST" })
 export const undoHandIn = createServerFn({ method: "POST" })
   .validator(checked(v.object({ assignmentId: uuid })))
   .handler(({ data }) => backend().coursework.undoHandIn(data));
-
-export const saveClassGroup = createServerFn({ method: "POST" })
-  .validator(checked(saveGroupSchema))
-  .handler(({ data }) => backend().coursework.saveClassGroup(data));
 
 export const getDiscussion = createServerFn({ method: "GET" })
   .validator(checked(v.object({ assignmentId: uuid })))

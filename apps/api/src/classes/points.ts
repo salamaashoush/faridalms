@@ -385,12 +385,16 @@ export async function classFactsOf(context: UnitContext, classId: string) {
   };
 }
 
-/** A module that keeps something in step with students joining classes. */
+/** A module that keeps something in step with students joining classes, or a class's groups. */
 export interface ClassJoins {
   joined(
     context: UnitContext,
     joins: ReadonlyMap<string, readonly string[]>,
     from: string,
+  ): Promise<void>;
+  joinedGroup?(
+    context: UnitContext,
+    group: { classId: string; groupId: string; studentIds: readonly string[] },
   ): Promise<void>;
 }
 

@@ -41,7 +41,7 @@ export const COURSEWORK: ModuleContributions = {
     }),
     contribute(searchSources, ASSIGNMENT_SEARCH),
     ...COURSEWORK_EXPORTS.map((each) => contribute(zipExports, each)),
-    // A student joining a class is given the work still open in it.
+    // A student joining a class, or one of its groups, is given the work still open to it.
     contribute(classJoins, {
       joined: async (context, joins) => {
         for (const [classId, studentIds] of joins)
@@ -53,6 +53,15 @@ export const COURSEWORK: ModuleContributions = {
             })) > 0
           )
             await dueByAllowances(context, { studentIds });
+      },
+      joinedGroup: async (context, group) => {
+        if (
+          (await joinOpenWork(context.tx, {
+            tenantId: context.tenantId,
+            ...group,
+          })) > 0
+        )
+          await dueByAllowances(context, { studentIds: group.studentIds });
       },
     }),
   ],

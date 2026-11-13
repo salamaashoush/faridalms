@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 
-import type { OwnershipViolations } from "../src/ownership";
 import type {
   OwnershipCatalogue,
   OwnershipRegistry,
@@ -11,19 +10,13 @@ import {
   NAMESPACE_OWNERS,
   TABLE_OWNERS,
 } from "../src/ownership";
-import {
-  ownershipProblems,
-  readOwnership,
-  violationOf,
-} from "../src/ownership-gate";
-import { OWNERSHIP_VIOLATIONS } from "../src/ownership-violations";
+import { ownershipProblems, readOwnership } from "../src/ownership-gate";
 import { harness } from "./harness";
 
 const registry: OwnershipRegistry = {
   tables: TABLE_OWNERS,
   namespaces: NAMESPACE_OWNERS,
   columns: COLUMN_OWNERS,
-  violations: OWNERSHIP_VIOLATIONS,
 };
 
 const PROBE = "core.ownership_probe";
@@ -50,31 +43,6 @@ async function withProbe(): Promise<OwnershipCatalogue> {
     await conn.unsafe("rollback");
     await conn.release();
   }
-}
-
-const probeKey = violationOf(
-  { table: PROBE, via: "ownership_probe_school_year_fkey" },
-  "core.academic_sessions",
-);
-const probeNamespace = violationOf(
-  { table: PROBE, via: "grade_level_ns" },
-  "grade_level",
-);
-const probeYear = violationOf(
-  { table: PROBE, via: "school_year_id" },
-  "school_years",
-);
-const probePeriod = violationOf(
-  { table: PROBE, via: "class_period_id" },
-  "timetable",
-);
-
-function listing(extra: OwnershipViolations): OwnershipViolations {
-  const merged: Record<string, string[]> = {};
-  for (const source of [OWNERSHIP_VIOLATIONS, extra])
-    for (const [module, entries = []] of Object.entries(source))
-      merged[module] = [...(merged[module] ?? []), ...entries].toSorted();
-  return merged;
 }
 
 describe("the ownership gate", () => {
@@ -181,83 +149,5 @@ describe("the ownership gate", () => {
       },
     });
     expect(problems).toEqual([]);
-  });
-
-  test("accepts a violation listed under the module it reaches", async () => {
-    const catalogue = await withProbe();
-    const tables = { ...TABLE_OWNERS, [PROBE]: { owner: "core" as const } };
-    expect(
-      ownershipProblems(catalogue, {
-        ...registry,
-        tables,
-        violations: listing({
-          school_years: [probeKey, probeYear],
-          grade_levels: [probeNamespace],
-          timetable: [probePeriod],
-        }),
-      }),
-    ).toEqual([]);
-    expect(
-      ownershipProblems(catalogue, {
-        ...registry,
-        tables,
-        violations: listing({
-          timetable: [probeKey, probeNamespace, probeYear, probePeriod],
-        }),
-      }),
-    ).toEqual([
-      {
-        name: PROBE,
-        problem:
-          "ownership_probe_school_year_fkey is listed under timetable but reaches school_years",
-      },
-      {
-        name: PROBE,
-        problem:
-          "grade_level_ns is listed under timetable but reaches grade_levels",
-      },
-      {
-        name: PROBE,
-        problem:
-          "school_year_id is listed under timetable but reaches school_years",
-      },
-    ]);
-  });
-
-  test("refuses a listed violation that no longer occurs", async () => {
-    const problems = ownershipProblems(await readOwnership(harness().su), {
-      ...registry,
-      violations: listing({ school_years: [probeKey] }),
-    });
-    expect(problems).toEqual([
-      {
-        name: probeKey,
-        problem: "is listed under school_years but no longer occurs",
-      },
-    ]);
-  });
-
-  test("refuses a list out of order, or one listing an entry twice", async () => {
-    const catalogue = await withProbe();
-    const tables = { ...TABLE_OWNERS, [PROBE]: { owner: "core" as const } };
-    const listed = (school_years: string[]) =>
-      ownershipProblems(catalogue, {
-        ...registry,
-        tables,
-        violations: {
-          ...OWNERSHIP_VIOLATIONS,
-          school_years,
-          grade_levels: [probeNamespace],
-          timetable: [probePeriod],
-        },
-      });
-    const refused = [
-      {
-        name: "violations reaching school_years",
-        problem: "are not sorted, or list one twice",
-      },
-    ];
-    expect(listed([probeYear, probeKey])).toEqual(refused);
-    expect(listed([probeKey, probeKey, probeYear])).toEqual(refused);
   });
 });

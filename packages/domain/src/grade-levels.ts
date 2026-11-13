@@ -1,7 +1,5 @@
 import * as v from "valibot";
 
-import { YOUNG_STUDENT_GRADES } from "./descriptors/catalogue";
-
 const id = v.pipe(v.string(), v.uuid());
 const optionalId = v.union([v.literal(""), id]);
 const isoDate = v.pipe(v.string(), v.isoDate());
@@ -132,9 +130,3 @@ export function nextGrade(
   const index = grades.findIndex((row) => row.id === gradeId);
   return index < 0 ? (gradeId ?? "") : (grades[index + 1]?.id ?? gradeId ?? "");
 }
-
-/** Whether a grade, by its fixed meaning, is one of young children. */
-export const isYoungGrade = (meaning: string | null | undefined) =>
-  (YOUNG_STUDENT_GRADES as readonly (string | null | undefined)[]).includes(
-    meaning,
-  );

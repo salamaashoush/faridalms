@@ -544,6 +544,51 @@ for (const off of [["school_years"], ["school_years", "homerooms"]])
     });
   });
 
+describe("a class's groups", () => {
+  test("a teacher keeps them where coursework is off", async () => {
+    await without("northwind", ["coursework"], async () => {
+      const teacher = await signedIn("northwind", login("teacher"));
+      const taught = (await teacher.classes.mine({})).rows.find(
+        (row) => row.students > 1,
+      );
+      if (!taught) throw new Error("seed class");
+      const groupsOf = () => teacher.classes.groups({ classId: taught.id });
+      const [first, second] = (await groupsOf()).roster;
+      if (!first || !second) throw new Error("seed roster");
+      expect(await rejection(teacher.coursework.options())).toMatchObject({
+        code: "NOT_FOUND",
+      });
+
+      const { id } = await teacher.classes.saveGroup({
+        classId: taught.id,
+        titleEn: "Readers",
+        studentIds: [first.id],
+      });
+      await teacher.classes.saveGroup({
+        id,
+        classId: taught.id,
+        titleEn: "Strong readers",
+        studentIds: [first.id, second.id],
+      });
+      const saved = (await groupsOf()).groups.find((group) => group.id === id);
+      expect(saved?.titleEn).toBe("Strong readers");
+      expect(saved?.studentIds.toSorted()).toEqual(
+        [first.id, second.id].toSorted(),
+      );
+
+      await teacher.classes.removeGroup({ id, classId: taught.id });
+      expect((await groupsOf()).groups.map((group) => group.id)).not.toContain(
+        id,
+      );
+      expect(
+        await rejection(
+          teacher.classes.removeGroup({ id, classId: taught.id }),
+        ),
+      ).toMatchObject({ code: "NOT_FOUND" });
+    });
+  });
+});
+
 describe("a class whose dates left its year while the module was off", () => {
   test("is the year's no longer once the module next acts on it", async () => {
     const api = await signedIn("acme", login("principal", 1));

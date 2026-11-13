@@ -191,16 +191,6 @@ function hostsAt(context: UnitContext): Promise<Map<string, FileHost>> {
   return found;
 }
 
-/** Whether the viewer reads the files a record holds. */
-export async function readsHost(
-  context: UnitContext,
-  host: { type: string; id: string },
-  file?: StoredFile,
-): Promise<boolean> {
-  const reader = (await hostsAt(context)).get(host.type)?.read;
-  return reader ? reader(context, host.id, file) : false;
-}
-
 export async function mayKeepArea(
   context: UnitContext,
   area: { type: string; id: string },

@@ -220,7 +220,7 @@ describe("coursework for a teacher", () => {
     const grouped = new Set(groups.flatMap((group) => group.studentIds));
     const [first, second] = roster.filter((pupil) => !grouped.has(pupil.id));
     if (!first || !second) throw new Error("seed roster");
-    const { id: groupId } = await api.coursework.saveClassGroup({
+    const { id: groupId } = await api.classes.saveGroup({
       classId: target.id,
       titleEn: "Joiners",
       studentIds: [first.id],
@@ -236,7 +236,7 @@ describe("coursework for a teacher", () => {
       id: saved.id,
       expectedVersion: saved.version,
     });
-    await api.coursework.saveClassGroup({
+    await api.classes.saveGroup({
       id: groupId,
       classId: target.id,
       titleEn: "Joiners",
@@ -246,7 +246,7 @@ describe("coursework for a teacher", () => {
     expect(work.map((row) => row.studentId).toSorted()).toEqual(
       [first.id, second.id].toSorted(),
     );
-    await api.coursework.removeClassGroup({ id: groupId, classId: target.id });
+    await api.classes.removeGroup({ id: groupId, classId: target.id });
   });
 
   test("an assignment with nothing to read cannot go out", async () => {

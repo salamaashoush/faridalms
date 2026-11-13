@@ -6,10 +6,7 @@ import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
 import { MODULES } from "@faridalms/domain/modules";
 import { guaranteedBy, mayReach } from "@faridalms/domain/ownership";
 
-import type { OwnershipViolations } from "./ownership";
-
 import { COLUMN_OWNERS, NAMESPACE_OWNERS, TABLE_OWNERS } from "./ownership";
-import { OWNERSHIP_VIOLATIONS } from "./ownership-violations";
 
 const TENANT_TABLE = `n.nspname in ('core', 'health', 'audit') and c.relkind in ('r', 'p') and not c.relispartition`;
 
@@ -78,31 +75,24 @@ export interface OwnershipRegistry {
   tables: Readonly<Record<string, Ownership>>;
   namespaces: Readonly<Record<string, Owner>>;
   columns: Readonly<Record<string, ModuleId>>;
-  violations: OwnershipViolations;
 }
 
 const REGISTRY: OwnershipRegistry = {
   tables: TABLE_OWNERS,
   namespaces: NAMESPACE_OWNERS,
   columns: COLUMN_OWNERS,
-  violations: OWNERSHIP_VIOLATIONS,
 };
 
-/** How a violation is listed: the table, the key or column, and what it reaches. */
-export const violationOf = (reach: Reach, reaches: string) =>
-  `${reach.table}: ${reach.via} -> ${reaches}`;
-
-const ownerOf = (ownership: Ownership | undefined) =>
-  !ownership || ownership.owner === "core"
+const ownerOf = (ownership: Ownership) =>
+  ownership.owner === "core"
     ? "core"
     : [ownership.owner, ...(ownership.needs ?? [])].join(" with ");
 
 /**
  * Every way the catalogue and the registry disagree: a table or namespace
  * without an owner, an owner for a table, namespace or concept column that
- * does not exist, a key, namespace column or concept column that reaches
- * what its table's owner may not and is not listed, and a listed violation
- * that no longer occurs or sits under the wrong module.
+ * does not exist, and a key, namespace column or concept column that
+ * reaches what its table's owner may not.
  */
 export function ownershipProblems(
   catalogue: OwnershipCatalogue,
@@ -140,14 +130,14 @@ export function ownershipProblems(
         problem: "has an owner but is not a descriptor namespace",
       });
 
-  const found = new Map<
-    string,
-    { from: Reach; reaches: string; owner: Owner }
-  >();
-  const reach = (from: Reach, reaches: string, owner: Owner | undefined) => {
+  const reaches: { name: string; problem: string }[] = [];
+  const reach = (from: Reach, target: string, owner: Owner | undefined) => {
     const ownership = registry.tables[from.table];
     if (!ownership || !owner || mayReach(ownership, owner, MODULES)) return;
-    found.set(violationOf(from, reaches), { from, reaches, owner });
+    reaches.push({
+      name: from.table,
+      problem: `${from.via} reaches ${target}, owned by ${owner}, which a table of ${ownerOf(ownership)} may not reach`,
+    });
   };
   for (const key of catalogue.keys)
     reach(key, key.reaches, registry.tables[key.reaches]?.owner);
@@ -179,33 +169,5 @@ export function ownershipProblems(
     if (owner) reach(column, owner, owner);
   }
 
-  const listed = new Map<string, string>();
-  for (const [module, entries = []] of Object.entries(registry.violations)) {
-    if (entries.some((entry, i) => i > 0 && (entries[i - 1] ?? "") >= entry))
-      problems.push({
-        name: `violations reaching ${module}`,
-        problem: "are not sorted, or list one twice",
-      });
-    for (const entry of entries) listed.set(entry, module);
-  }
-  for (const [violation, { from, reaches, owner }] of found) {
-    const under = listed.get(violation);
-    if (under === undefined)
-      problems.push({
-        name: from.table,
-        problem: `${from.via} reaches ${reaches}, owned by ${owner}, which a table of ${ownerOf(registry.tables[from.table])} may not reach`,
-      });
-    else if (under !== owner)
-      problems.push({
-        name: from.table,
-        problem: `${from.via} is listed under ${under} but reaches ${owner}`,
-      });
-  }
-  for (const [violation, module] of listed)
-    if (!found.has(violation))
-      problems.push({
-        name: violation,
-        problem: `is listed under ${module} but no longer occurs`,
-      });
-  return problems;
+  return [...problems, ...reaches];
 }

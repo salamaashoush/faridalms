@@ -2,7 +2,6 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { useSuspenseQueries } from "@tanstack/react-query";
-import { isValidElement } from "react";
 
 import type { ModuleFillings, Slot, SlotQuery } from "~/utils/extension";
 
@@ -72,7 +71,3 @@ export const inPlace = (cards: readonly PlacedCard[]): ReactNode[] =>
     .filter((card) => card.node !== null && card.node !== false)
     .toSorted((a, b) => a.place - b.place)
     .map((card) => card.node);
-
-/** Whether a node is the card with this key. */
-export const isCard = (node: ReactNode, key: string) =>
-  isValidElement(node) && node.key === key;

@@ -77,7 +77,7 @@ describe("imports of the families module", () => {
     const problems = moduleImportProblems([
       { path: "apps/web/src/routes/_app/me/details.tsx", text },
       { path: "apps/web/src/routes/_app/family/timetable.tsx", text },
-    ]).filter((problem) => !problem.includes("listed as pending"));
+    ]);
     expect(problems).toEqual([
       "apps/web/src/routes/_app/me/details.tsx: imports ~/queries/families, which belongs to the families module",
     ]);

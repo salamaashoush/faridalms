@@ -20,13 +20,8 @@ import type { ContentLocale } from "@faridalms/domain/translations";
 
 import { changeOf } from "@faridalms/database/audit";
 import { bankTagCounts } from "@faridalms/database/stores/bank";
+import { classById, classesKeptBy } from "@faridalms/database/stores/classes";
 import {
-  classById,
-  classesKeptBy,
-  groupsOf,
-} from "@faridalms/database/stores/classes";
-import {
-  joinOpenWork,
   assessmentOf,
   assignmentById,
   attemptById,
@@ -54,11 +49,9 @@ import {
   removeBankComment,
   removeRubric,
   removeComment,
-  removeGroup,
   restoreComment,
   rubricsOf,
   saveAssessment,
-  saveGroup,
   saveRubric,
   selectionOf,
   setAssignmentState,
@@ -167,7 +160,6 @@ import {
   saveDraftSchema,
   extendSchema,
   feedbackRecordingSchema,
-  saveGroupSchema,
   saveQuizAnswerSchema,
   saveQuizProgramSchema,
   saveRubricSchema,
@@ -229,12 +221,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { wordsIssues } from "../core/publication";
-import {
-  requireStudent,
-  requireTaught,
-  scopeFor,
-  teaches,
-} from "../core/reach";
+import { requireStudent, scopeFor, teaches } from "../core/reach";
 import { checkTranslation } from "../core/translation-review";
 import {
   learnerAssignment,
@@ -2877,51 +2864,6 @@ export const student = readProcedure
     requireCapability(context, "people:read");
     requireCapability(context, "assignments:read");
     return workOf(context, input);
-  });
-
-export const saveClassGroup = writeProcedure
-  .input(saveGroupSchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "assignments:author");
-    if (!input.titleEn && !input.titleAr)
-      throw new ORPCError("BAD_REQUEST", {
-        message: "validation.name_required",
-      });
-    const classRow = await classById(context.tx, context, input.classId);
-    if (!classRow || !(await teaches(context, "teaching", classRow.id)))
-      throw new ORPCError("NOT_FOUND");
-    const groupId = await saveGroup(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      id: input.id,
-      classId: classRow.id,
-      titleEn: input.titleEn || null,
-      titleAr: input.titleAr || null,
-      studentIds: input.studentIds,
-      userId: context.actor.userId,
-    });
-    if (
-      (await joinOpenWork(context.tx, {
-        tenantId: context.tenantId,
-        studentIds: input.studentIds,
-        classId: classRow.id,
-        groupId,
-      })) > 0
-    )
-      await dueByAllowances(context, { studentIds: input.studentIds });
-    return { id: groupId };
-  });
-
-export const removeClassGroup = writeProcedure
-  .input(v.object({ id, classId: id }))
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "assignments:author");
-    await requireTaught(context, "teaching", input.classId);
-    const known = await groupsOf(context.tx, context.tenantId, input.classId);
-    if (!known.some((row) => row.id === input.id))
-      throw new ORPCError("NOT_FOUND");
-    await removeGroup(context.tx, context.tenantId, input.id);
-    return { removed: true };
   });
 
 export const saveTeacherRubric = writeProcedure

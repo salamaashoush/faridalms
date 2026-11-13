@@ -5,6 +5,7 @@ import {
   ACCOUNTS,
   chooseFromMenu,
   PASSWORD,
+  portal,
   signInWith,
   untilHydrated,
 } from "./fixtures/sign-in";
@@ -156,6 +157,21 @@ test("a teacher builds a module, a student answers its lesson, and the teacher m
     .getByRole("tabpanel")
     .getByRole("row", { name: /Yasmin Sabry/ });
   await expect(row.getByText("1 of 1 done")).toBeVisible();
+});
+
+test("the modules list filters by class in Arabic with the word the navigation uses for a class", async ({
+  page,
+}) => {
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page
+    .context()
+    .addCookies([{ name: "language-tag", value: "ar", url: portal() }]);
+  await page.goto("/modules");
+  await untilHydrated(page);
+  await expect(page.getByRole("link", { name: "الفصول" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "الفصل", exact: true }),
+  ).toBeVisible();
 });
 
 test("a student reviews a module's finished lessons together and reads the message for how it went", async ({

@@ -647,14 +647,6 @@ export const extendSchema = v.object({
   dueAt: v.union([v.literal(""), v.pipe(v.string(), v.isoTimestamp())]),
 });
 
-export const saveGroupSchema = v.object({
-  id: v.optional(id),
-  classId: id,
-  titleEn: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ""),
-  titleAr: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ""),
-  studentIds: v.pipe(v.array(id), v.minLength(1), v.maxLength(500)),
-});
-
 export const saveRubricSchema = v.object({
   id: v.optional(id),
   title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),

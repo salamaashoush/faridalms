@@ -101,6 +101,14 @@ export const saveClassSchema = v.pipe(
 );
 export type SaveClassInput = v.InferInput<typeof saveClassSchema>;
 
+export const saveGroupSchema = v.object({
+  id: v.optional(id),
+  classId: id,
+  titleEn: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ""),
+  titleAr: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), ""),
+  studentIds: v.pipe(v.array(id), v.minLength(1), v.maxLength(500)),
+});
+
 export const enrolStudentSchema = v.object({
   studentId: id,
   classId: id,

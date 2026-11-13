@@ -607,14 +607,6 @@ function sameLink(from: string, to: string): boolean {
 }
 
 /**
- * Files outside a module that still import its files, as `path -> module`,
- * by the change that removes them. The source check refuses an import
- * missing here and an entry that no longer occurs, so the list only
- * shrinks.
- */
-export const PENDING_IMPORTS: Readonly<Record<string, readonly string[]>> = {};
-
-/**
  * Where every module's parts are put together: the API's router and
  * contributions, the web's contributions, the schema's table list, and the
  * seed and demonstration that fill a school with every module's records.
@@ -687,16 +679,11 @@ function allowedFor(path: string): Set<ModuleId> {
   return allowed;
 }
 
-/**
- * Imports of a carved module's files from where they may not be imported,
- * and pending imports that no longer occur.
- */
+/** Imports of a carved module's files from where they may not be imported. */
 export function moduleImportProblems(
   files: readonly { path: string; text: string }[],
 ): string[] {
   const problems: string[] = [];
-  const pending = new Set(Object.values(PENDING_IMPORTS).flat());
-  const seen = new Set<string>();
   for (const { path, text } of files) {
     if (COMPOSITION_ROOTS.includes(path) || TESTS.test(path)) continue;
     const allowed = allowedFor(path);
@@ -711,19 +698,11 @@ export function moduleImportProblems(
       }
       const owner = ownerOf(target);
       if (!owner || allowed.has(owner)) continue;
-      const entry = `${path} -> ${owner}`;
-      if (pending.has(entry)) {
-        seen.add(entry);
-        continue;
-      }
       problems.push(
         `${path}: imports ${specifier}, which belongs to the ${owner} module`,
       );
     }
   }
-  for (const entry of pending)
-    if (!seen.has(entry))
-      problems.push(`${entry}: listed as pending but no longer imported`);
   return problems;
 }
 
@@ -817,14 +796,6 @@ export const FUNCTION_OWNERS: Readonly<Record<string, Ownership>> = {
   "app.scale_version_of": { owner: "coursework" },
 };
 
-/**
- * Migration functions that name a table their owner may not reach, as
- * `function -> table`, by the change that removes them. The check refuses
- * one missing here and an entry that no longer occurs, so the list only
- * shrinks.
- */
-export const PENDING_FUNCTION_READS: readonly string[] = [];
-
 const ownershipOf = (name: string): Ownership =>
   TABLE_OWNERS[name] ?? FUNCTION_OWNERS[name] ?? { owner: "core" };
 
@@ -877,16 +848,11 @@ export function sqlNameProblems(
 const FUNCTION =
   /create\s+(?:or\s+replace\s+)?function\s+([a-z_]+\.[a-z_]+)\s*\(([\s\S]*?)\$\$([\s\S]*?)\$\$/gi;
 
-/**
- * Tables a migration's function names that its owner may not reach, and
- * pending reads that no longer occur.
- */
+/** Tables a migration's function names that its owner may not reach. */
 export function functionBodyProblems(
   migrations: readonly { path: string; text: string }[],
 ): string[] {
   const problems: string[] = [];
-  const pending = new Set(PENDING_FUNCTION_READS);
-  const seen = new Set<string>();
   for (const { path, text } of migrations)
     for (const [, name, signature, body] of text.matchAll(FUNCTION)) {
       if (!name) continue;
@@ -897,18 +863,10 @@ export function functionBodyProblems(
       )) {
         const owned = TABLE_OWNERS[table];
         if (!owned || reaches(reader, owned)) continue;
-        const entry = `${name} -> ${table}`;
-        if (pending.has(entry)) {
-          seen.add(entry);
-          continue;
-        }
         problems.push(
           `${path}: ${name} names ${table}, which its owner may not reach`,
         );
       }
     }
-  for (const entry of pending)
-    if (!seen.has(entry))
-      problems.push(`${entry}: listed as pending but no longer read`);
   return problems;
 }

@@ -6,7 +6,7 @@ import type { Owner, Ownership } from "@faridalms/domain/ownership";
  * than where a table sits today. A key or a descriptor namespace column may
  * reach only what `mayReach` in `@faridalms/domain/ownership` allows;
  * `bun run db:verify` refuses a table missing here and every reach outside
- * that rule but those `OWNERSHIP_VIOLATIONS` still lists.
+ * that rule.
  */
 export const TABLE_OWNERS: Record<string, Ownership> = {
   "audit.anchors": { owner: "core" },
@@ -257,5 +257,3 @@ export const COLUMN_OWNERS: Record<string, ModuleId> = {
   target_year_type: "school_years",
   timetable_id: "timetable",
 };
-
-export type OwnershipViolations = Partial<Record<ModuleId, readonly string[]>>;

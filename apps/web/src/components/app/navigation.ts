@@ -51,13 +51,6 @@ export interface NavItem {
   pages?: readonly NavPage[];
 }
 
-export interface NavSection {
-  /** Stable across languages: where the section's open More is remembered. */
-  id: string;
-  title?: () => string;
-  items: NavItem[];
-}
-
 /** Whoever writes any kind of template; the Templates page asks the same. */
 const TEMPLATE_WRITERS: readonly Capability[] = [
   ...new Set(Object.values(TEMPLATE_AUTHORS).flat()),

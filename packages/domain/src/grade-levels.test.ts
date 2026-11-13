@@ -7,7 +7,6 @@ import {
   gradeChange,
   gradeOn,
   gradeViewSchema,
-  isYoungGrade,
   nextGrade,
   saveGradeLevelSchema,
 } from "./grade-levels";
@@ -104,13 +103,6 @@ describe("grades in order", () => {
   it("leaves a class with no grade, or one the school no longer lists, as it was", () => {
     expect(nextGrade(grades, null)).toBe("");
     expect(nextGrade(grades, "x")).toBe("x");
-  });
-
-  it("knows the young grades by their fixed meaning", () => {
-    expect(isYoungGrade("kg1")).toBe(true);
-    expect(isYoungGrade("grade_2")).toBe(true);
-    expect(isYoungGrade("grade_3")).toBe(false);
-    expect(isYoungGrade(null)).toBe(false);
   });
 });
 

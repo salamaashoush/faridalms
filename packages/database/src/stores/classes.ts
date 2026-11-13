@@ -991,3 +991,51 @@ export async function groupsOf(
     studentIds: row.student_ids ?? [],
   }));
 }
+
+export async function saveGroup(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    id?: string;
+    classId: string;
+    titleEn: string | null;
+    titleAr: string | null;
+    studentIds: readonly string[];
+    userId: string;
+  },
+): Promise<string> {
+  let groupId = input.id;
+  if (groupId)
+    await tx.execute(sql`
+      update core.class_groups set title_en = ${input.titleEn}, title_ar = ${input.titleAr}
+      where tenant_id = ${input.tenantId}::uuid and id = ${groupId}::uuid`);
+  else {
+    const [row] = await tx.execute<{ id: string }>(sql`
+      insert into core.class_groups (tenant_id, org_id, class_id,
+        title_en, title_ar, created_by_user_id)
+      values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classId}::uuid,
+        ${input.titleEn}, ${input.titleAr}, ${input.userId}::uuid)
+      returning id`);
+    if (!row) throw new Error("group was not created");
+    groupId = row.id;
+  }
+  await tx.execute(sql`
+    update core.class_group_members set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and group_id = ${groupId}::uuid and status = 'active'
+      and not (student_user_id = any(${uuidArray(input.studentIds)}))`);
+  await tx.execute(sql`
+    insert into core.class_group_members (tenant_id, group_id, student_user_id)
+    select ${input.tenantId}::uuid, ${groupId}::uuid, s.student_id
+    from unnest(${uuidArray(input.studentIds)}) as s(student_id)
+    where not exists (select 1 from core.class_group_members m
+      where m.tenant_id = ${input.tenantId}::uuid and m.group_id = ${groupId}::uuid
+        and m.student_user_id = s.student_id and m.status = 'active')`);
+  return groupId;
+}
+
+export async function removeGroup(tx: Tx, tenantId: string, id: string) {
+  await tx.execute(sql`
+    update core.class_groups set status = 'tobedeleted'
+    where tenant_id = ${tenantId}::uuid and id = ${id}::uuid`);
+}
