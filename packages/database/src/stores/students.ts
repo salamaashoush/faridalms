@@ -811,15 +811,23 @@ export async function facesOf(
 }
 
 /**
- * What decides whether learners act for themselves: the school's age they
- * decide from, and each one's birth date on file.
+ * What decides whether learners act for themselves: whether the school
+ * states its learners are adults, the age they decide from otherwise, and
+ * each one's birth date on file.
  */
 export async function decidingFacts(
   tx: Tx,
   input: { tenantId: string; schoolId: string; studentIds: readonly string[] },
-): Promise<{ from: number | null; births: Map<string, string | null> }> {
-  const [school] = await tx.execute<{ learners_decide_from: number }>(sql`
-    select learners_decide_from from core.orgs
+): Promise<{
+  adults: boolean;
+  from: number | null;
+  births: Map<string, string | null>;
+}> {
+  const [school] = await tx.execute<{
+    learners_decide_from: number;
+    learners_are_adults: boolean;
+  }>(sql`
+    select learners_decide_from, learners_are_adults from core.orgs
     where tenant_id = ${input.tenantId}::uuid and id = ${input.schoolId}::uuid`);
   const rows =
     input.studentIds.length === 0
@@ -829,6 +837,7 @@ export async function decidingFacts(
           where tenant_id = ${input.tenantId}::uuid and id = any(${uuidArray(input.studentIds)})
             and status = 'active'`);
   return {
+    adults: school?.learners_are_adults ?? false,
     from: school?.learners_decide_from ?? null,
     births: new Map(rows.map((row) => [row.id, row.birth_date])),
   };

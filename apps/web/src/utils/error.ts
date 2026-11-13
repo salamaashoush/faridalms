@@ -397,6 +397,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errorAnsweredElsewhere();
       case "health.not_permitted":
         return m.errorHealthNotPermitted();
+      case "emergency_contacts.not_permitted":
+        return m.errorEmergencyContactsNotPermitted();
       case "health.change_unchanged":
         return m.errorHealthUnchanged();
       case "health.change_decided":

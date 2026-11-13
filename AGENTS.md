@@ -226,9 +226,10 @@ the module that knows contributes to it from its own files:
   (`actorsFor`, `answerersFor`, `hearersFor`, `decidesFor`) and the
   families module answers through the `actingFor` point. Without it, or
   without a guardian, a learner of the school's deciding age
-  (`orgs.learners_decide_from`, 18 by default, set in Settings) answers
-  for themself, and one who does not decide still hears the school's
-  notices.
+  (`orgs.learners_decide_from`, 18 by default, set in Settings), or any
+  learner of a school that states its learners are adults
+  (`orgs.learners_are_adults`), answers for themself, and one who does
+  not decide still hears the school's notices.
 - Before sign-in the portal knows only `identity.portalFace`: its
   `audiences` (who besides students and staff signs in, such as families)
   and `doors` (public pages such as `apply` and `badge`), each contributed

@@ -1,7 +1,7 @@
 import type { ActingPurpose } from "@faridalms/domain/acting";
 
 import { decidingFacts } from "@faridalms/database/stores/students";
-import { ageReached } from "@faridalms/domain/acting";
+import { decidesForThemself } from "@faridalms/domain/acting";
 
 import type { UnitContext } from "../core/context";
 import type { ModuleScope } from "../core/extension";
@@ -70,8 +70,9 @@ export async function actorsFor(
 }
 
 /**
- * Of the learners, those who decide for themselves on the day: of the
- * school's age by their birth date. One with no birth date on file does not.
+ * Of the learners, those who decide for themselves on the day: every one
+ * at a school that states its learners are adults, otherwise those of the
+ * school's age by their birth date. One with no birth date on file is not.
  */
 export async function decidingLearners(
   scope: ModuleScope,
@@ -87,8 +88,15 @@ export async function decidingLearners(
   const from = facts.from;
   if (from === null) return new Set();
   return new Set(
-    studentIds.filter((id) =>
-      ageReached(facts.births.get(id) ?? null, on, from),
+    studentIds.filter(
+      (id) =>
+        facts.births.has(id) &&
+        decidesForThemself({
+          adults: facts.adults,
+          birthDate: facts.births.get(id) ?? null,
+          on,
+          from,
+        }),
     ),
   );
 }

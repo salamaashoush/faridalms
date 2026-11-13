@@ -69,6 +69,7 @@ export const TABLE_OWNERS: Record<string, Ownership> = {
   "core.contact_points": { owner: "core" },
   "core.courses": { owner: "core" },
   "core.demographics": { owner: "core" },
+  "core.emergency_contacts": { owner: "core" },
   "core.descriptor_overrides": { owner: "core" },
   "core.descriptors": { owner: "core" },
   "core.devices": { owner: "core" },

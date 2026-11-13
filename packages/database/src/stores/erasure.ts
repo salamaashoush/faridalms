@@ -527,6 +527,7 @@ export async function eraseSubject(
   for (const table of [
     "external_ids",
     "contact_points",
+    "emergency_contacts",
     "user_preferences",
     "calendar_feeds",
     "file_subjects",

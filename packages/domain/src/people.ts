@@ -453,6 +453,11 @@ export const saveSchoolSchema = v.object({
   learnersDecideFrom: v.optional(
     v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(25)),
   ),
+  /**
+   * The school states that every learner it teaches is an adult, so each
+   * decides for themself whatever their birth date; left out to keep it.
+   */
+  learnersAreAdults: v.optional(v.boolean()),
   phone: optionalText(40),
   email: optionalText(254),
   /**

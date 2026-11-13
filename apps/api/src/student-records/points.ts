@@ -19,26 +19,11 @@ export interface SummaryReaders {
 
 export const summaryReaders = point<SummaryReaders>("summary readers");
 
-/** Someone the office calls about a learner, as their summary shows them. */
-export interface EmergencyContact {
-  id: string;
-  userId: string;
-  fullNameEn: string | null;
-  fullNameAr: string | null;
-  relation: { labelEn: string | null; labelAr: string | null } | null;
-  phone: string | null;
-  phoneLabel: string | null;
-}
-
 /**
- * A module that knows a learner's emergency contacts, and which contact a
- * requested change to a phone is about.
+ * A module that keeps which of the emergency contacts it marks a requested
+ * change to a phone is about.
  */
-export interface EmergencyContacts {
-  contactsOf(
-    context: UnitContext,
-    studentId: string,
-  ): Promise<EmergencyContact[]>;
+export interface ContactChanges {
   keepChange(
     context: UnitContext,
     tx: UnitContext["tx"],
@@ -51,7 +36,7 @@ export interface EmergencyContacts {
   ): Promise<Map<string, string>>;
 }
 
-export const emergencyContacts = point<EmergencyContacts>("emergency contacts");
+export const contactChanges = point<ContactChanges>("contact changes");
 
 /** The rule a module lets the viewer read the learner's summary by, if any does. */
 export async function moduleReaderOf(
@@ -65,17 +50,7 @@ export async function moduleReaderOf(
   return null;
 }
 
-/** The learner's emergency contacts, in the order the office calls them; none without a module that keeps them. */
-export async function contactsOf(context: UnitContext, studentId: string) {
-  const found = await Promise.all(
-    (await contributionsTo(context, emergencyContacts)).map((contacts) =>
-      contacts.contactsOf(context, studentId),
-    ),
-  );
-  return found.flat();
-}
-
-/** The module that keeps emergency contacts, where one is on. */
+/** The module that keeps changes asked to the contacts it marks, where one is on. */
 export async function contactKeeper(context: UnitContext) {
-  return (await contributionsTo(context, emergencyContacts))[0] ?? null;
+  return (await contributionsTo(context, contactChanges))[0] ?? null;
 }

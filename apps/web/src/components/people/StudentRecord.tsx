@@ -54,6 +54,7 @@ import type { StudentRecordTab } from "./slots";
 
 import { groupWords } from "../classes/slots";
 import { GroupTeachers, StudentClasses } from "../classes/StudentClasses";
+import { EmergencyContactsSection } from "./EmergencyContacts";
 import {
   displayName,
   labelOf,
@@ -445,6 +446,11 @@ export function StudentRecord({
                     : undefined
                 }
               />
+              {access.contacts ? (
+                <Deferred>
+                  <EmergencyContactsSection personId={studentId} />
+                </Deferred>
+              ) : null}
               {access.identifiers ? (
                 <Deferred>
                   <IdentitySection studentId={studentId} />

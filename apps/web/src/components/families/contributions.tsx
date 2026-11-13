@@ -81,6 +81,10 @@ export const FAMILIES: ModuleFillings = {
       m.settingsLearnersDecideHintCore,
       m.settingsLearnersDecideHint,
     ),
+    replaceWords(
+      m.settingsLearnersAdultsHintCore,
+      m.settingsLearnersAdultsHint,
+    ),
     replaceWords(m.settingsCommonsHintCore, m.settingsCommonsHint),
     portalSentence("families", m.portalEyebrowCore, m.portalEyebrow),
     portalSentence("families", m.portalSignInLeadCore, m.portalSignInLead),

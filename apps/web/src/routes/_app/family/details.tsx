@@ -9,6 +9,7 @@ import * as v from "valibot";
 import { LearnerDetails } from "~/components/people/LearnerDetails";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { emergencyContactsQuery } from "~/queries/emergency-contacts";
 import { childrenQuery } from "~/queries/families";
 import { learnerDetailsQuery } from "~/queries/home";
 import { personRecordQuery } from "~/queries/students";
@@ -32,7 +33,17 @@ export const Route = createFileRoute("/_app/family/details")({
     await Promise.all([
       context.queryClient.ensureQueryData(personRecordQuery(user.id)),
       ...(child
-        ? [context.queryClient.ensureQueryData(learnerDetailsQuery(child))]
+        ? [
+            context.queryClient
+              .ensureQueryData(learnerDetailsQuery(child))
+              .then((details) =>
+                details.decides
+                  ? context.queryClient.ensureQueryData(
+                      emergencyContactsQuery(child),
+                    )
+                  : null,
+              ),
+          ]
         : []),
     ]);
   },

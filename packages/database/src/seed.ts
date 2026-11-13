@@ -128,6 +128,7 @@ import {
   classPeriods,
   registerPeriods,
   contactPoints,
+  emergencyContacts,
   courses,
   demographics,
   descriptors,
@@ -3065,6 +3066,13 @@ const ACADEMY_TEACHERS: AcademyPerson[] = [
   },
 ];
 
+const ACADEMY_EMERGENCY_NAMES = [
+  "Mariam Adel",
+  "Laila Mansour",
+  "Sherif Nabil",
+  "Dina Farouk",
+] as const;
+
 const ACADEMY_LEARNERS: AcademyPerson[] = [
   {
     given: ["Nour", "نور"],
@@ -3521,7 +3529,7 @@ async function seedAcademy(
     ]);
   await tx.execute(sql`
     update core.orgs set email = ${`office@${domain}`},
-      phone = ${"+20 2 2735 0199"}
+      phone = ${"+20 2 2735 0199"}, learners_are_adults = true
     where tenant_id = ${tenantId}::uuid and id = ${schoolId}::uuid`);
   await setOrgFeature(tx, {
     tenantId,
@@ -3609,6 +3617,36 @@ async function seedAcademy(
     );
     learners.push(learner);
   }
+  await tx.insert(emergencyContacts).values(
+    learners.flatMap((learner, index) => {
+      const number = String(1001 + index).padStart(4, "0");
+      const first = {
+        tenantId,
+        userId: learner.id,
+        name:
+          ACADEMY_EMERGENCY_NAMES[index % ACADEMY_EMERGENCY_NAMES.length] ??
+          "Mariam Adel",
+        relationship: index % 2 === 0 ? "Partner" : "Sister",
+        phone: `+2010000${number}`,
+        callOrder: 1,
+      };
+      return index % 3 === 0
+        ? [
+            first,
+            {
+              tenantId,
+              userId: learner.id,
+              name: "Hany Fathy",
+              relationship: "Flatmate",
+              phone: `+2011000${number}`,
+              email: `hany.${number}@example.com`,
+              callOrder: 2,
+              notes: "Works nights; text before calling.",
+            },
+          ]
+        : [first];
+    }),
+  );
   const teacherOf = (number: number) => {
     const found = teachers[number - 1];
     if (!found) throw new Error(`no academy teacher ${number}`);

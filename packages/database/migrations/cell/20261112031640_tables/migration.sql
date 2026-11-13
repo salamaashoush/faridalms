@@ -1901,6 +1901,36 @@ CREATE TABLE "core"."documents" (
 );
 --> statement-breakpoint
 ALTER TABLE "core"."documents" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "core"."emergency_contacts" (
+	"tenant_id" uuid,
+	"id" uuid DEFAULT uuidv7(),
+	"user_id" uuid NOT NULL,
+	"name" text NOT NULL,
+	"relationship" text,
+	"phone" text NOT NULL,
+	"other_phone" text,
+	"email" text,
+	"call_order" smallint NOT NULL,
+	"notes" text,
+	"status" text DEFAULT 'active' NOT NULL,
+	"date_last_modified" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL,
+	"metadata" jsonb DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	CONSTRAINT "emergency_contacts_pkey" PRIMARY KEY("tenant_id","id"),
+	CONSTRAINT "emergency_contacts_status_check" CHECK (status in ('active', 'tobedeleted')),
+	CONSTRAINT "emergency_contacts_version_check" CHECK (version > 0),
+	CONSTRAINT "emergency_contacts_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
+	CONSTRAINT "emergency_contacts_name_check" CHECK (char_length(name) between 1 and 160),
+	CONSTRAINT "emergency_contacts_relationship_check" CHECK (char_length(relationship) between 1 and 80),
+	CONSTRAINT "emergency_contacts_phone_check" CHECK (phone ~ '^\+[1-9][0-9]{6,14}$'),
+	CONSTRAINT "emergency_contacts_other_phone_check" CHECK (other_phone ~ '^\+[1-9][0-9]{6,14}$'),
+	CONSTRAINT "emergency_contacts_email_check" CHECK (char_length(email) between 3 and 254 and email = lower(email) and strpos(email, '@') > 1),
+	CONSTRAINT "emergency_contacts_call_order_check" CHECK (call_order between 1 and 99),
+	CONSTRAINT "emergency_contacts_notes_check" CHECK (char_length(notes) between 1 and 500)
+);
+--> statement-breakpoint
+ALTER TABLE "core"."emergency_contacts" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "core"."enrollments" (
 	"tenant_id" uuid,
 	"id" uuid DEFAULT uuidv7(),
@@ -3329,6 +3359,7 @@ CREATE TABLE "core"."orgs" (
 	"weekend_days" smallint[] DEFAULT '{5,6}'::smallint[] NOT NULL,
 	"country_code" text,
 	"learners_decide_from" smallint DEFAULT 18 NOT NULL,
+	"learners_are_adults" boolean DEFAULT false NOT NULL,
 	"secondary_calendar" text,
 	"digits" text DEFAULT 'latn' NOT NULL,
 	"arabic_math" text DEFAULT 'ltr' NOT NULL,
@@ -5105,6 +5136,7 @@ CREATE UNIQUE INDEX "document_translations_key" ON "core"."document_translations
 CREATE INDEX "document_versions_document_idx" ON "core"."document_versions" ("tenant_id","document_id","created_at" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "documents_host_idx" ON "core"."documents" ("tenant_id","host_type","host_id");--> statement-breakpoint
 CREATE INDEX "documents_translation_idx" ON "core"."documents" ("tenant_id","translation_of_id") WHERE translation_of_id is not null;--> statement-breakpoint
+CREATE INDEX "emergency_contacts_user_idx" ON "core"."emergency_contacts" ("tenant_id","user_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "enrollments_class_idx" ON "core"."enrollments" ("tenant_id","class_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "enrollments_user_idx" ON "core"."enrollments" ("tenant_id","user_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "enrollments_delta_idx" ON "core"."enrollments" ("tenant_id","date_last_modified");--> statement-breakpoint
@@ -5530,6 +5562,8 @@ ALTER TABLE "core"."documents" ADD CONSTRAINT "documents_tenant_id_fkey" FOREIGN
 ALTER TABLE "core"."documents" ADD CONSTRAINT "documents_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."documents" ADD CONSTRAINT "documents_tenant_id_translation_of_id_fkey" FOREIGN KEY ("tenant_id","translation_of_id") REFERENCES "core"."documents"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."documents" ADD CONSTRAINT "documents_tenant_id_last_edited_by_user_id_fkey" FOREIGN KEY ("tenant_id","last_edited_by_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "core"."emergency_contacts" ADD CONSTRAINT "emergency_contacts_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
+ALTER TABLE "core"."emergency_contacts" ADD CONSTRAINT "emergency_contacts_tenant_id_user_id_fkey" FOREIGN KEY ("tenant_id","user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."enrollments" ADD CONSTRAINT "enrollments_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."enrollments" ADD CONSTRAINT "enrollments_tenant_id_class_id_org_id_fkey" FOREIGN KEY ("tenant_id","class_id","org_id") REFERENCES "core"."classes"("tenant_id","id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."enrollments" ADD CONSTRAINT "enrollments_tenant_id_user_id_fkey" FOREIGN KEY ("tenant_id","user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
@@ -6332,6 +6366,13 @@ CREATE POLICY "p_update" ON "core"."documents" AS PERMISSIVE FOR UPDATE TO "app"
 CREATE POLICY "p_erase_update" ON "core"."documents" AS PERMISSIVE FOR UPDATE TO "retention" USING (app.erasure_listed(tenant_id, 'document', "id")) WITH CHECK (status = 'tobedeleted');--> statement-breakpoint
 CREATE POLICY "p_collab_select" ON "core"."documents" AS PERMISSIVE FOR SELECT TO "collab" USING (collaborative);--> statement-breakpoint
 CREATE POLICY "p_collab_update" ON "core"."documents" AS PERMISSIVE FOR UPDATE TO "collab" USING (collaborative and frozen_at is null) WITH CHECK (collaborative);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "core"."emergency_contacts" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
+CREATE POLICY "owner_all" ON "core"."emergency_contacts" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_select" ON "core"."emergency_contacts" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
+CREATE POLICY "p_insert" ON "core"."emergency_contacts" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_update" ON "core"."emergency_contacts" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_erase_update" ON "core"."emergency_contacts" AS PERMISSIVE FOR UPDATE TO "retention" USING (app.erasure_approved(tenant_id, "user_id")) WITH CHECK (status = 'tobedeleted');--> statement-breakpoint
+CREATE POLICY "p_erase_delete" ON "core"."emergency_contacts" AS PERMISSIVE FOR DELETE TO "retention" USING (status = 'tobedeleted' and (app.erasure_approved(tenant_id, "user_id")));--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "core"."enrollments" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
 CREATE POLICY "owner_all" ON "core"."enrollments" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_select" ON "core"."enrollments" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint

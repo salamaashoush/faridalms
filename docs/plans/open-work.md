@@ -76,9 +76,6 @@ what it leaves to do.
   provider tables and has no sign-in flow or API.
 - **A school's own word for "grade" or "level"**, so a coding school's
   levels are not called grades.
-- **Emergency contacts as a core fact.** They are a flag on a guardian link
-  (`user_relationships.emergency_contact`), so a school without families
-  keeps none.
 - **A running grade students can see** without school years: `/me/grades`
   and `/family/grades` are filled only by term grades (school years) and
   goals (standards), so a learner at a school with neither never sees the

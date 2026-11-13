@@ -57,8 +57,30 @@ Learners act for themselves unless someone acts for them. Where the school
 keeps families, a guardian the school permits follows, signs and is told
 for the child. Without families, or for a learner with no guardian, a
 learner who has reached the school's deciding age (18 unless the school
-sets another in Settings) signs and decides for themself. A learner nobody
-acts for is told the school's notices about them directly.
+sets another in Settings) signs and decides for themself. A school that
+teaches adults alone can say so in Settings ("Every learner is an adult",
+off by default, changed only by those who keep the school's settings and
+kept in the audit log): every learner then decides for themself, with or
+without a birth date on record. Where the school keeps families, that
+statement takes nothing from a guardian: a guardian the school permits
+still follows, signs, asks and is told as before, and the learner may now
+also sign their own consents, ask for corrections, report their own
+absences where attendance allows it, and change their own emergency
+contacts. A learner nobody acts for is told the school's notices about
+them directly.
+
+Every learner has emergency contacts the school calls in one order: people
+the learner or the office write down (a name, a phone, another phone or an
+email, the relationship in the learner's own words, a place in the order
+and notes), and, where the school keeps families, the guardians marked as
+emergency contacts, each at their own place. The list shows on the student
+record's Details tab, on the learner's Your details page and a deciding
+guardian's view of it, and in the medical summary. Staff who read a
+student's contact details read it, and those who change the student change
+it; the learner changes their own once they decide for themself, below
+that age the office does, and so does a guardian who decides for them. A
+guardian marked for emergencies is changed on the Family tab, as before.
+Every change goes on the student's history.
 
 ## Roles and navigation
 
@@ -435,7 +457,8 @@ site-wide banner for closures.
 ## Settings
 
 School profile (names in both languages, logo, timezone, weekend days, the
-age from which learners decide for themselves), school days, features,
+age from which learners decide for themselves, and whether every learner is
+an adult), school days, features,
 attendance rules (statuses, edit window, late threshold, absence
 notification delay), messaging permissions and office hours, notification
 templates in both languages, roles and access, audit log, import. Each

@@ -8,6 +8,7 @@ const DELETE_ALLOWED = new Set([
   "core.auth_attempts",
   "core.external_ids",
   "core.contact_points",
+  "core.emergency_contacts",
   "core.relationship_restrictions",
   "health.contact_changes",
   "core.login_identities",

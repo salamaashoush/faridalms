@@ -78,6 +78,7 @@ import { reachesStudent, requireStudent, scopeFor } from "../core/reach";
 import { logLearnerRequest } from "../core/records-requests";
 import { decidingLearners } from "../people/acting";
 import { allowancesChanged } from "../people/allowances";
+import { emergencyContactsOf as contactsOf } from "../people/emergency-contacts";
 import {
   changeCipher,
   healthCipher,
@@ -85,11 +86,7 @@ import {
   seal,
 } from "../student-records/ciphers";
 import { STUDENT_RECORDS_HOSTS } from "../student-records/hosts";
-import {
-  contactKeeper,
-  contactsOf,
-  moduleReaderOf,
-} from "../student-records/points";
+import { contactKeeper, moduleReaderOf } from "../student-records/points";
 
 const AUDIT_ACTIONS = {
   accepted: "health_change.accept",
@@ -836,6 +833,7 @@ export const summary = readProcedure
         fullNameAr: contact.fullNameAr,
         relation: contact.relation,
         phone: contact.phone,
+        askable: !contact.own,
       })),
       changes: asked,
     };
@@ -907,7 +905,7 @@ export const askChange = writeProcedure
           }
         } else {
           const contact = (await contactsOf(context, input.studentId)).find(
-            (row) => row.id === input.contactId,
+            (row) => !row.own && row.id === input.contactId,
           );
           if (!contact) throw new ORPCError("NOT_FOUND");
           const phone = toE164(input.phone, country);
@@ -1229,9 +1227,9 @@ async function applyContactChange(
     ? (await keeper.changesOf(context, tx, [row.id])).get(row.id)
     : undefined;
   const contact = (await contactsOf(context, row.studentId)).find(
-    (entry) => entry.id === contactId,
+    (entry) => !entry.own && entry.id === contactId,
   );
-  if (!contact || !phone)
+  if (!contact?.userId || !phone)
     throw new ORPCError("CONFLICT", { message: "health.change_stale" });
   const label =
     CONTACT_LABELS.find((known) => known === contact.phoneLabel) ?? "mobile";

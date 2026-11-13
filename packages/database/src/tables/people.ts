@@ -472,3 +472,63 @@ export const contactPoints = core.table.withRLS(
     ...eraseAndDelete(erasureOf("user_id")),
   ],
 );
+
+/**
+ * Someone a person has the school call if something happens, kept as the
+ * person or the office wrote them: they need not be anyone the school
+ * knows, so a name and numbers rather than a person. Who they are to the
+ * person is in the person's own words.
+ */
+export const emergencyContacts = core.table.withRLS(
+  "emergency_contacts",
+  {
+    ...tenantColumns(),
+    userId: uuid("user_id").notNull(),
+    name: text("name").notNull(),
+    relationship: text("relationship"),
+    /** E.164, as every phone the school calls is kept. */
+    phone: text("phone").notNull(),
+    otherPhone: text("other_phone"),
+    email: text("email"),
+    callOrder: smallint("call_order").notNull(),
+    notes: text("notes"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("emergency_contacts", t.tenantId, t.id),
+    ...baseConstraints("emergency_contacts", t, tenants),
+    fk(
+      "emergency_contacts",
+      [t.tenantId, t.userId],
+      [users.tenantId, users.id],
+    ),
+    ck("emergency_contacts", "name", sql`char_length(name) between 1 and 160`),
+    ck(
+      "emergency_contacts",
+      "relationship",
+      sql`char_length(relationship) between 1 and 80`,
+    ),
+    ck("emergency_contacts", "phone", sql`phone ~ '^\\+[1-9][0-9]{6,14}$'`),
+    ck(
+      "emergency_contacts",
+      "other_phone",
+      sql`other_phone ~ '^\\+[1-9][0-9]{6,14}$'`,
+    ),
+    ck(
+      "emergency_contacts",
+      "email",
+      sql`char_length(email) between 3 and 254 and email = lower(email) and strpos(email, '@') > 1`,
+    ),
+    ck("emergency_contacts", "call_order", sql`call_order between 1 and 99`),
+    ck(
+      "emergency_contacts",
+      "notes",
+      sql`char_length(notes) between 1 and 500`,
+    ),
+    index("emergency_contacts_user_idx")
+      .on(t.tenantId, t.userId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    ...eraseAndDelete(erasureOf("user_id")),
+  ],
+);

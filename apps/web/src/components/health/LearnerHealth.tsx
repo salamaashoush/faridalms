@@ -183,7 +183,7 @@ function Summary({ studentId, name, summary }: SummaryProps) {
                             </StatusText>
                           ) : null}
                         </div>
-                        {summary.asks ? (
+                        {summary.asks && contact.askable ? (
                           <ActionMenu
                             label={m.medicalActions({ record: contactName })}
                             actions={[

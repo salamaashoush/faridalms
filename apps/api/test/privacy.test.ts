@@ -412,6 +412,62 @@ describe("erasure", () => {
     });
   });
 
+  test("takes the leaver's own emergency contacts, and leaves those of others", async () => {
+    await withErasure(async (api) => {
+      const keep = await api.people.saveStudent({
+        names: names("Salama Stays", "سلامة الباقي"),
+        reference: "NO9315",
+        birthDate: "2012-05-20",
+      });
+      await api.people.saveEmergencyContact({
+        personId: keep.id,
+        name: "Huda Saleh",
+        phone: "0100 000 0071",
+        callOrder: 1,
+      });
+      const id = await leaver(api, "NO9314", async (studentId) => {
+        await api.people.saveEmergencyContact({
+          personId: studentId,
+          name: "Mona Adel",
+          relationship: "Aunt",
+          phone: "0100 000 0072",
+          email: "mona@example.com",
+          callOrder: 1,
+          notes: "Lives next door.",
+        });
+      });
+      await api.privacy.saveRetention({
+        studentRule: "years_after_leaving",
+        studentValue: 1,
+        staffYears: null,
+        applicantMonths: null,
+      });
+      await api.privacy.approveErasure({
+        subjectUserId: id,
+        basis: "retention_schedule",
+        requestId: null,
+        reference: null,
+      });
+      const { counts } = await api.privacy.runErasure({ subjectUserId: id });
+      expect(counts).toMatchObject({ emergency_contacts: 1 });
+      const { cell, tenants } = seeded();
+      const tenantId = tenants[0]?.tenantId ?? "";
+      const [row] = await cell.withWorker(
+        { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
+        "read",
+        (tx) =>
+          tx.execute<{ erased: number; kept: number }>(sql`
+            select
+              (select count(*)::int from core.emergency_contacts
+                where tenant_id = ${tenantId}::uuid and user_id = ${id}::uuid) as erased,
+              (select count(*)::int from core.emergency_contacts
+                where tenant_id = ${tenantId}::uuid and user_id = ${keep.id}::uuid
+                  and status = 'active') as kept`),
+      );
+      expect(row).toEqual({ erased: 0, kept: 1 });
+    });
+  });
+
   test("takes the medical reports of the leaver's health records, row and bytes", async () => {
     await withErasure(async (api) => {
       const office = await sessionFor("northwind", login("principal"));

@@ -17,6 +17,7 @@ import { modulesOf } from "./core/modules";
 import { today as courseworkToday } from "./coursework/today";
 import { today as learningToday } from "./learning/today";
 import { peerSettings } from "./peer/settings";
+import * as emergencyContactsSystem from "./people/emergency-contacts-system";
 import * as absenceReportsSystem from "./systems/absence-reports";
 import * as accessSystem from "./systems/access";
 import * as admissionsSystem from "./systems/admissions";
@@ -130,7 +131,7 @@ async function answers(context: unknown, module: ModuleId): Promise<boolean> {
 export const router = {
   identifiers: owned("identifiers", identifiersSystem),
   identity: owned("identity", { ...identity, ...discovery }),
-  people: owned("people", peopleSystem),
+  people: owned("people", { ...peopleSystem, ...emergencyContactsSystem }),
   guardians: owned("guardians", guardiansSystem),
   badges: owned("badges", { ...badgesSystem, signIn: badgeSignIn }),
   access: owned("access", accessSystem),

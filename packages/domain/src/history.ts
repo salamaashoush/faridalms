@@ -44,6 +44,14 @@ export const HISTORY_FIELDS = {
     pickup: "choice",
   },
   "core.contact_points": { phone: "phone" },
+  "core.emergency_contacts": {
+    name: "text",
+    relationship: "text",
+    phone: "phone",
+    other_phone: "phone",
+    email: "text",
+    call_order: "count",
+  },
   "core.academic_sessions": {
     title_en: "text",
     title_ar: "text",

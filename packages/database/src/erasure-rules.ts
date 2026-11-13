@@ -107,6 +107,7 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
   },
   "core.contact_points": { rule: "erased" },
   "core.demographics": { rule: "erased" },
+  "core.emergency_contacts": { rule: "erased" },
   "core.discussion_likes": { rule: "erased" },
   "core.discussion_posts": { rule: "erased" },
   "core.document_holds": { rule: "erased" },

@@ -344,6 +344,11 @@ grant update (ydoc, content, plain_text, status, metadata) on core.documents to 
 grant update (ydoc, content, plain_text, last_edited_by_user_id, last_edited_at) on core.documents
   to collab;
 
+alter table core.emergency_contacts force row level security;
+grant select, insert, update on core.emergency_contacts to app, worker, cell_io;
+grant select, delete on core.emergency_contacts to retention;
+grant update (status, metadata) on core.emergency_contacts to retention;
+
 alter table core.enrollments force row level security;
 grant select, insert, update on core.enrollments to app, worker, cell_io;
 grant select on core.enrollments to integration, retention;
@@ -602,7 +607,7 @@ grant select (tenant_id, id, type, parent_id, name_en, name_ar, time_zone, defau
   site;
 grant update (name_en, name_ar, identifier, time_zone, default_locale, week_start, weekend_days,
   country_code, address, phone, email, logo_file_id, status, metadata, secondary_calendar, digits,
-  arabic_math, learners_decide_from) on core.orgs to app;
+  arabic_math, learners_decide_from, learners_are_adults) on core.orgs to app;
 
 alter table core.paced_lessons force row level security;
 grant select, insert, update on core.paced_lessons to app, worker, cell_io;

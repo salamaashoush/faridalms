@@ -28,3 +28,17 @@ export function ageReached(
 ): boolean {
   return (ageOn(birthDate, on)?.years ?? -1) >= years;
 }
+
+/**
+ * Whether a learner decides for themself on the day: every learner of a
+ * school that states its learners are adults, otherwise one who has
+ * reached the school's age by their birth date.
+ */
+export function decidesForThemself(input: {
+  adults: boolean;
+  birthDate: string | null;
+  on: string;
+  from: number;
+}): boolean {
+  return input.adults || ageReached(input.birthDate, input.on, input.from);
+}

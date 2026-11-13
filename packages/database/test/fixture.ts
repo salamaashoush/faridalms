@@ -33,6 +33,7 @@ import {
   descriptorOverrides,
   descriptors,
   devices,
+  emergencyContacts,
   documentFiles,
   documentLinks,
   documentTemplates,
@@ -212,6 +213,15 @@ export async function completeFixture(
     descriptorId: await descriptor(tx, tenantId, "grade_level", "grade_8"),
     orgId: schoolId,
     labelAr: "الصف الثاني الإعدادي",
+  });
+
+  await tx.insert(emergencyContacts).values({
+    tenantId,
+    userId,
+    name: "Huda Saleh",
+    relationship: "Sister",
+    phone: "+201000000077",
+    callOrder: 1,
   });
 
   const photoId = id();

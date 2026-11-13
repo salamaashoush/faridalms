@@ -44,12 +44,14 @@ import {
   consentLinks,
   learnersActedFor,
 } from "../people/acting";
+import { markedEmergencyContacts } from "../people/emergency-contacts";
 import {
   studentAlerts,
   studentColumns,
   studentFormParts,
   studentPhones,
 } from "../people/points";
+import { guardianEmergencyContacts } from "./emergency-contacts";
 import { FAMILIES_HOSTS } from "./hosts";
 import { linkGuardian } from "./links";
 
@@ -70,6 +72,9 @@ export const FAMILIES: ModuleContributions = {
   contributions: [
     contribute(fileHosts, FAMILIES_HOSTS),
     contribute(portalAudiences, { audience: "families" }),
+    contribute(markedEmergencyContacts, {
+      contactsOf: guardianEmergencyContacts,
+    }),
     contribute(actingFor, {
       learnersOf: (scope, input) =>
         learnersOf(scope.tx, { tenantId: scope.tenantId, ...input }),

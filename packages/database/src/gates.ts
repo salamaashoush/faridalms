@@ -17,6 +17,7 @@ t as (
 delete_allowed(name, role) as (values
   ('core.sessions', 'retention'), ('core.auth_attempts', 'retention'),
   ('core.external_ids', 'retention'), ('core.contact_points', 'retention'),
+  ('core.emergency_contacts', 'retention'),
   ('core.relationship_restrictions', 'retention'),
   ('core.login_identities', 'retention'), ('core.federated_identities', 'retention'), ('core.passkeys', 'retention'), ('core.devices', 'retention'),
   ('core.files', 'retention'), ('core.file_subjects', 'retention'), ('core.user_preferences', 'retention'),

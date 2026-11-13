@@ -41,6 +41,7 @@ interface ProfileDraft {
   email: string;
   logoFileId: string;
   learnersDecideFrom: number;
+  learnersAreAdults: boolean;
 }
 
 const DECIDING_AGES = Array.from({ length: 25 }, (_, index) => index + 1);
@@ -61,6 +62,7 @@ function draftOf(profile: Profile): ProfileDraft {
     email: profile.email ?? "",
     logoFileId: profile.logoFileId ?? "",
     learnersDecideFrom: profile.learnersDecideFrom,
+    learnersAreAdults: profile.learnersAreAdults,
   };
 }
 
@@ -259,6 +261,12 @@ export function SchoolProfileSection() {
           }))}
           onChange={(value) => set("learnersDecideFrom", Number(value))}
           width="name"
+        />
+        <CheckboxRow
+          label={m.settingsLearnersAdults()}
+          hint={words(m.settingsLearnersAdultsHintCore)()}
+          checked={draft.learnersAreAdults}
+          onChange={(next) => set("learnersAreAdults", next)}
         />
       </SettingsGroup>
       <SettingsGroup title={m.settingsGroupContact()}>

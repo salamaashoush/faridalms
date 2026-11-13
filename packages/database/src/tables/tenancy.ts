@@ -116,6 +116,11 @@ export const orgs = core.table.withRLS(
      * reports for themself; a learner with no birth date counts as younger.
      */
     learnersDecideFrom: smallint("learners_decide_from").notNull().default(18),
+    /**
+     * The school states that every learner it teaches is an adult, so each
+     * decides for themself whatever their birth date on record.
+     */
+    learnersAreAdults: boolean("learners_are_adults").notNull().default(false),
     /** A calendar shown beside the Gregorian one, for schools that keep Hijri dates. */
     secondaryCalendar: text("secondary_calendar").$type<
       "islamic-umalqura" | "islamic-civil"

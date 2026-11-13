@@ -57,6 +57,7 @@ create trigger row_meta before insert or update on core.class_periods for each r
 create trigger row_meta before insert or update on core.class_years for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.classes for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.contact_points for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.emergency_contacts for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.courses for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.demographics
   for each row execute function app.row_meta_keyed('user_id');

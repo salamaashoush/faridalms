@@ -19,6 +19,7 @@ import { askCorrection } from "~/server/privacy";
 import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import { EmergencyContactsSection } from "./EmergencyContacts";
 import { displayName, labelOf } from "./format";
 import { ContactList } from "./record-parts";
 import { placeWords } from "./slots";
@@ -176,6 +177,9 @@ export function LearnerDetails({ studentId }: LearnerDetailsProps) {
             ) : null}
           </Facts>
         </RecordSection>
+        {self || child.decides ? (
+          <EmergencyContactsSection personId={studentId} />
+        ) : null}
         <RecordSection
           title={self ? m.personContactDetails() : m.familyDetailsYours()}
           description={m.familyDetailsYoursHint()}

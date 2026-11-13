@@ -177,8 +177,16 @@ call, health, consent, decide), the families module answers with the
 guardians `app.guardian_permits` allows. Without the module, or without a
 guardian, a learner who has reached the school's deciding age
 (`orgs.learners_decide_from`, 18 unless the school sets it, by birth date)
-signs, consents and decides for themself, and every learner hears the
-school's notices themself where nobody acts for them.
+signs, consents and decides for themself, as does every learner of a school
+that states its learners are adults (`orgs.learners_are_adults`), and every
+learner hears the school's notices themself where nobody acts for them.
+
+A learner's emergency contacts are one list core reads
+(`apps/api/src/people/emergency-contacts.ts`): the learner's own, kept in
+`core.emergency_contacts`, and those a module marks through the
+`markedEmergencyContacts` point, which families fills with the guardians
+marked for emergencies. Core stores nothing about guardians, and the
+medical summary reads the same list.
 
 ## Tenants, units of work and row level security
 
