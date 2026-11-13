@@ -9,7 +9,9 @@ import type {
   DeliveryState,
   NotificationKind,
 } from "../tables/partitioned";
+import type { Reader } from "./messages";
 
+import { readsWhenAbout } from "./messages";
 import { holds, isoOf, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
@@ -251,6 +253,25 @@ type NotificationRecord = {
 };
 
 /** A person's notifications, newest first; the action tab keeps those still waiting on them. */
+interface Listed {
+  tenantId: string;
+  userId: string;
+  orgId: string;
+  hidden: readonly string[];
+  reader: Reader;
+}
+
+/**
+ * A person's notifications `n` to list: not of a kind hidden, nor about a
+ * conversation they no longer read, which they see again if they do.
+ */
+const listed = (input: Listed) =>
+  sql`n.tenant_id = ${input.tenantId}::uuid and n.user_id = ${input.userId}::uuid
+    and n.org_id = ${input.orgId}::uuid and n.status = 'active'
+    and not (n.kind = any(${textArray(input.hidden)}))
+    and (n.subject_type <> 'message_thread'
+      or ${readsWhenAbout(input.reader, sql`n.subject_id`)})`;
+
 export async function notificationsOf(
   tx: Tx,
   input: {
@@ -262,11 +283,10 @@ export async function notificationsOf(
     offset: number;
     /** Kinds not to list: those of modules that are off. */
     hidden: readonly string[];
+    reader: Reader;
   },
 ): Promise<{ rows: NotificationRow[]; total: number }> {
-  const filter = sql`n.tenant_id = ${input.tenantId}::uuid and n.user_id = ${input.userId}::uuid
-    and n.org_id = ${input.orgId}::uuid and n.status = 'active'
-    and not (n.kind = any(${textArray(input.hidden)}))
+  const filter = sql`${listed(input)}
     and (${input.tab === "all"} or (n.needs_action and n.acted_at is null))`;
   const [count] = await tx.execute<{ total: number }>(sql`
     select count(*)::int as total from core.notifications n where ${filter}`);
@@ -300,21 +320,14 @@ export async function notificationsOf(
 
 export async function unreadCount(
   tx: Tx,
-  input: {
-    tenantId: string;
-    userId: string;
-    orgId: string;
-    hidden: readonly string[];
-  },
+  input: Listed,
 ): Promise<{ unread: number; waiting: number }> {
   const [row] = await tx.execute<{ unread: number; waiting: number }>(sql`
-    select count(*) filter (where read_at is null)::int as unread,
-           count(*) filter (where needs_action and acted_at is null)::int as waiting
-    from core.notifications
-    where tenant_id = ${input.tenantId}::uuid and user_id = ${input.userId}::uuid
-      and org_id = ${input.orgId}::uuid and status = 'active'
-      and not (kind = any(${textArray(input.hidden)}))
-      and (read_at is null or (needs_action and acted_at is null))`);
+    select count(*) filter (where n.read_at is null)::int as unread,
+           count(*) filter (where n.needs_action and n.acted_at is null)::int as waiting
+    from core.notifications n
+    where ${listed(input)}
+      and (n.read_at is null or (n.needs_action and n.acted_at is null))`);
   return { unread: row?.unread ?? 0, waiting: row?.waiting ?? 0 };
 }
 

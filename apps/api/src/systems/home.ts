@@ -56,6 +56,7 @@ import {
 import { reachesStudent, scopeFor, studentsReached } from "../core/reach";
 import { setupSeen } from "../core/setup";
 import { studentGroupsOf } from "../core/student-groups";
+import { personalReader } from "../messages/standing";
 import { decidesFor } from "../people/acting";
 import { studentPlacesOf, youngStudentsOf } from "../people/points";
 
@@ -66,15 +67,9 @@ import { studentPlacesOf, youngStudentsOf } from "../people/points";
 export const teacher = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "classes:read");
   const [unread, threads, events, classes] = await Promise.all([
-    unreadThreads(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      viewerId: context.actor.userId,
-    }),
+    unreadThreads(context.tx, await personalReader(context)),
     threadsOf(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      viewerId: context.actor.userId,
+      ...(await personalReader(context)),
       unreadOnly: true,
       q: "",
       limit: 3,
@@ -223,18 +218,12 @@ export const followed = readProcedure
       : links;
     const [threads, unread, feed] = await Promise.all([
       threadsOf(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        viewerId: context.actor.userId,
+        ...(await personalReader(context)),
         unreadOnly: true,
         q: "",
         limit: 3,
       }),
-      unreadThreads(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        viewerId: context.actor.userId,
-      }),
+      unreadThreads(context.tx, await personalReader(context)),
       announcementFeed(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,

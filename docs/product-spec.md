@@ -188,6 +188,15 @@ any other, and its gradebook keeps a running grade from the work graded so
 far; term grades, and the term a piece of work counts toward, belong to a
 class's school year where the school keeps years.
 
+A class's groups are named sets of its students (named in English, Arabic
+or both) that work or a module can be set for instead of the whole class.
+Whoever sets work and teaches the class, or keeps every class, adds,
+renames, changes and removes them on the class record's Groups tab, choosing
+from the class's students that day. A group's members are those of it still
+in the class, so a student who leaves the class leaves its groups the same
+day. Removing a group keeps what was already set for it with its students;
+it is no longer offered when choosing who work is for.
+
 The class is the hub for everything taught in it.
 
 - Header: name, subject colour, teachers, next period and room, and the
@@ -457,6 +466,15 @@ audited.
   print and mute.
 - Every guardian pair of a child shares one thread per staff member, so both
   parents always see replies. Group threads can gain and lose members.
+- A conversation about a learner is read only by those with a standing to it
+  today: the learner, those who act for the learner today (on the family's
+  side of it, under every custody and "do not contact" rule), and on the
+  school's side staff who teach the learner, work in the office or reach
+  every learner. Having once been a guardian is no standing, even for a
+  member of staff. Without one the conversation is not listed, opened,
+  searched, counted as unread, notified or its files opened; nothing is
+  deleted, and it returns when the standing does. Conversations about no
+  learner are unaffected.
 - Who may message whom is a school setting matrix; by default families reach
   their children's teachers and the office.
 - Office hours: messages still arrive, push and SMS wait, a banner tells the

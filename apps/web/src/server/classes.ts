@@ -4,6 +4,7 @@ import {
   classRecordSchema,
   enrolStudentSchema,
   saveClassSchema,
+  saveGroupSchema,
   saveSubjectSchema,
   withdrawStudentSchema,
 } from "@faridalms/domain/classes";
@@ -56,3 +57,18 @@ export const saveSubject = createServerFn({ method: "POST" })
 export const getClassGroups = createServerFn({ method: "GET" })
   .validator(checked(v.object({ classId: v.pipe(v.string(), v.uuid()) })))
   .handler(({ data }) => record(backend().classes.groups(data)));
+
+export const saveClassGroup = createServerFn({ method: "POST" })
+  .validator(checked(saveGroupSchema))
+  .handler(({ data }) => backend().classes.saveGroup(data));
+
+export const removeClassGroup = createServerFn({ method: "POST" })
+  .validator(
+    checked(
+      v.object({
+        id: v.pipe(v.string(), v.uuid()),
+        classId: v.pipe(v.string(), v.uuid()),
+      }),
+    ),
+  )
+  .handler(({ data }) => backend().classes.removeGroup(data));

@@ -39,6 +39,7 @@ import {
   moveClass,
   refuseOverRegisters,
 } from "../classes/enrolment";
+import { keepsGroups } from "../classes/group-access";
 import {
   changeRefusal,
   classGroupsOf,
@@ -157,18 +158,16 @@ export const record = readProcedure
     const found = await classById(context.tx, context, input.id);
     if (!found) throw new ORPCError("NOT_FOUND");
     const on = input.on || dayWithin(found.runs, context.today);
-    const scope = scopeFor(context, "classes");
     if (!(await reachesClass(context, "classes", input.id, on)))
       throw new ORPCError("NOT_FOUND");
     const detail = await classDetail(context.tx, context, input.id, on);
     if (!detail) throw new ORPCError("NOT_FOUND");
-    const staffViewer = isStaff(context);
     const roster = await classRoster(
       context.tx,
-      scope,
+      scopeFor(context, "classes"),
       detail.id,
       on,
-      !staffViewer,
+      !isStaff(context),
     );
     const changeable = !(await changeRefusal(context, detail.id));
     return {
@@ -182,8 +181,9 @@ export const record = readProcedure
         enrol:
           (can(context, "classes:manage") || can(context, "people:manage")) &&
           changeable,
-        staff: staffViewer,
+        staff: isStaff(context),
         files: await mayKeepArea(context, { type: "class", id: input.id }),
+        groups: await keepsGroups(context, input.id),
       },
     };
   });

@@ -25,6 +25,7 @@ import type { NoticeScope } from "../core/notify";
 import { contributionsTo, point } from "../core/extension";
 import { notifyIn } from "../core/notify";
 import { actorsFor } from "../people/acting";
+import { standingIn } from "./standing";
 
 /**
  * Where a conversation is written from: a person's procedure, or a unit
@@ -212,15 +213,20 @@ export async function writeEntry(
         (input.authorContactId && member.contactId === input.authorContactId) ||
         (input.authorUserId && member.userId === input.authorUserId),
     );
+    const standing = await standingIn(scope, thread);
+    const stands = (userId: string | null): userId is string =>
+      userId !== null && (standing === null || standing.has(userId));
     let told: string[];
     if (!thread.mailbox)
       told = members.flatMap((member) =>
-        member.userId ? [member.userId] : [],
+        stands(member.userId) ? [member.userId] : [],
       );
     else {
       const owner = members.find((member) => member.role === "owner");
       const outside = members.flatMap((member) =>
-        member.role === "member" && member.userId ? [member.userId] : [],
+        member.role === "member" && stands(member.userId)
+          ? [member.userId]
+          : [],
       );
       const team =
         outsideAuthor || input.kind === "held"

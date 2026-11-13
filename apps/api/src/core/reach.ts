@@ -1,7 +1,9 @@
+import type { CellTransaction } from "@faridalms/database/context";
 import type { PersonReach } from "@faridalms/database/stores/persons";
 import type { Scope } from "@faridalms/database/stores/students";
 import type { Capability } from "@faridalms/domain/capabilities";
 
+import { capabilityHolders } from "@faridalms/database/stores/access";
 import {
   reachesClass as storeReachesClass,
   teachesClass as storeTeachesClass,
@@ -59,6 +61,37 @@ export function scopeFor(context: UnitContext, reach: ReachScope): Scope {
  */
 export function isStaff(context: UnitContext): boolean {
   return context.actor.context === "staff";
+}
+
+/**
+ * How the viewer reaches learners as staff, for reading what is about one:
+ * with every learner of the school or only their own; null when they do
+ * not read as staff.
+ */
+export function staffStanding(
+  context: UnitContext,
+): { schoolWide: boolean } | null {
+  return isStaff(context)
+    ? { schoolWide: scopeFor(context, "classes").schoolWide }
+    : null;
+}
+
+/** Everyone holding a capability that opens the whole school to the kind of work. */
+export async function schoolWideHolders(
+  scope: {
+    tx: CellTransaction;
+    tenantId: string;
+    schoolId: string;
+    today: string;
+  },
+  reach: Exclude<ReachScope, "school">,
+): Promise<string[]> {
+  const holders = await Promise.all(
+    SCHOOL_WIDE[reach].map((capability) =>
+      capabilityHolders(scope.tx, { ...scope, capability }),
+    ),
+  );
+  return [...new Set(holders.flat().map((holder) => holder.id))];
 }
 
 const notFound = () => new ORPCError("NOT_FOUND");

@@ -4,10 +4,12 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 import type { Reach } from "./audiences";
+import type { Reader } from "./messages";
 import type { Scope } from "./students";
 
 import { reaches } from "./audiences";
 import { publishedText } from "./broadcasts";
+import { memberThreads } from "./messages";
 import { liveSql, scheduledSql } from "./publication";
 import { isoOf, textArray, uuidArray } from "./sql";
 
@@ -309,26 +311,12 @@ export async function eventsAmong(tx: Tx, input: Among & EventAccess) {
   );
 }
 
-interface ThreadAccess {
-  tenantId: string;
-  schoolId: string;
-  viewerId: string;
-}
-
-/** The conversations the viewer is still in; in a mailbox's, as one of its contacts. */
-export const threadsReached = (input: ThreadAccess) =>
-  sql`(select t.id from core.message_threads t
-    join core.thread_members m on m.tenant_id = t.tenant_id and m.thread_id = t.id
-      and m.user_id = ${input.viewerId}::uuid and m.status = 'active' and m.left_at is null
-      and (t.mailbox is null or m.role = 'member')
-    where t.tenant_id = ${input.tenantId}::uuid and t.org_id = ${input.schoolId}::uuid
-      and t.status = 'active')`;
-
 /**
- * Conversations among `ids` the viewer is still in, named by their subject
- * or the others in them, with the latest message that matched.
+ * Conversations among `ids` the viewer is still in with a standing to,
+ * named by their subject or the others in them, with the latest message
+ * that matched.
  */
-export async function threadsAmong(tx: Tx, input: Among & ThreadAccess) {
+export async function threadsAmong(tx: Tx, input: Among & Reader) {
   return found(
     await tx.execute<Raw>(sql`
       select t.id, 'message_thread' as type,
@@ -344,7 +332,7 @@ export async function threadsAmong(tx: Tx, input: Among & ThreadAccess) {
           order by g.created_at desc limit 1) as snippet,
         null as context, ${isoOf(sql`t.last_message_at`)} as "when", null as flag, null as roles
       from core.message_threads t
-      where t.id = any(${uuidArray(input.ids)}) and t.id in ${threadsReached(input)}`),
+      where t.id = any(${uuidArray(input.ids)}) and t.id in ${memberThreads(input)}`),
   );
 }
 

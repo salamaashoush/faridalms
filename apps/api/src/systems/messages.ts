@@ -14,6 +14,7 @@ import {
   draftOf,
   draftsOf,
   existingThread,
+  inThread,
   keepDraft,
   mailboxContacts,
   markRead as markThreadRead,
@@ -76,6 +77,7 @@ import {
   recipientsFor,
   unreachableFor,
 } from "../messages/reach";
+import { readerOf } from "../messages/standing";
 import { actingFor, actorsFor } from "../people/acting";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -104,12 +106,17 @@ async function openThread(context: UnitContext, threadId: string) {
   const members = await membersOf(context.tx, context.tenantId, thread.id);
   const boxes = mailboxesFor(context);
   const team = thread.mailbox !== null && boxes.reads.includes(thread.mailbox);
+  const seat = members.find(
+    (row) =>
+      row.userId === context.actor.userId &&
+      (thread.mailbox === null || row.role === "member"),
+  );
   const me =
-    members.find(
-      (row) =>
-        row.userId === context.actor.userId &&
-        (thread.mailbox === null || row.role === "member"),
-    ) ?? null;
+    seat &&
+    (!thread.studentId ||
+      (await inThread(context.tx, await readerOf(context), thread.id)))
+      ? seat
+      : null;
   if (!team && !me) throw new ORPCError("NOT_FOUND");
   return {
     thread,
@@ -123,13 +130,8 @@ async function openThread(context: UnitContext, threadId: string) {
   };
 }
 
-coreReader("message", (context, hostId) =>
-  readsMessage(context.tx, {
-    tenantId: context.tenantId,
-    messageId: hostId,
-    userId: context.actor.userId,
-    mailboxes: mailboxesFor(context).reads,
-  }),
+coreReader("message", async (context, hostId) =>
+  readsMessage(context.tx, await readerOf(context), hostId),
 );
 
 // A draft is its writer's alone, files included.
@@ -181,10 +183,7 @@ export const inbox = readProcedure
         : "personal";
     const [page, children, family] = await Promise.all([
       threadsOf(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        viewerId: context.actor.userId,
-        mailboxes: boxes.reads,
+        ...(await readerOf(context)),
         box,
         unreadOnly: input.show === "unread",
         q: input.q,
@@ -207,12 +206,7 @@ export const inbox = readProcedure
 export const unread = readProcedure.handler(async ({ context }) => {
   readsMessages(context);
   return {
-    threads: await unreadThreads(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      viewerId: context.actor.userId,
-      mailboxes: mailboxesFor(context).reads,
-    }),
+    threads: await unreadThreads(context.tx, await readerOf(context)),
   };
 });
 
@@ -672,10 +666,7 @@ export const drafts = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "messages:send");
     return draftsOf(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      viewerId: context.actor.userId,
-      mailboxes: mailboxesFor(context).reads,
+      ...(await readerOf(context)),
       limit: INBOX_PAGE,
       after: input.after,
     });

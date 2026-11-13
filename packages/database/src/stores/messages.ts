@@ -237,6 +237,18 @@ export interface ThreadSummary {
   owner: Named | null;
 }
 
+/**
+ * What the viewer stands in today towards the learners conversations are
+ * about, worked out for the unit of work: the learners they act for in the
+ * school's messages, and whether they read as staff, reaching every
+ * learner or not.
+ */
+export interface Standing {
+  today: string;
+  actsFor: readonly string[];
+  staff: { schoolWide: boolean } | null;
+}
+
 /** Who the viewer reads a conversation as: in it, or one of the team that shares its mailbox. */
 export interface Reader {
   tenantId: string;
@@ -244,14 +256,122 @@ export interface Reader {
   viewerId: string;
   /** The mailboxes the viewer's capabilities read. */
   mailboxes: readonly Mailbox[];
+  standing: Standing;
+}
+
+/**
+ * Whether member `m` sits in conversation `t` on the learner's side: the
+ * one who began a direct conversation about a learner, which staff never
+ * do, and the members of a family or mailbox conversation, whose owner is
+ * the school's.
+ */
+const learnerSide = sql`((t.kind = 'direct') = (m.role = 'owner'))`;
+
+/**
+ * Whether `person` reaches the learner of conversation `t` as staff in
+ * their own right: teaching them, or in the office, whom anyone acting for
+ * a learner may write to about them.
+ */
+const staffReach = (person: SQL, schoolId: string, today: string) => sql`(
+  t.student_user_id in (select v.student_user_id
+    from app.visible_students(${person}, ${schoolId}::uuid, ${today}::date, false, '{}'::uuid[]) v)
+  or exists (select 1 from core.user_roles r
+    where r.tenant_id = t.tenant_id and r.org_id = ${schoolId}::uuid and r.user_id = ${person}
+      and r.status = 'active' and r.valid_during @> ${today}::date and r.role in ${OFFICE_ROLES}))`;
+
+/**
+ * Whether member `m` of conversation `t` has a standing to it today. One
+ * about no learner needs none and the learner always has one; otherwise a
+ * seat on the learner's side holds while its person acts for the learner,
+ * and one on the school's while its person reaches the learner as staff.
+ * Having once acted for the learner is no standing.
+ */
+const standsIn = (seat: { acts: SQL; staff: SQL }) =>
+  sql`(t.student_user_id is null or m.user_id = t.student_user_id
+    or case when ${learnerSide} then ${seat.acts} else ${seat.staff} end)`;
+
+const viewerStands = (reader: Reader) => {
+  const { standing } = reader;
+  return standsIn({
+    acts: sql`t.student_user_id = any(${uuidArray(standing.actsFor)})`,
+    staff:
+      standing.staff === null
+        ? sql`false`
+        : standing.staff.schoolWide
+          ? sql`true`
+          : staffReach(
+              sql`${reader.viewerId}::uuid`,
+              reader.schoolId,
+              standing.today,
+            ),
+  });
+};
+
+/** The conversations the viewer is in with a standing to; in a mailbox's, as one of its contacts. */
+export const memberThreads = (reader: Reader) =>
+  sql`(select t.id from core.message_threads t
+    join core.thread_members m on m.tenant_id = t.tenant_id and m.thread_id = t.id
+      and m.user_id = ${reader.viewerId}::uuid and m.status = 'active' and m.left_at is null
+      and (t.mailbox is null or m.role = 'member')
+    where t.tenant_id = ${reader.tenantId}::uuid and t.org_id = ${reader.schoolId}::uuid
+      and t.status = 'active' and ${viewerStands(reader)})`;
+
+/**
+ * Whether the viewer may read the conversation `thread` names, when it is
+ * about a learner: as the team of its mailbox, or in it with a standing.
+ */
+export const readsWhenAbout = (reader: Reader, thread: SQL) =>
+  sql`not exists (select 1 from core.message_threads t
+    where t.tenant_id = ${reader.tenantId}::uuid and t.id = ${thread}
+      and t.student_user_id is not null
+      and not (t.mailbox = any(${textArray(reader.mailboxes)}) or t.id in ${memberThreads(reader)}))`;
+
+/** Whether the viewer is in the conversation with a standing to it. */
+export async function inThread(
+  tx: Tx,
+  reader: Reader,
+  threadId: string,
+): Promise<boolean> {
+  const [row] = await tx.execute<{ ok: boolean }>(sql`
+    select ${threadId}::uuid in ${memberThreads(reader)} as ok`);
+  return row?.ok ?? false;
+}
+
+/**
+ * Of a conversation's people, those with a standing to it today, given who
+ * acts for its learner and who holds a capability reaching every learner.
+ */
+export async function standingMembers(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    threadId: string;
+    today: string;
+    actors: readonly string[];
+    everyLearner: readonly string[];
+  },
+): Promise<Set<string>> {
+  const rows = await tx.execute<{ user_id: string }>(sql`
+    select distinct m.user_id from core.thread_members m
+    join core.message_threads t on t.tenant_id = m.tenant_id and t.id = m.thread_id
+    where m.tenant_id = ${input.tenantId}::uuid and m.thread_id = ${input.threadId}::uuid
+      and m.user_id is not null and m.status = 'active' and m.left_at is null
+      and ${standsIn({
+        acts: sql`m.user_id = any(${uuidArray(input.actors)})`,
+        staff: sql`(app.is_staff(m.user_id, ${input.schoolId}::uuid, ${input.today}::date)
+          and (m.user_id = any(${uuidArray(input.everyLearner)})
+            or ${staffReach(sql`m.user_id`, input.schoolId, input.today)}))`,
+      })}`);
+  return new Set(rows.map((row) => row.user_id));
 }
 
 /**
  * The conversations a viewer reaches, keyed by thread with their read
- * state: those they are in, and every conversation of a mailbox they
- * read. A staff member's row in a mailbox conversation only keeps how far
- * they read; it never lets them in, so someone who stops holding the
- * mailbox's capability stops seeing it.
+ * state: those they are in with a standing to, and every conversation of
+ * a mailbox they read. A staff member's row in a mailbox conversation only
+ * keeps how far they read; it never lets them in, so someone who stops
+ * holding the mailbox's capability stops seeing it.
  */
 function reached(reader: Reader, box: InboxBox): SQL {
   return sql`
@@ -262,6 +382,7 @@ function reached(reader: Reader, box: InboxBox): SQL {
       where m.tenant_id = ${reader.tenantId}::uuid and m.user_id = ${reader.viewerId}::uuid
         and m.status = 'active' and m.left_at is null
         and (t.mailbox is null or m.role = 'member')
+        and ${viewerStands(reader)}
         and ${box} in ('all', 'personal')
       union all
       select t.id, (select r.last_read_at from core.thread_members r
@@ -322,11 +443,7 @@ const memberNames = sql`'user_id', o.user_id, 'contact_id', o.contact_id,
  */
 export async function threadsOf(
   tx: Tx,
-  input: {
-    tenantId: string;
-    schoolId: string;
-    viewerId: string;
-    mailboxes?: readonly Mailbox[];
+  input: Reader & {
     box?: InboxBox;
     unreadOnly: boolean;
     q: string;
@@ -334,7 +451,6 @@ export async function threadsOf(
     after?: Keyset | null;
   },
 ): Promise<{ rows: ThreadSummary[]; next: Keyset | null }> {
-  const reader = { ...input, mailboxes: input.mailboxes ?? [] };
   const after = input.after ?? null;
   const rows = await tx.execute<{
     id: string;
@@ -357,7 +473,7 @@ export async function threadsOf(
     others: NamedRecord[];
     owner: NamedRecord | null;
   }>(sql`
-    ${reached(reader, input.box ?? "all")}
+    ${reached(input, input.box ?? "all")}
     select t.id, t.kind, t.mailbox, t.subject, t.student_user_id, s.full_name_en as student_en,
            s.full_name_ar as student_ar, ${isoOf(sql`t.last_message_at`)} as last_message_at,
            last.body as last_body, last.kind as last_kind, last.author_id as last_author_id,
@@ -1149,18 +1265,9 @@ export async function draftsOf(
 }
 
 /** Unread conversations, for the Messages count in navigation and the home pages. */
-export async function unreadThreads(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    schoolId: string;
-    viewerId: string;
-    mailboxes?: readonly Mailbox[];
-  },
-): Promise<number> {
-  const reader = { ...input, mailboxes: input.mailboxes ?? [] };
+export async function unreadThreads(tx: Tx, input: Reader): Promise<number> {
   const [row] = await tx.execute<{ unread: number }>(sql`
-    ${reached(reader, "all")}
+    ${reached(input, "all")}
     select count(*)::int as unread from reached r
     join core.message_threads t on t.tenant_id = ${input.tenantId}::uuid and t.id = r.thread_id
     where exists (select 1 from core.messages x
@@ -1172,28 +1279,21 @@ export async function unreadThreads(
 
 /**
  * Whether someone may open what a message carries: a member of its
- * conversation for a message, and the team of its mailbox for anything in
+ * conversation with a standing to it for a message, and the team of its mailbox for anything in
  * a mailbox conversation, internal entries included.
  */
 export async function readsMessage(
   tx: Tx,
-  input: {
-    tenantId: string;
-    messageId: string;
-    userId: string;
-    mailboxes: readonly Mailbox[];
-  },
+  reader: Reader,
+  messageId: string,
 ): Promise<boolean> {
   const [row] = await tx.execute<{ ok: boolean }>(sql`
     select exists (select 1 from core.messages x
       join core.message_threads t on t.tenant_id = x.tenant_id and t.id = x.thread_id
-      where x.tenant_id = ${input.tenantId}::uuid and x.id = ${input.messageId}::uuid
+      where x.tenant_id = ${reader.tenantId}::uuid and x.id = ${messageId}::uuid
         and x.status = 'active'
-        and (t.mailbox = any(${textArray(input.mailboxes)})
-          or (x.kind = 'message' and exists (select 1 from core.thread_members m
-            where m.tenant_id = x.tenant_id and m.thread_id = x.thread_id
-              and m.user_id = ${input.userId}::uuid and m.status = 'active' and m.left_at is null
-              and (t.mailbox is null or m.role = 'member'))))) as ok`);
+        and (t.mailbox = any(${textArray(reader.mailboxes)})
+          or (x.kind = 'message' and t.id in ${memberThreads(reader)}))) as ok`);
   return row?.ok ?? false;
 }
 

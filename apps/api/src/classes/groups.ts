@@ -11,48 +11,77 @@ import { dayWithin } from "@faridalms/domain/school";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
+import type { UnitContext } from "../core/context";
+
 import { contributionsTo } from "../core/extension";
 import {
   readProcedure,
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { requireTaught, teaches } from "../core/reach";
+import { keepsGroups } from "./group-access";
 import { classJoins } from "./points";
 
 const id = v.pipe(v.string(), v.uuid());
 
-/** A class's groups and roster, for choosing who gets work. */
+/**
+ * A class whose groups the viewer keeps, with its roster on the day, or
+ * not found.
+ */
+async function taughtClass(context: UnitContext, classId: string) {
+  requireCapability(context, "assignments:author");
+  const classRow = await classById(context.tx, context, classId);
+  if (!classRow || !(await keepsGroups(context, classRow.id)))
+    throw new ORPCError("NOT_FOUND");
+  const roster = await rosterOf(
+    context.tx,
+    context.tenantId,
+    classRow.id,
+    dayWithin(classRow.runs, context.today),
+  );
+  return { classRow, roster: new Set<string>(roster) };
+}
+
+/**
+ * A class's groups and roster, for choosing who gets work. A group's
+ * members are those of it on the roster, so a student who leaves the class
+ * leaves its groups the same day, however they left.
+ */
 export const groups = readProcedure
   .input(v.object({ classId: id }))
   .handler(async ({ input, context }) => {
-    requireCapability(context, "assignments:author");
-    const classRow = await classById(context.tx, context, input.classId);
-    if (!classRow || !(await teaches(context, "teaching", classRow.id)))
-      throw new ORPCError("NOT_FOUND");
-    const roster = await rosterOf(
-      context.tx,
-      context.tenantId,
-      classRow.id,
-      dayWithin(classRow.runs, context.today),
-    );
-    const names = await namesOf(context.tx, context.tenantId, roster);
+    const { classRow, roster } = await taughtClass(context, input.classId);
+    const [kept, names] = await Promise.all([
+      groupsOf(context.tx, context.tenantId, classRow.id),
+      namesOf(context.tx, context.tenantId, [...roster]),
+    ]);
     return {
-      groups: await groupsOf(context.tx, context.tenantId, classRow.id),
+      groups: kept.map((group) => ({
+        ...group,
+        studentIds: group.studentIds.filter((studentId) =>
+          roster.has(studentId),
+        ),
+      })),
       roster: names,
     };
   });
 
+/** Adds a group of the class's students, or renames one and changes who is in it. */
 export const saveGroup = writeProcedure
   .input(saveGroupSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "assignments:author");
     if (!input.titleEn && !input.titleAr)
       throw new ORPCError("BAD_REQUEST", {
         message: "validation.name_required",
       });
-    const classRow = await classById(context.tx, context, input.classId);
-    if (!classRow || !(await teaches(context, "teaching", classRow.id)))
+    const { classRow, roster } = await taughtClass(context, input.classId);
+    if (
+      input.studentIds.some((studentId) => !roster.has(studentId)) ||
+      (input.id &&
+        !(await groupsOf(context.tx, context.tenantId, classRow.id)).some(
+          (group) => group.id === input.id,
+        ))
+    )
       throw new ORPCError("NOT_FOUND");
     const groupId = await saveGroupRow(context.tx, {
       tenantId: context.tenantId,
@@ -76,9 +105,8 @@ export const saveGroup = writeProcedure
 export const removeGroup = writeProcedure
   .input(v.object({ id, classId: id }))
   .handler(async ({ input, context }) => {
-    requireCapability(context, "assignments:author");
-    await requireTaught(context, "teaching", input.classId);
-    const known = await groupsOf(context.tx, context.tenantId, input.classId);
+    const { classRow } = await taughtClass(context, input.classId);
+    const known = await groupsOf(context.tx, context.tenantId, classRow.id);
     if (!known.some((row) => row.id === input.id))
       throw new ORPCError("NOT_FOUND");
     await removeGroupRow(context.tx, context.tenantId, input.id);

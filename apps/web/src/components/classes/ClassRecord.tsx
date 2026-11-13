@@ -39,6 +39,7 @@ import type { ClassRecordData, RosterKeeping } from "./slots";
 
 import { displayName, lastDay } from "../people/format";
 import { Deferred } from "../people/record-parts";
+import { ClassGroups } from "./ClassGroups";
 import { AddStudentSheet, WithdrawSheet } from "./Enrolment";
 import { classTitle, subjectName } from "./format";
 import {
@@ -51,6 +52,7 @@ import {
 const OWN_TABS = [
   { value: "overview", label: m.recordOverview, place: 10 },
   { value: "students", label: m.classesStudents, place: 20 },
+  { value: "groups", label: m.classGroupsTab, place: 30 },
   { value: "files", label: m.filesTab, place: 70 },
 ] as const;
 export type ClassTab = string;
@@ -385,7 +387,11 @@ export function ClassRecord({
       value: inLocale(room.nameEn, room.nameAr) || room.code,
     });
   const available = [...OWN_TABS, ...added]
-    .filter((each) => each.value !== "files" || data.access.files)
+    .filter(
+      (each) =>
+        (each.value !== "files" || data.access.files) &&
+        (each.value !== "groups" || data.access.groups),
+    )
     .toSorted((a, b) => a.place - b.place);
   const active = available.some((each) => each.value === tab)
     ? tab
@@ -406,6 +412,10 @@ export function ClassRecord({
           />
         }
       />
+    ) : active === "groups" ? (
+      <Deferred>
+        <ClassGroups classId={data.id} />
+      </Deferred>
     ) : moduleTab ? (
       <Deferred>
         <moduleTab.Tab classId={data.id} />

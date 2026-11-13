@@ -4,6 +4,7 @@ import { addDays } from "@faridalms/domain/school";
 import { SQL } from "bun";
 import { describe, expect, test } from "bun:test";
 
+import { names } from "./admission-fixtures";
 import {
   login,
   rejection,
@@ -586,6 +587,104 @@ describe("a class's groups", () => {
         ),
       ).toMatchObject({ code: "NOT_FOUND" });
     });
+  });
+});
+
+describe("a class's groups and its roster", () => {
+  test("a student who leaves the class leaves its groups; a group takes only the class's students and its own groups", async () => {
+    // Acme, so the students made here leave Northwind's counts alone.
+    const api = await signedIn("acme", login("principal", 1));
+    const options = await api.classes.options();
+    const made = async (code: string) =>
+      (
+        await api.classes.save({
+          startsOn: options.today,
+          code,
+          titleEn: "Robotics club",
+          titleAr: "نادي الروبوت",
+          teacherIds: [],
+        })
+      ).id;
+    const classId = await made("GRP-1");
+    const otherId = await made("GRP-2");
+    const students = await Promise.all(
+      ["GRP-S1", "GRP-S2", "GRP-S3"].map(
+        async (reference) =>
+          (
+            await api.people.saveStudent({
+              names: names("Salama Ashoush", "سلامة عشوش"),
+              reference,
+              birthDate: "",
+            })
+          ).id,
+      ),
+    );
+    const [first, second, outside] = students;
+    if (!first || !second || !outside) throw new Error("three students");
+    for (const studentId of [first, second])
+      await api.classes.enrol({ studentId, classId });
+    await api.classes.enrol({ studentId: outside, classId: otherId });
+    expect((await api.classes.record({ id: classId })).access.groups).toBe(
+      true,
+    );
+
+    const { id } = await api.classes.saveGroup({
+      classId,
+      titleEn: "Builders",
+      titleAr: "البناؤون",
+      studentIds: [first, second],
+    });
+    const { id: otherGroup } = await api.classes.saveGroup({
+      classId: otherId,
+      titleEn: "Coders",
+      studentIds: [outside],
+    });
+
+    const record = await api.classes.record({ id: classId });
+    const leaving = record.roster.find((row) => row.userId === first);
+    if (!leaving) throw new Error("enrolled");
+    await api.classes.withdraw({
+      studentId: first,
+      enrollmentId: leaving.enrollmentId,
+      expectedVersion: leaving.version,
+      on: options.today,
+    });
+    const after = await api.classes.groups({ classId });
+    expect(after.roster.map((row) => row.id)).toEqual([second]);
+    expect(after.groups.find((group) => group.id === id)?.studentIds).toEqual([
+      second,
+    ]);
+
+    for (const call of [
+      () =>
+        api.classes.saveGroup({
+          id,
+          classId,
+          titleEn: "Builders",
+          studentIds: [second, first],
+        }),
+      () =>
+        api.classes.saveGroup({
+          id,
+          classId,
+          titleEn: "Builders",
+          studentIds: [outside],
+        }),
+      () =>
+        api.classes.saveGroup({
+          id: otherGroup,
+          classId,
+          titleEn: "Taken",
+          studentIds: [second],
+        }),
+      () => api.classes.removeGroup({ id: otherGroup, classId }),
+    ])
+      expect(await rejection(call())).toMatchObject({ code: "NOT_FOUND" });
+    expect(
+      (await api.classes.groups({ classId: otherId })).groups.map(
+        (group) => group.titleEn,
+      ),
+    ).toEqual(["Coders"]);
   });
 });
 

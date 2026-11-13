@@ -9,6 +9,7 @@ import type {
 } from "@faridalms/domain/search";
 
 import { orgPath } from "@faridalms/database/stores/identity";
+import { memberThreads } from "@faridalms/database/stores/messages";
 import {
   broadcastsAmong,
   broadcastsReached,
@@ -24,7 +25,6 @@ import {
   teamThreadsReached,
   studentsReached,
   threadsAmong,
-  threadsReached,
 } from "@faridalms/database/stores/search";
 import { mailboxesOf } from "@faridalms/domain/messages";
 import {
@@ -45,6 +45,7 @@ import { calendarReach } from "../core/audiences";
 import { contributionsTo } from "../core/extension";
 import { can, localeOf, readProcedure } from "../core/procedure";
 import { classesReachedBesides, peopleOpenedTo, scopeFor } from "../core/reach";
+import { readerOf } from "../messages/standing";
 import { placed } from "../people/points";
 import { searchSources } from "../search/points";
 
@@ -151,10 +152,10 @@ async function resolverOf(
       };
     }
     case "messages": {
-      const access = { ...school, viewerId };
+      const reader = await readerOf(context);
       return {
-        within: threadsReached(access),
-        resolve: (ids) => threadsAmong(context.tx, { ...base, ...access, ids }),
+        within: memberThreads(reader),
+        resolve: (ids) => threadsAmong(context.tx, { ...base, ...reader, ids }),
       };
     }
     case "notes": {

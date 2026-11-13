@@ -83,13 +83,9 @@ what it leaves to do.
   grade levels** still say "placed in this grade" (`brdEnrolBody`, from
   `apps/web/src/components/admissions/families.tsx`); with grade levels on,
   the link's worded sentence is read first because it is listed first.
-- **Class groups have no screen that writes them.** `classes.saveGroup` and
-  `classes.removeGroup` exist and nothing in the web calls them.
 - **Starter content that speaks of families and years**: the website page
   templates (`packages/domain/src/site-templates.ts`), event template
   sections and the default admission letter bodies.
-- **A former guardian on the staff** keeps the message threads about the
-  child after the link ends.
 - **A signed link issued before a module went off** opens until it
   expires: five minutes for a file, an hour for media, four to eight hours
   for a video stream.
