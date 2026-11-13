@@ -66,21 +66,27 @@ export async function ensureAccount(
   tx: Tx,
   input: { tenantId: string; userId: string },
 ): Promise<{ accountId: string; created: boolean } | null> {
-  const [existing] = await tx
-    .select({ id: accounts.id, state: accounts.state })
-    .from(accounts)
-    .where(
-      and(
-        eq(accounts.tenantId, input.tenantId),
-        eq(accounts.userId, input.userId),
-        eq(accounts.status, "active"),
-      ),
-    )
-    .for("update");
-  if (existing)
-    return existing.state === "active"
-      ? { accountId: existing.id, created: false }
+  const held = async () => {
+    const [row] = await tx
+      .select({ id: accounts.id, state: accounts.state })
+      .from(accounts)
+      .where(
+        and(
+          eq(accounts.tenantId, input.tenantId),
+          eq(accounts.userId, input.userId),
+          eq(accounts.status, "active"),
+        ),
+      )
+      .for("update");
+    if (!row) return undefined;
+    return row.state === "active"
+      ? { accountId: row.id, created: false }
       : null;
+  };
+  const existing = await held();
+  if (existing !== undefined) return existing;
+  // No row to lock yet: another transaction may be opening the same account,
+  // and the insert waits on its key until it has, then takes its account.
   const [created] = await tx
     .insert(accounts)
     .values({
@@ -89,9 +95,15 @@ export async function ensureAccount(
       state: "active",
       webauthnUserHandle: newUserHandle(input.tenantId),
     })
+    .onConflictDoNothing({
+      target: [accounts.tenantId, accounts.userId],
+      where: sql`status = 'active'`,
+    })
     .returning({ id: accounts.id });
-  if (!created) throw new Error("account was not created");
-  return { accountId: created.id, created: true };
+  if (created) return { accountId: created.id, created: true };
+  const opened = await held();
+  if (opened === undefined) throw new Error("account was not created");
+  return opened;
 }
 
 /**

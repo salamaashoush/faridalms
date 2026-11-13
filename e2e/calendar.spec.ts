@@ -148,13 +148,18 @@ test("staff plan a week, moving and lengthening events by dragging or from the k
     .poll(async () => (await stored()).startsOn)
     .toBe(addDays(monday, 1));
 
-  // Alt and an arrow move it a day; with Shift they move its last day.
+  // Alt and an arrow move it a day; with Shift they move its last day. The
+  // event keeps the focus on the day it moves to, so the keys go on moving it.
   await week.getByRole("link", { name: title }).focus();
   await page.keyboard.press("Alt+ArrowRight");
   await expect
     .poll(async () => (await stored()).startsOn)
     .toBe(addDays(monday, 2));
-  await week.getByRole("link", { name: title }).focus();
+  await expect(
+    week
+      .locator(`td[data-day="${addDays(monday, 2)}"]`)
+      .getByRole("link", { name: title }),
+  ).toBeFocused();
   await page.keyboard.press("Alt+Shift+ArrowRight");
   await expect
     .poll(async () => (await stored()).endsOn)
@@ -211,7 +216,10 @@ test("a month-grid event opens from the keyboard, a day starts a new event and a
   browserName,
 }) => {
   const admin = await apiAs("admin");
-  const day = addDays(WEEK[browserName] ?? "2026-12-06", 3);
+  // A day of its own in a summer no other spec plans, since a month's day
+  // shows only its first few events: the week another spec fills, or a run
+  // before this one, would hide this one behind "more".
+  const day = addDays("2027-07-01", Math.floor(Math.random() * 62));
   const title = `Open day (${browserName} ${crypto.randomUUID().slice(0, 6)})`;
   await admin.calendar.save(eventInput(title, day));
 

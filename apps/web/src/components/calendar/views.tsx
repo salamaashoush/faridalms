@@ -4,6 +4,7 @@ import type {
   DragEvent,
   KeyboardEvent,
   ReactNode,
+  RefObject,
 } from "react";
 
 import { monthWeeks, onDay, weekOf } from "@faridalms/domain/calendar";
@@ -14,7 +15,7 @@ import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { StatusBadge } from "@faridalms/ui/system/status";
 import { Link } from "@tanstack/react-router";
 import { CalendarDays, MapPin, Plus } from "lucide-react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import type { calendarRangeQuery } from "~/queries/calendar";
 
@@ -115,6 +116,29 @@ function useDrag(actions: GridActions | undefined) {
 }
 
 /**
+ * Keeps focus on an event the grid draws again on another day, as moving it
+ * does: its chip there is a new element, and the one that held focus is gone,
+ * so someone moving it from the keyboard could not press again. A chip that
+ * leaves while focused names its event, and once the grid has drawn, the
+ * event's first chip takes focus if nothing else has it.
+ */
+function useFollowFocus() {
+  const grid = useRef<HTMLTableElement>(null);
+  const left = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const id = left.current;
+    left.current = null;
+    if (!id) return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    grid.current
+      ?.querySelector<HTMLElement>(`[data-event="${CSS.escape(id)}"]`)
+      ?.focus();
+  });
+  return { grid, left };
+}
+
+/**
  * Alt with an arrow moves a focused event a day along the week, or a week up
  * or down; with Shift too it moves the event's last day instead. Left and
  * right follow the page's direction, as the grid does.
@@ -176,14 +200,25 @@ interface EventChipProps {
   day: string;
   actions?: GridActions;
   drag?: ReturnType<typeof useDrag>;
+  /** Where a chip that leaves while focused names its event. */
+  left?: RefObject<string | null>;
 }
 
-function EventChip({ event, day, actions, drag }: EventChipProps) {
+function EventChip({ event, day, actions, drag, left }: EventChipProps) {
   const words = useCalendarWords();
   const movable = Boolean(actions?.movable(event) && drag);
   const last = day === event.endsOn;
+  const chip = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = chip.current;
+    return () => {
+      if (left && element?.contains(document.activeElement))
+        left.current = event.id;
+    };
+  }, [event.id, left]);
   return (
     <div
+      ref={chip}
       className={cn(
         "group/chip relative flex min-w-0 items-stretch rounded",
         drag?.dragging?.event.id === event.id && "opacity-50",
@@ -191,6 +226,7 @@ function EventChip({ event, day, actions, drag }: EventChipProps) {
     >
       <EventLink
         event={event}
+        data-event={event.id}
         title={words.title(event)}
         draggable={movable}
         onDragStart={
@@ -313,11 +349,15 @@ export function MonthGrid({
 }: MonthGridProps) {
   const secondary = useCurrentUser().school.secondaryCalendar;
   const drag = useDrag(actions);
+  const { grid, left } = useFollowFocus();
   const weeks = monthWeeks(month, weekStart);
   const special = new Map(days.map((row) => [row.day, row]));
   const header = weeks[0] ?? [];
   return (
-    <table className="w-full table-fixed border-separate border-spacing-0 overflow-hidden rounded-lg border bg-card">
+    <table
+      ref={grid}
+      className="w-full table-fixed border-separate border-spacing-0 overflow-hidden rounded-lg border bg-card"
+    >
       <caption className="sr-only">{m.calMonthCaption()}</caption>
       <thead>
         <tr>
@@ -390,6 +430,7 @@ export function MonthGrid({
                           day={day}
                           actions={actions}
                           drag={drag}
+                          left={left}
                         />
                       ))}
                       {on.length > MAX_IN_CELL ? (
@@ -445,10 +486,14 @@ export function WeekGrid({
 }: WeekGridProps) {
   const secondary = useCurrentUser().school.secondaryCalendar;
   const drag = useDrag(actions);
+  const { grid, left } = useFollowFocus();
   const week = weekOf(anchor, weekStart);
   const special = new Map(days.map((row) => [row.day, row]));
   return (
-    <table className="w-full table-fixed border-separate border-spacing-0 overflow-hidden rounded-lg border bg-card">
+    <table
+      ref={grid}
+      className="w-full table-fixed border-separate border-spacing-0 overflow-hidden rounded-lg border bg-card"
+    >
       <caption className="sr-only">{m.calWeekCaption()}</caption>
       <thead>
         <tr>
@@ -524,6 +569,7 @@ export function WeekGrid({
                         day={day}
                         actions={actions}
                         drag={drag}
+                        left={left}
                       />
                     ))}
                   </div>

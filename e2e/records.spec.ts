@@ -212,9 +212,11 @@ test("staff move between class, student and person records without losing their 
     page.getByRole("button", { name: "Account", exact: true }),
     language,
   );
-  await openWith(language, arabic);
-  // The submenu moves while it opens, so the item is chosen from the keyboard
-  // rather than by a pointer that crosses its trigger on the way.
+  // Playwright retries a click on an item of a menu still drawing itself in
+  // by scrolling the page behind the sheet; once the menu settles, the
+  // pointer rests on another item and the submenu shuts. The keyboard opens
+  // the submenu and chooses from it with no pointer at all.
+  await language.press("ArrowRight");
   await arabic.press("Enter");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.getByRole("tab", { selected: true })).toHaveText(

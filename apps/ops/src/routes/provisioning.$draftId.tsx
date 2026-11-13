@@ -105,6 +105,7 @@ function useStepSaver(data: Data) {
   const navigate = useNavigate();
   const save = useServerFn(saveDraftStep);
   return async (part: StepPart, next: DraftStep): Promise<string | null> => {
+    const leaving = router.latestLocation.href;
     try {
       const out = await save({
         data: {
@@ -115,11 +116,14 @@ function useStepSaver(data: Data) {
         },
       });
       if (!out.ok) return out.message;
-      await navigate({
-        to: "/provisioning/$draftId",
-        params: { draftId: data.draft.id },
-        search: { step: next },
-      });
+      // A step chosen while the save was on its way stands; opening the
+      // next one now would take the operator back from where they went.
+      if (router.latestLocation.href === leaving)
+        await navigate({
+          to: "/provisioning/$draftId",
+          params: { draftId: data.draft.id },
+          search: { step: next },
+        });
       await router.invalidate();
       return null;
     } catch (error) {
