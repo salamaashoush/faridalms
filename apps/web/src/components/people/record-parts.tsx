@@ -17,7 +17,7 @@ import { StatusText } from "@faridalms/ui/system/status";
 import { Value } from "@faridalms/ui/system/value";
 import { Suspense } from "react";
 
-import { historyEntry, historyLabels } from "~/components/system/history";
+import { historyLabels, useHistoryEntry } from "~/components/system/history";
 import * as m from "~/i18n/messages";
 import { formatInstant } from "~/utils/datetime";
 
@@ -171,6 +171,7 @@ interface HistorySectionProps {
 }
 
 function HistorySection({ entries, more }: HistorySectionProps) {
+  const entryOf = useHistoryEntry();
   return (
     <div className="grid gap-3">
       <ChangeLog
@@ -180,7 +181,7 @@ function HistorySection({ entries, more }: HistorySectionProps) {
           emptyHint: m.recordHistoryHint(),
         })}
         entries={entries.map((entry) => ({
-          ...historyEntry({
+          ...entryOf({
             id: entry.id,
             action: entry.action,
             occurredAt: entry.occurredAt,

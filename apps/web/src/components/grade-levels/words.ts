@@ -373,6 +373,60 @@ const GRADE_SENTENCES = {
     year_group: m.errApplicationExistsAsYearGroup,
     stage: m.errApplicationExistsAsStage,
   }),
+  overlapping: termed(m.errorStudentGradeOverlapping, {
+    grade: m.errorStudentGradeOverlapping,
+    level: m.errorStudentGradeOverlappingAsLevel,
+    year_group: m.errorStudentGradeOverlappingAsYearGroup,
+    stage: m.errorStudentGradeOverlappingAsStage,
+  }),
+  inUse: termed(m.errorGradeLevelInUse, {
+    grade: m.errorGradeLevelInUse,
+    level: m.errorGradeLevelInUseAsLevel,
+    year_group: m.errorGradeLevelInUseAsYearGroup,
+    stage: m.errorGradeLevelInUseAsStage,
+  }),
+  unknown: termed(m.errorGradeLevelUnknown, {
+    grade: m.errorGradeLevelUnknown,
+    level: m.errorGradeLevelUnknownAsLevel,
+    year_group: m.errorGradeLevelUnknownAsYearGroup,
+    stage: m.errorGradeLevelUnknownAsStage,
+  }),
+  codeTaken: termed(m.errorGradeLevelCodeTaken, {
+    grade: m.errorGradeLevelCodeTakenAsGrade,
+    level: m.errorGradeLevelCodeTakenAsLevel,
+    year_group: m.errorGradeLevelCodeTakenAsYearGroup,
+    stage: m.errorGradeLevelCodeTakenAsStage,
+  }),
+  auditChange: termed(m.auditStudentGradeChange, {
+    grade: m.auditStudentGradeChange,
+    level: m.auditStudentGradeChangeAsLevel,
+    year_group: m.auditStudentGradeChangeAsYearGroup,
+    stage: m.auditStudentGradeChangeAsStage,
+  }),
+  auditCreate: termed(m.auditGradeLevelCreate, {
+    grade: m.auditGradeLevelCreateAsGrade,
+    level: m.auditGradeLevelCreateAsLevel,
+    year_group: m.auditGradeLevelCreateAsYearGroup,
+    stage: m.auditGradeLevelCreateAsStage,
+  }),
+  auditUpdate: termed(m.auditGradeLevelUpdate, {
+    grade: m.auditGradeLevelUpdateAsGrade,
+    level: m.auditGradeLevelUpdateAsLevel,
+    year_group: m.auditGradeLevelUpdateAsYearGroup,
+    stage: m.auditGradeLevelUpdateAsStage,
+  }),
+  auditOrder: termed(m.auditGradeLevelOrder, {
+    grade: m.auditGradeLevelOrderAsGrade,
+    level: m.auditGradeLevelOrderAsLevel,
+    year_group: m.auditGradeLevelOrderAsYearGroup,
+    stage: m.auditGradeLevelOrderAsStage,
+  }),
+  auditRetire: termed(m.auditGradeLevelRetire, {
+    grade: m.auditGradeLevelRetireAsGrade,
+    level: m.auditGradeLevelRetireAsLevel,
+    year_group: m.auditGradeLevelRetireAsYearGroup,
+    stage: m.auditGradeLevelRetireAsStage,
+  }),
 };
 
 type GradeSentences = typeof GRADE_SENTENCES;
@@ -395,6 +449,29 @@ export function gradeWordsIn(wording: GradeWording): GradeWords {
 /** The word the school chose for its grades, from the wording on the current user's face. */
 export const gradeWordingIn = (wording: Wording): GradeWording =>
   gradeWordingOf(wording.grade_levels);
+
+const termName = (term: GradeWording) => gradeWordsIn(term).tab();
+
+const wordIn = (value: unknown) =>
+  gradeWordingOf(typeof value === "string" ? value : undefined);
+
+/**
+ * The history entry for choosing the word, which names the word before and
+ * the word chosen from its details rather than the word in use now.
+ */
+export function termChoiceLabel(
+  details: Readonly<Record<string, unknown>>,
+): string {
+  const to = wordIn(details.term);
+  const from = wordIn(details.from);
+  if (to === "unset") return m.auditGradeLevelTerm();
+  return from === "unset"
+    ? m.auditGradeLevelTermChosen({ to: termName(to) })
+    : m.auditGradeLevelTermChanged({
+        from: termName(from),
+        to: termName(to),
+      });
+}
 
 /** The module's sentences in the viewer's school's word. */
 export function useGradeWords(): GradeWords {

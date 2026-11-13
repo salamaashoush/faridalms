@@ -1495,11 +1495,10 @@ export const recordLeaving = writeProcedure
       });
       if (refusal) throw new ORPCError("CONFLICT", { message: refusal });
     }
-    const { ended, dropped } = await endStudentEnrollmentsFrom(
-      context.tx,
-      scope,
-      { studentId: input.studentId, on: left },
-    );
+    const ended = await endStudentEnrollmentsFrom(context.tx, scope, {
+      studentId: input.studentId,
+      on: left,
+    });
     const accessEndsOn = input.accessUntil
       ? addDays(input.accessUntil, 1)
       : left;
@@ -1507,7 +1506,7 @@ export const recordLeaving = writeProcedure
       studentId: input.studentId,
       leftOn: left,
       accessEndsOn,
-      ended: { enrollments: ended, dropped, parts },
+      ended: { ...ended, parts },
     });
     await audit(context, {
       action: "student.leave",
@@ -1518,8 +1517,8 @@ export const recordLeaving = writeProcedure
       details: {
         lastDay: input.lastDay,
         accessEndsOn,
-        ended: ended.map((row) => row.id),
-        dropped,
+        ended: ended.enrollments.map((row) => row.id),
+        dropped: ended.dropped,
       },
     });
     return { lastDay: input.lastDay, accessEndsOn };
@@ -1542,8 +1541,7 @@ export const cancelLeaving = writeProcedure
     await withdrawDeparture(context.tx, scope, departure);
     const restored = await restoreStudentEnrollments(context.tx, scope, {
       studentId: input.studentId,
-      ended: departure.ended.enrollments,
-      dropped: departure.ended.dropped,
+      ...departure.ended,
     });
     await cancelParts(context, {
       studentId: input.studentId,

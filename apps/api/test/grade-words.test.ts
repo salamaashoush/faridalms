@@ -73,6 +73,21 @@ describe("a school's word for its grades", () => {
         [acme()],
       );
       expect(audited?.count).toBe(2);
+      const choices = await adminRun<{ details: Record<string, unknown> }>(
+        `select details from audit.log
+         where action = 'grade_level.term' and object_id = $1::uuid
+         order by occurred_at`,
+        [acme()],
+      );
+      expect(
+        choices.map(({ details }) => ({
+          term: details.term,
+          from: details.from,
+        })),
+      ).toEqual([
+        { term: "level", from: null },
+        { term: "stage", from: "level" },
+      ]);
     } finally {
       await forget();
     }

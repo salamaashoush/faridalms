@@ -101,21 +101,7 @@ function admissionsGradeFillings(words: GradeWords): Filling[] {
     replaceWords(m.aplAgeFitsCore, words.ageFits),
     replaceWords(m.adrByIntakeCore, words.reportByIntake),
     replaceWords(m.famAppsEmptyBodyCore, words.applicationsEmpty),
-    replaceWords(m.applyIntakeTitleCore, words.applyTitle, ["school_years"]),
-    replaceWords(m.itkCaptionCore, words.intakeCaption, ["school_years"]),
     replaceWords(m.itkFieldCapacityHintCore, words.intakeCapacity),
-    replaceWords(m.itkSectionChecklistHintCore, words.intakeChecklist, [
-      "families",
-    ]),
-    replaceWords(m.setupAdmissionsBodyCore, words.setupAdmissions, [
-      "families",
-    ]),
-    replaceWords(m.applyIntakeHintCore, words.applyHint, ["families"]),
-    replaceWords(m.brdEnrolBodyCore, words.enrolBody, [
-      "families",
-      "school_years",
-    ]),
-    replaceWords(m.siteFieldIntakeHintCore, words.siteIntake, ["website"]),
     replaceWords(m.errIntakeFixedCore, words.intakeFixed),
     replaceWords(m.errIntakeGrade, words.intakeUnknown),
     replaceWords(m.errApplicationClosedCore, words.applyClosed),

@@ -27,7 +27,7 @@ import {
   CAPABILITY_LABEL,
   SENSITIVE_CAPABILITIES,
 } from "~/components/people/capabilities";
-import { historyEntry, historyLabels } from "~/components/system/history";
+import { historyLabels, useHistoryEntry } from "~/components/system/history";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
@@ -156,6 +156,7 @@ export function AccessRolesPanel({
 }
 
 function AccessChanges() {
+  const entryOf = useHistoryEntry();
   const [page, setPage] = useState(1);
   const { data } = useSuspenseQuery(accessChangesQuery(page));
   return (
@@ -170,7 +171,7 @@ function AccessChanges() {
           spans: true,
         })}
         entries={data.rows.map((row) => ({
-          ...historyEntry({
+          ...entryOf({
             id: row.id,
             action: row.action,
             occurredAt: row.occurredAt,

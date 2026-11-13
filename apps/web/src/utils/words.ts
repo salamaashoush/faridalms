@@ -1,25 +1,22 @@
-import type { ModuleId } from "@faridalms/domain/modules";
+import { useRouteContext } from "@tanstack/react-router";
 
 import { useCurrentUser } from "~/hooks/useCurrentUser";
-import { useSlot } from "~/hooks/useSlot";
 
-import type { Filling } from "./extension";
+import type { Filling, ModuleFillings, SchoolFace } from "./extension";
 
-import { fill, slot } from "./extension";
+import { fill, placed, slot } from "./extension";
 
 /** A sentence of the catalogue, with whatever its placeholders take. */
 export type Sentence = (...args: never[]) => string;
 
 /**
  * A module's sentence in place of a neutral one: families put the
- * guardians back in a sentence core says without them, say. `alsoNeeds`
- * names modules the sentence speaks of beyond those of its filling, such
- * as a year and a grade in one sentence.
+ * guardians back in a sentence core says without them, say. A sentence
+ * that speaks of a second module is filled from a link file that needs it.
  */
 export interface Words {
   neutral: Sentence;
   words: Sentence;
-  alsoNeeds?: readonly ModuleId[];
 }
 
 export const moduleWords = slot<Words>("module words");
@@ -28,19 +25,34 @@ export const moduleWords = slot<Words>("module words");
 export const replaceWords = <F extends Sentence>(
   neutral: F,
   words: F,
-  alsoNeeds?: readonly ModuleId[],
-): Filling => fill(moduleWords, { neutral, words, alsoNeeds });
+): Filling => fill(moduleWords, { neutral, words });
+
+/**
+ * Sentences in the words of the modules on: of those offered for a neutral
+ * sentence, the one needing the most modules, since it speaks of each of
+ * them. Two offers needing as many are refused by `words.spec.ts`.
+ */
+export function wordsOf(
+  extensions: readonly ModuleFillings[],
+  face: SchoolFace,
+): <F extends Sentence>(neutral: F) => F {
+  const offers = placed(extensions, face, moduleWords);
+  return <F extends Sentence>(neutral: F): F => {
+    let chosen: (typeof offers)[number] | undefined;
+    for (const offer of offers)
+      if (
+        offer.value.neutral === neutral &&
+        (!chosen || offer.modules.length > chosen.modules.length)
+      )
+        chosen = offer;
+    return (chosen?.value.words ?? neutral) as F;
+  };
+}
 
 /** A sentence in the words of the modules on, or the neutral one where none has any. */
 export function useWords(): <F extends Sentence>(neutral: F) => F {
-  const filled = useSlot(moduleWords);
-  const { modules } = useCurrentUser();
-  return <F extends Sentence>(neutral: F): F =>
-    (filled.find(
-      (each) =>
-        each.neutral === neutral &&
-        (each.alsoNeeds ?? []).every((id) => modules[id]),
-    )?.words ?? neutral) as F;
+  const { extensions } = useRouteContext({ from: "__root__" });
+  return wordsOf(extensions, useCurrentUser());
 }
 
 /** What `useWords` answers, for a helper a component hands it to. */

@@ -269,8 +269,11 @@ guardian, a period) is never shown by core. Core shows the neutral
 sentence, `fooCore` in `messages/*.json`, through `useWords()`
 (`apps/web/src/utils/words.ts`): `words(m.fooCore)()`. The module puts its
 own back from its contributions with `replaceWords(m.fooCore, m.foo)`; a
-sentence that speaks of a second module names it in `alsoNeeds` or lives in
-a link file. A module words the emails and texts of its own notices
+sentence that speaks of a second module lives in a link file that needs it.
+Where several offer words for one sentence, the offer needing the most
+modules on is read, never the first listed, and
+`apps/web/src/utils/words.spec.ts` refuses two offers unless one needs every
+module the other needs and more. A module words the emails and texts of its own notices
 through the `noticeLines` point (`apps/api/src/notifications/points.ts`).
 
 ### The gates

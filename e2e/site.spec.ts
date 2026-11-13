@@ -80,6 +80,32 @@ test("an administrator builds a bilingual page from sections and visitors read i
   await visitorContext.close();
 });
 
+test("a new page from a template draws in the browser as the server sent it", async ({
+  page,
+}) => {
+  const problems: string[] = [];
+  page.on("pageerror", (error) => problems.push(error.message));
+  page.on("console", (message) => {
+    if (/hydrat|Minified React error #4(18|19|23|25)/i.test(message.text()))
+      problems.push(message.text());
+  });
+  await signIn(page, "admin");
+  await page.goto("/site-page-editor?template=homeClassic");
+  await expect(
+    page.getByRole("main", { name: "Page preview" }).getByRole("heading", {
+      level: 1,
+    }),
+  ).toBeVisible();
+  const sections = page.getByRole("tab", { name: "Sections" });
+  await expect(async () => {
+    await sections.click();
+    await expect(sections).toHaveAttribute("aria-selected", "true", {
+      timeout: 1000,
+    });
+  }).toPass();
+  expect(problems).toEqual([]);
+});
+
 test("the home page opens with its hero and the school's actions", async ({
   page,
 }) => {

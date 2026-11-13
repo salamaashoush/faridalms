@@ -5,7 +5,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Suspense, useState } from "react";
 
-import { historyEntry, historyLabels } from "~/components/system/history";
+import { historyLabels, useHistoryEntry } from "~/components/system/history";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
@@ -84,6 +84,7 @@ interface GradingChangesProps {
 }
 
 function GradingChanges({ overview }: GradingChangesProps) {
+  const entryOf = useHistoryEntry();
   const [page, setPage] = useState(1);
   const { data } = useSuspenseQuery(gradingHistoryQuery(page));
   return (
@@ -98,7 +99,7 @@ function GradingChanges({ overview }: GradingChangesProps) {
           spans: true,
         })}
         entries={data.rows.map((row) => ({
-          ...historyEntry({
+          ...entryOf({
             id: row.id,
             action: row.action,
             occurredAt: row.occurredAt,

@@ -691,12 +691,13 @@ export async function setClassTeachers(
 
 /**
  * Ends one enrollment on the date: one that began earlier keeps its days
- * before it, one that had not begun is tombstoned.
+ * before it, one that had not begun is tombstoned. A student leaves the
+ * class's groups with it.
  */
 export async function endEnrollment(
   tx: Tx,
   input: { tenantId: string; id: string; starts: string; on: string },
-) {
+): Promise<string[]> {
   if (input.starts >= input.on)
     await tx.execute(sql`
       update core.enrollments set status = 'tobedeleted'
@@ -705,6 +706,60 @@ export async function endEnrollment(
     await tx.execute(sql`
       update core.enrollments set valid_during = daterange(lower(valid_during), ${input.on}::date)
       where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid`);
+  return leaveGroups(tx, {
+    tenantId: input.tenantId,
+    enrollmentIds: [input.id],
+    on: input.on,
+  });
+}
+
+/**
+ * Ends the group places of the students whose class enrollments ended on
+ * the date, so one who comes back to the class later starts in no group.
+ * A student still enrolled in the class past the date keeps theirs. Gives
+ * the places ended, which `rejoinGroups` gives back.
+ */
+export async function leaveGroups(
+  tx: Tx,
+  input: { tenantId: string; enrollmentIds: readonly string[]; on: string },
+): Promise<string[]> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.class_group_members m set status = 'tobedeleted'
+    from core.enrollments e
+    join core.class_groups g on g.tenant_id = e.tenant_id and g.class_id = e.class_id
+    where e.tenant_id = ${input.tenantId}::uuid and e.id = any(${uuidArray(input.enrollmentIds)})
+      and e.role = 'student'
+      and m.tenant_id = g.tenant_id and m.group_id = g.id
+      and m.student_user_id = e.user_id and m.status = 'active'
+      and not exists (select 1 from core.enrollments k
+        where k.tenant_id = e.tenant_id and k.class_id = e.class_id and k.user_id = e.user_id
+          and k.role = 'student' and k.status = 'active'
+          and (upper_inf(k.valid_during) or upper(k.valid_during) > ${input.on}::date))
+    returning m.id`);
+  return rows.map((row) => row.id);
+}
+
+/** Gives back group places `leaveGroups` ended, in groups still kept, where the enrollments named stand again. */
+export async function rejoinGroups(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    ids: readonly string[];
+    enrollmentIds: readonly string[];
+  },
+) {
+  await tx.execute(sql`
+    update core.class_group_members m set status = 'active'
+    from core.class_groups g
+    where m.tenant_id = ${input.tenantId}::uuid and m.id = any(${uuidArray(input.ids)})
+      and m.status = 'tobedeleted'
+      and g.tenant_id = m.tenant_id and g.id = m.group_id and g.status = 'active'
+      and not exists (select 1 from core.class_group_members o
+        where o.tenant_id = m.tenant_id and o.group_id = m.group_id
+          and o.student_user_id = m.student_user_id and o.status = 'active')
+      and exists (select 1 from core.enrollments e
+        where e.tenant_id = g.tenant_id and e.id = any(${uuidArray(input.enrollmentIds)})
+          and e.class_id = g.class_id and e.user_id = m.student_user_id and e.status = 'active')`);
 }
 
 async function endEnrollmentsOf(
@@ -723,16 +778,17 @@ async function endEnrollmentsOf(
 
 /**
  * Ends every class enrollment a student holds past the date and tells how
- * each stood: those cut short with the end they had, and those that were
- * only to start by then, which are dropped.
+ * each stood: those cut short with the end they had, those that were only
+ * to start by then, which are dropped, and the group places they left.
  */
 export async function endStudentEnrollmentsFrom(
   tx: Tx,
   scope: Pick<Scope, "tenantId" | "schoolId">,
   input: { studentId: string; on: string },
 ): Promise<{
-  ended: { id: string; until: string | null }[];
+  enrollments: { id: string; until: string | null }[];
   dropped: string[];
+  groups: string[];
 }> {
   const held = await tx.execute<{
     id: string;
@@ -745,40 +801,45 @@ export async function endStudentEnrollmentsFrom(
       and user_id = ${input.studentId}::uuid and role = 'student' and status = 'active'
       and (upper_inf(valid_during) or upper(valid_during) > ${input.on}::date)
     for update`);
+  const groups: string[] = [];
   for (const row of held)
-    await endEnrollment(tx, {
-      tenantId: scope.tenantId,
-      id: row.id,
-      starts: row.starts,
-      on: input.on,
-    });
+    groups.push(
+      ...(await endEnrollment(tx, {
+        tenantId: scope.tenantId,
+        id: row.id,
+        starts: row.starts,
+        on: input.on,
+      })),
+    );
   return {
-    ended: held
+    enrollments: held
       .filter((row) => row.starts < input.on)
       .map((row) => ({ id: row.id, until: row.until })),
     dropped: held.filter((row) => row.starts >= input.on).map((row) => row.id),
+    groups,
   };
 }
 
 /**
  * Gives back what ending a student's enrollments took: each cut short runs
- * to the end it had again, each dropped is active again. One whose class
- * has since changed its dates so that it no longer fits is left as it is,
- * and not counted.
+ * to the end it had again, each dropped is active again, with the group
+ * places of their classes. One whose class has since changed its dates so
+ * that it no longer fits is left as it is, and not counted.
  */
 export async function restoreStudentEnrollments(
   tx: Tx,
   scope: Pick<Scope, "tenantId" | "schoolId">,
   input: {
     studentId: string;
-    ended: readonly { id: string; until: string | null }[];
+    enrollments: readonly { id: string; until: string | null }[];
     dropped: readonly string[];
+    groups: readonly string[];
   },
 ): Promise<string[]> {
   const restored: string[] = [];
   const fits = sql`exists (select 1 from core.classes c
     where c.tenant_id = e.tenant_id and c.id = e.class_id and c.status = 'active'`;
-  for (const row of input.ended) {
+  for (const row of input.enrollments) {
     const [done] = await tx.execute<{ id: string }>(sql`
       update core.enrollments e set valid_during = daterange(lower(e.valid_during), ${row.until}::date)
       where e.tenant_id = ${scope.tenantId}::uuid and e.org_id = ${scope.schoolId}::uuid
@@ -796,6 +857,11 @@ export async function restoreStudentEnrollments(
       returning e.id`);
     if (done) restored.push(done.id);
   }
+  await rejoinGroups(tx, {
+    tenantId: scope.tenantId,
+    ids: input.groups,
+    enrollmentIds: restored,
+  });
   return restored;
 }
 

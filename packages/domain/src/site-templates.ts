@@ -4649,6 +4649,12 @@ export type PageTemplate = keyof typeof PAGE_TEMPLATES;
 export type SiteTemplate = PageTemplate;
 export const PAGE_TEMPLATE_IDS = Object.keys(PAGE_TEMPLATES) as PageTemplate[];
 
+/** A template's sections in the site's first language and as their translation. */
+export interface BuiltTemplate {
+  content: PageSection[];
+  translation: PageSection[];
+}
+
 /**
  * Builds a template in both languages with the same section and item ids,
  * so the second language lines up as a translation of the first.
@@ -4656,7 +4662,7 @@ export const PAGE_TEMPLATE_IDS = Object.keys(PAGE_TEMPLATES) as PageTemplate[];
 export function buildTemplate(
   template: PageTemplate,
   primary: SiteLocale,
-): { content: PageSection[]; translation: PageSection[] } {
+): BuiltTemplate {
   const ids = Array.from({ length: 400 }, () => crypto.randomUUID());
   const build = (locale: SiteLocale) => {
     let cursor = 0;

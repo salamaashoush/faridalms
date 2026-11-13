@@ -1,10 +1,9 @@
 import type { PageSection, SiteLocale } from "@faridalms/domain/site-sections";
-import type { PageTemplate } from "@faridalms/domain/site-templates";
+import type { BuiltTemplate } from "@faridalms/domain/site-templates";
 
 import { Tabs } from "@base-ui/react/tabs";
 import { savedSectionOf } from "@faridalms/domain/saved-sections";
 import { siteThemeFor } from "@faridalms/domain/site-brand";
-import { buildTemplate } from "@faridalms/domain/site-templates";
 import {
   pagePlainText,
   sectionComplete,
@@ -148,7 +147,7 @@ const LOCALE_SHORT: Record<SiteLocale, () => string> = {
 
 function pageDraftOf(
   existing: Existing | null,
-  template: PageTemplate | null,
+  template: BuiltTemplate | null,
   languages: Languages,
 ): PageDraft {
   if (existing) {
@@ -173,9 +172,7 @@ function pageDraftOf(
       indexed: existing.indexed,
     };
   }
-  const built = template
-    ? buildTemplate(template, languages.primary)
-    : { content: [], translation: [] };
+  const built = template ?? { content: [], translation: [] };
   return {
     titleEn: "",
     titleAr: "",
@@ -225,7 +222,7 @@ function useWide() {
 export interface SiteStudioProps {
   existing: Existing | null;
   overview: Overview;
-  template: PageTemplate | null;
+  template: BuiltTemplate | null;
   initialPanel?: StudioPanel;
   /** Learns the address a new page was stored at, once its first save lands. */
   onCreated?: (id: string) => void;

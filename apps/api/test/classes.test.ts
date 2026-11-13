@@ -12,6 +12,7 @@ import {
   setPlan,
   signedIn,
   testCell,
+  withoutModules,
 } from "./harness";
 
 async function principal() {
@@ -685,6 +686,117 @@ describe("a class's groups and its roster", () => {
         (group) => group.titleEn,
       ),
     ).toEqual(["Coders"]);
+  });
+});
+
+// Acme, so the students made here leave Northwind's counts alone.
+async function grouped(code: string) {
+  const api = await signedIn("acme", login("principal", 1));
+  const options = await api.classes.options();
+  const { id: classId } = await api.classes.save({
+    startsOn: options.today,
+    code,
+    titleEn: "Chess club",
+    titleAr: "نادي الشطرنج",
+    teacherIds: [],
+  });
+  const [student, stays] = await Promise.all(
+    [`${code}-A`, `${code}-B`].map(
+      async (reference) =>
+        (
+          await api.people.saveStudent({
+            names: names("Salama Ashoush", "سلامة عشوش"),
+            reference,
+            birthDate: "",
+          })
+        ).id,
+    ),
+  );
+  if (!student || !stays) throw new Error("two students");
+  for (const studentId of [student, stays])
+    await api.classes.enrol({ studentId, classId });
+  const group = async (titleEn: string) =>
+    (
+      await api.classes.saveGroup({
+        classId,
+        titleEn,
+        studentIds: [student, stays],
+      })
+    ).id;
+  const withdraw = async () => {
+    const record = await api.classes.record({ id: classId });
+    const place = record.roster.find((row) => row.userId === student);
+    if (!place) throw new Error("enrolled");
+    await api.classes.withdraw({
+      studentId: student,
+      enrollmentId: place.enrollmentId,
+      expectedVersion: place.version,
+      on: options.today,
+    });
+  };
+  const members = async () =>
+    new Map(
+      (await api.classes.groups({ classId })).groups.map((row) => [
+        row.titleEn,
+        row.studentIds,
+      ]),
+    );
+  return {
+    api,
+    options,
+    classId,
+    student,
+    stays,
+    group,
+    withdraw,
+    members,
+  };
+}
+
+describe("a class's groups when a student leaves and comes back", () => {
+  test("one who leaves and enrols again starts in none of its groups, and can be put back", async () => {
+    const at = await grouped("REJ-1");
+    const id = await at.group("Openings");
+    await at.withdraw();
+    await at.api.classes.enrol({ studentId: at.student, classId: at.classId });
+    expect(await at.members()).toEqual(new Map([["Openings", [at.stays]]]));
+
+    await at.api.classes.saveGroup({
+      id,
+      classId: at.classId,
+      titleEn: "Openings",
+      studentIds: [at.stays, at.student],
+    });
+    expect((await at.members()).get("Openings")?.toSorted()).toEqual(
+      [at.stays, at.student].toSorted(),
+    );
+  });
+
+  test("a group removed while the student was away stays gone, and the others do not take them back", async () => {
+    const at = await grouped("REJ-2");
+    const removed = await at.group("Endgames");
+    await at.group("Openings");
+    await at.withdraw();
+    await at.api.classes.removeGroup({ id: removed, classId: at.classId });
+    await at.api.classes.enrol({ studentId: at.student, classId: at.classId });
+    expect(await at.members()).toEqual(new Map([["Openings", [at.stays]]]));
+  });
+
+  test("a departure taken back gives the student their groups again", async () => {
+    const at = await grouped("REJ-3");
+    await at.group("Openings");
+    // Without years, so leaving asks for no placement in one.
+    await withoutModules("acme", ["school_years"], async () => {
+      await at.api.people.recordLeaving({
+        studentId: at.student,
+        lastDay: at.options.today,
+      });
+      expect(await at.members()).toEqual(new Map([["Openings", [at.stays]]]));
+      await at.api.people.cancelLeaving({ studentId: at.student });
+    });
+    expect((await at.members()).get("Openings")?.toSorted()).toEqual(
+      [at.stays, at.student].toSorted(),
+    );
   });
 });
 

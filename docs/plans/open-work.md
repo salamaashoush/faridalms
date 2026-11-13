@@ -73,16 +73,6 @@ what it leaves to do.
 - **Public catalogue and checkout** for selling a course.
 - **Sign-in through an identity provider**: the `sso` module owns the
   provider tables and has no sign-in flow or API.
-- **A school's own word for its grades, on the surfaces still to do.**
-  Every surface reads the chosen word (Grade, Level, Year group or Stage)
-  except the grade levels module's own error messages and its audit
-  entries. Their history labels are to read in the word the school uses
-  when they are read; the entry for choosing the word names the old and
-  the new word from its details.
-- **Admissions offer words at a school with families and years but no
-  grade levels** still say "placed in this grade" (`brdEnrolBody`, from
-  `apps/web/src/components/admissions/families.tsx`); with grade levels on,
-  the link's worded sentence is read first because it is listed first.
 - **Starter content that speaks of families and years**: the website page
   templates (`packages/domain/src/site-templates.ts`), event template
   sections and the default admission letter bodies.

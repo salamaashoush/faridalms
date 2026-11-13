@@ -44,10 +44,27 @@ async function relationId(office: Office) {
   return found.id;
 }
 
+/** A file the session uploads, ready to send, and the address it is read at. */
+async function uploaded(session: Session, name: string) {
+  const body = new TextEncoder().encode(`%PDF-1.4\n${name}\n`);
+  const file = await session.api.files.initiate({
+    purpose: "message_attachment",
+    name,
+    mediaType: "application/pdf",
+    sizeBytes: body.byteLength,
+  });
+  const path = `/v1/files/${file.id}/content`;
+  expect(
+    (await raw(SCHOOL, session.token, path, { method: "PUT", body })).status,
+  ).toBe(200);
+  return { file, path };
+}
+
 /**
  * A new learner whose guardian is the teacher, and a conversation the
  * office began with the learner's family, in which the teacher wrote a
- * word nobody else did and the office answered with a file.
+ * word nobody else did and sent a file of their own, and the office
+ * answered with a file.
  */
 async function familyThread(staff: Session) {
   const desk = await sessionFor(SCHOOL, login("principal", 1));
@@ -69,35 +86,38 @@ async function familyThread(staff: Session) {
     content: plainContent("A word about the trip."),
   });
   const said = word();
+  const own = await uploaded(staff, "Consent.pdf");
   await staff.api.messages.send({
     threadId,
-    content: plainContent(`We agree, ${said}.`),
+    content: withFileBlocks(plainContent(`We agree, ${said}.`), [own.file]),
   });
-  const body = new TextEncoder().encode("%PDF-1.4\nThe trip letter.\n");
-  const file = await office.files.initiate({
-    purpose: "message_attachment",
-    name: "Trip.pdf",
-    mediaType: "application/pdf",
-    sizeBytes: body.byteLength,
-  });
-  const path = `/v1/files/${file.id}/content`;
-  expect(
-    (await raw(SCHOOL, desk.token, path, { method: "PUT", body })).status,
-  ).toBe(200);
+  const { file, path } = await uploaded(desk, "Trip.pdf");
   // The office answers, so the teacher has a notice and an unread conversation.
   await office.messages.send({
     threadId,
     content: withFileBlocks(plainContent("The letter is attached."), [file]),
   });
-  return { office, me, studentId, linkId, threadId, said, path };
+  return {
+    office,
+    me,
+    studentId,
+    linkId,
+    threadId,
+    said,
+    path,
+    ownPath: own.path,
+  };
 }
 
 type Thread = Awaited<ReturnType<typeof familyThread>>;
 
-/** Every way a person reads a conversation: listed, opened, searched, told of, its files, counted. */
+/**
+ * Every way a person reads a conversation: listed, opened, searched, told
+ * of, its files, the one they sent there among them, counted.
+ */
 async function reads(staff: Session, thread: Thread) {
   const api = staff.api;
-  const [inbox, unread, opened, found, notices, file] = await Promise.all([
+  const [inbox, unread, opened, found, notices, file, own] = await Promise.all([
     api.messages.inbox({}),
     api.messages.inbox({ show: "unread" }),
     api.messages.thread({ id: thread.threadId }).then(
@@ -107,6 +127,7 @@ async function reads(staff: Session, thread: Thread) {
     api.search.find({ q: thread.said, kind: "messages" }),
     api.notifications.list({}),
     raw(SCHOOL, staff.token, thread.path),
+    raw(SCHOOL, staff.token, thread.ownPath),
   ]);
   return {
     listed: inbox.rows.some((row) => row.id === thread.threadId),
@@ -121,6 +142,7 @@ async function reads(staff: Session, thread: Thread) {
         row.subjectId === thread.threadId,
     ),
     file: file.status === 200,
+    own: own.status === 200,
   };
 }
 
@@ -131,6 +153,7 @@ const EVERY = {
   found: true,
   told: true,
   file: true,
+  own: true,
 };
 const NONE = {
   listed: false,
@@ -139,6 +162,7 @@ const NONE = {
   found: false,
   told: false,
   file: false,
+  own: false,
 };
 
 async function unreadCounts(staff: Session) {
@@ -171,6 +195,14 @@ describe("a member of staff who acts for a learner reads the learner's family co
   test("their link ends: nothing about the conversation reaches them, nothing is deleted, and a new link brings it back", async () => {
     const staff = await teacher();
     const thread = await familyThread(staff);
+    const desk = await thread.office.identity.currentUser();
+    const elsewhere = await uploaded(staff, "Rota.pdf");
+    await staff.api.messages.start({
+      kind: "direct",
+      recipientIds: [desk.id],
+      content: withFileBlocks(plainContent("The rota."), [elsewhere.file]),
+    });
+    const unsent = await uploaded(staff, "Draft.pdf");
     expect(await reads(staff, thread)).toEqual(EVERY);
     const before = await unreadCounts(staff);
     const about = await unreadAbout(staff, thread.threadId);
@@ -182,6 +214,9 @@ describe("a member of staff who acts for a learner reads the learner's family co
       expectedVersion: link.version,
     });
     expect(await reads(staff, thread)).toEqual(NONE);
+    // Their own files anywhere else still open to them.
+    for (const path of [elsewhere.path, unsent.path])
+      expect((await raw(SCHOOL, staff.token, path)).status).toBe(200);
     expect(await unreadCounts(staff)).toEqual({
       threads: before.threads - 1,
       notices: before.notices - about,

@@ -319,10 +319,7 @@ export const ADMISSIONS_WITH_FAMILIES: ModuleFillings = {
     replaceWords(m.adrHintCore, m.adrHint),
     replaceWords(m.brdReleaseBodyCore, m.brdReleaseBody),
     replaceWords(m.brdOfferBodyCore, m.brdOfferBody),
-    replaceWords(m.brdEnrolBodyCore, m.brdEnrolBody, [
-      "school_years",
-      "grade_levels",
-    ]),
+    replaceWords(m.brdEnrolBodyCore, m.brdEnrolBodyFamily),
     replaceWords(m.decDecisionOfferHintCore, m.decDecisionOfferHint),
     replaceWords(m.decDecisionDeclineHintCore, m.decDecisionDeclineHint),
     replaceWords(m.decRefuseBodyCore, m.decRefuseBody),

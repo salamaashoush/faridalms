@@ -119,9 +119,6 @@ function gradeCourseworkFillings(words: GradeWords): Filling[] {
     }),
     replaceWords(m.gradingProgrammesEmptyHintCore, words.programmesEmpty),
     replaceWords(m.gradingRetireProgrammeBodyCore, words.programmeRetire),
-    replaceWords(m.gradingProgrammesHintCore, words.programmesHint, [
-      "school_years",
-    ]),
     replaceWords(m.readingStaffHintCore, words.readingHint),
     replaceWords(m.readingNormLineCore, words.readingNormLine),
     replaceWords(m.readingNormsDefaultEn, words.readingDefaultEnglish),

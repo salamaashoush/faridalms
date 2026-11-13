@@ -63,6 +63,12 @@ export interface LiveRules {
 export interface FileHost {
   hostType: string;
   read?: HostReader;
+  /**
+   * Whether a record holds others' words that its own files' uploader may
+   * stop being allowed to read, as a conversation about a learner does:
+   * then they open what they uploaded there only while `read` lets them.
+   */
+  holdsUploader?: (context: UnitContext, hostId: string) => Promise<boolean>;
   write?: HostReader;
   live?: LiveRules;
   area?: {
@@ -239,10 +245,14 @@ export async function canReadFile(
     );
   }
   if (file.trashedAt) return false;
-  if (file.uploadedByUserId === context.actor.userId) return true;
-  if (!file.hostType || !file.hostId) return false;
   const hosts = await hostsAt(context);
-  const own = hosts.get(file.hostType);
+  const own = file.hostType ? hosts.get(file.hostType) : undefined;
+  if (
+    file.uploadedByUserId === context.actor.userId &&
+    !(file.hostId && (await own?.holdsUploader?.(context, file.hostId)))
+  )
+    return true;
+  if (!file.hostType || !file.hostId) return false;
   if (own?.read && (await own.read(context, file.hostId, file))) return true;
   if (!own?.area) return false;
   for (const host of await documentHostsOfFile(

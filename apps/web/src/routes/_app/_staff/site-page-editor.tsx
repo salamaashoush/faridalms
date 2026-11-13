@@ -1,7 +1,13 @@
-import type { PageTemplate } from "@faridalms/domain/site-templates";
+import type {
+  BuiltTemplate,
+  PageTemplate,
+} from "@faridalms/domain/site-templates";
 
 import { siteThemeFor } from "@faridalms/domain/site-brand";
-import { PAGE_TEMPLATE_IDS } from "@faridalms/domain/site-templates";
+import {
+  buildTemplate,
+  PAGE_TEMPLATE_IDS,
+} from "@faridalms/domain/site-templates";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -27,17 +33,26 @@ export const Route = createFileRoute("/_app/_staff/site-page-editor")({
     template: v.optional(v.picklist(PAGE_TEMPLATE_IDS)),
     panel: v.optional(v.picklist(PANELS)),
   }),
-  loaderDeps: ({ search }) => ({ id: search.id }),
+  loaderDeps: ({ search }) => ({ id: search.id, template: search.template }),
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     requirePage(user, "site:manage");
-    await Promise.all([
+    const [overview] = await Promise.all([
       context.queryClient.ensureQueryData(siteOverviewQuery),
       deps.id
         ? context.queryClient.ensureQueryData(sitePageQuery(deps.id))
         : null,
     ]);
+    // A template's sections take fresh random ids, so they are built here
+    // once and the browser hydrates the page the server drew with them.
+    return {
+      built:
+        deps.template && !deps.id
+          ? buildTemplate(deps.template, overview.settings.primaryLocale)
+          : null,
+    };
   },
+  gcTime: 0,
   head: () => ({
     meta: [{ title: m.siteBuilderTitle() }],
     links: [{ rel: "stylesheet", href: siteCss }],
@@ -109,26 +124,28 @@ function TemplateChooser() {
 
 function EditorPage() {
   const { id, template, panel } = Route.useSearch();
+  const { built } = Route.useLoaderData();
   const navigate = Route.useNavigate();
   const overview = useSuspenseQuery(siteOverviewQuery).data;
   // A new page stays the same builder once its first save gives it an
   // address, so what is being typed is never interrupted.
   const [started, setStarted] = useState<{
     template: PageTemplate;
+    built: BuiltTemplate;
     id: string | null;
   } | null>(null);
-  const fresh = template ?? started?.template;
+  const fresh = template && built ? { template, built } : (started ?? null);
   if (id && started?.id !== id) return <ExistingStudio id={id} />;
   if (!fresh) return <TemplateChooser />;
   return (
     <SiteStudio
-      key={fresh}
+      key={fresh.template}
       existing={null}
       overview={overview}
-      template={fresh}
+      template={fresh.built}
       initialPanel={panel ?? "page"}
       onCreated={(created) => {
-        setStarted({ template: fresh, id: created });
+        setStarted({ ...fresh, id: created });
         void navigate({
           search: { id: created },
           replace: true,

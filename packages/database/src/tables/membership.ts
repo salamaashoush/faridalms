@@ -131,6 +131,8 @@ export interface DepartureEnded {
   enrollments: { id: string; until: string | null }[];
   /** Enrollments that were to begin after and were dropped. */
   dropped: string[];
+  /** The class group places the student left with their classes. */
+  groups: string[];
   /** What each module ended with the departure, by module, for it to give back. */
   parts: Record<string, unknown>;
 }

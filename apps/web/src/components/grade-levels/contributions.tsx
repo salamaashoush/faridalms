@@ -21,6 +21,7 @@ import {
   studentFilters,
   studentRecordParts,
 } from "~/components/people/slots";
+import { auditLabels } from "~/components/system/history";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
@@ -44,7 +45,7 @@ import {
   StudentGradeHistory,
 } from "./fields";
 import { GradeLevelsSettings } from "./GradeLevelsSettings";
-import { gradeWordingIn, gradeWordsIn } from "./words";
+import { gradeWordingIn, gradeWordsIn, termChoiceLabel } from "./words";
 
 /** The grades a list is narrowed to, as several. */
 const chosenOf = (value: ViewValue) =>
@@ -165,6 +166,22 @@ function gradeFillings(words: GradeWords): Filling[] {
       pick: words.audiencePick,
     }),
     replaceWords(m.annAudienceTargetCore, words.audienceChoose),
+    replaceWords(m.errorStudentGradeOverlapping, words.overlapping),
+    replaceWords(m.errorGradeLevelInUse, words.inUse),
+    replaceWords(m.errorGradeLevelUnknown, words.unknown),
+    replaceWords(m.errorGradeLevelCodeTaken, words.codeTaken),
+    ...(
+      [
+        ["student_grade.change", words.auditChange],
+        ["grade_level.create", words.auditCreate],
+        ["grade_level.update", words.auditUpdate],
+        ["grade_level.order", words.auditOrder],
+        ["grade_level.retire", words.auditRetire],
+      ] as const
+    ).map(([action, label]) =>
+      fill(auditLabels, { action, label: () => label() }),
+    ),
+    fill(auditLabels, { action: "grade_level.term", label: termChoiceLabel }),
     fill(settingsTabs, {
       value: "grades",
       place: 40,

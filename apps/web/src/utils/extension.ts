@@ -60,20 +60,36 @@ export const fillingsOf = (entry: ModuleFillings, wording: Wording) =>
     ? entry.fillings(wording)
     : entry.fillings;
 
+/** A filling with the modules it is shown for: its module and that module's `needs`. */
+export interface Placed<T> {
+  value: T;
+  modules: readonly ModuleId[];
+}
+
+/** What the modules on at the school put in a slot, with the modules each needs. */
+export function placed<T>(
+  extensions: readonly ModuleFillings[],
+  face: SchoolFace,
+  to: Slot<T>,
+): Placed<T>[] {
+  const { modules, wording } = face;
+  return extensions.flatMap((entry) => {
+    const needed = [entry.module, ...(entry.needs ?? [])];
+    return needed.every((id) => modules[id])
+      ? fillingsOf(entry, wording)
+          .filter((filling) => filling.slot === to)
+          .map((filling) => ({ value: filling.value as T, modules: needed }))
+      : [];
+  });
+}
+
 /** What the modules on at the school put in a slot, in the words it chose. */
 export function filled<T>(
   extensions: readonly ModuleFillings[],
   face: SchoolFace,
   to: Slot<T>,
 ): T[] {
-  const { modules, wording } = face;
-  return extensions.flatMap((entry) =>
-    modules[entry.module] && (entry.needs ?? []).every((need) => modules[need])
-      ? fillingsOf(entry, wording)
-          .filter((filling) => filling.slot === to)
-          .map((filling) => filling.value as T)
-      : [],
-  );
+  return placed(extensions, face, to).map((each) => each.value);
 }
 
 /** The query of a filling whose words need nothing read. */

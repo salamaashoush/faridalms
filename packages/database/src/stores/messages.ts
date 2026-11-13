@@ -1297,6 +1297,20 @@ export async function readsMessage(
   return row?.ok ?? false;
 }
 
+/** Whether a message is in a conversation about a learner. */
+export async function aboutLearner(
+  tx: Tx,
+  tenantId: string,
+  messageId: string,
+): Promise<boolean> {
+  const [row] = await tx.execute<{ ok: boolean }>(sql`
+    select exists (select 1 from core.messages x
+      join core.message_threads t on t.tenant_id = x.tenant_id and t.id = x.thread_id
+      where x.tenant_id = ${tenantId}::uuid and x.id = ${messageId}::uuid
+        and t.student_user_id is not null) as ok`);
+  return row?.ok ?? false;
+}
+
 /** The newest entry of a conversation someone else wrote after the one given, for a reply's guard. */
 export async function writtenSince(
   tx: Tx,

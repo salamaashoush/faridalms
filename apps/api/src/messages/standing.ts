@@ -1,9 +1,14 @@
 import type { Reader, ThreadRow } from "@faridalms/database/stores/messages";
 
-import { standingMembers } from "@faridalms/database/stores/messages";
+import {
+  aboutLearner,
+  readsMessage,
+  standingMembers,
+} from "@faridalms/database/stores/messages";
 import { mailboxesOf } from "@faridalms/domain/messages";
 
 import type { UnitContext } from "../core/context";
+import type { FileHost } from "../files/authorize";
 import type { ConversationScope } from "./conversations";
 
 import { schoolWideHolders, staffStanding } from "../core/reach";
@@ -63,3 +68,16 @@ export async function standingIn(
     everyLearner,
   });
 }
+
+/**
+ * A message's files open to those who read the message. One who uploaded a
+ * file into a conversation about a learner opens it only while they read
+ * the conversation, since its replies may speak of another's child.
+ */
+export const messageFiles: FileHost = {
+  hostType: "message",
+  read: async (context, hostId) =>
+    readsMessage(context.tx, await readerOf(context), hostId),
+  holdsUploader: (context, hostId) =>
+    aboutLearner(context.tx, context.tenantId, hostId),
+};

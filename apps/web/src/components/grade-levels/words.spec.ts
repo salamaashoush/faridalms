@@ -1,16 +1,21 @@
-import type { GradeWording } from "@faridalms/domain/grade-levels";
+import type { GradeTerm, GradeWording } from "@faridalms/domain/grade-levels";
 
 import { describe, expect, it } from "vitest";
 
+import type { AuditLabel } from "~/components/system/history";
+import type { Wording } from "~/utils/extension";
 import type { Sentence, Words } from "~/utils/words";
 
+import { auditLabels } from "~/components/system/history";
 import * as m from "~/i18n/messages";
 import { fillingsOf } from "~/utils/extension";
+import { moduleWords } from "~/utils/words";
 
 import type { GradeWords } from "./words";
 
+import { GRADE_LEVELS } from "./contributions";
 import { GRADE_LEVELS_WITH_FAMILIES } from "./families";
-import { gradeWordingIn, gradeWordsIn } from "./words";
+import { gradeWordingIn, gradeWordsIn, termChoiceLabel } from "./words";
 
 const INPUTS = { date: "1 September", language: "English" };
 
@@ -743,6 +748,67 @@ const SURFACES: Record<
       },
     ],
   },
+  "module's own refusals and history": {
+    overlapping: [
+      m.errorStudentGradeOverlapping,
+      {
+        level: [
+          "The student's levels would overlap. Change the later one first.",
+          "ستتداخل مستويات الطالب. عدّل المستوى اللاحق أولًا.",
+        ],
+        year_group: [
+          "The student's year groups would overlap. Change the later one first.",
+          "ستتداخل صفوف الطالب. عدّل الصف اللاحق أولًا.",
+        ],
+        stage: [
+          "The student's stages would overlap. Change the later one first.",
+          "ستتداخل مراحل الطالب. عدّل المرحلة اللاحقة أولًا.",
+        ],
+      },
+    ],
+    inUse: [
+      m.errorGradeLevelInUse,
+      {
+        level: [
+          "Classes or students still hold this level. Move them first.",
+          "ما زالت فصول أو طلاب في هذا المستوى. انقلهم أولًا.",
+        ],
+        year_group: [
+          "Classes or students still hold this year group. Move them first.",
+          "ما زالت فصول أو طلاب في هذا الصف. انقلهم أولًا.",
+        ],
+        stage: [
+          "Classes or students still hold this stage. Move them first.",
+          "ما زالت فصول أو طلاب في هذه المرحلة. انقلهم أولًا.",
+        ],
+      },
+    ],
+    unknown: [
+      m.errorGradeLevelUnknown,
+      {
+        level: [
+          "Choose one of the school's levels.",
+          "اختر أحد مستويات المدرسة.",
+        ],
+        year_group: [
+          "Choose one of the school's year groups.",
+          "اختر أحد صفوف المدرسة.",
+        ],
+        stage: [
+          "Choose one of the school's stages.",
+          "اختر إحدى مراحل المدرسة.",
+        ],
+      },
+    ],
+    auditChange: [
+      m.auditStudentGradeChange,
+      {
+        level: ["Changed a student's level", "غيّر مستوى طالب"],
+        year_group: ["Changed a student's year group", "غيّر صف طالب"],
+        stage: ["Changed a student's stage", "غيّر مرحلة طالب"],
+      },
+    ],
+  },
 };
 
 const filledIn = (text: string) =>
@@ -788,5 +854,135 @@ describe("the sentences a link words", () => {
       { neutral: m.annAudienceHintCore, words: m.annAudienceHintAsLevel },
     ]);
     expect(withFamilies("nonsense")[0]?.words).toBe(m.annAudienceHint);
+  });
+});
+
+/** Sentences that named a grade or a level before the school chose, each then naming its word alone. */
+const EITHER: Record<string, [Sentence, Record<GradeTerm, [string, string]>]> =
+  {
+    codeTaken: [
+      m.errorGradeLevelCodeTaken,
+      {
+        grade: ["Another grade has that code.", "لصف آخر هذا الرمز."],
+        level: ["Another level has that code.", "لمستوى آخر هذا الرمز."],
+        year_group: ["Another year group has that code.", "لصف آخر هذا الرمز."],
+        stage: ["Another stage has that code.", "لمرحلة أخرى هذا الرمز."],
+      },
+    ],
+    auditCreate: [
+      m.auditGradeLevelCreate,
+      {
+        grade: ["Added a grade", "أضاف صفًا"],
+        level: ["Added a level", "أضاف مستوى"],
+        year_group: ["Added a year group", "أضاف صفًا"],
+        stage: ["Added a stage", "أضاف مرحلة"],
+      },
+    ],
+    auditUpdate: [
+      m.auditGradeLevelUpdate,
+      {
+        grade: ["Renamed a grade", "أعاد تسمية صف"],
+        level: ["Renamed a level", "أعاد تسمية مستوى"],
+        year_group: ["Renamed a year group", "أعاد تسمية صف"],
+        stage: ["Renamed a stage", "أعاد تسمية مرحلة"],
+      },
+    ],
+    auditOrder: [
+      m.auditGradeLevelOrder,
+      {
+        grade: ["Reordered the grades", "أعاد ترتيب الصفوف"],
+        level: ["Reordered the levels", "أعاد ترتيب المستويات"],
+        year_group: ["Reordered the year groups", "أعاد ترتيب الصفوف"],
+        stage: ["Reordered the stages", "أعاد ترتيب المراحل"],
+      },
+    ],
+    auditRetire: [
+      m.auditGradeLevelRetire,
+      {
+        grade: ["Stopped using a grade", "أوقف استخدام صف"],
+        level: ["Stopped using a level", "أوقف استخدام مستوى"],
+        year_group: ["Stopped using a year group", "أوقف استخدام صف"],
+        stage: ["Stopped using a stage", "أوقف استخدام مرحلة"],
+      },
+    ],
+  };
+
+describe("the module's sentences that named a grade or a level", () => {
+  it.each(Object.entries(EITHER))(
+    "%s reads as today until the school chooses, then names the word alone",
+    (key, [today, per]) => {
+      const sentence = (wording: GradeWording) =>
+        gradeWordsIn(wording)[key as keyof GradeWords] as unknown as Read;
+      expect(sentence("unset")).toBe(today);
+      for (const [word, [english, arabic]] of Object.entries(per)) {
+        expect(sentence(word as GradeTerm)({})).toBe(english);
+        expect(sentence(word as GradeTerm)({}, { locale: "ar" })).toBe(arabic);
+      }
+    },
+  );
+});
+
+const labelsAt = (wording: Wording) =>
+  new Map(
+    fillingsOf(GRADE_LEVELS, wording)
+      .filter((filling) => filling.slot === auditLabels)
+      .map((filling) => {
+        const { action, label } = filling.value as AuditLabel;
+        return [action, label] as const;
+      }),
+  );
+
+describe("the history of the module's entries", () => {
+  it("reads each entry in the word the school uses when it is read", () => {
+    const now = labelsAt({ grade_levels: "stage" });
+    expect(now.get("student_grade.change")?.({})).toBe(
+      "Changed a student's stage",
+    );
+    expect(now.get("grade_level.retire")?.({})).toBe("Stopped using a stage");
+    expect(labelsAt({}).get("grade_level.create")?.({})).toBe(
+      "Added a grade or level",
+    );
+  });
+
+  it("names the word before and the word chosen from the entry's details", () => {
+    const label = labelsAt({ grade_levels: "grade" }).get("grade_level.term");
+    if (!label) throw new Error("the entry has no label");
+    expect(label({ term: "level", from: null })).toBe("Chose the word Levels");
+    expect(label({ term: "stage", from: "level" })).toBe(
+      "Changed the word from Levels to Stages",
+    );
+    expect(termChoiceLabel({ term: "stage", from: "level" })).toBe(
+      label({ term: "stage", from: "level" }),
+    );
+    expect(label({})).toBe("Chose what the school calls its grades");
+  });
+
+  it("names the words in Arabic too", () => {
+    expect(
+      m.auditGradeLevelTermChanged(
+        {
+          from: inArabic(gradeWordsIn("level").tab),
+          to: inArabic(gradeWordsIn("stage").tab),
+        },
+        { locale: "ar" },
+      ),
+    ).toBe("غيّر الكلمة من «المستويات» إلى «المراحل»");
+  });
+
+  it("words the module's refusals where it is on", () => {
+    const words = new Map(
+      fillingsOf(GRADE_LEVELS, { grade_levels: "level" })
+        .filter((filling) => filling.slot === moduleWords)
+        .map((filling) => {
+          const { neutral, words: worded } = filling.value as Words;
+          return [neutral, worded] as const;
+        }),
+    );
+    expect(words.get(m.errorGradeLevelInUse)?.()).toBe(
+      "Classes or students still hold this level. Move them first.",
+    );
+    expect(words.get(m.errorGradeLevelCodeTaken)?.()).toBe(
+      "Another level has that code.",
+    );
   });
 });

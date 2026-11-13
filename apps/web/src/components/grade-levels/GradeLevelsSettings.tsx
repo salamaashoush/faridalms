@@ -25,6 +25,7 @@ import {
 } from "~/server/grade-levels";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import type { GradeWords } from "./words";
 
@@ -75,6 +76,7 @@ function levelColumns(words: GradeWords): Column<Level>[] {
 
 /** The school's grades or levels: their names, their order, and those it stopped using. */
 export function GradeLevelsSettings() {
+  const inWords = useWords();
   const { rows } = useSuspenseQuery(gradeSettingsQuery).data;
   const words = useGradeWords();
   const queryClient = useQueryClient();
@@ -132,7 +134,7 @@ export function GradeLevelsSettings() {
                   toast.success(m.managementSaved());
                 },
                 (error: unknown) => {
-                  toast.error(getMessageFromError(error));
+                  toast.error(getMessageFromError(error, inWords));
                 },
               );
             },
@@ -201,6 +203,7 @@ interface LevelSheetProps {
 
 /** Adds a grade or level of the school's own, or renames one. */
 function LevelSheet({ editing, onClose, onSaved, words }: LevelSheetProps) {
+  const inWords = useWords();
   const level = editing.kind === "rename" ? editing.level : null;
   const [labelEn, setLabelEn] = useState(level?.labelEn ?? "");
   const [labelAr, setLabelAr] = useState(level?.labelAr ?? "");
@@ -228,7 +231,9 @@ function LevelSheet({ editing, onClose, onSaved, words }: LevelSheetProps) {
       onOpenChange={(open) => (open ? undefined : onClose())}
       title={level ? m.gradeLevelsRename() : words.add()}
       pending={mutation.isPending}
-      error={mutation.error ? getMessageFromError(mutation.error) : null}
+      error={
+        mutation.error ? getMessageFromError(mutation.error, inWords) : null
+      }
       onSubmit={async () => {
         await mutation.mutateAsync().then(
           async () => {

@@ -639,8 +639,7 @@ export const apply = writeProcedure
         leftOn,
         accessEndsOn: target.startsOn > leftOn ? target.startsOn : leftOn,
         ended: {
-          enrollments: ended.ended,
-          dropped: ended.dropped,
+          ...ended,
           parts: {
             year: {
               placementId: placement.placementId,

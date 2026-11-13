@@ -3,6 +3,10 @@ import type { ModuleFillings } from "./utils/extension";
 import { ADMISSIONS } from "./components/admissions/contributions";
 import { ADMISSIONS_WITH_FAMILIES } from "./components/admissions/families";
 import { ADMISSIONS_BY_GRADE } from "./components/admissions/grades";
+import { ADMISSIONS_BY_GRADE_WITH_FAMILIES } from "./components/admissions/grades-families";
+import { ADMISSIONS_BY_GRADE_WITH_FAMILIES_IN_YEARS } from "./components/admissions/grades-families-years";
+import { ADMISSIONS_BY_GRADE_ON_WEBSITE } from "./components/admissions/grades-website";
+import { ADMISSIONS_BY_GRADE_IN_YEARS } from "./components/admissions/grades-years";
 import { ADMISSIONS_IN_YEARS } from "./components/admissions/years";
 import { ATTENDANCE } from "./components/attendance/contributions";
 import { ATTENDANCE_WITH_FAMILIES } from "./components/attendance/families";
@@ -20,6 +24,7 @@ import { FAMILIES_ON_WEBSITE } from "./components/families/website";
 import { FAMILIES_IN_YEARS } from "./components/families/years";
 import { GRADE_LEVELS } from "./components/grade-levels/contributions";
 import { GRADE_LEVELS_WITH_COURSEWORK } from "./components/grade-levels/coursework";
+import { GRADE_LEVELS_WITH_COURSEWORK_IN_YEARS } from "./components/grade-levels/coursework-years";
 import { GRADE_LEVELS_WITH_FAMILIES } from "./components/grade-levels/families";
 import { GRADE_LEVELS_IN_SETUP } from "./components/grade-levels/setup";
 import { GRADE_LEVELS_ON_WEBSITE } from "./components/grade-levels/website";
@@ -30,6 +35,7 @@ import { GRADEBOOK_IN_YEARS } from "./components/gradebook/years";
 import { STUDENT_RECORDS } from "./components/health/contributions";
 import { STUDENT_RECORDS_WITH_FAMILIES } from "./components/health/families";
 import { HOMEROOMS } from "./components/homerooms/contributions";
+import { HOMEROOMS_WITH_GRADES } from "./components/homerooms/grades";
 import { HOMEROOMS_IN_YEARS } from "./components/homerooms/years";
 import { ELEARNING } from "./components/learning/contributions";
 import { ELEARNING_WITH_COURSEWORK } from "./components/learning/discussions";
@@ -50,6 +56,10 @@ import { SCHOOL_YEARS_ON_WEBSITE } from "./components/years/website";
 export const MODULE_FILLINGS: readonly ModuleFillings[] = [
   ADMISSIONS,
   ADMISSIONS_BY_GRADE,
+  ADMISSIONS_BY_GRADE_IN_YEARS,
+  ADMISSIONS_BY_GRADE_ON_WEBSITE,
+  ADMISSIONS_BY_GRADE_WITH_FAMILIES,
+  ADMISSIONS_BY_GRADE_WITH_FAMILIES_IN_YEARS,
   ADMISSIONS_WITH_FAMILIES,
   ADMISSIONS_IN_YEARS,
   ATTENDANCE,
@@ -77,9 +87,11 @@ export const MODULE_FILLINGS: readonly ModuleFillings[] = [
   GRADE_LEVELS_IN_YEARS,
   GRADE_LEVELS_ON_WEBSITE,
   GRADE_LEVELS_WITH_COURSEWORK,
+  GRADE_LEVELS_WITH_COURSEWORK_IN_YEARS,
   GRADE_LEVELS_WITH_FAMILIES,
   HOMEROOMS,
   HOMEROOMS_IN_YEARS,
+  HOMEROOMS_WITH_GRADES,
   PEER_REVIEW,
   SCHOOL_YEARS,
   SCHOOL_YEARS_ON_WEBSITE,

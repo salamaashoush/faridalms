@@ -21,7 +21,6 @@ import {
   mergeContacts as mergeContactRows,
   membersOf,
   messagesOf,
-  readsMessage,
   removeMembers,
   takeHeld,
   threadById,
@@ -70,14 +69,14 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { isStaff, recordLinks, requireStudent } from "../core/reach";
-import { coreReader, placeMedia } from "../files/authorize";
+import { coreHost, coreReader, placeMedia } from "../files/authorize";
 import { scopeOf, writeEntry } from "../messages/conversations";
 import {
   learnersToName,
   recipientsFor,
   unreachableFor,
 } from "../messages/reach";
-import { readerOf } from "../messages/standing";
+import { messageFiles, readerOf } from "../messages/standing";
 import { actingFor, actorsFor } from "../people/acting";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -130,9 +129,7 @@ async function openThread(context: UnitContext, threadId: string) {
   };
 }
 
-coreReader("message", async (context, hostId) =>
-  readsMessage(context.tx, await readerOf(context), hostId),
-);
+coreHost(messageFiles);
 
 // A draft is its writer's alone, files included.
 coreReader("message_draft", async (context, hostId) =>

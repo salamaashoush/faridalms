@@ -137,6 +137,13 @@ test("a school with years that calls its grades levels reads Level through the r
     rows: [pupil],
   } = await api.people.students({ q: "Salama Pupil" });
   if (!pupil) throw new Error("the fresh school has no student");
+  const { grades, today } = await api.gradeLevels.options();
+  for (const grade of grades.slice(0, 2))
+    await api.gradeLevels.setStudentGrade({
+      studentId: pupil.id,
+      gradeId: grade.id,
+      from: today,
+    });
   await signInTo(page, school, "admin");
   const record = `${portal(school.slug)}/students/${pupil.id}?tab=enrollment`;
 
@@ -144,6 +151,10 @@ test("a school with years that calls its grades levels reads Level through the r
   await untilHydrated(page);
   await expect(
     page.getByText("The student's level in each school year at this school."),
+  ).toBeVisible();
+  await page.goto(record.replace("tab=enrollment", "tab=history"));
+  await expect(
+    page.getByText("Changed a student's level").first(),
   ).toBeVisible();
   await page.goto(`${portal(school.slug)}/settings?section=grading`);
   await untilHydrated(page);

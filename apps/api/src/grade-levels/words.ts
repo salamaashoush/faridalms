@@ -43,7 +43,7 @@ export const setTerm = writeProcedure
       action: "grade_level.term",
       objectType: "org",
       objectId: context.schoolId,
-      details: { term: input.term },
+      details: { term: input.term, from: before.term },
       change: changeOf(
         "core.grade_level_settings",
         { term: before.term },

@@ -16,6 +16,7 @@ import { enrollments } from "../tables/teaching";
 import {
   classColumns,
   classOf,
+  leaveGroups,
   rangeOf,
   spanOf,
   reached,
@@ -492,6 +493,7 @@ export async function followHomeroom(
             : runs.to;
         return to === null || span.from < to ? [{ from: span.from, to }] : [];
       });
+      const ended: { id: string; on: string }[] = [];
       for (const row of written) {
         const match = wanted.findIndex((span) => span.from === row.from);
         const span = wanted[match];
@@ -501,23 +503,34 @@ export async function followHomeroom(
             await tx.execute(sql`
               update core.enrollments set valid_during = daterange(${span.from}::date, ${span.to}::date)
               where tenant_id = ${input.tenantId}::uuid and id = ${row.id}::uuid`);
-        } else
+          if (span.to !== null && (row.to === null || span.to < row.to))
+            ended.push({ id: row.id, on: span.to });
+        } else {
           await tx.execute(sql`
             update core.enrollments set status = 'tobedeleted'
             where tenant_id = ${input.tenantId}::uuid and id = ${row.id}::uuid`);
+          ended.push({ id: row.id, on: row.from });
+        }
       }
-      if (wanted.length === 0) continue;
-      await tx.insert(enrollments).values(
-        wanted.map((span) => ({
+      if (wanted.length > 0)
+        await tx.insert(enrollments).values(
+          wanted.map((span) => ({
+            tenantId: input.tenantId,
+            classId: link.class_id,
+            orgId: link.org_id,
+            userId: studentId,
+            role: "student" as const,
+            validDuring: rangeOf(span),
+            source: "homeroom" as const,
+          })),
+        );
+      for (const row of ended)
+        await leaveGroups(tx, {
           tenantId: input.tenantId,
-          classId: link.class_id,
-          orgId: link.org_id,
-          userId: studentId,
-          role: "student" as const,
-          validDuring: rangeOf(span),
-          source: "homeroom" as const,
-        })),
-      );
+          enrollmentIds: [row.id],
+          on: row.on,
+        });
+      if (wanted.length === 0) continue;
       added.set(link.class_id, [
         ...(added.get(link.class_id) ?? []),
         studentId,

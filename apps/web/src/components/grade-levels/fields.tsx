@@ -32,6 +32,7 @@ import { gradeOptionsQuery, studentGradesQuery } from "~/queries/grade-levels";
 import { setStudentGrade } from "~/server/grade-levels";
 import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import { useGradeWords } from "./words";
 
@@ -213,6 +214,7 @@ interface GradeSheetProps {
 /** Puts a student in a grade from a day; a change already set for later stands. */
 function GradeSheet({ studentId, today, gradeId, onClose }: GradeSheetProps) {
   const words = useGradeWords();
+  const inWords = useWords();
   const options = useSuspenseQuery(gradeOptionsQuery).data;
   const queryClient = useQueryClient();
   const [chosen, setChosen] = useState(gradeId);
@@ -229,7 +231,9 @@ function GradeSheet({ studentId, today, gradeId, onClose }: GradeSheetProps) {
       onOpenChange={(open) => (open ? undefined : onClose())}
       title={words.change()}
       pending={mutation.isPending}
-      error={mutation.error ? getMessageFromError(mutation.error) : null}
+      error={
+        mutation.error ? getMessageFromError(mutation.error, inWords) : null
+      }
       onSubmit={async () => {
         if (!chosen) {
           setError(m.validationSelection());

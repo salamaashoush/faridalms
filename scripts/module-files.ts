@@ -429,6 +429,10 @@ export const LINK_FILES: Readonly<
     owner: "grade_levels",
     needs: ["coursework"],
   },
+  "apps/web/src/components/grade-levels/coursework-years.tsx": {
+    owner: "grade_levels",
+    needs: ["coursework", "school_years"],
+  },
   "apps/api/src/grade-levels/years.ts": {
     owner: "grade_levels",
     needs: ["school_years"],
@@ -454,6 +458,10 @@ export const LINK_FILES: Readonly<
     needs: ["website"],
   },
   "apps/api/src/homerooms/grades.ts": {
+    owner: "homerooms",
+    needs: ["grade_levels"],
+  },
+  "apps/web/src/components/homerooms/grades.tsx": {
     owner: "homerooms",
     needs: ["grade_levels"],
   },
@@ -488,6 +496,22 @@ export const LINK_FILES: Readonly<
   "apps/web/src/components/admissions/grades.tsx": {
     owner: "admissions",
     needs: ["grade_levels"],
+  },
+  "apps/web/src/components/admissions/grades-years.tsx": {
+    owner: "admissions",
+    needs: ["grade_levels", "school_years"],
+  },
+  "apps/web/src/components/admissions/grades-families.tsx": {
+    owner: "admissions",
+    needs: ["grade_levels", "families"],
+  },
+  "apps/web/src/components/admissions/grades-families-years.tsx": {
+    owner: "admissions",
+    needs: ["grade_levels", "families", "school_years"],
+  },
+  "apps/web/src/components/admissions/grades-website.tsx": {
+    owner: "admissions",
+    needs: ["grade_levels", "website"],
   },
   "apps/api/src/admissions/families.ts": {
     owner: "admissions",

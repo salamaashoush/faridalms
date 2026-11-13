@@ -1497,7 +1497,7 @@ export async function completeFixture(
     studentUserId: relationship.student,
     leftOn: "2026-10-01",
     accessEndsOn: "2026-10-01",
-    ended: { role: null, enrollments: [], dropped: [], parts: {} },
+    ended: { role: null, enrollments: [], dropped: [], groups: [], parts: {} },
     status: "tobedeleted",
   });
   // An enquiry staff logged by phone, not yet given its conversation.

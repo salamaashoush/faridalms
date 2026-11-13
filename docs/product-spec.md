@@ -63,7 +63,16 @@ own agreement (a stage, «مرحلة», is feminine); a year group reads «ال�
 in Arabic, as British-curriculum schools in the region say it. Until a
 school chooses, it reads as before, and its tab is "Grades and levels".
 The names of the grades themselves are the school's own and never change.
-The choice is audited and made by whoever manages the school.
+The module's refusals and the history of its changes read in the word too:
+a history entry reads in the word the school uses when it is read, and the
+entry for choosing the word names the word before and the word chosen. The
+choice is audited and made by whoever manages the school.
+
+Where several modules word one sentence, the wording that needs the most of
+the modules on is read: enrolling an admissions offer makes the applicant a
+student, and their family their guardian where the school keeps families,
+and places them in the grade for the year only where it also keeps years and
+grade levels.
 
 Whether a class and its learners are young belongs to the early years
 module. Whoever manages classes marks a class "For young children" on its
@@ -193,9 +202,13 @@ or both) that work or a module can be set for instead of the whole class.
 Whoever sets work and teaches the class, or keeps every class, adds,
 renames, changes and removes them on the class record's Groups tab, choosing
 from the class's students that day. A group's members are those of it still
-in the class, so a student who leaves the class leaves its groups the same
-day. Removing a group keeps what was already set for it with its students;
-it is no longer offered when choosing who work is for.
+in the class. A student who leaves the class, however their enrolment ends
+(withdrawn, leaving the school, a homeroom move or the class ending sooner),
+leaves its groups when the leaving is recorded, so one who enrols again
+later starts in none and is added back by hand; a departure taken back
+gives the groups back with the classes. Removing a group keeps what was
+already set for it with its students; it is no longer offered when choosing
+who work is for.
 
 The class is the hub for everything taught in it.
 
@@ -472,9 +485,11 @@ audited.
   school's side staff who teach the learner, work in the office or reach
   every learner. Having once been a guardian is no standing, even for a
   member of staff. Without one the conversation is not listed, opened,
-  searched, counted as unread, notified or its files opened; nothing is
-  deleted, and it returns when the standing does. Conversations about no
-  learner are unaffected.
+  searched, counted as unread, notified or its files opened, not even a
+  file they sent there themselves, since a reply beside it may speak of
+  another person's child; nothing is deleted, and it returns when the
+  standing does. Conversations about no learner, and a person's own files
+  anywhere else, are unaffected.
 - Who may message whom is a school setting matrix; by default families reach
   their children's teachers and the office.
 - Office hours: messages still arrive, push and SMS wait, a banner tells the
@@ -561,7 +576,9 @@ accordion, news list, events list, gallery, contact, embed). English and Arabic
 are edited side by side with a missing-translation badge. Draft, Published and
 Published with unpublished changes; scheduling; version history with restore;
 phone and desktop preview in both languages; editors submit and admins approve;
-checks before publishing (one H1, alt text, descriptive links). Posts are
+checks before publishing (one H1, alt text, descriptive links). A new page
+from a template opens with the template's sections already in the builder,
+the same in the first page drawn on the server as in the browser. Posts are
 announcements put on the website (see Announcements), with a cover, summary,
 category, pin and schedule. A
 site-wide banner for closures.

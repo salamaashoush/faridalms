@@ -1139,13 +1139,13 @@ export function getMessageFromError(
       case "placement.overlapping":
         return m.errorPlacementOverlapping();
       case "student_grade.overlapping":
-        return m.errorStudentGradeOverlapping();
+        return words(m.errorStudentGradeOverlapping)();
       case "grade_level.in_use":
-        return m.errorGradeLevelInUse();
+        return words(m.errorGradeLevelInUse)();
       case "grade_level.unknown":
-        return m.errorGradeLevelUnknown();
+        return words(m.errorGradeLevelUnknown)();
       case "grade_level.code_taken":
-        return m.errorGradeLevelCodeTaken();
+        return words(m.errorGradeLevelCodeTaken)();
       case "class_group_member.exists":
         return m.errorConflictVersion();
       case "assignment_recipient.exists":
