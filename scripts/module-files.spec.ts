@@ -27,7 +27,7 @@ describe("the families tables in SQL", () => {
     expect(
       sqlNameProblems([
         { path: "packages/database/src/stores/families.ts", text },
-        { path: "packages/database/src/stores/follow-up.ts", text },
+        { path: "packages/database/src/stores/family-shares.ts", text },
         { path: "packages/database/src/stores/erasure.ts", text },
       ]),
     ).toEqual([]);

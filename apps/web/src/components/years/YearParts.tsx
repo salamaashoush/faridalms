@@ -25,7 +25,7 @@ import type { InWords } from "~/utils/words";
 
 import { HomeCard, HomeItem, HomeList } from "~/components/home/parts";
 import { displayName, labelOf, lastDay } from "~/components/people/format";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { yearOptionsQuery } from "~/queries/years";
 import { setIntention } from "~/server/rollover";
@@ -246,14 +246,17 @@ interface NextYearProps {
     titleEn: string | null;
     titleAr: string | null;
   };
+  /** The learner answers for themself. */
+  own?: boolean;
 }
 
 /**
- * The school's question about a child's next year, for a guardian who
- * decides for them: each choice is kept as it is made, and can change
- * while the school is asking.
+ * The school's question about a learner's next year, for whoever decides
+ * for them, a guardian or the learner themself: each choice is kept as it
+ * is made, and can change while the school is asking. Where both decide,
+ * the latest answer stands and the learner's history keeps each.
  */
-export function NextYear({ child, nextYear }: NextYearProps) {
+export function NextYear({ child, nextYear, own = false }: NextYearProps) {
   const save = useServerFn(setIntention);
   const [chosen, setChosen] = useState(nextYear.intention);
   const answer = useMutation({
@@ -261,12 +264,12 @@ export function NextYear({ child, nextYear }: NextYearProps) {
       save({ data: { studentId: child.studentId, intention } }),
     meta: { inlineError: true },
   });
-  const legend = m.familyNextYearTitle({
-    name: displayName(child),
-    year: inLocale(nextYear.titleEn, nextYear.titleAr),
-  });
+  const year = inLocale(nextYear.titleEn, nextYear.titleAr);
+  const legend = own
+    ? m.learnerNextYearTitle({ year })
+    : m.familyNextYearTitle({ name: displayName(child), year });
   return (
-    <fieldset className="grid gap-2 border-t pt-4">
+    <fieldset className={own ? "grid gap-2" : "grid gap-2 border-t pt-4"}>
       <legend className="float-start mb-1 text-sm font-semibold">
         <bdi>{legend}</bdi>
       </legend>
@@ -300,6 +303,35 @@ export function NextYear({ child, nextYear }: NextYearProps) {
         </p>
       )}
     </fieldset>
+  );
+}
+
+interface LearnerNextYearProps {
+  asked: readonly {
+    studentId: string;
+    intention: NextYearIntention | null;
+    titleEn: string | null;
+    titleAr: string | null;
+  }[];
+}
+
+/** The school's question about next year on the Today of a learner who decides for themself. */
+export function LearnerNextYear({ asked }: LearnerNextYearProps) {
+  const user = useCurrentUser();
+  const own = asked.find((row) => row.studentId === user.id);
+  if (!own) return null;
+  return (
+    <HomeCard title={m.learnerNextYearCard()}>
+      <NextYear
+        own
+        child={{
+          studentId: user.id,
+          fullNameEn: user.nameEn,
+          fullNameAr: user.nameAr,
+        }}
+        nextYear={own}
+      />
+    </HomeCard>
   );
 }
 

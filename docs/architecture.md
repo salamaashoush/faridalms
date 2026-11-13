@@ -188,6 +188,13 @@ A learner's emergency contacts are one list core reads
 marked for emergencies. Core stores nothing about guardians, and the
 medical summary reads the same list.
 
+Whom the school may contact about a learner, as attendance's follow-up of
+an absence asks it, is core's too (`apps/api/src/people/contacting.ts`):
+the learner where they decide for themself, at the phone and email on
+their record, then their own emergency contacts, then those a module lets
+the school call through the `callableActors` point, which families fills
+with the guardians `app.guardian_permits` allows for `call`.
+
 ## Tenants, units of work and row level security
 
 A tenant is a school group or a standalone school. Its organisations

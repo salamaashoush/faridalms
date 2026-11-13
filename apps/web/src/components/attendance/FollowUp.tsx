@@ -134,6 +134,7 @@ interface CallRowProps {
 }
 
 function CallRow({ call, onLog }: CallRowProps) {
+  const words = useWords();
   const reached = call.contacts.some((row) => row.outcome === "reached");
   return (
     <li className="grid gap-3 py-4 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto] md:items-start">
@@ -153,37 +154,51 @@ function CallRow({ call, onLog }: CallRowProps) {
         </span>
       </div>
       <div className="grid gap-2">
-        {call.guardians.length === 0 ? (
-          <EmptyState placement="section" title={m.fupNoContacts()} />
+        {call.callees.length === 0 ? (
+          <EmptyState
+            placement="section"
+            title={words(m.fupNoContactsCore)()}
+          />
         ) : (
           <ul className="grid gap-1">
-            {call.guardians.map((guardian) => (
+            {call.callees.map((callee) => (
               <li
-                key={guardian.userId}
+                key={`${callee.kind}-${callee.id}`}
                 className="flex flex-wrap items-baseline gap-x-2 text-sm leading-5"
               >
-                <bdi className="font-medium">{nameOf(guardian)}</bdi>
+                <bdi className="font-medium">{nameOf(callee)}</bdi>
                 <span className="text-[13px] text-muted-foreground">
                   {[
-                    inLocale(guardian.relationEn, guardian.relationAr),
-                    guardian.emergency ? m.fupEmergency() : null,
+                    callee.kind === "self"
+                      ? m.fupSelf()
+                      : inLocale(callee.relationEn, callee.relationAr),
+                    callee.emergency ? m.fupEmergency() : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")}
                 </span>
-                {guardian.phone ? (
+                {callee.phone ? (
                   <a
-                    href={`tel:${guardian.phone}`}
+                    href={`tel:${callee.phone}`}
                     dir="ltr"
                     className="text-primary tabular-nums underline-offset-4 hover:underline"
                   >
-                    {guardian.phone}
+                    {callee.phone}
                   </a>
                 ) : (
                   <span className="text-[13px]">
                     <Value absent={m.fupNoPhone()} />
                   </span>
                 )}
+                {callee.email ? (
+                  <a
+                    href={`mailto:${callee.email}`}
+                    dir="ltr"
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    {callee.email}
+                  </a>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -196,7 +211,7 @@ function CallRow({ call, onLog }: CallRowProps) {
                 className="text-[13px] leading-[18px] text-muted-foreground"
               >
                 {m.fupLogged({
-                  outcome: OUTCOME_LABEL[contact.outcome](),
+                  outcome: words(OUTCOME_LABEL[contact.outcome])(),
                   time: formatInstant(contact.at, "time"),
                   name: inLocale(contact.byNameEn, contact.byNameAr),
                 })}
@@ -213,7 +228,7 @@ function CallRow({ call, onLog }: CallRowProps) {
       </div>
       <div className="flex flex-wrap items-center gap-2 md:justify-end">
         {reached ? (
-          <StatusText tone="success">{m.fupReached()}</StatusText>
+          <StatusText tone="success">{words(m.fupReachedCore)()}</StatusText>
         ) : null}
         <Button
           type="button"
@@ -244,8 +259,8 @@ export interface FollowUpProps {
 
 /**
  * What the office follows up: today's calls about absences nobody
- * explained, reasons now overdue, and the children missing enough of the
- * year to need support.
+ * explained, with whom the school may contact about each, reasons now
+ * overdue, and the learners missing enough to need support.
  */
 export function FollowUp({ date, onDate }: FollowUpProps) {
   const [overduePage, setOverduePage] = useState(1);
@@ -299,10 +314,14 @@ export function FollowUp({ date, onDate }: FollowUpProps) {
             ? m.fupCalls()
             : m.fupCallsOn({ date: formatDate(data.date) })
         }
-        description={m.fupCallsHint()}
+        description={words(m.fupCallsHintCore)()}
       >
         {data.calls.length === 0 ? (
-          <EmptyState placement="section" kind="done" title={m.fupNoCalls()} />
+          <EmptyState
+            placement="section"
+            kind="done"
+            title={words(m.fupNoCallsCore)()}
+          />
         ) : (
           <ul className="divide-y rounded-lg border bg-card px-4">
             {data.calls.map((call) => (
@@ -406,6 +425,7 @@ interface ContactSheetProps {
 }
 
 function ContactSheet({ call, date, onClose }: ContactSheetProps) {
+  const words = useWords();
   const queryClient = useQueryClient();
   const log = useServerFn(logAttendanceContact);
   const [outcome, setOutcome] = useState<ContactOutcome>("reached");
@@ -449,7 +469,7 @@ function ContactSheet({ call, date, onClose }: ContactSheetProps) {
             >
               <RadioGroupItem id={`contact-${value}`} value={value} />
               <span className="text-sm leading-5">
-                {OUTCOME_LABEL[value]()}
+                {words(OUTCOME_LABEL[value])()}
               </span>
             </label>
           ))}
@@ -458,7 +478,7 @@ function ContactSheet({ call, date, onClose }: ContactSheetProps) {
       <FormField
         id="contact-note"
         label={m.fupNote()}
-        hint={m.fupNoteHint()}
+        hint={words(m.fupNoteHintCore)()}
         optional
       >
         {(control) => (

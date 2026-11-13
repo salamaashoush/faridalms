@@ -41,9 +41,3 @@ export interface RolloverClassPart {
 export const rolloverClassParts = slot<RolloverClassPart>(
   "rollover class parts",
 );
-
-/**
- * Present where a module answers for learners, so a rollover may ask them
- * whether each learner returns next year: families, say.
- */
-export const reenrolmentAnswerers = slot<true>("reenrolment answerers");

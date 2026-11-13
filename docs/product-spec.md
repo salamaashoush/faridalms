@@ -102,6 +102,21 @@ and notifications sit in the sidebar header.
 Each list is of a school with every module; a link of a module the school
 lacks is not there.
 
+- **Applicant:** someone who registered to apply. Where the school keeps
+  families, registering and starting an application both ask whom it is
+  for. For themself, they work in their own space (`/me/applications`) with
+  the `applicant` role, the form has no family step and its words speak to
+  them, sending needs them to be of the school's deciding age (or the school
+  to state that its learners are adults), and enrolling them links no
+  guardian. For someone in their care, they work in the family space
+  (`/family/applications`) with the `applicant_family` role, as before. A
+  person may do both: choosing the other way on starting an application
+  gives them that role (audited) and moves their session to its space, each
+  list holds only its own applications, and each role ends once none of its
+  applications is open. Without families, a person applies only for
+  themself. The office reads who filed an application and for whom either
+  way.
+
 ## Home pages
 
 - **Teacher Today:** today's periods with now/next and each register's state;
@@ -232,8 +247,19 @@ returned results only.
   excuse with reason), reports (by student and class, chronic absence threshold,
   export).
 - Families are told about unexcused absences after a configurable delay so
-  corrections do not send false alarms. Every message is logged. Absence
-  reports from families and follow-up calls need the families module.
+  corrections do not send false alarms, and a learner who decides for
+  themself is told directly. Every message is logged. Absence reports from
+  families need the families module.
+- Follow up (`attendance:manage`) lists each learner away with no reason and
+  no report, with whom the school may contact about them, in order: the
+  learner where they decide for themself (by the deciding age or the
+  school's adults setting, read on the day of the absence), at the phone and
+  email on their record; their own emergency contacts; and, where families
+  is on, the guardians the families module permits the school to call, so a
+  guardian under a custody restriction or "do not contact" is never
+  offered. Each call is logged with its outcome and note in the attendance
+  office's conversation about the learner. It works with or without
+  families, and reads as before for a child below the deciding age.
 
 ## Timetable
 
@@ -276,6 +302,14 @@ is a separate, explicit step; the old year becomes read-only.
   year's dates, with their students but those leaving or graduating; a
   student the year never placed goes with their class. Homerooms carry as
   homerooms where the school has both.
+- Re-enrolment: the office asks once a year whether each learner returns
+  the year after. The question goes to whoever decides for the learner: the
+  learner where they decide for themself, who answers on their home page,
+  and, where families is on, the guardians who decide for them and take the
+  school's notices, who answer on the family home. Where both decide, both
+  may answer; the latest answer stands and the audit log keeps each. The
+  office sees the answers on the rollover, may record one on someone's
+  behalf, and a school with years but without families can ask its learners.
 - Lists that span years show the year in the URL. With none named they show
   the current year, else the year that holds today, else the latest; a year
   that does not exist answers not found rather than showing another.

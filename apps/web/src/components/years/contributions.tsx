@@ -13,6 +13,7 @@ import {
 } from "~/components/classes/slots";
 import {
   familyChildParts,
+  learnerCards,
   officeCards,
   setupItemWords,
   setupStepWords,
@@ -52,6 +53,7 @@ import {
 import {
   ClassYearField,
   daysOfYear,
+  LearnerNextYear,
   LeavingYearFields,
   NextYear,
   WorkingYearSection,
@@ -241,6 +243,15 @@ export const SCHOOL_YEARS: ModuleFillings = {
         );
         return asked ? <NextYear child={child} nextYear={asked} /> : null;
       },
+    }),
+    fill(learnerCards, {
+      key: "next-year",
+      place: 5,
+      area: "main",
+      query: () => askingQuery,
+      cardOf: (read) => (
+        <LearnerNextYear key="next-year" asked={read as Asking} />
+      ),
     }),
     fill(schoolSettingsSections, {
       key: "working-year",

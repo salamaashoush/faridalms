@@ -23,6 +23,7 @@ import { Checkbox } from "@faridalms/ui/checkbox";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
 import {
   CheckboxGroupField,
+  ChoiceField,
   FormField,
   SelectField,
   TextField,
@@ -60,6 +61,7 @@ import {
   startApplication,
   submitApplication,
 } from "~/server/admissions";
+import { applyAs } from "~/server/auth";
 import { formatAmount, formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 import { useWords } from "~/utils/words";
@@ -79,7 +81,13 @@ import {
   NEEDS_LABEL,
   named,
 } from "./application-labels";
-import { hasName, NamesFields, noNames, text } from "./apply-parts";
+import {
+  hasName,
+  NamesFields,
+  noNames,
+  text,
+  useApplyingWords,
+} from "./apply-parts";
 import { applicationSteps, previousSchoolGrades } from "./slots";
 
 const APPLY_STEPS = [
@@ -244,19 +252,79 @@ export interface StartApplicationProps {
   onStarted: (id: string) => void;
 }
 
+interface ApplyingForProps {
+  intakeId?: string;
+  self: boolean;
+  chosen: "self" | "other";
+  onChange: (chosen: "self" | "other") => void;
+}
+
 /**
- * Starts an application: the intake, then, for someone applying for others,
- * a child the family applied for before or a new one. The child is saved as
- * a person from here, so nothing about them is typed twice. Someone applying
- * for themself only picks the intake.
+ * Whom the application is for, where the school takes applications both
+ * ways: choosing the other way than the session applies continues in the
+ * context that way works in, so each person's applications stay in one
+ * list and those for others in the other.
+ */
+function ApplyingFor({ intakeId, self, chosen, onChange }: ApplyingForProps) {
+  const current = self ? "self" : "other";
+  const turn = useMutation({
+    mutationFn: () => applyAs({ data: { applyingFor: chosen } }),
+    onSuccess: () => {
+      window.location.assign(intakeId ? `/apply?intake=${intakeId}` : "/apply");
+    },
+  });
+  return (
+    <div className="grid min-w-0 gap-6">
+      <ChoiceField
+        label={m.registerWho()}
+        value={chosen}
+        options={[
+          { value: "self", label: m.registerWhoSelf() },
+          { value: "other", label: m.registerWhoOther() },
+        ]}
+        onChange={onChange}
+      />
+      {chosen === current ? null : (
+        <div className="grid justify-items-start gap-3">
+          <p className="text-sm text-muted-foreground">
+            {chosen === "self" ? m.applyForSelfHint() : m.applyForOtherHint()}
+          </p>
+          {turn.error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {getMessageFromError(turn.error)}
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            disabled={turn.isPending}
+            onClick={() => turn.mutate()}
+          >
+            {m.applyForContinue()}
+            <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Starts an application: whom it is for, where the school takes them both
+ * ways, the intake, then, for someone applying for others, a child the
+ * family applied for before or a new one. The child is saved as a person
+ * from here, so nothing about them is typed twice. Someone applying for
+ * themself only picks the intake.
  */
 export function StartApplication({
   intakeId,
   onStarted,
 }: StartApplicationProps) {
-  const words = useWords();
   const queryClient = useQueryClient();
   const mine = useSuspenseQuery(myApplicationsQuery).data;
+  const words = useApplyingWords(mine.self);
+  const [applyingFor, setApplyingFor] = useState<"self" | "other">(
+    mine.self ? "self" : "other",
+  );
   const [chosenIntake, setChosenIntake] = useState(
     intakeId && mine.intakes.some((row) => row.id === intakeId)
       ? intakeId
@@ -296,82 +364,97 @@ export function StartApplication({
     );
   const intake = mine.intakes.find((row) => row.id === chosenIntake);
   return (
-    <form
-      noValidate
-      className="grid gap-8"
-      onSubmit={(event) => {
-        event.preventDefault();
-        setTried(true);
-        if (!chosenIntake || (!mine.self && !applicant && !childReady(child)))
-          return;
-        void start.mutateAsync().then(
-          async (created) => {
-            await queryClient.invalidateQueries({ queryKey: ["applying"] });
-            onStarted(created.id);
-          },
-          () => undefined,
-        );
-      }}
-    >
-      <FormSection
-        title={words(m.applyIntakeTitleCore)()}
-        description={words(m.applyIntakeHintCore)()}
-      >
-        <SelectField
-          id="apply-intake"
-          label={m.applyIntake()}
-          value={chosenIntake}
-          options={mine.intakes.map((row) => ({
-            value: row.id,
-            label: inLocale(row.titleEn, row.titleAr),
-          }))}
-          onChange={setChosenIntake}
-          width="name"
+    <div className="grid gap-8">
+      {mine.eitherWay ? (
+        <ApplyingFor
+          intakeId={chosenIntake}
+          self={mine.self}
+          chosen={applyingFor}
+          onChange={setApplyingFor}
         />
-        {intake ? <IntakeFacts intake={intake} /> : null}
-      </FormSection>
-      {mine.self ? null : (
-        <FormSection title={m.applyWhoTitle()}>
-          {mine.children.length ? (
+      ) : null}
+      {(applyingFor === "self") !== mine.self ? null : (
+        <form
+          noValidate
+          className="grid gap-8"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setTried(true);
+            if (
+              !chosenIntake ||
+              (!mine.self && !applicant && !childReady(child))
+            )
+              return;
+            void start.mutateAsync().then(
+              async (created) => {
+                await queryClient.invalidateQueries({ queryKey: ["applying"] });
+                onStarted(created.id);
+              },
+              () => undefined,
+            );
+          }}
+        >
+          <FormSection
+            title={words(m.applyIntakeTitleCore)()}
+            description={words(m.applyIntakeHintCore)()}
+          >
             <SelectField
-              id="apply-child"
-              label={m.applyWho()}
-              value={applicant}
-              options={[
-                { value: "", label: m.applyNewChild() },
-                ...mine.children.map((row) => ({
-                  value: row.id,
-                  label: inLocale(row.nameEn, row.nameAr),
-                })),
-              ]}
-              onChange={setApplicant}
+              id="apply-intake"
+              label={m.applyIntake()}
+              value={chosenIntake}
+              options={mine.intakes.map((row) => ({
+                value: row.id,
+                label: inLocale(row.titleEn, row.titleAr),
+              }))}
+              onChange={setChosenIntake}
               width="name"
             />
-          ) : null}
-          {applicant ? null : (
-            <ChildFields
-              child={child}
-              options={mine.options}
-              onChange={setChild}
-              tried={tried}
-            />
+            {intake ? <IntakeFacts intake={intake} /> : null}
+          </FormSection>
+          {mine.self ? null : (
+            <FormSection title={m.applyWhoTitle()}>
+              {mine.children.length ? (
+                <SelectField
+                  id="apply-child"
+                  label={m.applyWho()}
+                  value={applicant}
+                  options={[
+                    { value: "", label: m.applyNewChild() },
+                    ...mine.children.map((row) => ({
+                      value: row.id,
+                      label: inLocale(row.nameEn, row.nameAr),
+                    })),
+                  ]}
+                  onChange={setApplicant}
+                  width="name"
+                />
+              ) : null}
+              {applicant ? null : (
+                <ChildFields
+                  child={child}
+                  options={mine.options}
+                  onChange={setChild}
+                  tried={tried}
+                />
+              )}
+            </FormSection>
           )}
-        </FormSection>
+          {start.error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {getMessageFromError(start.error)}
+            </p>
+          ) : null}
+          <Button
+            type="submit"
+            className="justify-self-start"
+            disabled={start.isPending}
+          >
+            {m.applyStart()}
+            <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
+          </Button>
+        </form>
       )}
-      {start.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {getMessageFromError(start.error)}
-        </p>
-      ) : null}
-      <Button
-        type="submit"
-        className="justify-self-start"
-        disabled={start.isPending}
-      >
-        {m.applyStart()}
-        <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
-      </Button>
-    </form>
+    </div>
   );
 }
 
@@ -522,10 +605,12 @@ export function ApplicationSteps({
   onStep,
   onSent,
 }: ApplicationStepsProps) {
-  const words = useWords();
-  const added = useSlot(applicationSteps);
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(draftQuery(applicationId)).data;
+  const self = data.application.self;
+  const words = useApplyingWords(self);
+  const filled = useSlot(applicationSteps);
+  const added = self ? [] : filled;
   const locale = getLocale() === "ar" ? "ar" : "en";
   const [child, setChild] = useState<ChildDraft>(() => ({
     names: { ar: text(data.child.names.ar), en: text(data.child.names.en) },
@@ -707,7 +792,12 @@ export function ApplicationSteps({
           />
         ) : null}
         {step === "schools" ? (
-          <SchoolsStep form={form} onChange={setForm} tried={tried} />
+          <SchoolsStep
+            form={form}
+            onChange={setForm}
+            tried={tried}
+            self={self}
+          />
         ) : null}
         {step === "needs" ? (
           <>
@@ -835,10 +925,12 @@ interface SchoolsStepProps {
   form: ApplicationAnswers;
   onChange: (form: ApplicationAnswers) => void;
   tried: boolean;
+  /** The applicant filed for themself. */
+  self: boolean;
 }
 
-function SchoolsStep({ form, onChange, tried }: SchoolsStepProps) {
-  const words = useWords();
+function SchoolsStep({ form, onChange, tried, self }: SchoolsStepProps) {
+  const words = useApplyingWords(self);
   const grades = useSlot(previousSchoolGrades).length > 0;
   const setSchool = (index: number, patch: Partial<PreviousSchool>) =>
     onChange({

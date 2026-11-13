@@ -136,7 +136,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: true,
     schoolSwitch: false,
-    systems: ["attendance", "absenceReports", "frontDesk"],
+    systems: ["attendance", "absenceReports", "frontDesk", "followUp"],
     owns: {
       setupItems: ["first_register"],
       capabilities: [
@@ -296,13 +296,12 @@ export type SwitchedModule = (typeof SWITCHED_MODULES)[number];
 
 /**
  * API namespaces a module owns that do what it does together with modules
- * it does not require, answered only where those are on too: following up
- * absences calls those who act for a learner, say.
+ * it does not require, answered only where those are on too: sharing work
+ * with a learner's family, say.
  */
 export const LINK_SYSTEMS: Readonly<
   Record<string, { owner: ModuleId; needs: readonly ModuleId[] }>
 > = {
-  followUp: { owner: "attendance", needs: ["families"] },
   familyShares: { owner: "coursework", needs: ["families"] },
 };
 

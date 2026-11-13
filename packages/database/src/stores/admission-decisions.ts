@@ -308,10 +308,11 @@ export async function insertDeferred(
 }
 
 /**
- * Ends someone's applying role at the school on a day, once none of the
- * applications they filed is still open: the day their applicant starts,
+ * Ends someone's applying roles at the school on a day, each once none of
+ * the applications it files is still open (for themself the `applicant`
+ * role, for others `applicant_family`): the day their applicant starts,
  * so they keep their workspace until the role enrolment gives takes over.
- * Answers whether it was ended.
+ * Answers whether one was ended.
  */
 export async function closeApplicantRole(
   tx: Tx,
@@ -329,6 +330,7 @@ export async function closeApplicantRole(
         select 1 from core.admission_applications a
         where a.tenant_id = ${input.tenantId}::uuid and a.org_id = ${input.orgId}::uuid
           and a.filed_by_user_id = ${input.userId}::uuid and a.status = 'active'
+          and (a.applicant_user_id = a.filed_by_user_id) = (core.user_roles.role = 'applicant')
           and a.state in ('draft', 'submitted', 'in_review', 'decided', 'offered', 'waitlisted'))
     returning id`);
   return rows.length > 0;

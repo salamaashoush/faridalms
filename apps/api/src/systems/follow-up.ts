@@ -5,7 +5,6 @@ import {
 import {
   callList,
   contactsOn,
-  guardiansToCall,
   overdueReasons,
 } from "@faridalms/database/stores/follow-up";
 import { mailboxThreadAbout } from "@faridalms/database/stores/messages";
@@ -42,7 +41,8 @@ import {
   scopeOf as conversationScope,
   writeEntry,
 } from "../messages/conversations";
-import { actorsFor } from "../people/acting";
+import { answerersFor } from "../people/acting";
+import { contactableFor } from "../people/contacting";
 
 /** Missing half the sessions or more: absent more than present. */
 const SEVERE_PERCENT = 50;
@@ -75,9 +75,10 @@ async function schoolDaysBefore(
 }
 
 /**
- * The office's follow-up for a day: the children to call about an absence
- * nobody explained, with whom to call; absences whose reason is overdue;
- * and the children missing enough of the year to need support.
+ * The office's follow-up for a day: the learners to call about an absence
+ * nobody explained, with whom the school may contact about each; absences
+ * whose reason is overdue; and the learners missing enough of the year to
+ * need support.
  */
 export const day = readProcedure
   .input(followUpQuerySchema)
@@ -99,11 +100,10 @@ export const day = readProcedure
       settingsOf(context.tx, context.tenantId, context.schoolId),
       schoolDaysBefore(context, date, REASON_DUE_DAYS),
     ]);
-    const [guardians, overdue, rates, groups] = await Promise.all([
-      guardiansToCall(context.tx, {
-        tenantId: context.tenantId,
+    const [callees, overdue, rates, groups] = await Promise.all([
+      contactableFor(context, {
         studentIds: calls.map((row) => row.studentId),
-        day: date,
+        on: date,
       }),
       overdueReasons(context.tx, {
         tenantId: context.tenantId,
@@ -180,17 +180,9 @@ export const day = readProcedure
           )
           .map((row) => ({
             ...row,
-            guardians: guardians
-              .filter((guardian) => guardian.studentId === row.studentId)
-              .map((guardian) => ({
-                userId: guardian.userId,
-                fullNameEn: guardian.fullNameEn,
-                fullNameAr: guardian.fullNameAr,
-                relationEn: guardian.relationEn,
-                relationAr: guardian.relationAr,
-                phone: guardian.phone,
-                emergency: guardian.emergency,
-              })),
+            callees: callees
+              .filter((callee) => callee.studentId === row.studentId)
+              .map(({ studentId: _student, ...callee }) => callee),
             contacts: contacts
               .filter((contact) => contact.studentId === row.studentId)
               .map((contact) => ({
@@ -208,14 +200,14 @@ export const day = readProcedure
     };
   });
 
-/** Records a call or message to a family about a child's absence. */
+/** Records a call or message about a learner's absence, to whoever was contacted. */
 export const logContact = writeProcedure
   .input(logContactSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:manage");
     await requireStudent(context, "school", input.studentId);
     // A call is a logged contact in the attendance office's conversation
-    // with the child's family, the one the office writes to them in.
+    // about the learner, with those who answer for them.
     const scope = conversationScope(context);
     const threadId =
       (await mailboxThreadAbout(context.tx, {
@@ -232,7 +224,7 @@ export const logContact = writeProcedure
         memberIds: [
           ...new Set(
             (
-              await actorsFor(context, {
+              await answerersFor(context, {
                 studentIds: [input.studentId],
                 on: context.today,
                 purpose: "contact",

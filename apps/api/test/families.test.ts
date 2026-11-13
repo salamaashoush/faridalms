@@ -280,9 +280,6 @@ describe("a school that turns families off", () => {
       expect(
         await rejection(office.familyShares.list({ studentId: northwind() })),
       ).toMatchObject({ code: "NOT_FOUND" });
-      expect(await rejection(office.followUp.day({}))).toMatchObject({
-        code: "NOT_FOUND",
-      });
     });
   });
 });

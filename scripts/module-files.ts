@@ -205,10 +205,12 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "packages/database/src/stores/attendance.ts",
     "packages/database/src/stores/absence-reports.ts",
     "packages/database/src/stores/front-desk.ts",
+    "packages/database/src/stores/follow-up.ts",
     "apps/api/src/attendance/",
     "apps/api/src/systems/attendance.ts",
     "apps/api/src/systems/absence-reports.ts",
     "apps/api/src/systems/front-desk.ts",
+    "apps/api/src/systems/follow-up.ts",
     "apps/web/src/components/attendance/",
     "apps/web/src/server/attendance.ts",
     "apps/web/src/queries/attendance.ts",
@@ -481,18 +483,6 @@ export const LINK_FILES: Readonly<
     needs: ["school_years"],
   },
   "apps/web/src/components/attendance/families.tsx": {
-    owner: "attendance",
-    needs: ["families"],
-  },
-  "apps/web/src/components/attendance/FollowUp.tsx": {
-    owner: "attendance",
-    needs: ["families"],
-  },
-  "packages/database/src/stores/follow-up.ts": {
-    owner: "attendance",
-    needs: ["families"],
-  },
-  "apps/api/src/systems/follow-up.ts": {
     owner: "attendance",
     needs: ["families"],
   },

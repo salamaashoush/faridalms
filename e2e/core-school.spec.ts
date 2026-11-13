@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 
 import { signedInApi } from "./fixtures/api";
 import { absentWords, shownWords } from "./fixtures/module-words";
-import { names, refusal, schoolDaysBack } from "./fixtures/school";
+import { names, schoolDaysBack } from "./fixtures/school";
 import {
   PASSWORD,
   portal,
@@ -243,23 +243,24 @@ test("the academy runs a class from setup to a register, an assignment marked an
     "Roles and permissions",
     "Language model",
   ]);
-  // Following up absences calls families, which the academy does not keep.
+  // Following up absences works without families: the academy calls its learners.
   await page.goto(`${at}/attendance?tab=follow`);
   await untilHydrated(page);
   await expect(page.getByRole("tab")).toHaveText([
     "Registers",
     "Front desk",
+    "Follow up",
     "Absences",
     "Reported",
     "Reports",
   ]);
-  await expect(page.getByRole("tab", { name: "Registers" })).toHaveAttribute(
+  await expect(page.getByRole("tab", { name: "Follow up" })).toHaveAttribute(
     "aria-selected",
     "true",
   );
-  expect(await refusal(office.followUp.day({ date: lastDay }))).toMatchObject({
-    code: "NOT_FOUND",
-  });
+  expect((await office.followUp.day({ date: lastDay })).followUp.date).toBe(
+    lastDay,
+  );
 
   const found: string[] = [];
   for (const language of ["en", "ar"] as const) {

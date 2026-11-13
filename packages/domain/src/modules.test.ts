@@ -46,7 +46,7 @@ describe("modules", () => {
 describe("namespaces that link two modules", () => {
   it("answer only where their owner and what they need are on", () => {
     expect(modulesOfSystem("guardians")).toEqual(["families"]);
-    expect(modulesOfSystem("followUp")).toEqual(["attendance", "families"]);
+    expect(modulesOfSystem("followUp")).toEqual(["attendance"]);
     expect(modulesOfSystem("familyShares")).toEqual(["coursework", "families"]);
     expect(modulesOfSystem("people")).toEqual([]);
   });

@@ -106,6 +106,7 @@ import {
   intakeOf,
   letterView,
 } from "../admissions/access";
+import { takesOthers } from "../admissions/applying-as";
 import { admissionScope, moveApplication } from "../admissions/decisions";
 import {
   filingModule,
@@ -115,7 +116,6 @@ import {
 } from "../admissions/points";
 import { consentWords } from "../consents/words";
 import { identifierValue } from "../core/identifiers";
-import { modulesOf } from "../core/modules";
 import { notify, notifyIn } from "../core/notify";
 import { portalUrl, welcomeLink } from "../core/portal";
 import {
@@ -152,6 +152,10 @@ function applying(context: UnitContext) {
 /** Whether the session applies for other people rather than for itself. */
 const forOthers = (context: UnitContext) => context.actor.context === "family";
 
+/** Whether an application belongs to the session's context: one filed for the filer to their own, any other to the family's. */
+const ofContext = (context: UnitContext, row: ApplicationRow) =>
+  (row.applicantUserId === row.filedByUserId) !== forOthers(context);
+
 const org = (context: UnitContext) => ({
   tenantId: context.tenantId,
   orgId: context.schoolId,
@@ -165,7 +169,7 @@ async function ownApplication(context: UnitContext, id: string) {
     id,
     filedByUserId: context.actor.userId,
   });
-  if (!row) throw new ORPCError("NOT_FOUND");
+  if (!row || !ofContext(context, row)) throw new ORPCError("NOT_FOUND");
   return row;
 }
 
@@ -203,41 +207,6 @@ const REGISTER_PER_NETWORK = 5;
 const REGISTER_PER_ADDRESS = 3;
 const REGISTER_WINDOW_MINUTES = 60;
 
-type SchoolProcedureContext = Parameters<
-  Parameters<typeof schoolProcedure.handler>[0]
->[0]["context"];
-
-/**
- * Whether the school takes applications filed for someone else: that opens
- * the family context, which only a school with families on keeps.
- */
-async function takesFamilies(context: SchoolProcedureContext) {
-  const { school } = context;
-  return context.cell.withTenant(
-    {
-      tenantId: school.tenantId,
-      requestId: context.requestId,
-      actor: { kind: "user" },
-    },
-    "read",
-    async (tx) =>
-      (
-        await modulesOf({
-          tx,
-          tenantId: school.tenantId,
-          schoolId: school.schoolId,
-          school,
-          extensions: context.extensions,
-        })
-      ).families,
-  );
-}
-
-/** Who the portal's registration lets someone apply for. */
-export const registration = schoolProcedure.handler(async ({ context }) => ({
-  forOthers: await takesFamilies(context),
-}));
-
 /**
  * Someone registers on the portal to apply, for themself or, where the
  * school keeps families, for someone in their care. Turnstile is checked
@@ -251,7 +220,7 @@ export const register = schoolProcedure
   .input(registerApplicantSchema)
   .handler(async ({ input, context }) => {
     const { school } = context;
-    if (input.applyingFor === "other" && !(await takesFamilies(context)))
+    if (input.applyingFor === "other" && !(await takesOthers(context)))
       throw new ORPCError("BAD_REQUEST", { message: "application.self_only" });
     const turnstile = context.turnstile;
     // Turnstile's answer, where it is set up, outranks the hidden field and
@@ -524,7 +493,7 @@ function applicationView(row: ApplicationRow) {
  */
 export const mine = readProcedure.handler(async ({ context }) => {
   applying(context);
-  const [rows, open, all, options] = await Promise.all([
+  const [filed, open, all, options, filing] = await Promise.all([
     applicationsFiledBy(context.tx, {
       ...org(context),
       filedByUserId: context.actor.userId,
@@ -532,7 +501,9 @@ export const mine = readProcedure.handler(async ({ context }) => {
     intakesOf(context.tx, { ...org(context), openOn: context.today }),
     intakesOf(context.tx, org(context)),
     formOptions(context),
+    filingModule(context),
   ]);
+  const rows = filed.filter((row) => ofContext(context, row));
   const ids = rows.map((row) => row.id);
   const [items, letters, events] = await Promise.all([
     itemsOf(context.tx, { tenantId: context.tenantId, applicationIds: ids }),
@@ -592,6 +563,8 @@ export const mine = readProcedure.handler(async ({ context }) => {
     }),
     children: [...children.values()],
     self: !forOthers(context),
+    /** Whether the person may also apply the other way, for themself or for someone in their care. */
+    eitherWay: filing !== null,
     options,
     intakes: open
       .filter((intake) => intake.formVersionId !== null)
@@ -870,6 +843,7 @@ export const draft = readProcedure
         form: row.form,
         answers: row.answers,
         moves: { withdraw: canMove(row.state, "withdrawn", "family") },
+        self: row.applicantUserId === row.filedByUserId,
       },
       intake: intakeView(intake, context.today),
       questions: {

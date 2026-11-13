@@ -119,7 +119,10 @@ function ApplicationPage() {
   const { applicationId } = Route.useParams();
   const row = useSuspenseQuery(applicationQuery(applicationId)).data;
   const words = useWords();
-  const Contact = useSlot(applicationContacts)[0] ?? ContactSection;
+  const contacts = useSlot(applicationContacts);
+  const Contact =
+    (row.family.id === row.child.id ? undefined : contacts[0]) ??
+    ContactSection;
   const refresh = useRefresh();
   const [withdrawing, setWithdrawing] = useState(false);
   const review = useMutation({

@@ -1,6 +1,7 @@
 import type { ChangePasswordInput } from "@faridalms/domain/first-sign-in";
 import type { Workspace } from "@faridalms/domain/workspace";
 
+import { applyAsSchema } from "@faridalms/domain/admissions";
 import { changePasswordSchema } from "@faridalms/domain/first-sign-in";
 import {
   childSessionSchema,
@@ -322,6 +323,31 @@ export const redeemHandoff = createServerFn({ method: "POST" })
     const school = portalSchool();
     const session = await backend(school).identity.redeemHandoff(data);
     await dropGuardian(school);
+    setCookie(
+      sessionCookie(school),
+      session.token,
+      cookieOptions(session.expiresAt),
+    );
+    return {
+      isAuthenticated: true,
+      workspace: session.workspace,
+      school,
+      childMode: false,
+    };
+  });
+
+/**
+ * Someone applying turns to apply the other way, for themself or for
+ * someone in their care: they take that applying role and continue in the
+ * context it opens, which is a new session as any change of context is.
+ */
+export const applyAs = createServerFn({ method: "POST" })
+  .validator(checked(applyAsSchema))
+  .handler(async ({ data }): Promise<AuthState> => {
+    const school = portalSchool();
+    const api = backend(school);
+    const { context } = await api.applying.applyAs(data);
+    const session = await api.identity.switchContext({ context });
     setCookie(
       sessionCookie(school),
       session.token,

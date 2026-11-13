@@ -12,7 +12,7 @@ import { numberLocale } from "~/utils/digits";
 
 /** What a follow-up call came to. */
 export const OUTCOME_LABEL: Record<ContactOutcome, () => string> = {
-  reached: m.fupReached,
+  reached: m.fupReachedCore,
   no_answer: m.fupNoAnswer,
   left_message: m.fupLeftMessage,
   messaged: m.fupMessaged,

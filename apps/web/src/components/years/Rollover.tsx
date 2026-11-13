@@ -54,15 +54,12 @@ import {
 } from "~/server/rollover";
 import { formatDate, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import { classTitle } from "../classes/format";
 import { displayName } from "../people/format";
 import { yearTitle } from "./format";
-import {
-  reenrolmentAnswerers,
-  rolloverCarrierWords,
-  rolloverClassParts,
-} from "./slots";
+import { rolloverCarrierWords, rolloverClassParts } from "./slots";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof rolloverQuery>["queryFn"]>>
@@ -279,17 +276,17 @@ function ClassRow({ row, source, following, data, onChange }: ClassRowProps) {
 const INTENTION = {
   returning: {
     tone: "success",
-    label: m.rolloverFamilyReturning,
+    label: m.rolloverFamilyReturningCore,
     record: m.rolloverRecordReturning,
   },
   undecided: {
     tone: "neutral",
-    label: m.rolloverFamilyUndecided,
+    label: m.rolloverFamilyUndecidedCore,
     record: m.rolloverRecordUndecided,
   },
   leaving: {
     tone: "warning",
-    label: m.rolloverFamilyLeaving,
+    label: m.rolloverFamilyLeavingCore,
     record: m.rolloverRecordLeaving,
   },
 } satisfies Record<
@@ -302,10 +299,11 @@ interface FamilyPlansProps {
 }
 
 /**
- * Whether the families of the year are being asked about the next, and
- * what they answered so far; asking sends each deciding guardian a notice.
+ * Whether the year's learners are being asked about the next, and what was
+ * answered so far; asking sends a notice to whoever decides for each.
  */
 function FamilyPlans({ data }: FamilyPlansProps) {
+  const words = useWords();
   const [confirming, setConfirming] = useState(false);
   const ask = useMutation({
     mutationFn: () => openReenrolment({ data: { yearId: data.source.id } }),
@@ -316,12 +314,16 @@ function FamilyPlans({ data }: FamilyPlansProps) {
     data.students.filter((row) => row.intention === intention).length;
   return (
     <FormSection
-      title={m.rolloverFamiliesTitle()}
-      description={m.rolloverFamiliesHint({ year: yearTitle(data.target) })}
+      title={words(m.rolloverFamiliesTitleCore)()}
+      description={words(m.rolloverFamiliesHintCore)({
+        year: yearTitle(data.target),
+      })}
     >
       {opened ? (
         <p className="text-sm leading-5">
-          {m.rolloverAskedOn({ date: formatDate(opened.slice(0, 10)) })}
+          {words(m.rolloverAskedOnCore)({
+            date: formatDate(opened.slice(0, 10)),
+          })}
           {" · "}
           {m.rolloverAnswers({
             returning: formatNumber(count("returning")),
@@ -337,7 +339,7 @@ function FamilyPlans({ data }: FamilyPlansProps) {
           className="justify-self-start max-md:h-10"
           onClick={() => setConfirming(true)}
         >
-          {m.rolloverAskFamilies()}
+          {words(m.rolloverAskFamiliesCore)()}
         </Button>
       )}
       {ask.error ? (
@@ -347,9 +349,9 @@ function FamilyPlans({ data }: FamilyPlansProps) {
       ) : null}
       <ConfirmDialog
         open={confirming}
-        title={m.rolloverAskTitle({ year: yearTitle(data.target) })}
-        body={m.rolloverAskBody()}
-        confirmLabel={m.rolloverAskConfirm()}
+        title={words(m.rolloverAskTitleCore)({ year: yearTitle(data.target) })}
+        body={words(m.rolloverAskBodyCore)()}
+        confirmLabel={words(m.rolloverAskConfirmCore)()}
         destructive={false}
         pending={ask.isPending}
         onConfirm={async () => {
@@ -366,7 +368,7 @@ interface StudentRowProps {
   student: Data["students"][number];
   row: RolloverStudent;
   targets: { value: string; label: string }[];
-  /** Whether the family is being asked now, so the office may record its answer. */
+  /** Whether the question is being asked now, so the office may record an answer. */
   asking: boolean;
   onChange: (change: Partial<RolloverStudent>) => void;
 }
@@ -378,6 +380,7 @@ function StudentRow({
   asking,
   onChange,
 }: StudentRowProps) {
+  const words = useWords();
   const name = displayName({
     fullNameEn: student.fullNameEn,
     fullNameAr: student.fullNameAr,
@@ -394,7 +397,7 @@ function StudentRow({
           <bdi className="text-sm leading-5 font-medium">{name}</bdi>
           {student.intention ? (
             <StatusText tone={INTENTION[student.intention].tone}>
-              {INTENTION[student.intention].label()}
+              {words(INTENTION[student.intention].label)()}
             </StatusText>
           ) : null}
         </div>
@@ -468,7 +471,6 @@ function RolloverDraft({
   setConfirming,
 }: RolloverDraftProps) {
   const queryClient = useQueryClient();
-  const asks = useSlot(reenrolmentAnswerers).length > 0;
   const leaving = useRef(false);
   const [baseline, setBaseline] = useState(data.plan);
   const [plan, setPlan] = useState(data.plan);
@@ -605,7 +607,7 @@ function RolloverDraft({
             {m.rolloverReconciled()}
           </p>
         ) : null}
-        {data.state === "applied" || !asks ? null : <FamilyPlans data={data} />}
+        {data.state === "applied" ? null : <FamilyPlans data={data} />}
         {plan.classes.length > 0 ? (
           <FormSection
             title={m.rolloverClasses()}
@@ -649,9 +651,7 @@ function RolloverDraft({
                     const row = planned.get(student.id);
                     return row ? (
                       <StudentRow
-                        asking={
-                          asks && Boolean(data.source.reenrolmentOpenedAt)
-                        }
+                        asking={Boolean(data.source.reenrolmentOpenedAt)}
                         key={student.id}
                         student={student}
                         row={row}

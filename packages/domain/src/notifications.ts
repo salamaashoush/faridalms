@@ -70,6 +70,8 @@ export interface NoticeParams {
   outcome?: ApplicationOutcome;
   /** That the reader is the family, who read it in their own applications. */
   toFamily?: boolean;
+  /** That the reader is the learner the notice is about, who answers for themself. */
+  own?: boolean;
   /** The last day of an offer. */
   until?: string;
   /** Work sent back for the student to revise, rather than returned marked. */

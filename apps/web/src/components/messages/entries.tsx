@@ -66,7 +66,7 @@ export function entryTitle(
     kind === "call" && typeof details.outcome === "string"
       ? mailbox?.outcomes?.[details.outcome]
       : undefined;
-  if (outcome) return `${ENTRY_LABEL.call()}: ${outcome()}`;
+  if (outcome) return `${ENTRY_LABEL.call()}: ${words(outcome)()}`;
   if (kind === "held") {
     const from = typeof details.from === "string" ? details.from : "";
     return details.reason === "unauthenticated"

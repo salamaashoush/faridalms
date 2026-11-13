@@ -64,7 +64,6 @@ import type { UnitContext } from "../core/context";
 import type { RolloverCarrier, SourceClass } from "../years/carry";
 
 import { joinedClasses } from "../classes/enrolment";
-import { notify } from "../core/notify";
 import {
   audit,
   can,
@@ -73,7 +72,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { scopeFor, studentsReached } from "../core/reach";
-import { decidersTold, decidingLearners } from "../people/acting";
+import { askAboutReturning, askedAboutReturning } from "../years/asking";
 import {
   carriersOf,
   partsStayed,
@@ -675,28 +674,6 @@ export const apply = writeProcedure
   });
 
 /**
- * Who is asked whether each learner returns: whoever decides for them and
- * takes the school's notices, and the learner who decides for themself.
- */
-async function askedAboutReturning(
-  context: UnitContext,
-  studentIds: readonly string[],
-) {
-  const [told, deciding] = await Promise.all([
-    decidersTold(context, { studentIds, on: context.today }),
-    decidingLearners(context, studentIds, context.today),
-  ]);
-  return [
-    ...told.filter((link) => link.linkId !== null),
-    ...[...deciding].map((studentId) => ({
-      studentId,
-      userId: studentId,
-      linkId: null,
-    })),
-  ];
-}
-
-/**
  * Asks whether each student placed in a year returns the year after: once a
  * year, a notice to whoever decides for the student and takes the school's
  * notices, or to the student who decides for themself. The answers feed
@@ -725,29 +702,7 @@ export const openReenrolment = writeProcedure
       schoolId: context.schoolId,
       year,
     });
-    const deciding = await askedAboutReturning(
-      context,
-      placed.map((row) => row.studentId),
-    );
-    let asked = 0;
-    for (const student of placed) {
-      const askedOf = deciding
-        .filter((row) => row.studentId === student.studentId)
-        .map((row) => row.userId);
-      // One notice per learner, each naming the learner its answer is for.
-      asked += await notify(context, askedOf, {
-        kind: "reenrolment",
-        subject: { type: "student_school_year", id: student.placementId },
-        needsAction: true,
-        params: {
-          studentId: student.studentId,
-          studentName: student.fullNameEn ?? undefined,
-          studentNameAr: student.fullNameAr ?? undefined,
-          title: next.titleEn ?? next.titleAr ?? undefined,
-          titleAr: next.titleAr ?? next.titleEn ?? undefined,
-        },
-      });
-    }
+    const asked = await askAboutReturning(context, { placed, next });
     await audit(context, {
       action: "reenrolment.open",
       objectType: "academic_session",

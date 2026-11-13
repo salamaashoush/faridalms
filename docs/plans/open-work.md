@@ -80,10 +80,6 @@ what it leaves to do.
   and `/family/grades` are filled only by term grades (school years) and
   goals (standards), so a learner at a school with neither never sees the
   gradebook's running grade.
-- **Re-enrolment and absence follow-up for adult learners.** Re-enrolment
-  questions (school years) and attendance follow-up (attendance with
-  families) both speak to families, so neither reaches a learner who acts
-  for themself.
 - **Class groups have no screen that writes them.** `classes.saveGroup` and
   `classes.removeGroup` exist and nothing in the web calls them.
 - **Brand colours as a school setting.** The portal takes its colours from
@@ -92,9 +88,6 @@ what it leaves to do.
 - **Starter content that speaks of families and years**: the website page
   templates (`packages/domain/src/site-templates.ts`), event template
   sections and the default admission letter bodies.
-- **An adult applying at a school with families** still meets the
-  application's family step, which asks for their relationship to the
-  child.
 - **A former guardian on the staff** keeps the message threads about the
   child after the link ends.
 - **Badges require grade levels**, because only a grade marks a child as

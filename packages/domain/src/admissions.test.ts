@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { FormQuestion } from "./questions";
 
 import {
+  applyAsSchema,
   admissionsYear,
   ageFit,
   ageInMonths,
@@ -437,5 +438,20 @@ describe("admissionsYear", () => {
     const current = year("2026-09-01", "current");
     expect(admissionsYear([current], today)).toBe(current);
     expect(admissionsYear([], today)).toBeNull();
+  });
+});
+
+describe("whom an application is for", () => {
+  it("is the person themself or someone in their care, and nothing else", () => {
+    expect(v.parse(applyAsSchema, { applyingFor: "self" })).toEqual({
+      applyingFor: "self",
+    });
+    expect(v.parse(applyAsSchema, { applyingFor: "other" })).toEqual({
+      applyingFor: "other",
+    });
+    expect(v.safeParse(applyAsSchema, { applyingFor: "both" }).success).toBe(
+      false,
+    );
+    expect(v.safeParse(applyAsSchema, {}).success).toBe(false);
   });
 });

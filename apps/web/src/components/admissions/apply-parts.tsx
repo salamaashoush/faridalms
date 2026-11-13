@@ -4,8 +4,10 @@ import type * as v from "valibot";
 import { TextField } from "@faridalms/ui/system/form-field";
 
 import type { draftQuery } from "~/queries/admissions";
+import type { InWords } from "~/utils/words";
 
 import * as m from "~/i18n/messages";
+import { useWords } from "~/utils/words";
 
 export type ApplicationDraft = Awaited<
   ReturnType<NonNullable<ReturnType<typeof draftQuery>["queryFn"]>>
@@ -120,4 +122,14 @@ export function NamesFields({ id, names, onChange, error }: NamesFieldsProps) {
       </fieldset>
     </div>
   );
+}
+
+/**
+ * The words of applying: someone applying for themself reads the neutral
+ * sentences, since what a module words for applying for another person
+ * (a child, a family) is not about them.
+ */
+export function useApplyingWords(self: boolean): InWords {
+  const words = useWords();
+  return self ? (neutral) => neutral : words;
 }

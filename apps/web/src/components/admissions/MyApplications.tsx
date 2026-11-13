@@ -23,7 +23,6 @@ import { draftQuery, myApplicationsQuery } from "~/queries/admissions";
 import { answerOffer, withdrawApplication } from "~/server/admissions";
 import { formatDate, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
-import { useWords } from "~/utils/words";
 
 import {
   APPLICATION_STATE_LABEL,
@@ -31,6 +30,7 @@ import {
   EVENT_KIND_LABEL,
 } from "./application-labels";
 import { DocumentsStep } from "./ApplicationForm";
+import { useApplyingWords } from "./apply-parts";
 import { LetterDialog } from "./Decisions";
 
 type Mine = Awaited<
@@ -56,7 +56,9 @@ interface OfferAnswerProps {
  * once more before it is sent, since the school acts on it at once.
  */
 function OfferAnswer({ row }: OfferAnswerProps) {
-  const words = useWords();
+  const words = useApplyingWords(
+    useSuspenseQuery(myApplicationsQuery).data.self,
+  );
   const queryClient = useQueryClient();
   const [asking, setAsking] = useState<"accept" | "decline" | null>(null);
   const answer = useMutation({
@@ -304,8 +306,8 @@ function ApplicationCard({ row }: ApplicationCardProps) {
 
 /** The viewer's applications to the school, for themself or for others: where each stands and the documents still asked for. */
 export function MyApplications() {
-  const words = useWords();
   const data = useSuspenseQuery(myApplicationsQuery).data;
+  const words = useApplyingWords(data.self);
   return (
     <Page width="list">
       <PageHeader

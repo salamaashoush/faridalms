@@ -10,6 +10,7 @@ import {
   guardiansLinked,
   guardiansOpenedTo,
   guardiansReachable,
+  guardiansToCall,
   keepConsentLink,
   learnersOf,
   ownersToFamilies,
@@ -44,6 +45,7 @@ import {
   consentLinks,
   learnersActedFor,
 } from "../people/acting";
+import { callableActors } from "../people/contacting";
 import { markedEmergencyContacts } from "../people/emergency-contacts";
 import {
   studentAlerts,
@@ -74,6 +76,18 @@ export const FAMILIES: ModuleContributions = {
     contribute(portalAudiences, { audience: "families" }),
     contribute(markedEmergencyContacts, {
       contactsOf: guardianEmergencyContacts,
+    }),
+    // Every custody restriction and "do not contact" rule holds here, in
+    // `app.guardian_permits`, so a restricted guardian is never offered.
+    contribute(callableActors, {
+      callableOf: async (context, input) =>
+        (
+          await guardiansToCall(context.tx, {
+            tenantId: context.tenantId,
+            studentIds: input.studentIds,
+            day: input.on,
+          })
+        ).map(({ userId, ...row }) => ({ ...row, id: userId })),
     }),
     contribute(actingFor, {
       learnersOf: (scope, input) =>

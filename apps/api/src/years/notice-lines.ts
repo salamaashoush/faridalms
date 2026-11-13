@@ -6,8 +6,12 @@ export const YEARS_LINES = [
   contribute(noticeLines, {
     kind: "reenrolment",
     en: (p) =>
-      `Will ${p.studentName ?? "your child"} return to school${p.title ? ` in ${p.title}` : " next year"}? Tell the school in the family app.`,
+      p.own
+        ? `Will you return to school${p.title ? ` in ${p.title}` : " next year"}? Tell the school on your home page.`
+        : `Will ${p.studentName ?? "your child"} return to school${p.title ? ` in ${p.title}` : " next year"}? Tell the school in the family app.`,
     ar: (p) =>
-      `هل يعود ${p.studentNameAr || p.studentName || "طفلك"} إلى المدرسة${p.titleAr || p.title ? ` في ${p.titleAr || p.title}` : " في العام القادم"}؟ أخبروا المدرسة في تطبيق الأسرة.`,
+      p.own
+        ? `هل تعود إلى المدرسة${p.titleAr || p.title ? ` في ${p.titleAr || p.title}` : " في العام القادم"}؟ أخبر المدرسة في صفحتك الرئيسية.`
+        : `هل يعود ${p.studentNameAr || p.studentName || "طفلك"} إلى المدرسة${p.titleAr || p.title ? ` في ${p.titleAr || p.title}` : " في العام القادم"}؟ أخبروا المدرسة في تطبيق الأسرة.`,
   }),
 ];

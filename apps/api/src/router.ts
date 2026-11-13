@@ -7,6 +7,7 @@ import { DecoratedProcedure, ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "./core/context";
 
+import { applyAs, registration } from "./admissions/applying-as";
 import {
   office as attendanceOffice,
   today as attendanceToday,
@@ -189,7 +190,11 @@ export const router = {
   admissions: owned("admissions", admissionsSystem),
   intakes: owned("intakes", intakesSystem),
   applications: owned("applications", applicationsSystem),
-  applying: owned("applying", applyingSystem),
+  applying: owned("applying", {
+    ...applyingSystem,
+    registration,
+    applyAs,
+  }),
   decisions: owned("decisions", decisionsSystem),
   product: owned("product", productSystem),
   hosts: owned("hosts", hostsSystem),

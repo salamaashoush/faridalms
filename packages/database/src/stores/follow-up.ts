@@ -5,7 +5,7 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
-import { isoOf, uuidArray } from "./sql";
+import { isoOf } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -58,62 +58,6 @@ export async function callList(
     fullNameEn: row.full_name_en,
     fullNameAr: row.full_name_ar,
     registerIds: row.register_ids,
-  }));
-}
-
-export interface Guardian {
-  studentId: string;
-  userId: string;
-  fullNameEn: string | null;
-  fullNameAr: string | null;
-  relationEn: string | null;
-  relationAr: string | null;
-  phone: string | null;
-  emergency: boolean;
-}
-
-/**
- * Whom to call for each child, in the order the family gave: primary
- * contacts first. Contacts the school must not reach are left out.
- */
-export async function guardiansToCall(
-  tx: Tx,
-  input: { tenantId: string; studentIds: readonly string[]; day: string },
-): Promise<Guardian[]> {
-  if (input.studentIds.length === 0) return [];
-  const rows = await tx.execute<{
-    student_user_id: string;
-    related_user_id: string;
-    full_name_en: string | null;
-    full_name_ar: string | null;
-    relation_en: string | null;
-    relation_ar: string | null;
-    phone: string | null;
-    emergency_contact: boolean;
-  }>(sql`
-    select l.student_user_id, l.related_user_id, u.full_name_en, u.full_name_ar,
-           d.label_en as relation_en, d.label_ar as relation_ar, l.emergency_contact,
-           (select coalesce(c.normalized, c.value) from core.contact_points c
-             where c.tenant_id = u.tenant_id and c.user_id = u.id and c.kind = 'phone'
-               and c.status = 'active'
-             order by c.priority nulls last, c.created_at limit 1) as phone
-    from core.user_relationships l
-    join core.users u on u.tenant_id = l.tenant_id and u.id = l.related_user_id
-    left join core.descriptors d on d.tenant_id = l.tenant_id and d.id = l.relation_descriptor_id
-    where l.tenant_id = ${input.tenantId}::uuid
-      and l.student_user_id = any(${uuidArray(input.studentIds)})
-      and app.guardian_permits(l, ${input.day}::date, 'call')
-    order by l.student_user_id, l.primary_contact desc, l.contact_priority nulls last,
-             u.full_name_en`);
-  return rows.map((row) => ({
-    studentId: row.student_user_id,
-    userId: row.related_user_id,
-    fullNameEn: row.full_name_en,
-    fullNameAr: row.full_name_ar,
-    relationEn: row.relation_en,
-    relationAr: row.relation_ar,
-    phone: row.phone,
-    emergency: row.emergency_contact,
   }));
 }
 

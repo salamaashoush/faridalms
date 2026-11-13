@@ -13,14 +13,16 @@ import {
   studentRecordTabs,
 } from "~/components/people/slots";
 import * as m from "~/i18n/messages";
-import { attendanceSettingsQuery } from "~/queries/attendance";
+import { attendanceSettingsQuery, followUpQuery } from "~/queries/attendance";
 import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 
 import { AttendanceRules } from "./AttendanceRules";
 import { ClassAttendance } from "./ClassAttendance";
+import { FollowUp } from "./FollowUp";
 import { OUTCOME_LABEL } from "./format";
 import { ATTENDANCE_NOTICES, REGISTER_REMINDERS } from "./notices";
+import { attendanceTabs } from "./slots";
 import { StudentAttendance } from "./StudentAttendance";
 import { StudentAttendanceSummary } from "./StudentSummary";
 import { ATTENDANCE_TODAY } from "./today";
@@ -65,6 +67,16 @@ export const ATTENDANCE: ModuleFillings = {
       place: 40,
       capability: "attendance:read",
       Tab: ClassAttendance,
+    }),
+    fill(attendanceTabs, {
+      value: "follow",
+      label: m.fupTab,
+      place: 35,
+      load: (queryClient, date) =>
+        queryClient.ensureQueryData(
+          followUpQuery({ date, overduePage: 1, supportPage: 1 }),
+        ),
+      Tab: FollowUp,
     }),
     fill(settingsTabs, {
       value: "attendance",

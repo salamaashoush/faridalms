@@ -8,11 +8,9 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { fill } from "~/utils/extension";
 
-function ReenrolmentLink({
-  notice,
-  workspace: _workspace,
-  ...rest
-}: NoticeLinkProps) {
+function ReenrolmentLink({ notice, workspace, ...rest }: NoticeLinkProps) {
+  if (notice.params.own && workspace === "me")
+    return <Link {...rest} to="/me" />;
   return (
     <Link
       {...rest}
@@ -22,18 +20,27 @@ function ReenrolmentLink({
   );
 }
 
-/** A family asked whether their child returns next year. */
+/** Whoever decides for a learner asked whether they return next year: a family, or the learner themself. */
 export const YEARS_NOTICES = fill(noticeWords, {
   kind: "reenrolment",
   icon: School,
   label: m.ntfKindReenrolment,
-  text: ({ params }) => ({
-    title: m.ntfReenrolmentTitle({
-      name: inLocale(params.studentName || null, params.studentNameAr || null),
-    }),
-    body: m.ntfReenrolmentBody({
-      year: inLocale(params.title || null, params.titleAr || null),
-    }),
-  }),
+  text: ({ params }) => {
+    const year = inLocale(params.title || null, params.titleAr || null);
+    return params.own
+      ? {
+          title: m.learnerNextYearTitle({ year }),
+          body: m.ntfReenrolmentOwnBody({ year }),
+        }
+      : {
+          title: m.ntfReenrolmentTitle({
+            name: inLocale(
+              params.studentName || null,
+              params.studentNameAr || null,
+            ),
+          }),
+          body: m.ntfReenrolmentBody({ year }),
+        };
+  },
   Link: ReenrolmentLink,
 });

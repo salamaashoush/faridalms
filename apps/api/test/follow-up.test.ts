@@ -55,7 +55,9 @@ describe("following up absences", () => {
       expect(list).toMatchObject({ page: 1, pageSize: 25 });
     const call = before.followUp.calls.find((row) => row.studentId === me.id);
     expect(call).toBeDefined();
-    expect(call?.guardians.length).toBeGreaterThan(0);
+    expect(
+      call?.callees.filter((row) => row.kind === "actor").length,
+    ).toBeGreaterThan(0);
 
     await office.followUp.logContact({
       studentId: me.id,

@@ -911,6 +911,11 @@ export const registerApplicantSchema = v.object({
 });
 export type RegisterApplicant = v.InferOutput<typeof registerApplicantSchema>;
 
+/** Someone signed in to apply chooses whom the next application is for. */
+export const applyAsSchema = v.object({
+  applyingFor: v.picklist(["self", "other"]),
+});
+
 const applicationVersion = v.object({ id, expectedVersion: version });
 const someApplications = v.pipe(
   v.array(applicationVersion),
