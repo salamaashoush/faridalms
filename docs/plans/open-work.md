@@ -57,6 +57,61 @@ From `foundations.md`. W1 to W5 are merged.
   round, which also grandfathers tenants from before and pauses a trial
   that is over.
 
+## Modules and the kinds of school
+
+The core assumes no kind of school (`modular-core.md`); what follows is
+what it leaves to do.
+
+- **Plans over the new modules** (the owner's call): which of
+  `school_years`, `grade_levels`, `homerooms` and `families` Basic
+  includes (all four, until decided), what each plan includes, and which
+  modules the settings catalogue offers for sale.
+- **Marketing website** rewritten for schools, coding schools, course
+  academies and video-course schools.
+- **Fees**: what a learner owes and has paid, the next module to design.
+- **Usage per module**: the `usageFacts` point carries a module's counts to
+  the console, and only families reports to it.
+- **Public catalogue and checkout** for selling a course.
+- **Sign-in through an identity provider**: the `sso` module owns the
+  provider tables and has no sign-in flow or API.
+- **A school's own word for "grade" or "level"**, so a coding school's
+  levels are not called grades.
+- **Emergency contacts as a core fact.** They are a flag on a guardian link
+  (`user_relationships.emergency_contact`), so a school without families
+  keeps none.
+- **A running grade students can see** without school years: `/me/grades`
+  and `/family/grades` are filled only by term grades (school years) and
+  goals (standards), so a learner at a school with neither never sees the
+  gradebook's running grade.
+- **Re-enrolment and absence follow-up for adult learners.** Re-enrolment
+  questions (school years) and attendance follow-up (attendance with
+  families) both speak to families, so neither reaches a learner who acts
+  for themself.
+- **Class groups have no screen that writes them.** `classes.saveGroup` and
+  `classes.removeGroup` exist and nothing in the web calls them.
+- **Brand colours as a school setting.** The portal takes its colours from
+  the website builder through `portalLooks`, so a school without the
+  website module has the platform's.
+- **Starter content that speaks of families and years**: the website page
+  templates (`packages/domain/src/site-templates.ts`), event template
+  sections and the default admission letter bodies.
+- **Admission reports name families and grades** to a school without them:
+  the page's description (`adrHint`) and the "By grade and intake" tab
+  label (`adrByIntake`) are shown without `useWords`.
+- **An adult applying at a school with families** still meets the
+  application's family step, which asks for their relationship to the
+  child.
+- **A former guardian on the staff** keeps the message threads about the
+  child after the link ends.
+- **Badges require grade levels**, because only a grade marks a child as
+  young; a school of young learners without grades cannot issue badges.
+- **A signed link issued before a module went off** opens until it
+  expires: five minutes for a file, an hour for media, four to eight hours
+  for a video stream.
+- Decisions for the owner: whether running code in a code block belongs to
+  the coding module; whether the `reminder` and `correction` notice kinds
+  become module-owned; the words "Homeroom" and «فصل التسجيل».
+
 ## Architecture leftovers
 
 From `architecture-audit.md`, as checked against the code on 2026-11-12.
@@ -130,5 +185,8 @@ From `school-front-door.md`; slices 1 to 9 are merged.
 - WebKit `coursework.spec.ts:277` failed once.
 - `calendar.spec.ts:119` once left a dragged event a day short under the
   full four-worker run; it passed on each of two repeats alone.
+- `e2e/console/business.spec.ts` once did not show "Plan saved." under the
+  full run, and `e2e/editor.spec.ts` once missed the phone picture bar. No
+  cause was found for either.
 - Firefox does not launch on some macOS machines. CI runs it under
   `xvfb-run`.

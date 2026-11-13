@@ -10,7 +10,10 @@ reports reads unlike the pages around it.
 ## What was there
 
 Staff share one tree (`apps/web/src/components/app/navigation.ts`),
-filtered by capability and by the school's modules. An administrator at a
+filtered by capability. Core's links are in that file; each module adds
+its own by filling the `navItems` slot with its section and place, so a
+school without the module has none of its links and the tree names no
+module. An administrator at a
 school with every module saw 30 links in six groups: Today; Teaching (10);
 People (3); Communication (4); Admissions (5); School (7). A teacher saw
 15, office staff 8, a family 13 and a student 10. Every link was visible
@@ -206,10 +209,11 @@ Decisions:
 ## Reports
 
 Admission reports was the only report standing alone as a long page of
-four framed sections. It is now a tabbed page like the others: the school
-year above, then one report per tab (By stage, By grade and intake, By
-origin, Time in each state), the tab in the address. The year and every
-chart and table are kept; the year chosen holds across tabs. Attendance's
+four framed sections. It is now a tabbed page like the others: the filters
+the school's modules give it above (the school year, where the school keeps
+years), then one report per tab (By stage, By grade and intake, By origin,
+Time in each state), the tab in the address. Every chart and table is
+kept; a filter chosen holds across tabs. Attendance's
 reports were already a tab of Attendance. No other report page stands
 alone: the delivery log is a log, and media storage is a sheet of the
 media page.

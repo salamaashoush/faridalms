@@ -235,3 +235,79 @@ timetable entry, an assignment or a term grade; the API refuses it by name
 - Plans: what each plan includes, redrawn over the new modules.
 - The marketing website, rewritten for schools, coding schools, academies
   and video-course schools.
+
+## Built
+
+The eleven steps are built, from `3e036678` (this plan) and `af20aa94`
+(the baselines) to `9c9d17c2` (the gates made absolute) and `3870d4c9`.
+The living description is `AGENTS.md` ("Modules": the mechanisms, the
+gates and how to add a module, a link, a point or a sentence),
+`docs/architecture.md` ("Core and modules") and
+`docs/systems/platform-foundation.md` (sections 4.3, 6.3, 6.8, 8 and 9);
+what it left is in `open-work.md`. The design above holds. The code
+differs from it as written in these ways.
+
+- **Step 9 took six commits**, not one. Peer review's settings, the
+  website's post and the sign-in provider moved to tables of their modules
+  (`1bd06b35`). Core stopped reading module data: each read became a point,
+  and file hosts one point that asks whether the owner is on (`bb666a7b`).
+  Pages, Today and the setup guide were built from modules (`9253362b`).
+  Admissions and sign-in speak to an applicant where families is off
+  (`ede2043c`). The web's module folders went under the source check
+  (`965869e8`). About a hundred sentences that named a module's concept
+  gained a neutral form (`3338b0a1`).
+- **Final table names.** A register's period is `core.register_periods`
+  (attendance, needing timetable). A class's programme and scale are
+  `core.class_grading`, a table of coursework's; the programme a grade
+  implies is `core.programme_grade_levels` (grade levels, needing
+  coursework). The assignment's place in a learning module is
+  `core.module_discussions` (e-learning, needing coursework). Term grades
+  are `core.period_grades` and the term a piece of work counts toward
+  `core.assignment_terms`, both the gradebook's and needing school years.
+  The standards source links are `core.work_sittings` and
+  `core.lesson_sittings`. The website's category is on `core.site_posts`,
+  the sign-in provider on `core.federated_identities`, peer review's
+  settings in `core.peer_review_settings`. An intake's year and grade are
+  `core.intake_years` and `core.intake_grades`. Grade levels own
+  `class_grades`, `student_grades` (a student's grade is a dated fact of
+  its own, not part of a year placement), `broadcast_grades` and
+  `calendar_event_grades`; families own `broadcast_families`,
+  `calendar_event_families` and `consent_guardians`, and coursework's
+  `family_shares` needs families. School days are `core.calendar_dates`,
+  keyed by school and date and holding only the days a school marks; the
+  school's week is `orgs.weekend_days`.
+- **Who acts for a learner** is one point, `actingFor` in
+  `apps/api/src/people/acting.ts`, by purpose (follow, contact, notice,
+  call, health, consent, decide), which families fills through
+  `app.guardian_permits`; the reach functions take the followed ids rather
+  than reading guardian links. "A learner acts for themself" became a
+  setting: a learner signs and decides for themself from the school's
+  deciding age (`orgs.learners_decide_from`, 18 by default, read from the
+  birth date), and a learner nobody acts for is told the school's notices
+  directly at any age.
+- **More mechanism than the plan names.** Module workers
+  (`MODULE_WORKERS`) act only where their module is on. `LINK_SYSTEMS`
+  holds an API namespace that needs a second module. `owns` in `MODULES`
+  lists the capabilities, notices, search and template kinds, calendar
+  categories and setup steps a module owns. `replaceWords` carries
+  wording, and `modulePages` the pages each module declares. The portal
+  face's `audiences` and `doors` are all a stranger learns of a school's
+  modules before sign-in.
+- **The gates are absolute.** The plan let each gate carry a list that
+  only shrinks. The ownership gate's list emptied with `1bd06b35`, and
+  `9c9d17c2` removed every list and the logic that served them, so any
+  reach across an owner fails. The source checks also grew beyond imports:
+  SQL naming a module's tables (`SQL_CARVED`, with the registries in
+  `SQL_READERS`), migration functions with owners (`FUNCTION_OWNERS`), a
+  web file asking whether a module it may not import is on, and the files
+  that may list every module (`MODULE_CATALOGUES`). The points that read
+  every module, on or off, are listed with their reasons (`EVERY_MODULE`).
+- **Class groups are core**, written and read there, with coursework
+  contributing what a new member of a group is given (`9c9d17c2`).
+- **The core-only school** is Lanternfield Code Academy (`lanternfield`),
+  adults on coursework, attendance and e-learning, walked by
+  `e2e/core-school.spec.ts`.
+- **Migrations.** The baselines are built and were proved by diffing the
+  catalogue built from them against the old chain's. No release has carried
+  them yet, so a change still rewrites them in place; appending returns
+  with the release that carries them, which recreates production.

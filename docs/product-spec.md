@@ -24,6 +24,41 @@ in their official help centres. Visual and interaction rules live in
    absence, returned work, urgent announcements and direct messages.
 7. **One app for every role, bilingual and mirrored.** Content is structured,
    never raw HTML, so it can be translated and shown right to left.
+8. **No kind of school is assumed.** Schools, coding schools, course
+   academies and video-course schools all run on it. What differs between
+   them is a module that is on or off, never a school type.
+
+## Core and modules
+
+Every school has core: people and their accounts, roles and access,
+courses, classes and their enrolments, students and their leaving, school
+days, messages, announcements, the calendar, templates, media, consents
+and privacy, search and billing. With every module off a school can add
+people, create a class, enrol learners, write content, message them and
+keep a calendar.
+
+The rest are modules a plan includes: school years (with terms and
+rollover), grade levels, homerooms, families, coursework (with peer review
+and the gradebook on top), attendance, the timetable, e-learning (with
+early years and coding), standards, admissions, student records, badges,
+the website and custom domains, video, SSO and SMS. Coursework, attendance
+and e-learning each work on core alone.
+
+A module that is off leaves no trace: no page, link, Today card, setup
+step, settings tab, field, notice or search result of it, and no sentence
+that names its concept. A school without years reads no "year", one
+without families no "guardian", one without the timetable no "period". A
+module that is turned off keeps its records, which return when it is on
+again. Where two modules meet (the year an intake admits into, a register's
+period, a guardian's view of attendance), what they do together shows only
+where both are on.
+
+Learners act for themselves unless someone acts for them. Where the school
+keeps families, a guardian the school permits follows, signs and is told
+for the child. Without families, or for a learner with no guardian, a
+learner who has reached the school's deciding age (18 unless the school
+sets another in Settings) signs and decides for themself. A learner nobody
+acts for is told the school's notices about them directly.
 
 ## Roles and navigation
 
@@ -42,6 +77,9 @@ and notifications sit in the sidebar header.
 - **Admin:** Today · Students · Staff · Classes · Attendance ·
   Timetable · School year · Communication · Website · Settings.
 
+Each list is of a school with every module; a link of a module the school
+lacks is not there.
+
 ## Home pages
 
 - **Teacher Today:** today's periods with now/next and each register's state;
@@ -54,16 +92,20 @@ and notifications sit in the sidebar header.
 - **Student Home:** due soon (7 days, at most 5, missing flagged); today's
   timetable; continue lesson; class announcements; classes.
 - **Admin Today:** needs action (registers not taken with Remind all,
-  unexplained absences, students without a class or guardian, homerooms without
-  a teacher where the school has homerooms, failed notifications), today's and
-  this week's attendance,
-  the next 7 days of events, recent communications with read rates, and a
-  year-setup checklist eight weeks before year end.
+  unexplained absences, students without a class, or without a guardian
+  where the school keeps families, homerooms without a teacher where it has
+  homerooms, failed notifications), today's and this week's attendance,
+  the next 7 days of events and recent communications with read rates.
+  Where it keeps years, a year-setup checklist shows eight weeks before
+  year end.
+  Each card belongs to core or to a module and shows only with it.
 
 ## Classes
 
-A class is a group that is taught: a name and code, an optional subject,
-grade and room, and its teachers, the first of them its primary teacher.
+A class is a group that is taught: a name and code, an optional course,
+subject and room (and a grade where the school keeps grade levels), and its
+teachers, the first of them its primary teacher. A new class's teachers
+start on its first day.
 Whoever is in a class is its enrolments; no class takes its students from
 another. A class runs over its own dates, a first day and, for one that
 ends, a last day; a student joins on a day inside them, and the dates cannot
@@ -132,8 +174,10 @@ optional) in the parent's language, sent only when there is something to say.
 ## Assessment and grades
 
 Results belong to an attempt and stay private until returned. Rubric totals
-fill in automatically and can be overridden with a note. The gradebook groups
-by term; families see returned results only.
+fill in automatically and can be overridden with a note. The gradebook keeps
+a running grade per class; where the school keeps years it also groups by
+term and keeps term grades, released per grading period. Families see
+returned results only.
 
 ## Attendance
 
@@ -154,8 +198,10 @@ by term; families see returned results only.
   them in one tap; exceptions are Present, Absent, Late (minutes), Excused, Left
   early, each with an optional note; a sticky footer summarises and saves.
   Teachers may edit within a configurable window.
-- A register takes marks only for the students enrolled in the class on that
-  date. It cannot be saved for a closed year, a future
+- A register is one class on one date, and where the school runs the
+  timetable it may be for one of the day's periods. It takes marks only for
+  the students enrolled in the class on that date. It cannot be saved for a
+  class of a closed year, a future
   date or a day that is not a school day, nor, for a teacher without
   `attendance:manage`, outside the edit window; a save made from an
   out-of-date register is refused rather than overwriting someone else's.
@@ -164,11 +210,13 @@ by term; families see returned results only.
   excuse with reason), reports (by student and class, chronic absence threshold,
   export).
 - Families are told about unexcused absences after a configurable delay so
-  corrections do not send false alarms. Every message is logged.
+  corrections do not send false alarms. Every message is logged. Absence
+  reports from families and follow-up calls need the families module.
 
 ## Timetable
 
-A periods-by-days grid that mirrors for Arabic. A cell opens a picker listing
+A module. Periods and bell schedules are the timetable's and change from a
+date. A periods-by-days grid that mirrors for Arabic. A cell opens a picker listing
 the class's allocated teachers first, plus the room. Placing a teacher who is
 already booked offers Move here, Keep both (flagged) or Cancel. Views by class,
 teacher and room; a Clashes panel; print. Changes are dated; past registers are
@@ -178,9 +226,11 @@ never rewritten.
 
 School years are a module. Where it is on, a class may belong to one year,
 its dates inside the year's (choosing a year on the class form sets them to
-the year's), the class and student lists open on the working year with a
-year filter kept in the address, a student is placed in a year with a grade,
-and a student's class history names each class's year. A closed year's
+the year's). The class and student lists open on the working year with a
+year filter kept in the address, a student is placed in a year, and a
+student's class history names each class's year. A student's grade is the
+grade levels module's, a dated fact of its own, so a school may keep
+levels without years. A closed year's
 classes take no change and its list offers no new class. Where it is off,
 none of that shows and the year pages answer not found.
 
@@ -210,8 +260,10 @@ is a separate, explicit step; the old year becomes read-only.
 
 ## People
 
-- **Students:** list with photo, both names, reference, homeroom (where the
-  school has homerooms),
+The guardian, grade, homeroom, year and timetable parts below show only
+where the school has that module.
+
+- **Students:** list with photo, both names, reference, homeroom,
   primary guardian phone, status and account; chips for grade, class, status,
   missing guardian, no account; search across scripts, reference and guardian
   phone; saved views; bulk Move class, Message guardians, Create accounts,
@@ -220,8 +272,9 @@ is a separate, explicit step; the old year becomes read-only.
   alert chips (medical, custody); Message, Move class, More. Tabs: Overview
   (guardians with call and message, today's timetable, term attendance, recent
   notifications), Details, Family, Enrolment history, Attendance, Coursework and
-  results, Account, History. Sections edit in side sheets.
-- **Families:** the guardian–student links are the family; there is no
+  results, Account, History. Sections edit in side sheets. Each module adds
+  its own tabs and parts.
+- **Families** (a module): the guardian–student links are the family; there is no
   separate household. Each link carries primary contact, receives notices
   (absence alerts, with or without the family app), may pick up, portal
   access, and home (main home, second home, does not live with them).
@@ -232,7 +285,8 @@ is a separate, explicit step; the old year becomes read-only.
   on the website, in school news, giving medicine, and the school's own),
   written as a document in one or both languages. Publishing freezes it as a
   numbered version and asks every confirmed legal guardian with full rights
-  in the family app's Permissions page; the office records answers given on
+  in the family app's Permissions page, and a learner who decides for
+  themself on their own consents page; the office records answers given on
   a signed paper form (with its scan) or in person. Ticking Legal guardian on
   a link is the office's confirmation. The Family tab shows the answer in
   force per purpose with who gave it, how and when, and the answers before
@@ -380,7 +434,10 @@ site-wide banner for closures.
 
 ## Settings
 
-School profile (names in both languages, logo, timezone, weekend days),
-features, attendance rules (statuses, edit window, late threshold, absence
+School profile (names in both languages, logo, timezone, weekend days, the
+age from which learners decide for themselves), school days, features,
+attendance rules (statuses, edit window, late threshold, absence
 notification delay), messaging permissions and office hours, notification
-templates in both languages, roles and access, audit log, import.
+templates in both languages, roles and access, audit log, import. Each
+module adds its own tab (attendance rules, grading, the school's grade
+levels) and a school without it does not see it.

@@ -93,28 +93,92 @@ and `ops` schemas plus the `search` index. Migrations are SQL, one folder
 per database, applied by `scripts/db.ts` in one transaction as the schema
 owner; whatever drizzle-kit cannot express (forced row level security,
 grants, functions, triggers, partitioned tables, exclusion constraints)
-lives in custom migrations beside the generated ones. Every table of
-`core`, `health` and `audit` belongs to core or to one module of
-`packages/domain/src/modules.ts`, as every API namespace does, and its keys
-and the columns that carry a module's concept without a key (a homeroom
-named by its class, a school year's teaching days kept on a calendar) reach only
-what that owner may (`packages/database/src/ownership.ts`), so a module's
-data points at core and at the modules it requires, never the reverse.
+lives in custom migrations beside the generated ones. Each database has
+one baseline, written as if the schema were designed today, by topic
+([systems/platform-foundation.md](systems/platform-foundation.md), section
+9).
+
+## Core and modules
+
+The product serves schools, coding schools, course academies and
+video-course schools, and no part of it assumes which. There is no school
+type: every difference between customers is a module of
+`packages/domain/src/modules.ts` that is on or off at a school. A module is
+on where the school's plan includes it, what it `requires` is on, and, for
+e-learning and early years, the school has switched it on itself
+(`modulesOf` in `apps/api/src/core/modules.ts`, read once per unit of
+work).
+
+Core is what every school has, and it is enough to teach: people and their
+sign-ins, roles and access roles, courses, classes and enrolments,
+students and their leaving, school days, messages, announcements, the
+calendar, documents, files, media, consents, privacy, search, the home
+pages and billing. A student is a person holding the student role at the
+school. Years, terms and rollover are `school_years`; grades or levels
+`grade_levels`; homerooms `homerooms`; guardians and everything a guardian
+may see, sign or be told `families`; periods and bell schedules
+`timetable`. Coursework, gradebook, attendance, e-learning, standards,
+peer review, admissions, student records, badges, the website, custom
+domains, coding, video, SSO and SMS are modules too. Each of coursework,
+attendance and e-learning works on core alone.
+
+Every table of `core`, `health` and `audit` belongs to core or to one
+module (`packages/database/src/ownership.ts`), as every API namespace does.
+A module's data points at core and at the modules it requires, never the
+reverse, and a core table names no module. A relation between two modules
+neither of which requires the other is a link table owned by one and
+marked as needing the other (`core.register_periods` is attendance's and
+needs the timetable; `core.intake_years` is admissions' and needs school
+years), so it has rows only where both are on. Columns that carry a
+module's concept without a key (`school_year_id`, `homeroom_class_id`,
+`relationship_id`) and descriptor namespaces have owners as well. A key or
+such a column may reach only what its table's owner may, and `db:verify`
+fails the build on any other, with no list of exceptions.
 
 The code follows the same rule. Where core, or one module, needs what
 another module knows, it declares a typed extension point next to itself
-(`apps/api/src/core/extension.ts` in the API, `apps/web/src/utils/extension.ts`
-for the web's slots) and the module that knows contributes to it. Each app has
-one composition root that lists every module's contributions
-(`apps/api/src/extensions.ts`, `apps/web/src/extensions.ts`), and asking a
-point yields only those of the modules on at the school: the API asks
-`modulesOf` once there, the web reads the viewer's modules. No other file
-imports a module's own files but the module itself and a module that requires
-it; `scripts/module-files.ts` lists each carved module's files and the
-source checks refuse any other import. The database cannot tell whether a
-module is on, since entitlements live in the directory, so a module's rule
-that must stop when it is off runs in its stores, called from its API, and
-the database holds only keys true either way.
+(`point` in `apps/api/src/core/extension.ts`, `slot` in
+`apps/web/src/utils/extension.ts`) and the module that knows contributes to
+it. Each app has one composition root that lists every module's
+contributions (`apps/api/src/extensions.ts`, `apps/web/src/extensions.ts`),
+and a point yields only those of the modules on at the school: the API
+asks `modulesOf`, the web reads the viewer's modules. What a module adds to
+another it does not require lives in a link file that names what it needs,
+and runs only where both are on. A module's background job
+(`MODULE_WORKERS`) acts only for schools where its module is on, through a
+module scope the worker builds per school from the directory, as a request
+does. The source checks (`scripts/module-files.ts`) refuse an import of a
+module's files from anywhere but the module, a module that requires it, a
+link file that needs it and the composition roots; SQL that names a
+module's tables from elsewhere; and a web file asking whether a module it
+may not import is on. A handful of readers span every module on purpose
+(erasure, record joins, file sweeps, the registries), each listed with its
+reason.
+
+Pages and words follow the modules. Core's pages are listed once; each
+module declares its own pages, links, settings tabs, record tabs, Today
+cards and setup steps as fillings, so a school without a module has no
+page, link, card, step or field of it, and its namespaces answer
+`NOT_FOUND`. A sentence that names a module's concept is core's neutral
+sentence on core's pages, and the module puts its own back (`replaceWords`
+in `apps/web/src/utils/words.ts`), so a school of every module reads as it
+always did and an academy reads no year, grade, guardian or period.
+
+The database cannot tell whether a module is on, since entitlements live
+in the directory, so a module's rule that must stop when it is off runs in
+its stores, called from its API, and the database holds only keys true
+either way. A module that is off is dormant: its rows stay, nothing of it
+refuses what core does, and what it derives into core it writes again when
+it next acts.
+
+Who acts for a learner is one question core asks
+(`apps/api/src/people/acting.ts`): for a purpose (follow, contact, notice,
+call, health, consent, decide), the families module answers with the
+guardians `app.guardian_permits` allows. Without the module, or without a
+guardian, a learner who has reached the school's deciding age
+(`orgs.learners_decide_from`, 18 unless the school sets it, by birth date)
+signs, consents and decides for themself, and every learner hears the
+school's notices themself where nobody acts for them.
 
 ## Tenants, units of work and row level security
 
@@ -216,14 +280,21 @@ by its renderer. The doors that hold a session are not: sign-in,
 registration and applying are the app's own pages on the portal host, in
 the app's design system, carrying the school's logo, name and main colour
 from `identity.portalFace`. The website host only links or posts to them.
+Before sign-in the portal knows nothing else of the school's modules. The
+face says only its `audiences` (who besides students and staff signs in,
+families where that module is on) and its `doors` (the public pages its
+modules open, such as `apply` for admissions and `badge` for badges). So
+sign-in and registration speak to an applicant or a family accordingly,
+and the page of a module the school lacks answers not found.
 
 An enquiry is written by the `site` role, only as an unworked website
 enquiry, after Turnstile (where configured), a hidden field, a minimum fill
 time and limits per network and per school, with the network kept only as
-an HMAC of its prefix. From then on it belongs to admissions: a family
-registers once on the portal's register page, confirming their address by
-email, and everything the school already holds under that address (open
-enquiries, their conversations) becomes theirs. Applications, intakes and
+an HMAC of its prefix. From then on it belongs to admissions: an applicant
+(a family, where the school keeps families, or an adult applying for
+themself) registers once on the portal's register page, confirming their
+address by email, and everything the school already holds under that
+address (open enquiries, their conversations) becomes theirs. Applications, intakes and
 forms are tables, capabilities, procedures and audit of the admissions
 domain, the same as attendance or coursework.
 
@@ -392,7 +463,10 @@ messages and replies, absences, events, reminders, consents, mentions,
 template reviews, enquiries, applications, answers to the medical-summary
 changes a family asked for, and the teaching events: work
 set, work returned or sent back, and a period's grades released, each told
-to the students and to their guardians who take notices. Whatever was
+to the students and to whoever acts for them and takes notices. Each kind
+belongs to core or to the module that sends it, which words its email and
+text through the `noticeLines` point, and a school without that module is
+never offered it. Whatever was
 set to go out later (an announcement, work set to open later)
 is told when it goes live, by the publication clock in the API process.
 The clock runs as the `worker` role on the database's clock and claims what
@@ -404,16 +478,17 @@ The delivery worker runs in the API process as the `worker` role every 30 second
 
 ## Teaching records
 
-Records are reachable through relationships rather than roles. The database functions `app.visible_students`, `app.visible_classes` and `app.visible_people` decide who a viewer reaches on a date. School-wide staff reach every student of the school; a guardian the link lets follow the child reaches the children they are linked to; a student reaches themselves; a teacher or aide reaches the students of the classes they currently teach. These functions read
-enrolments alone, whatever modules a school has; `reachesClass` adds the
+Records are reachable through relationships rather than roles. The database functions `app.visible_students`, `app.visible_classes` and `app.visible_people` decide who a viewer reaches on a date. School-wide staff reach every student of the school; whoever a module lets follow a learner (a guardian whose link permits it, through the families module) reaches them, passed in as the followed ids; a student reaches themselves; a teacher or aide reaches the students of the classes they currently teach. These functions read
+enrolments and roles alone, and no module's tables; `reachesClass` adds the
 classes a module opens through those (the homerooms module opens a
 homeroom's subject classes to its teacher, and the homeroom to its subject
 teachers). Staff are the people holding one of the roles `app.staff_roles` names at the school or a group above it (`app.is_staff`), and the API asks the same of a session signed in as staff. Staff reach their colleagues, and school-wide staff everyone who holds a role at the school or is linked to one of its students. A capability lets a procedure run but grants no record, so a submitted student or class id is checked against these rules. Every procedure checks them through `apps/api/src/core/reach.ts`: `scopeFor(context, "teaching" | "people" | "classes" | …)` turns a named kind of work into the viewer's scope, `SCHOOL_WIDE` beside it lists which capabilities open the whole school for each, and `requireStudent`, `reachesClass`, `teaches` and `reachesPerson` are the checks; the source checks refuse a scope built anywhere else. The API answers `NOT_FOUND` for a record outside the caller's reach so that URLs do not reveal existence, and the web's `record()` turns that, and a `FORBIDDEN` on a record read, into the router's not-found page with a 404 status. Restricted fields (contact details, medical data, other people's children) are left out of the payload rather than hidden in the page.
 
 How far a viewer reaches a person is `app.reached_people`: their whole record, as `app.visible_people` decides, or a limited profile. A family or a student reaches the teachers and aides of the classes they or a child they follow are in as a profile, and anyone reaches the grown-ups they share a conversation with the same way (in a mailbox conversation its contacts and its owner, never the team reading along; never a student). The profile (`people.profile`, `/profiles/:id`) shows the name, photo and role, the classes that teacher takes with the viewer or their children, none of them opened, and a message action where the viewer may write to them; `people.person` and the staff record still answer not found. Families and students keep to their own pages: they never get `/students/:id` or `/classes/:id`.
 
-Portal access is a flag of the guardian link the office keeps: a phone
-number, an address or an emergency contact on file grants nobody anything.
+Where the school keeps families, portal access is a flag of the guardian
+link the office keeps: a phone number, an address or an emergency contact
+on file grants nobody anything.
 Reaching a student never opens their health information either; staff need
 `health:read` under the health purpose, and a guardian reads only the
 summary `app.guardian_permits` allows them, below. A name in a conversation,
@@ -421,7 +496,7 @@ a lesson or a record links to the student's record, the person's record or
 their profile only as far as `recordLinks` in `core/reach.ts` says the
 viewer reaches them; showing the name grants nothing.
 
-Which of a child's guardians the school may do something for is one database function, `app.guardian_permits(link, on, purpose)`, and every store and reach function that decides it joins it. Following the child in the portal needs a current link with portal access. Contact in the portal also needs the school not to have cut the guardian off (`communication_isolated`). The school's notices need a link that takes them and no such cut, and a call needs only a current link and no such cut. The medical summary also needs a legal guardian the office confirmed, whose educational rights no court order has limited. A guardian it permits reads the child's medical summary in the family workspace (`/family/health`): allergies with their severity, conditions, medicines, dietary needs, the doctor and the emergency contacts, never the plans and notes the health staff keep. The stores that read those records and keep a family's changes join the same function, so the screen, the procedure and the store cannot disagree. A health record may hold one report, such as a doctor's letter, which the health staff attach and may share with the family: a guardian the function permits sees that a report exists, and opens it only once it is shared. A family may send a report with a change it asks for, which the health staff read beside the change and, accepting it, may keep on the record. A family's change to the summary is a correction request in the records register (`records_requests.topic = 'health'`), which gives it the deadline the school's law sets; the change itself, with the record as the family read it and any reason for declining, is sealed in `health.requested_changes` behind the health purpose. Nothing changes until someone holding `health:write` accepts it in Medical updates (`/health-changes`), which applies it in the same transaction, closes the request, audits it with who asked, and tells the family through `notify`. The privacy office sees such a request in its register but answers it there only through Medical updates. The changes are erased with the student and kept until then, like the records they change.
+Which of a child's guardians the school may do something for is one database function of the families module, `app.guardian_permits(link, on, purpose)`, and every store and reach function that decides it joins it. Following the child in the portal needs a current link with portal access. Contact in the portal also needs the school not to have cut the guardian off (`communication_isolated`). The school's notices need a link that takes them and no such cut, and a call needs only a current link and no such cut. The medical summary also needs a legal guardian the office confirmed, whose educational rights no court order has limited. A guardian it permits reads the child's medical summary in the family workspace (`/family/health`): allergies with their severity, conditions, medicines, dietary needs, the doctor and the emergency contacts, never the plans and notes the health staff keep. The stores that read those records and keep a family's changes join the same function, so the screen, the procedure and the store cannot disagree. A health record may hold one report, such as a doctor's letter, which the health staff attach and may share with the family: a guardian the function permits sees that a report exists, and opens it only once it is shared. A family may send a report with a change it asks for, which the health staff read beside the change and, accepting it, may keep on the record. A family's change to the summary is a correction request in the records register (`records_requests.topic = 'health'`), which gives it the deadline the school's law sets; the change itself, with the record as the family read it and any reason for declining, is sealed in `health.requested_changes` behind the health purpose. Nothing changes until someone holding `health:write` accepts it in Medical updates (`/health-changes`), which applies it in the same transaction, closes the request, audits it with who asked, and tells the family through `notify`. The privacy office sees such a request in its register but answers it there only through Medical updates. The changes are erased with the student and kept until then, like the records they change.
 
 A class runs over its own days (`core.classes.runs`, open-ended for one
 that keeps going), and no two classes of a school running at once share a
@@ -438,9 +513,16 @@ school years module adds the year a class belongs to (`core.class_years`,
 one active year per class, the class's days inside it) and a student's
 placement in a year; its rules run in its own API. A class whose days left
 its year while the module was off loses the link the next time the module
-acts on it. Coursework, attendance, the timetable and the gradebook read the
-year, so a class with no year takes no assignment, register or timetable
-entry, and its gradebook is refused.
+acts on it. A class with no year takes assignments, lessons, registers and
+timetable entries like any other, and its gradebook keeps a running grade;
+term grades, and the term an assignment counts toward
+(`core.assignment_terms`), are the gradebook's link tables needing school
+years. A closed year still freezes its classes, through the point the
+classes API asks before a change (`classGuards`). A class's grade, a student's grade
+(`core.student_grades`, one at a time over dates) and audiences by grade
+belong to grade levels; a homeroom, its subject classes and a student's
+place in one belong to homerooms, which writes the enrolments in the
+homeroom class and each subject class from that place.
 
 An assignment is authored against a class by its teachers. Its brief is a
 document, with the files it hands out as blocks; its audience (the class,
@@ -453,9 +535,9 @@ until the work is returned, and families and students read only returned
 results. Quizzes in briefs and questions in lessons share one quiz engine
 (`apps/api/src/core/quiz.ts`) and one marking function.
 
-E-learning is an area a school switches on when its plan includes it
-(`core/features.ts`); every learning procedure answers not found while it is
-off, and navigation shows it only then. A module reaches classes and
+E-learning is a module a school switches on itself when its plan includes
+it (`SWITCHED_MODULES`); every learning procedure answers not found while
+it is off, and navigation shows it only then. A module reaches classes and
 audiences, and its lessons are lesson documents whose questions are blocks
 in the text, keeping the ids answers are recorded against. Learners answer
 in `lesson_responses`, and the feedback a question holds back is released
@@ -469,10 +551,16 @@ takes effect from a day on, so earlier days keep their lessons; the API checks t
 other booking at that time and, when one clashes, asks, moves the other
 booking, or keeps the clash on a list so it is not forgotten. Cover records
 a member of staff away for days or periods and changes, moves or cancels
-single lessons, telling the cover teacher. A class's register is taken per
-period by its teachers, its students being its enrolments on the date, or by whoever covers that lesson, for those periods
-only; a date outside the school year is refused and a correction needs a
-reason. Calendar events carry a document of the shared editor, with plain
+single lessons, telling the cover teacher. Periods and bell schedules are
+the timetable's and run by date, not by year. A school's days are core
+(`core.calendar_dates`, keyed by school and date): its week says which days
+are school days and it marks only the days that differ (a holiday, a
+closure, an exam day, a make-up day), whatever modules it has. A register
+is one class on one date, taken by its teachers, its students being its
+enrolments on the date; where the timetable is on, a register may also be
+for a period (`core.register_periods`), taken as well by whoever covers
+that lesson. A day that is not a school day takes no register, and a
+correction needs a reason. Calendar events carry a document of the shared editor, with plain
 text derived from it on every save, and share their audiences with
 announcements (`stores/audiences.ts`).
 
@@ -488,8 +576,8 @@ a common word finds its own conversation rather than losing it behind the
 school's. The index holds ids only: every hit is also joined back through
 that rule before anything is shown, so nothing stays findable after a
 relationship ends, and the kinds
-offered follow the viewer's capabilities and the school's switched-on
-areas. Internal entries of team conversations (notes, logged contacts,
+offered follow the viewer's capabilities and the school's modules, each
+kind owned by core or a module (`searchKinds`). Internal entries of team conversations (notes, logged contacts,
 held mail) are indexed as `team_thread`, a kind of their own, "Team
 notes", offered to whoever reads a mailbox and ranked only among that
 mailbox's conversations; a family's search reads messages alone, as
@@ -506,6 +594,9 @@ monthly partitions, handing in timed quizzes whose time ran out, telling
 students and families about work that has opened, marking code answers
 again, checking schools' hosts and keeping the sign-in index.
 A pass claims its rows before working them, so every replica may run it.
+A module's own jobs (the admissions clock, peer review's clock, timed
+quizzes, marking code answers again) are listed in `MODULE_WORKERS` and act only for
+the schools where their module is on.
 
 The operator console (`apps/ops`) runs on its own host, signs operators in
 through OpenID Connect and never through a school account, and is the only

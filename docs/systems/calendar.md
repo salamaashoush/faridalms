@@ -5,32 +5,40 @@ What the school calendar does, built from
 
 ## School days
 
-Each school year has one school calendar with a row per day saying what the
-day is: a school day, weekend, public or school holiday, exam day, staff day,
-early dismissal, make-up day or closure, with a note in each language and an
-expected flag for dates that wait on the moon or the ministry. The year
-record's School days tab shows every month, marks a run of days by its first
-and last day, puts days back to normal, and counts school days against the
-authority's target. Registers follow the calendar: a day that stops being a
-school day asks for none. Exam days, early dismissals and make-up days count
-as school days.
+A school's days are its own and belong to no year, whatever modules it
+has. Its week (Settings) says which days are school days; it marks only the
+days that differ: a holiday, closure, exam day, staff day, early dismissal
+or make-up day, with a note in each language and an expected flag for
+dates that wait on the moon or the ministry. The School days page
+(Settings, `/school-days`) shows twelve months from a chosen month, marks a
+run of days by its first and last day, and puts days back to normal.
+Registers follow it: a day that stops being a school day asks for none.
+Exam days, early dismissals and make-up days count as school days. Where
+the school keeps years the page also names each day's term and counts each
+year's school days against the authority's target, and where it runs the
+timetable it shows each day's bell schedule and the day of the cycle it
+runs as.
 
 ## Bell times and timetables
 
-- A year's periods (the year record's Periods tab) each have their own
-  times and the weekdays they run on, and may keep other times on some
-  weekdays (Period 1 starts later on Thursdays). A change takes effect from
-  a date, so earlier days keep what they had.
+Periods, bell schedules and timetables are the timetable module's, by date
+rather than by year. A school without the timetable takes registers by
+class and day, with no periods.
+
+- The school's periods (the timetable page's School day tab) each have
+  their own times and the weekdays they run on, and may keep other times on
+  some weekdays (Period 1 starts later on Thursdays). A change takes effect
+  from a date, so earlier days keep what they had.
 - A bell schedule gives whole days other times: a late start, an exam day,
   Ramadan hours. It names the periods held that day by code, each at its
   time; a period it leaves out is not held, and its lessons do not take
-  place. The School days tab runs a range of days on a schedule, or puts
+  place. The School days page runs a range of days on a schedule, or puts
   them back on their periods' own times; weekends are left as they are.
   Removing a schedule puts its days back.
 - A bell schedule may add periods of its own that normal days do not have,
   such as an assembly or an exam slot, each with its code (unlike any of
-  the year's), names, kind and times. They are periods of the year held
-  only on the schedule's days, never the day's official register. A class
+  the school's own), names, kind and times. They are held only on the
+  schedule's days, never the day's official register. A class
   or homeroom register can be taken in one that is a lesson or
   registration (registers stay per class: there is no year-group
   register), and the cover page gives a class a lesson in one for that day
@@ -40,7 +48,7 @@ as school days.
   of its own, or its schedule, is not removed while a register or one-day
   lesson holds it.
 - A staff member who manages the calendar can run a single school day as
-  another day of its timetable's cycle from the School days tab: a
+  another day of its timetable's cycle from the School days page: a
   Tuesday as a Monday (the Monday of the same week, or of week B), or a
   day as Day 3. Its lessons, registers, cover and every week follow that
   day, and in a cycle of weeks its periods and times are that weekday's.
@@ -49,8 +57,9 @@ as school days.
   it ran as, just as they carry on after a closure. Putting the day back
   undoes it, and both are audited. A day that stops being a school day
   keeps the choice without using it.
-- A year has one or more timetables, each followed from its first day until
-  the next starts; the first is followed from the start of the year. Each
+- A school has one or more timetables, each followed from its first day
+  until the next starts; the earliest is followed on every day before it
+  too. Each
   says how its lessons repeat: week by week (one week, or A/B weeks up to
   four) or over a cycle of 2 to 20 school days, where it stands on its
   first school day, and whether a closed day or week keeps the cycle where
@@ -68,8 +77,6 @@ as school days.
   read their days from it. A week names each day's day of the cycle or
   week (A, B), the day it runs as, its bell schedule, and gives a lesson
   its own times on a day that keeps other ones.
-- Every year before timetables existed became one ordinary week from its
-  first day, with all its lessons, so nothing a school had changed.
 
 ## Events
 

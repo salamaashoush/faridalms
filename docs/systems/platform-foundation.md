@@ -29,13 +29,15 @@ in `decisions.md`; a choice below changes only with new evidence.
   erasure binding, per table.
 - Foundation tables:
   - Descriptors and their per-school overrides.
-  - Academic sessions, calendars, calendar dates, academic weeks, class
-    periods.
+  - School days (`calendar_dates`), and the tables of the school years
+    module (academic sessions and weeks) and of the timetable (class
+    periods, bell schedules) that read them.
   - Locations (rooms and buildings).
   - Files, file publications, file subjects and tenant keys.
   - Users, demographics, external ids, contact points.
-  - Student school years, user roles, user relationships and relationship
-    restrictions.
+  - User roles and student departures; the school years module's student
+    school years; the families module's user relationships and
+    relationship restrictions.
   - Accounts, identity providers, login identities, passkeys, sessions,
     devices and sign-in counters.
   - Access roles.
@@ -110,9 +112,9 @@ in `decisions.md`; a choice below changes only with new evidence.
   OneRoster and LTI (`integration`), and a stable integration host on the
   product domain so third-party registrations survive cell moves (section
   3.3).
-- The student's per-year school placement (grade level, calendar, entry and
-  exit) as a foundation table, `student_school_years`, from which the student
-  role is derived (section 6.8).
+- The student's per-year school placement (entry and exit) as a table of the
+  school years module, `student_school_years`, beside the student role,
+  which core keeps for itself (section 6.8).
 - Deletion of personal data is possible only against a recorded erasure
   approval and never under a legal hold (sections 4.7 and 6.13).
 
@@ -578,9 +580,9 @@ OneRoster `Org` ([R1] section 1):
   joins a group, a `school_group` org is inserted above it.
 - `department` orgs are optional children of a school or group.
 - The school is "the unit of assignment for classes and enrollments"
-  (OneRoster OrgTypeEnum). Academic sessions, calendars, class periods,
+  (OneRoster OrgTypeEnum). School days, academic sessions, class periods,
   locations, student school years, every natural role except group
-  administration, and (in other specs) classes belong to a school org.
+  administration, and classes belong to a school org.
 
 How a group with several schools works:
 
@@ -615,10 +617,10 @@ How a group with several schools works:
 - **Vocabularies are tenant-wide with a school scope.**
   `descriptors.org_id` limits a value to one school; a descriptor override
   relabels a tenant-wide value for one school (section 6.2).
-- **Calendars, locale and features are per school.** Schools in a group that
-  share dates get the same rows copied by the year-setup tool; there is no
-  group calendar, matching Ed-Fi, which has no district calendar ([R1]
-  section 3.4). Each school has its own default locale and feature switches.
+- **School days, locale and modules are per school.** There is no group
+  calendar, matching Ed-Fi, which has no district calendar ([R1] section
+  3.4). Each school has its own week, marked days, default locale,
+  entitled modules and switches.
 
 ## 4. Conventions
 
@@ -750,18 +752,17 @@ or a namespace column may reach what core owns, what its own table's owner
 owns, what that owner requires in every alternative of its `requires` and
 what those require in turn, and what a module it needs owns; a core table
 reaches core alone. A column that carries a module's concept without a key
-to its tables, such as `target_days` keeping a school year's teaching days
-on `core.calendars` or `homeroom_class_id` naming a homeroom by its class, is a
-concept column owned by that module
-wherever it appears, and a table holding one is held to the same rule. The
-owners are `packages/database/src/ownership.ts`, the
-rule is `mayReach` in `packages/domain/src/ownership.ts`, and the catalogue
-check (section 8) refuses a table or namespace without an owner, an owner
-naming a table, namespace or concept column that does not exist, and every
-other reach except those
-`packages/database/src/ownership-violations.ts` lists by the module they
-reach. An entry that no longer occurs fails the check as well, so that list
-only shrinks.
+to its tables, such as `school_year_id` travelling inside a composite key or
+`homeroom_class_id` naming a homeroom by its class, is a concept column
+owned by that module (`COLUMN_OWNERS`) wherever it appears, and a table
+holding one is held to the same rule. The owners are
+`packages/database/src/ownership.ts`, the rule is `mayReach` in
+`packages/domain/src/ownership.ts`, and the catalogue check (section 8)
+refuses a table or namespace without an owner, an owner naming a table,
+namespace or concept column that does not exist, a link that needs a
+module its owner already has, and every other reach. There is no list of
+exceptions. The source checks (section 8, gate 3) hold the code and the
+migrations' functions to the same owners.
 
 ### 4.4 Base columns
 
@@ -1282,14 +1283,14 @@ Three kinds, never mixed:
 - **Temporal containment** uses PG18 `PERIOD` foreign keys to a
   `unique (tenant_id, id, type, span without overlaps)` target, so containment
   and type pinning hold together: a term cannot extend beyond its parent, a
-  week or a calendar date cannot fall outside its school year, and a year
-  cannot shrink under its terms ([P]). A single date is contained by a
+  week cannot fall outside its school year, and a year cannot shrink under
+  its terms ([P]). A single date is contained by a
   generated `daterange(d, d + 1)` column ([P]). `PERIOD` foreign keys allow
   only `NO ACTION` (CREATE TABLE docs), which is the rule anyway.
 - Foreign keys ignore `status`, so a tombstoned row still holds its parent.
   Changing a school year's dates therefore goes through one definer function,
-  `app.change_year_span` (section 6.3), which removes the generated and
-  tombstoned rows outside the new span in the same transaction.
+  `app.change_year_span` (section 6.3), which removes the tombstoned rows
+  outside the new span in the same transaction.
 - `NULLS NOT DISTINCT` only where null is a real value ("assigned
   tenant-wide" in `external_ids`, "every school" in descriptors and access
   roles); optional identifiers keep the default ([R2] section 4).
@@ -1440,9 +1441,9 @@ Table by table:
   `system_meaning`, `org_id`, the standards mappings and `seeded` are fixed
   after insert for the API; seed corrections run as `worker`.
 - `core.descriptor_overrides`: entity, integration read.
-- `core.academic_sessions`, `core.calendars`, `core.calendar_grade_levels`,
-  `core.calendar_dates`, `core.academic_weeks`, `core.class_periods`: entity,
-  integration read.
+- `core.academic_sessions`, `core.calendar_dates`, `core.academic_weeks`,
+  `core.class_periods`: entity, integration read. `site` also reads active
+  school years.
 - `core.locations`: entity.
 - `core.files`: entity; erase and delete with
   `<who> = app.erasure_listed(tenant_id, 'file', id)`. Deviations: `app` has
@@ -2029,369 +2030,102 @@ code `tool_<registration id>`.
 `attendance_reason`, `grade_type`, `event_category`, `announcement_category`,
 `site_post_category` (website; legacy `site_post_categories` map here).
 
-### 6.3 Academic calendar
+### 6.3 School days and the academic calendar
 
-Academic sessions follow OneRoster's session tree (school year, semester or
-term, grading period; parent; exclusive end) because the OneRoster provider
-serves it; calendar dates, academic weeks and class periods come from Ed-Fi,
-which OneRoster lacks ([R1] section 5 item 6). They are foundation because
-attendance, the timetable, coursework ("due next lesson"), the calendar, the
-family home ("now and next") and rollover all read them.
+A school's days are core, because attendance, the timetable, coursework
+("due next lesson"), the calendar and the family home ("now and next") read
+them at every school. Years and periods are not: the school's years, terms
+and weeks are the `school_years` module's, and its periods and bell
+schedules the `timetable` module's. No core table names a year or a period.
+The declarations are `packages/database/src/tables/calendar.ts`,
+`school-years.ts` and `timetable.ts`; what follows is why they are shaped
+as they are.
 
-```sql
-create table core.academic_sessions (
-  tenant_id uuid not null,
-  id uuid not null default uuidv7(),
-  org_id uuid not null,
-  org_type text not null default 'school' check (org_type = 'school'),
-  type text not null check (type in ('school_year', 'semester', 'term', 'grading_period')),
-  parent_id uuid,
-  parent_type text,
-  school_year_id uuid not null,
-  title_en text check (char_length(title_en) between 1 and 80),
-  title_ar text check (char_length(title_ar) between 1 and 80),
-  span daterange not null,
-  school_year smallint not null check (school_year between 2000 and 2200),
-  lifecycle text check (lifecycle in ('upcoming', 'current', 'closed')),
-  sequence smallint not null default 1 check (sequence between 1 and 99),
-  status text not null default 'active' check (status in ('active', 'tobedeleted')),
-  date_last_modified timestamptz not null default statement_timestamp(),
-  version integer not null default 1 check (version > 0),
-  metadata jsonb not null default '{}'
-    check (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
-  created_at timestamptz not null default statement_timestamp(),
-  primary key (tenant_id, id),
-  unique (tenant_id, id, type, school_year_id, org_id),
-  unique (tenant_id, id, type, school_year_id, org_id, school_year),
-  unique (tenant_id, id, span without overlaps),
-  unique (tenant_id, id, type, span without overlaps),
-  foreign key (tenant_id) references core.tenants (tenant_id),
-  foreign key (tenant_id, org_id, org_type) references core.orgs (tenant_id, id, type),
-  foreign key (tenant_id, parent_id, parent_type, school_year_id, org_id, school_year)
-    references core.academic_sessions (tenant_id, id, type, school_year_id, org_id, school_year),
-  foreign key (tenant_id, parent_id, parent_type, period span)
-    references core.academic_sessions (tenant_id, id, type, period span),
-  constraint academic_sessions_title_check check (num_nonnulls(title_en, title_ar) >= 1),
-  constraint academic_sessions_span_check check (
-    not isempty(span) and not lower_inf(span) and not upper_inf(span)
-    and lower_inc(span) and not upper_inc(span)),
-  constraint academic_sessions_parent_pair_check check ((parent_id is null) = (parent_type is null)),
-  constraint academic_sessions_tree_check check (
-    (type = 'school_year' and parent_id is null and school_year_id = id)
-    or (type = 'semester' and parent_type = 'school_year')
-    or (type = 'term' and parent_type in ('school_year', 'semester'))
-    or (type = 'grading_period' and parent_type in ('school_year', 'semester', 'term'))),
-  constraint academic_sessions_year_end_check check (
-    type <> 'school_year' or school_year = extract(year from upper(span) - 1)),
-  constraint academic_sessions_lifecycle_type_check check ((type = 'school_year') = (lifecycle is not null)),
-  constraint academic_sessions_year_excl exclude using gist
-    (tenant_id with =, org_id with =, span with &&) where (type = 'school_year' and status = 'active'),
-  constraint academic_sessions_sibling_excl exclude using gist
-    (tenant_id with =, parent_id with =, type with =, span with &&) where (parent_id is not null and status = 'active')
-);
-create unique index academic_sessions_current_key on core.academic_sessions (tenant_id, org_id)
-  where type = 'school_year' and lifecycle = 'current' and status = 'active';
-create index academic_sessions_year_idx on core.academic_sessions (tenant_id, school_year_id, type);
-create index academic_sessions_delta_idx on core.academic_sessions (tenant_id, date_last_modified);
-```
+**School days** (`core.calendar_dates`, core):
 
-- One tree per school per year: the year is the root (`school_year_id = id`);
-  semesters sit under the year; terms under the year or a semester (school
-  year, semesters, quarters, as American-curriculum schools run it); grading
-  periods under a term, a semester or the year. OneRoster allows each of
-  these. The six-column foreign key keeps a child in its parent's school,
-  year and `school_year`; the typed `PERIOD` key keeps it inside the parent's
+- The school's week is `orgs.weekend_days`. A day the school does not mark
+  is a school day or a weekend by that week, so a school that marks nothing
+  still has its days.
+- A row is a day the school marks as other than its week says: a holiday or
+  closure on a school day, an exam day, an early dismissal, a make-up day on
+  a weekend. Its kind is a `calendar_event` descriptor with a fixed meaning,
+  with an optional note in each language and `provisional` for a day that
+  waits on an announcement (holidays set by the moon), shown as expected.
+- One active row per school and date (`calendar_dates_day_key`). The days
+  belong to no year, so a school without years keeps them all the same.
+- Ed-Fi allows several events on one date; the product needs one kind of
+  day, so a date has one. Calendar events people attend (trips, meetings)
+  are the communication spec's `calendar_events`.
+
+**School years** (`school_years` module):
+
+- `core.academic_sessions` follows OneRoster's session tree (school year,
+  semester or term, grading period; parent; exclusive end) because the
+  OneRoster provider serves it. One tree per school per year: the year is
+  the root (`school_year_id = id`); semesters sit under the year; terms
+  under the year or a semester; grading periods under a term, a semester or
+  the year. A composite key keeps a child in its parent's school, year and
+  `school_year`, and a typed `PERIOD` key keeps it inside the parent's
   dates.
-- `school_year` is the calendar year in which the school year ends, OneRoster's
-  `schoolYear` and Ed-Fi's `SchoolYear` ([R1]). A check ties the root's value
-  to `upper(span) - 1`, and the foreign key carries it down, so a term cannot
-  export a different `schoolYear` from its year's.
-- Years of one school never overlap; siblings of one type under one parent
-  never overlap; adjacent spans are allowed.
-- `lifecycle` is the product's Upcoming, Current, Closed (product spec,
-  School year). One current year per school; making a year current is its own
-  step. A closed year is read-only: every system's write path checks the
-  year's lifecycle, the collaboration server included (section 7.6), and the
-  school-year spec owns reopening.
-- `sequence` orders siblings for display and for Ed-Fi term mapping.
-- `semester` and `term` are both kept because OneRoster distinguishes them.
-- Enrollments and other dated rows in other specs reference sessions with
-  `PERIOD` foreign keys to `(tenant_id, id, span)`, or to
-  `(tenant_id, id, type, span)` when the type matters. Such a range must be
-  bounded: an open-ended `[x,)` is rejected against a bounded session, so a
-  dated row ends at the earlier of its own end and its session's ([R2]
-  section 5, probe).
-
-```sql
-create table core.calendars (
-  tenant_id uuid not null,
-  id uuid not null default uuidv7(),
-  org_id uuid not null,
-  school_year_id uuid not null,
-  school_year_type text not null default 'school_year' check (school_year_type = 'school_year'),
-  code text not null check (code ~ '^[A-Za-z0-9_-]{1,60}$'),
-  kind text not null check (kind in ('school', 'grade_level', 'staff')),
-  title_en text check (char_length(title_en) between 1 and 80),
-  title_ar text check (char_length(title_ar) between 1 and 80),
-  status text not null default 'active' check (status in ('active', 'tobedeleted')),
-  date_last_modified timestamptz not null default statement_timestamp(),
-  version integer not null default 1 check (version > 0),
-  metadata jsonb not null default '{}'
-    check (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
-  created_at timestamptz not null default statement_timestamp(),
-  primary key (tenant_id, id),
-  unique (tenant_id, id, school_year_id),
-  foreign key (tenant_id) references core.tenants (tenant_id),
-  foreign key (tenant_id, school_year_id, school_year_type, school_year_id, org_id)
-    references core.academic_sessions (tenant_id, id, type, school_year_id, org_id),
-  constraint calendars_title_check check (num_nonnulls(title_en, title_ar) >= 1)
-);
-create unique index calendars_code_key on core.calendars (tenant_id, school_year_id, code) where status = 'active';
-create unique index calendars_school_key on core.calendars (tenant_id, school_year_id)
-  where kind = 'school' and status = 'active';
-
-create table core.calendar_grade_levels (
-  tenant_id uuid not null,
-  id uuid not null default uuidv7(),
-  calendar_id uuid not null,
-  grade_level_descriptor_id uuid not null,
-  grade_level_ns text not null generated always as ('grade_level') stored,
-  status text not null default 'active' check (status in ('active', 'tobedeleted')),
-  date_last_modified timestamptz not null default statement_timestamp(),
-  version integer not null default 1 check (version > 0),
-  metadata jsonb not null default '{}'
-    check (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
-  created_at timestamptz not null default statement_timestamp(),
-  primary key (tenant_id, id),
-  foreign key (tenant_id) references core.tenants (tenant_id),
-  foreign key (tenant_id, calendar_id) references core.calendars (tenant_id, id),
-  foreign key (tenant_id, grade_level_descriptor_id, grade_level_ns)
-    references core.descriptors (tenant_id, id, namespace)
-);
-create unique index calendar_grade_levels_key on core.calendar_grade_levels
-  (tenant_id, calendar_id, grade_level_descriptor_id) where status = 'active';
-
-create table core.calendar_dates (
-  tenant_id uuid not null,
-  id uuid not null default uuidv7(),
-  calendar_id uuid not null,
-  school_year_id uuid not null,
-  school_year_type text not null default 'school_year' check (school_year_type = 'school_year'),
-  day_on date not null,
-  span daterange not null generated always as (daterange(day_on, day_on + 1, '[)')) stored,
-  event_descriptor_id uuid not null,
-  event_ns text not null generated always as ('calendar_event') stored,
-  note_en text check (char_length(note_en) between 1 and 200),
-  note_ar text check (char_length(note_ar) between 1 and 200),
-  status text not null default 'active' check (status in ('active', 'tobedeleted')),
-  date_last_modified timestamptz not null default statement_timestamp(),
-  version integer not null default 1 check (version > 0),
-  metadata jsonb not null default '{}'
-    check (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
-  created_at timestamptz not null default statement_timestamp(),
-  primary key (tenant_id, id),
-  foreign key (tenant_id) references core.tenants (tenant_id),
-  foreign key (tenant_id, calendar_id, school_year_id) references core.calendars (tenant_id, id, school_year_id),
-  foreign key (tenant_id, school_year_id, school_year_type, period span)
-    references core.academic_sessions (tenant_id, id, type, period span),
-  foreign key (tenant_id, event_descriptor_id, event_ns) references core.descriptors (tenant_id, id, namespace)
-);
-create unique index calendar_dates_day_key on core.calendar_dates (tenant_id, calendar_id, day_on)
-  where status = 'active';
-```
-
-- Calendars follow Ed-Fi: one annual calendar per school year, enumerative,
-  and grade-level calendars as separate calendars listing their grades
-  ([R1] section 3.4). A school has exactly one `school` calendar per year;
-  `grade_level` calendars apply to their grades instead of it; `staff`
-  calendars carry staff-only days.
-- **Which calendar applies to a student** on a date: the calendar named on
-  their school year (section 6.8), else the grade-level calendar listing their
-  grade, else the school calendar.
-- Ed-Fi advises that a school with grade-level calendars "SHOULD NOT" also
-  keep an overall calendar of exceptions, so the Ed-Fi export sends the
-  `school` calendar as one more grade-level calendar listing the grades no
-  other calendar covers.
-- **Enumerative means every date.** Each calendar has exactly one active row
-  for every date in its year's span, weekends included (meaning `weekend`).
-  Nothing downstream computes weekdays or holidays: "is the school open on
-  d" is one indexed lookup. The year-setup tool generates the rows from the
-  weekend days and holiday ranges; changing weekend days mid-year regenerates
-  rows from a date forward. A nightly per-tenant check reports calendars whose
-  active row count differs from the span's length.
-- Ed-Fi allows several events on one date; the product needs one kind of day,
-  so a date has one event and an optional note. Calendar events people attend
-  (trips, meetings) are the communication spec's `calendar_events`.
-
-```sql
-create table core.academic_weeks (
-  tenant_id uuid not null,
-  id uuid not null default uuidv7(),
-  school_year_id uuid not null,
-  school_year_type text not null default 'school_year' check (school_year_type = 'school_year'),
-  number smallint not null check (number between 1 and 60),
-  span daterange not null,
-  label_en text check (char_length(label_en) between 1 and 40),
-  label_ar text check (char_length(label_ar) between 1 and 40),
-  status text not null default 'active' check (status in ('active', 'tobedeleted')),
-  date_last_modified timestamptz not null default statement_timestamp(),
-  version integer not null default 1 check (version > 0),
-  metadata jsonb not null default '{}'
-    check (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
-  created_at timestamptz not null default statement_timestamp(),
-  primary key (tenant_id, id),
-  foreign key (tenant_id) references core.tenants (tenant_id),
-  foreign key (tenant_id, school_year_id, school_year_type, period span)
-    references core.academic_sessions (tenant_id, id, type, period span),
-  constraint academic_weeks_span_check check (
-    not isempty(span) and not lower_inf(span) and not upper_inf(span)
-    and lower_inc(span) and not upper_inc(span) and upper(span) - lower(span) <= 7),
-  constraint academic_weeks_excl exclude using gist
-    (tenant_id with =, school_year_id with =, span with &&) where (status = 'active')
-);
-create unique index academic_weeks_number_key on core.academic_weeks (tenant_id, school_year_id, number)
-  where status = 'active';
-
-create table core.class_periods (
-  tenant_id uuid not null,
-  id uuid not null default uuidv7(),
-  org_id uuid not null,
-  school_year_id uuid not null,
-  school_year_type text not null default 'school_year' check (school_year_type = 'school_year'),
-  code text not null check (code ~ '^[A-Za-z0-9_-]{1,20}$'),
-  name_en text check (char_length(name_en) between 1 and 60),
-  name_ar text check (char_length(name_ar) between 1 and 60),
-  sequence smallint not null check (sequence between 1 and 50),
-  kind text not null default 'lesson' check (kind in ('lesson', 'registration', 'break', 'other')),
-  start_time time,
-  end_time time,
-  official_attendance boolean not null default false,
-  weekdays smallint[] not null default '{1,2,3,4,5,6,7}'
-    check (weekdays <@ '{1,2,3,4,5,6,7}' and cardinality(weekdays) between 1 and 7),
-  valid_during daterange not null,
-  status text not null default 'active' check (status in ('active', 'tobedeleted')),
-  date_last_modified timestamptz not null default statement_timestamp(),
-  version integer not null default 1 check (version > 0),
-  metadata jsonb not null default '{}'
-    check (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
-  created_at timestamptz not null default statement_timestamp(),
-  primary key (tenant_id, id),
-  foreign key (tenant_id) references core.tenants (tenant_id),
-  foreign key (tenant_id, school_year_id, school_year_type, school_year_id, org_id)
-    references core.academic_sessions (tenant_id, id, type, school_year_id, org_id),
-  foreign key (tenant_id, school_year_id, school_year_type, period valid_during)
-    references core.academic_sessions (tenant_id, id, type, period span),
-  constraint class_periods_name_check check (num_nonnulls(name_en, name_ar) >= 1),
-  constraint class_periods_times_check check (
-    (start_time is null) = (end_time is null) and (end_time is null or end_time > start_time)),
-  constraint class_periods_valid_during_check check (
-    not isempty(valid_during) and not lower_inf(valid_during) and not upper_inf(valid_during)
-    and lower_inc(valid_during) and not upper_inc(valid_during)),
-  constraint class_periods_code_excl exclude using gist
-    (tenant_id with =, org_id with =, school_year_id with =, code with =, valid_during with &&)
-    where (status = 'active'),
-  constraint class_periods_sequence_excl exclude using gist
-    (tenant_id with =, org_id with =, school_year_id with =, sequence with =, valid_during with &&)
-    where (status = 'active')
-);
-```
-
-- Academic weeks are Ed-Fi `AcademicWeek`: numbered teaching weeks inside the
-  year, for week grouping in coursework and reports. The typed `PERIOD` key
-  makes a week hang off a school year, not a term.
-- Class periods are Ed-Fi `ClassPeriod`: the named slots of a school day for
-  one year ("1", "2", "Break"), with default times. `official_attendance`
-  marks the period whose register counts as daily attendance ([R1] section
-  3.3). Rollover copies them to the next year, keeping their codes.
-- **A period changed mid-year is ended, not deleted**: its `valid_during`
-  ends on the change date and a new row with the same code starts there, so
-  past registers keep pointing at the period they were taken in and nothing
-  looks deleted to a delta reader. The administration research names
-  "changing periods mid-year hides past attendance" as a pitfall. Codes and
-  sequence numbers are unique among periods valid at the same time.
-- **Ed-Fi export keys.** Ed-Fi keys `ClassPeriod` by school and
-  `ClassPeriodName` and `AcademicWeek` by school and `WeekIdentifier`, neither
-  by year. The export sends one `ClassPeriod` per school and code (codes are
-  stable across years), and `WeekIdentifier` as `<school_year>-W<number>`, for
-  example `2027-W01`.
-- Per-day times (a short Thursday), bell schedules and rotation days belong
-  to the timetable spec, which references these rows.
+- `school_year` is the calendar year in which the school year ends,
+  OneRoster's `schoolYear` and Ed-Fi's `SchoolYear` ([R1]). Years of one
+  school never overlap; siblings of one type under one parent never
+  overlap.
+- `lifecycle` is the product's Upcoming, Current, Closed. One current year
+  per school; making a year current is its own step. A closed year freezes
+  its classes through the classes API's guard, which the module fills.
+- `target_days` is the number of school days the authority expects in the
+  year, counted against the school's days; `reenrolment_opened_at` is when
+  the school asked whether each student returns the year after.
+- `core.academic_weeks` are Ed-Fi `AcademicWeek`: numbered teaching weeks
+  inside a year, at most seven days each, never overlapping. The Ed-Fi
+  export sends `WeekIdentifier` as `<school_year>-W<number>`, for example
+  `2027-W01`.
+- `core.class_years` links a class to one year at a time, the class's own
+  dates (`classes.runs`, section 6.8) inside the year's; the year views of
+  classes are a filter over it. `core.student_school_years` is a student's
+  placement in a year (section 6.8).
 
 **Changing a school year's dates.** Foreign keys ignore `status` and no
-runtime role may delete calendar rows, so a year that has its calendar could
-never be shortened, and a mistyped end date could never be fixed. The one
-path is a definer function. The caller first brings the year's active terms,
-weeks, class periods and student school years inside the new dates, then calls
-it in the same transaction:
+runtime role may delete those rows, so a year could never be shortened, and
+a mistyped end date never fixed. The one path is the definer function
+`app.change_year_span(year, span, expected version)`. The caller first
+brings the year's active terms, weeks and student placements inside the new
+dates, then calls it in the same transaction. It refuses a closed year and a
+stale version, and refuses while any active term, week or placement falls
+outside the new dates, so the caller decides what happens to real data. It
+then deletes only tombstoned rows outside the span, updates the year and
+writes the audit row. A tombstoned row that another table still references
+makes the delete fail, and the change is refused with that constraint's
+error. Lengthening a year removes nothing.
 
-```sql
-create function app.change_year_span(p_year_id uuid, p_span daterange, p_expected_version integer)
-returns integer
-language plpgsql security definer
-set search_path = pg_catalog, pg_temp
-as $$
-declare
-  y record;
-  removed integer;
-begin
-  perform app.lock('year:' || p_year_id::text);
-  select s.tenant_id, s.id, s.org_id, s.span, s.lifecycle, s.version into y
-  from core.academic_sessions s
-  where s.tenant_id = app.tenant_id() and s.id = p_year_id and s.type = 'school_year' and s.status = 'active'
-  for update;
-  if not found then
-    raise exception 'school year % not found', p_year_id using errcode = 'P0002';
-  end if;
-  if y.version <> p_expected_version then
-    raise exception 'school year % has changed', p_year_id using errcode = 'F0412';
-  end if;
-  if y.lifecycle = 'closed' then
-    raise exception 'school year % is closed', p_year_id using errcode = '55000';
-  end if;
-  if exists (select 1 from core.academic_sessions s where s.tenant_id = y.tenant_id
-               and s.school_year_id = y.id and s.id <> y.id and s.status = 'active' and not p_span @> s.span)
-     or exists (select 1 from core.academic_weeks w where w.tenant_id = y.tenant_id
-               and w.school_year_id = y.id and w.status = 'active' and not p_span @> w.span)
-     or exists (select 1 from core.class_periods p where p.tenant_id = y.tenant_id
-               and p.school_year_id = y.id and p.status = 'active' and not p_span @> p.valid_during)
-     or exists (select 1 from core.student_school_years r where r.tenant_id = y.tenant_id
-               and r.school_year_id = y.id and r.status = 'active' and not p_span @> r.valid_during) then
-    raise exception 'active rows of school year % fall outside %', p_year_id, p_span using errcode = '23514';
-  end if;
-  delete from core.calendar_dates d
-  where d.tenant_id = y.tenant_id and d.school_year_id = y.id and not p_span @> d.day_on;
-  get diagnostics removed = row_count;
-  delete from core.academic_weeks w
-  where w.tenant_id = y.tenant_id and w.school_year_id = y.id and w.status = 'tobedeleted' and not p_span @> w.span;
-  delete from core.class_periods p
-  where p.tenant_id = y.tenant_id and p.school_year_id = y.id and p.status = 'tobedeleted'
-    and not p_span @> p.valid_during;
-  delete from core.student_school_years r
-  where r.tenant_id = y.tenant_id and r.school_year_id = y.id and r.status = 'tobedeleted'
-    and not p_span @> r.valid_during;
-  delete from core.academic_sessions s
-  where s.tenant_id = y.tenant_id and s.school_year_id = y.id and s.id <> y.id and s.status = 'tobedeleted'
-    and not p_span @> s.span;
-  update core.academic_sessions set span = p_span where tenant_id = y.tenant_id and id = y.id;
-  insert into audit.log (tenant_id, action, object_type, object_id, org_id, details)
-  values (y.tenant_id, 'academic_session.span_change', 'academic_session', y.id, y.org_id,
-          jsonb_build_object('from', y.span::text, 'to', p_span::text, 'removed_calendar_dates', removed));
-  return removed;
-end $$;
-revoke all on function app.change_year_span(uuid, daterange, integer) from public;
-grant execute on function app.change_year_span(uuid, daterange, integer) to app;
-```
+**Periods** (`timetable` module):
 
-- It refuses a closed year and a stale version, and refuses while any active
-  row still falls outside the new dates, so the caller decides what happens to
-  real data. It then deletes only generated calendar dates outside the span
-  and tombstoned rows outside it, updates the year and writes the audit row.
-  A tombstoned row that another table still references makes the delete fail
-  and the change is refused with that constraint's error.
-- Lengthening a year removes nothing; the year-setup tool then generates the
-  new dates.
-- Other specs whose rows hold a `PERIOD` key to a school year add their tables
-  to this function when they are specified.
+- `core.class_periods` are Ed-Fi `ClassPeriod`: the named slots of the
+  school's day ("1", "2", "Break"), each with its times, the weekdays it
+  runs on, and other times it keeps on some of them (`day_times`: Period 1
+  later on Thursdays). `official_attendance` marks the period whose
+  register counts as daily attendance ([R1] section 3.3).
+- **A period runs by date, not by year.** A change from a date ends the row
+  and starts another with the same code, so past registers keep the period
+  they were taken in and nothing looks deleted to a delta reader; the last
+  version runs on with no end. Codes and sequence numbers are unique among
+  the school's periods valid at the same time.
+- `core.bell_schedules` run whole days on other times (a late start, an exam
+  day, Ramadan hours): the periods held that day by code, each at its time;
+  a period left out is not held. A schedule may add periods of its own
+  (`class_periods.bell_schedule_id`), held on every day of the schedule and
+  never the day's official register. `core.timetable_days` says how the
+  timetable runs one date: on a schedule, as another day of its cycle, or
+  both.
+- A register's period is attendance's link table `core.register_periods`,
+  needing the timetable, so a school with attendance alone takes registers
+  by class and day. A register of the `period` kind always has its period:
+  `app.register_period_held` refuses one left without its
+  `register_periods` row.
+- **Ed-Fi export keys.** Ed-Fi keys `ClassPeriod` by school and
+  `ClassPeriodName`, not by year; the export sends one `ClassPeriod` per
+  school and code.
 
 ### 6.4 Locations
 
@@ -2696,7 +2430,6 @@ create table core.users (
   preferred_locale text check (preferred_locale in ('ar', 'en')),
   primary_org_id uuid,
   medical_alert boolean not null default false,
-  custody_alert boolean not null default false,
   erased_at timestamptz,
   import_run_id uuid,
   status text not null default 'active' check (status in ('active', 'tobedeleted')),
@@ -2770,11 +2503,13 @@ alter table core.file_subjects add foreign key (tenant_id, tagged_by_user_id) re
   templates are never derived ([R3] section 7).
 - `primary_org_id`: OneRoster `primaryOrg`, and the zone of the person's own
   schedule (section 4.11).
-- `medical_alert`, `custody_alert`: the record header's alert chips (product
-  spec, People). They are plaintext flags maintained by the health service
-  and the relationship service, because the rows behind them are unreadable
-  without their purpose (section 5) and the chip shows on every student page
-  (open question 4).
+- `medical_alert`: the record header's medical chip (product spec,
+  People), a plaintext flag the health service keeps, because the rows
+  behind it are unreadable without their purpose (section 5) and the chip
+  shows on every student page (open question 4). The custody chip is the
+  families module's: a student with a current link that may not collect
+  them, has limited educational rights or is cut off from the school, read
+  from the link's own flags, so a school without families has none.
 - Nationality, religion, birthplace and home languages are in
   `core.demographics`, behind the `demographics` purpose.
 - The duplicate check on "Adding a student" (name and birth date offers "Open
@@ -2989,95 +2724,48 @@ create index contact_points_delta_idx on core.contact_points (tenant_id, date_la
 
 ### 6.8 School membership, roles and relationships
 
-```sql
-create table core.student_school_years (
-  tenant_id uuid not null,
-  id uuid not null default uuidv7(),
-  student_user_id uuid not null,
-  org_id uuid not null,
-  school_year_id uuid not null,
-  school_year_type text not null default 'school_year' check (school_year_type = 'school_year'),
-  valid_during daterange not null,
-  grade_level_descriptor_id uuid,
-  grade_level_ns text not null generated always as ('grade_level') stored,
-  calendar_id uuid,
-  entry_type_descriptor_id uuid,
-  entry_type_ns text not null generated always as ('school_entry_type') stored,
-  exit_type_descriptor_id uuid,
-  exit_type_ns text not null generated always as ('school_exit_type') stored,
-  next_year_outcome text check (next_year_outcome in ('promote', 'retain', 'leave', 'graduate')),
-  source text not null check (source in ('manual', 'import', 'sis', 'oneroster', 'rollover')),
-  import_run_id uuid,
-  status text not null default 'active' check (status in ('active', 'tobedeleted')),
-  date_last_modified timestamptz not null default statement_timestamp(),
-  version integer not null default 1 check (version > 0),
-  metadata jsonb not null default '{}'
-    check (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
-  created_at timestamptz not null default statement_timestamp(),
-  primary key (tenant_id, id),
-  foreign key (tenant_id) references core.tenants (tenant_id),
-  foreign key (tenant_id, student_user_id) references core.users (tenant_id, id),
-  foreign key (tenant_id, school_year_id, school_year_type, school_year_id, org_id)
-    references core.academic_sessions (tenant_id, id, type, school_year_id, org_id),
-  foreign key (tenant_id, school_year_id, school_year_type, period valid_during)
-    references core.academic_sessions (tenant_id, id, type, period span),
-  foreign key (tenant_id, grade_level_descriptor_id, grade_level_ns)
-    references core.descriptors (tenant_id, id, namespace),
-  foreign key (tenant_id, calendar_id, school_year_id) references core.calendars (tenant_id, id, school_year_id),
-  foreign key (tenant_id, entry_type_descriptor_id, entry_type_ns)
-    references core.descriptors (tenant_id, id, namespace),
-  foreign key (tenant_id, exit_type_descriptor_id, exit_type_ns)
-    references core.descriptors (tenant_id, id, namespace),
-  constraint student_school_years_valid_during_check check (
-    not isempty(valid_during) and not lower_inf(valid_during) and not upper_inf(valid_during)
-    and lower_inc(valid_during) and not upper_inc(valid_during)),
-  constraint student_school_years_excl exclude using gist
-    (tenant_id with =, student_user_id with =, org_id with =, valid_during with &&) where (status = 'active')
-);
-create index student_school_years_student_idx on core.student_school_years (tenant_id, student_user_id)
-  where status = 'active';
-create index student_school_years_year_idx on core.student_school_years
-  (tenant_id, school_year_id, grade_level_descriptor_id) where status = 'active';
-create index student_school_years_delta_idx on core.student_school_years (tenant_id, date_last_modified);
-```
+A person is a member of a school while they hold a current role there
+(`core.user_roles`, below), and a student is a person holding the student
+role. That is core's whole answer to who is at the school. A year
+placement, a grade and a guardian are each a module's, and a school without
+the module has none of them.
 
-The school years module owns this table. A student's placement at a school
-for one school year: Ed-Fi
-`StudentSchoolAssociation` (entry date, `EntryGradeLevel`, `EntryType`,
-`ExitWithdrawType`, `Calendar`), and the source of OneRoster `User.grades`
-([R1]). It is the foundation's answer to "which grade is this child in",
-which calendar selection, the young student profile, announcement audiences
-by grade, the grade chip on the student list, OneRoster and rollover all ask:
+`core.student_school_years` is the school years module's
+(`packages/database/src/tables/school-years.ts`): a student's placement at
+a school for one school year, Ed-Fi `StudentSchoolAssociation` (entry date,
+`EntryType`, `ExitWithdrawType`). It is what rollover and the year's
+re-enrolment questions read:
 
 - `valid_during` lies inside the year (typed `PERIOD` key) and one student has
   one active placement at a school at a time. Moving within a year ends one
   row and starts another.
-- `grade_level_descriptor_id` is null only for a student the school has not
-  placed yet (the Admin Today card "students without a class" also lists
-  them).
-- `calendar_id` names the calendar that applies when it is not the one the
-  grade implies (section 6.3).
 - `entry_type` and `exit_type` are descriptors with fixed meanings (section
   6.2). A row with an exit type records a departure; a row that simply ends
   with its year is a student who continues.
 - `next_year_outcome` is the rollover's per-student decision (Retain, Leave,
-  Graduate, or promote); applying the rollover creates next year's rows
-  (promote: next grade, retain: same grade, entry `continuing`) and sets exit
-  types on this year's rows for those who leave or graduate.
+  Graduate, or promote), and `next_year_intention` what the family or the
+  student answered when the school asked; applying the rollover creates
+  next year's rows and sets exit types on this year's rows for those who
+  leave or graduate.
 - **Status on the student list** derives, never from
   `status = 'tobedeleted'`, from the student role and the departure below:
   enrolled (a current role), pre-enrolled (only a future one), left (a
   departure, or a role that has ended). Where the school has school years,
   these rows add graduated (the latest row has that exit) and unplaced (no
   row), and the list reads the year it shows.
-- **The young student profile** (K-2 home) applies when the current row's
-  grade meaning is `pre_kg` through `grade_2`; a student with no grade gets the
-  standard student profile. Birth date plays no part in it (section 6.7).
-- The Enrolment history tab lists these rows with the class enrolments,
-  naming each class's year.
 - The Ed-Fi export writes one `StudentSchoolAssociation` per row: entry date
   `lower(valid_during)`, exit date `upper(valid_during) - 1` when an exit is
   set, `End of school year` when the year ended without one.
+
+A student's grade is the grade levels module's `core.student_grades`
+(`packages/database/src/tables/grade-levels.ts`): one grade at a time per
+school, dated and open at the end until it changes, so a school may keep
+levels without years, and a grade set for later does not overlap a move
+made now. Announcement and calendar audiences by grade read it, and so
+does the young student profile (K-2 home),
+which applies while a student's grade has a meaning of `pre_kg` through
+`grade_2`; a student with no grade gets the standard profile, and birth
+date plays no part in it (section 6.7).
 
 ```sql
 create table core.student_departures (
@@ -3186,13 +2874,14 @@ create index user_roles_delta_idx on core.user_roles (tenant_id, date_last_modif
   `staff`), then `student`, then family; ties go to the earliest start, then
   the smaller id. Every served org therefore has exactly one primary, whatever
   starts or ends.
-- **Student roles are derived** from `student_school_years`: a student role at
-  a school runs from the first placement's start and stays open while the
-  latest placement has no exit type; it ends at the end of the placement that
-  records an exit. The summer between two years does not end it. A student who
-  changes school within the group gets an exit at the old school and a new
-  placement, and so a new role, at the new one (OneRoster IG 9.8).
-- **Family roles are derived** by one function in `packages/domain`, used by
+- **The student role is a fact of its own.** Adding a student opens it and
+  recording their leaving ends it on the last day (`student_departures`,
+  above); no placement derives it, so a school without years has students,
+  and the summer between two years does not end it. A student who changes
+  school within the group ends their role at the old school and gets a new
+  one at the new one (OneRoster IG 9.8).
+- **Family roles are derived** (the families module's
+  `packages/domain/src/family-roles.ts`), used by
   the relationship service and the importer alike, from the relation's
   `system_meaning`: `mother` and `father` give `parent`; `guardian` gives
   `guardian`; `step_parent`, `grandparent`, `sibling` and `other_relative`
@@ -3208,6 +2897,13 @@ create index user_roles_delta_idx on core.user_roles (tenant_id, date_last_modif
 - `position_descriptor_id`, `title_*`: the staff member's position and job
   title at that school, for display (Ed-Fi `StaffClassification` and
   `PositionTitle`).
+
+The relationships and their restrictions are the families module's
+(`packages/database/src/tables/families.ts`). Core never reads them: it asks
+who acts for a learner, by purpose, and the module answers through
+`app.guardian_permits` (`apps/api/src/people/acting.ts`). Where the module
+is off its rows grant nothing, and a learner who has reached the school's
+deciding age (`orgs.learners_decide_from`) answers for themself.
 
 ```sql
 create table core.user_relationships (
@@ -3335,8 +3031,8 @@ item 2; [R3] section 7):
   order and the guardianship evidence are in `core.relationship_restrictions`,
   a keyed extension behind the `custody` purpose gate, and their files are
   gated the same way (section 5). Staff without the registrar capability see
-  only the derived flags: `users.custody_alert`, `pickup`,
-  `educational_rights`, `communication_isolated`. Reading the extension goes
+  only the link's own flags: `pickup`, `educational_rights`,
+  `communication_isolated`, from which the custody chip derives. Reading the extension goes
   through `withPurpose` and is audited. These rows reveal family structure,
   which is sensitive in the UAE and, for unknown parentage, in Saudi Arabia
   ([R3] section 7).
@@ -5056,7 +4752,7 @@ The API process serving a cell answers a tenant not present in its
 Every database access happens inside a unit of work, one transaction per
 procedure. Repositories receive the transaction handle explicitly; there is no
 process-global database, tenant or user (AGENTS.md). The raw pools are visible
-only to `packages/database/src/cell/context.ts`.
+only to `packages/database/src/context.ts`.
 
 ```ts
 type ActorKind = "user" | "system" | "integration" | "import" | "operator";
@@ -5337,8 +5033,12 @@ their grants, and then runs three gates.
 **Gate 1: the catalogue check** must return no rows ([P] ran it: no rows for
 this schema, and one row per planted defect). The lists at its top are part of
 the contract: adding a definer function, a `DELETE` grant, a column-granted
-table or a purpose gate means changing them in the same review. The same
-check reads every table's erasure rule and its owner (section 4.3).
+table or a purpose gate means changing them in the same review. The check
+that runs is `CATALOGUE_CHECK` in `packages/database/src/gates.ts`, copied
+below; `scripts/check-rls.ts` runs it, then reads every table's erasure rule
+and the ownership gate (`packages/database/src/ownership-gate.ts`, section
+4.3), which reads the catalogue's tables, keys and columns and refuses every
+reach their owners do not allow.
 
 ```postgresql
 with runtime(role) as (values ('app'), ('site'), ('integration'), ('worker'), ('collab'), ('cell_io'), ('retention')),
@@ -5354,19 +5054,42 @@ delete_allowed(name, role) as (values
   ('core.sessions', 'retention'), ('core.auth_attempts', 'retention'),
   ('core.external_ids', 'retention'), ('core.contact_points', 'retention'),
   ('core.relationship_restrictions', 'retention'),
-  ('core.login_identities', 'retention'), ('core.passkeys', 'retention'), ('core.devices', 'retention'),
+  ('core.login_identities', 'retention'), ('core.federated_identities', 'retention'), ('core.passkeys', 'retention'), ('core.devices', 'retention'),
   ('core.files', 'retention'), ('core.file_subjects', 'retention'), ('core.user_preferences', 'retention'),
   ('core.saved_views', 'retention'), ('health.records', 'retention'),
-  ('audit.payloads', 'retention')),
+  ('health.requested_changes', 'retention'), ('health.contact_changes', 'retention'),
+  ('audit.payloads', 'retention'), ('core.calendar_feeds', 'retention'), ('core.document_files', 'retention'),
+  ('core.lesson_runs', 'retention'), ('core.lesson_code', 'retention'), ('core.lesson_projects', 'retention'),
+  ('core.lesson_shares', 'retention'), ('core.access_arrangements', 'retention'),
+  ('core.quiz_draws', 'retention'), ('core.quiz_sittings', 'retention'),
+  ('core.standard_evidence', 'retention'), ('core.goal_judgements', 'retention'),
+  ('core.standard_sittings', 'retention'), ('core.lesson_sittings', 'retention'),
+  ('core.work_sittings', 'retention'),
+  ('core.goal_reports', 'retention'),
+  ('core.standard_observations', 'retention'),
+  ('core.peer_reviews', 'retention'),
+  ('core.discussion_likes', 'retention'), ('core.peer_review_comments', 'retention'),
+  ('core.module_audiences', 'retention'), ('core.lesson_openings', 'retention'),
+  ('core.lesson_progress', 'retention'), ('core.lesson_releases', 'retention'),
+  ('core.lesson_watches', 'retention'), ('core.assignment_recipients', 'retention'),
+  ('core.class_group_members', 'retention'), ('core.work_comment_answers', 'retention'),
+  ('core.work_comment_replies', 'retention'), ('core.broadcast_recipients', 'retention'),
+  ('core.access_role_assignments', 'retention'), ('core.document_comments', 'retention'),
+  ('core.family_shares', 'retention'), ('core.absence_reports', 'retention'),
+  ('core.document_holds', 'retention')),
 unversioned_update_allowed(name, role) as (values
   ('core.sessions', 'app'), ('core.sessions', 'worker'), ('core.auth_attempts', 'app'), ('core.auth_attempts', 'worker'),
-  ('core.tenant_keys', 'worker'),
-  ('core.tenant_keys', 'retention'), ('core.document_versions', 'retention')),
+  ('core.tenant_keys', 'worker'), ('core.document_holds', 'app'), ('core.document_holds', 'worker'),
+  ('core.tenant_keys', 'retention'), ('core.document_versions', 'retention'),
+  ('core.lesson_responses', 'retention')),
 column_granted(name, role) as (values
   ('core.tenants', 'app'), ('core.orgs', 'app'), ('core.descriptors', 'app'), ('core.files', 'app'),
-  ('core.accounts', 'app'), ('core.passkeys', 'app'), ('core.access_roles', 'app')),
+  ('core.accounts', 'app'), ('core.passkeys', 'app'), ('core.access_roles', 'app'),
+  ('core.site_enquiries', 'site')),
 purpose_gated(name, policy, purpose) as (values
-  ('health.records', 'purpose_gate', 'health'), ('core.demographics', 'purpose_gate', 'demographics'),
+  ('health.records', 'purpose_gate', 'health'), ('health.requested_changes', 'purpose_gate', 'health'),
+  ('health.contact_changes', 'purpose_gate', 'health'),
+  ('core.demographics', 'purpose_gate', 'demographics'),
   ('core.relationship_restrictions', 'purpose_gate', 'custody'), ('core.files', 'files_purpose_gate', null)),
 required_trigger(name, trigger) as (values
   ('audit.log', 'hash_row'), ('audit.log', 'refuse_update_delete'), ('audit.log', 'refuse_truncate'),
@@ -5378,9 +5101,11 @@ outside_allowed(name, role, privilege) as (values
   ('ops.sms_suppressions', 'worker', 'INSERT'), ('ops.sms_suppressions', 'worker', 'DELETE'),
   ('pgboss.queue', 'app', 'SELECT')),
 definer_allowed(proc) as (values
-  ('app.tenant_lifecycle()'), ('app.search(text,text[],uuid[],real,uuid,integer)'), ('app.index_user()'),
+  ('app.tenant_lifecycle()'), ('app.tenant_entitlements_version()'), ('app.search(text,text[],uuid[],real,uuid,integer,date,uuid[])'), ('app.index_user()'),
   ('app.index_user_orgs()'), ('app.index_document()'), ('app.index_translation()'),
-  ('app.ensure_partitions(integer,date)'), ('app.change_year_span(uuid,daterange,integer)'))
+  ('app.index_host()'), ('app.index_message()'),
+  ('app.ensure_partitions(integer,date)'), ('app.change_year_span(uuid,daterange,integer)'),
+  ('app.register_period_held()'))
 select name, 'first column is not tenant_id' as problem from t
   where not exists (select 1 from pg_attribute a where a.attrelid = t.oid and a.attnum = 1 and a.attname = 'tenant_id')
 union all
@@ -5405,6 +5130,13 @@ select name, p.polname || ' lets retention change rows without an erasure approv
   where p.polcmd in ('w', 'd') and p.polroles @> array[(select oid from pg_roles where rolname = 'retention')]
     and name not in ('core.tenant_keys', 'core.auth_attempts')
     and coalesce(pg_get_expr(p.polqual, p.polrelid), '') not like '%erasure_%'
+union all
+select name, 'names an outside contact without an erasure rule' from t
+  where name <> 'core.erasure_approvals'
+    and exists (select 1 from pg_constraint k where k.conrelid = t.oid and k.contype = 'f'
+      and k.confrelid = to_regclass('core.message_contacts'))
+    and not exists (select 1 from pg_policy p where p.polrelid = t.oid and p.polcmd in ('w', 'd')
+      and p.polroles @> array[(select oid from pg_roles where rolname = 'retention')])
 union all
 select name, k.conname || ' does not lead with tenant_id' from t
   join pg_constraint k on k.conrelid = t.oid and k.contype in ('p', 'u', 'x', 'f')
@@ -5556,7 +5288,7 @@ that tries to reference a file the saving person cannot read.
 **Gate 3: static checks** on the TypeScript source and the migrations:
 
 - No `set_config(..., false)`, `SET ` or `RESET ` outside
-  `packages/database/src/cell/context.ts`.
+  `packages/database/src/context.ts`.
 - No `sql.raw` outside migrations.
 - No import of the raw pools outside the context module.
 - No migration contains `disable row level security`,
@@ -5573,6 +5305,20 @@ that tries to reference a file the saving person cannot read.
   naming a host table with a foreign key to `core.documents`.
 - Every procedure whose response carries a secret or special-category data is
   marked sensitive, and every table with a payload denylist has its test.
+- **Module boundaries** (`scripts/module-files.ts`). A module's files
+  (`MODULE_FILES`) are imported only by the module, a module that requires
+  it in every alternative, a link file that needs it (`LINK_FILES`) and the
+  composition roots (`COMPOSITION_ROOTS`). A web file asks whether a module
+  is on only where it may import that module, and only the files in
+  `MODULE_CATALOGUES` list every module. SQL in the API and the stores
+  names a table or function of a module in `SQL_CARVED` only where it may
+  import that module; the registries that span every module are
+  `SQL_READERS`, each with its reason. A migration function belongs to the
+  module in `FUNCTION_OWNERS`, or to core, and its body names only tables
+  its owner may reach. None of these has a list of exceptions to shrink.
+- No copy of the guardian rule or of the staff roles outside
+  `app.guardian_permits` and `app.staff_roles`, and no reach decided outside
+  `apps/api/src/core/reach.ts`.
 
 ## 9. Migration generation rules
 
@@ -5590,13 +5336,16 @@ that tries to reference a file the saving person cannot read.
    the tables, with `check_function_bodies` off, because the tables' policies
    call them; the one function that takes a table's row type comes with the
    views.
-3. **Rewritten in place until the modular-core work is finished**
-   (`docs/plans/modular-core.md`). A change edits the declarations, runs
-   `bun run db:baseline`, which generates the `tables` migration again from
-   empty and keeps every topic migration in its place, and edits by hand the
-   topic migration it touches. Nothing is appended, and a database made from
-   an earlier baseline is made again rather than migrated. From the first
-   release after that work an applied migration is never edited: a change
+3. **Rewritten in place until a release carries the baseline.** The
+   baselines replaced the old chains (341 cell, 25 directory and 15
+   business migrations) and were proved equal to them by diffing the
+   catalogue each built. No release has carried them yet, so a change edits
+   the declarations, runs `bun run db:baseline`, which generates the
+   `tables` migration again from empty and keeps every topic migration in
+   its place, and edits by hand the topic migration it touches. Nothing is
+   appended, and a database made from an earlier baseline is made again
+   rather than migrated. The release that carries the baseline recreates
+   production; from then on an applied migration is never edited: a change
    appends its generated migration and, right after it, the custom one that
    completes it (`drizzle-kit generate --custom --name <topic>`).
 4. **Generated migrations are never edited** (AGENTS.md). If the output is

@@ -8,9 +8,17 @@ family meets are pages of the school's site ([website.md](website.md)).
 
 ## Intakes
 
-One per school, school year and grade (`core.admission_intakes`): the
-first and last day families may apply, the places, the application form,
-the checklist template (documents, assessment, interview, fee, reference,
+An intake (`core.admission_intakes`) has a title and the day its entrants
+start, and belongs to no year or grade itself. Where the school keeps
+years it admits into one (`core.intake_years`), and where it keeps grades
+into one grade (`core.intake_grades`); each link is admissions' own,
+needing that module, and shows only where both are on. Where the school
+keeps no families, the applicant is an adult applying for themself, and
+sign-in, registration and the application speak to them in their own
+words.
+
+An intake holds the first and last day families may apply, the places and
+the application form. It also holds the checklist template (documents, assessment, interview, fee, reference,
 each required or not), fees as amounts in one currency, the day decisions
 are released, how many days an offer stays open, the day ages are counted
 on and the youngest and oldest age in months, and the order of preference

@@ -150,50 +150,15 @@ authorisation, school isolation or database ownership.
   only through `apps/api/src/core/reach.ts`, whose named scopes (`SCHOOL_WIDE`)
   say which capabilities open the whole school for each kind of work. A
   capability alone does not authorise a submitted student or class ID. Which
-  guardians the school may follow, contact, notify or call is
-  `app.guardian_permits`, and staff are the roles `app.staff_roles` names;
+  guardians the school may follow, contact, notify or call is the families
+  module's `app.guardian_permits`, and staff are the roles `app.staff_roles` names;
   `scripts/check-sources.ts` refuses a copy of either, or a `schoolWide` set
   outside `core/reach.ts`.
-- Every API namespace belongs to core or to one module in
-  `packages/domain/src/modules.ts`, and `apps/api/test/router.test.ts`
-  fails for one that belongs to neither. A module's procedures answer
-  `NOT_FOUND` at a school that does not have it, through the router, so
-  a new procedure is gated without being told; a reader that gathers from
-  several modules (home pages, search) asks `modulesOf` itself. The web's
-  pages of a module are declared once, by the module's `modulePages`
-  filling (`apps/web/src/utils/pages.ts`), which both the navigation and
-  the route guard read. `MODULES` also
-  states what each module requires, and every table belongs to core or one
-  module as well (see "The database"), so a module may own tables and no
-  namespace.
-- **Core names no module in code.** Where core or a module needs what
-  another module knows, it declares a typed point next to itself
-  (`point` in `apps/api/src/core/extension.ts`, `slot` in
-  `apps/web/src/utils/extension.ts`) and the module contributes to it from
-  its own files; `apps/api/src/extensions.ts` and
-  `apps/web/src/extensions.ts` list every module's contributions, and a point
-  yields only those of modules on at the school. A carved module lists its
-  files in `scripts/module-files.ts`, and the source checks refuse an import
-  of them from anywhere but the module, a module that requires it and the
-  composition roots, and a web file asking `modules.<id>` of a module it
-  may not import; only the files in `MODULE_CATALOGUES` list every module.
-  Name a point for what its consumer needs, and add none that nothing
-  consumes.
-- **What two modules do together lives in a link file.** A module that adds
-  to a point or slot of a module it does not require (homerooms carried by
-  the school-year rollover, say) does so from a file of its own listed in
-  `LINK_FILES` with its owner and what it needs. Its contributions declare
-  the same `needs`, so they run only where the owner and every need are on,
-  and only the composition roots import the file. An import of a module's
-  files that is not yet carved away is listed in `PENDING_IMPORTS`, grouped
-  by the work that removes it; the source check fails on one missing from
-  the list and on an entry that no longer occurs.
-- **The database cannot tell whether a module is on.** A module's rule that
-  must stop when the module is off runs in its stores, called from its API;
-  a trigger or key holds only what is true either way. A module keeps what
-  it mirrors from core tied to it by a key where it can (a homeroom place is
-  a cascading key to its enrolment), and writes again what it derives into
-  core when it next acts.
+- Every API namespace belongs to core (`CORE_SYSTEMS`) or to one module in
+  `packages/domain/src/modules.ts`, and a module's procedures answer
+  `NOT_FOUND` at a school that does not have it, through the router. How
+  modules are built and kept apart is "Modules" below; read it before
+  touching anything a module owns.
 - Every store in `packages/database/src/stores/` receives its transaction
   explicitly. Never introduce a process-global current school or current user.
 - `apps/web/src/server/` contains HTTP bridges and cookie handling only. Web
@@ -209,6 +174,170 @@ authorisation, school isolation or database ownership.
   defaults do not describe the Vite build and once shipped devtools into SSR.
 - Pure business rules and schemas live in `packages/domain/src/`. Node-based
   unit tests must not transitively import Bun SQL.
+
+---
+
+## Modules
+
+The product serves schools, coding schools, course academies and
+video-course schools, and there is no school type: every difference
+between them is a module that is on or off. Core is what every school
+has: people, sign-in, roles and access roles, courses, classes (each with
+its own dates, `runs`), enrolments, students (anyone holding the student
+role) and their leaving (`core.student_departures`), school days, messages,
+announcements, the calendar, documents, files, media, consents, privacy,
+search and billing. Core is enough to teach. Years, grades, homerooms,
+guardians and periods are modules (`school_years`, `grade_levels`,
+`homerooms`, `families`, `timetable`), as are coursework, attendance and
+e-learning. `docs/plans/modular-core.md` is the design and why.
+
+`MODULES` in `packages/domain/src/modules.ts` gives each module what it
+`requires` (alternative groups: `standards` needs coursework or
+e-learning), whether Basic includes it, whether the school switches it on
+itself, the API namespaces it owns and the words it owns (capabilities,
+notices, search and template kinds, calendar categories, setup steps). A
+module is on where the plan includes it, what it requires is on, and the
+school switched it on if it switches.
+
+**Core names no module, in code or in SQL.** Where core or a module needs
+what another knows, the consumer declares a typed point next to itself and
+the module that knows contributes to it from its own files:
+
+- API: `point<T>(name)`, `contribute` and `contributionsTo` in
+  `apps/api/src/core/extension.ts`. Every module's `ModuleContributions` is
+  listed in the composition root, `apps/api/src/extensions.ts`, and a point
+  yields only those of the modules on at the school. `everyContribution`
+  reads past the school's modules, and only for a point listed in
+  `EVERY_MODULE` with its reason (retention, record joins, file sweeps).
+- Workers: a module's background job is a `ModuleWorker`
+  (`apps/api/src/core/workers.ts`) listed in `MODULE_WORKERS`, and acts
+  only for schools where its module and its `needs` are on
+  (`schoolsWith`, `workerScope`). A worker with no request reads points
+  through that scope, as a request does.
+- Web: `slot<T>(name)`, `fill`, `useSlot` and `filled` in
+  `apps/web/src/utils/extension.ts`; every module's `ModuleFillings` is
+  listed in `apps/web/src/extensions.ts`. `everyFilling` is only for a page
+  before sign-in and for the switch that turns a module on.
+- Pages: core's are `CORE_PAGES` in `apps/web/src/utils/pages.ts`; a
+  module declares its own by filling `modulePages`, and the navigation
+  (`navItems`), the route guard and `apps/web/src/utils/pages.spec.ts` all
+  read that, so a page and its link cannot disagree.
+- Who acts for a learner: core asks `apps/api/src/people/acting.ts`
+  (`actorsFor`, `answerersFor`, `hearersFor`, `decidesFor`) and the
+  families module answers through the `actingFor` point. Without it, or
+  without a guardian, a learner of the school's deciding age
+  (`orgs.learners_decide_from`, 18 by default, set in Settings) answers
+  for themself, and one who does not decide still hears the school's
+  notices.
+- Before sign-in the portal knows only `identity.portalFace`: its
+  `audiences` (who besides students and staff signs in, such as families)
+  and `doors` (public pages such as `apply` and `badge`), each contributed
+  by its module.
+
+**What two modules do together lives in a link file.** A module that adds
+to a point or slot of a module it does not require, or owns a table that
+names one, does so from a file listed in `LINK_FILES`
+(`scripts/module-files.ts`) with its owner and `needs`. Its contributions
+declare the same `needs`, so they run only where the owner and every need
+are on. Only the composition roots import it, and the owner's other link
+files with the same needs. A link table is owned
+the same way in `TABLE_OWNERS`; it has rows only where both are on. An API
+namespace that needs a second module is in `LINK_SYSTEMS`.
+
+**The database cannot tell whether a module is on**, since entitlements
+live in the directory. A module's rule that must stop when it is off runs
+in its stores, called from its API; a trigger or key holds only what is
+true either way. An off module is dormant: its rows stay, and nothing of it
+refuses what core does. A module keeps what it mirrors from core tied by a
+key where it can (a homeroom place is a cascading key to its enrolment) and
+writes again what it derives into core when it next acts.
+
+**Wording.** A sentence that names a module's concept (a year, a grade, a
+guardian, a period) is never shown by core. Core shows the neutral
+sentence, `fooCore` in `messages/*.json`, through `useWords()`
+(`apps/web/src/utils/words.ts`): `words(m.fooCore)()`. The module puts its
+own back from its contributions with `replaceWords(m.fooCore, m.foo)`; a
+sentence that speaks of a second module names it in `alsoNeeds` or lives in
+a link file. A module words the emails and texts of its own notices
+through the `noticeLines` point (`apps/api/src/notifications/points.ts`).
+
+### The gates
+
+None has an exception list; any reach across an owner fails the build.
+
+- `bun run db:verify` runs the ownership gate (`scripts/check-rls.ts`,
+  `packages/database/src/ownership-gate.ts`). Every table belongs to core
+  or one module in `TABLE_OWNERS` (`packages/database/src/ownership.ts`),
+  with `needs` for a link table; every descriptor namespace in
+  `NAMESPACE_OWNERS`; every column that names a module's concept without a
+  key (`school_year_id`, `homeroom_class_id`, `class_period_id`,
+  `relationship_id`) in `COLUMN_OWNERS`. A key, a namespace column or a
+  concept column may reach core, its table's owner, what that owner
+  requires in every alternative, and its `needs` (`mayReach` in
+  `packages/domain/src/ownership.ts`); a core table reaches core alone. A
+  table or namespace with no owner, or an owner for something that does
+  not exist, fails too.
+- The source checks (`scripts/check-sources.ts`, rules in
+  `scripts/module-files.ts`) hold the code to the same owners. A module's
+  files (`MODULE_FILES`) are imported only by the module, a module that
+  requires it in every alternative, a link file that needs it and
+  `COMPOSITION_ROOTS`. A web file asks `modules.<id>` only of a module it
+  may import; otherwise it reads a slot the module fills. Only the files in
+  `MODULE_CATALOGUES` (the plan's features card) list every module. SQL
+  names a table or function of a module in `SQL_CARVED` only from a file
+  that may import it, or from a registry in `SQL_READERS`, each with its
+  reason. A migration function (`FUNCTION_OWNERS`) names only tables its
+  owner may reach.
+- `apps/api/test/router.test.ts` refuses a namespace owned by neither core
+  nor a module, and `apps/web/src/utils/pages.spec.ts` a route owned by
+  neither, or by both.
+- Browser specs walk schools without modules: `e2e/core-school.spec.ts`
+  (the seeded academy, from setup to a register, an assignment, a lesson
+  and a message), `e2e/module-surfaces.spec.ts` and
+  `e2e/module-pages.spec.ts` (no word of an off module, in English and
+  Arabic, using `e2e/fixtures/module-words.ts`), and
+  `e2e/self-learner.spec.ts`, `e2e/yearless-teaching.spec.ts`,
+  `e2e/plain-classes.spec.ts`, `e2e/core-classes.spec.ts`,
+  `e2e/module-gates.spec.ts`.
+
+### Adding to them
+
+A module:
+
+1. Add its id to `MODULE_IDS` after every module it requires, and its
+   `ModuleSpec` to `MODULES`. Type-check then asks for its name in the
+   console (`apps/ops/src/format.ts`) and on the plan's features card.
+2. Declare its tables in `packages/database/src/tables/`, list them in
+   `tables/index.ts`, give each an owner in `TABLE_OWNERS`, its concept
+   columns and namespaces in `COLUMN_OWNERS` and `NAMESPACE_OWNERS`, and
+   each table that keys a person an erasure rule. Run
+   `bun run db:baseline` (see "The database").
+3. Put its API in `apps/api/src/<module>/` and `apps/api/src/systems/`,
+   with the namespaces in its `systems`; its contributions in
+   `apps/api/src/<module>/contributions.ts`, listed in
+   `apps/api/src/extensions.ts`; a worker in `MODULE_WORKERS`.
+4. Put its web files in `apps/web/src/components/<module>/` with its
+   fillings (pages, links, tabs, Today cards, setup steps, words) in
+   `contributions.tsx`, listed in `apps/web/src/extensions.ts`.
+5. List its files in `MODULE_FILES`, and the module in `SQL_CARVED` once
+   no other file names its tables in SQL.
+6. Seed it, and add a browser spec of a school with it on and one with it
+   off.
+
+A link between two modules that do not require each other: put the code
+in a file of the owner named for the other (`apps/api/src/admissions/years.ts`),
+list it in `LINK_FILES` with `owner` and `needs`, give its contributions
+or fillings the same `needs`, and list it in the composition root. A link
+table is a table of its own with `{ owner, needs }` in `TABLE_OWNERS`,
+never a nullable column on either side.
+
+A point or a slot: declare it beside the code that reads it, named for what
+that code needs, typed with what a contribution gives; read it with
+`contributionsTo` or `useSlot`. Add none that nothing reads.
+
+A sentence that names a module's concept: add the neutral `fooCore` and the
+module's `foo` to both catalogues, show `words(m.fooCore)()` in core, and
+add `replaceWords(m.fooCore, m.foo)` to the module's fillings.
 
 ---
 
@@ -324,19 +453,19 @@ migration rules in 9). `bun run db:up` starts Postgres in Docker on port
   `search` (the search index), `views`, `triggers` and `access` (forced RLS
   and every grant). The directory and business databases have `tables` and
   `access`. Each object appears once, in its final form.
-- **Until the modular-core work (`docs/plans/modular-core.md`) is finished,
-  a change rewrites the baseline in place and appends nothing.** Change the
-  declarations and run `bun run db:baseline`, which writes the `tables`
-  migrations again from empty and keeps every topic migration's words and
-  place, then edit by hand the topic migration the change belongs to. Do not
-  run `db:generate` meanwhile, since it appends; the one use left is
+- **No release has carried the baseline yet, so a change still rewrites it
+  in place and appends nothing.** Change the declarations and run
+  `bun run db:baseline`, which writes the `tables` migrations again from
+  empty and keeps every topic migration's words and place, then edit by
+  hand the topic migration the change belongs to. Do not run `db:generate`
+  meanwhile, since it appends; the one use left is
   `bun run db:generate --custom --name <topic>` for a new topic, which
   `db:baseline` then keeps in its place. A database built from an earlier
   baseline cannot migrate to a rewritten one: `bun run db:reset` makes the
-  developer's databases again. "Never edit an applied migration" holds again
-  from the first release after that work, when changes are appended once
-  more: generated ones by `bun run db:generate`, `db:generate:directory` and
-  `db:generate:business`, hand-written ones by
+  developer's databases again. The release that carries the baseline
+  recreates production. From then on an applied migration is never edited
+  and changes are appended: generated ones by `bun run db:generate`,
+  `db:generate:directory` and `db:generate:business`, hand-written ones by
   `bun run db:generate --custom --name <topic>` right after the generated one
   they complete.
 - Never `drizzle-kit push`: it would drop what it does not understand.
@@ -352,9 +481,17 @@ migration rules in 9). `bun run db:up` starts Postgres in Docker on port
   is not bound to the current transaction. Special-category tables (health,
   demographics, custody) are invisible until `withPurpose` sets their purpose.
 - `bun run db:reset` provisions the roles, recreates `CELL_DATABASE`,
-  `DIRECTORY_DATABASE` and `BUSINESS_DATABASE`, migrates and seeds a school
-  group of two schools, a standalone school and a Basic-only school; it
-  prints the logins. The business database (customers, contracts, invoices,
+  `DIRECTORY_DATABASE` and `BUSINESS_DATABASE`, migrates and seeds five
+  schools, and prints the logins: a school group of two schools (Northwind,
+  `northwind` and `northwind-east`), a standalone school (`acme`), a school
+  on Basic alone (`fernhill`), and Lanternfield Code Academy
+  (`lanternfield`), adults on coursework, attendance and e-learning with no
+  years, grades, homerooms, families or timetable. Northwind and Acme are
+  entitled to every module. Every seeded account's password is
+  `SEED_PASSWORD` (`packages/database/src/seed.ts`); the academy's are
+  `admin.lanternfield@lanternfield.example.com`,
+  `teacher1.lanternfield@...` to `teacher3`, and `student1.lanternfield@...`
+  to `student12`. The business database (customers, contracts, invoices,
   operators) is the operator console's alone, as `business_admin`; no cell
   connects to it. Its schema is `packages/database/src/business/schema.ts`.
   `bun run db:verify` builds a cell
@@ -382,20 +519,9 @@ Schema decisions worth not undoing:
   kept as a school record, or erasure still to build. `db:verify` refuses a
   table with a key to `core.users` that has none.
 - **Every table belongs to core or one module** in
-  `packages/database/src/ownership.ts`, and so does every descriptor
-  namespace. A link table between two modules neither of which requires
-  the other is owned by one and `needs` the other. A key or a `*_ns`
-  column may reach core, its owner, what its owner requires in every
-  alternative, and what it needs (`mayReach` in
-  `packages/domain/src/ownership.ts`); a core table reaches core only.
-  A column that carries a module's concept without a key to its tables
-  (`school_year_id`, `homeroom_class_id`, `class_period_id`, `relationship_id`)
-  is owned by name in the same file, and a table holding one is held to
-  the same rule. `db:verify` refuses a table or namespace without an
-  owner, a concept column no table has, and any other reach, except those `packages/database/src/ownership-violations.ts`
-  lists by the module reached. A listed one that no longer occurs fails
-  too: remove the entry in the change that removes the reach, and never
-  add one.
+  `packages/database/src/ownership.ts`, and `db:verify` refuses any reach
+  its owner may not make, with no exceptions (see "Modules", "The gates").
+  A relation between two modules is a link table, never a nullable column.
 
 ---
 
