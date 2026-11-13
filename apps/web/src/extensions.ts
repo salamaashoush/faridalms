@@ -20,6 +20,7 @@ import { FAMILIES_ON_WEBSITE } from "./components/families/website";
 import { FAMILIES_IN_YEARS } from "./components/families/years";
 import { GRADE_LEVELS } from "./components/grade-levels/contributions";
 import { GRADE_LEVELS_WITH_COURSEWORK } from "./components/grade-levels/coursework";
+import { GRADE_LEVELS_WITH_FAMILIES } from "./components/grade-levels/families";
 import { GRADE_LEVELS_IN_SETUP } from "./components/grade-levels/setup";
 import { GRADE_LEVELS_ON_WEBSITE } from "./components/grade-levels/website";
 import { GRADE_LEVELS_IN_YEARS } from "./components/grade-levels/years";
@@ -76,6 +77,7 @@ export const MODULE_FILLINGS: readonly ModuleFillings[] = [
   GRADE_LEVELS_IN_YEARS,
   GRADE_LEVELS_ON_WEBSITE,
   GRADE_LEVELS_WITH_COURSEWORK,
+  GRADE_LEVELS_WITH_FAMILIES,
   HOMEROOMS,
   HOMEROOMS_IN_YEARS,
   PEER_REVIEW,

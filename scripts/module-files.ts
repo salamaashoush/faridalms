@@ -437,6 +437,10 @@ export const LINK_FILES: Readonly<
     owner: "grade_levels",
     needs: ["school_years"],
   },
+  "apps/web/src/components/grade-levels/families.tsx": {
+    owner: "grade_levels",
+    needs: ["families"],
+  },
   "apps/web/src/components/grade-levels/website.tsx": {
     owner: "grade_levels",
     needs: ["website"],

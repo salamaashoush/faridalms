@@ -8,8 +8,10 @@ import { rolloverClassParts } from "~/components/years/slots";
 import * as m from "~/i18n/messages";
 import { gradeOptionsQuery } from "~/queries/grade-levels";
 import { fill } from "~/utils/extension";
+import { replaceWords } from "~/utils/words";
 
 import { gradeChoices } from "./fields";
+import { gradeWordingIn, gradeWordsIn, useGradeWords } from "./words";
 
 const NONE = "none";
 
@@ -20,11 +22,12 @@ function RolloverGradeField({
   onChange,
 }: RolloverPartFieldProps) {
   const options = useSuspenseQuery(gradeOptionsQuery).data;
+  const words = useGradeWords();
   const gradeId = typeof value?.gradeId === "string" ? value.gradeId : "";
   return (
     <SelectField
       id={`roll-grade-${rowKey}`}
-      label={m.studentGrade()}
+      label={words.grade()}
       optional
       value={gradeId || NONE}
       options={[
@@ -40,11 +43,17 @@ function RolloverGradeField({
 export const GRADE_LEVELS_IN_YEARS: ModuleFillings = {
   module: "grade_levels",
   needs: ["school_years"],
-  fillings: [
-    fill(rolloverClassParts, {
-      key: "grade",
-      query: () => gradeOptionsQuery,
-      Field: RolloverGradeField,
-    }),
-  ],
+  fillings: (wording) => {
+    const words = gradeWordsIn(gradeWordingIn(wording));
+    return [
+      fill(rolloverClassParts, {
+        key: "grade",
+        query: () => gradeOptionsQuery,
+        Field: RolloverGradeField,
+      }),
+      replaceWords(m.rolloverClassesHintCore, words.rolloverClasses),
+      replaceWords(m.rolloverStudentsHintCore, words.rolloverStudents),
+      replaceWords(m.studentPlacementHistoryHintCore, words.placementHistory),
+    ];
+  },
 };

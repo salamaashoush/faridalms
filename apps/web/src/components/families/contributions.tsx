@@ -279,7 +279,6 @@ export const FAMILIES: ModuleFillings = {
     replaceWords(m.picturedRefusedCore, m.picturedRefused),
     replaceWords(m.picturedUnansweredCore, m.picturedUnanswered),
     replaceWords(m.picturedStudentsHintCore, m.picturedStudentsHint),
-    replaceWords(m.annAudienceHintCore, m.annAudienceHint, ["grade_levels"]),
     replaceWords(m.eventShapeSportHintCore, m.eventShapeSportHint),
     replaceWords(m.plannerExpectedHintCore, m.plannerExpectedHint),
     fill(eventShapes, PARENTS_EVENING),

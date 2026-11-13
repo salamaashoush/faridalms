@@ -2,7 +2,7 @@ import { SettingsPage } from "@faridalms/ui/system/settings-section";
 
 import type { ProgrammePartFieldProps } from "~/components/grading/slots";
 import type { GradeOptions } from "~/queries/grade-levels";
-import type { ModuleFillings } from "~/utils/extension";
+import type { Filling, ModuleFillings } from "~/utils/extension";
 
 import { settingsTabs } from "~/components/admin/slots";
 import {
@@ -18,7 +18,10 @@ import { formatList } from "~/utils/datetime";
 import { fill } from "~/utils/extension";
 import { replaceWords } from "~/utils/words";
 
+import type { GradeWords } from "./words";
+
 import { gradeChoices } from "./fields";
+import { gradeWordingIn, gradeWordsIn, useGradeWords } from "./words";
 
 const levelsOf = (value: unknown): string[] =>
   typeof value === "object" &&
@@ -34,15 +37,16 @@ function ProgrammeLevelsField({
   value,
   onChange,
 }: ProgrammePartFieldProps) {
+  const words = useGradeWords();
   const levels = levelsOf(value);
   const choices = read ? gradeChoices(read as GradeOptions) : [];
   return (
     <fieldset className="grid gap-3">
       <legend className="mb-1 text-sm leading-5 font-medium">
-        {m.gradingGradeLevels()}
+        {words.programmeLevels()}
       </legend>
       <p className="text-[13px] leading-[18px] text-muted-foreground">
-        {m.gradingGradeLevelsHint()}
+        {words.programmeLevelsHint()}
       </p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-3">
         {choices.map((grade) => (
@@ -79,7 +83,12 @@ function ReadingTab() {
 export const GRADE_LEVELS_WITH_COURSEWORK: ModuleFillings = {
   module: "grade_levels",
   needs: ["coursework"],
-  fillings: [
+  fillings: (wording) =>
+    gradeCourseworkFillings(gradeWordsIn(gradeWordingIn(wording))),
+};
+
+function gradeCourseworkFillings(words: GradeWords): Filling[] {
+  return [
     fill(programmeParts, {
       key: "levels",
       query: () => gradeOptionsQuery,
@@ -95,9 +104,9 @@ export const GRADE_LEVELS_WITH_COURSEWORK: ModuleFillings = {
       Field: ProgrammeLevelsField,
     }),
     fill(programmeDefaultWords, {
-      option: m.gradingByGradeLevelOption,
-      derived: m.gradingByGradeLevel,
-      hint: m.gradingClassProgrammeHint,
+      option: words.programmeOption,
+      derived: words.programmeDerived,
+      hint: words.programmeChoose,
     }),
     fill(settingsTabs, {
       value: "reading",
@@ -108,16 +117,10 @@ export const GRADE_LEVELS_WITH_COURSEWORK: ModuleFillings = {
       ],
       Tab: ReadingTab,
     }),
-    replaceWords(
-      m.gradingProgrammesEmptyHintCore,
-      m.gradingProgrammesEmptyHint,
-    ),
-    replaceWords(
-      m.gradingRetireProgrammeBodyCore,
-      m.gradingRetireProgrammeBody,
-    ),
-    replaceWords(m.gradingProgrammesHintCore, m.gradingProgrammesHint, [
+    replaceWords(m.gradingProgrammesEmptyHintCore, words.programmesEmpty),
+    replaceWords(m.gradingRetireProgrammeBodyCore, words.programmeRetire),
+    replaceWords(m.gradingProgrammesHintCore, words.programmesHint, [
       "school_years",
     ]),
-  ],
-};
+  ];
+}

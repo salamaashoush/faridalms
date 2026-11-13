@@ -164,7 +164,11 @@ const plan = (value: Draft) => ({
   location: value.location.trim() || null,
 });
 
-function issuesOf(draft: Draft, kinds: readonly AudienceKind[]) {
+function issuesOf(
+  draft: Draft,
+  kinds: readonly AudienceKind[],
+  words: InWords,
+) {
   return {
     title:
       draft.titleEn.trim() || draft.titleAr.trim() ? null : m.calTitleNeeded(),
@@ -181,7 +185,7 @@ function issuesOf(draft: Draft, kinds: readonly AudienceKind[]) {
       draft.endTime <= draft.startTime
         ? m.calEndsBefore()
         : null,
-    audiences: audienceIssue(draft.audiences, kinds),
+    audiences: audienceIssue(draft.audiences, kinds, words),
   };
 }
 
@@ -284,7 +288,7 @@ export function EventEditor({
   const translating = draft.bilingual && writing === other;
   const shownLocale: ContentLocale = translating ? other : draft.primaryLocale;
   const live = state === "published";
-  const issues = issuesOf(draft, kinds);
+  const issues = issuesOf(draft, kinds, words);
   const ready = !Object.values(issues).some(Boolean);
   // A draft saves as it is; only what readers would meet waits for these.
   const contentProblems = [
@@ -362,7 +366,7 @@ export function EventEditor({
     text: (value) => documentText(titleOf(value), value.description),
   });
   const failed = (error: unknown) => {
-    if (!editing.handles(error)) toast.error(getMessageFromError(error));
+    if (!editing.handles(error)) toast.error(getMessageFromError(error, words));
   };
 
   const change = useCallback((patch: Partial<Draft>) => {

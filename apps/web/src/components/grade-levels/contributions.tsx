@@ -30,6 +30,7 @@ import {
   studentGradesQuery,
 } from "~/queries/grade-levels";
 import { fill } from "~/utils/extension";
+import { replaceWords } from "~/utils/words";
 
 import type { ClassGradeRead } from "./fields";
 import type { GradeWords } from "./words";
@@ -159,10 +160,11 @@ function gradeFillings(words: GradeWords): Filling[] {
     fill(placeWords, { place: words.grade }),
     fill(audienceKinds, {
       scope: "grade",
-      label: m.annScopeGrade,
-      target: m.annGrade,
-      pick: m.annPickGrade,
+      label: words.audienceKind,
+      target: words.audienceTarget,
+      pick: words.audiencePick,
     }),
+    replaceWords(m.annAudienceTargetCore, words.audienceChoose),
     fill(settingsTabs, {
       value: "grades",
       place: 40,

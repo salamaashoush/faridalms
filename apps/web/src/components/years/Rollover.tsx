@@ -470,6 +470,7 @@ function RolloverDraft({
   confirming,
   setConfirming,
 }: RolloverDraftProps) {
+  const words = useWords();
   const queryClient = useQueryClient();
   const leaving = useRef(false);
   const [baseline, setBaseline] = useState(data.plan);
@@ -611,7 +612,7 @@ function RolloverDraft({
         {plan.classes.length > 0 ? (
           <FormSection
             title={m.rolloverClasses()}
-            description={m.rolloverClassesHint()}
+            description={words(m.rolloverClassesHintCore)()}
           >
             {plan.classes.map((row) => (
               <ClassRow
@@ -631,7 +632,7 @@ function RolloverDraft({
         ) : null}
         <FormSection
           title={m.rolloverStudents()}
-          description={m.rolloverStudentsHint({
+          description={words(m.rolloverStudentsHintCore)({
             date: formatDate(data.target.startsOn),
           })}
         >

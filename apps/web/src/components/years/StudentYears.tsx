@@ -26,6 +26,7 @@ import { placementsQuery, yearOptionsQuery } from "~/queries/years";
 import { saveArrival } from "~/server/years";
 import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 type Placements = Awaited<
   ReturnType<NonNullable<ReturnType<typeof placementsQuery>["queryFn"]>>
@@ -97,11 +98,12 @@ export function StudentYearOverview({ student }: StudentPartProps) {
 /** A student's placements over the years, below their classes. */
 export function StudentYearHistory({ student, today }: StudentPartProps) {
   const labels = useLabels();
+  const words = useWords();
   const { placements } = useSuspenseQuery(placementsQuery(student.id)).data;
   return (
     <RecordSection
       title={m.enrollmentHistoryTitle()}
-      description={m.studentPlacementHistoryHint()}
+      description={words(m.studentPlacementHistoryHintCore)()}
     >
       {placements.length === 0 ? (
         <RecordEmpty>{m.enrollmentHistoryEmpty()}</RecordEmpty>

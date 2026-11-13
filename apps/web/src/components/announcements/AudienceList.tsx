@@ -8,6 +8,8 @@ import { Button } from "@faridalms/ui/button";
 import { SelectField } from "@faridalms/ui/system/form-field";
 import { Plus, X } from "lucide-react";
 
+import type { InWords } from "~/utils/words";
+
 import { classTitle } from "~/components/classes/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useSlot } from "~/hooks/useSlot";
@@ -63,6 +65,7 @@ export function audienceSummary(
 export function audienceIssue(
   audiences: AudienceInput[],
   kinds: readonly AudienceKind[],
+  words: InWords,
 ): string | null {
   return audiences.some(
     (row) =>
@@ -71,7 +74,7 @@ export function audienceIssue(
         !wholeKind(kinds, row.scope) &&
         !row.targetId),
   )
-    ? m.annAudienceTarget()
+    ? words(m.annAudienceTargetCore)()
     : null;
 }
 

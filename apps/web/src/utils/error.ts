@@ -1,3 +1,5 @@
+import type { InWords } from "~/utils/words";
+
 import * as m from "~/i18n/messages";
 import { formatDate } from "~/utils/datetime";
 import { validationMessage } from "~/utils/validation";
@@ -204,7 +206,16 @@ function hasMessage(value: unknown): value is HasMessage {
   );
 }
 
-export function getMessageFromError(error: unknown): string {
+const unworded: InWords = (neutral) => neutral;
+
+/**
+ * The copy for what the API refused. A sentence a module words in the
+ * school's terms reads neutral unless the page hands over its `useWords()`.
+ */
+export function getMessageFromError(
+  error: unknown,
+  words: InWords = unworded,
+): string {
   if (error instanceof HttpError) {
     return hasMessage(error.data) ? error.data.message : error.message;
   }
@@ -477,7 +488,7 @@ export function getMessageFromError(error: unknown): string {
       case "announcements.no_ack":
         return m.annErrNoAck();
       case "announcements.audience_target":
-        return m.annAudienceTarget();
+        return words(m.annAudienceTargetCore)();
       case "announcements.empty":
         return m.annBodyNeeded();
       case "announcements.audience":

@@ -103,6 +103,102 @@ const GRADE_SENTENCES = {
     year_group: m.setupClassesBodyAsYearGroup,
     stage: m.setupClassesBodyAsStage,
   }),
+  audienceKind: termed(m.annScopeGrade, {
+    grade: m.annScopeGrade,
+    level: m.annScopeGradeAsLevel,
+    year_group: m.annScopeGradeAsYearGroup,
+    stage: m.annScopeGradeAsStage,
+  }),
+  audienceTarget: termed(m.annGrade, {
+    grade: m.annGrade,
+    level: m.annGradeAsLevel,
+    year_group: m.annGradeAsYearGroup,
+    stage: m.annGradeAsStage,
+  }),
+  audiencePick: termed(m.annPickGrade, {
+    grade: m.annPickGrade,
+    level: m.annPickGradeAsLevel,
+    year_group: m.annPickGradeAsYearGroup,
+    stage: m.annPickGradeAsStage,
+  }),
+  audienceChoose: termed(m.annAudienceTarget, {
+    grade: m.annAudienceTarget,
+    level: m.annAudienceTargetAsLevel,
+    year_group: m.annAudienceTargetAsYearGroup,
+    stage: m.annAudienceTargetAsStage,
+  }),
+  audienceReachesFamilies: termed(m.annAudienceHint, {
+    grade: m.annAudienceHint,
+    level: m.annAudienceHintAsLevel,
+    year_group: m.annAudienceHintAsYearGroup,
+    stage: m.annAudienceHintAsStage,
+  }),
+  rolloverClasses: termed(m.rolloverClassesHint, {
+    grade: m.rolloverClassesHint,
+    level: m.rolloverClassesHintAsLevel,
+    year_group: m.rolloverClassesHintAsYearGroup,
+    stage: m.rolloverClassesHintAsStage,
+  }),
+  rolloverStudents: termed(m.rolloverStudentsHint, {
+    grade: m.rolloverStudentsHint,
+    level: m.rolloverStudentsHintAsLevel,
+    year_group: m.rolloverStudentsHintAsYearGroup,
+    stage: m.rolloverStudentsHintAsStage,
+  }),
+  placementHistory: termed(m.studentPlacementHistoryHint, {
+    grade: m.studentPlacementHistoryHint,
+    level: m.studentPlacementHistoryHintAsLevel,
+    year_group: m.studentPlacementHistoryHintAsYearGroup,
+    stage: m.studentPlacementHistoryHintAsStage,
+  }),
+  programmeDerived: termed(m.gradingByGradeLevel, {
+    grade: m.gradingByGradeLevel,
+    level: m.gradingByGradeLevelAsLevel,
+    year_group: m.gradingByGradeLevelAsYearGroup,
+    stage: m.gradingByGradeLevelAsStage,
+  }),
+  programmeOption: termed(m.gradingByGradeLevelOption, {
+    grade: m.gradingByGradeLevelOption,
+    level: m.gradingByGradeLevelOptionAsLevel,
+    year_group: m.gradingByGradeLevelOptionAsYearGroup,
+    stage: m.gradingByGradeLevelOptionAsStage,
+  }),
+  programmeChoose: termed(m.gradingClassProgrammeHint, {
+    grade: m.gradingClassProgrammeHint,
+    level: m.gradingClassProgrammeHintAsLevel,
+    year_group: m.gradingClassProgrammeHintAsYearGroup,
+    stage: m.gradingClassProgrammeHintAsStage,
+  }),
+  programmeLevels: termed(m.gradingGradeLevels, {
+    grade: m.gradingGradeLevels,
+    level: m.gradingGradeLevelsAsLevel,
+    year_group: m.gradingGradeLevelsAsYearGroup,
+    stage: m.gradingGradeLevelsAsStage,
+  }),
+  programmeLevelsHint: termed(m.gradingGradeLevelsHint, {
+    grade: m.gradingGradeLevelsHint,
+    level: m.gradingGradeLevelsHintAsLevel,
+    year_group: m.gradingGradeLevelsHintAsYearGroup,
+    stage: m.gradingGradeLevelsHintAsStage,
+  }),
+  programmesEmpty: termed(m.gradingProgrammesEmptyHint, {
+    grade: m.gradingProgrammesEmptyHint,
+    level: m.gradingProgrammesEmptyHintAsLevel,
+    year_group: m.gradingProgrammesEmptyHintAsYearGroup,
+    stage: m.gradingProgrammesEmptyHintAsStage,
+  }),
+  programmeRetire: termed(m.gradingRetireProgrammeBody, {
+    grade: m.gradingRetireProgrammeBody,
+    level: m.gradingRetireProgrammeBodyAsLevel,
+    year_group: m.gradingRetireProgrammeBodyAsYearGroup,
+    stage: m.gradingRetireProgrammeBodyAsStage,
+  }),
+  programmesHint: termed(m.gradingProgrammesHint, {
+    grade: m.gradingProgrammesHint,
+    level: m.gradingProgrammesHintAsLevel,
+    year_group: m.gradingProgrammesHintAsYearGroup,
+    stage: m.gradingProgrammesHintAsStage,
+  }),
 };
 
 type GradeSentences = typeof GRADE_SENTENCES;

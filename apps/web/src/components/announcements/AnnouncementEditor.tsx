@@ -344,7 +344,8 @@ export function AnnouncementEditor({
   );
   const telling = draft.audiences.length > 0;
   const reachable =
-    audienceIssue(draft.audiences, kinds) === null && (telling || isPublic);
+    audienceIssue(draft.audiences, kinds, words) === null &&
+    (telling || isPublic);
 
   const persist = useCallback(
     async (value: Draft) => {
@@ -462,7 +463,7 @@ export function AnnouncementEditor({
     text: (value) => documentText(titleOf(value), value.body),
   });
   const failed = (error: unknown) => {
-    if (!editing.handles(error)) toast.error(getMessageFromError(error));
+    if (!editing.handles(error)) toast.error(getMessageFromError(error, words));
   };
 
   const change = useCallback(
@@ -566,7 +567,9 @@ export function AnnouncementEditor({
     if (!primaryTitle.trim()) found.push(m.annTitleNeeded());
     if (!documentWritten(draft.body)) found.push(m.annBodyNeeded());
     if (!reachable) {
-      found.push(audienceIssue(draft.audiences, kinds) ?? m.annErrAudience());
+      found.push(
+        audienceIssue(draft.audiences, kinds, words) ?? m.annErrAudience(),
+      );
       setDetailsOpen(true);
     }
     if (wordIssues.length) {
