@@ -64,8 +64,7 @@ what it leaves to do.
 
 - **Plans over the new modules** (the owner's call): which of
   `school_years`, `grade_levels`, `homerooms` and `families` Basic
-  includes (all four, until decided), what each plan includes, and which
-  modules the settings catalogue offers for sale.
+  includes (all four, until decided) and what each plan includes.
 - **Marketing website** rewritten for schools, coding schools, course
   academies and video-course schools.
 - **Fees**: what a learner owes and has paid, the next module to design.

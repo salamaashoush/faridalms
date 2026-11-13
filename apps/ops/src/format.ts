@@ -556,6 +556,8 @@ export const CHANGE_ACTION_NAMES: Record<string, string> = {
   "host.active": "Host went live",
   "host.failing": "Host stopped routing",
   "host.removed": "Host dropped after failing",
+  "module.offer": "Put on offer",
+  "module.withdraw": "Taken off offer",
 };
 
 /** Onboarding steps that belong together, in the order a school takes them. */

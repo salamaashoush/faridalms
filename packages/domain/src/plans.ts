@@ -94,6 +94,34 @@ export function availableModules(entitlements: SchoolEntitlements): ModuleId[] {
   return MODULE_IDS.filter((module) => entitlements.modules.includes(module));
 }
 
+/** The modules on offer, given those the operator took off it; any other is on offer. */
+export function offeredModules(withheld: readonly string[]): ModuleId[] {
+  const off = new Set<string>(withheld);
+  return MODULE_IDS.filter((module) => !off.has(module));
+}
+
+/**
+ * The modules a school's plan card lists: every one it has, then those on
+ * offer that it could ask about. One neither held nor offered is not named.
+ */
+export function cardModules(input: {
+  modules: readonly ModuleId[];
+  has: (module: ModuleId) => boolean;
+  offered: readonly ModuleId[];
+}): ModuleId[] {
+  const offered = new Set<ModuleId>(input.offered);
+  return input.modules.filter(
+    (module) => input.has(module) || offered.has(module),
+  );
+}
+
+/** An operator puts a module on offer to schools that lack it, or takes it off, saying why. */
+export const setOfferSchema = v.object({
+  module: v.picklist(MODULE_IDS),
+  offered: v.boolean(),
+  reason: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(500)),
+});
+
 const bytes = v.pipe(
   v.number(),
   v.integer(),

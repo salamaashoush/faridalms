@@ -2,7 +2,7 @@
   "type": "base",
   "version": "9",
   "dialect": "postgres",
-  "id": "e8c9af33-a52f-4168-ab9e-e707421af6d8",
+  "id": "8c495194-06de-41fd-9a4c-9ce7f917c2fd",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -79,6 +79,25 @@
         "n|rel|public.login_index",
         "n|type|public.login_index",
         "n|rel|public.login_index_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "module_offers"
+      ],
+      "writes": [
+        "s|tbl|public.module_offers",
+        "n|tbl|public.module_offers",
+        "e|tbl|public.module_offers",
+        "n|rel|public.module_offers",
+        "n|type|public.module_offers",
+        "n|rel|public.module_offers_pkey"
       ],
       "reads": [
         "n|sch|public"
@@ -620,6 +639,12 @@
     },
     {
       "schema": "public",
+      "name": "module_offers",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
       "name": "school_entitlements",
       "isRlsEnabled": false,
       "entityType": "tables"
@@ -1065,6 +1090,45 @@
       "notNull": true,
       "dimensions": 0,
       "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "module_offers",
+      "name": "module",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "module_offers",
+      "name": "offered",
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "module_offers",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "statement_timestamp()",
       "generated": null,
       "identity": null,
       "entityType": "columns"
@@ -2382,6 +2446,16 @@
     },
     {
       "schema": "public",
+      "table": "module_offers",
+      "name": "module_offers_pkey",
+      "columns": [
+        "module"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
       "table": "school_entitlements",
       "name": "school_entitlements_pkey",
       "columns": [
@@ -2533,7 +2607,7 @@
       "schema": "public",
       "table": "changes",
       "name": "changes_subject_type_check",
-      "value": "subject_type in ('cell', 'tenant', 'school', 'host', 'sso_domain')",
+      "value": "subject_type in ('cell', 'tenant', 'school', 'host', 'sso_domain', 'module')",
       "entityType": "checks"
     },
     {
@@ -2604,6 +2678,13 @@
       "table": "login_index",
       "name": "login_index_key_check",
       "value": "octet_length(key) = 32",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "module_offers",
+      "name": "module_offers_module_check",
+      "value": "module in ('school_years', 'grade_levels', 'homerooms', 'families', 'coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms')",
       "entityType": "checks"
     },
     {

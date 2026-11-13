@@ -32,6 +32,7 @@ import {
   changeLogQuery,
   CHANGES_PER_PAGE,
 } from "../change-log";
+import { moduleName } from "../format";
 import { currentAccess, requireArea, requireFreshSignIn } from "./access";
 import { businessDb } from "./business";
 import { activateSchool, beginSchool, provisionSchool } from "./creation";
@@ -290,6 +291,12 @@ export const listChanges = createServerFn({ method: "GET" })
           return tenantRecord(change.subjectId, null);
         case "sso_domain":
           return tenantRecord(change.tenantId, change.subjectId);
+        case "module":
+          return {
+            name: moduleName(change.subjectId),
+            detail: "Offer to schools",
+            schoolId: null,
+          };
         case "cell":
           return {
             name: `Cell ${change.subjectId}`,

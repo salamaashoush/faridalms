@@ -21,6 +21,7 @@ import { availableModules, limitsOf } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
 
 import { sendLead, stableIntakeId } from "../core/intake";
+import { planCard, requireAskable } from "../core/plan-card";
 import {
   audit,
   readProcedure,
@@ -87,19 +88,10 @@ export const saveProfile = writeProcedure
     return saved;
   });
 
-/**
- * The school's switches, which modules its plan lets it switch on, and
- * whether its administrators can ask about one it does not have.
- */
-export const features = readProcedure.handler(async ({ context }) => ({
-  switches: await schoolFeatures(
-    context.tx,
-    context.tenantId,
-    context.schoolId,
-  ),
-  available: availableModules(context.school.entitlements),
-  canAsk: Boolean(context.intake),
-}));
+/** What the school's plan card shows. */
+export const features = readProcedure.handler(({ context }) =>
+  planCard(context),
+);
 
 /**
  * An administrator asks about a module the school's plan does not have:
@@ -112,8 +104,7 @@ export const askAboutModule = readProcedure
     requireCapability(context, "school:manage");
     if (!context.intake)
       throw new ORPCError("FORBIDDEN", { message: "intake.unavailable" });
-    if (availableModules(context.school.entitlements).includes(input.module))
-      throw new ORPCError("CONFLICT", { message: "module.in_plan" });
+    await requireAskable(context, input.module);
     const [person, contacts] = await Promise.all([
       viewer(context.tx, context.actor.userId),
       contactsOf(context.tx, context.tenantId, context.actor.userId),
@@ -188,15 +179,7 @@ export const setFeature = writeProcedure
         { enabled: input.enabled },
       ),
     });
-    return {
-      switches: await schoolFeatures(
-        context.tx,
-        context.tenantId,
-        context.schoolId,
-      ),
-      available: availableModules(context.school.entitlements),
-      canAsk: Boolean(context.intake),
-    };
+    return planCard(context);
   });
 
 /** Where the school's staff may look for pictures beyond the sets the product carries. */

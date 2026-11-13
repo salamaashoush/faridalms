@@ -218,6 +218,8 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "reading.norms": m.auditReadingNorms,
   "reading.norms_reset": m.auditReadingNormsReset,
   "entitlements.update": m.auditEntitlementsUpdate,
+  "module.offer": m.auditModuleOffer,
+  "module.withdraw": m.auditModuleWithdraw,
   "onboarding.done": m.auditOnboardingDone,
   "onboarding.undone": m.auditOnboardingUndone,
   "sso_domain.add": m.auditSsoDomainAdd,

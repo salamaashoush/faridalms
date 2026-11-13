@@ -1,6 +1,7 @@
 import type { ModuleId } from "@faridalms/domain/modules";
 
 import { MODULE_IDS, SWITCHED_MODULES } from "@faridalms/domain/modules";
+import { cardModules } from "@faridalms/domain/plans";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { SettingsSection } from "@faridalms/ui/system/settings-section";
@@ -48,8 +49,10 @@ const MODULE_LABEL: Record<ModuleId, () => string> = {
 };
 
 /**
- * The modules a school's administrators switch on. Their plan decides which
- * are available; one outside it shows, locked, so they know it exists.
+ * The modules a school's administrators switch on, and what its plan
+ * includes. Their plan decides which switches are available; one outside it
+ * shows, locked, so they know it exists. Of the other modules the card
+ * names those the school has and those on offer it may ask about.
  */
 export function FeaturesCard() {
   const words = useWords();
@@ -139,9 +142,13 @@ export function FeaturesCard() {
           {m.modulesInPlanTitle()}
         </h3>
         <ul className="grid gap-x-10 gap-y-1.5 sm:grid-cols-2">
-          {MODULE_IDS.filter(
-            (id) => !(SWITCHED_MODULES as readonly string[]).includes(id),
-          ).map((id) => (
+          {cardModules({
+            modules: MODULE_IDS.filter(
+              (id) => !(SWITCHED_MODULES as readonly string[]).includes(id),
+            ),
+            has: (id) => user.modules[id],
+            offered: data.offered,
+          }).map((id) => (
             <li
               key={id}
               className="flex items-center justify-between gap-3 text-sm leading-5"

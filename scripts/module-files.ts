@@ -725,7 +725,7 @@ export function moduleImportProblems(
  */
 export const MODULE_CATALOGUES: Readonly<Record<string, string>> = {
   "apps/web/src/components/admin/FeaturesCard.tsx":
-    "A school's plan lists every module, on or off, so its administrators know what exists and can ask about one they lack.",
+    "A school's plan card weighs every module, naming those it has and those on offer, so its administrators know what they hold and can ask about one they lack.",
 };
 
 const NAMED_MODULE = new RegExp(

@@ -27,7 +27,7 @@ CREATE TABLE "changes" (
 	"after" jsonb,
 	"reason" text NOT NULL,
 	CONSTRAINT "changes_actor_check" CHECK (actor ~ '^(operator|cell):[A-Za-z0-9_-]{1,64}$'),
-	CONSTRAINT "changes_subject_type_check" CHECK (subject_type in ('cell', 'tenant', 'school', 'host', 'sso_domain')),
+	CONSTRAINT "changes_subject_type_check" CHECK (subject_type in ('cell', 'tenant', 'school', 'host', 'sso_domain', 'module')),
 	CONSTRAINT "changes_action_check" CHECK (char_length(action) between 1 and 60),
 	CONSTRAINT "changes_reason_check" CHECK (char_length(reason) between 1 and 500)
 );
@@ -59,6 +59,13 @@ CREATE TABLE "login_index" (
 	"tenant_id" uuid,
 	CONSTRAINT "login_index_pkey" PRIMARY KEY("key","tenant_id"),
 	CONSTRAINT "login_index_key_check" CHECK (octet_length(key) = 32)
+);
+--> statement-breakpoint
+CREATE TABLE "module_offers" (
+	"module" text PRIMARY KEY,
+	"offered" boolean NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	CONSTRAINT "module_offers_module_check" CHECK (module in ('school_years', 'grade_levels', 'homerooms', 'families', 'coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms'))
 );
 --> statement-breakpoint
 CREATE TABLE "school_entitlements" (

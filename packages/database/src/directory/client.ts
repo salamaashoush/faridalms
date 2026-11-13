@@ -3,6 +3,7 @@ import type { OnboardingItem } from "@faridalms/domain/onboarding";
 import type { SchoolEntitlements } from "@faridalms/domain/plans";
 
 import { CERTIFIED_STATES } from "@faridalms/domain/hosts";
+import { offeredModules } from "@faridalms/domain/plans";
 import { SQL } from "bun";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
@@ -26,6 +27,7 @@ import {
   cells,
   hosts,
   loginIndex,
+  moduleOffers,
   schoolEntitlements,
   schoolOnboarding,
   schools,
@@ -200,6 +202,15 @@ export function openDirectory(url: string, ttlMs = 60_000) {
             ),
           );
         return row !== undefined;
+      }),
+    /** The modules the platform offers to schools that do not have them. */
+    offered: () =>
+      cached("offered", async () => {
+        const withheld = await db
+          .select({ module: moduleOffers.module })
+          .from(moduleOffers)
+          .where(eq(moduleOffers.offered, false));
+        return offeredModules(withheld.map((row) => row.module));
       }),
     /**
      * Notes the entitlements version a unit of work read from the tenant's

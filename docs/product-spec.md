@@ -44,6 +44,17 @@ early years and coding), standards, admissions, student records, badges,
 the website and custom domains, video, SSO and SMS. Coursework, attendance
 and e-learning each work on core alone.
 
+A school's administrators see their plan in Settings: every module the
+school has, marked Included, and each module it lacks that the platform
+offers, with Ask about this, which sends the console a lead. Which modules
+are on offer is the operator's decision, made in the console's catalogue
+and kept in the directory, which every cell reads within a minute; a
+module is on offer until the operator takes it off. A module the school
+neither has nor could buy is not named, and the API refuses a question
+about one. Single sign-on starts off offer, since it has no provider
+sign-in yet. The e-learning and early years switches stay at the top of
+the card as before.
+
 Whether a class and its learners are young belongs to the early years
 module. Whoever manages classes marks a class "For young children" on its
 form; a learner is young while any class they learn in that day is young.

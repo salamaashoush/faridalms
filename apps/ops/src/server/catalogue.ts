@@ -8,6 +8,8 @@ import {
   savePlanVersion,
 } from "@faridalms/database/business/catalogue";
 import { eventsOf } from "@faridalms/database/business/events";
+import { MODULE_IDS } from "@faridalms/domain/modules";
+import { setOfferSchema } from "@faridalms/domain/plans";
 import {
   addOnVersionSchema,
   businessToday,
@@ -18,6 +20,7 @@ import * as v from "valibot";
 
 import { requireArea } from "./access";
 import { requireBusiness } from "./business";
+import { directoryAdmin as directory } from "./directory-admin";
 import { operatorNames } from "./operators";
 
 type Outcome = { ok: true } | { ok: false; message: string };
@@ -190,4 +193,48 @@ export const getAddOn = createServerFn({ method: "GET" })
         versions.map((version) => version.id),
       )),
     };
+  });
+
+/**
+ * Every module with whether it is offered to schools that do not have it,
+ * and when the operator last decided; a module never decided on is offered.
+ */
+export const getOffers = createServerFn({ method: "GET" }).handler(async () => {
+  await requireArea("catalogue");
+  const decided = new Map(
+    (await directory().offers()).map((row) => [row.module, row]),
+  );
+  return MODULE_IDS.map((module) => {
+    const row = decided.get(module);
+    return {
+      id: module,
+      module,
+      offered: row?.offered ?? true,
+      changedAt: row ? row.updatedAt.toISOString() : null,
+    };
+  });
+});
+
+/**
+ * Puts a module on offer to schools that lack it, or takes it off. Cells
+ * read the offer within the directory cache's minute.
+ */
+export const setOffer = createServerFn({ method: "POST" })
+  .validator((input: v.InferInput<typeof setOfferSchema>) =>
+    v.parse(setOfferSchema, input),
+  )
+  .handler(async ({ data }): Promise<Outcome> => {
+    const { operator } = await requireArea("catalogue");
+    const changed = await directory().setOffer({
+      ...data,
+      operatorId: operator.id,
+    });
+    return changed
+      ? { ok: true }
+      : {
+          ok: false,
+          message: data.offered
+            ? "That module is already on offer."
+            : "That module is already off offer.",
+        };
   });

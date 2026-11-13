@@ -1,4 +1,5 @@
 import type { HostRole, HostState } from "@faridalms/domain/hosts";
+import type { ModuleId } from "@faridalms/domain/modules";
 import type { OnboardingItem } from "@faridalms/domain/onboarding";
 import type { SchoolAccess, SchoolNotice } from "@faridalms/domain/plans";
 
@@ -346,6 +347,28 @@ export const schoolEntitlements = pgTable(
 );
 
 /**
+ * Whether the platform offers a module to schools that do not have it, as
+ * the operator decided. A module with no row is on offer.
+ */
+export const moduleOffers = pgTable(
+  "module_offers",
+  {
+    module: text("module").$type<ModuleId>().primaryKey(),
+    offered: boolean("offered").notNull(),
+    updatedAt: instant("updated_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+  },
+  () => [
+    check(
+      "module_offers_module_check",
+      // The registry's ids, written out because a check is fixed DDL.
+      sql`module in ('school_years', 'grade_levels', 'homerooms', 'families', 'coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'elearning', 'early_years', 'coding', 'video', 'sso', 'sms')`,
+    ),
+  ],
+);
+
+/**
  * Which tenants hold a sign-in name, for sign-in on the bare portal domain,
  * where the person names no school. The key is an HMAC of the name under a
  * platform secret the directory never holds, so the directory keeps no
@@ -487,7 +510,7 @@ export const changes = pgTable(
       .default(sql`statement_timestamp()`),
     actor: text("actor").notNull(),
     subjectType: text("subject_type")
-      .$type<"cell" | "tenant" | "school" | "host" | "sso_domain">()
+      .$type<"cell" | "tenant" | "school" | "host" | "sso_domain" | "module">()
       .notNull(),
     subjectId: text("subject_id").notNull(),
     action: text("action").notNull(),
@@ -502,7 +525,7 @@ export const changes = pgTable(
     ),
     check(
       "changes_subject_type_check",
-      sql`subject_type in ('cell', 'tenant', 'school', 'host', 'sso_domain')`,
+      sql`subject_type in ('cell', 'tenant', 'school', 'host', 'sso_domain', 'module')`,
     ),
     check("changes_action_check", sql`char_length(action) between 1 and 60`),
     check("changes_reason_check", sql`char_length(reason) between 1 and 500`),

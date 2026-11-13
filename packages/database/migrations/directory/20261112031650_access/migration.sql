@@ -50,3 +50,8 @@ grant select, insert, delete on login_index to directory_sync;
 grant select on school_onboarding to directory_reader;
 grant select, insert on school_onboarding to directory_sync;
 grant select, insert, delete on school_onboarding to directory_admin;
+
+-- Which modules are on offer is the operator's to set and every cell's to
+-- read, for its schools' plan cards and the questions they may ask.
+grant select on module_offers to directory_reader;
+grant select, insert, update on module_offers to directory_admin;

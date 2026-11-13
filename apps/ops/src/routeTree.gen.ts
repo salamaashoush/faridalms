@@ -21,6 +21,7 @@ import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as CatalogueIndexRouteImport } from './routes/catalogue.index'
+import { Route as CatalogueModulesRouteImport } from './routes/catalogue.modules'
 import { Route as CustomersIndexRouteImport } from './routes/customers.index'
 import { Route as CustomersCustomerIdRouteImport } from './routes/customers.$customerId'
 import { Route as IntakeBillingRouteImport } from './routes/intake/billing'
@@ -101,6 +102,11 @@ const AuthLogoutRoute = AuthLogoutRouteImport.update({
 const CatalogueIndexRoute = CatalogueIndexRouteImport.update({
   id: '/catalogue/',
   path: '/catalogue/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CatalogueModulesRoute = CatalogueModulesRouteImport.update({
+  id: '/catalogue/modules',
+  path: '/catalogue/modules',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CustomersIndexRoute = CustomersIndexRouteImport.update({
@@ -222,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
+  '/catalogue/modules': typeof CatalogueModulesRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
   '/intake/billing': typeof IntakeBillingRoute
   '/intake/leads': typeof IntakeLeadsRoute
@@ -257,6 +264,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
+  '/catalogue/modules': typeof CatalogueModulesRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
   '/intake/billing': typeof IntakeBillingRoute
   '/intake/leads': typeof IntakeLeadsRoute
@@ -293,6 +301,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
+  '/catalogue/modules': typeof CatalogueModulesRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
   '/intake/billing': typeof IntakeBillingRoute
   '/intake/leads': typeof IntakeLeadsRoute
@@ -330,6 +339,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
+    | '/catalogue/modules'
     | '/customers/$customerId'
     | '/intake/billing'
     | '/intake/leads'
@@ -365,6 +375,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
+    | '/catalogue/modules'
     | '/customers/$customerId'
     | '/intake/billing'
     | '/intake/leads'
@@ -400,6 +411,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
+    | '/catalogue/modules'
     | '/customers/$customerId'
     | '/intake/billing'
     | '/intake/leads'
@@ -436,6 +448,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
+  CatalogueModulesRoute: typeof CatalogueModulesRoute
   CustomersCustomerIdRoute: typeof CustomersCustomerIdRoute
   IntakeBillingRoute: typeof IntakeBillingRoute
   IntakeLeadsRoute: typeof IntakeLeadsRoute
@@ -544,6 +557,13 @@ declare module '@tanstack/react-router' {
       path: '/catalogue'
       fullPath: '/catalogue/'
       preLoaderRoute: typeof CatalogueIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/catalogue/modules': {
+      id: '/catalogue/modules'
+      path: '/catalogue/modules'
+      fullPath: '/catalogue/modules'
+      preLoaderRoute: typeof CatalogueModulesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/customers/': {
@@ -708,6 +728,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
+  CatalogueModulesRoute: CatalogueModulesRoute,
   CustomersCustomerIdRoute: CustomersCustomerIdRoute,
   IntakeBillingRoute: IntakeBillingRoute,
   IntakeLeadsRoute: IntakeLeadsRoute,

@@ -1,7 +1,10 @@
 import type { RouterClient } from "@orpc/server";
 
+import { openDirectoryAdmin } from "@faridalms/database/directory/admin";
 import { SEED_PASSWORD } from "@faridalms/database/seed";
 import { billingQuery, verifyIntake } from "@faridalms/domain/intake";
+import { MODULE_IDS } from "@faridalms/domain/modules";
+import { cardModules } from "@faridalms/domain/plans";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { afterAll, describe, expect, test } from "bun:test";
@@ -10,7 +13,13 @@ import { randomBytes } from "node:crypto";
 import type { AppRouter } from "../src/router";
 
 import { SCHOOL_HEADER } from "../src/core/procedure";
-import { handlerWith, login, rejection, seeded } from "./harness";
+import {
+  handlerWith,
+  login,
+  rejection,
+  seeded,
+  testDirectory,
+} from "./harness";
 
 const secret = randomBytes(32).toString("base64");
 const received: { body: Record<string, unknown>; signed: boolean }[] = [];
@@ -170,6 +179,128 @@ describe("leads for the operator console", () => {
     expect(
       await rejection(principal.school.askAboutModule({ module: "timetable" })),
     ).toMatchObject({ message: "module.in_plan" });
+  });
+
+  test("a school's card names what it has and what is on offer, and a module off offer cannot be asked about", async () => {
+    const tenant = seeded().tenants.findIndex((row) =>
+      row.schools.some((school) => school.slug === "fernhill"),
+    );
+    const session = await api("fernhill").identity.signIn({
+      loginName: login("principal", tenant),
+      password: SEED_PASSWORD,
+    });
+    const principal = api("fernhill", {
+      authorization: `Bearer ${session.token}`,
+    });
+    const admin = openDirectoryAdmin(testDirectory().operatorUrl);
+    const card = async () => {
+      const [features, user] = await Promise.all([
+        principal.school.features(),
+        principal.identity.currentUser(),
+      ]);
+      return cardModules({
+        modules: MODULE_IDS,
+        has: (module) => user.modules[module],
+        offered: features.offered,
+      });
+    };
+    try {
+      expect((await principal.school.features()).offered).not.toContain("sso");
+      expect(await card()).not.toContain("sso");
+      expect(await card()).toContain("sms");
+      expect(
+        await admin.setOffer({
+          module: "sms",
+          offered: false,
+          operatorId: "salama-test",
+          reason: "Not ready to sell",
+        }),
+      ).toBe(true);
+      expect(
+        await admin.setOffer({
+          module: "sms",
+          offered: false,
+          operatorId: "salama-test",
+          reason: "Twice",
+        }),
+      ).toBe(false);
+      await admin.setOffer({
+        module: "coursework",
+        offered: false,
+        operatorId: "salama-test",
+        reason: "Sold only inside plans",
+      });
+      const listed = await card();
+      expect(listed).not.toContain("sms");
+      expect(listed).toContain("coursework");
+      expect(listed).toContain("coding");
+      const before = received.length;
+      expect(
+        await Promise.all(
+          (["sms", "sso"] as const).map((module) =>
+            rejection(principal.school.askAboutModule({ module })),
+          ),
+        ),
+      ).toMatchObject([
+        { message: "module.not_offered" },
+        { message: "module.not_offered" },
+      ]);
+      expect(
+        await rejection(
+          principal.school.askAboutModule({ module: "coursework" }),
+        ),
+      ).toMatchObject({ message: "module.in_plan" });
+      expect(received.length).toBe(before);
+      const [latest] = await admin.changes({ type: "module" });
+      expect(latest).toMatchObject({
+        actor: "operator:salama-test",
+        subjectId: "coursework",
+        action: "module.withdraw",
+        before: { offered: true },
+        after: { offered: false },
+        reason: "Sold only inside plans",
+      });
+    } finally {
+      await Promise.all(
+        (["sms", "coursework"] as const).map((module) =>
+          admin.setOffer({
+            module,
+            offered: true,
+            operatorId: "salama-test",
+            reason: "Back on offer",
+          }),
+        ),
+      );
+      await admin.close();
+    }
+    expect(await card()).toContain("sms");
+  });
+
+  test("every module can be taken off offer and put back", async () => {
+    const admin = openDirectoryAdmin(testDirectory().operatorUrl);
+    try {
+      const others = MODULE_IDS.filter((id) => id !== "sso");
+      const change = (offered: boolean) =>
+        Promise.all(
+          others.map((module) =>
+            admin.setOffer({
+              module,
+              offered,
+              operatorId: "salama-test",
+              reason: "Check",
+            }),
+          ),
+        );
+      expect(await change(false)).toEqual(others.map(() => true));
+      expect(await change(true)).toEqual(others.map(() => true));
+      expect(
+        (await admin.offers())
+          .filter((row) => !row.offered)
+          .map((row) => row.module),
+      ).toEqual(["sso"]);
+    } finally {
+      await admin.close();
+    }
   });
 
   test("a school's billing is asked of the console, signed, for its own tenant alone", async () => {

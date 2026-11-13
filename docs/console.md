@@ -225,8 +225,9 @@ orders by urgency.
   records a payment from its customer or its tax authority id.
 - **Receivables**: what is owed by age and the calls to make; designed
   below.
-- **Catalogue**: every plan and add-on as it is sold; designed below,
-  with the plan and add-on records it opens.
+- **Catalogue**: every plan and add-on as it is sold, and which modules
+  are on offer to schools; designed below, with the plan and add-on
+  records it opens.
 
 ### Receivables
 
@@ -272,7 +273,7 @@ version, and a version no longer offered is retired.
   and students, an add-on's module or pack), its price, its version and
   since when (with a version still to go on sale under it), and whether
   it is sold. Search, a Kind facet and Include retired sit in the
-  toolbar. New plan is the page action, New add-on in its menu. The
+  toolbar. New plan is the page action; New add-on and Modules on offer are in its menu. The
   stacked cards, each listing every version with every limit as a grid of
   facts, are gone: they made the catalogue a wall of numbers nobody
   compares.
@@ -295,6 +296,17 @@ version, and a version no longer offered is retired.
   sold from a later day. Retire is in each row's menu and asks why.
 - **History** is the record's change log: each version added and retired,
   by whom, when and why.
+- **Modules on offer** opens from the catalogue's menu: one table of
+  every module, its one-line description under its name, whether it is on
+  offer (On offer, Not on offer) and when the operator last decided, or
+  On offer from the start. A school that lacks a module on offer sees it
+  on its plan card in Settings and may ask about it; one off offer is not
+  named there, and a school always sees the modules it has. Each row's
+  menu has Take off offer or Put on offer, which asks why; the change is
+  the directory's, so it is in the change log as Taken off offer or Put
+  on offer, and cells read it within a minute. It is a list, not a
+  record: a module has no versions or prices of its own, which its
+  add-ons and the plans that include it carry.
 - **The version sheet** groups its fields under headings: the version
   (names, the day it is sold from), Prices (a table of each price, how
   it is charged and the least a year, with Add price; Add, or a price's

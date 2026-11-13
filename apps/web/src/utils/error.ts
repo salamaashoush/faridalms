@@ -661,6 +661,8 @@ export function getMessageFromError(error: unknown): string {
         return m.featureNotInPlanError();
       case "module.in_plan":
         return m.errorModuleInPlan();
+      case "module.not_offered":
+        return m.errorModuleNotOffered();
       case "intake.not_sent":
         return m.errorIntakeNotSent();
       case "grading.scale_in_use":

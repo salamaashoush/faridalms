@@ -17,7 +17,7 @@ import {
   stripSearchParams,
   useNavigate,
 } from "@tanstack/react-router";
-import { Package, Plus } from "lucide-react";
+import { Blocks, Package, Plus } from "lucide-react";
 import * as v from "valibot";
 
 import type { CatalogueVersion } from "../components/CatalogueVersions";
@@ -301,6 +301,11 @@ function Catalogue() {
         action={{ label: "New plan", icon: Plus, onClick: addingPlan.show }}
         menu={[
           { label: "New add-on", icon: Package, onSelect: addingAddOn.show },
+          {
+            label: "Modules on offer",
+            icon: Blocks,
+            onSelect: () => open({ to: "/catalogue/modules" }),
+          },
         ]}
       />
       <DataTable

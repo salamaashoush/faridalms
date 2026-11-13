@@ -1,3 +1,4 @@
+import type { ModuleId } from "@faridalms/domain/modules";
 import type { OperatorItem } from "@faridalms/domain/onboarding";
 import type {
   EntitlementsInput,
@@ -26,6 +27,7 @@ import {
   cells,
   changes,
   hosts,
+  moduleOffers,
   schoolEntitlements,
   schoolOnboarding,
   schools,
@@ -315,6 +317,50 @@ export function openDirectoryAdmin(url: string) {
           after: { ...input.entitlements, revision: saved?.revision ?? 1 },
           reason: input.reason,
         });
+      }),
+    /** The modules the operator has decided on, each with whether it is on offer and since when. */
+    offers: () =>
+      db
+        .select({
+          module: moduleOffers.module,
+          offered: moduleOffers.offered,
+          updatedAt: moduleOffers.updatedAt,
+        })
+        .from(moduleOffers),
+    /**
+     * Puts a module on offer to schools that do not have it, or takes it
+     * off; false when it already stood that way.
+     */
+    setOffer: (input: {
+      module: ModuleId;
+      offered: boolean;
+      operatorId: string;
+      reason: string;
+    }) =>
+      db.transaction(async (tx) => {
+        const [before] = await tx
+          .select({ offered: moduleOffers.offered })
+          .from(moduleOffers)
+          .where(eq(moduleOffers.module, input.module))
+          .for("update");
+        if ((before?.offered ?? true) === input.offered) return false;
+        await tx
+          .insert(moduleOffers)
+          .values({ module: input.module, offered: input.offered })
+          .onConflictDoUpdate({
+            target: moduleOffers.module,
+            set: { offered: input.offered, updatedAt: new Date() },
+          });
+        await tx.insert(changes).values({
+          actor: `operator:${input.operatorId}`,
+          subjectType: "module",
+          subjectId: input.module,
+          action: input.offered ? "module.offer" : "module.withdraw",
+          before: { offered: before?.offered ?? true },
+          after: { offered: input.offered },
+          reason: input.reason,
+        });
+        return true;
       }),
     /** Every school's onboarding steps, each with the day it was first taken. */
     onboarding: () =>
