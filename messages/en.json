@@ -1434,7 +1434,7 @@
   "docCompareVersions": "Versions",
   "docRetry": "Retry",
   "docHistory": "Version history",
-  "docHistoryHint": "Every version readers were shown, copies kept while editing together, and the text set aside before each restore. Restoring brings one back as your working copy.",
+  "docHistoryHint": "Every version readers were shown, copies kept while editing together, and the text set aside before each restore or replacement. Restoring brings one back as your working copy.",
   "docHistoryEmpty": "No earlier versions yet.",
   "docRestore": "Restore",
   "docRestored": "Earlier version restored. It reaches readers when you save or update.",
@@ -4661,7 +4661,7 @@
   "siteFieldIn": "{field}, {language}",
   "siteFixIssues": "Fix the problems marked on the page before publishing.",
   "siteHistory": "History",
-  "siteHistoryHint": "Every published version and every copy kept before a restore. Restoring changes the working copy; visitors see it once you publish.",
+  "siteHistoryHint": "Every published version, every copy kept before a restore, and the words a page had before a ready-made site replaced them. Restoring changes the working copy; visitors see it once you publish.",
   "siteChangesWaiting": "Changes not on the website yet",
   "siteStylesWaiting": "Style and frame changes not on the website yet",
   "siteHome": "Home page",
@@ -5087,7 +5087,7 @@
   "siteTypeHintEvents": "Dates coming up, such as open mornings.",
   "siteTypeHintAdmissions": "Enquire, visit and apply, side by side.",
   "siteTypeHintSteps": "A process in order, such as how to apply.",
-  "siteTypeHintFees": "A clear table of fees or key dates.",
+  "siteTypeHintFees": "A clear table of fees, key dates or plan cards.",
   "siteTypeHintContact": "Address, phone and email, with a map link.",
   "siteTypeHintQuickLinks": "Shortcuts for families, students and staff.",
   "siteTypeHintQuickLinksCore": "Shortcuts for students and staff.",
@@ -5498,7 +5498,7 @@
   "siteStarterTheme": "Theme: {theme}",
   "siteStarterWithTheme": "Also use the starter's theme and header",
   "siteStarterWithThemeHint": "Your own header buttons and footer links are kept.",
-  "siteStartersExistingHint": "New pages are added as drafts; pages you already have are left as they are.",
+  "siteStartersExistingHint": "Preview any site whole. Before one is used you choose, for each page you already have, whether to keep it or replace it.",
   "siteStartersHint": "Pick a whole site to start from. Every page is drafted with sample words in both languages for you to rewrite; nothing is published until you say so.",
   "siteStartersTitle": "Start from a ready-made site",
   "siteSwitchPage": "Pages",
@@ -10739,5 +10739,64 @@
   "classWebsiteSaved": "Website details saved.",
   "siteErrClassDescription": "Write a description before showing the class on the website.",
   "siteErrClassAlt": "Describe the picture in each language the description is written in.",
-  "auditSiteClassSave": "Class on the website changed"
+  "auditSiteClassSave": "Class on the website changed",
+  "siteErrStarterPage": "That page is not one this ready-made site builds for your school.",
+  "docVersionBeforeReplace": "Before a ready-made site replaced it",
+  "siteStarterPreviewTitle": "Preview of {starter}",
+  "siteStarterPreviewHint": "Every page as it would be built for your school, in the site's own theme. Nothing is saved.",
+  "siteStarterPreviewPages": "Pages of this site",
+  "siteStarterLeftOut": "Left out: it is about a module your school does not have",
+  "siteStarterPreview": "Preview {starter}",
+  "sitePreviewStarter": "Preview",
+  "siteStarterReviewTitle": "Use {starter}",
+  "siteStarterReviewHint": "Check what happens to each page before anything changes. New pages are added as drafts.",
+  "siteStarterReviewPages": "What happens to each page",
+  "siteStarterPageNew": "New page, added as a draft",
+  "siteStarterPageTaken": "You already have a page here",
+  "siteStarterPageChoice": "{page}: keep yours or replace it",
+  "siteStarterKeep": "Keep mine",
+  "siteStarterReplace": "Replace",
+  "siteStarterReplaceKept": "A page you replace gets this site's words as a draft. What it says now is kept in its history, in each language: open the page in the builder and choose Version history to bring it back. A published page goes on showing visitors what it shows now until you publish the draft.",
+  "siteVariantFeesPlans": "Plans",
+  "siteFieldIncludes": "What it includes",
+  "siteFieldIncludesHint": "One point to a line. A plan card lists the first six.",
+  "siteFieldMark": "Mark",
+  "siteFieldMarkHint": "Marks the plan most people choose. Only the first plan marked shows it.",
+  "siteFieldLink": "Button",
+  "siteChoiceMarkPlain": "None",
+  "siteChoiceMarkChosen": "Most chosen",
+  "sitePlanChosen": "Most chosen",
+  "siteThemeGroupClassic": "Classic",
+  "siteThemeGroupModern": "Modern",
+  "siteThemeGroupBold": "Bold",
+  "siteThemeGroupWarm": "Warm",
+  "siteThemeCurrent": "Current",
+  "siteStarterApplyReplacing": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Use this site and replace {value} page",
+        "countPlural=*": "Use this site and replace {value} pages"
+      }
+    }
+  ],
+  "siteStarterReplaced": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{value} page replaced with a draft; its earlier words are in its history",
+        "countPlural=*": "{value} pages replaced with drafts; their earlier words are in their history"
+      }
+    }
+  ]
 }

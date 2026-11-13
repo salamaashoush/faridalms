@@ -364,13 +364,14 @@ export function SitePages({ overview }: SitePagesProps) {
   );
   const home = overview.pages.find((page) => page.isHome);
   const locale = overview.settings.primaryLocale;
-  const starters = (hasPages: boolean) => (
+  const starters = (
     <Starters
       locale={locale}
       school={user.school.slug}
       news={overview.news[locale]}
       contact={overview.school.contact}
-      hasPages={hasPages}
+      pages={overview.pages}
+      schoolName={{ en: overview.school.nameEn, ar: overview.school.nameAr }}
     />
   );
   if (rows.length === 0)
@@ -388,7 +389,7 @@ export function SitePages({ overview }: SitePagesProps) {
             {m.siteStartBlank()}
           </ButtonLink>
         </div>
-        {starters(false)}
+        {starters}
       </div>
     );
   return (
@@ -438,7 +439,7 @@ export function SitePages({ overview }: SitePagesProps) {
               {m.siteStartersExistingHint()}
             </DialogDescription>
           </DialogHeader>
-          {starters(true)}
+          {starters}
         </DialogContent>
       </Dialog>
     </div>

@@ -2,9 +2,9 @@
   "type": "diff",
   "version": "9",
   "dialect": "postgres",
-  "id": "9981fb0d-abbb-4f06-a925-11581572199d",
+  "id": "a4d68262-4992-4883-9b6c-f146865829d8",
   "prevIds": [
-    "8d7fdf73-664a-402d-b6f8-a9bca06b9117"
+    "e015e07b-ebf0-41ec-8990-a99cdf658986"
   ],
   "footprints": [
     {
@@ -127009,7 +127009,7 @@
         "schema": "core",
         "table": "document_versions",
         "name": "document_versions_reason_check",
-        "value": "reason in ('publish', 'checkpoint', 'before_restore', 'import')",
+        "value": "reason in ('publish', 'checkpoint', 'before_restore', 'before_replace', 'import')",
         "entityType": "checks"
       }
     },

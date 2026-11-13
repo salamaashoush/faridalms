@@ -1513,7 +1513,7 @@
   "docCompareVersions": "النسختان",
   "docRetry": "إعادة المحاولة",
   "docHistory": "سجل النسخ",
-  "docHistoryHint": "كل نسخة عُرضت على القرّاء، والنسخ المحفوظة أثناء التحرير المشترك، والنص المحفوظ قبل كل استعادة. الاستعادة تعيد نسخة لتصبح نسختك الحالية.",
+  "docHistoryHint": "كل نسخة عُرضت على القرّاء، والنسخ المحفوظة أثناء التحرير المشترك، والنص المحفوظ قبل كل استعادة أو استبدال. الاستعادة تعيد نسخة لتصبح نسختك الحالية.",
   "docHistoryEmpty": "لا نسخ سابقة بعد.",
   "docRestore": "استعادة",
   "docRestored": "استُعيدت النسخة السابقة. تصل إلى القرّاء عند الحفظ أو التحديث.",
@@ -4912,7 +4912,7 @@
   "siteFieldIn": "{field}، {language}",
   "siteFixIssues": "أصلح المشكلات المشار إليها في الصفحة قبل النشر.",
   "siteHistory": "السجل",
-  "siteHistoryHint": "كل نسخة منشورة وكل نسخة حُفظت قبل الاستعادة. تغيّر الاستعادة نسخة العمل، ويراها الزوار بعد النشر.",
+  "siteHistoryHint": "كل نسخة منشورة، وكل نسخة حُفظت قبل الاستعادة، وكلمات الصفحة قبل أن يستبدلها موقع جاهز. تغيّر الاستعادة نسخة العمل، ويراها الزوار بعد النشر.",
   "siteChangesWaiting": "تغييرات لم تُنشر على الموقع بعد",
   "siteStylesWaiting": "تغييرات في التصميم والإطار لم تُطبَّق على الموقع بعد",
   "siteHome": "الصفحة الرئيسية",
@@ -5374,7 +5374,7 @@
   "siteTypeHintEvents": "مواعيد قادمة، مثل الأيام المفتوحة.",
   "siteTypeHintAdmissions": "استفسر وزُر وقدّم، جنبًا إلى جنب.",
   "siteTypeHintSteps": "إجراء بالترتيب، مثل خطوات التقديم.",
-  "siteTypeHintFees": "جدول واضح للرسوم أو المواعيد المهمة.",
+  "siteTypeHintFees": "جدول واضح للرسوم أو المواعيد المهمة، أو بطاقات خطط.",
   "siteTypeHintContact": "العنوان والهاتف والبريد، مع رابط الخريطة.",
   "siteTypeHintQuickLinks": "اختصارات للأسر والطلاب والموظفين.",
   "siteTypeHintQuickLinksCore": "اختصارات للطلاب والموظفين.",
@@ -5785,7 +5785,7 @@
   "siteStarterTheme": "المظهر: {theme}",
   "siteStarterWithTheme": "استخدم أيضًا مظهر القالب ورأسه",
   "siteStarterWithThemeHint": "تبقى أزرار الرأس وروابط التذييل الخاصة بك.",
-  "siteStartersExistingHint": "تُضاف الصفحات الجديدة كمسودات، وتبقى صفحاتك الحالية كما هي.",
+  "siteStartersExistingHint": "عاين أي موقع كاملًا. وقبل استخدامه تختار لكل صفحة لديك بالفعل أن تبقيها أو تستبدلها.",
   "siteStartersHint": "اختر موقعًا كاملًا للبدء. تُكتب كل صفحة كمسودة بنصوص نموذجية باللغتين لتعيد صياغتها، ولا يُنشر شيء حتى تقرّر.",
   "siteStartersTitle": "ابدأ من موقع جاهز",
   "siteSwitchPage": "الصفحات",
@@ -11187,5 +11187,72 @@
   "classWebsiteSaved": "حُفظت بيانات الموقع.",
   "siteErrClassDescription": "اكتب وصفًا قبل عرض الفصل على الموقع.",
   "siteErrClassAlt": "صف الصورة بكل لغة كُتب بها الوصف.",
-  "auditSiteClassSave": "تغيّر الفصل على الموقع"
+  "auditSiteClassSave": "تغيّر الفصل على الموقع",
+  "siteErrStarterPage": "هذه الصفحة ليست من صفحات هذا الموقع الجاهز لمدرستك.",
+  "docVersionBeforeReplace": "قبل أن يستبدلها موقع جاهز",
+  "siteStarterPreviewTitle": "معاينة {starter}",
+  "siteStarterPreviewHint": "كل صفحة كما ستُبنى لمدرستك، بقالب الموقع نفسه. لا يُحفظ شيء.",
+  "siteStarterPreviewPages": "صفحات هذا الموقع",
+  "siteStarterLeftOut": "مستبعدة: تخص وحدة لا تملكها مدرستك",
+  "siteStarterPreview": "معاينة {starter}",
+  "sitePreviewStarter": "معاينة",
+  "siteStarterReviewTitle": "استخدام {starter}",
+  "siteStarterReviewHint": "راجِع ما سيحدث لكل صفحة قبل أي تغيير. تُضاف الصفحات الجديدة كمسودات.",
+  "siteStarterReviewPages": "ما سيحدث لكل صفحة",
+  "siteStarterPageNew": "صفحة جديدة، تُضاف كمسودة",
+  "siteStarterPageTaken": "لديك صفحة هنا بالفعل",
+  "siteStarterPageChoice": "{page}: أبقِ صفحتك أو استبدلها",
+  "siteStarterKeep": "أبقِ صفحتي",
+  "siteStarterReplace": "استبدل",
+  "siteStarterReplaceKept": "تحصل الصفحة التي تستبدلها على كلمات هذا الموقع كمسودة. ويُحفظ ما فيها الآن في سجلّها بكل لغة: افتح الصفحة في المحرّر واختر سجل النسخ لاستعادته. وتبقى الصفحة المنشورة تعرض للزوار ما تعرضه الآن حتى تنشر المسودة.",
+  "siteVariantFeesPlans": "خطط",
+  "siteFieldIncludes": "ما تتضمنه",
+  "siteFieldIncludesHint": "نقطة في كل سطر. تعرض بطاقة الخطة أول ست نقاط.",
+  "siteFieldMark": "العلامة",
+  "siteFieldMarkHint": "تميّز الخطة التي يختارها معظم الناس. تظهر على أول خطة مميّزة فقط.",
+  "siteFieldLink": "الزر",
+  "siteChoiceMarkPlain": "بلا علامة",
+  "siteChoiceMarkChosen": "الأكثر اختيارًا",
+  "sitePlanChosen": "الأكثر اختيارًا",
+  "siteThemeGroupClassic": "كلاسيكية",
+  "siteThemeGroupModern": "عصرية",
+  "siteThemeGroupBold": "جريئة",
+  "siteThemeGroupWarm": "دافئة",
+  "siteThemeCurrent": "الحالي",
+  "siteStarterApplyReplacing": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "استخدم هذا الموقع واستبدل {value} صفحة",
+        "countPlural=one": "استخدم هذا الموقع واستبدل صفحة واحدة",
+        "countPlural=two": "استخدم هذا الموقع واستبدل صفحتين",
+        "countPlural=few": "استخدم هذا الموقع واستبدل {value} صفحات",
+        "countPlural=many": "استخدم هذا الموقع واستبدل {value} صفحة",
+        "countPlural=*": "استخدم هذا الموقع واستبدل {value} صفحة"
+      }
+    }
+  ],
+  "siteStarterReplaced": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "استُبدلت {value} صفحة بمسودات؛ كلماتها السابقة في سجلّها",
+        "countPlural=one": "استُبدلت صفحة واحدة بمسودة؛ كلماتها السابقة في سجلّها",
+        "countPlural=two": "استُبدلت صفحتان بمسودتين؛ كلماتهما السابقة في سجلّهما",
+        "countPlural=few": "استُبدلت {value} صفحات بمسودات؛ كلماتها السابقة في سجلّها",
+        "countPlural=many": "استُبدلت {value} صفحة بمسودات؛ كلماتها السابقة في سجلّها",
+        "countPlural=*": "استُبدلت {value} صفحة بمسودات؛ كلماتها السابقة في سجلّها"
+      }
+    }
+  ]
 }

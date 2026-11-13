@@ -1,6 +1,5 @@
 import type { PageRow } from "@faridalms/database/stores/site";
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { BuiltStarter } from "@faridalms/domain/site-templates";
 import type {
   PageContent,
   SiteIssue,
@@ -67,6 +66,7 @@ import {
   sitePagePath,
   sitePostPath,
 } from "@faridalms/domain/site-seo";
+import { starterWork } from "@faridalms/domain/site-starters";
 import { buildStarter, STARTERS } from "@faridalms/domain/site-templates";
 import {
   defaultTheme,
@@ -139,6 +139,7 @@ import {
   siteWords,
 } from "../website/points";
 import { siteSchool } from "../website/school";
+import { doStarterWork } from "../website/starters";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -991,62 +992,11 @@ export const removeSiteCategory = writeProcedure
   });
 
 /**
- * Makes a page from a starter's plan, as a draft with the plan's placeholder
- * words in the site's languages.
- */
-async function startPage(
-  context: UnitContext,
-  settings: { primaryLocale: SiteLocale; bilingual: boolean },
-  { plan, built }: BuiltStarter["pages"][number],
-  home: boolean,
-): Promise<string> {
-  const inserted = await insertPage(context.tx, {
-    tenantId: context.tenantId,
-    orgId: context.schoolId,
-    authorId: context.actor.userId,
-    parentId: null,
-    slug: plan.slug,
-    titleEn: plan.title[0],
-    titleAr: plan.title[1],
-    inMenu: true,
-    indexed: true,
-    isHome: home,
-  });
-  const content = blankPage(built.content);
-  const host = pageHost(inserted.id);
-  const original = await saveDocument(context.tx, {
-    tenantId: context.tenantId,
-    orgId: context.schoolId,
-    host,
-    kind: "page",
-    locale: settings.primaryLocale,
-    content,
-    plainText: pagePlainText(content),
-    mediaIds: [],
-    userId: context.actor.userId,
-  });
-  if (settings.bilingual) {
-    const translation = blankPage(built.translation);
-    await saveTranslation(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      host,
-      originalId: original.id,
-      locale: otherLocale(settings.primaryLocale),
-      kind: "page",
-      content: translation,
-      plainText: pagePlainText(translation),
-      mediaIds: [],
-      userId: context.actor.userId,
-    });
-  }
-  return inserted.id;
-}
-
-/**
  * Starts a site from a starter: its theme and frame, and each of its pages
  * the school's modules give it as a draft with placeholder words in both
- * languages. Pages whose address is already taken are left as they are.
+ * languages. A page whose address the school already has is kept as it is,
+ * unless the school chose to replace it, when the starter's words become
+ * its working copy and what it held is kept in its history.
  */
 export const applyStarter = writeProcedure
   .input(applyStarterSchema)
@@ -1063,20 +1013,18 @@ export const applyStarter = writeProcedure
       context.tenantId,
       context.schoolId,
     );
-    const existing = new Set(pages.map((row) => row.slug));
-    const hasHome = pages.some((row) => row.isHome);
-    const created: string[] = [];
-    for (const planned of starter.pages) {
-      if (existing.has(planned.plan.slug)) continue;
-      created.push(
-        await startPage(
-          context,
-          settings,
-          planned,
-          Boolean(planned.plan.home) && !hasHome,
-        ),
-      );
-    }
+    const work = starterWork(starter, pages, input.replace);
+    if (work.refused.length)
+      throw new ORPCError("BAD_REQUEST", {
+        message: "site.starter_page",
+        data: { slugs: work.refused },
+      });
+    const { created, replaced } = await doStarterWork(
+      context,
+      settings,
+      work,
+      pages.some((row) => row.isHome),
+    );
     if (input.withTheme) {
       const version = await saveSiteSettings(context.tx, {
         tenantId: context.tenantId,
@@ -1095,9 +1043,13 @@ export const applyStarter = writeProcedure
       action: "site.starter",
       objectType: "org",
       objectId: context.schoolId,
-      details: { starter: input.starter, pages: created.length },
+      details: {
+        starter: input.starter,
+        pages: created.length,
+        replaced,
+      },
     });
-    return { created };
+    return { created, replaced };
   });
 
 async function liveSettings(

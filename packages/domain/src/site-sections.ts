@@ -70,6 +70,7 @@ export type Pattern = (typeof PATTERNS)[number];
 
 type TextField = {
   kind: "text";
+  added?: true;
   max: number;
   multiline?: boolean;
   /** Shown in the inspector only while a sibling field of an item has this value. */
@@ -79,9 +80,13 @@ type TextField = {
 type RichField = { kind: "rich"; questions?: true };
 type ImageField = { kind: "image" };
 type MediaField = { kind: "media" };
-type LinksField = { kind: "links"; max: number };
+type LinksField = { kind: "links"; max: number; added?: true };
 type HrefField = { kind: "href" };
-type ChoiceField = { kind: "choice"; options: readonly [string, ...string[]] };
+type ChoiceField = {
+  kind: "choice";
+  options: readonly [string, ...string[]];
+  added?: true;
+};
 type NumberField = {
   kind: "number";
   min: number;
@@ -163,10 +168,23 @@ type ScalarValue<F> = F extends TextField
                         : F extends ClassesField
                           ? string[]
                           : never;
+/**
+ * A field added to an item after items were written, as samples or saved
+ * pages: an item may lack it, and is read as the field's initial value.
+ */
+type Added = { added: true };
 type ValueOf<F> = F extends ColumnsField
   ? SiteColumn[]
   : F extends { kind: "items"; fields: infer G }
-    ? ({ id: string } & { -readonly [K in keyof G]: ScalarValue<G[K]> })[]
+    ? ({ id: string } & {
+        -readonly [K in keyof G as G[K] extends Added ? never : K]: ScalarValue<
+          G[K]
+        >;
+      } & {
+        -readonly [
+          K in keyof G as G[K] extends Added ? K : never
+        ]?: ScalarValue<G[K]>;
+      })[]
     : ScalarValue<F>;
 type DataOf<Fs> = { -readonly [K in keyof Fs]: ValueOf<Fs[K]> };
 
@@ -648,16 +666,28 @@ export const SECTION_SPECS = {
       },
     },
   },
+  /**
+   * Fees, prices or dates: a table, a dated list, or plan cards. A plan is
+   * its label, a price line typed as it should read, a note, the points it
+   * includes one to a line, whether it is the one most chosen, and a button.
+   */
   fees: {
     category: "conversion",
-    variants: ["table", "dates"],
+    variants: ["table", "dates", "plans"],
     fields: {
       heading,
       text: intro,
       items: {
         kind: "items",
         max: 30,
-        fields: { label: t(120), value: t(80), note: t(200) },
+        fields: {
+          label: t(120),
+          value: t(80),
+          note: t(200),
+          includes: { ...t(600, true), added: true },
+          mark: { ...choice(["plain", "chosen"]), added: true },
+          link: { kind: "links", max: 1, added: true },
+        },
       },
     },
   },
@@ -1076,12 +1106,52 @@ const SHOWN_WHEN: Partial<
   },
 };
 
+/** The most plans the plan cards show. */
+export const MAX_PLANS = 4;
+/** The most points a plan card lists. */
+export const MAX_PLAN_POINTS = 6;
+const PLAN_FIELDS = new Set(["includes", "mark", "link"]);
+
+/** The points a plan includes, one to a line, as many as its card lists. */
+export const planPoints = (includes: string) =>
+  [
+    ...new Set(
+      includes
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, MAX_PLAN_POINTS);
+
+/** A section's repeating items as one of its layouts shows them. */
+const ITEMS_IN: Partial<
+  Record<SectionType, (variant: string, field: ItemsField) => ItemsField>
+> = {
+  fees: (variant, field) =>
+    variant === "plans"
+      ? { ...field, max: MAX_PLANS }
+      : {
+          ...field,
+          fields: Object.fromEntries(
+            Object.entries(field.fields).filter(
+              ([key]) => !PLAN_FIELDS.has(key),
+            ),
+          ),
+        },
+};
+
 /** A section's fields that apply to it as it stands, for the inspector to show. */
 export function shownFields(section: PageSection): [string, Field][] {
   const rules = SHOWN_WHEN[section.type] ?? {};
-  return Object.entries(fieldsOf(section.type)).filter(
-    ([key]) => rules[key]?.(section.data as Record<string, unknown>) ?? true,
-  );
+  const items = ITEMS_IN[section.type];
+  return Object.entries(fieldsOf(section.type))
+    .filter(
+      ([key]) => rules[key]?.(section.data as Record<string, unknown>) ?? true,
+    )
+    .map(([key, field]): [string, Field] => [
+      key,
+      items && field.kind === "items" ? items(section.variant, field) : field,
+    ]);
 }
 
 export const blockFieldsOf = (type: BlockType): BlockFields =>
@@ -1096,6 +1166,16 @@ type LooseColumn = {
 /** Words as read aloud or searched, without the asterisks that mark emphasis. */
 export const withoutEmphasis = (words: string) =>
   words.replace(/\*([^*\n]+)\*/g, "$1");
+
+/**
+ * An item's value for one of its fields: an item written before the field
+ * existed, as a sample or a saved page, reads as the field's initial value.
+ */
+export const itemValue = (
+  item: Loose,
+  key: string,
+  field: ScalarField,
+): unknown => (item[key] === undefined ? initialScalar(field) : item[key]);
 
 function scalarWords(field: ScalarField, value: unknown): string[] {
   switch (field.kind) {
@@ -1117,7 +1197,7 @@ function fieldWords(field: Field, value: unknown): string[] {
   if (field.kind === "items")
     return (value as Loose[]).flatMap((item) =>
       Object.entries(field.fields).flatMap(([key, inner]) =>
-        scalarWords(inner, item[key]),
+        scalarWords(inner, itemValue(item, key, inner)),
       ),
     );
   if (field.kind === "columns")
@@ -1207,7 +1287,7 @@ function fieldBlank(field: Field, original: unknown): unknown {
       ...Object.fromEntries(
         Object.entries(field.fields).map(([key, inner]) => [
           key,
-          scalarBlank(inner, item[key]),
+          scalarBlank(inner, itemValue(item, key, inner)),
         ]),
       ),
     }));
@@ -1251,8 +1331,8 @@ function fieldOverlay(
           Object.entries(field.fields).map(([key, inner]) => [
             key,
             match
-              ? scalarOverlay(inner, item[key], match[key])
-              : scalarBlank(inner, item[key]),
+              ? scalarOverlay(inner, itemValue(item, key, inner), match[key])
+              : scalarBlank(inner, itemValue(item, key, inner)),
           ]),
         ),
       };
@@ -1365,7 +1445,7 @@ function eachScalar<R>(
     if (field.kind === "items")
       return (value as Loose[]).flatMap((item) =>
         Object.entries(field.fields).flatMap(([inner, innerField]) =>
-          visit(innerField, item[inner]),
+          visit(innerField, itemValue(item, inner, innerField)),
         ),
       );
     if (field.kind === "columns")
@@ -1407,7 +1487,7 @@ function mapScalars(
           ["id", item.id],
           ...Object.entries(field.fields).map(([inner, innerField]) => [
             inner,
-            change(innerField, item[inner]),
+            change(innerField, itemValue(item, inner, innerField)),
           ]),
         ]),
       );

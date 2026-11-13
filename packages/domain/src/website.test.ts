@@ -10,10 +10,16 @@ import { plainContent } from "./content-conversion";
 import { MODULE_IDS } from "./modules";
 import {
   fitColumns,
+  MAX_PLAN_POINTS,
+  MAX_PLANS,
   overlay,
+  planPoints,
   SECTION_SPECS,
   SECTION_TYPES,
+  sectionComplete,
   sectionIssues,
+  sectionWords,
+  shownFields,
 } from "./site-sections";
 import {
   buildSection,
@@ -845,5 +851,92 @@ describe("free-form blocks", () => {
     expect(one).toHaveLength(1);
     expect(one[0]?.blocks).toHaveLength(count);
     expect(fitColumns(content.data.columns, "1-1-1-1")).toHaveLength(4);
+  });
+});
+
+/** The items a section's inspector shows for its layout: how many, and which fields. */
+const itemFields = (section: PageSection) => {
+  const items = shownFields(section).find(([key]) => key === "items")?.[1];
+  return items?.kind === "items"
+    ? { max: items.max, fields: Object.keys(items.fields) }
+    : null;
+};
+
+describe("plan cards", () => {
+  it("are a layout of fees whose items carry points, a mark and a button only there", () => {
+    expect(SECTION_SPECS.fees.variants).toContain("plans");
+    const plans = buildSection("fees", "plans", "en").content;
+    expect(itemFields(plans)).toEqual({
+      max: MAX_PLANS,
+      fields: ["label", "value", "note", "includes", "mark", "link"],
+    });
+    expect(itemFields({ ...plans, variant: "table" } as PageSection)).toEqual({
+      max: 30,
+      fields: ["label", "value", "note"],
+    });
+  });
+
+  it("have sample plans in both languages that line up, one most chosen, each with a button", () => {
+    const { content, translation } = buildSection("fees", "plans", "ar");
+    for (const section of [content, translation]) {
+      expect(v.parse(pageSectionSchema, section)).toEqual(section);
+      expect(sectionIssues(section)).toEqual([]);
+      if (section.type !== "fees") throw new Error("not fees");
+      const items = section.data.items;
+      expect(items.length).toBeGreaterThanOrEqual(2);
+      expect(items.length).toBeLessThanOrEqual(MAX_PLANS);
+      expect(items.filter((item) => item.mark === "chosen")).toHaveLength(1);
+      for (const item of items) {
+        expect(item.link?.[0]?.label).not.toBe("");
+        expect(planPoints(item.includes ?? "").length).toBeGreaterThan(0);
+      }
+    }
+    expect(sectionComplete(content, translation)).toBe(true);
+  });
+
+  it("list a plan's points one to a line, trimmed, once each and at most six", () => {
+    expect(planPoints(" One \n\nTwo\nOne\n3\n4\n5\n6\n7")).toEqual(
+      ["One", "Two", "3", "4", "5", "6"].slice(0, MAX_PLAN_POINTS),
+    );
+  });
+
+  it("read a fee saved before plans existed with a plan's fields at their initial values", () => {
+    const saved = {
+      id: crypto.randomUUID(),
+      type: "fees",
+      variant: "table",
+      data: {
+        heading: "Fees",
+        text: "",
+        items: [
+          { id: crypto.randomUUID(), label: "Tuition", value: "—", note: "" },
+        ],
+      },
+    };
+    const parsed = v.parse(pageSectionSchema, saved);
+    expect(parsed.data).toMatchObject({
+      items: [{ label: "Tuition", includes: "", mark: "plain", link: [] }],
+    });
+    expect(sectionWords(saved as unknown as PageSection)).toContain("Tuition");
+    expect(
+      overlay(saved as unknown as PageSection, saved as unknown as PageSection),
+    ).toMatchObject({ data: { items: [{ includes: "", link: [] }] } });
+  });
+
+  it("price the video courses starter, its plan by the month most chosen", () => {
+    const { pages } = buildStarter(
+      STARTERS.reel,
+      "en",
+      siteModules(MODULE_IDS),
+    );
+    const pricing = pages
+      .find((page) => page.plan.slug === "pricing")
+      ?.built.content.find((section) => section.type === "fees");
+    if (pricing?.type !== "fees") throw new Error("no pricing");
+    expect(pricing.variant).toBe("plans");
+    expect(pricing.data.items.map((item) => [item.label, item.mark])).toEqual([
+      ["One course", "plain"],
+      ["Everything, by the month", "chosen"],
+    ]);
   });
 });

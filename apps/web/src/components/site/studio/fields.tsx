@@ -22,6 +22,7 @@ import {
   blockFieldsOf,
   ICONS,
   itemFieldShown,
+  itemValue,
   MAX_BLOCKS,
   newBlock,
   newItem,
@@ -1561,7 +1562,7 @@ function ItemsControl({
                       key={key}
                       name={key}
                       field={inner}
-                      value={item[key]}
+                      value={itemValue(item, key, inner)}
                       context={context}
                       prefix={`${id}-${item.id}`}
                       onChange={(next) => set(index, key, next)}

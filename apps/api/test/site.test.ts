@@ -3,6 +3,12 @@ import type { RouterClient } from "@orpc/server";
 
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { platformName } from "@faridalms/domain/hosts";
+import { MODULE_IDS } from "@faridalms/domain/modules";
+import {
+  buildStarter,
+  siteModules,
+  STARTERS,
+} from "@faridalms/domain/site-templates";
 import { newSection } from "@faridalms/domain/website";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
@@ -536,6 +542,133 @@ describe("starting from a starter", () => {
     } finally {
       await setPlan(academy.id, plan);
     }
+  });
+
+  test("replaces a chosen page with the starter's words as a draft, keeps the rest, and brings the old words back from history", async () => {
+    // Acme's site is the one tests change; its about page goes back as it was.
+    const api = await signedIn("acme", login("principal", 1));
+    const site = client("acme").site;
+    const before = await api.site.overview();
+    const about = before.pages.find((row) => row.slug === "about");
+    const visit = before.pages.find((row) => row.slug === "visit");
+    if (!about || !visit) throw new Error("Acme's seeded pages are missing");
+    expect(about.state).toBe("published");
+    const aboutBefore = await api.site.page({ id: about.id });
+    const visitBefore = await api.site.page({ id: visit.id });
+    const servedBefore = await site.publicSitePage({
+      school: "acme",
+      locale: "en",
+      slug: "about",
+    });
+
+    const { created, replaced } = await api.site.applyStarter({
+      starter: "heritage",
+      withTheme: false,
+      replace: ["about"],
+    });
+    expect(created).toEqual([]);
+    expect(replaced).toEqual([about.id]);
+
+    const after = await api.site.overview();
+    expect(after.settings.theme).toEqual(before.settings.theme);
+    const aboutRow = after.pages.find((row) => row.id === about.id);
+    expect(aboutRow).toMatchObject({
+      state: "published",
+      changed: true,
+      slug: "about",
+      titleEn: about.titleEn,
+    });
+    const starterAbout = buildStarter(
+      STARTERS.heritage,
+      "en",
+      siteModules(MODULE_IDS),
+    ).pages.find((page) => page.plan.slug === "about");
+    if (!starterAbout)
+      throw new Error("the heritage starter has no about page");
+    const draft = await api.site.page({ id: about.id });
+    expect(draft.content.sections.map((section) => section.type)).toEqual(
+      starterAbout.built.content.map((section) => section.type),
+    );
+    expect(draft.gaps.missing).toEqual([]);
+    const visitAfter = await api.site.page({ id: visit.id });
+    expect(visitAfter.content).toEqual(visitBefore.content);
+    expect(visitAfter.translation).toEqual(visitBefore.translation);
+    expect(after.pages.find((row) => row.id === visit.id)?.version).toBe(
+      visit.version,
+    );
+    // Visitors read what was published until the draft is published.
+    expect(
+      (
+        await site.publicSitePage({
+          school: "acme",
+          locale: "en",
+          slug: "about",
+        })
+      ).sections,
+    ).toEqual(servedBefore.sections);
+
+    const host = { hostType: "site_page", hostId: about.id };
+    const history = await api.documents.history(host);
+    const kept = history.versions.filter(
+      (row) => row.reason === "before_replace",
+    );
+    expect(
+      kept
+        .map((row) => row.locale ?? "")
+        .toSorted((a, b) => a.localeCompare(b)),
+    ).toEqual(["ar", "en"]);
+    const words = async (locale: "en" | "ar") => {
+      const row = kept.find((entry) => entry.locale === locale);
+      if (!row) throw new Error(`nothing kept in ${locale}`);
+      const restored = await api.documents.restore({
+        ...host,
+        documentVersion: row.documentVersion,
+        locale,
+      });
+      if (restored.kind !== "page") throw new Error("not a page");
+      return restored.page;
+    };
+    const english = await words("en");
+    const arabic = await words("ar");
+    expect(english.sections).toEqual(aboutBefore.content.sections);
+    expect(arabic.sections).toEqual(aboutBefore.translation?.sections ?? []);
+
+    await api.site.savePage({
+      id: about.id,
+      expectedVersion: aboutRow?.version ?? 0,
+      parentId: about.parentId ?? "",
+      slug: about.slug,
+      titleEn: about.titleEn,
+      titleAr: about.titleAr,
+      inMenu: about.inMenu,
+      indexed: about.indexed,
+      content: english,
+      translation: arabic,
+    });
+    const back = await api.site.page({ id: about.id });
+    expect(back.content).toEqual(aboutBefore.content);
+    expect(back.translation).toEqual(aboutBefore.translation);
+  });
+
+  test("does not offer to replace a page about a module the school does not have", async () => {
+    await withoutModules("acme", ["families"], async () => {
+      const api = await signedIn("acme", login("principal", 1));
+      const before = await api.site.overview();
+      expect(before.pages.map((row) => row.slug)).toContain("parents");
+      expect(
+        await rejection(
+          api.site.applyStarter({
+            starter: "international",
+            withTheme: false,
+            replace: ["parents"],
+          }),
+        ),
+      ).toMatchObject({ code: "BAD_REQUEST", message: "site.starter_page" });
+      const after = await api.site.overview();
+      expect(after.pages.map((row) => [row.id, row.version])).toEqual(
+        before.pages.map((row) => [row.id, row.version]),
+      );
+    });
   });
 });
 

@@ -19,7 +19,11 @@ import {
   formQuestions,
   formResponse,
 } from "@faridalms/domain/questions";
-import { withoutEmphasis } from "@faridalms/domain/site-sections";
+import {
+  MAX_PLANS,
+  planPoints,
+  withoutEmphasis,
+} from "@faridalms/domain/site-sections";
 import { cn } from "@faridalms/ui/cn";
 import { useHydrated } from "@tanstack/react-router";
 import {
@@ -38,6 +42,7 @@ import {
   Play,
   Plus,
   Quote,
+  Star,
   X,
 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -2651,8 +2656,95 @@ function Steps({ section, context }: Props<"steps">) {
   );
 }
 
-function Fees({ section }: Props<"fees">) {
+type FeeItem = SectionOf<"fees">["data"]["items"][number];
+
+interface PlanCardsProps {
+  items: Partial<FeeItem>[];
+  context: RenderContext;
+}
+
+/**
+ * Plans side by side, a column each on a phone. The plan most chosen says
+ * so in words above its name, wears a heavier edge and a filled button, so
+ * colour is never the only sign; only the first plan marked counts.
+ */
+function PlanCards({ items, context }: PlanCardsProps) {
+  const plans = items.slice(0, MAX_PLANS);
+  const chosen = plans.findIndex((item) => item.mark === "chosen");
+  return (
+    <ul
+      data-stagger
+      className="site-grid items-stretch"
+      data-cols={columnsFor(plans.length, 4)}
+    >
+      {plans.map((item, index) => {
+        const marked = index === chosen;
+        const points = planPoints(item.includes ?? "");
+        const [action] = (item.link ?? []).filter((link) => link.label.trim());
+        return (
+          <li
+            key={item.id}
+            data-chosen={marked || undefined}
+            className={cn(
+              "site-card flex flex-col gap-6 p-[var(--s-card-pad)] text-start",
+              marked &&
+                "outline-2 -outline-offset-2 outline-[var(--s-btn)] outline-solid",
+            )}
+          >
+            <div className="grid gap-2">
+              {marked ? (
+                <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[var(--s-btn)] px-3 py-1 text-xs font-semibold text-[var(--s-btn-fg)]">
+                  <Star aria-hidden className="size-3.5 fill-current" />
+                  {m.sitePlanChosen({}, { locale: context.locale })}
+                </span>
+              ) : null}
+              <Heading level={3}>{item.label ?? ""}</Heading>
+              {item.value ? (
+                <p className="site-heading text-3xl tabular-nums">
+                  {item.value}
+                </p>
+              ) : null}
+              {item.note ? <p className="site-muted">{item.note}</p> : null}
+            </div>
+            {points.length ? (
+              <ul className="grid gap-2.5 border-t border-[var(--s-border)] pt-5">
+                {points.map((point) => (
+                  <li key={point} className="flex items-start gap-2.5">
+                    <Check
+                      aria-hidden
+                      className="mt-1 size-4 shrink-0 text-[var(--s-link)]"
+                    />
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {action ? (
+              <SiteAnchor
+                href={action.href}
+                context={context}
+                className="site-button mt-auto w-full justify-center"
+                variant={marked ? undefined : "secondary"}
+              >
+                {action.label}
+              </SiteAnchor>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function Fees({ section, context }: Props<"fees">) {
   const { data, variant } = section;
+  if (variant === "plans")
+    return (
+      <div>
+        <SectionIntro heading={data.heading} text={data.text} />
+        <PlanCards items={data.items} context={context} />
+      </div>
+    );
   return (
     <div className="site-narrow" data-wide>
       <SectionIntro heading={data.heading} text={data.text} />

@@ -303,7 +303,13 @@ export const documentVersions = core.table.withRLS(
     documentId: uuid("document_id").notNull(),
     documentVersion: integer("document_version").notNull(),
     reason: text("reason")
-      .$type<"publish" | "checkpoint" | "before_restore" | "import">()
+      .$type<
+        | "publish"
+        | "checkpoint"
+        | "before_restore"
+        | "before_replace"
+        | "import"
+      >()
       .notNull(),
     label: text("label"),
     ydocSnapshot: bytea("ydoc_snapshot"),
@@ -339,7 +345,7 @@ export const documentVersions = core.table.withRLS(
     ck(
       "document_versions",
       "reason",
-      sql`reason in ('publish', 'checkpoint', 'before_restore', 'import')`,
+      sql`reason in ('publish', 'checkpoint', 'before_restore', 'before_replace', 'import')`,
     ),
     ck("document_versions", "label", sql`char_length(label) between 1 and 120`),
     ck(

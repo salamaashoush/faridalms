@@ -789,6 +789,8 @@ export function getMessageFromError(
         return m.siteErrParent();
       case "site.empty":
         return m.siteErrEmpty();
+      case "site.starter_page":
+        return m.siteErrStarterPage();
       case "site.issues":
         return m.siteErrIssues();
       case "site.consent":

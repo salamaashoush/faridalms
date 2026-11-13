@@ -604,6 +604,38 @@ says under the others which pages they will be built without. Starter words
 are a draft the school rewrites, so they do not take the grade word the
 school chose (Grade, Level, Year group, Stage).
 
+Each starter can be previewed whole before it is used, saving nothing: its
+pages as the school's modules build them, those left out for a module the
+school does not have named as left out, each page drawn in the starter's own
+theme with its header and footer by the components the public site uses, in
+English or Arabic and at a desktop's or a phone's width. Using a starter
+first lists its pages: each is new, added as a draft, or meets a page the
+school already has at its address (its home page meets the school's home
+page, whatever its address). The school keeps its own page, which is the
+default, or replaces it. A replaced page keeps its address, titles and place
+in the menu and takes the starter's words as its working copy; the words it
+held are kept first in its version history, in each language, marked as
+kept before a ready-made site replaced them, together with any pictures they
+show, and Version history in the builder brings them back. A published page
+goes on showing visitors what it last published, marked as having
+unpublished changes, until the school publishes the draft. Only the starter's
+pages built for the school can be replaced, and the action is recorded in
+the audit log with the pages replaced.
+
+A fees section is a table, a dated list, or plan cards for a school selling
+courses or subscriptions: two to four cards side by side, one under another
+on a phone, each with a name, a price line typed as it should read (never
+computed), a short note, up to six points written one to a line, and one
+button. One plan may be marked most chosen; it says so in words above its
+name and has a heavier edge and a filled button, so colour is never the only
+sign. The cards keep the theme's card style and shape and read right to left
+in Arabic. The Video courses starter prices its library with plan cards.
+
+The Styles panel groups the ten themes by character, two or three to a
+group: Classic (Heritage, Civic), Modern (Meridian, Oasis), Bold (Editorial,
+Workshop, Reel) and Warm (Bright start, Evergreen, Atelier). The group
+holding the site's theme is open and the theme is marked as current.
+
 A courses section lists the school's own classes, never typed ones. A class
 is on the website only once the school shows it: the class record's On the
 website part, for whoever keeps the school's classes or its website, holds

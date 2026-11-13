@@ -401,6 +401,8 @@ export const applyStarterSchema = v.object({
   starter: v.picklist(STARTER_IDS),
   /** Also take the starter's theme, and its frame when the site has none yet. */
   withTheme: v.optional(v.boolean(), true),
+  /** The addresses of the school's own pages to replace with the starter's, as drafts; every other is kept. */
+  replace: v.optional(v.pipe(v.array(siteSlugSchema), v.maxLength(20)), []),
 });
 
 export const movePageSchema = v.object({

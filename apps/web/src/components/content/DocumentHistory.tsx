@@ -19,12 +19,18 @@ import { getDocumentHistory, restoreDocumentVersion } from "~/server/documents";
 import { formatInstant } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-type Reason = "publish" | "checkpoint" | "before_restore" | "import";
+type Reason =
+  | "publish"
+  | "checkpoint"
+  | "before_restore"
+  | "before_replace"
+  | "import";
 
 const REASON: Record<Reason, () => string> = {
   publish: m.docVersionShown,
   checkpoint: m.docVersionKept,
   before_restore: m.docVersionBeforeRestore,
+  before_replace: m.docVersionBeforeReplace,
   import: m.docVersionImported,
 };
 

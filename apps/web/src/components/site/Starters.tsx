@@ -1,4 +1,5 @@
 import type { SiteLocale } from "@faridalms/domain/site-sections";
+import type { SchoolPage } from "@faridalms/domain/site-starters";
 import type { SiteModules, StarterId } from "@faridalms/domain/site-templates";
 
 import {
@@ -9,22 +10,19 @@ import {
 } from "@faridalms/domain/site-templates";
 import { resolveTheme, THEMES } from "@faridalms/domain/site-theme";
 import { Button } from "@faridalms/ui/button";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check } from "lucide-react";
+import { Check, Eye } from "lucide-react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 
-import { CheckboxRow } from "~/components/people/fields";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { applySiteStarter } from "~/server/site";
 import { formatList, formatNumber } from "~/utils/datetime";
-import { getMessageFromError } from "~/utils/error";
 
 import type { NewsItem, SiteContact } from "./render/parts";
 
 import { PageSections } from "./render/page";
+import { StarterPreview } from "./StarterPreview";
+import { StarterReview } from "./StarterReview";
 import { Viewport } from "./studio/Canvas";
 import { STARTER_HINT, STARTER_LABEL, THEME_LABEL } from "./studio/labels";
 
@@ -35,7 +33,7 @@ interface StarterCardProps {
   school: string;
   news: NewsItem[];
   contact: SiteContact;
-  pending: boolean;
+  onPreview: () => void;
   onUse: () => void;
 }
 
@@ -46,7 +44,7 @@ function StarterCard({
   school,
   news,
   contact,
-  pending,
+  onPreview,
   onUse,
 }: StarterCardProps) {
   const plan = STARTERS[starter];
@@ -113,16 +111,29 @@ function StarterCard({
             />
           ))}
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="justify-self-start max-md:h-10"
-          disabled={pending}
-          onClick={onUse}
-        >
-          <Check aria-hidden />
-          {m.siteUseStarter()}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="max-md:h-10"
+            aria-label={m.siteStarterPreview({
+              starter: STARTER_LABEL[starter](),
+            })}
+            onClick={onPreview}
+          >
+            <Eye aria-hidden />
+            {m.sitePreviewStarter()}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="max-md:h-10"
+            onClick={onUse}
+          >
+            <Check aria-hidden />
+            {m.siteUseStarter()}
+          </Button>
+        </div>
       </div>
     </li>
   );
@@ -133,55 +144,37 @@ export interface StartersProps {
   school: string;
   news: NewsItem[];
   contact: SiteContact;
-  hasPages: boolean;
+  /** The school's own pages, which a starter's pages may meet. */
+  pages: SchoolPage[];
+  schoolName: { en: string; ar: string | null };
 }
 
 /**
  * Whole sites to start from: each a theme and a set of pages with sample
- * words in both languages, drafted for the school to rewrite and built from
- * its modules, those whose pages all fit it first. Pages whose address is
- * already taken are left alone.
+ * words in both languages, built from the school's modules, those whose
+ * pages all fit it first. Each can be previewed whole before it is used,
+ * and using one shows first which of its pages are new and which meet a
+ * page the school has, to keep or replace.
  */
 export function Starters({
   locale,
   school,
   news,
   contact,
-  hasPages,
+  pages,
+  schoolName,
 }: StartersProps) {
-  const queryClient = useQueryClient();
   const { modules } = useCurrentUser();
-  const [withTheme, setWithTheme] = useState(true);
+  const [previewing, setPreviewing] = useState<StarterId | null>(null);
+  const [using, setUsing] = useState<StarterId | null>(null);
   const fitting = (starter: StarterId) =>
     STARTERS[starter].pages.every((page) => pageFits(page, modules));
   const order = [
     ...STARTER_IDS.filter(fitting),
     ...STARTER_IDS.filter((starter) => !fitting(starter)),
   ];
-  const apply = useMutation({
-    mutationFn: (starter: StarterId) =>
-      applySiteStarter({ data: { starter, withTheme } }),
-    onSuccess: async (result) => {
-      await queryClient.invalidateQueries({ queryKey: ["site"] });
-      toast.success(
-        m.siteStarterApplied({
-          count: result.created.length,
-          value: formatNumber(result.created.length),
-        }),
-      );
-    },
-    onError: (error) => toast.error(getMessageFromError(error)),
-  });
   return (
     <div className="grid gap-4">
-      {hasPages ? (
-        <CheckboxRow
-          label={m.siteStarterWithTheme()}
-          hint={m.siteStarterWithThemeHint()}
-          checked={withTheme}
-          onChange={setWithTheme}
-        />
-      ) : null}
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {order.map((starter) => (
           <StarterCard
@@ -192,11 +185,32 @@ export function Starters({
             school={school}
             news={news}
             contact={contact}
-            pending={apply.isPending}
-            onUse={() => apply.mutate(starter)}
+            onPreview={() => setPreviewing(starter)}
+            onUse={() => setUsing(starter)}
           />
         ))}
       </ul>
+      <StarterPreview
+        starter={previewing}
+        modules={modules}
+        primary={locale}
+        school={school}
+        schoolName={schoolName}
+        news={news}
+        contact={contact}
+        onOpenChange={(open) => {
+          if (!open) setPreviewing(null);
+        }}
+        onUse={setUsing}
+      />
+      <StarterReview
+        starter={using}
+        modules={modules}
+        pages={pages}
+        onOpenChange={(open) => {
+          if (!open) setUsing(null);
+        }}
+      />
     </div>
   );
 }

@@ -137,8 +137,12 @@ export async function topBlocksOf(
   return new Map(rows.map((row) => [row.host_id, row.content]));
 }
 
-/** The files the last published copy of a document shows, which its readers still open. */
-async function publishedFileIds(
+/**
+ * The files the last published copy of a document shows, which its readers
+ * still open, and those of every copy kept before other words replaced it,
+ * which its history brings back whole.
+ */
+async function keptFileIds(
   tx: Tx,
   tenantId: string,
   documentId: string,
@@ -146,10 +150,14 @@ async function publishedFileIds(
   const rows = await tx.execute<{ id: string }>(sql`
     select distinct ref #>> '{}' as id
     from (
-      select content from core.document_versions
+      (select content from core.document_versions
       where tenant_id = ${tenantId}::uuid and document_id = ${documentId}::uuid
         and reason = 'publish' and redacted_at is null
-      order by created_at desc, document_version desc limit 1) v,
+      order by created_at desc, document_version desc limit 1)
+      union all
+      select content from core.document_versions
+      where tenant_id = ${tenantId}::uuid and document_id = ${documentId}::uuid
+        and reason = 'before_replace' and redacted_at is null) v,
       lateral jsonb_path_query(v.content,
         'lax $.**.fileId ? (@ like_regex "^[0-9a-f-]{36}$")') ref`);
   return rows.map((row) => row.id);
@@ -158,7 +166,7 @@ async function publishedFileIds(
 /**
  * Records the media a document embeds, and marks those files linked so the
  * sweep keeps them and its readers may open them. Files the document no
- * longer embeds lose their row, unless its published copy still shows them.
+ * longer embeds lose their row, unless a copy it keeps still shows them.
  */
 async function syncMedia(
   tx: Tx,
@@ -167,7 +175,7 @@ async function syncMedia(
   const fileIds = [
     ...new Set([
       ...input.fileIds,
-      ...(await publishedFileIds(tx, input.tenantId, input.documentId)),
+      ...(await keptFileIds(tx, input.tenantId, input.documentId)),
     ]),
   ];
   input = { ...input, fileIds };
@@ -453,6 +461,23 @@ export async function snapshotPublish(
     on conflict do nothing`);
 }
 
+/**
+ * Keeps a document's words as they stand before other words replace them
+ * wholesale, so its history can bring them back.
+ */
+export async function keepBeforeReplace(
+  tx: Tx,
+  input: { tenantId: string; documentId: string; userId: string },
+): Promise<void> {
+  await tx.execute(sql`
+    insert into core.document_versions (tenant_id, document_id, document_version, reason,
+      content, plain_text, created_by_user_id)
+    select tenant_id, id, version, 'before_replace', content, plain_text, ${input.userId}::uuid
+    from core.documents
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.documentId}::uuid and status = 'active'
+    on conflict do nothing`);
+}
+
 export interface PublishedVersion {
   id: string;
   documentVersion: number;
@@ -510,7 +535,12 @@ export async function versionContent(
 
 export interface VersionRow {
   documentVersion: number;
-  reason: "publish" | "checkpoint" | "before_restore" | "import";
+  reason:
+    | "publish"
+    | "checkpoint"
+    | "before_restore"
+    | "before_replace"
+    | "import";
   createdAt: string;
   createdByNameEn: string | null;
   createdByNameAr: string | null;

@@ -231,6 +231,7 @@ export const VARIANT_LABEL: {
   fees: {
     table: m.siteVariantFeesTable,
     dates: m.siteVariantFeesDates,
+    plans: m.siteVariantFeesPlans,
   },
   contact: {
     details: m.siteVariantContactDetails,
@@ -326,6 +327,9 @@ export const FIELD_LABEL: Record<string, () => string> = {
   level: m.siteFieldLevel,
   action: m.siteFieldAction,
   when: m.siteFieldWhen,
+  includes: m.siteFieldIncludes,
+  mark: m.siteFieldMark,
+  link: m.siteFieldLink,
 };
 
 export const AUDIENCE_LABEL: Record<string, () => string> = {
@@ -379,6 +383,37 @@ export const THEME_LABEL: Record<ThemeId, () => string> = {
   atelier: m.siteThemeAtelier,
   reel: m.siteThemeReel,
 };
+
+/**
+ * The themes by their character, so a school finds a fitting one among
+ * few: each theme in one group, in the order it is offered.
+ */
+export const THEME_GROUPS: readonly {
+  id: "classic" | "modern" | "bold" | "warm";
+  label: () => string;
+  themes: readonly ThemeId[];
+}[] = [
+  {
+    id: "classic",
+    label: m.siteThemeGroupClassic,
+    themes: ["heritage", "civic"],
+  },
+  {
+    id: "modern",
+    label: m.siteThemeGroupModern,
+    themes: ["meridian", "oasis"],
+  },
+  {
+    id: "bold",
+    label: m.siteThemeGroupBold,
+    themes: ["editorial", "workshop", "reel"],
+  },
+  {
+    id: "warm",
+    label: m.siteThemeGroupWarm,
+    themes: ["brightStart", "evergreen", "atelier"],
+  },
+];
 
 export const THEME_HINT: Record<ThemeId, () => string> = {
   heritage: m.siteThemeHintHeritage,
@@ -569,6 +604,8 @@ export const FIELD_HINT: Record<string, () => string> = {
   questions: m.siteFieldQuestionsHint,
   classIds: m.siteFieldClassIdsHint,
   action: m.siteFieldActionHint,
+  includes: m.siteFieldIncludesHint,
+  mark: m.siteFieldMarkHint,
 };
 
 export const SCALE_LABEL: Record<HeadingScale, () => string> = {
@@ -732,4 +769,5 @@ export const CHOICE_LABEL: Record<string, Record<string, () => string>> = {
   teachers: { show: m.siteChoiceShow, hide: m.siteChoiceHide },
   duration: { show: m.siteChoiceShow, hide: m.siteChoiceHide },
   level: { show: m.siteChoiceShow, hide: m.siteChoiceHide },
+  mark: { plain: m.siteChoiceMarkPlain, chosen: m.siteChoiceMarkChosen },
 };

@@ -3708,7 +3708,7 @@ create table core.document_versions (
   id uuid not null default uuidv7(),
   document_id uuid not null,
   document_version integer not null check (document_version > 0),
-  reason text not null check (reason in ('publish', 'checkpoint', 'before_restore', 'import')),
+  reason text not null check (reason in ('publish', 'checkpoint', 'before_restore', 'before_replace', 'import')),
   label text check (char_length(label) between 1 and 120),
   ydoc_snapshot bytea check (octet_length(ydoc_snapshot) <= 8388608),
   content jsonb not null check (jsonb_typeof(content) = 'object'),
@@ -3803,9 +3803,11 @@ create index document_links_target_idx on core.document_links (tenant_id, target
 - **Versions** are snapshots: at publish (the website's pages and school
   announcements read a `publish` version, so later edits stay private),
   at collaboration checkpoints (every ten minutes of activity and when the last
-  editor leaves), before a restore, and at import. Restoring writes a
-  `before_restore` snapshot and then the chosen content as a new revision;
-  history is never rewritten. The one exception is erasure: `retention` may
+  editor leaves), before a restore, before other words replace a document
+  wholesale (a website page given a ready-made site's words writes a
+  `before_replace` snapshot, whose files stay linked so it comes back whole),
+  and at import. Restoring writes a `before_restore` snapshot and then the
+  chosen content as a new revision; history is never rewritten. The one exception is erasure: `retention` may
   redact a version of a document listed in an approved erasure, emptying its
   content and setting `redacted_at` (section 5).
 - **Translations** hold machine translations (messaging's automatic

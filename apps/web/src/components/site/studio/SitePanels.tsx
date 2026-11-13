@@ -25,7 +25,6 @@ import {
   PHOTO_TONES,
   paletteWarnings,
   RADII,
-  THEME_IDS,
   THEMES,
 } from "@faridalms/domain/site-theme";
 import { Button } from "@faridalms/ui/button";
@@ -42,6 +41,7 @@ import { PanelGroup, Segmented } from "@faridalms/ui/system/panel";
 import {
   ArrowDown,
   ArrowUp,
+  Check,
   Plus,
   RotateCcw,
   Trash2,
@@ -51,7 +51,7 @@ import {
 import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
 import * as m from "~/i18n/messages";
-import { formatNumber } from "~/utils/datetime";
+import { formatList, formatNumber } from "~/utils/datetime";
 
 import type { Languages } from "./draft";
 
@@ -71,6 +71,7 @@ import {
   SCHEME_LABEL,
   SHAPE_LABEL,
   TONE_LABEL,
+  THEME_GROUPS,
   THEME_HINT,
   THEME_LABEL,
 } from "./labels";
@@ -125,11 +126,19 @@ function ThemeCard({ id, selected, onPick }: ThemeCardProps) {
         />
       </span>
       <span className="grid content-center gap-1 px-3 py-2.5">
-        <span className="text-sm font-semibold">{THEME_LABEL[id]()}</span>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-sm font-semibold">{THEME_LABEL[id]()}</span>
+          {selected ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[11px] leading-4 font-semibold text-primary-foreground">
+              <Check aria-hidden className="size-3" />
+              {m.siteThemeCurrent()}
+            </span>
+          ) : null}
+        </span>
         <span className="text-xs leading-4 text-muted-foreground">
           {THEME_HINT[id]()}
         </span>
-        <span className="mt-0.5 flex gap-1">
+        <span className="mt-0.5 flex flex-wrap gap-1">
           {Object.entries(theme.palette).map(([role, colour]) => (
             <span
               key={role}
@@ -200,19 +209,36 @@ export function StylesPanel({ theme, brand, onChange }: StylesPanelProps) {
   return (
     <div>
       <PanelGroup title={m.siteThemes()} hint={m.siteThemesHint()}>
-        <fieldset className="grid gap-2">
-          <legend className="sr-only">{m.siteThemes()}</legend>
-          {THEME_IDS.map((id) => (
-            <ThemeCard
-              key={id}
-              id={id}
-              selected={theme.id === id}
-              onPick={() =>
-                onChange({ id, palette: {}, fonts: {} }, "theme:id")
+        <div className="grid grid-cols-1 gap-2">
+          {THEME_GROUPS.map((group) => (
+            <Disclosure
+              key={group.id}
+              defaultOpen={group.themes.includes(theme.id)}
+              summary={
+                <span className="flex min-w-0 items-baseline gap-2">
+                  <span>{group.label()}</span>
+                  <span className="truncate text-xs font-normal text-muted-foreground">
+                    {formatList(group.themes.map((id) => THEME_LABEL[id]()))}
+                  </span>
+                </span>
               }
-            />
+            >
+              <fieldset className="grid gap-2">
+                <legend className="sr-only">{group.label()}</legend>
+                {group.themes.map((id) => (
+                  <ThemeCard
+                    key={id}
+                    id={id}
+                    selected={theme.id === id}
+                    onPick={() =>
+                      onChange({ id, palette: {}, fonts: {} }, "theme:id")
+                    }
+                  />
+                ))}
+              </fieldset>
+            </Disclosure>
           ))}
-        </fieldset>
+        </div>
       </PanelGroup>
       <PanelGroup
         title={m.siteColours()}

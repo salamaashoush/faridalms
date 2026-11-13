@@ -143,6 +143,28 @@ const card = (
   href,
 });
 
+/** A plan card's words, its button and whether it is the one most chosen. */
+const planCard = (
+  b: Builder,
+  words: {
+    label: Said;
+    value: Said;
+    note: Said;
+    includes: Said;
+    link: Said;
+    href: string;
+    chosen?: boolean;
+  },
+) => ({
+  id: b.id(),
+  label: b.w(words.label),
+  value: b.w(words.value),
+  note: b.w(words.note),
+  includes: b.w(words.includes),
+  mark: words.chosen ? ("chosen" as const) : ("plain" as const),
+  link: [link(b, words.link, words.href)],
+});
+
 const HERO_HOME = section("hero", "fullbleed", (b) => ({
   eyebrow: b.w(["Welcome", "أهلًا بكم"]),
   heading: b.w(
@@ -605,6 +627,50 @@ const FEES = section("fees", "table", (b) => ({
     },
     { id: b.id(), label: b.w(["Primary", "الابتدائية"]), value: "—", note: "" },
     { id: b.id(), label: b.w(["Secondary", "الثانوية"]), value: "—", note: "" },
+  ],
+}));
+
+const PLANS = section("fees", "plans", (b) => ({
+  heading: b.w(["Plans", "الخطط"]),
+  text: b.w([
+    "Start free, then choose how you want to learn.",
+    "ابدأ مجانًا، ثم اختر الطريقة التي تناسبك في التعلّم.",
+  ]),
+  items: [
+    planCard(b, {
+      label: ["Taster", "تجربة"],
+      value: ["Free", "مجانًا"],
+      note: ["Try it before you decide.", "جرّب قبل أن تقرّر."],
+      includes: [
+        "The first lessons of any course\nCaptions in Arabic and English",
+        "الدروس الأولى من أي دورة\nترجمة مكتوبة بالعربية والإنجليزية",
+      ],
+      link: ["Start free", "ابدأ مجانًا"],
+      href: "/pages/contact",
+    }),
+    planCard(b, {
+      label: ["Monthly", "شهري"],
+      value: ["— a month", "— شهريًا"],
+      note: ["Stop whenever you like.", "توقف متى شئت."],
+      includes: [
+        "Every course\nNew courses as they come out\nA certificate for each course",
+        "كل الدورات\nالدورات الجديدة فور صدورها\nشهادة لكل دورة",
+      ],
+      chosen: true,
+      link: ["Choose monthly", "اختر الشهري"],
+      href: "/pages/contact",
+    }),
+    planCard(b, {
+      label: ["Yearly", "سنوي"],
+      value: ["— a year", "— سنويًا"],
+      note: ["Two months free.", "شهران مجانًا."],
+      includes: [
+        "Everything in monthly\nOne session a term with a tutor",
+        "كل ما في الشهري\nجلسة مع معلّم كل فصل",
+      ],
+      link: ["Choose yearly", "اختر السنوي"],
+      href: "/pages/contact",
+    }),
   ],
 }));
 
@@ -2051,6 +2117,11 @@ const SAMPLES: Record<SectionType, (b: Builder) => PageSection> = {
   form: ENQUIRY_FORM,
 };
 
+/** Sample words for a layout whose items say something else than the section's others. */
+const LAYOUT_SAMPLES: Partial<Record<SectionType, Record<string, Make>>> = {
+  fees: { plans: PLANS },
+};
+
 /**
  * One section with sample words in both languages and the same ids, in the
  * layout asked for.
@@ -2061,9 +2132,10 @@ export function buildSection<T extends SectionType>(
   primary: SiteLocale,
 ): { content: PageSection; translation: PageSection } {
   const ids = Array.from({ length: 60 }, () => crypto.randomUUID());
+  const sample = LAYOUT_SAMPLES[type]?.[variant] ?? SAMPLES[type];
   const build = (locale: SiteLocale) =>
     ({
-      ...SAMPLES[type](builder(ids, locale, () => true)),
+      ...sample(builder(ids, locale, () => true)),
       variant,
     }) as PageSection;
   return {
@@ -4940,28 +5012,39 @@ const REEL_HOW = section("pillars", "icons", (b) => ({
   ],
 }));
 
-const REEL_PRICING = section("fees", "table", (b) => ({
+const REEL_PRICING = section("fees", "plans", (b) => ({
   heading: b.w(["Pricing", "الأسعار"]),
   text: b.w([
     "Buy one course and keep it, or take everything by the month.",
     "اشترِ دورة واحدة واحتفظ بها، أو اشترك في كل شيء شهريًا.",
   ]),
   items: [
-    coursePrice(
-      b,
-      ["One course", "دورة واحدة"],
-      ["—", "—"],
-      ["Yours to keep, with its updates.", "تبقى لك، مع تحديثاتها."],
-    ),
-    coursePrice(
-      b,
-      ["Everything, by the month", "كل الدورات، شهريًا"],
-      ["—", "—"],
-      [
+    planCard(b, {
+      label: ["One course", "دورة واحدة"],
+      value: ["—", "—"],
+      note: ["Yours to keep, with its updates.", "تبقى لك، مع تحديثاتها."],
+      includes: [
+        "Every lesson of the course\nCaptions in Arabic and English\nWatch on a phone, tablet or computer",
+        "كل دروس الدورة\nترجمة مكتوبة بالعربية والإنجليزية\nشاهد على الهاتف أو الجهاز اللوحي أو الحاسوب",
+      ],
+      link: ["Choose a course", "اختر دورة"],
+      href: "/pages/courses",
+    }),
+    planCard(b, {
+      label: ["Everything, by the month", "كل الدورات، شهريًا"],
+      value: ["—", "—"],
+      note: [
         "Every course while you subscribe. Stop whenever you like.",
         "كل الدورات ما دمت مشتركًا. وتوقف متى شئت.",
       ],
-    ),
+      includes: [
+        "Every course in the library\nNew courses as they come out\nCaptions in Arabic and English\nStop whenever you like",
+        "كل دورات المكتبة\nالدورات الجديدة فور صدورها\nترجمة مكتوبة بالعربية والإنجليزية\nتوقف متى شئت",
+      ],
+      chosen: true,
+      link: ["Start watching", "ابدأ المشاهدة"],
+      href: "/pages/courses",
+    }),
   ],
 }));
 

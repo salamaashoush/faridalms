@@ -1873,7 +1873,7 @@ CREATE TABLE "core"."document_versions" (
 	CONSTRAINT "document_versions_pkey" PRIMARY KEY("tenant_id","id"),
 	CONSTRAINT "document_versions_tenant_id_document_id_document_version_re_key" UNIQUE("tenant_id","document_id","document_version","reason"),
 	CONSTRAINT "document_versions_document_version_check" CHECK (document_version > 0),
-	CONSTRAINT "document_versions_reason_check" CHECK (reason in ('publish', 'checkpoint', 'before_restore', 'import')),
+	CONSTRAINT "document_versions_reason_check" CHECK (reason in ('publish', 'checkpoint', 'before_restore', 'before_replace', 'import')),
 	CONSTRAINT "document_versions_label_check" CHECK (char_length(label) between 1 and 120),
 	CONSTRAINT "document_versions_ydoc_snapshot_check" CHECK (octet_length(ydoc_snapshot) <= 8388608),
 	CONSTRAINT "document_versions_content_check" CHECK (jsonb_typeof(content) = 'object'),
