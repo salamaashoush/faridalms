@@ -10,6 +10,7 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classAttendanceQuery } from "~/queries/attendance";
 import { formatNumber } from "~/utils/datetime";
+import { useWords } from "~/utils/words";
 
 import { formatRate } from "./format";
 
@@ -90,11 +91,12 @@ export interface ClassAttendanceProps {
 export function ClassAttendance({ classId }: ClassAttendanceProps) {
   const data = useSuspenseQuery(classAttendanceQuery(classId)).data;
   const user = useCurrentUser();
+  const words = useWords();
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {m.attRegistersTaken({ count: data.registers })}
+          {words(m.attRegistersTakenCore)({ count: data.registers })}
         </p>
         {data.canRecord ? (
           <ButtonLink

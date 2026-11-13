@@ -117,3 +117,17 @@ export async function schoolDaysTo(api: Api, yearId: string, last: string) {
     if (dayOpen(read, day, marks.get(day) ?? null)) days.push(day);
   return days;
 }
+
+/** The school days on or before `day`, latest first, by the school's week and the days it marked. */
+export async function schoolDaysBack(api: Api, day: string, count: number) {
+  const read = await api.schoolDays.days({ from: addDays(day, -30), to: day });
+  const marks = new Map(read.days.map((row) => [row.day, row.meaning]));
+  const found: string[] = [];
+  for (
+    let on = day;
+    on >= read.from && found.length < count;
+    on = addDays(on, -1)
+  )
+    if (dayOpen(read, on, marks.get(on) ?? null)) found.push(on);
+  return found;
+}

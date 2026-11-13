@@ -46,6 +46,7 @@ import {
 import { discardMessageDraft } from "~/server/messages";
 import { formatNumber, formatList } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 import { Conversation } from "./Conversation";
 import { nameOf, threadTitle, whenShort } from "./format";
@@ -580,6 +581,7 @@ export interface MessagesPageProps {
 export function MessagesPage({ search, onSearch }: MessagesPageProps) {
   const inbox = useSuspenseInfiniteQuery(inboxQuery(inboxOf(search))).data
     .pages[0];
+  const words = useWords();
   const open = search.thread !== "";
   return (
     <Page width="list">
@@ -618,7 +620,7 @@ export function MessagesPage({ search, onSearch }: MessagesPageProps) {
               <EmptyState
                 icon={InboxIcon}
                 title={m.msgPick()}
-                description={m.msgPickBody()}
+                description={words(m.msgPickBodyCore)()}
               />
             </div>
           )}

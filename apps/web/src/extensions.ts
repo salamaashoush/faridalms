@@ -5,6 +5,7 @@ import { ADMISSIONS_WITH_FAMILIES } from "./components/admissions/families";
 import { ADMISSIONS_BY_GRADE } from "./components/admissions/grades";
 import { ADMISSIONS_IN_YEARS } from "./components/admissions/years";
 import { ATTENDANCE } from "./components/attendance/contributions";
+import { ATTENDANCE_WITH_FAMILIES } from "./components/attendance/families";
 import { ATTENDANCE_WITH_TIMETABLE } from "./components/attendance/timetable";
 import { BADGES } from "./components/badges/contributions";
 import { CODING } from "./components/coding/contributions";
@@ -51,6 +52,7 @@ export const MODULE_FILLINGS: readonly ModuleFillings[] = [
   ADMISSIONS_IN_YEARS,
   ATTENDANCE,
   ATTENDANCE_WITH_TIMETABLE,
+  ATTENDANCE_WITH_FAMILIES,
   BADGES,
   CODING,
   CODING_IN_LESSONS,

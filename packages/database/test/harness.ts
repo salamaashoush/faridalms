@@ -77,7 +77,9 @@ export async function setUp(): Promise<Harness> {
       string,
       Awaited<ReturnType<typeof completeFixture>>
     >();
-    for (const tenant of tenants) {
+    // The isolation suite compares tenants A and B; the others, the
+    // academy of adults among them, keep only what the seed gave them.
+    for (const tenant of [a, b]) {
       const school = tenant.schools[0];
       if (!school) throw new Error("tenant without a school");
       fixtures.set(

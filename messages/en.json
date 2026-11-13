@@ -3099,6 +3099,16 @@
       }
     }
   ],
+  "attRegistersTakenCore": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} register taken in this class",
+        "countPlural=*": "{count} registers taken in this class"
+      }
+    }
+  ],
   "attSessions": "Registers",
   "attClassCaption": "Attendance by student",
   "attStale": "Someone saved this register after you opened it. Reload to see their marks before saving again.",
@@ -3502,6 +3512,7 @@
   "msgUnread": "unread",
   "msgPick": "Choose a conversation",
   "msgPickBody": "Or start a new message to a family or colleague.",
+  "msgPickBodyCore": "Or start a new message.",
   "msgBack": "Back to conversations",
   "msgMembers": "People in this conversation",
   "msgMessages": "Messages",

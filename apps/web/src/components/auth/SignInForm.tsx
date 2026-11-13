@@ -13,34 +13,22 @@ import * as m from "~/i18n/messages";
 import { loginSchema } from "~/schema/auth";
 import { login } from "~/server/auth";
 
-export const DEMO_PASSWORD = "farida-development-password";
+import type { DemoAccount } from "./demo-accounts";
 
-export const DEMO_ACCOUNTS = [
-  {
-    loginName: "principal.northwind@northwind.example.com",
-    label: () => m.roleAdmin(),
-  },
-  {
-    loginName: "teacher1.northwind@northwind.example.com",
-    label: () => m.roleTeacher(),
-  },
-  {
-    loginName: "parent1001@northwind.example.com",
-    label: () => m.roleParent(),
-  },
-  {
-    loginName: "student1007@northwind.example.com",
-    label: () => m.roleStudent(),
-  },
-];
+import { DEMO_PASSWORD, demoAccounts } from "./demo-accounts";
 
 export interface SignInFormProps {
   /** Where to go once signed in. */
   redirect?: string;
+  /** The seeded sign-ins offered in development; Northwind's unless given. */
+  demo?: readonly DemoAccount[];
 }
 
 /** Signs a person in to the school whose portal shows the form. */
-export function SignInForm({ redirect }: SignInFormProps = {}) {
+export function SignInForm({
+  redirect,
+  demo = demoAccounts(null),
+}: SignInFormProps = {}) {
   const hydrated = useHydrated();
   const sessionChanged = useSessionChange();
 
@@ -152,7 +140,7 @@ export function SignInForm({ redirect }: SignInFormProps = {}) {
         </form.Subscribe>
       </FieldGroup>
 
-      {import.meta.env.DEV && (
+      {import.meta.env.DEV && demo.length > 0 && (
         <div className="mt-8 rounded-lg border border-dashed border-border p-4">
           <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             {m.authDemoAccounts()}
@@ -161,7 +149,7 @@ export function SignInForm({ redirect }: SignInFormProps = {}) {
             {m.authDemoHint({ password: DEMO_PASSWORD })}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {DEMO_ACCOUNTS.map((account) => (
+            {demo.map((account) => (
               <Button
                 key={account.loginName}
                 type="button"

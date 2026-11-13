@@ -1,34 +1,19 @@
 import type { Page } from "@playwright/test";
 
 import { addDays } from "@faridalms/domain/school";
-import { dayOpen } from "@faridalms/domain/school-days";
 import { expect, test } from "@playwright/test";
 
-import type { Api } from "./fixtures/api";
 import type { FreshSchool } from "./fixtures/fresh-school";
 
 import { signedInApi } from "./fixtures/api";
 import { freshSchool, signInTo } from "./fixtures/fresh-school";
+import { schoolDaysBack } from "./fixtures/school";
 import {
   chooseFromMenu,
   PASSWORD,
   portal,
   untilHydrated,
 } from "./fixtures/sign-in";
-
-/** The school days on or before `day`, latest first, by the school's week and the days it marked. */
-async function schoolDaysBack(api: Api, day: string, count: number) {
-  const read = await api.schoolDays.days({ from: addDays(day, -30), to: day });
-  const marks = new Map(read.days.map((row) => [row.day, row.meaning]));
-  const found: string[] = [];
-  for (
-    let on = day;
-    on >= read.from && found.length < count;
-    on = addDays(on, -1)
-  )
-    if (dayOpen(read, on, marks.get(on) ?? null)) found.push(on);
-  return found;
-}
 
 const longDay = (day: string, parts: Intl.DateTimeFormatOptions) =>
   new Date(`${day}T00:00:00Z`).toLocaleDateString("en-US", {

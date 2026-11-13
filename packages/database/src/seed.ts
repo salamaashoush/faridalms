@@ -1,5 +1,6 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { LessonBlock, LessonCompletion } from "@faridalms/domain/learning";
+import type { ModuleId } from "@faridalms/domain/modules";
 import type { FormQuestion } from "@faridalms/domain/questions";
 
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
@@ -10,12 +11,13 @@ import {
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
 import { normaliseIdentifier } from "@faridalms/domain/identifiers";
 import { contentOfLesson } from "@faridalms/domain/lesson-content";
+import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
 import {
   formDocument,
   formQuestions,
   readFormAnswers,
 } from "@faridalms/domain/questions";
-import { addDays, teachingWeeks } from "@faridalms/domain/school";
+import { addDays, schoolDate, teachingWeeks } from "@faridalms/domain/school";
 import { dayOpen, schoolDays } from "@faridalms/domain/school-days";
 import {
   buildTemplate,
@@ -265,8 +267,12 @@ export interface SeededSchool {
   slug: string;
   nameEn: string;
   nameAr: string;
-  /** Entitled to Basic alone, where every other seeded school has everything. */
-  basic: boolean;
+  /**
+   * What its plan entitles it to: every module, so the seed shows the whole
+   * product, but Basic for one school and core's teaching modules alone for
+   * the academy.
+   */
+  modules: readonly ModuleId[];
 }
 
 export interface SeededTenant extends ProvisionedTenant {
@@ -3017,9 +3023,1053 @@ async function seedIdentity(
   }
 }
 
+/**
+ * A school of courses for adults, entitled to the modules it names and to
+ * nothing of a school of children: no years, grades, homerooms or families.
+ */
+interface AcademyPlan {
+  kind: "academy";
+  slug: string;
+  nameEn: string;
+  nameAr: string;
+  modules: readonly ModuleId[];
+}
+
+type SeedSchoolPlan = NamedSchoolPlan | AcademyPlan;
+
+interface AcademyPerson {
+  given: Name;
+  family: Name;
+  sex: "female" | "male";
+  born: string;
+}
+
+const ACADEMY_TEACHERS: AcademyPerson[] = [
+  {
+    given: ["Heba", "هبة"],
+    family: ["Rashad", "رشاد"],
+    sex: "female",
+    born: "1987-03-14",
+  },
+  {
+    given: ["Seif", "سيف"],
+    family: ["Nasser", "ناصر"],
+    sex: "male",
+    born: "1990-08-02",
+  },
+  {
+    given: ["Ghada", "غادة"],
+    family: ["Farouk", "فاروق"],
+    sex: "female",
+    born: "1984-11-27",
+  },
+];
+
+const ACADEMY_LEARNERS: AcademyPerson[] = [
+  {
+    given: ["Nour", "نور"],
+    family: ["Saleh", "صالح"],
+    sex: "female",
+    born: "1996-04-12",
+  },
+  {
+    given: ["Karim", "كريم"],
+    family: ["Mansour", "منصور"],
+    sex: "male",
+    born: "1991-11-03",
+  },
+  {
+    given: ["Yasmin", "ياسمين"],
+    family: ["Farouk", "فاروق"],
+    sex: "female",
+    born: "1999-07-21",
+  },
+  {
+    given: ["Tarek", "طارق"],
+    family: ["Hamdy", "حمدي"],
+    sex: "male",
+    born: "1988-02-09",
+  },
+  {
+    given: ["Salma", "سلمى"],
+    family: ["Nasser", "ناصر"],
+    sex: "female",
+    born: "2001-05-30",
+  },
+  {
+    given: ["Ziad", "زياد"],
+    family: ["Rashad", "رشاد"],
+    sex: "male",
+    born: "1994-09-14",
+  },
+  {
+    given: ["Dina", "دينا"],
+    family: ["Helmy", "حلمي"],
+    sex: "female",
+    born: "1985-12-02",
+  },
+  {
+    given: ["Hamza", "حمزة"],
+    family: ["Zaki", "زكي"],
+    sex: "male",
+    born: "2003-03-25",
+  },
+  {
+    given: ["Laila", "ليلى"],
+    family: ["Sabry", "صبري"],
+    sex: "female",
+    born: "1997-08-08",
+  },
+  {
+    given: ["Mostafa", "مصطفى"],
+    family: ["Kamel", "كامل"],
+    sex: "male",
+    born: "1990-06-17",
+  },
+  {
+    given: ["Aya", "آية"],
+    family: ["Wahba", "وهبة"],
+    sex: "female",
+    born: "2002-10-05",
+  },
+  {
+    given: ["Khaled", "خالد"],
+    family: ["Fathy", "فتحي"],
+    sex: "male",
+    born: "1993-01-28",
+  },
+];
+
+/**
+ * A class of the academy: a run of one of its courses, from a start date
+ * and, unless it keeps enrolling, to an end. Days count from the seed's
+ * today; learners are numbered from one, each joining a number of days
+ * after the class starts.
+ */
+interface AcademyClass {
+  code: string;
+  titleEn: string;
+  titleAr: string;
+  course: string;
+  room: string;
+  teacher: number;
+  starts: number;
+  ends: number | null;
+  learners: [learner: number, joins: number][];
+}
+
+const ACADEMY_COURSES: { code: string; en: string; ar: string }[] = [
+  { code: "PY-FOUND", en: "Python Foundations", ar: "أساسيات بايثون" },
+  { code: "WEB-DEV", en: "Web Development", ar: "تطوير الويب" },
+  {
+    code: "DATA-PY",
+    en: "Data Analysis with Python",
+    ar: "تحليل البيانات ببايثون",
+  },
+];
+
+const ACADEMY_CLASSES: AcademyClass[] = [
+  {
+    code: "PY-EVE",
+    titleEn: "Python Foundations, evenings",
+    titleAr: "أساسيات بايثون، مسائي",
+    course: "PY-FOUND",
+    room: "lab-1",
+    teacher: 1,
+    starts: -140,
+    ends: null,
+    learners: [
+      [1, 0],
+      [2, 0],
+      [3, 0],
+      [4, 80],
+      [5, 119],
+      [6, 119],
+    ],
+  },
+  {
+    code: "WEB-AUT",
+    titleEn: "Web Development, autumn cohort",
+    titleAr: "تطوير الويب، دفعة الخريف",
+    course: "WEB-DEV",
+    room: "lab-2",
+    teacher: 2,
+    starts: -42,
+    ends: 70,
+    learners: [
+      [5, 0],
+      [7, 0],
+      [8, 0],
+      [9, 0],
+      [10, 0],
+      [11, 0],
+    ],
+  },
+  {
+    code: "WEB-SPR",
+    titleEn: "Web Development, spring cohort",
+    titleAr: "تطوير الويب، دفعة الربيع",
+    course: "WEB-DEV",
+    room: "lab-2",
+    teacher: 2,
+    starts: -230,
+    ends: -110,
+    learners: [
+      [2, 0],
+      [6, 0],
+      [10, 0],
+      [12, 0],
+    ],
+  },
+  {
+    code: "DATA-WIN",
+    titleEn: "Data Analysis with Python, winter cohort",
+    titleAr: "تحليل البيانات ببايثون، دفعة الشتاء",
+    course: "DATA-PY",
+    room: "lab-1",
+    teacher: 3,
+    starts: 24,
+    ends: 108,
+    learners: [
+      [3, 0],
+      [4, 0],
+      [12, 0],
+    ],
+  },
+];
+
+/**
+ * Work set in a class, days from the seed's today: what each numbered
+ * learner handed in, how many days after it was due (late when positive),
+ * and the score and words it came back with, if it has.
+ */
+interface AcademyWork {
+  classCode: string;
+  title: string;
+  brief: string;
+  points: number;
+  opens: number;
+  due: number | null;
+  handedIn: {
+    learner: number;
+    after: number;
+    answer: string;
+    returned?: { score: number; feedback: string | null };
+  }[];
+}
+
+const ACADEMY_WORK: AcademyWork[] = [
+  {
+    classCode: "PY-EVE",
+    title: "Variables and types",
+    brief:
+      "Write a program that stores your name, your age and your favourite number, then prints a sentence using all three.",
+    points: 10,
+    opens: -30,
+    due: -23,
+    handedIn: [
+      {
+        learner: 1,
+        after: -2,
+        answer: 'name = "Nour"\nage = 30\nprint(f"{name} is {age}")',
+        returned: { score: 9, feedback: "Clear names and a tidy f-string." },
+      },
+      {
+        learner: 2,
+        after: -1,
+        answer: 'name = "Karim"\nprint("Karim is " + 35)',
+        returned: {
+          score: 7,
+          feedback: "Joining text to a number needs str() first.",
+        },
+      },
+      {
+        learner: 3,
+        after: -1,
+        answer: 'favourite = 7\nprint("My number is", favourite)',
+      },
+      {
+        learner: 4,
+        after: 3,
+        answer: 'age = "thirty-eight"\nprint(age)',
+      },
+    ],
+  },
+  {
+    classCode: "PY-EVE",
+    title: "Loops: FizzBuzz",
+    brief:
+      "Print the numbers from 1 to 100, but Fizz for multiples of three, Buzz for multiples of five and FizzBuzz for both.",
+    points: 20,
+    opens: -9,
+    due: 5,
+    handedIn: [
+      {
+        learner: 1,
+        after: -6,
+        answer:
+          'for n in range(1, 101):\n    print("Fizz" * (n % 3 == 0) + "Buzz" * (n % 5 == 0) or n)',
+      },
+    ],
+  },
+  {
+    classCode: "PY-EVE",
+    title: "Functions practice",
+    brief: "Write three small functions and a test for each.",
+    points: 10,
+    opens: 0,
+    due: null,
+    handedIn: [],
+  },
+  {
+    classCode: "WEB-AUT",
+    title: "A page about yourself",
+    brief:
+      "Build one HTML page with a heading, a photo, a list of three things you enjoy and a link to a site you use every day.",
+    points: 10,
+    opens: -28,
+    due: -14,
+    handedIn: [
+      {
+        learner: 5,
+        after: -3,
+        answer:
+          "<h1>Salma</h1>\n<ul><li>Running</li><li>Chess</li><li>Baking</li></ul>",
+        returned: { score: 8, feedback: "Add alt text to the photo." },
+      },
+      {
+        learner: 7,
+        after: -2,
+        answer:
+          "<h1>Dina Helmy</h1>\n<p>I enjoy reading, gardens and maps.</p>",
+        returned: {
+          score: 10,
+          feedback: "Every part is there, and it reads well.",
+        },
+      },
+      {
+        learner: 8,
+        after: -1,
+        answer: "<h1>Hamza</h1>",
+        returned: {
+          score: 6,
+          feedback: "The list and the link are still to come.",
+        },
+      },
+      {
+        learner: 9,
+        after: -1,
+        answer:
+          '<h1>Laila</h1>\n<a href="https://example.com">My daily read</a>',
+      },
+      {
+        learner: 11,
+        after: 1,
+        answer:
+          "<h1>Aya</h1>\n<ol><li>Drawing</li><li>Music</li><li>Tea</li></ol>",
+      },
+    ],
+  },
+  {
+    classCode: "WEB-AUT",
+    title: "Style it with CSS",
+    brief:
+      "Give your page a colour scheme, a readable font and a layout that works on a phone.",
+    points: 20,
+    opens: -7,
+    due: 7,
+    handedIn: [],
+  },
+  {
+    classCode: "WEB-SPR",
+    title: "Final project: a small shop site",
+    brief:
+      "Build a three-page site for a small shop: a home page, a product list and a contact form.",
+    points: 50,
+    opens: -150,
+    due: -117,
+    handedIn: [
+      {
+        learner: 2,
+        after: -1,
+        answer: "A bakery with its menu and opening hours.",
+        returned: { score: 42, feedback: "A real shop could use this." },
+      },
+      {
+        learner: 6,
+        after: 0,
+        answer: "A bicycle repair shop with a booking form.",
+        returned: { score: 38, feedback: "The form needs labels." },
+      },
+      {
+        learner: 10,
+        after: -2,
+        answer: "A bookshop with search by author.",
+        returned: { score: 46, feedback: "Thoughtful navigation throughout." },
+      },
+      {
+        learner: 12,
+        after: 1,
+        answer: "A plant nursery with care guides.",
+        returned: {
+          score: 35,
+          feedback: "Handed in a day late; the care guides are lovely.",
+        },
+      },
+    ],
+  },
+];
+
+/** A learning module of the academy, set for one class, with who has done which lesson. */
+interface AcademyModule {
+  classCode: string;
+  title: string;
+  summary: string;
+  published: boolean;
+  lessons: { title: string; text: string; doneBy: number[] }[];
+}
+
+const ACADEMY_MODULES: AcademyModule[] = [
+  {
+    classCode: "PY-EVE",
+    title: "Python basics",
+    summary: "From a first print to names, values and decisions.",
+    published: true,
+    lessons: [
+      {
+        title: "Your first program",
+        text: 'A program is a list of instructions. print("Hello") shows a word on the screen.',
+        doneBy: [1, 2, 3, 4],
+      },
+      {
+        title: "Names and values",
+        text: "A variable is a name for a value. age = 30 keeps the number 30 under the name age.",
+        doneBy: [1, 2, 3],
+      },
+      {
+        title: "Making decisions",
+        text: "if, elif and else choose what runs, by whether a condition is true.",
+        doneBy: [1],
+      },
+    ],
+  },
+  {
+    classCode: "WEB-AUT",
+    title: "HTML from the ground up",
+    summary: "Elements, attributes and the shape of a page.",
+    published: true,
+    lessons: [
+      {
+        title: "Elements and tags",
+        text: "Every part of a page is an element, opened and closed by a tag.",
+        doneBy: [5, 7, 8, 9],
+      },
+      {
+        title: "Links and images",
+        text: "An a element links to another page; an img element shows a picture and says what it shows in its alt text.",
+        doneBy: [7],
+      },
+    ],
+  },
+  {
+    classCode: "DATA-WIN",
+    title: "First steps with pandas",
+    summary: "Reading a table, choosing columns and counting.",
+    published: false,
+    lessons: [
+      {
+        title: "Reading a CSV file",
+        text: "pandas.read_csv turns a file of rows into a table you can ask questions of.",
+        doneBy: [],
+      },
+    ],
+  },
+];
+
+/**
+ * A coding academy of adults on core and the teaching modules alone: its
+ * courses run as classes from their own dates, one still enrolling, one
+ * over and one yet to start; teachers and a dozen learners who sign in
+ * for themselves; work handed in, marked and returned; lessons and the
+ * progress through them; each running class's register for the last
+ * school days; and messages and announcements.
+ */
+async function seedAcademy(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  plan: AcademyPlan,
+  context: {
+    passwordHash: string;
+    domain: string;
+    today: string;
+    logins: SeededTenant["logins"];
+  },
+) {
+  const { today, domain } = context;
+  const day = (offset: number) => addDays(today, offset);
+  const moment = (offset: number, hour: number) =>
+    new Date(`${day(offset)}T${String(hour).padStart(2, "0")}:00:00Z`);
+  const [positions, classroom, subjects, idSystems, categories, reasons] =
+    await Promise.all([
+      descriptorIds(tx, tenantId, "staff_position"),
+      descriptorIds(tx, tenantId, "classroom_position"),
+      descriptorIds(tx, tenantId, "subject"),
+      descriptorIds(tx, tenantId, "external_id_system"),
+      descriptorIds(tx, tenantId, "attendance_category"),
+      descriptorIds(tx, tenantId, "attendance_reason"),
+    ]);
+  await tx.execute(sql`
+    update core.orgs set email = ${`office@${domain}`},
+      phone = ${"+20 2 2735 0199"}
+    where tenant_id = ${tenantId}::uuid and id = ${schoolId}::uuid`);
+  await setOrgFeature(tx, {
+    tenantId,
+    orgId: schoolId,
+    feature: "elearning",
+    enabled: true,
+  });
+  const account = async (who: Person, login: string, held: string) => {
+    await giveAccount(tx, tenantId, who.id, login, {
+      passwordHash: context.passwordHash,
+      reachable: true,
+    });
+    context.logins.push({ role: held, loginName: login, schoolId });
+  };
+
+  const admin = person(["Amira", "أميرة"], ["Helmy", "حلمي"], "female");
+  await insertPerson(tx, tenantId, admin, { primaryOrgId: schoolId });
+  await role(
+    tx,
+    tenantId,
+    admin.id,
+    schoolId,
+    "school",
+    "site_administrator",
+    "2023-01-08",
+  );
+  await account(admin, `admin.${plan.slug}@${domain}`, "site_administrator");
+
+  const teachers: Person[] = [];
+  for (const [index, each] of ACADEMY_TEACHERS.entries()) {
+    const teacher = person(each.given, each.family, each.sex);
+    await insertPerson(tx, tenantId, teacher, {
+      primaryOrgId: schoolId,
+      birthDate: each.born,
+      birthDateSource: "school_record",
+    });
+    await role(
+      tx,
+      tenantId,
+      teacher.id,
+      schoolId,
+      "school",
+      "teacher",
+      "2023-01-08",
+      { positionDescriptorId: need(positions, "teacher") },
+    );
+    await account(
+      teacher,
+      `teacher${index + 1}.${plan.slug}@${domain}`,
+      "teacher",
+    );
+    teachers.push(teacher);
+  }
+
+  const learners: Person[] = [];
+  for (const [index, each] of ACADEMY_LEARNERS.entries()) {
+    const learner = person(each.given, each.family, each.sex);
+    await insertPerson(tx, tenantId, learner, {
+      primaryOrgId: schoolId,
+      birthDate: each.born,
+      birthDateSource: "document",
+    });
+    await role(
+      tx,
+      tenantId,
+      learner.id,
+      schoolId,
+      "school",
+      "student",
+      day(-240),
+    );
+    await tx.insert(externalIds).values({
+      tenantId,
+      userId: learner.id,
+      systemDescriptorId: need(idSystems, "school_reference"),
+      systemMeaning: "school_reference",
+      identifier: `LF${1001 + index}`,
+      assigningOrgId: schoolId,
+      validDuring: `[${day(-240)},)`,
+    });
+    await account(
+      learner,
+      `student${index + 1}.${plan.slug}@${domain}`,
+      "student",
+    );
+    learners.push(learner);
+  }
+  const teacherOf = (number: number) => {
+    const found = teachers[number - 1];
+    if (!found) throw new Error(`no academy teacher ${number}`);
+    return found;
+  };
+  const learnerOf = (number: number) => {
+    const found = learners[number - 1];
+    if (!found) throw new Error(`no academy learner ${number}`);
+    return found;
+  };
+
+  const rooms = new Map<string, string>();
+  for (const [code, en, ar] of [
+    ["lab-1", "Lab 1", "المعمل 1"],
+    ["lab-2", "Lab 2", "المعمل 2"],
+  ] as const) {
+    const id = Bun.randomUUIDv7();
+    await tx.insert(locations).values({
+      tenantId,
+      id,
+      orgId: schoolId,
+      kind: "lab",
+      code,
+      nameEn: en,
+      nameAr: ar,
+      capacity: 16,
+    });
+    rooms.set(code, id);
+  }
+  const courseIds = new Map<string, string>();
+  for (const course of ACADEMY_COURSES) {
+    const id = Bun.randomUUIDv7();
+    await tx.insert(courses).values({
+      tenantId,
+      id,
+      orgId: schoolId,
+      code: course.code,
+      titleEn: course.en,
+      titleAr: course.ar,
+      subjectDescriptorId: need(subjects, "computing"),
+    });
+    courseIds.set(course.code, id);
+  }
+
+  const classIds = new Map<string, string>();
+  for (const each of ACADEMY_CLASSES) {
+    const id = Bun.randomUUIDv7();
+    const ends = each.ends === null ? "" : day(each.ends);
+    await tx.insert(classes).values({
+      tenantId,
+      id,
+      orgId: schoolId,
+      runs: `[${day(each.starts)},${ends})`,
+      code: each.code,
+      titleEn: each.titleEn,
+      titleAr: each.titleAr,
+      courseId: need(courseIds, each.course),
+      subjectDescriptorId: need(subjects, "computing"),
+      locationId: need(rooms, each.room),
+    });
+    classIds.set(each.code, id);
+    await tx.insert(enrollments).values([
+      {
+        tenantId,
+        classId: id,
+        orgId: schoolId,
+        userId: teacherOf(each.teacher).id,
+        role: "teacher" as const,
+        isPrimary: true,
+        classroomPositionDescriptorId: need(classroom, "teacher_of_record"),
+        validDuring: `[${day(each.starts)},${ends})`,
+        source: "manual" as const,
+      },
+      ...each.learners.map(([learner, joins]) => ({
+        tenantId,
+        classId: id,
+        orgId: schoolId,
+        userId: learnerOf(learner).id,
+        role: "student" as const,
+        validDuring: `[${day(each.starts + joins)},${ends})`,
+        source: "manual" as const,
+      })),
+    ]);
+  }
+  const classOf = (code: string) => {
+    const id = need(classIds, code);
+    const found = ACADEMY_CLASSES.find((each) => each.code === code);
+    if (!found) throw new Error(`no academy class ${code}`);
+    return { id, run: found, teacher: teacherOf(found.teacher) };
+  };
+  const inClassOn = (run: AcademyClass, on: string) =>
+    run.learners
+      .filter(([, joins]) => day(run.starts + joins) <= on)
+      .map(([learner]) => learnerOf(learner).id);
+
+  for (const work of ACADEMY_WORK) {
+    const { id: classId, run, teacher } = classOf(work.classCode);
+    const id = Bun.randomUUIDv7();
+    const published = work.due !== null;
+    await tx.insert(assignments).values({
+      tenantId,
+      id,
+      orgId: schoolId,
+      classId,
+      authorUserId: teacher.id,
+      title: work.title,
+      state: published ? "published" : "draft",
+      availableFrom: moment(work.opens, 6),
+      dueAt: work.due === null ? null : moment(work.due, 20),
+      points: work.points,
+      publishedAt: published ? moment(work.opens, 6) : null,
+    });
+    await tx.insert(documents).values({
+      tenantId,
+      hostType: "assignment",
+      hostId: id,
+      orgId: schoolId,
+      kind: "rich_text",
+      schemaVersion: 1,
+      content: plainContent(work.brief) as unknown as Record<string, unknown>,
+      plainText: work.brief,
+    });
+    if (!published) continue;
+    const recipients = inClassOn(run, day(work.opens));
+    await tx.insert(assignmentRecipients).values(
+      recipients.map((studentUserId) => ({
+        tenantId,
+        assignmentId: id,
+        studentUserId,
+        source: "class" as const,
+      })),
+    );
+    for (const handed of work.handedIn) {
+      const studentUserId = learnerOf(handed.learner).id;
+      const submissionId = Bun.randomUUIDv7();
+      const attemptId = Bun.randomUUIDv7();
+      const handedAt = moment((work.due ?? 0) + handed.after, 17);
+      await tx.insert(submissions).values({
+        tenantId,
+        id: submissionId,
+        assignmentId: id,
+        studentUserId,
+        state: handed.returned ? "returned" : "submitted",
+      });
+      await tx.insert(submissionAttempts).values({
+        tenantId,
+        id: attemptId,
+        submissionId,
+        studentUserId,
+        number: 1,
+        isLate: handed.after > 0,
+        submittedAt: handedAt,
+        submittedByUserId: studentUserId,
+      });
+      await tx.insert(documents).values({
+        tenantId,
+        hostType: "submission_attempt",
+        hostId: attemptId,
+        orgId: schoolId,
+        kind: "rich_text",
+        schemaVersion: 1,
+        content: plainContent(handed.answer) as unknown as Record<
+          string,
+          unknown
+        >,
+        plainText: handed.answer,
+        frozenAt: handedAt,
+      });
+      if (handed.returned)
+        await tx.insert(assessments).values({
+          tenantId,
+          attemptId,
+          submissionId,
+          studentUserId,
+          score: handed.returned.score,
+          effectiveScore: handed.returned.score,
+          feedback: handed.returned.feedback,
+          gradedByUserId: teacher.id,
+          releasedAt: moment((work.due ?? 0) + 3, 9),
+        });
+    }
+  }
+
+  for (const module of ACADEMY_MODULES) {
+    const { id: classId, teacher } = classOf(module.classCode);
+    const created = await insertModule(tx, {
+      tenantId,
+      schoolId,
+      authorId: teacher.id,
+      title: module.title,
+      summary: module.summary,
+      sequential: true,
+      prerequisiteId: null,
+      prerequisiteScore: null,
+      practiceBands: [],
+    });
+    await setModuleClasses(tx, {
+      tenantId,
+      moduleId: created.id,
+      classIds: [classId],
+    });
+    for (const lesson of module.lessons) {
+      const row = await insertLesson(tx, {
+        tenantId,
+        moduleId: created.id,
+        title: lesson.title,
+        completion: "view",
+        passScore: null,
+        review: false,
+        vowelMarks: "shown",
+        language: null,
+        translationTitle: null,
+        young: false,
+        readAlong: false,
+        condition: null,
+        bands: [],
+      });
+      const content = contentOfLesson({
+        version: 2,
+        blocks: [
+          {
+            id: Bun.randomUUIDv7(),
+            type: "content",
+            content: plainContent(lesson.text),
+          },
+        ],
+      });
+      if (!content) throw new Error(`${lesson.title} cannot be a document`);
+      const document = await saveDocument(tx, {
+        tenantId,
+        orgId: schoolId,
+        host: { type: "lesson", id: row.id },
+        kind: "lesson",
+        content: { ...content },
+        plainText: contentPlainText(content),
+        mediaIds: contentFileIds(content),
+        userId: teacher.id,
+      });
+      if (!module.published) continue;
+      await snapshotPublish(tx, {
+        tenantId,
+        documentId: document.id,
+        userId: teacher.id,
+      });
+      for (const learner of lesson.doneBy)
+        await recordProgress(tx, {
+          tenantId,
+          lessonId: row.id,
+          studentId: learnerOf(learner).id,
+          completed: { by: "student" },
+        });
+    }
+    if (module.published)
+      await setModuleState(tx, {
+        tenantId,
+        id: created.id,
+        expectedVersion: created.version,
+        state: "published",
+        publishAt: moment(-35, 6).toISOString(),
+      });
+  }
+
+  // Each running class's register by day for the school days before today,
+  // so the seed's today is still the teacher's to take.
+  const [school] = await tx
+    .select({ weekStart: orgs.weekStart, weekendDays: orgs.weekendDays })
+    .from(orgs)
+    .where(and(eq(orgs.tenantId, tenantId), eq(orgs.id, schoolId)));
+  if (!school) throw new Error("no seeded academy");
+  const taughtDays: string[] = [];
+  for (let back = 1; taughtDays.length < 10; back += 1)
+    if (dayOpen(school, day(-back), null)) taughtDays.unshift(day(-back));
+  const roll = random(0x1a7e5);
+  const registers: (typeof attendanceRegisters.$inferInsert)[] = [];
+  const marks: (typeof attendanceEvents.$inferInsert)[] = [];
+  for (const code of ["PY-EVE", "WEB-AUT"]) {
+    const { id: classId, run, teacher } = classOf(code);
+    for (const takenOn of taughtDays) {
+      const registerId = Bun.randomUUIDv7();
+      registers.push({
+        tenantId,
+        id: registerId,
+        orgId: schoolId,
+        classId,
+        kind: "day",
+        daily: true,
+        takenOn,
+        state: "submitted",
+        recordedByUserId: teacher.id,
+        submittedAt: new Date(`${takenOn}T16:10:00Z`),
+      });
+      for (const studentUserId of inClassOn(run, takenOn)) {
+        const chance = roll();
+        const meaning =
+          chance < 0.06 ? "absent" : chance < 0.14 ? "late" : "present";
+        const explained = meaning !== "present" && roll() < 0.5;
+        marks.push({
+          tenantId,
+          takenOn,
+          registerId,
+          studentUserId,
+          categoryDescriptorId: need(categories, meaning),
+          categoryMeaning: meaning,
+          reasonDescriptorId: explained
+            ? need(reasons, meaning === "late" ? "transport" : "illness")
+            : null,
+          minutes: meaning === "late" ? 5 + Math.floor(roll() * 25) : null,
+          recordedByUserId: teacher.id,
+        });
+      }
+    }
+  }
+  await tx.insert(attendanceRegisters).values(registers);
+  await tx.insert(attendanceEvents).values(marks);
+
+  const threads: (typeof messageThreads.$inferInsert)[] = [];
+  const members: (typeof threadMembers.$inferInsert)[] = [];
+  const posts: (typeof messages.$inferInsert)[] = [];
+  const conversation = (
+    kind: "direct" | "group",
+    subject: string | null,
+    people: { id: string; read: boolean }[],
+    said: { by: string; text: string; at: Date }[],
+  ) => {
+    const threadId = Bun.randomUUIDv7();
+    const [first] = said;
+    const last = said.at(-1);
+    if (!first || !last) throw new Error("a seeded conversation says nothing");
+    threads.push({
+      tenantId,
+      id: threadId,
+      orgId: schoolId,
+      kind,
+      subject,
+      createdByUserId: first.by,
+      lastMessageAt: last.at,
+    });
+    members.push(
+      ...people.map((each) => ({
+        tenantId,
+        threadId,
+        userId: each.id,
+        role: each.id === first.by ? ("owner" as const) : ("member" as const),
+        joinedAt: first.at,
+        lastReadAt: each.read ? last.at : null,
+      })),
+    );
+    posts.push(
+      ...said.map((each) => ({
+        tenantId,
+        threadId,
+        authorUserId: each.by,
+        body: each.text,
+        createdAt: each.at,
+      })),
+    );
+  };
+  conversation(
+    "direct",
+    null,
+    [
+      { id: teacherOf(1).id, read: true },
+      { id: learnerOf(2).id, read: true },
+    ],
+    [
+      {
+        by: teacherOf(1).id,
+        text: "Karim, your FizzBuzz is nearly there: try the numbers that are multiples of both first.",
+        at: moment(-3, 15),
+      },
+      {
+        by: learnerOf(2).id,
+        text: "That was it. I will hand it in before Thursday's session.",
+        at: moment(-2, 19),
+      },
+    ],
+  );
+  conversation(
+    "direct",
+    null,
+    [
+      { id: teacherOf(2).id, read: true },
+      { id: learnerOf(10).id, read: false },
+    ],
+    [
+      {
+        by: teacherOf(2).id,
+        text: "Mostafa, I have not seen your page about yourself yet. Send what you have and we can finish it together.",
+        at: moment(-1, 10),
+      },
+    ],
+  );
+  conversation(
+    "group",
+    "Teachers",
+    [
+      { id: admin.id, read: true },
+      ...teachers.map((teacher) => ({ id: teacher.id, read: true })),
+    ],
+    [
+      {
+        by: admin.id,
+        text: "The winter data cohort is full. Ghada, the room plan is in Lab 1 from its first evening.",
+        at: moment(-4, 9),
+      },
+      {
+        by: teacherOf(3).id,
+        text: "Thank you. I will send the setup notes to the learners a week before.",
+        at: moment(-4, 11),
+      },
+    ],
+  );
+  await tx.insert(messageThreads).values(threads);
+  await tx.insert(threadMembers).values(members);
+  await tx.insert(messages).values(posts);
+  const written = await tx.execute<{
+    id: string;
+    body: string;
+    author_user_id: string | null;
+  }>(sql`
+    select x.id, x.body, x.author_user_id from core.messages x
+    where x.tenant_id = ${tenantId}::uuid
+      and x.thread_id = any(${uuidArray(threads.map((thread) => thread.id ?? ""))})`);
+  for (const row of written)
+    await saveDocument(tx, {
+      tenantId,
+      orgId: schoolId,
+      host: { type: "message", id: row.id },
+      content: plainContent(row.body) as unknown as Record<string, unknown>,
+      plainText: row.body,
+      mediaIds: [],
+      userId: row.author_user_id,
+      frozen: true,
+    });
+
+  await insertAnnouncements(
+    tx,
+    { tenantId, schoolId, authorId: admin.id, on: today },
+    [
+      {
+        title: "Welcome to the autumn courses",
+        body: "Sessions run in Lab 1 and Lab 2 from six in the evening. Your lessons and work are in the app; bring a laptop if you have one.",
+        audience: { scope: "school", classId: null },
+        urgency: "normal",
+        pinnedUntil: day(30),
+        publishAt: moment(-42, 6),
+      },
+      {
+        title: "Lab 2 closes early on Thursday",
+        body: "Lab 2 closes at eight this Thursday for a network upgrade. The web cohort meets in Lab 1 instead.",
+        audience: { scope: "school", classId: null },
+        urgency: "important",
+        publishAt: moment(-1, 8),
+      },
+    ],
+  );
+}
+
 export const SEED_TENANTS: {
   spec: TenantSpec;
-  schools: NamedSchoolPlan[];
+  schools: SeedSchoolPlan[];
   domain: string;
   seed: number;
 }[] = [
@@ -3126,12 +4176,42 @@ export const SEED_TENANTS: {
     domain: "fernhill.example.com",
     seed: 13,
   },
+  {
+    spec: {
+      kind: "school",
+      nameEn: "Lanternfield Code Academy",
+      nameAr: "أكاديمية لانترنفيلد للبرمجة",
+      defaultLocale: "en",
+      jurisdictions: ["EG"],
+      schools: [
+        {
+          nameEn: "Lanternfield Code Academy",
+          nameAr: "أكاديمية لانترنفيلد للبرمجة",
+          timeZone: "Africa/Cairo",
+          countryCode: "EG",
+          defaultLocale: "en",
+        },
+      ],
+    },
+    schools: [
+      {
+        kind: "academy",
+        slug: "lanternfield",
+        nameEn: "Lanternfield Code Academy",
+        nameAr: "أكاديمية لانترنفيلد للبرمجة",
+        modules: ["coursework", "attendance", "elearning"],
+      },
+    ],
+    domain: "lanternfield.example.com",
+    seed: 17,
+  },
 ];
 
 /**
  * The development seed: a school group of two schools, with a teacher who
  * works at both and a family with children at both, a standalone school in
- * another jurisdiction, and a small school entitled to Basic alone. Every
+ * another jurisdiction, a small school entitled to Basic alone, and a
+ * coding academy of adults on core and the teaching modules alone. Every
  * adult and some students can sign in with `SEED_PASSWORD`.
  */
 export async function seedCell(
@@ -3188,7 +4268,16 @@ export async function seedCell(
       for (const [index, school] of plan.schools.entries()) {
         const schoolId = tenant.schoolIds[index];
         if (!schoolId) throw new Error("school id missing");
-        await seedSchool(tx, tenant.tenantId, schoolId, school, context);
+        if ("kind" in school)
+          await seedAcademy(tx, tenant.tenantId, schoolId, school, {
+            passwordHash,
+            domain: plan.domain,
+            today:
+              options.today ??
+              schoolDate(plan.spec.schools[index]?.timeZone ?? "UTC"),
+            logins,
+          });
+        else await seedSchool(tx, tenant.tenantId, schoolId, school, context);
       }
     });
     result.push({
@@ -3199,7 +4288,12 @@ export async function seedCell(
         slug: school.slug,
         nameEn: school.nameEn,
         nameAr: school.nameAr,
-        basic: school.basic ?? false,
+        modules:
+          "kind" in school
+            ? school.modules
+            : school.basic
+              ? BASIC_MODULES
+              : MODULE_IDS,
       })),
       logins,
     });

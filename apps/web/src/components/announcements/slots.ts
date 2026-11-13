@@ -1,3 +1,4 @@
+import type { AudienceInput } from "@faridalms/domain/announcements";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { ContentLocale } from "@faridalms/domain/translations";
 import type { ComponentType } from "react";
@@ -12,6 +13,8 @@ export type AudienceKind = {
   scope: string;
   /** The audience as a choice beside the school's own: "A grade". */
   label: () => string;
+  /** Who a new announcement goes to until its author chooses: every family. */
+  first?: boolean;
 } & (
   | {
       /** What a row of it names, as its field is called: "Grade". */
@@ -23,6 +26,17 @@ export type AudienceKind = {
 );
 
 export const audienceKinds = slot<AudienceKind>("audience kinds");
+
+/** Who a new announcement goes to: a module's first audience, or the whole school. */
+export const firstAudience = (
+  kinds: readonly AudienceKind[],
+): AudienceInput[] => [
+  {
+    scope: kinds.find((kind) => kind.first)?.scope ?? "school",
+    classId: "",
+    targetId: "",
+  },
+];
 
 /** The module's kind for a scope when it names no target: every family, say. */
 export const wholeKind = (

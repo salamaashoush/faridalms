@@ -86,7 +86,7 @@ import type { AnnouncementCopyPart } from "./slots";
 
 import { AudienceList, audienceIssue, audienceSummary } from "./AudienceList";
 import { STATE_LABEL, STATE_TONE, URGENCY_LABEL } from "./format";
-import { announcementCopyParts, audienceKinds } from "./slots";
+import { announcementCopyParts, audienceKinds, firstAudience } from "./slots";
 
 type EditorData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof announcementEditorQuery>["queryFn"]>>
@@ -150,10 +150,6 @@ function saveOf(
   });
 }
 
-const FAMILIES: AudienceInput[] = [
-  { scope: "families", classId: "", targetId: "" },
-];
-
 const NEWSLETTERS = ["weekly", "monthly"] as const;
 type Newsletter = (typeof NEWSLETTERS)[number];
 
@@ -189,6 +185,7 @@ const pick = <T,>(locale: ContentLocale, en: T, ar: T) =>
 function draftOf(
   existing: EditorData | null,
   parts: Record<string, unknown>,
+  first: AudienceInput[],
 ): Draft {
   return {
     primaryLocale:
@@ -204,7 +201,7 @@ function draftOf(
           classId: row.classId ?? "",
           targetId: row.targetId ?? "",
         }))
-      : FAMILIES,
+      : first,
     urgency: existing?.urgency ?? "normal",
     pinnedUntil: existing?.pinnedUntil ?? "",
     expiresOn: existing?.expiresOn ?? "",
@@ -279,6 +276,7 @@ export function AnnouncementEditor({
 }: AnnouncementEditorProps) {
   const options: Options = useSuspenseQuery(announcementOptionsQuery).data;
   const kinds = useSlot(audienceKinds);
+  const first = firstAudience(kinds);
   const copies = useSlot(announcementCopyParts);
   const words = useWords();
   const storedParts = useSuspenseQueries({
@@ -304,6 +302,7 @@ export function AnnouncementEditor({
           storedParts[index]?.data ?? null,
         ]),
       ),
+      first,
     ),
   );
   const [sent, setSent] = useState(existing?.sent ?? null);
@@ -434,6 +433,7 @@ export function AnnouncementEditor({
           Object.fromEntries(
             copies.map((copy, index) => [copy.key, parts[index] ?? null]),
           ),
+          first,
         ),
         version: data.version,
         data,
@@ -488,13 +488,13 @@ export function AnnouncementEditor({
     },
     [copies],
   );
-  /** A copy's settings changed; with none opening it, it reaches its families again. */
+  /** A copy's settings changed; with none opening it, it reaches its first audience again. */
   const changeCopy = (key: string, value: unknown) => {
     const parts = { ...draft.parts, [key]: value };
     const opens = copies.some((copy) => copy.opens(parts[copy.key] ?? null));
     change({
       parts,
-      audiences: !opens && !telling ? FAMILIES : draft.audiences,
+      audiences: !opens && !telling ? first : draft.audiences,
     });
   };
   const copyProps = (copy: AnnouncementCopyPart) => ({
@@ -865,7 +865,7 @@ export function AnnouncementEditor({
                   label={m.annTellPeople()}
                   checked={telling}
                   onChange={(checked) =>
-                    change({ audiences: checked ? FAMILIES : [] })
+                    change({ audiences: checked ? first : [] })
                   }
                 />
               ) : null}

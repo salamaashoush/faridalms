@@ -15,8 +15,8 @@ import { loginSchema } from "~/schema/auth";
 import { discoverSignIn } from "~/server/auth";
 import { getMessageFromError } from "~/utils/error";
 
+import { DEMO_PASSWORD, demoAccounts } from "./demo-accounts";
 import { useHumanCheck } from "./HumanCheck";
-import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "./SignInForm";
 
 type School = { slug: string; nameEn: string | null; nameAr: string | null };
 
@@ -228,7 +228,7 @@ export function BareSignIn() {
             {m.authDemoHint({ password: DEMO_PASSWORD })}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {DEMO_ACCOUNTS.map((account) => (
+            {demoAccounts(null).map((account) => (
               <Button
                 key={account.loginName}
                 type="button"

@@ -252,6 +252,7 @@ export const SCHOOL_YEARS: ModuleFillings = {
     replaceWords(m.profileTeachesYouNoneCore, m.profileTeachesYouNone),
     replaceWords(m.profileTeachesChildNoneCore, m.profileTeachesChildNone),
     replaceWords(m.attStudentHintCore, m.attStudentHint),
+    replaceWords(m.attRegistersTakenCore, m.attRegistersTaken),
     replaceWords(m.attFamilyHintCore, m.attFamilyHint),
     replaceWords(m.fupSupportHintCore, m.fupSupportHint),
     replaceWords(m.fupNoSupportCore, m.fupNoSupport),

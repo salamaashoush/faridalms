@@ -3268,6 +3268,20 @@
       }
     }
   ],
+  "attRegistersTakenCore": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لم يُسجَّل أي حضور في هذا الفصل",
+        "countPlural=one": "سجل حضور واحد في هذا الفصل",
+        "countPlural=two": "سجلا حضور في هذا الفصل",
+        "countPlural=few": "{count} سجلات حضور في هذا الفصل",
+        "countPlural=many": "{count} سجل حضور في هذا الفصل",
+        "countPlural=*": "{count} سجل حضور في هذا الفصل"
+      }
+    }
+  ],
   "attSessions": "السجلات",
   "attClassCaption": "الحضور حسب الطالب",
   "attStale": "حفظ شخص آخر هذا السجل بعد أن فتحته. أعد التحميل لترى علاماته قبل الحفظ مرة أخرى.",
@@ -3685,6 +3699,7 @@
   "msgUnread": "غير مقروءة",
   "msgPick": "اختر محادثة",
   "msgPickBody": "أو ابدأ رسالة جديدة إلى أسرة أو زميل.",
+  "msgPickBodyCore": "أو ابدأ رسالة جديدة.",
   "msgBack": "العودة إلى المحادثات",
   "msgMembers": "المشاركون في المحادثة",
   "msgMessages": "الرسائل",
@@ -6653,7 +6668,7 @@
   "docDone": "تم",
   "annAudienceNumber": "الجمهور {number}",
   "filesTab": "الملفات",
-  "filesClassHint": "الصور والتسجيلات والملفات التي تستخدمها واجبات هذا الصف، محفوظة مرة واحدة لها جميعًا.",
+  "filesClassHint": "الصور والتسجيلات والملفات التي تستخدمها واجبات هذا الفصل، محفوظة مرة واحدة لها جميعًا.",
   "filesModuleHint": "الصور والتسجيلات والملفات التي تستخدمها دروس هذه الوحدة، محفوظة مرة واحدة لها جميعًا.",
   "filesUpload": "رفع ملفات",
   "filesTrash": "المحذوفات",
@@ -6671,7 +6686,7 @@
   "filesColumnAdded": "أُضيف",
   "filesNotUsed": "غير مستخدم بعد",
   "filesEmpty": "لا توجد ملفات بعد",
-  "filesEmptyClass": "تظهر هنا الملفات التي تضعها في واجبات هذا الصف. ويمكنك أيضًا رفع ملفات لاستخدامها لاحقًا.",
+  "filesEmptyClass": "تظهر هنا الملفات التي تضعها في واجبات هذا الفصل. ويمكنك أيضًا رفع ملفات لاستخدامها لاحقًا.",
   "filesEmptyModule": "تظهر هنا الملفات التي تضعها في دروس هذه الوحدة. ويمكنك أيضًا رفع ملفات لاستخدامها لاحقًا.",
   "filesRename": "إعادة التسمية",
   "filesRenameTitle": "إعادة تسمية {name}",

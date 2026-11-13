@@ -4,6 +4,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import * as m from "~/i18n/messages";
 import { bareHref } from "~/utils/host";
 
+import { demoAccounts } from "./demo-accounts";
 import { usePortalWords } from "./portal-words";
 import { faceName, PortalHelp } from "./SchoolFace";
 import { SignInForm } from "./SignInForm";
@@ -28,7 +29,7 @@ export function PortalSignIn({ redirect }: PortalSignInProps) {
       ) : (
         <AuthHeading title={m.authSignInTitle()} lead={m.authSignInBody()} />
       )}
-      <SignInForm redirect={redirect} />
+      <SignInForm redirect={redirect} demo={demoAccounts(face)} />
       <p className="mt-8 text-center text-sm text-muted-foreground">
         <a
           href={bareHref("/another-account")}

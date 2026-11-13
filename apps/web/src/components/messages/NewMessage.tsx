@@ -169,12 +169,15 @@ export function NewMessage({
   const [leaving, setLeaving] = useState(false);
   const media = useDocumentMedia(undefined, "message_attachment");
   const [shown, setShown] = useState(false);
-  const recipients = useInfiniteQuery(
-    messageRecipientsQuery(search, kind === "family" ? "students" : "people"),
-  );
+  // Where a student is written to through their family, a student picked
+  // means their family; elsewhere a learner is written to themself.
+  const among =
+    kind === "family" ? "students" : canStartFamily ? "people" : "all";
+  const recipients = useInfiniteQuery(messageRecipientsQuery(search, among));
   const found = recipients.data?.pages.flatMap((page) => page.rows) ?? [];
-  const eligible = found.filter((row) =>
-    kind === "family" ? row.kind === "student" : row.kind !== "student",
+  const eligible = found.filter(
+    (row) =>
+      among === "all" || (row.kind === "student") === (among === "students"),
   );
   const options = [
     ...picked.map((userId) => ({

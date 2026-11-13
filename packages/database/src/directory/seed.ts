@@ -1,6 +1,5 @@
 import type { SQL } from "bun";
 
-import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
 import { DEFAULT_LIMITS } from "@faridalms/domain/plans";
 
 import type { SeededTenant } from "../seed";
@@ -26,11 +25,9 @@ export async function registerTenants(
       for (const school of tenant.schools) {
         await tx`insert into schools (id, tenant_id, slug, name_en, name_ar, placement)
           values (${school.id}, ${tenant.tenantId}, ${school.slug}, ${school.nameEn}, ${school.nameAr}, 'cell')`;
-        // The seeded schools show the whole product, but for one that shows Basic.
-        const modules = school.basic ? BASIC_MODULES : MODULE_IDS;
         await tx`insert into school_entitlements (school_id, modules, pool_bytes, class_bytes,
             module_bytes, person_bytes)
-          values (${school.id}, ${`{${modules.join(",")}}`}::text[], ${DEFAULT_LIMITS.poolBytes},
+          values (${school.id}, ${`{${school.modules.join(",")}}`}::text[], ${DEFAULT_LIMITS.poolBytes},
             ${DEFAULT_LIMITS.classBytes}, ${DEFAULT_LIMITS.moduleBytes}, ${DEFAULT_LIMITS.personBytes})`;
       }
       await tx`insert into changes (actor, subject_type, subject_id, action, after, reason)

@@ -239,6 +239,7 @@ export const FAMILIES: ModuleFillings = {
     fill(audienceKinds, {
       scope: "families",
       label: m.annScopeFamilies,
+      first: true,
     }),
     fill(personRecordParts, { Overview: PersonChildren }),
     replaceWords(m.studentsEmptyBodyCore, m.studentsEmptyBody),
@@ -249,6 +250,7 @@ export const FAMILIES: ModuleFillings = {
     replaceWords(m.leaveAccessYearEndHintCore, m.leaveAccessYearEndHint),
     replaceWords(m.printSlipGuardianCore, m.printSlipGuardian),
     replaceWords(m.msgGoesByEmailCore, m.msgGoesByEmail),
+    replaceWords(m.msgPickBodyCore, m.msgPickBody),
     replaceWords(m.msgHeldSenderCore, m.msgHeldSender),
     replaceWords(m.msgMergeOpenCore, m.msgMergeOpen),
     replaceWords(m.msgMergeLabelCore, m.msgMergeLabel),

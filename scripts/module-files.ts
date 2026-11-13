@@ -480,6 +480,14 @@ export const LINK_FILES: Readonly<
     owner: "families",
     needs: ["school_years"],
   },
+  "apps/web/src/components/attendance/families.tsx": {
+    owner: "attendance",
+    needs: ["families"],
+  },
+  "apps/web/src/components/attendance/FollowUp.tsx": {
+    owner: "attendance",
+    needs: ["families"],
+  },
   "packages/database/src/stores/follow-up.ts": {
     owner: "attendance",
     needs: ["families"],

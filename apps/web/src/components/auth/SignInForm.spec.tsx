@@ -2,10 +2,29 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { PortalFace } from "~/queries/portal";
+
 import * as m from "~/i18n/messages";
 import { render } from "~/testUtils";
 
+import { demoAccounts } from "./demo-accounts";
 import { SignInForm } from "./SignInForm";
+
+const face = (school: string, audiences: string[]): PortalFace => ({
+  school,
+  name: { en: null, ar: null },
+  palette: null,
+  logoKey: null,
+  contact: { address: null, phone: null, email: null },
+  websiteHost: null,
+  turnstileKey: null,
+  paused: false,
+  audiences,
+  doors: [],
+});
+
+const northwindLabels = (audiences: string[]) =>
+  demoAccounts(face("northwind", audiences)).map((account) => account.label());
 
 const mockNavigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
@@ -141,6 +160,27 @@ describe("SignForm", () => {
     expect(screen.getByLabelText(m.authSignInFormPassword())).toHaveValue(
       "farida-development-password",
     );
+  });
+
+  it("offers the academy's own accounts on its portal, with no parent where it keeps no families", async () => {
+    render(<SignInForm demo={demoAccounts(face("lanternfield", []))} />);
+
+    for (const label of [m.roleAdmin(), m.roleTeacher(), m.roleStudent()])
+      expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: m.roleParent() }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: m.roleStudent() }),
+    );
+    expect(screen.getByLabelText(m.authSignInFormLogin())).toHaveValue(
+      "student1.lanternfield@lanternfield.example.com",
+    );
+  });
+
+  it("offers a school's parent only where its portal signs families in", () => {
+    expect(northwindLabels(["families"])).toContain(m.roleParent());
+    expect(northwindLabels([])).not.toContain(m.roleParent());
   });
 
   it("offers one demo account per role", async () => {
