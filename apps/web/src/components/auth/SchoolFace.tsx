@@ -1,8 +1,8 @@
 import type { AuthBandContent } from "@faridalms/ui/system/auth-layout";
 import type { CSSProperties, ReactNode } from "react";
 
+import { bandText } from "@faridalms/domain/brand";
 import { portalAccent } from "@faridalms/domain/portal-face";
-import { contrast } from "@faridalms/domain/site-theme";
 import { cn } from "@faridalms/ui/cn";
 import { AuthLayout } from "@faridalms/ui/system/auth-layout";
 import { ThemeToggle } from "@faridalms/ui/system/theme-toggle";
@@ -30,15 +30,14 @@ export const faceName = (face: PortalFace) =>
   inLocale(face.name.en, face.name.ar);
 
 /**
- * The school's colour in the app's own design system: its main colour as
- * the band beside the form, and, in the shade that reads on the app's light
- * and dark pages, as the accent of buttons and links. A school that never
- * styled its website keeps the platform's colours.
+ * The school's brand colour in the app's own design system: the colour
+ * itself as the band beside the form, and, in the shade that reads on the
+ * app's light and dark pages, as the accent of buttons and links. A school
+ * that chose no colour keeps the platform's.
  */
 export function faceAccent(face: PortalFace | null) {
-  if (!face?.palette) return { className: "portal-face" };
-  const { light, dark } = portalAccent(face.palette);
-  const band = face.palette.primary;
+  if (!face?.brand) return { className: "portal-face" };
+  const { light, dark } = portalAccent(face.brand);
   return {
     className: "portal-face",
     "data-branded": "",
@@ -47,9 +46,8 @@ export function faceAccent(face: PortalFace | null) {
       "--face-primary-foreground": light.primaryForeground,
       "--face-primary-dark": dark.primary,
       "--face-primary-dark-foreground": dark.primaryForeground,
-      "--brand": band,
-      "--brand-foreground":
-        contrast("#FFFFFF", band) >= 4.5 ? "#FFFFFF" : "#111111",
+      "--brand": face.brand,
+      "--brand-foreground": bandText(face.brand),
     } as CSSProperties,
   };
 }

@@ -3622,7 +3622,8 @@ async function seedAcademy(
     ]);
   await tx.execute(sql`
     update core.orgs set email = ${`office@${domain}`},
-      phone = ${"+20 2 2735 0199"}, learners_are_adults = true
+      phone = ${"+20 2 2735 0199"}, learners_are_adults = true,
+      brand_colour = ${"#6D28D9"}
     where tenant_id = ${tenantId}::uuid and id = ${schoolId}::uuid`);
   await setOrgFeature(tx, {
     tenantId,

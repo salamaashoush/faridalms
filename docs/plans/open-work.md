@@ -78,16 +78,11 @@ what it leaves to do.
   levels are not called grades.
 - **Class groups have no screen that writes them.** `classes.saveGroup` and
   `classes.removeGroup` exist and nothing in the web calls them.
-- **Brand colours as a school setting.** The portal takes its colours from
-  the website builder through `portalLooks`, so a school without the
-  website module has the platform's.
 - **Starter content that speaks of families and years**: the website page
   templates (`packages/domain/src/site-templates.ts`), event template
   sections and the default admission letter bodies.
 - **A former guardian on the staff** keeps the message threads about the
   child after the link ends.
-- **Badges require grade levels**, because only a grade marks a child as
-  young; a school of young learners without grades cannot issue badges.
 - **A signed link issued before a module went off** opens until it
   expires: five minutes for a file, an hour for media, four to eight hours
   for a video stream.

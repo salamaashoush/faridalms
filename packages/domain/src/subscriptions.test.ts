@@ -175,11 +175,13 @@ describe("a school's entitlements from its subscription", () => {
 
 describe("usable modules", () => {
   it("drops a module whose requirements are not entitled", () => {
+    expect(usableModules(["badges", "coursework"])).toEqual(["coursework"]);
+    expect(usableModules(["badges", "early_years"])).toEqual([
+      "early_years",
+      "badges",
+    ]);
     expect(usableModules(["early_years", "coursework"])).toEqual([
       "coursework",
-    ]);
-    expect(usableModules(["early_years", "elearning"])).toEqual([
-      "elearning",
       "early_years",
     ]);
   });

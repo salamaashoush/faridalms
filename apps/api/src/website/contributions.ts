@@ -13,7 +13,7 @@ import { portalLooks } from "../core/portal-face";
 import { setupMeasures } from "../core/setup";
 import { pictureCopies } from "../core/site";
 
-/** What the website gives the school: its setup step, its colours on the portal, and its copies' pictures. */
+/** What the website gives the school: its setup step, its way and its colour on the portal, and its copies' pictures. */
 export const WEBSITE: ModuleContributions = {
   module: "website",
   contributions: [
@@ -26,17 +26,18 @@ export const WEBSITE: ModuleContributions = {
         }),
     }),
     contribute(portalLooks, {
-      look: async (unit) => {
+      look: async (scope) => {
         const settings = await siteSettings(
-          unit.tx,
-          unit.tenantId,
-          unit.schoolId,
+          scope.tx,
+          scope.tenantId,
+          scope.schoolId,
         );
-        if (!settings) return { palette: null, live: false };
+        if (!settings) return { live: false, colour: null };
         const theme = v.safeParse(siteThemeSchema, settings.theme);
         return {
-          palette: resolveTheme(theme.success ? theme.output : null).palette,
           live: settings.live,
+          colour: resolveTheme(theme.success ? theme.output : null).palette
+            .primary,
         };
       },
     }),

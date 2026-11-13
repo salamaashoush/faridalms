@@ -253,7 +253,16 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
     "apps/web/src/routes/_app/badges.$classId.tsx",
     "apps/web/src/routes/badge.tsx",
   ],
-  early_years: ["apps/web/src/components/early-years/"],
+  early_years: [
+    "packages/database/src/tables/early-years.ts",
+    "packages/database/src/stores/young-classes.ts",
+    "packages/domain/src/early-years.ts",
+    "apps/api/src/early-years/",
+    "apps/api/src/systems/early-years.ts",
+    "apps/web/src/components/early-years/",
+    "apps/web/src/server/early-years.ts",
+    "apps/web/src/queries/early-years.ts",
+  ],
   coding: ["apps/web/src/components/coding/"],
   custom_domains: ["apps/web/src/components/custom-domains/"],
   sso: ["packages/database/src/tables/sso.ts"],
@@ -278,6 +287,18 @@ export const LINK_FILES: Readonly<
   "apps/api/src/badges/years.ts": {
     owner: "badges",
     needs: ["school_years"],
+  },
+  "packages/database/src/stores/young-grades.ts": {
+    owner: "early_years",
+    needs: ["grade_levels"],
+  },
+  "apps/api/src/early-years/grades.ts": {
+    owner: "early_years",
+    needs: ["grade_levels"],
+  },
+  "apps/web/src/components/early-years/learning.tsx": {
+    owner: "early_years",
+    needs: ["elearning"],
   },
   "apps/api/src/homerooms/years.ts": {
     owner: "homerooms",
@@ -759,6 +780,7 @@ export const SQL_CARVED: readonly ModuleId[] = [
   "school_years",
   "timetable",
   "admissions",
+  "early_years",
 ];
 
 /**

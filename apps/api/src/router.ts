@@ -46,6 +46,7 @@ import * as coverSystem from "./systems/cover";
 import * as decisionsSystem from "./systems/decisions";
 import * as discovery from "./systems/discovery";
 import * as documentsSystem from "./systems/documents";
+import * as earlyYearsSystem from "./systems/early-years";
 import * as familySharesSystem from "./systems/family-shares";
 import * as filesSystem from "./systems/files";
 import * as followUpSystem from "./systems/follow-up";
@@ -148,6 +149,7 @@ export const router = {
   records: owned("records", recordsSystem),
   classes: owned("classes", { ...classesSystem, ...classGroups }),
   homerooms: owned("homerooms", homeroomsSystem),
+  earlyYears: owned("earlyYears", earlyYearsSystem),
   gradeLevels: owned("gradeLevels", gradeLevelsSystem),
   consents: owned("consents", consentsSystem),
   years: owned("years", yearsSystem),

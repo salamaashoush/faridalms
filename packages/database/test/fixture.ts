@@ -228,6 +228,15 @@ export async function completeFixture(
         where g.tenant_id = c.tenant_id and g.class_id = c.id and g.status = 'active')
     limit 1`);
 
+  await tx.execute(sql`
+    insert into core.young_classes (tenant_id, org_id, class_id)
+    select c.tenant_id, c.org_id, c.id from core.classes c
+    where c.tenant_id = ${tenantId}::uuid and c.org_id = ${schoolId}::uuid
+      and c.status = 'active'
+      and not exists (select 1 from core.young_classes y
+        where y.tenant_id = c.tenant_id and y.class_id = c.id and y.status = 'active')
+    limit 1`);
+
   await tx.insert(emergencyContacts).values({
     tenantId,
     userId,

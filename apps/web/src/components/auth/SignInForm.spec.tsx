@@ -13,7 +13,7 @@ import { SignInForm } from "./SignInForm";
 const face = (school: string, audiences: string[]): PortalFace => ({
   school,
   name: { en: null, ar: null },
-  palette: null,
+  brand: null,
   logoKey: null,
   contact: { address: null, phone: null, email: null },
   websiteHost: null,

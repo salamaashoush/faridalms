@@ -61,6 +61,7 @@ import { publishedPictures } from "@faridalms/domain/previews";
 import { phaseOf } from "@faridalms/domain/publication";
 import { formQuestions, readFormAnswers } from "@faridalms/domain/questions";
 import { withoutSections } from "@faridalms/domain/saved-sections";
+import { siteThemeFor } from "@faridalms/domain/site-brand";
 import {
   redirectPath,
   sitePagePath,
@@ -74,7 +75,6 @@ import {
 import {
   defaultTheme,
   emptyChrome,
-  resolveTheme,
   siteChromeSchema,
   siteThemeSchema,
 } from "@faridalms/domain/site-theme";
@@ -141,6 +141,7 @@ import {
   siteIntakes,
   siteWords,
 } from "../website/points";
+import { siteSchool } from "../website/school";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -316,15 +317,7 @@ export const overview = readProcedure.handler(async ({ context }) => {
       changed: row.revisedAt !== null,
     })),
     categories,
-    school: {
-      nameEn: school?.nameEn ?? "",
-      nameAr: school?.nameAr ?? null,
-      contact: {
-        address: school?.address ?? null,
-        phone: school?.phone ?? null,
-        email: school?.email ?? null,
-      },
-    },
+    school: siteSchool(school),
     logoKey: logo,
     news: { en: newsEn.rows, ar: newsAr.rows },
     events,
@@ -1178,7 +1171,7 @@ export const publicSite = publicProcedure
               : settings.taglineEn),
           banner: bannerOn ? { text: banner, tone: settings.bannerTone } : null,
           socialLinks: settings.socialLinks,
-          theme: resolveTheme(settings.theme),
+          theme: siteThemeFor(settings.theme, school.brandColour),
           logoKey: await logoKey(tx, tenantId, {
             id: schoolId,
             logoFileId: school.logoFileId,

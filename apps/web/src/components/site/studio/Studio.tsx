@@ -3,8 +3,8 @@ import type { PageTemplate } from "@faridalms/domain/site-templates";
 
 import { Tabs } from "@base-ui/react/tabs";
 import { savedSectionOf } from "@faridalms/domain/saved-sections";
+import { siteThemeFor } from "@faridalms/domain/site-brand";
 import { buildTemplate } from "@faridalms/domain/site-templates";
-import { resolveTheme } from "@faridalms/domain/site-theme";
 import {
   pagePlainText,
   sectionComplete,
@@ -301,7 +301,7 @@ export function SiteStudio({
   const device = wide ? chosenDevice : "phone";
   const otherLocale = languages.other;
   const page = draft.page;
-  const theme = resolveTheme(draft.site.theme);
+  const theme = siteThemeFor(draft.site.theme, overview.school.brand);
   const siteDirty = JSON.stringify(draft.site) !== JSON.stringify(savedSite);
 
   const updatePage = useCallback(
@@ -1169,6 +1169,7 @@ export function SiteStudio({
     ) : panel === "styles" ? (
       <StylesPanel
         theme={draft.site.theme}
+        brand={overview.school.brand}
         onChange={(next, key) =>
           history.update(
             (current) => ({

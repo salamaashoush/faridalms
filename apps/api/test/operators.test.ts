@@ -174,9 +174,10 @@ describe("modules a plan offers", () => {
       expect(await rejection(principal.attendance.settings())).toMatchObject({
         code: "NOT_FOUND",
       });
+      // The early years need no other module, so a plan of them alone has them.
       expect((await principal.identity.currentUser()).modules).toMatchObject({
         attendance: false,
-        early_years: false,
+        early_years: true,
       });
       // A plan may name every module the registry has.
       await setPlan(school.id, { modules: [...MODULE_IDS] });

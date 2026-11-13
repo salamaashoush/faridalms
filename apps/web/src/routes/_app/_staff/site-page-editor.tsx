@@ -1,7 +1,7 @@
 import type { PageTemplate } from "@faridalms/domain/site-templates";
 
+import { siteThemeFor } from "@faridalms/domain/site-brand";
 import { PAGE_TEMPLATE_IDS } from "@faridalms/domain/site-templates";
-import { resolveTheme } from "@faridalms/domain/site-theme";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -92,7 +92,7 @@ function TemplateChooser() {
           context={{
             school: user.school.slug,
             locale,
-            theme: resolveTheme(overview.settings.theme),
+            theme: siteThemeFor(overview.settings.theme, overview.school.brand),
             fileUrl: (fileId) => `/files/${fileId}`,
             news: overview.news[locale],
             contact: overview.school.contact,

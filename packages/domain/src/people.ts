@@ -1,5 +1,6 @@
 import * as v from "valibot";
 
+import { brandColourSchema } from "./brand";
 import { CAPABILITIES } from "./capabilities";
 import { viewsSchema } from "./classes";
 import { loginNameSchema } from "./first-sign-in";
@@ -465,6 +466,8 @@ export const saveSchoolSchema = v.object({
    * empty for none, left out to keep it.
    */
   logoFileId: v.optional(v.union([v.literal(""), id])),
+  /** The school's colour on its sign-in pages: empty for the platform's, left out to keep it. */
+  brandColour: v.optional(v.union([v.literal(""), brandColourSchema])),
 });
 
 export const saveAccessRoleSchema = v.object({

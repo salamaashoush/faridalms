@@ -7,6 +7,7 @@ import type {
   ThemeId,
 } from "@faridalms/domain/site-theme";
 
+import { siteThemeFor } from "@faridalms/domain/site-brand";
 import {
   BUTTON_SHAPES,
   CARD_STYLES,
@@ -24,7 +25,6 @@ import {
   PHOTO_TONES,
   paletteWarnings,
   RADII,
-  resolveTheme,
   THEME_IDS,
   THEMES,
 } from "@faridalms/domain/site-theme";
@@ -183,6 +183,8 @@ function FontSelect({ id, label, value, script, onChange }: FontSelectProps) {
 
 export interface StylesPanelProps {
   theme: SiteTheme;
+  /** The school's brand colour from Settings, which the main colour follows unless set here. */
+  brand: string | null;
   onChange: (next: SiteTheme, key?: string) => void;
 }
 
@@ -190,8 +192,8 @@ export interface StylesPanelProps {
  * The site's look, set once for every page: a theme, then the colours,
  * faces, shapes, header and footer a school changes on top of it.
  */
-export function StylesPanel({ theme, onChange }: StylesPanelProps) {
-  const resolved = resolveTheme(theme);
+export function StylesPanel({ theme, brand, onChange }: StylesPanelProps) {
+  const resolved = siteThemeFor(theme, brand);
   const warnings = paletteWarnings(resolved.palette);
   const set = <K extends keyof SiteTheme>(key: K, value: SiteTheme[K]) =>
     onChange({ ...theme, [key]: value }, `theme:${key}`);
@@ -214,6 +216,7 @@ export function StylesPanel({ theme, onChange }: StylesPanelProps) {
       </PanelGroup>
       <PanelGroup
         title={m.siteColours()}
+        hint={m.siteColoursBrandHint()}
         action={
           Object.keys(theme.palette).length ? (
             <Button

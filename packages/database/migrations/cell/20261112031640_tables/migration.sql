@@ -3402,6 +3402,7 @@ CREATE TABLE "core"."orgs" (
 	"phone" text,
 	"email" text,
 	"logo_file_id" uuid,
+	"brand_colour" text,
 	"lifecycle" text DEFAULT 'active' NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
 	"date_last_modified" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
@@ -3425,6 +3426,7 @@ CREATE TABLE "core"."orgs" (
 	CONSTRAINT "orgs_digits_check" CHECK (digits in ('latn', 'arab')),
 	CONSTRAINT "orgs_arabic_math_check" CHECK (arabic_math in ('ltr', 'rtl')),
 	CONSTRAINT "orgs_country_code_check" CHECK (country_code ~ '^[A-Z]{2}$'),
+	CONSTRAINT "orgs_brand_colour_check" CHECK (brand_colour ~ '^#[0-9A-F]{6}$'),
 	CONSTRAINT "orgs_learners_decide_from_check" CHECK (learners_decide_from between 1 and 25),
 	CONSTRAINT "orgs_address_check" CHECK (jsonb_typeof(address) = 'object'),
 	CONSTRAINT "orgs_phone_check" CHECK (char_length(phone) between 1 and 40),
@@ -5073,6 +5075,23 @@ CREATE TABLE "core"."year_rollovers" (
 );
 --> statement-breakpoint
 ALTER TABLE "core"."year_rollovers" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "core"."young_classes" (
+	"tenant_id" uuid,
+	"id" uuid DEFAULT uuidv7(),
+	"org_id" uuid NOT NULL,
+	"class_id" uuid NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"date_last_modified" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL,
+	"metadata" jsonb DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	CONSTRAINT "young_classes_pkey" PRIMARY KEY("tenant_id","id"),
+	CONSTRAINT "young_classes_status_check" CHECK (status in ('active', 'tobedeleted')),
+	CONSTRAINT "young_classes_version_check" CHECK (version > 0),
+	CONSTRAINT "young_classes_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384)
+);
+--> statement-breakpoint
+ALTER TABLE "core"."young_classes" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE INDEX "absence_reports_student_idx" ON "core"."absence_reports" ("tenant_id","student_user_id") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "absence_reports_open_idx" ON "core"."absence_reports" ("tenant_id","org_id") WHERE status = 'active' and decision = 'pending';--> statement-breakpoint
 CREATE UNIQUE INDEX "academic_sessions_current_key" ON "core"."academic_sessions" ("tenant_id","org_id") WHERE type = 'school_year' and lifecycle = 'current' and status = 'active';--> statement-breakpoint
@@ -5366,6 +5385,7 @@ CREATE INDEX "work_comments_attempt_idx" ON "core"."work_comments" ("tenant_id",
 CREATE UNIQUE INDEX "work_sittings_sitting_key" ON "core"."work_sittings" ("tenant_id","sitting_id") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "work_sittings_key" ON "core"."work_sittings" ("tenant_id","submission_id") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "year_rollovers_years_key" ON "core"."year_rollovers" ("tenant_id","source_year_id","target_year_id") WHERE status = 'active';--> statement-breakpoint
+CREATE UNIQUE INDEX "young_classes_class_key" ON "core"."young_classes" ("tenant_id","class_id") WHERE status = 'active';--> statement-breakpoint
 ALTER TABLE "core"."absence_reports" ADD CONSTRAINT "absence_reports_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."absence_reports" ADD CONSTRAINT "absence_reports_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."absence_reports" ADD CONSTRAINT "absence_reports_tenant_id_student_user_id_fkey" FOREIGN KEY ("tenant_id","student_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
@@ -6002,6 +6022,8 @@ ALTER TABLE "core"."year_rollovers" ADD CONSTRAINT "year_rollovers_tenant_id_fke
 ALTER TABLE "core"."year_rollovers" ADD CONSTRAINT "year_rollovers_tenant_id_source_year_id_source_year_fkey_source" FOREIGN KEY ("tenant_id","source_year_id","source_year_type","source_year_id","org_id") REFERENCES "core"."academic_sessions"("tenant_id","id","type","school_year_id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."year_rollovers" ADD CONSTRAINT "year_rollovers_tenant_id_target_year_id_target_year_fkey_target" FOREIGN KEY ("tenant_id","target_year_id","target_year_type","target_year_id","org_id") REFERENCES "core"."academic_sessions"("tenant_id","id","type","school_year_id","org_id");--> statement-breakpoint
 ALTER TABLE "core"."year_rollovers" ADD CONSTRAINT "year_rollovers_tenant_id_applied_by_user_id_fkey" FOREIGN KEY ("tenant_id","applied_by_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "core"."young_classes" ADD CONSTRAINT "young_classes_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
+ALTER TABLE "core"."young_classes" ADD CONSTRAINT "young_classes_tenant_id_class_id_org_id_fkey" FOREIGN KEY ("tenant_id","class_id","org_id") REFERENCES "core"."classes"("tenant_id","id","org_id");--> statement-breakpoint
 CREATE POLICY "p_erase_update" ON "core"."absence_reports" AS PERMISSIVE FOR UPDATE TO "retention" USING (app.erasure_approved(tenant_id, "student_user_id") or app.erasure_approved(tenant_id, "reported_by_user_id")) WITH CHECK (status = 'tobedeleted');--> statement-breakpoint
 CREATE POLICY "p_erase_delete" ON "core"."absence_reports" AS PERMISSIVE FOR DELETE TO "retention" USING (status = 'tobedeleted' and (app.erasure_approved(tenant_id, "student_user_id") or app.erasure_approved(tenant_id, "reported_by_user_id")));--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "core"."absence_reports" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
@@ -7102,4 +7124,9 @@ CREATE POLICY "tenant_isolation" ON "core"."year_rollovers" AS RESTRICTIVE FOR A
 CREATE POLICY "owner_all" ON "core"."year_rollovers" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_select" ON "core"."year_rollovers" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
 CREATE POLICY "p_insert" ON "core"."year_rollovers" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
-CREATE POLICY "p_update" ON "core"."year_rollovers" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);
+CREATE POLICY "p_update" ON "core"."year_rollovers" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "core"."young_classes" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
+CREATE POLICY "owner_all" ON "core"."young_classes" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_select" ON "core"."young_classes" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
+CREATE POLICY "p_insert" ON "core"."young_classes" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_update" ON "core"."young_classes" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);

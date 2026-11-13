@@ -8,8 +8,9 @@ import {
   withFreshIds,
 } from "@faridalms/domain/saved-sections";
 import { MAX_SHARED_TITLE } from "@faridalms/domain/shared";
+import { siteThemeFor } from "@faridalms/domain/site-brand";
 import { sectionWords, wordless } from "@faridalms/domain/site-sections";
-import { defaultTheme, resolveTheme } from "@faridalms/domain/site-theme";
+import { defaultTheme } from "@faridalms/domain/site-theme";
 import { Button } from "@faridalms/ui/button";
 import {
   Dialog,
@@ -112,7 +113,10 @@ export function SavedSectionPreview({ saved }: SavedSectionPreviewProps) {
   const context: RenderContext = {
     school: user.school.slug,
     locale,
-    theme: resolveTheme(overview?.settings.theme ?? defaultTheme()),
+    theme: siteThemeFor(
+      overview?.settings.theme ?? defaultTheme(),
+      overview?.school.brand ?? null,
+    ),
     fileUrl: (fileId) => `/files/${fileId}`,
     news: [],
     contact: overview?.school.contact ?? null,

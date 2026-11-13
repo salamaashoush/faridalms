@@ -1,9 +1,8 @@
-import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
-import { textArray, uuidArray } from "./sql";
+import { uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -73,21 +72,6 @@ export async function gradesRunning(
     where g.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.orgId}::uuid
       and g.status = 'active' and c.status = 'active' and c.runs @> ${input.on}::date`);
   return rows.map((row) => row.grade_id);
-}
-
-/** Which of the classes teach a young grade. */
-export async function youngClasses(
-  tx: Tx,
-  tenantId: string,
-  classIds: readonly string[],
-): Promise<Set<string>> {
-  if (classIds.length === 0) return new Set();
-  const rows = await tx.execute<{ class_id: string }>(sql`
-    select g.class_id from core.class_grades g
-    join core.descriptors d on d.tenant_id = g.tenant_id and d.id = g.grade_level_descriptor_id
-    where g.tenant_id = ${tenantId}::uuid and g.class_id = any(${uuidArray(classIds)})
-      and g.status = 'active' and d.system_meaning = any(${textArray(YOUNG_STUDENT_GRADES)})`);
-  return new Set(rows.map((row) => row.class_id));
 }
 
 /** How many of the school's classes running on or after a day teach each grade. */

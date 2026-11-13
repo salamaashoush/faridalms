@@ -231,6 +231,10 @@ export function getMessageFromError(error: unknown): string {
         return m.errorAccountSelf();
       case "school.week_start_weekend":
         return m.errorWeekStartWeekend();
+      case "school.brand_unreadable":
+        return m.errorBrandUnreadable();
+      case "school.brand_colour":
+        return m.errorBrandColour();
       case "class.code_taken":
         return m.errorClassCodeTaken();
       case "standards.move":

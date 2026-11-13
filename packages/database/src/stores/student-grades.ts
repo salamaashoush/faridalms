@@ -1,13 +1,12 @@
 import type { GradeStretch } from "@faridalms/domain/grade-levels";
 
-import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
 import { gradeChange, gradeOn } from "@faridalms/domain/grade-levels";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 import type { StudentGradeSource } from "../tables/grade-levels";
 
-import { bounds, textArray, uuidArray } from "./sql";
+import { bounds, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -155,23 +154,6 @@ export async function restoreGrades(
     await tx.execute(sql`
       update core.student_grades set valid_during = daterange(lower(valid_during), ${input.until}::date)
       where tenant_id = ${input.tenantId}::uuid and id = ${input.endedId}::uuid`);
-}
-
-/** Which of the students are in a young grade at the school on the day. */
-export async function youngStudents(
-  tx: Tx,
-  input: School & { userIds: readonly string[]; on: string },
-): Promise<Set<string>> {
-  if (input.userIds.length === 0) return new Set();
-  const rows = await tx.execute<{ user_id: string }>(sql`
-    select distinct s.student_user_id as user_id
-    from core.student_grades s
-    join core.descriptors d on d.tenant_id = s.tenant_id and d.id = s.grade_level_descriptor_id
-    where s.tenant_id = ${input.tenantId}::uuid and s.org_id = ${input.orgId}::uuid
-      and s.student_user_id = any(${uuidArray(input.userIds)})
-      and s.status = 'active' and s.valid_during @> ${input.on}::date
-      and d.system_meaning = any(${textArray(YOUNG_STUDENT_GRADES)})`);
-  return new Set(rows.map((row) => row.user_id));
 }
 
 /** The grade a student was in over each stretch, by its fixed meaning. */

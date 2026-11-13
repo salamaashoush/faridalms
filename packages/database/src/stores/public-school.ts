@@ -18,6 +18,7 @@ export interface PublicSchool {
   /** The school's language, the one its website is written in first. */
   defaultLocale: "en" | "ar";
   logoFileId: string | null;
+  brandColour: string | null;
 }
 
 /** What a school's website may say about the school itself. */
@@ -35,9 +36,10 @@ export async function publicSchool(
     time_zone: string | null;
     default_locale: "en" | "ar";
     logo_file_id: string | null;
+    brand_colour: string | null;
   }>(sql`
     select name_en, name_ar, address, phone, email, digits, time_zone,
-      default_locale, logo_file_id
+      default_locale, logo_file_id, brand_colour
     from core.orgs
     where id = ${orgId}::uuid and status = 'active'`);
   return row
@@ -51,6 +53,7 @@ export async function publicSchool(
         timeZone: row.time_zone ?? "UTC",
         defaultLocale: row.default_locale,
         logoFileId: row.logo_file_id,
+        brandColour: row.brand_colour,
       }
     : null;
 }

@@ -89,7 +89,7 @@ describe("portalAccent", () => {
 
   for (const theme of Object.values(THEMES))
     it(`keeps ${theme.id}'s accent readable in both schemes`, () => {
-      const accent = portalAccent(theme.palette);
+      const accent = portalAccent(theme.palette.primary);
       for (const scheme of ["light", "dark"] as const) {
         const { primary, primaryForeground } = accent[scheme];
         for (const page of pages[scheme])
@@ -101,11 +101,13 @@ describe("portalAccent", () => {
     });
 
   it("keeps a brand colour that already reads as it is", () => {
-    expect(portalAccent(THEMES.meridian.palette).light.primary).toBe("#0b3d91");
+    expect(portalAccent(THEMES.meridian.palette.primary).light.primary).toBe(
+      "#0b3d91",
+    );
   });
 
   it("lightens a dark brand colour for the dark scheme", () => {
-    const { dark } = portalAccent(THEMES.meridian.palette);
+    const { dark } = portalAccent(THEMES.meridian.palette.primary);
     expect(dark.primary).not.toBe("#0b3d91");
     expect(contrast(dark.primary, "#161718")).toBeGreaterThanOrEqual(4.5);
   });

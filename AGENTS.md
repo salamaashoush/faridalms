@@ -233,7 +233,18 @@ the module that knows contributes to it from its own files:
 - Before sign-in the portal knows only `identity.portalFace`: its
   `audiences` (who besides students and staff signs in, such as families)
   and `doors` (public pages such as `apply` and `badge`), each contributed
-  by its module.
+  by its module. Its colour is core's `orgs.brand_colour`, set in Settings,
+  else the colour a module lends through `portalLooks` (the website's main
+  colour) in its nearest readable shade (`portalColour` in
+  `packages/domain/src/brand.ts`), else the platform's. The website's theme
+  follows the brand colour unless the builder sets its own (`siteThemeFor`
+  in `packages/domain/src/site-brand.ts`).
+- Whether a class or a learner is young: everything asks
+  `youngClassesOf` (`apps/api/src/classes/points.ts`) or
+  `youngStudentsOf` (`apps/api/src/people/points.ts`), never a grade. The
+  early years module answers from the classes marked young
+  (`core.young_classes`), and with grade levels from the young grades
+  through its link `apps/api/src/early-years/grades.ts`.
 
 **What two modules do together lives in a link file.** A module that adds
 to a point or slot of a module it does not require, or owns a table that

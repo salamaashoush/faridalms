@@ -1,9 +1,5 @@
 import { changeOf } from "@faridalms/database/audit";
-import {
-  filesByIds,
-  linkFiles,
-  schoolStorage,
-} from "@faridalms/database/stores/files";
+import { schoolStorage } from "@faridalms/database/stores/files";
 import {
   schoolFeatures,
   schoolSwitch,
@@ -25,14 +21,13 @@ import { availableModules, limitsOf } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
 
 import { sendLead, stableIntakeId } from "../core/intake";
-import { forgetFace } from "../core/portal-face";
 import {
   audit,
   readProcedure,
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { publishLogo } from "../core/site";
+import { looksToSave, publishLooks, unsetColour } from "../core/school-looks";
 import { coreReader } from "../files/authorize";
 
 // The school's logo prints on its paper, so whoever belongs to it may see it;
@@ -49,7 +44,7 @@ export const profile = readProcedure.handler(async ({ context }) => {
     context.schoolId,
   );
   if (!settings) throw new ORPCError("NOT_FOUND");
-  return settings;
+  return { ...settings, unsetColour: await unsetColour(context) };
 });
 
 export const saveProfile = writeProcedure
@@ -71,40 +66,18 @@ export const saveProfile = writeProcedure
       context.tenantId,
       context.schoolId,
     );
-    const logoFileId =
-      input.logoFileId === undefined
-        ? (before?.logoFileId ?? null)
-        : input.logoFileId || null;
-    if (logoFileId && logoFileId !== before?.logoFileId) {
-      const [file] = await filesByIds(context.tx, context.tenantId, [
-        logoFileId,
-      ]);
-      if (!file?.mediaType.startsWith("image/"))
-        throw new ORPCError("BAD_REQUEST", { message: "validation.file_type" });
-      const linked = await linkFiles(context.tx, {
-        tenantId: context.tenantId,
-        userId: context.actor.userId,
-        ids: [logoFileId],
-        purpose: file.purpose,
-        host: { type: "org", id: context.schoolId },
-      });
-      if (linked.length !== 1)
-        throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
-    }
+    const looks = await looksToSave(context, before, input);
     const saved = await updateSchool(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       ...input,
-      logoFileId,
+      ...looks,
       weekendDays: [...input.weekendDays].toSorted((a, b) => a - b),
       secondaryCalendar: input.secondaryCalendar || null,
     });
     if (!saved)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
-    if (logoFileId !== (before?.logoFileId ?? null)) {
-      await publishLogo(context, logoFileId);
-      forgetFace(context.school.slug);
-    }
+    await publishLooks(context, before, looks);
     await audit(context, {
       action: "school.update",
       objectType: "org",

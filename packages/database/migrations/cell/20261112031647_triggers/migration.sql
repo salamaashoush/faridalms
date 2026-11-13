@@ -201,6 +201,7 @@ create trigger row_meta before insert or update on core.work_comment_replies
 create trigger row_meta before insert or update on core.work_comments for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.work_sittings for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.year_rollovers for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.young_classes for each row execute function app.row_meta();
 create trigger row_meta before insert or update on health.records for each row execute function app.row_meta();
 create trigger row_meta before insert or update on health.requested_changes for each row execute function app.row_meta();
 

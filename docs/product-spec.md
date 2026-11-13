@@ -44,6 +44,17 @@ early years and coding), standards, admissions, student records, badges,
 the website and custom domains, video, SSO and SMS. Coursework, attendance
 and e-learning each work on core alone.
 
+Whether a class and its learners are young belongs to the early years
+module. Whoever manages classes marks a class "For young children" on its
+form; a learner is young while any class they learn in that day is young.
+Where grade levels are on too, a class of a young grade (pre-KG to grade 2)
+and a learner in one are young as well, with nothing to mark again. Young
+learners get the young home, the child session a guardian hands over, the
+one-screen lessons (with e-learning) and goal judging (with standards).
+Badges require the early years and nothing else: a nursery or a kids'
+coding club without grades can print them. A school without the early
+years has no young learners, whatever its grades.
+
 A module that is off leaves no trace: no page, link, Today card, setup
 step, settings tab, field, notice or search result of it, and no sentence
 that names its concept. A school without years reads no "year", one
@@ -94,8 +105,10 @@ and notifications sit in the sidebar header.
   (avatar, name, colour); Home defaults to all children and the chosen child is
   kept in the URL.
 - **Student:** Home · Classes · To do · Calendar · Messages · Grades.
-- **Young student (K–2):** Home only: a grid of big task cards with audio
-  labels and a Continue button, no messages and no grade numbers.
+- **Young student:** a learner the early years module knows as young (a
+  class marked for young children, or a young grade). Home only: a grid of
+  big task cards with audio labels and a Continue button, no messages and
+  no grade numbers.
 - **Admin:** Today · Students · Staff · Classes · Attendance ·
   Timetable · School year · Communication · Website · Settings.
 
@@ -516,11 +529,24 @@ site-wide banner for closures.
 
 ## Settings
 
-School profile (names in both languages, logo, timezone, weekend days, the
-age from which learners decide for themselves, and whether every learner is
-an adult), school days, features,
+School profile (names in both languages, logo, brand colour, timezone,
+weekend days, the age from which learners decide for themselves, and whether
+every learner is an adult), school days, features,
 attendance rules (statuses, edit window, late threshold, absence
 notification delay), messaging permissions and office hours, notification
 templates in both languages, roles and access, audit log, import. Each
 module adds its own tab (attendance rules, grading, the school's grade
 levels) and a school without it does not see it.
+
+The brand colour is core: the sign-in and portal pages paint their band in
+it and their buttons and links in the nearest shade of it that meets WCAG AA
+on the app's light and dark pages. Settings shows a live preview of the
+sign-in band and refuses a colour on which the band's faintest words (its
+notes at three quarters strength) fall below 4.5:1, offering the nearest
+darker or lighter shade that reads. With no colour set, the sign-in pages
+take the website's main colour where the website module is on, corrected to
+its nearest readable shade rather than refused, since nobody chose it for
+the sign-in; with neither, the platform's. Where the website module is on,
+the website's main colour follows the brand colour until the builder sets
+its own, which then changes the public website alone; the sign-in pages
+keep the brand colour.

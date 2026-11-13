@@ -1,7 +1,5 @@
 import * as v from "valibot";
 
-import type { Palette } from "./site-theme";
-
 import { contrast, mix } from "./site-theme";
 
 const slug = v.pipe(
@@ -119,18 +117,18 @@ export interface Accent {
 }
 
 function accentOn(
-  palette: Palette,
+  brand: string,
   pages: readonly string[],
   towards: string,
 ): Accent {
   const steps = [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1];
   const primary =
     steps
-      .map((amount) => mix(palette.primary, towards, amount))
+      .map((amount) => mix(brand, towards, amount))
       .find((colour) => pages.every((page) => contrast(colour, page) >= 4.5)) ??
     towards;
   const primaryForeground =
-    ["#FFFFFF", palette.canvas, palette.ink, "#000000"].find(
+    ["#FFFFFF", "#111111", "#000000"].find(
       (colour) => contrast(colour, primary) >= 4.5,
     ) ??
     (contrast("#000000", primary) >= contrast("#FFFFFF", primary)
@@ -140,17 +138,17 @@ function accentOn(
 }
 
 /**
- * The school's primary colour as the portal's accent in light and dark: the
- * brand colour itself where it reads, otherwise the nearest shade of it that
+ * The school's brand colour as the portal's accent in light and dark: the
+ * colour itself where it reads, otherwise the nearest shade of it that
  * does, so links and buttons meet WCAG AA (4.5:1) on the app's pages in
- * either scheme whatever palette the school chose.
+ * either scheme whatever colour the school chose.
  */
-export function portalAccent(palette: Palette): {
+export function portalAccent(brand: string): {
   light: Accent;
   dark: Accent;
 } {
   return {
-    light: accentOn(palette, PAGES.light, "#000000"),
-    dark: accentOn(palette, PAGES.dark, "#FFFFFF"),
+    light: accentOn(brand, PAGES.light, "#000000"),
+    dark: accentOn(brand, PAGES.dark, "#FFFFFF"),
   };
 }

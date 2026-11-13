@@ -364,8 +364,10 @@ describe("a school without grade levels", () => {
         ),
       ).toMatchObject({ message: "grading.part_unknown" });
       expect(
-        await rejection(api.badges.classBadges({ classId: saved.id })),
-      ).toMatchObject({ code: "NOT_FOUND" });
+        (await api.badges.classBadges({ classId: saved.id })).students.some(
+          (row) => row.young,
+        ),
+      ).toBe(false);
 
       const family = await signedIn(
         "northwind",

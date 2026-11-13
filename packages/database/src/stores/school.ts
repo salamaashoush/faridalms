@@ -29,6 +29,7 @@ export async function schoolSettings(
       phone: orgs.phone,
       email: orgs.email,
       logoFileId: orgs.logoFileId,
+      brandColour: orgs.brandColour,
       learnersDecideFrom: orgs.learnersDecideFrom,
       learnersAreAdults: orgs.learnersAreAdults,
     })
@@ -62,6 +63,7 @@ export async function updateSchool(
     phone: string | null;
     email: string | null;
     logoFileId: string | null;
+    brandColour: string | null;
     learnersDecideFrom?: number;
     learnersAreAdults?: boolean;
   },

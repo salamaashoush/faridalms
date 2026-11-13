@@ -208,6 +208,8 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "person.photo_set": m.auditPersonPhotoSet,
   "placement.change": m.auditPlacementChange,
   "student_grade.change": m.auditStudentGradeChange,
+  "class.young": m.auditClassYoung,
+  "class.not_young": m.auditClassNotYoung,
   "grade_level.create": m.auditGradeLevelCreate,
   "grade_level.update": m.auditGradeLevelUpdate,
   "grade_level.order": m.auditGradeLevelOrder,

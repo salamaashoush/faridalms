@@ -13,12 +13,19 @@ import { useState } from "react";
 
 import { PictureField } from "~/components/media/PictureField";
 import { CheckboxRow } from "~/components/people/fields";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { schoolProfileQuery } from "~/queries/school-settings";
 import { saveSchoolProfile } from "~/server/school-settings";
 import { formatNumber, formatWeekday } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 import { useWords } from "~/utils/words";
+
+import {
+  BrandColourField,
+  brandColourError,
+  brandColourOf,
+} from "./BrandColourField";
 
 type Profile = Awaited<
   ReturnType<NonNullable<(typeof schoolProfileQuery)["queryFn"]>>
@@ -40,6 +47,7 @@ interface ProfileDraft {
   phone: string;
   email: string;
   logoFileId: string;
+  brandColour: string;
   learnersDecideFrom: number;
   learnersAreAdults: boolean;
 }
@@ -61,6 +69,7 @@ function draftOf(profile: Profile): ProfileDraft {
     phone: profile.phone ?? "",
     email: profile.email ?? "",
     logoFileId: profile.logoFileId ?? "",
+    brandColour: profile.brandColour ?? "",
     learnersDecideFrom: profile.learnersDecideFrom,
     learnersAreAdults: profile.learnersAreAdults,
   };
@@ -77,7 +86,11 @@ export function SchoolProfileSection() {
   const mutation = useMutation({
     mutationFn: () =>
       saveSchoolProfile({
-        data: { expectedVersion: profile.version, ...draft },
+        data: {
+          expectedVersion: profile.version,
+          ...draft,
+          brandColour: brandColourOf(draft.brandColour) ?? "",
+        },
       }),
     meta: { inlineError: true },
   });
@@ -98,6 +111,7 @@ export function SchoolProfileSection() {
           setNameError(m.validationNameRequired());
           return;
         }
+        if (brandColourError(draft.brandColour)) return;
         await mutation.mutateAsync().then(
           async () => {
             await queryClient.invalidateQueries({ queryKey: ["school"] });
@@ -305,6 +319,12 @@ export function SchoolProfileSection() {
             onChange={(fileId) => set("logoFileId", fileId ?? "")}
           />
         </fieldset>
+        <BrandColourField
+          value={draft.brandColour}
+          onChange={(value) => set("brandColour", value)}
+          schoolName={inLocale(draft.nameEn || null, draft.nameAr || null)}
+          unset={profile.unsetColour}
+        />
       </SettingsGroup>
     </SettingsSection>
   );

@@ -15,6 +15,8 @@ import { BADGES } from "./badges/contributions";
 import { BADGES_IN_YEARS } from "./badges/years";
 import { COURSEWORK } from "./coursework/contributions";
 import { COURSEWORK_WITH_FAMILIES } from "./coursework/family-shares";
+import { EARLY_YEARS } from "./early-years/contributions";
+import { EARLY_YEARS_BY_GRADE } from "./early-years/grades";
 import { FAMILIES_AT_THE_FRONT_DESK } from "./families/attendance";
 import { FAMILIES } from "./families/contributions";
 import { GRADE_LEVELS } from "./grade-levels/contributions";
@@ -65,6 +67,8 @@ export const MODULE_EXTENSIONS: readonly ModuleContributions[] = [
   BADGES_IN_YEARS,
   COURSEWORK,
   COURSEWORK_WITH_FAMILIES,
+  EARLY_YEARS,
+  EARLY_YEARS_BY_GRADE,
   ELEARNING,
   ELEARNING_IN_YEARS,
   ELEARNING_READINGS,

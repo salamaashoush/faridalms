@@ -1,7 +1,7 @@
 import type { PostalAddress } from "@faridalms/database/tables/tenancy";
-import type { Palette } from "@faridalms/domain/site-theme";
 
 import { publicSchool } from "@faridalms/database/stores/public-school";
+import { portalColour } from "@faridalms/domain/brand";
 import { platformName } from "@faridalms/domain/hosts";
 
 import type { RequestContext } from "./context";
@@ -11,11 +11,14 @@ import { contributionsAmong, point } from "./extension";
 import { logoKey, withPublicSite } from "./site";
 
 /**
- * What a module gives the portal's face: the colours of the school's
- * website, and whether it is live to lead back to.
+ * What a module gives the portal's face: whether the school's website is
+ * live to lead back to, and a colour the portal takes where the school set
+ * no brand colour of its own.
  */
 export interface PortalLook {
-  look(unit: PublicUnit): Promise<{ palette: Palette | null; live: boolean }>;
+  look(
+    scope: Pick<PublicUnit, "tx" | "tenantId" | "schoolId">,
+  ): Promise<{ live: boolean; colour: string | null }>;
 }
 
 export const portalLooks = point<PortalLook>("portal looks");
@@ -51,8 +54,12 @@ export const portalDoors = point<PortalDoor>("portal doors");
 export interface PortalFace {
   school: string;
   name: { en: string | null; ar: string | null };
-  /** The school's colours, whose main colour the portal takes as its accent; null keeps the platform's. */
-  palette: Palette | null;
+  /**
+   * The colour the portal takes as its accent: the school's brand colour,
+   * else a module's (its website's main colour) in its nearest readable
+   * shade; null keeps the platform's.
+   */
+  brand: string | null;
   logoKey: string | null;
   contact: {
     address: PostalAddress | null;
@@ -100,7 +107,7 @@ export async function portalFace(
     return {
       school: slug,
       name: { en: directory.nameEn, ar: directory.nameAr },
-      palette: null,
+      brand: null,
       logoKey: null,
       contact: { address: null, phone: null, email: null },
       websiteHost: null,
@@ -119,8 +126,8 @@ export async function portalFace(
         ),
       ),
     ]);
-    const palette = looks.find((each) => each.palette)?.palette ?? null;
     const live = looks.some((each) => each.live);
+    const lent = looks.find((each) => each.colour)?.colour ?? null;
     const logo = school
       ? await logoKey(tx, tenantId, {
           id: schoolId,
@@ -130,7 +137,7 @@ export async function portalFace(
     return {
       school: slug,
       name: { en: school?.nameEn ?? null, ar: school?.nameAr ?? null },
-      palette,
+      brand: portalColour(school?.brandColour ?? null, lent),
       logoKey: logo,
       contact: {
         address: school?.address ?? null,

@@ -201,6 +201,7 @@ export const TABLE_OWNERS: Record<string, Ownership> = {
   "core.work_comments": { owner: "coursework" },
   "core.work_sittings": { owner: "standards", needs: ["coursework"] },
   "core.year_rollovers": { owner: "school_years" },
+  "core.young_classes": { owner: "early_years" },
   "health.contact_changes": {
     owner: "student_records",
     needs: ["families"],

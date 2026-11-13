@@ -5,7 +5,6 @@ import {
   gradesOfClasses,
   gradesRunning,
   setClassGrade,
-  youngClasses,
 } from "@faridalms/database/stores/class-grades";
 import {
   gradeAudiencesOf,
@@ -17,7 +16,6 @@ import {
   gradesOn,
   restoreGrades,
   setStudentGrade,
-  youngStudents,
 } from "@faridalms/database/stores/student-grades";
 import {
   classGradePartSchema,
@@ -35,7 +33,6 @@ import {
   classFormParts,
   classJoins,
   classViews,
-  youngClasses as youngClassesPoint,
 } from "../classes/points";
 import { audienceKinds } from "../core/audiences";
 import { contribute } from "../core/extension";
@@ -45,7 +42,6 @@ import {
   studentColumns,
   studentFormParts,
   studentPlaces,
-  youngStudents as youngStudentsPoint,
 } from "../people/points";
 import { gradesOf, labelOf } from "./levels";
 import { classGradesChanged } from "./points";
@@ -176,10 +172,6 @@ export const GRADE_LEVELS: ModuleContributions = {
         }
       },
     }),
-    contribute(youngClassesPoint, {
-      youngAmong: (context, classIds) =>
-        youngClasses(context.tx, context.tenantId, classIds),
-    }),
     contribute(studentColumns, {
       key: "grade",
       valuesOn: async (context, on) => {
@@ -227,14 +219,6 @@ export const GRADE_LEVELS: ModuleContributions = {
             ...(ended.output satisfies GradesEnded),
           });
       },
-    }),
-    contribute(youngStudentsPoint, {
-      youngAmong: (context, studentIds, on) =>
-        youngStudents(context.tx, {
-          ...school(context),
-          userIds: studentIds,
-          on,
-        }),
     }),
     contribute(studentPlaces, {
       placesOf: async (context, studentIds, on) => {

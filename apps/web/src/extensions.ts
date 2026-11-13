@@ -14,6 +14,7 @@ import { COURSEWORK } from "./components/coursework/contributions";
 import { COURSEWORK_WITH_FAMILIES } from "./components/coursework/family-shares";
 import { CUSTOM_DOMAINS } from "./components/custom-domains/contributions";
 import { EARLY_YEARS } from "./components/early-years/contributions";
+import { EARLY_YEARS_IN_LESSONS } from "./components/early-years/learning";
 import { FAMILIES } from "./components/families/contributions";
 import { FAMILIES_ON_WEBSITE } from "./components/families/website";
 import { FAMILIES_IN_YEARS } from "./components/families/years";
@@ -60,6 +61,7 @@ export const MODULE_FILLINGS: readonly ModuleFillings[] = [
   COURSEWORK_WITH_FAMILIES,
   CUSTOM_DOMAINS,
   EARLY_YEARS,
+  EARLY_YEARS_IN_LESSONS,
   ELEARNING,
   ELEARNING_IN_YEARS,
   ELEARNING_WITH_COURSEWORK,

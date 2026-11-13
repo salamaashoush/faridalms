@@ -140,6 +140,8 @@ export const orgs = core.table.withRLS(
     phone: text("phone"),
     email: text("email"),
     logoFileId: uuid("logo_file_id"),
+    /** The school's colour on its sign-in pages and, unless its website sets its own, its website. */
+    brandColour: text("brand_colour"),
     lifecycle: text("lifecycle")
       .$type<"importing" | "active">()
       .notNull()
@@ -172,6 +174,7 @@ export const orgs = core.table.withRLS(
     ck("orgs", "digits", sql`digits in ('latn', 'arab')`),
     ck("orgs", "arabic_math", sql`arabic_math in ('ltr', 'rtl')`),
     ck("orgs", "country_code", sql`country_code ~ '^[A-Z]{2}$'`),
+    ck("orgs", "brand_colour", sql`brand_colour ~ '^#[0-9A-F]{6}$'`),
     ck(
       "orgs",
       "learners_decide_from",

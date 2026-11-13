@@ -10,6 +10,7 @@ export * from "./contact-changes";
 export * from "./coursework";
 export * from "./descriptors";
 export * from "./documents";
+export * from "./early-years";
 export * from "./events";
 export * from "./families";
 export * from "./family-shares";

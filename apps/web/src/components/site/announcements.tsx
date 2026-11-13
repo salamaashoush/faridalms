@@ -26,6 +26,7 @@ import { announcementSiteOptionsQuery } from "~/queries/site";
 import { getAnnouncementPost } from "~/server/site";
 import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
+import { replaceWords } from "~/utils/words";
 
 import { ISSUE_LABEL } from "./studio/labels";
 import { SECTION_TEMPLATE } from "./templates";
@@ -180,6 +181,8 @@ function WebsitePost({
 export const WEBSITE: ModuleFillings = {
   module: "website",
   fillings: [
+    replaceWords(m.settingsBrandHintCore, m.settingsBrandHint),
+    replaceWords(m.settingsBrandPreviewUnsetCore, m.settingsBrandPreviewUnset),
     fill(templateUses, SECTION_TEMPLATE),
     fill(setupStepWords, {
       id: "website",

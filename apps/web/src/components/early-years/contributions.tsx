@@ -1,11 +1,14 @@
 import type { ModuleFillings } from "~/utils/extension";
 
 import { moduleSwitches } from "~/components/admin/slots";
-import { youngLessons } from "~/components/learning/slots";
+import { classEditorParts } from "~/components/classes/slots";
 import * as m from "~/i18n/messages";
+import { youngClassPartQuery } from "~/queries/early-years";
 import { fill } from "~/utils/extension";
 
-/** Lessons and practice set as young children meet them, and the switch a school turns them on with. */
+import { YoungClassField } from "./YoungClassField";
+
+/** Classes marked for young children, and the switch a school turns the early years on with. */
 export const EARLY_YEARS: ModuleFillings = {
   module: "early_years",
   fillings: [
@@ -15,6 +18,14 @@ export const EARLY_YEARS: ModuleFillings = {
       name: m.earlyYearsFeatureToggle,
       hint: m.earlyYearsFeatureToggleHint,
     }),
-    fill(youngLessons, true),
+    fill(classEditorParts, {
+      key: "young",
+      section: "details",
+      query: (classId) => youngClassPartQuery(classId),
+      initial: (read) => ({
+        value: { young: (read as { young: boolean }).young },
+      }),
+      Field: YoungClassField,
+    }),
   ],
 };

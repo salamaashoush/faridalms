@@ -21,9 +21,9 @@ describe("the portal's face", () => {
         "audiences",
         "contact",
         "doors",
+        "brand",
         "logoKey",
         "name",
-        "palette",
         "paused",
         "school",
         "turnstileKey",
@@ -34,7 +34,7 @@ describe("the portal's face", () => {
       en: "Northwind International College",
       ar: "كلية نورثويند الدولية",
     });
-    expect(face.palette?.primary).toBe("#0B3D91");
+    expect(face.brand).toBe("#0B3D91");
     expect(face.websiteHost).toBe("northwind.example.net");
     expect(face.paused).toBe(false);
     expect(face.audiences).toEqual(["families"]);
@@ -59,6 +59,23 @@ describe("the portal's face", () => {
         school: "northwind",
       });
       expect(face.doors).toEqual([]);
+    });
+    forgetFace("northwind");
+  });
+
+  test("a set brand colour paints the sign-in without a website, and the website's colour leaves with it", async () => {
+    const academy = await stranger("198.51.100.25").portalFace({
+      school: "lanternfield",
+    });
+    expect(academy.brand).toBe("#6D28D9");
+    expect(academy.websiteHost).toBeNull();
+    await withoutModules("northwind", ["website"], async () => {
+      forgetFace("northwind");
+      const face = await stranger("198.51.100.26").portalFace({
+        school: "northwind",
+      });
+      expect(face.brand).toBeNull();
+      expect(face.websiteHost).toBeNull();
     });
     forgetFace("northwind");
   });

@@ -9,7 +9,6 @@ import {
   classesOfGrades,
   gradesOfClasses,
   setClassGrade,
-  youngClasses,
 } from "../src/stores/class-grades";
 import {
   gradeAudiencesOf,
@@ -38,8 +37,11 @@ import {
   restoreGrades,
   setStudentGrade,
   studentsHolding,
-  youngStudents,
 } from "../src/stores/student-grades";
+import {
+  classesOfYoungGrades,
+  learnersOfYoungGrades,
+} from "../src/stores/young-grades";
 import { harness, urlFor } from "./harness";
 
 class Undone extends Error {}
@@ -252,7 +254,7 @@ describe("a student's grades", () => {
         source: "manual",
       });
       expect(
-        await youngStudents(tx, {
+        await learnersOfYoungGrades(tx, {
           ...org,
           userIds: [school.studentId],
           on: "2026-10-01",
@@ -292,9 +294,9 @@ describe("a class's grade", () => {
       expect(await classesOfGrades(tx, { ...org, gradeIds: [kg] })).toContain(
         school.classId,
       );
-      expect(await youngClasses(tx, school.tenantId, [school.classId])).toEqual(
-        new Set([school.classId]),
-      );
+      expect(
+        await classesOfYoungGrades(tx, school.tenantId, [school.classId]),
+      ).toEqual(new Set([school.classId]));
       expect(
         (await classesHolding(tx, { ...org, from: "2000-01-01" })).get(kg),
       ).toBeGreaterThanOrEqual(1);

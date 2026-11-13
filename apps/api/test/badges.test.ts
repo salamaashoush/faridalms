@@ -294,7 +294,7 @@ describe("badges at the class screen", () => {
 });
 
 describe("badges as a school's modules have them", () => {
-  test("a badge signs nobody in where badges or the grades they need are off, and signs in again once they are back", async () => {
+  test("a badge signs nobody in where badges or the early years they need are off, and signs in again once they are back", async () => {
     const { api, classId } = await youngTeacher();
     const child = (await api.badges.classBadges({ classId })).students[3];
     if (!child) throw new Error("a young homeroom of three");
@@ -304,7 +304,7 @@ describe("badges as a school's modules have them", () => {
         await rejection(client(YOUNG).badges.signIn({ secret })),
       ).toMatchObject({ code: "NOT_FOUND" });
     });
-    await withoutModules(YOUNG, ["grade_levels"], async () => {
+    await withoutModules(YOUNG, ["early_years"], async () => {
       expect(
         await rejection(client(YOUNG).badges.signIn({ secret })),
       ).toMatchObject({

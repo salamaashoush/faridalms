@@ -77,7 +77,17 @@ describe("mayReach", () => {
       true,
     );
     expect(mayReach({ owner: "standards" }, "coursework", MODULES)).toBe(false);
-    expect(mayReach({ owner: "early_years" }, "elearning", MODULES)).toBe(true);
+    expect(mayReach({ owner: "badges" }, "early_years", MODULES)).toBe(true);
+    expect(mayReach({ owner: "early_years" }, "elearning", MODULES)).toBe(
+      false,
+    );
+    expect(
+      mayReach(
+        { owner: "early_years", needs: ["grade_levels"] },
+        "grade_levels",
+        MODULES,
+      ),
+    ).toBe(true);
     expect(
       mayReach(
         { owner: "attendance", needs: ["timetable"] },

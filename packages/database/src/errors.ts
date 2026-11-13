@@ -49,6 +49,7 @@ export const CONFLICTS: Record<string, string> = {
   student_school_years_excl: "placement.overlapping",
   student_grades_excl: "student_grade.overlapping",
   class_grades_class_key: "conflict.version",
+  young_classes_class_key: "conflict.version",
   broadcast_grades_key: "conflict.version",
   calendar_event_grades_key: "conflict.version",
   broadcast_families_key: "conflict.version",

@@ -26,10 +26,10 @@ export const MODULE_IDS = [
   "custom_domains",
   "admissions",
   "student_records",
-  "badges",
   "elearning",
   "standards",
   "early_years",
+  "badges",
   "coding",
   "video",
   "sso",
@@ -200,14 +200,6 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     systems: ["records"],
     owns: { capabilities: ["health:read", "health:write", "support:manage"] },
   },
-  badges: {
-    // Badges sign in young children, whom only their grade marks as young.
-    requires: [["grade_levels"]],
-    basic: false,
-    schoolSwitch: false,
-    systems: ["badges"],
-    owns: { capabilities: ["badges:issue"] },
-  },
   standards: {
     requires: [["coursework"], ["elearning"]],
     basic: false,
@@ -227,10 +219,18 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     },
   },
   early_years: {
-    requires: [["elearning"]],
+    requires: [],
     basic: false,
     schoolSwitch: true,
-    systems: [],
+    systems: ["earlyYears"],
+  },
+  badges: {
+    // Badges sign in young children, whom only the early years know as young.
+    requires: [["early_years"]],
+    basic: false,
+    schoolSwitch: false,
+    systems: ["badges"],
+    owns: { capabilities: ["badges:issue"] },
   },
   coding: {
     requires: [["coursework"], ["elearning"]],

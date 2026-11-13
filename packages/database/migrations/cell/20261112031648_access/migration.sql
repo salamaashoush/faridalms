@@ -611,11 +611,12 @@ grant select, insert, update on core.orgs to worker, cell_io;
 grant select, insert on core.orgs to app;
 grant select on core.orgs to integration, retention;
 grant select (tenant_id, id, type, parent_id, name_en, name_ar, time_zone, default_locale,
-  country_code, address, phone, email, logo_file_id, lifecycle, status, digits) on core.orgs to
-  site;
+  country_code, address, phone, email, logo_file_id, brand_colour, lifecycle, status, digits) on
+  core.orgs to site;
 grant update (name_en, name_ar, identifier, time_zone, default_locale, week_start, weekend_days,
-  country_code, address, phone, email, logo_file_id, status, metadata, secondary_calendar, digits,
-  arabic_math, learners_decide_from, learners_are_adults) on core.orgs to app;
+  country_code, address, phone, email, logo_file_id, brand_colour, status, metadata,
+  secondary_calendar, digits, arabic_math, learners_decide_from, learners_are_adults) on core.orgs
+  to app;
 
 alter table core.paced_lessons force row level security;
 grant select, insert, update on core.paced_lessons to app, worker, cell_io;
@@ -885,6 +886,10 @@ grant update (status, metadata) on core.work_sittings to retention;
 alter table core.year_rollovers force row level security;
 grant select, insert, update on core.year_rollovers to app, worker, cell_io;
 grant select on core.year_rollovers to retention;
+
+alter table core.young_classes force row level security;
+grant select, insert, update on core.young_classes to app, worker, cell_io;
+grant select on core.young_classes to retention;
 
 alter table health.contact_changes force row level security;
 grant select, insert on health.contact_changes to app, worker, cell_io;
