@@ -20,8 +20,10 @@ import * as v from "valibot";
 
 import { requireArea } from "./access";
 import { requireBusiness } from "./business";
+import { tenantsOf } from "./daily-round";
 import { directoryAdmin as directory } from "./directory-admin";
 import { operatorNames } from "./operators";
+import { tellCell } from "./standing";
 
 type Outcome = { ok: true } | { ok: false; message: string };
 
@@ -214,8 +216,10 @@ export const getOffers = createServerFn({ method: "GET" }).handler(async () => {
 });
 
 /**
- * Puts a module on offer to schools that lack it, or takes it off. Cells
- * read the offer within the directory cache's minute.
+ * Puts a module on offer to schools that lack it, or takes it off. What a
+ * school is offered changes with what it may use, so every tenant's cell is
+ * told as for a change to its entitlements, and drops the offer it holds
+ * on its next unit of work.
  */
 export const setOffer = createServerFn({ method: "POST" })
   .validator((input: v.InferInput<typeof setOfferSchema>) =>
@@ -227,6 +231,9 @@ export const setOffer = createServerFn({ method: "POST" })
       ...data,
       operatorId: operator.id,
     });
+    if (changed)
+      for (const tenantId of tenantsOf(await directory().schools()).keys())
+        await tellCell(operator, tenantId);
     return changed
       ? { ok: true }
       : {

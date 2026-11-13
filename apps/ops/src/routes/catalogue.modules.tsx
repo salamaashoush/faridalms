@@ -92,7 +92,7 @@ function ModulesOnOffer() {
     <Page width="list">
       <PageHeader
         title="Modules on offer"
-        description="A school that lacks a module on offer sees it on its plan card and may ask about it; one off offer is not named there. Schools see a change within a minute."
+        description="A school that lacks a module on offer sees it on its plan card and may ask about it; one off offer is not named there. Schools see a change at once, or within a minute where their cell cannot be told."
       />
       <DataTable
         caption="Modules on offer"

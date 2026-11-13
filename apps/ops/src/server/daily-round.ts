@@ -20,7 +20,8 @@ import { billingRound } from "./billing";
 import { dunningRound } from "./dunning";
 import { publishSubscription, SYSTEM_OPERATOR } from "./publication";
 
-function tenantsOf(schools: readonly OperatorSchool[]) {
+/** The tenants with schools served by a cell, each with its schools. */
+export function tenantsOf(schools: readonly OperatorSchool[]) {
   const tenants = new Map<string, OperatorSchool[]>();
   for (const school of schools)
     if (school.placement === "cell" && school.tenantState !== "provisioning")

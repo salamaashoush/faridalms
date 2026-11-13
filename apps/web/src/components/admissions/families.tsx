@@ -284,9 +284,6 @@ export const ADMISSIONS_WITH_FAMILIES: ModuleFillings = {
     replaceWords(m.aplWithdrawFamilyCore, m.aplWithdrawFamily),
     replaceWords(m.itkHintCore, m.itkHint),
     replaceWords(m.itkConsentsMissingCore, m.itkConsentsMissing),
-    replaceWords(m.itkSectionChecklistHintCore, m.itkSectionChecklistHint, [
-      "grade_levels",
-    ]),
     replaceWords(m.itkChecklistTableCore, m.itkChecklistTable),
     replaceWords(m.itkSectionFeesHintCore, m.itkSectionFeesHint),
     replaceWords(m.itkItemRemoveBodyCore, m.itkItemRemoveBody),
@@ -337,11 +334,7 @@ export const ADMISSIONS_WITH_FAMILIES: ModuleFillings = {
     replaceWords(m.ltrFieldsHintCore, m.ltrFieldsHint),
     replaceWords(m.ltrFieldFamilyCore, m.ltrFieldFamily),
     replaceWords(m.ltrFieldChildCore, m.ltrFieldChild),
-    replaceWords(m.setupAdmissionsBodyCore, m.setupAdmissionsBody, [
-      "grade_levels",
-    ]),
     replaceWords(m.applyStepChildCore, m.applyStepChild),
-    replaceWords(m.applyIntakeHintCore, m.applyIntakeHint, ["grade_levels"]),
     replaceWords(m.applySchoolsHintCore, m.applySchoolsHint),
     replaceWords(m.applySchoolLeavingCore, m.applySchoolLeaving),
     replaceWords(m.applyNotFamilyTitleCore, m.applyNotFamilyTitle),

@@ -2,14 +2,20 @@ import { suggestedAges } from "@faridalms/domain/admissions";
 import { SelectField } from "@faridalms/ui/system/form-field";
 
 import type { IntakePartFieldProps } from "~/components/admissions/slots";
+import type { GradeWords } from "~/components/grade-levels/words";
 import type { GradeOptions } from "~/queries/grade-levels";
-import type { ModuleFillings } from "~/utils/extension";
+import type { Filling, ModuleFillings } from "~/utils/extension";
 
 import {
   intakeParts,
   previousSchoolGrades,
 } from "~/components/admissions/slots";
 import { gradeChoices } from "~/components/grade-levels/fields";
+import {
+  gradeWordingIn,
+  gradeWordsIn,
+  useGradeWords,
+} from "~/components/grade-levels/words";
 import * as m from "~/i18n/messages";
 import { gradeOptionsQuery } from "~/queries/grade-levels";
 import { fill } from "~/utils/extension";
@@ -29,11 +35,12 @@ function IntakeGradeField({
   fixed,
   onChange,
 }: IntakePartFieldProps) {
+  const words = useGradeWords();
   const gradeId = gradeIdOf(value);
   return (
     <SelectField
       id="intake-grade"
-      label={m.itkFieldGrade()}
+      label={words.intakeGrade()}
       optional
       value={gradeId || NONE}
       disabled={fixed && gradeId !== ""}
@@ -54,11 +61,16 @@ function IntakeGradeField({
 export const ADMISSIONS_BY_GRADE: ModuleFillings = {
   module: "admissions",
   needs: ["grade_levels"],
-  fillings: [
+  fillings: (wording) =>
+    admissionsGradeFillings(gradeWordsIn(gradeWordingIn(wording))),
+};
+
+function admissionsGradeFillings(words: GradeWords): Filling[] {
+  return [
     fill(intakeParts, {
       key: "grade",
-      label: m.itkFieldGrade,
-      letterHint: m.ltrFieldGrade,
+      label: words.intakeGrade,
+      letterHint: words.letterGrade,
       query: () => gradeOptionsQuery,
       initial: () => ({ value: { gradeId: "" } }),
       titleOf: (read, value) => {
@@ -85,10 +97,30 @@ export const ADMISSIONS_BY_GRADE: ModuleFillings = {
       Field: IntakeGradeField,
     }),
     fill(previousSchoolGrades, true),
-    replaceWords(m.applyNoIntakesCore, m.applyNoIntakes),
-    replaceWords(m.aplAgeFitsCore, m.aplAgeFits),
-    replaceWords(m.adrByIntakeCore, m.adrByIntake),
-    replaceWords(m.famAppsEmptyBodyCore, m.famAppsEmptyBody),
-    replaceWords(m.applyIntakeTitleCore, m.applyIntakeTitle, ["school_years"]),
-  ],
-};
+    replaceWords(m.applyNoIntakesCore, words.applyNone),
+    replaceWords(m.aplAgeFitsCore, words.ageFits),
+    replaceWords(m.adrByIntakeCore, words.reportByIntake),
+    replaceWords(m.famAppsEmptyBodyCore, words.applicationsEmpty),
+    replaceWords(m.applyIntakeTitleCore, words.applyTitle, ["school_years"]),
+    replaceWords(m.itkCaptionCore, words.intakeCaption, ["school_years"]),
+    replaceWords(m.itkFieldCapacityHintCore, words.intakeCapacity),
+    replaceWords(m.itkSectionChecklistHintCore, words.intakeChecklist, [
+      "families",
+    ]),
+    replaceWords(m.setupAdmissionsBodyCore, words.setupAdmissions, [
+      "families",
+    ]),
+    replaceWords(m.applyIntakeHintCore, words.applyHint, ["families"]),
+    replaceWords(m.brdEnrolBodyCore, words.enrolBody, [
+      "families",
+      "school_years",
+    ]),
+    replaceWords(m.siteFieldIntakeHintCore, words.siteIntake, ["website"]),
+    replaceWords(m.errIntakeFixedCore, words.intakeFixed),
+    replaceWords(m.errIntakeGrade, words.intakeUnknown),
+    replaceWords(m.errApplicationClosedCore, words.applyClosed),
+    replaceWords(m.errApplicationYoungCore, words.applyYoung),
+    replaceWords(m.errApplicationOldCore, words.applyOld),
+    replaceWords(m.errApplicationExistsCore, words.applyExists),
+  ];
+}

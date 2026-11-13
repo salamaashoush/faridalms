@@ -131,7 +131,10 @@ export function StudentReading({ studentId }: StudentReadingProps) {
     id: `${reading.sourceId}-${index}`,
   }));
   return (
-    <RecordSection title={m.readingTitle()} description={m.readingStaffHint()}>
+    <RecordSection
+      title={m.readingTitle()}
+      description={words(m.readingStaffHintCore)()}
+    >
       <div className="grid gap-6 px-5 pb-5">
         {READING_LANGUAGES.map((language) => {
           const own = rows.filter((row) => row.language === language);
@@ -150,7 +153,7 @@ export function StudentReading({ studentId }: StudentReadingProps) {
                 }),
               }))}
               reference={{
-                label: m.readingNormLine(),
+                label: words(m.readingNormLineCore)(),
                 valueAt: (point) =>
                   own.find((row) => row.id === point.id)?.norm?.p50 ?? null,
               }}

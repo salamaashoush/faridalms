@@ -110,6 +110,16 @@ test("a school that calls its grades levels reads Level in English and المس�
         "Which grade levels grade on which scale, and how their work weighs in a term grade.",
       ),
     ).toBeVisible();
+    await other.goto(`${portal()}/settings?section=reading`);
+    await untilHydrated(other);
+    await expect(
+      other.getByRole("table", {
+        name: "English norms by grade and time of year",
+      }),
+    ).toBeVisible();
+    await other.goto(`${portal()}/admissions/intake-editor`);
+    await untilHydrated(other);
+    await expect(other.getByRole("combobox", { name: /^Grade/ })).toBeVisible();
   } finally {
     await northwind.close();
   }
@@ -142,6 +152,19 @@ test("a school with years that calls its grades levels reads Level through the r
       "Which levels grade on which scale, and how their work weighs in a term grade.",
     ),
   ).toBeVisible();
+  await page.goto(`${portal(school.slug)}/settings?section=reading`);
+  await untilHydrated(page);
+  await expect(
+    page.getByRole("table", {
+      name: "English norms by level and time of year",
+    }),
+  ).toBeVisible();
+  await page.goto(`${portal(school.slug)}/admissions/intake-editor`);
+  await untilHydrated(page);
+  await expect(page.getByRole("combobox", { name: /^Level/ })).toBeVisible();
+  await expect(
+    page.getByText("How many children the level can take."),
+  ).toBeVisible();
 
   await page
     .context()
@@ -160,4 +183,12 @@ test("a school with years that calls its grades levels reads Level through the r
       "أي المستويات تُقيَّم بأي سلم، وكيف تُوزن أعمالها في تقدير الفصل الدراسي.",
     ),
   ).toBeVisible();
+  await page.goto(`${portal(school.slug)}/settings?section=reading`);
+  await untilHydrated(page);
+  await expect(
+    page.getByRole("table", { name: /حسب المستوى ووقت العام$/ }).first(),
+  ).toBeVisible();
+  await page.goto(`${portal(school.slug)}/admissions/intake-editor`);
+  await untilHydrated(page);
+  await expect(page.getByRole("combobox", { name: /^المستوى/ })).toBeVisible();
 });

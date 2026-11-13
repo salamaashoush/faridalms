@@ -509,7 +509,7 @@ export const ISSUE_LABEL: Record<SiteIssueCode, () => string> = {
 
 /** A line under a field's label, where its declaration alone would not say enough. */
 export const FIELD_HINT: Record<string, () => string> = {
-  intake: m.siteFieldIntakeHint,
+  intake: m.siteFieldIntakeHintCore,
   closed: m.siteFieldClosedHintCore,
   questions: m.siteFieldQuestionsHint,
 };

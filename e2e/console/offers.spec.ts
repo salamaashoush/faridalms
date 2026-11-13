@@ -66,12 +66,9 @@ test("the operator takes a module off offer and a school's plan card stops namin
     const plan = school
       .locator("[data-module-catalogue]")
       .filter({ hasText: "What your plan includes" });
-    // A cell reads the offer within the directory cache's minute.
-    await expect(async () => {
-      await school.goto(`${portal("fernhill")}/settings`);
-      await expect(plan).toContainText("Coding and blocks");
-      await expect(plan).not.toContainText("Text messages");
-    }).toPass({ timeout: 90_000, intervals: [5_000] });
+    await school.goto(`${portal("fernhill")}/settings`);
+    await expect(plan).toContainText("Coding and blocks");
+    await expect(plan).not.toContainText("Text messages");
     await expect(plan).not.toContainText("Single sign-on");
     await expect(plan).toContainText("Coursework");
     await expect(

@@ -697,7 +697,7 @@ export function getMessageFromError(
       case "coursework.like_own":
         return m.discussionErrLikeOwn();
       case "reading.norm_repeated":
-        return m.readingErrNormRepeated();
+        return words(m.readingErrNormRepeated)();
       case "reading.norm_order":
         return m.readingErrNormOrder();
       case "coursework.peer_due_early":
@@ -834,11 +834,11 @@ export function getMessageFromError(
       case "intake.form_unpublished":
         return m.errIntakeFormUnpublished();
       case "intake.fixed":
-        return m.errIntakeFixed();
+        return words(m.errIntakeFixedCore)();
       case "intake.year":
         return m.errIntakeYear();
       case "intake.grade":
-        return m.errIntakeGrade();
+        return words(m.errIntakeGrade)();
       case "intake.dates":
         return m.itkErrDates();
       case "intake.ages":
@@ -876,11 +876,11 @@ export function getMessageFromError(
       case "applying.needs_off":
         return m.errApplyingNeedsOff();
       case "application.intake_closed":
-        return m.errApplicationClosed();
+        return words(m.errApplicationClosedCore)();
       case "application.age_young":
-        return m.errApplicationYoung();
+        return words(m.errApplicationYoungCore)();
       case "application.age_old":
-        return m.errApplicationOld();
+        return words(m.errApplicationOldCore)();
       case "application.child":
         return m.errApplicationChild();
       case "application.relation":
@@ -906,7 +906,7 @@ export function getMessageFromError(
       case "application.self_minor":
         return m.errApplicationSelfMinor();
       case "application.exists":
-        return m.errApplicationExists();
+        return words(m.errApplicationExistsCore)();
       case "register.no_mail":
         return m.registerErrNoMail();
       case "register.not_sent":

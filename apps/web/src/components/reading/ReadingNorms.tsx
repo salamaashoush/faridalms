@@ -31,6 +31,8 @@ import { BookOpenText, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { InWords } from "~/utils/words";
+
 import { LOCALE_NAME } from "~/components/content/languages";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -38,6 +40,7 @@ import { readingNormsQuery } from "~/queries/reading";
 import { resetReadingNorms, saveReadingNorms } from "~/server/reading";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { useWords } from "~/utils/words";
 
 /** The most words a minute a norm may hold, as the domain allows. */
 const MOST_WORDS = 400;
@@ -276,6 +279,7 @@ function NormSheet({
   open,
   onClose,
 }: NormSheetProps) {
+  const words = useWords();
   const queryClient = useQueryClient();
   const openSeasons = (grade: string) =>
     READING_SEASONS.filter((season) => {
@@ -327,7 +331,7 @@ function NormSheet({
       }}
       title={row ? rowName(row) : m.readingNormAddTitle()}
       pending={save.isPending}
-      error={save.error ? getMessageFromError(save.error) : null}
+      error={save.error ? getMessageFromError(save.error, words) : null}
       onSubmit={async () => {
         setTried(true);
         if (!grade || Object.keys(figureErrors(figures)).length) return;
@@ -347,7 +351,7 @@ function NormSheet({
         <>
           <SelectField
             id={`norm-${language}-grade`}
-            label={m.readingGrade()}
+            label={words(m.readingGrade)()}
             value={grade}
             options={gradeChoices}
             onChange={(next) => {
@@ -409,11 +413,12 @@ type Opener = (row: NormRow, text: string) => ReactNode;
 function normColumns(
   source: Source | null,
   opener: Opener,
+  words: InWords,
 ): Column<NormRow & { id: string }>[] {
   return [
     {
       id: "grade",
-      header: m.readingGrade(),
+      header: words(m.readingGrade)(),
       primary: true,
       cell: (row) => opener(row, gradeName(row.grade)),
     },
@@ -470,6 +475,7 @@ interface LanguageNormsProps {
  * are still Hasbrouck and Tindal's.
  */
 function LanguageNorms({ language, rows, own, version }: LanguageNormsProps) {
+  const words = useWords();
   const queryClient = useQueryClient();
   const [sheet, setSheet] = useState<{
     row: NormRow | null;
@@ -558,7 +564,7 @@ function LanguageNorms({ language, rows, own, version }: LanguageNormsProps) {
               destructive: true as const,
               confirm: {
                 title: m.readingNormRemoveTitle({ row: rowName(row) }),
-                body: m.readingNormRemoveBody(),
+                body: words(m.readingNormRemoveBody)(),
                 label: m.readingNormRemove(),
               },
               onSelect: async () => {
@@ -580,8 +586,8 @@ function LanguageNorms({ language, rows, own, version }: LanguageNormsProps) {
         own
           ? m.readingNormsOwn()
           : language === "en"
-            ? m.readingNormsDefaultEn()
-            : m.readingNormsDefaultAr()
+            ? words(m.readingNormsDefaultEn)()
+            : words(m.readingNormsDefaultAr)()
       }
       action={
         own ? (
@@ -601,16 +607,16 @@ function LanguageNorms({ language, rows, own, version }: LanguageNormsProps) {
       }
     >
       <DataTable
-        caption={m.readingNormsTable({ language: languageName })}
+        caption={words(m.readingNormsTable)({ language: languageName })}
         rows={shown.map((row) => Object.assign({ id: rowKey(row) }, row))}
-        columns={normColumns(source, opener)}
+        columns={normColumns(source, opener, words)}
         rowLabel={rowName}
         rowActions={rowActions}
         actions={addButton("outline")}
         card={normCard(source, opener)}
         empty={{
           icon: BookOpenText,
-          title: m.readingNormsEmpty(),
+          title: words(m.readingNormsEmpty)(),
           action: addButton("default"),
         }}
       />
@@ -638,7 +644,9 @@ function LanguageNorms({ language, rows, own, version }: LanguageNormsProps) {
         }
         confirmLabel={m.readingNormsResetAction()}
         pending={reset.isPending}
-        error={reset.error ? getMessageFromError(reset.error) : undefined}
+        error={
+          reset.error ? getMessageFromError(reset.error, words) : undefined
+        }
         onConfirm={() => reset.mutate()}
         onCancel={() => setResetting(false)}
       />

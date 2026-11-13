@@ -304,7 +304,9 @@ version, and a version no longer offered is retired.
   named there, and a school always sees the modules it has. Each row's
   menu has Take off offer or Put on offer, which asks why; the change is
   the directory's, so it is in the change log as Taken off offer or Put
-  on offer, and cells read it within a minute. It is a list, not a
+  on offer, and every cell is told at once, as for a change to a
+  school's entitlements (within a minute where a cell cannot be told).
+  It is a list, not a
   record: a module has no versions or prices of its own, which its
   add-ons and the plans that include it carry.
 - **The version sheet** groups its fields under headings: the version

@@ -122,5 +122,14 @@ function gradeCourseworkFillings(words: GradeWords): Filling[] {
     replaceWords(m.gradingProgrammesHintCore, words.programmesHint, [
       "school_years",
     ]),
+    replaceWords(m.readingStaffHintCore, words.readingHint),
+    replaceWords(m.readingNormLineCore, words.readingNormLine),
+    replaceWords(m.readingNormsDefaultEn, words.readingDefaultEnglish),
+    replaceWords(m.readingNormsDefaultAr, words.readingDefaultArabic),
+    replaceWords(m.readingNormsEmpty, words.readingEmpty),
+    replaceWords(m.readingNormsTable, words.readingTable),
+    replaceWords(m.readingGrade, words.readingGrade),
+    replaceWords(m.readingErrNormRepeated, words.readingRepeated),
+    replaceWords(m.readingNormRemoveBody, words.readingRemove),
   ];
 }

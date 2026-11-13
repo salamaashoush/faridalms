@@ -1,6 +1,7 @@
 import type { RouterClient } from "@orpc/server";
 
 import { openDirectoryAdmin } from "@faridalms/database/directory/admin";
+import { openDirectory } from "@faridalms/database/directory/client";
 import { SEED_PASSWORD } from "@faridalms/database/seed";
 import { billingQuery, verifyIntake } from "@faridalms/domain/intake";
 import { MODULE_IDS, MODULES } from "@faridalms/domain/modules";
@@ -329,6 +330,32 @@ describe("leads for the operator console", () => {
         reason: "Back as declared",
       });
       await admin.close();
+    }
+  });
+
+  test("a server holding the offer drops it with a tenant's rows when the console tells the tenant's cell", async () => {
+    const held = openDirectory(testDirectory().readerUrl, 60_000);
+    const admin = openDirectoryAdmin(testDirectory().operatorUrl);
+    try {
+      expect(await held.offered()).toContain("video");
+      await admin.setOffer({
+        module: "video",
+        offered: false,
+        operatorId: "salama-test",
+        reason: "Not selling video this term",
+      });
+      expect(await held.offered()).toContain("video");
+      held.observeEntitlements(crypto.randomUUID(), 1);
+      expect(await held.offered()).not.toContain("video");
+    } finally {
+      await admin.setOffer({
+        module: "video",
+        offered: true,
+        operatorId: "salama-test",
+        reason: "Back as declared",
+      });
+      await admin.close();
+      await held.close();
     }
   });
 

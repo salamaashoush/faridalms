@@ -124,7 +124,6 @@ export const ADMISSIONS_IN_YEARS: ModuleFillings = {
       },
       Field: IntakeYearField,
     }),
-    replaceWords(m.itkCaptionCore, m.itkCaption, ["grade_levels"]),
     replaceWords(m.itkEmptyCore, m.itkEmpty),
     replaceWords(m.adrEmptyCore, m.adrEmpty),
     replaceWords(m.decDeferActionCore, m.decDeferAction),

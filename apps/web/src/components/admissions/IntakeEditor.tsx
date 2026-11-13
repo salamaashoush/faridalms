@@ -700,7 +700,7 @@ export function IntakeEditor({
         !leaving.current && JSON.stringify(draft) !== JSON.stringify(initial)
       }
       pending={mutation.isPending}
-      error={mutation.error ? getMessageFromError(mutation.error) : null}
+      error={mutation.error ? getMessageFromError(mutation.error, words) : null}
       onCancel={onDone}
       onSubmit={async () => {
         setTried(true);
@@ -788,7 +788,7 @@ export function IntakeEditor({
         <TextField
           id="intake-capacity"
           label={m.itkFieldCapacity()}
-          hint={m.itkFieldCapacityHint()}
+          hint={words(m.itkFieldCapacityHintCore)()}
           type="number"
           inputMode="numeric"
           min={1}

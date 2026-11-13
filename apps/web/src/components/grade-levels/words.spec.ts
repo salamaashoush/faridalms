@@ -12,7 +12,7 @@ import type { GradeWords } from "./words";
 import { GRADE_LEVELS_WITH_FAMILIES } from "./families";
 import { gradeWordingIn, gradeWordsIn } from "./words";
 
-const INPUTS = { date: "1 September" };
+const INPUTS = { date: "1 September", language: "English" };
 
 const inArabic = (sentence: () => string) =>
   (sentence as (inputs: object, options: { locale: "ar" }) => string)(
@@ -68,9 +68,13 @@ describe("the grade levels module's words", () => {
 
 type Word = "level" | "year_group" | "stage";
 
-/** Sentences that also speak of a grade as a mark, and the words of the mark, which stay. */
+/**
+ * Sentences that also speak of a grade the school's word does not name, and
+ * those words, which stay: a mark, or the grades a published norm is for.
+ */
 const MARKS: Partial<Record<string, RegExp>> = {
   programmesHint: /\bgrade on\b|\bterm grade\b/g,
+  readingDefaultEnglish: /\bgrades 1 to 6\b/,
 };
 
 /** A surface's sentences: what each read before the school chose, then per word in English and Arabic. */
@@ -302,9 +306,447 @@ const SURFACES: Record<
       },
     ],
   },
+  reading: {
+    readingHint: [
+      m.readingStaffHint,
+      {
+        level: [
+          "Words correct a minute in each reading a teacher marked this year, against the school's norm for the student's level at that time of year.",
+          "الكلمات الصحيحة في الدقيقة في كل قراءة صحّحها معلم هذا العام، مقارنةً بمعيار المدرسة لمستوى الطالب في ذلك الوقت من العام.",
+        ],
+        year_group: [
+          "Words correct a minute in each reading a teacher marked this year, against the school's norm for the student's year group at that time of year.",
+          "الكلمات الصحيحة في الدقيقة في كل قراءة صحّحها معلم هذا العام، مقارنةً بمعيار المدرسة لصف الطالب في ذلك الوقت من العام.",
+        ],
+        stage: [
+          "Words correct a minute in each reading a teacher marked this year, against the school's norm for the student's stage at that time of year.",
+          "الكلمات الصحيحة في الدقيقة في كل قراءة صحّحها معلم هذا العام، مقارنةً بمعيار المدرسة لمرحلة الطالب في ذلك الوقت من العام.",
+        ],
+      },
+    ],
+    readingNormLine: [
+      m.readingNormLine,
+      {
+        level: ["50th percentile for the level", "المئين الخمسون للمستوى"],
+        year_group: [
+          "50th percentile for the year group",
+          "المئين الخمسون للصف",
+        ],
+        stage: ["50th percentile for the stage", "المئين الخمسون للمرحلة"],
+      },
+    ],
+    readingDefaultEnglish: [
+      m.readingNormsDefaultEn,
+      {
+        level: [
+          "Hasbrouck and Tindal's 2017 norms for grades 1 to 6, words correct a minute. Change any figure, or add levels, to make them the school's own.",
+          "معايير هاسبروك وتيندال لعام ٢٠١٧ للصفوف من الأول إلى السادس، بالكلمات الصحيحة في الدقيقة. غيّر أي رقم أو أضف مستويات لتصبح معايير المدرسة الخاصة.",
+        ],
+        year_group: [
+          "Hasbrouck and Tindal's 2017 norms for grades 1 to 6, words correct a minute. Change any figure, or add year groups, to make them the school's own.",
+          "معايير هاسبروك وتيندال لعام ٢٠١٧ للصفوف من الأول إلى السادس، بالكلمات الصحيحة في الدقيقة. غيّر أي رقم أو أضف صفوفًا لتصبح معايير المدرسة الخاصة.",
+        ],
+        stage: [
+          "Hasbrouck and Tindal's 2017 norms for grades 1 to 6, words correct a minute. Change any figure, or add stages, to make them the school's own.",
+          "معايير هاسبروك وتيندال لعام ٢٠١٧ للصفوف من الأول إلى السادس، بالكلمات الصحيحة في الدقيقة. غيّر أي رقم أو أضف مراحل لتصبح معايير المدرسة الخاصة.",
+        ],
+      },
+    ],
+    readingDefaultArabic: [
+      m.readingNormsDefaultAr,
+      {
+        level: [
+          "There are no published norms for reading Arabic aloud to start from. Add the levels your school measures and the words correct a minute it expects.",
+          "لا توجد معايير منشورة للقراءة الجهرية بالعربية يُبدأ منها. أضف المستويات التي تقيسها مدرستك وعدد الكلمات الصحيحة في الدقيقة الذي تتوقعه.",
+        ],
+        year_group: [
+          "There are no published norms for reading Arabic aloud to start from. Add the year groups your school measures and the words correct a minute it expects.",
+          "لا توجد معايير منشورة للقراءة الجهرية بالعربية يُبدأ منها. أضف الصفوف التي تقيسها مدرستك وعدد الكلمات الصحيحة في الدقيقة الذي تتوقعه.",
+        ],
+        stage: [
+          "There are no published norms for reading Arabic aloud to start from. Add the stages your school measures and the words correct a minute it expects.",
+          "لا توجد معايير منشورة للقراءة الجهرية بالعربية يُبدأ منها. أضف المراحل التي تقيسها مدرستك وعدد الكلمات الصحيحة في الدقيقة الذي تتوقعه.",
+        ],
+      },
+    ],
+    readingEmpty: [
+      m.readingNormsEmpty,
+      {
+        level: [
+          "Add the first level to write its norms.",
+          "أضف أول مستوى لتكتب معاييره.",
+        ],
+        year_group: [
+          "Add the first year group to write its norms.",
+          "أضف أول صف لتكتب معاييره.",
+        ],
+        stage: [
+          "Add the first stage to write its norms.",
+          "أضف أول مرحلة لتكتب معاييرها.",
+        ],
+      },
+    ],
+    readingTable: [
+      m.readingNormsTable,
+      {
+        level: [
+          "{language} norms by level and time of year",
+          "معايير {language} حسب المستوى ووقت العام",
+        ],
+        year_group: [
+          "{language} norms by year group and time of year",
+          "معايير {language} حسب الصف ووقت العام",
+        ],
+        stage: [
+          "{language} norms by stage and time of year",
+          "معايير {language} حسب المرحلة ووقت العام",
+        ],
+      },
+    ],
+    readingGrade: [
+      m.readingGrade,
+      {
+        level: ["Level", "المستوى"],
+        year_group: ["Year group", "الصف"],
+        stage: ["Stage", "المرحلة"],
+      },
+    ],
+    readingRepeated: [
+      m.readingErrNormRepeated,
+      {
+        level: [
+          "Each level appears once for each time of year.",
+          "يظهر كل مستوى مرة واحدة لكل وقت من العام.",
+        ],
+        year_group: [
+          "Each year group appears once for each time of year.",
+          "يظهر كل صف مرة واحدة لكل وقت من العام.",
+        ],
+        stage: [
+          "Each stage appears once for each time of year.",
+          "تظهر كل مرحلة مرة واحدة لكل وقت من العام.",
+        ],
+      },
+    ],
+    readingRemove: [
+      m.readingNormRemoveBody,
+      {
+        level: [
+          "Readings at that time of year are set against no norm for the level until one is written again.",
+          "لا تُقارن القراءات في ذلك الوقت من السنة بأي معيار للمستوى حتى يُكتب معيار جديد.",
+        ],
+        year_group: [
+          "Readings at that time of year are set against no norm for the year group until one is written again.",
+          "لا تُقارن القراءات في ذلك الوقت من السنة بأي معيار للصف حتى يُكتب معيار جديد.",
+        ],
+        stage: [
+          "Readings at that time of year are set against no norm for the stage until one is written again.",
+          "لا تُقارن القراءات في ذلك الوقت من السنة بأي معيار للمرحلة حتى يُكتب معيار جديد.",
+        ],
+      },
+    ],
+  },
+  admissions: {
+    intakeGrade: [
+      m.itkFieldGrade,
+      {
+        level: ["Level", "المستوى"],
+        year_group: ["Year group", "الصف"],
+        stage: ["Stage", "المرحلة"],
+      },
+    ],
+    letterGrade: [
+      m.ltrFieldGrade,
+      {
+        level: ["The level", "المستوى"],
+        year_group: ["The year group", "الصف"],
+        stage: ["The stage", "المرحلة"],
+      },
+    ],
+    intakeCaption: [
+      m.itkCaption,
+      {
+        level: [
+          "Intakes of the year, level by level",
+          "دورات القبول للعام، مستوًى مستوًى",
+        ],
+        year_group: [
+          "Intakes of the year, year group by year group",
+          "دورات القبول للعام، صفًا صفًا",
+        ],
+        stage: [
+          "Intakes of the year, stage by stage",
+          "دورات القبول للعام، مرحلةً مرحلةً",
+        ],
+      },
+    ],
+    intakeCapacity: [
+      m.itkFieldCapacityHint,
+      {
+        level: [
+          "How many children the level can take.",
+          "عدد الأطفال الذين يستوعبهم المستوى.",
+        ],
+        year_group: [
+          "How many children the year group can take.",
+          "عدد الأطفال الذين يستوعبهم الصف.",
+        ],
+        stage: [
+          "How many children the stage can take.",
+          "عدد الأطفال الذين تستوعبهم المرحلة.",
+        ],
+      },
+    ],
+    intakeChecklist: [
+      m.itkSectionChecklistHint,
+      {
+        level: [
+          "What every applicant to this level is asked for. Families upload the documents; the office ticks off the rest.",
+          "ما يُطلب من كل متقدم لهذا المستوى. ترفع الأسر المستندات، ويؤشر مكتب القبول على الباقي.",
+        ],
+        year_group: [
+          "What every applicant to this year group is asked for. Families upload the documents; the office ticks off the rest.",
+          "ما يُطلب من كل متقدم لهذا الصف. ترفع الأسر المستندات، ويؤشر مكتب القبول على الباقي.",
+        ],
+        stage: [
+          "What every applicant to this stage is asked for. Families upload the documents; the office ticks off the rest.",
+          "ما يُطلب من كل متقدم لهذه المرحلة. ترفع الأسر المستندات، ويؤشر مكتب القبول على الباقي.",
+        ],
+      },
+    ],
+    applyNone: [
+      m.applyNoIntakes,
+      {
+        level: [
+          "No level is taking applications today. Please check the school's admissions page for dates.",
+          "لا يوجد مستوى يستقبل طلبات اليوم. يُرجى مراجعة صفحة القبول في موقع المدرسة لمعرفة المواعيد.",
+        ],
+        year_group: [
+          "No year group is taking applications today. Please check the school's admissions page for dates.",
+          "لا يوجد صف يستقبل طلبات اليوم. يُرجى مراجعة صفحة القبول في موقع المدرسة لمعرفة المواعيد.",
+        ],
+        stage: [
+          "No stage is taking applications today. Please check the school's admissions page for dates.",
+          "لا توجد مرحلة تستقبل طلبات اليوم. يُرجى مراجعة صفحة القبول في موقع المدرسة لمعرفة المواعيد.",
+        ],
+      },
+    ],
+    applyTitle: [
+      m.applyIntakeTitle,
+      {
+        level: ["Level and year", "المستوى والعام"],
+        year_group: ["Year group and year", "الصف والعام"],
+        stage: ["Stage and year", "المرحلة والعام"],
+      },
+    ],
+    applyHint: [
+      m.applyIntakeHint,
+      {
+        level: [
+          "The level your child will join, and when.",
+          "المستوى الذي سيلتحق به طفلكم وموعده.",
+        ],
+        year_group: [
+          "The year group your child will join, and when.",
+          "الصف الذي سيلتحق به طفلكم وموعده.",
+        ],
+        stage: [
+          "The stage your child will join, and when.",
+          "المرحلة التي سيلتحق بها طفلكم وموعد التحاقه.",
+        ],
+      },
+    ],
+    ageFits: [
+      m.aplAgeFits,
+      {
+        level: ["Of age for this level", "في السن المناسبة للمستوى"],
+        year_group: ["Of age for this year group", "في السن المناسبة للصف"],
+        stage: ["Of age for this stage", "في السن المناسبة للمرحلة"],
+      },
+    ],
+    applicationsEmpty: [
+      m.famAppsEmptyBody,
+      {
+        level: [
+          "Apply from the school's admissions page while a level is open.",
+          "تقدموا من صفحة القبول في موقع المدرسة متى كان أحد المستويات مفتوحًا للتقديم.",
+        ],
+        year_group: [
+          "Apply from the school's admissions page while a year group is open.",
+          "تقدموا من صفحة القبول في موقع المدرسة متى كان أحد الصفوف مفتوحًا للتقديم.",
+        ],
+        stage: [
+          "Apply from the school's admissions page while a stage is open.",
+          "تقدموا من صفحة القبول في موقع المدرسة متى كانت إحدى المراحل مفتوحة للتقديم.",
+        ],
+      },
+    ],
+    reportByIntake: [
+      m.adrByIntake,
+      {
+        level: ["By level and intake", "حسب المستوى والدفعة"],
+        year_group: ["By year group and intake", "حسب الصف والدفعة"],
+        stage: ["By stage and intake", "حسب المرحلة والدفعة"],
+      },
+    ],
+    enrolBody: [
+      m.brdEnrolBody,
+      {
+        level: [
+          "Each becomes a student placed in this level for the year, under their application number as the school reference, and their family becomes their guardian.",
+          "يصبح كل منهم طالبًا مسجلًا في هذا المستوى للعام الدراسي برقم طلبه رقمًا مرجعيًا في المدرسة، وتصبح أسرته وليّة أمره.",
+        ],
+        year_group: [
+          "Each becomes a student placed in this year group for the year, under their application number as the school reference, and their family becomes their guardian.",
+          "يصبح كل منهم طالبًا مسجلًا في هذا الصف للعام الدراسي برقم طلبه رقمًا مرجعيًا في المدرسة، وتصبح أسرته وليّة أمره.",
+        ],
+        stage: [
+          "Each becomes a student placed in this stage for the year, under their application number as the school reference, and their family becomes their guardian.",
+          "يصبح كل منهم طالبًا مسجلًا في هذه المرحلة للعام الدراسي برقم طلبه رقمًا مرجعيًا في المدرسة، وتصبح أسرته وليّة أمره.",
+        ],
+      },
+    ],
+    siteIntake: [
+      m.siteFieldIntakeHint,
+      {
+        level: [
+          "Every intake open, or one level's.",
+          "كل الدفعات المفتوحة، أو دفعة مستوى واحد.",
+        ],
+        year_group: [
+          "Every intake open, or one year group's.",
+          "كل الدفعات المفتوحة، أو دفعة صف واحد.",
+        ],
+        stage: [
+          "Every intake open, or one stage's.",
+          "كل الدفعات المفتوحة، أو دفعة مرحلة واحدة.",
+        ],
+      },
+    ],
+    setupAdmissions: [
+      m.setupAdmissionsBody,
+      {
+        level: [
+          "Open an intake for a level so families can apply online.",
+          "افتح دورة قبول لمستوى ما لتتمكن الأسر من التقديم عبر الإنترنت.",
+        ],
+        year_group: [
+          "Open an intake for a year group so families can apply online.",
+          "افتح دورة قبول لصف ما لتتمكن الأسر من التقديم عبر الإنترنت.",
+        ],
+        stage: [
+          "Open an intake for a stage so families can apply online.",
+          "افتح دورة قبول لمرحلة ما لتتمكن الأسر من التقديم عبر الإنترنت.",
+        ],
+      },
+    ],
+    intakeFixed: [
+      m.errIntakeFixed,
+      {
+        level: [
+          "An intake's year and level do not change once set.",
+          "لا يتغير عام دورة القبول ومستواها بعد تحديدهما.",
+        ],
+        year_group: [
+          "An intake's year and year group do not change once set.",
+          "لا يتغير عام دورة القبول وصفها بعد تحديدهما.",
+        ],
+        stage: [
+          "An intake's year and stage do not change once set.",
+          "لا يتغير عام دورة القبول ومرحلتها بعد تحديدهما.",
+        ],
+      },
+    ],
+    intakeUnknown: [
+      m.errIntakeGrade,
+      {
+        level: [
+          "Choose one of the school's levels.",
+          "اختر أحد مستويات المدرسة.",
+        ],
+        year_group: [
+          "Choose one of the school's year groups.",
+          "اختر أحد صفوف المدرسة.",
+        ],
+        stage: [
+          "Choose one of the school's stages.",
+          "اختر إحدى مراحل المدرسة.",
+        ],
+      },
+    ],
+    applyClosed: [
+      m.errApplicationClosed,
+      {
+        level: [
+          "Applications to this level are not open today.",
+          "التقديم لهذا المستوى غير مفتوح اليوم.",
+        ],
+        year_group: [
+          "Applications to this year group are not open today.",
+          "التقديم لهذا الصف غير مفتوح اليوم.",
+        ],
+        stage: [
+          "Applications to this stage are not open today.",
+          "التقديم لهذه المرحلة غير مفتوح اليوم.",
+        ],
+      },
+    ],
+    applyYoung: [
+      m.errApplicationYoung,
+      {
+        level: [
+          "Your child is younger than this level takes on the cut-off day. Please choose another level or ask the school.",
+          "طفلكم أصغر من السن التي يقبلها هذا المستوى في يوم الاحتساب. يُرجى اختيار مستوى آخر أو سؤال المدرسة.",
+        ],
+        year_group: [
+          "Your child is younger than this year group takes on the cut-off day. Please choose another year group or ask the school.",
+          "طفلكم أصغر من السن التي يقبلها هذا الصف في يوم الاحتساب. يُرجى اختيار صف آخر أو سؤال المدرسة.",
+        ],
+        stage: [
+          "Your child is younger than this stage takes on the cut-off day. Please choose another stage or ask the school.",
+          "طفلكم أصغر من السن التي تقبلها هذه المرحلة في يوم الاحتساب. يُرجى اختيار مرحلة أخرى أو سؤال المدرسة.",
+        ],
+      },
+    ],
+    applyOld: [
+      m.errApplicationOld,
+      {
+        level: [
+          "Your child is older than this level takes on the cut-off day. Please choose another level or ask the school.",
+          "طفلكم أكبر من السن التي يقبلها هذا المستوى في يوم الاحتساب. يُرجى اختيار مستوى آخر أو سؤال المدرسة.",
+        ],
+        year_group: [
+          "Your child is older than this year group takes on the cut-off day. Please choose another year group or ask the school.",
+          "طفلكم أكبر من السن التي يقبلها هذا الصف في يوم الاحتساب. يُرجى اختيار صف آخر أو سؤال المدرسة.",
+        ],
+        stage: [
+          "Your child is older than this stage takes on the cut-off day. Please choose another stage or ask the school.",
+          "طفلكم أكبر من السن التي تقبلها هذه المرحلة في يوم الاحتساب. يُرجى اختيار مرحلة أخرى أو سؤال المدرسة.",
+        ],
+      },
+    ],
+    applyExists: [
+      m.errApplicationExists,
+      {
+        level: [
+          "This child already has an application to this level.",
+          "لهذا الطفل طلب لهذا المستوى بالفعل.",
+        ],
+        year_group: [
+          "This child already has an application to this year group.",
+          "لهذا الطفل طلب لهذا الصف بالفعل.",
+        ],
+        stage: [
+          "This child already has an application to this stage.",
+          "لهذا الطفل طلب لهذه المرحلة بالفعل.",
+        ],
+      },
+    ],
+  },
 };
 
-const filledIn = (text: string) => text.replace("{date}", INPUTS.date);
+const filledIn = (text: string) =>
+  text.replace("{date}", INPUTS.date).replace("{language}", INPUTS.language);
 type Read = (inputs: object, options?: { locale: "ar" }) => string;
 
 describe.each(Object.entries(SURFACES))(

@@ -441,7 +441,7 @@ export function StartApplication({
           )}
           {start.error ? (
             <p role="alert" className="text-sm text-destructive">
-              {getMessageFromError(start.error)}
+              {getMessageFromError(start.error, words)}
             </p>
           ) : null}
           <Button
@@ -866,7 +866,7 @@ export function ApplicationSteps({
       </section>
       {save.error || submit.error ? (
         <p role="alert" className="text-sm text-destructive">
-          {getMessageFromError(submit.error ?? save.error)}
+          {getMessageFromError(submit.error ?? save.error, words)}
         </p>
       ) : null}
       <div className="flex flex-wrap gap-3">

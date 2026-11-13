@@ -216,13 +216,15 @@ export function openDirectory(url: string, ttlMs = 60_000) {
       }),
     /**
      * Notes the entitlements version a unit of work read from the tenant's
-     * cell, and drops every row held for the tenant when it is one this
-     * server has not seen: the console changed what its schools may use.
+     * cell, and drops every row held for the tenant, and the modules on
+     * offer, when it is one this server has not seen: the console changed
+     * what its schools may use or are offered.
      */
     observeEntitlements: (tenantId: string, version: number) => {
       if (seenVersions.get(tenantId) === version) return;
       seenVersions.set(tenantId, version);
       generation += 1;
+      cache.delete("offered");
       for (const [key, hit] of cache)
         if (tenantOf(hit.value) === tenantId) cache.delete(key);
     },
