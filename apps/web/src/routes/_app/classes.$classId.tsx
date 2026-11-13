@@ -2,7 +2,7 @@ import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import * as v from "valibot";
 
 import { ClassRecord } from "~/components/classes/ClassRecord";
-import { classRecordParts } from "~/components/classes/slots";
+import { classRecordParts, classRecordTabs } from "~/components/classes/slots";
 import { areaViewSearch } from "~/components/files/AreaFiles";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
@@ -25,15 +25,25 @@ export const Route = createFileRoute("/_app/classes/$classId")({
   },
   validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(v.parse(searchSchema, {}))] },
-  loader: async ({ context, params }) => {
+  loaderDeps: ({ search }) => ({ tab: search.tab }),
+  loader: async ({ context, params, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    await Promise.all([
+    const [record] = await Promise.all([
       context.queryClient.ensureQueryData(classRecordQuery(params.classId)),
       context.queryClient.ensureQueryData(classOptionsQuery),
       ...filled(context.extensions, user, classRecordParts).map((part) =>
         context.queryClient.ensureQueryData(part.query(params.classId)),
       ),
     ]);
+    const open = filled(context.extensions, user, classRecordTabs).find(
+      (each) =>
+        each.value === deps.tab &&
+        [each.capability]
+          .flat()
+          .some((capability) => user.capabilities.includes(capability)) &&
+        (each.shows?.(record) ?? true),
+    );
+    await open?.load?.(context.queryClient, params.classId);
   },
   component: ClassPage,
 });

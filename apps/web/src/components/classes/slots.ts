@@ -131,6 +131,11 @@ export interface ClassRecordTab {
   capability: Capability | readonly Capability[];
   /** Whether the class has it at all: goals only for a class of young children, say. */
   shows?: (record: ClassRecordData) => boolean;
+  /**
+   * What the tab reads, loaded before it opens. A tab that reads on its own
+   * is sent to the page after it, in a part the browser puts in place late.
+   */
+  load?(queryClient: QueryClient, classId: string): Promise<unknown>;
   Tab: ComponentType<{ classId: string }>;
 }
 

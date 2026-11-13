@@ -1,3 +1,4 @@
+import type { ModuleId } from "./modules";
 import type {
   IconId,
   PageSection,
@@ -8,16 +9,49 @@ import type {
 import type { SiteChrome, ThemeId } from "./site-theme";
 
 import { plainContent } from "./content-conversion";
+import { MODULE_IDS } from "./modules";
 import { formDocument } from "./questions";
-import { defaultStyle, newSection } from "./site-sections";
+import {
+  askedBy,
+  defaultStyle,
+  newSection,
+  sectionModule,
+} from "./site-sections";
 
 /** Words in both languages; a template is written once and built in either. */
 type Words = readonly [en: string, ar: string];
 
+/** Which modules the school a site is built for has on. */
+export type SiteModules = Readonly<Record<ModuleId, boolean>>;
+
+export const siteModules = (on: readonly ModuleId[]): SiteModules =>
+  Object.fromEntries(
+    MODULE_IDS.map((module) => [module, on.includes(module)]),
+  ) as Record<ModuleId, boolean>;
+
+/**
+ * A sentence that names what modules own (families, a grade), with the
+ * neutral sentence a school without one of them reads instead. The choice is
+ * made once, as the page is built: from then on the page is the school's own.
+ */
+interface Worded {
+  needs: readonly ModuleId[];
+  words: Words;
+  neutral: Words;
+}
+
+type Said = Words | Worded;
+
+const naming = (
+  needs: readonly ModuleId[],
+  words: Words,
+  neutral: Words,
+): Worded => ({ needs, words, neutral });
+
 interface Builder {
   /** The same sequence of ids in every language, so the two stay aligned. */
   id: () => string;
-  w: (words: Words) => string;
+  w: (words: Said) => string;
 }
 
 type Section = <T extends SectionType>(
@@ -26,6 +60,37 @@ type Section = <T extends SectionType>(
   data: (b: Builder) => Partial<SectionOf<T>["data"]>,
   style?: Partial<PageSection["style"]>,
 ) => (b: Builder) => PageSection;
+
+/** A builder that reads every sentence in one language, as the school's modules choose it. */
+function builder(
+  ids: readonly string[],
+  locale: SiteLocale,
+  has: (needs: readonly ModuleId[]) => boolean,
+): Builder {
+  let cursor = 0;
+  return {
+    id: () => ids[cursor++] ?? crypto.randomUUID(),
+    w: (said) => {
+      const words =
+        "needs" in said ? (has(said.needs) ? said.words : said.neutral) : said;
+      return locale === "ar" ? words[1] : words[0];
+    },
+  };
+}
+
+type Make = (b: Builder) => PageSection;
+
+/** A section whose words speak of what modules own, built only for a school with them all. */
+interface Needing {
+  needs: readonly ModuleId[];
+  make: Make;
+}
+type Part = Make | Needing;
+
+const only = (needs: readonly ModuleId[], make: Make): Needing => ({
+  needs,
+  make,
+});
 
 const section: Section = (type, variant, data, style) => (b) => {
   const blank = newSection(type);
@@ -57,7 +122,7 @@ const on =
     } as PageSection;
   };
 
-const link = (b: Builder, label: Words, href: string) => ({
+const link = (b: Builder, label: Said, href: string) => ({
   id: b.id(),
   label: b.w(label),
   href,
@@ -65,8 +130,8 @@ const link = (b: Builder, label: Words, href: string) => ({
 const noImage = { fileId: null, alt: "" };
 const card = (
   b: Builder,
-  title: Words,
-  text: Words,
+  title: Said,
+  text: Said,
   icon: IconId,
   href = "",
 ) => ({
@@ -80,14 +145,32 @@ const card = (
 
 const HERO_HOME = section("hero", "fullbleed", (b) => ({
   eyebrow: b.w(["Welcome", "أهلًا بكم"]),
-  heading: b.w([
-    "Where every child is *known* and *challenged*",
-    "مدرسة يُعرف فيها *كل طفل* ويُتحدّى",
-  ]),
-  text: b.w([
-    "A caring community with high expectations, from the early years to graduation.",
-    "مجتمع يرعى أبناءه ويتوقّع منهم الكثير، من السنوات الأولى حتى التخرّج.",
-  ]),
+  heading: b.w(
+    naming(
+      ["families"],
+      [
+        "Where every child is *known* and *challenged*",
+        "مدرسة يُعرف فيها *كل طفل* ويُتحدّى",
+      ],
+      [
+        "Where every student is *known* and *challenged*",
+        "مدرسة يُعرف فيها *كل طالب* ويُتحدّى",
+      ],
+    ),
+  ),
+  text: b.w(
+    naming(
+      ["families"],
+      [
+        "A caring community with high expectations, from the early years to graduation.",
+        "مجتمع يرعى أبناءه ويتوقّع منهم الكثير، من السنوات الأولى حتى التخرّج.",
+      ],
+      [
+        "A caring community with high expectations, from the early years to graduation.",
+        "مجتمع يرعى طلابه ويتوقّع منهم الكثير، من السنوات الأولى حتى التخرّج.",
+      ],
+    ),
+  ),
   actions: [
     link(b, ["Enquire", "استفسر"], "/pages/admissions"),
     link(b, ["Book a visit", "احجز زيارة"], "/pages/visit"),
@@ -109,10 +192,13 @@ const ADMISSIONS_TRIAD = section(
   (b) => ({
     source: "typed" as const,
     heading: b.w(["Join our school", "انضم إلى مدرستنا"]),
-    text: b.w([
-      "Three steps to a place for your child.",
-      "ثلاث خطوات نحو مقعد لطفلك.",
-    ]),
+    text: b.w(
+      naming(
+        ["families"],
+        ["Three steps to a place for your child.", "ثلاث خطوات نحو مقعد لطفلك."],
+        ["Three steps to a place with us.", "ثلاث خطوات نحو مقعدك لدينا."],
+      ),
+    ),
     items: [
       {
         id: b.id(),
@@ -174,10 +260,19 @@ const REGISTER_APPLY = section(
   (b) => ({
     eyebrow: b.w(["Admissions", "القبول"]),
     heading: b.w(["Ready to *apply*?", "هل أنتم مستعدون *للتقديم*؟"]),
-    text: b.w([
-      "Register as a family once, then apply for each child and come back to the application whenever you like.",
-      "سجّلوا أسرتكم مرة واحدة، ثم قدّموا لكل طفل وعودوا إلى الطلب متى شئتم.",
-    ]),
+    text: b.w(
+      naming(
+        ["families"],
+        [
+          "Register as a family once, then apply for each child and come back to the application whenever you like.",
+          "سجّلوا أسرتكم مرة واحدة، ثم قدّموا لكل طفل وعودوا إلى الطلب متى شئتم.",
+        ],
+        [
+          "Register once, then apply and come back to your application whenever you like.",
+          "سجّلوا مرة واحدة، ثم قدّموا طلبكم وعودوا إليه متى شئتم.",
+        ],
+      ),
+    ),
     intake: "",
     button: b.w(["Register and apply", "سجّل وقدّم"]),
     closed: [
@@ -270,10 +365,19 @@ const DIVISIONS = section("divisions", "tall", (b) => ({
 const WELCOME = section("welcome", "portraitStart", (b) => ({
   heading: b.w(["A welcome from our *principal*", "كلمة *مديرة* المدرسة"]),
   body: plainContent(
-    b.w([
-      "Thank you for your interest in our school. We are a community where curiosity is encouraged, kindness is expected and every child is known well by the adults who teach them.\nThe best way to understand a school is to see it on an ordinary day. Come and visit: our students will show you round, and we will answer every question you bring.",
-      "شكرًا لاهتمامكم بمدرستنا. نحن مجتمع يشجّع الفضول ويتوقّع اللطف، ويعرف فيه المعلّمون كل طفل معرفة جيدة.\nأفضل طريقة لفهم أي مدرسة أن تروها في يوم عادي. زورونا وسيرافقكم طلابنا في جولة، وسنجيب عن كل أسئلتكم.",
-    ]),
+    b.w(
+      naming(
+        ["families"],
+        [
+          "Thank you for your interest in our school. We are a community where curiosity is encouraged, kindness is expected and every child is known well by the adults who teach them.\nThe best way to understand a school is to see it on an ordinary day. Come and visit: our students will show you round, and we will answer every question you bring.",
+          "شكرًا لاهتمامكم بمدرستنا. نحن مجتمع يشجّع الفضول ويتوقّع اللطف، ويعرف فيه المعلّمون كل طفل معرفة جيدة.\nأفضل طريقة لفهم أي مدرسة أن تروها في يوم عادي. زورونا وسيرافقكم طلابنا في جولة، وسنجيب عن كل أسئلتكم.",
+        ],
+        [
+          "Thank you for your interest in our school. We are a community where curiosity is encouraged, kindness is expected and every student is known well by the people who teach them.\nThe best way to understand a school is to see it on an ordinary day. Come and visit: our students will show you round, and we will answer every question you bring.",
+          "شكرًا لاهتمامكم بمدرستنا. نحن مجتمع يشجّع الفضول ويتوقّع اللطف، ويعرف فيه المعلّمون كل طالب معرفة جيدة.\nأفضل طريقة لفهم أي مدرسة أن تروها في يوم عادي. زورونا وسيرافقكم طلابنا في جولة، وسنجيب عن كل أسئلتكم.",
+        ],
+      ),
+    ),
   ),
   portrait: noImage,
   name: b.w(["Dr Amal Nasser", "د. أمل ناصر"]),
@@ -304,7 +408,13 @@ const VOICES = section(
           "المعلّمون هنا يستمعون حقًا. حين أردت تأسيس نادٍ للروبوتات ساعدوني في إيجاد القاعة والأدوات.",
         ]),
         name: b.w(["Omar Saleh", "عمر صالح"]),
-        role: b.w(["Student, Grade 10", "طالب في الصف العاشر"]),
+        role: b.w(
+          naming(
+            ["grade_levels"],
+            ["Student, Grade 10", "طالب في الصف العاشر"],
+            ["Student", "طالب"],
+          ),
+        ),
         audience: "student" as const,
         portrait: noImage,
       },
@@ -337,20 +447,38 @@ const PILLARS = section("pillars", "icons", (b) => ({
     {
       id: b.id(),
       title: b.w(["Curiosity", "الفضول"]),
-      text: b.w([
-        "Children learn to ask good questions and to enjoy finding the answers out for themselves.",
-        "يتعلّم الأطفال طرح الأسئلة الجيدة ويستمتعون بالبحث عن إجاباتها بأنفسهم.",
-      ]),
+      text: b.w(
+        naming(
+          ["families"],
+          [
+            "Children learn to ask good questions and to enjoy finding the answers out for themselves.",
+            "يتعلّم الأطفال طرح الأسئلة الجيدة ويستمتعون بالبحث عن إجاباتها بأنفسهم.",
+          ],
+          [
+            "Students learn to ask good questions and to enjoy finding the answers out for themselves.",
+            "يتعلّم الطلاب طرح الأسئلة الجيدة ويستمتعون بالبحث عن إجاباتها بأنفسهم.",
+          ],
+        ),
+      ),
       icon: "lightbulb" as const,
       image: noImage,
     },
     {
       id: b.id(),
       title: b.w(["Kindness", "اللطف"]),
-      text: b.w([
-        "We look after one another, and every child is known by name by the adults around them.",
-        "يرعى بعضنا بعضًا، ويعرف الكبار من حول كل طفل اسمه وما يحتاج إليه.",
-      ]),
+      text: b.w(
+        naming(
+          ["families"],
+          [
+            "We look after one another, and every child is known by name by the adults around them.",
+            "يرعى بعضنا بعضًا، ويعرف الكبار من حول كل طفل اسمه وما يحتاج إليه.",
+          ],
+          [
+            "We look after one another, and every student is known by name by the people who teach them.",
+            "يرعى بعضنا بعضًا، ويعرف المعلّمون كل طالب باسمه وبما يحتاج إليه.",
+          ],
+        ),
+      ),
       icon: "heart" as const,
       image: noImage,
     },
@@ -367,17 +495,26 @@ const PILLARS = section("pillars", "icons", (b) => ({
     {
       id: b.id(),
       title: b.w(["Belonging", "الانتماء"]),
-      text: b.w([
-        "Families, students and staff work as one community, in two languages and many cultures.",
-        "تعمل الأسر والطلاب والمعلّمون مجتمعًا واحدًا، بلغتين وثقافات كثيرة.",
-      ]),
+      text: b.w(
+        naming(
+          ["families"],
+          [
+            "Families, students and staff work as one community, in two languages and many cultures.",
+            "تعمل الأسر والطلاب والمعلّمون مجتمعًا واحدًا، بلغتين وثقافات كثيرة.",
+          ],
+          [
+            "Students and staff work as one community, in two languages and many cultures.",
+            "يعمل الطلاب والمعلّمون مجتمعًا واحدًا، بلغتين وثقافات كثيرة.",
+          ],
+        ),
+      ),
       icon: "users" as const,
       image: noImage,
     },
   ],
 }));
 
-const PAGE_HEADER = (title: Words, text: Words) =>
+const PAGE_HEADER = (title: Said, text: Said) =>
   section(
     "pageHeader",
     "banner",
@@ -403,10 +540,19 @@ const STEPS = section("steps", "horizontal", (b) => ({
     {
       id: b.id(),
       title: b.w(["Enquire", "استفسر"]),
-      text: b.w([
-        "Tell us about your child and the year they would join. We reply within two working days.",
-        "أخبرنا عن طفلك والصف الذي سيلتحق به، وسنرد خلال يومي عمل.",
-      ]),
+      text: b.w(
+        naming(
+          ["families", "grade_levels"],
+          [
+            "Tell us about your child and the year they would join. We reply within two working days.",
+            "أخبرنا عن طفلك والصف الذي سيلتحق به، وسنرد خلال يومي عمل.",
+          ],
+          [
+            "Tell us a little about yourself and when you would like to start. We reply within two working days.",
+            "أخبرنا قليلًا عن نفسك ومتى تودّ أن تبدأ، وسنرد خلال يومي عمل.",
+          ],
+        ),
+      ),
     },
     {
       id: b.id(),
@@ -419,10 +565,19 @@ const STEPS = section("steps", "horizontal", (b) => ({
     {
       id: b.id(),
       title: b.w(["Assessment", "التقييم"]),
-      text: b.w([
-        "A relaxed morning with us, so we can understand how your child learns best.",
-        "صباح هادئ معنا لنفهم كيف يتعلّم طفلك على أفضل وجه.",
-      ]),
+      text: b.w(
+        naming(
+          ["families"],
+          [
+            "A relaxed morning with us, so we can understand how your child learns best.",
+            "صباح هادئ معنا لنفهم كيف يتعلّم طفلك على أفضل وجه.",
+          ],
+          [
+            "A relaxed morning with us, so we can understand how you learn best.",
+            "صباح هادئ معنا لنفهم كيف تتعلّم على أفضل وجه.",
+          ],
+        ),
+      ),
     },
     {
       id: b.id(),
@@ -454,7 +609,13 @@ const FEES = section("fees", "table", (b) => ({
 }));
 
 const FAQ = section("accordion", "accordion", (b) => ({
-  heading: b.w(["Questions families ask", "أسئلة تطرحها الأسر"]),
+  heading: b.w(
+    naming(
+      ["families"],
+      ["Questions families ask", "أسئلة تطرحها الأسر"],
+      ["Questions people ask", "أسئلة يطرحها كثيرون"],
+    ),
+  ),
   text: "",
   items: [
     {
@@ -478,10 +639,16 @@ const FAQ = section("accordion", "accordion", (b) => ({
     },
     {
       id: b.id(),
-      title: b.w([
-        "Can my child join during the year?",
-        "هل يمكن لطفلي الالتحاق خلال العام؟",
-      ]),
+      title: b.w(
+        naming(
+          ["families"],
+          [
+            "Can my child join during the year?",
+            "هل يمكن لطفلي الالتحاق خلال العام؟",
+          ],
+          ["Can I join during the year?", "هل يمكن الالتحاق خلال العام؟"],
+        ),
+      ),
       text: b.w([
         "Often, yes. Where a class has room we welcome new students at any point, after a visit and an assessment morning.",
         "نعم في الغالب. حين يتوفّر مقعد في الفصل نرحّب بالطلاب الجدد في أي وقت، بعد زيارة وصباح تقييم.",
@@ -489,14 +656,32 @@ const FAQ = section("accordion", "accordion", (b) => ({
     },
     {
       id: b.id(),
-      title: b.w([
-        "How do you support children learning in a new language?",
-        "كيف تدعمون الأطفال الذين يتعلّمون بلغة جديدة؟",
-      ]),
-      text: b.w([
-        "Specialist teachers work with small groups each day until a child is confident in class.",
-        "يعمل معلّمون متخصّصون مع مجموعات صغيرة كل يوم حتى يشعر الطفل بالثقة داخل الفصل.",
-      ]),
+      title: b.w(
+        naming(
+          ["families"],
+          [
+            "How do you support children learning in a new language?",
+            "كيف تدعمون الأطفال الذين يتعلّمون بلغة جديدة؟",
+          ],
+          [
+            "How do you support students learning in a new language?",
+            "كيف تدعمون الطلاب الذين يتعلّمون بلغة جديدة؟",
+          ],
+        ),
+      ),
+      text: b.w(
+        naming(
+          ["families"],
+          [
+            "Specialist teachers work with small groups each day until a child is confident in class.",
+            "يعمل معلّمون متخصّصون مع مجموعات صغيرة كل يوم حتى يشعر الطفل بالثقة داخل الفصل.",
+          ],
+          [
+            "Specialist teachers work with small groups each day until each student is confident in class.",
+            "يعمل معلّمون متخصّصون مع مجموعات صغيرة كل يوم حتى يشعر كل طالب بالثقة داخل الفصل.",
+          ],
+        ),
+      ),
     },
   ],
 }));
@@ -523,10 +708,19 @@ const VISIT_STORY = section("imageText", "mediaEnd", (b) => ({
   eyebrow: b.w(["Open mornings", "أيام الأبواب المفتوحة"]),
   heading: b.w(["See a *school day* for yourself", "شاهد *يومًا دراسيًا* بنفسك"]),
   body: plainContent(
-    b.w([
-      "Tours run every Tuesday and Thursday morning and take about an hour. Our students show you round, so you see classes, clubs and lunch as they really are.\nAfterwards you meet the head of the stage your child would join, and we answer every question you bring.",
-      "تُقام الجولات صباح كل ثلاثاء وخميس وتستغرق نحو ساعة. يرافقكم طلابنا لتروا الفصول والأندية والغداء كما هي فعلًا.\nبعد الجولة تقابلون رئيس المرحلة التي سيلتحق بها طفلكم، ونجيب عن كل أسئلتكم.",
-    ]),
+    b.w(
+      naming(
+        ["families"],
+        [
+          "Tours run every Tuesday and Thursday morning and take about an hour. Our students show you round, so you see classes, clubs and lunch as they really are.\nAfterwards you meet the head of the stage your child would join, and we answer every question you bring.",
+          "تُقام الجولات صباح كل ثلاثاء وخميس وتستغرق نحو ساعة. يرافقكم طلابنا لتروا الفصول والأندية والغداء كما هي فعلًا.\nبعد الجولة تقابلون رئيس المرحلة التي سيلتحق بها طفلكم، ونجيب عن كل أسئلتكم.",
+        ],
+        [
+          "Tours run every Tuesday and Thursday morning and take about an hour. Our students show you round, so you see classes, clubs and lunch as they really are.\nAfterwards you meet the head of the stage you are interested in, and we answer every question you bring.",
+          "تُقام الجولات صباح كل ثلاثاء وخميس وتستغرق نحو ساعة. يرافقكم طلابنا لتروا الفصول والأندية والغداء كما هي فعلًا.\nبعد الجولة تقابلون رئيس المرحلة التي تهمّكم، ونجيب عن كل أسئلتكم.",
+        ],
+      ),
+    ),
   ),
   media: {
     kind: "image" as const,
@@ -545,10 +739,19 @@ const STATEMENT = section(
   "statement",
   (b) => ({
     eyebrow: b.w(["Who we are", "من نحن"]),
-    heading: b.w([
-      "A school where every child is *known well*, taught with *ambition* and sent out ready to shape the world.",
-      "مدرسة يُعرف فيها كل طفل *معرفة حقيقية*، ويتعلّم *بطموح*، ويتخرّج مستعدًا ليصنع عالمه.",
-    ]),
+    heading: b.w(
+      naming(
+        ["families"],
+        [
+          "A school where every child is *known well*, taught with *ambition* and sent out ready to shape the world.",
+          "مدرسة يُعرف فيها كل طفل *معرفة حقيقية*، ويتعلّم *بطموح*، ويتخرّج مستعدًا ليصنع عالمه.",
+        ],
+        [
+          "A school where every student is *known well*, taught with *ambition* and sent out ready to shape the world.",
+          "مدرسة يُعرف فيها كل طالب *معرفة حقيقية*، ويتعلّم *بطموح*، ويتخرّج مستعدًا ليصنع عالمه.",
+        ],
+      ),
+    ),
     body: plainContent(
       b.w([
         "From the first morning in the early years to the last examination, our teachers know each student, their strengths and what will stretch them next.",
@@ -559,7 +762,7 @@ const STATEMENT = section(
   { scheme: "brand", align: "center" },
 );
 
-const TEXT = (heading: Words, body: Words) =>
+const TEXT = (heading: Said, body: Said) =>
   section("text", "narrow", (b) => ({
     eyebrow: "",
     heading: b.w(heading),
@@ -683,7 +886,7 @@ const QUOTE = section(
   { scheme: "brand", align: "center" },
 );
 
-const person = (b: Builder, name: Words, role: Words) => ({
+const person = (b: Builder, name: Said, role: Said) => ({
   id: b.id(),
   portrait: noImage,
   name: b.w(name),
@@ -729,7 +932,7 @@ const GALLERY = section("gallery", "grid", (b) => ({
   items: Array.from({ length: 6 }, () => ({ id: b.id(), image: noImage })),
 }));
 
-const milestone = (b: Builder, year: string, title: Words, text: Words) => ({
+const milestone = (b: Builder, year: string, title: Said, text: Said) => ({
   id: b.id(),
   year,
   title: b.w(title),
@@ -811,10 +1014,10 @@ const EMBED = section("embed", "inset", (b) => ({
 
 const slide = (
   b: Builder,
-  eyebrow: Words,
-  heading: Words,
-  text: Words,
-  action: [Words, string],
+  eyebrow: Said,
+  heading: Said,
+  text: Said,
+  action: [Said, string],
 ) => ({
   id: b.id(),
   image: noImage,
@@ -966,8 +1169,8 @@ const BLOCKS = section("blocks", "columns", (b) => ({
 
 const FORM = (
   purpose: "enquiry" | "visit" | "general",
-  heading: Words,
-  text: Words,
+  heading: Said,
+  text: Said,
 ) =>
   section(
     "form",
@@ -1037,10 +1240,19 @@ const ENQUIRY_FORM = FORM(
 const EY_HERO = section("hero", "split", (b) => ({
   eyebrow: b.w(["Nursery, ages 2 to 6", "للأطفال من سنتين إلى ست سنوات"]),
   heading: b.w(["A happy place to *start*", "مكان سعيد *للبداية*"]),
-  text: b.w([
-    "A warm, bilingual nursery where children play, wonder and grow in confidence, with a team who know every child well.",
-    "روضة دافئة ثنائية اللغة، يلعب فيها الأطفال ويكتشفون وتنمو ثقتهم بأنفسهم، مع فريق يعرف كل طفل جيدًا.",
-  ]),
+  text: b.w(
+    naming(
+      ["families"],
+      [
+        "A warm, bilingual nursery where children play, wonder and grow in confidence, with a team who know every child well.",
+        "روضة دافئة ثنائية اللغة، يلعب فيها الأطفال ويكتشفون وتنمو ثقتهم بأنفسهم، مع فريق يعرف كل طفل جيدًا.",
+      ],
+      [
+        "A warm, bilingual nursery where young learners play, wonder and grow in confidence, with a team who know each of them well.",
+        "روضة دافئة ثنائية اللغة، يلعب فيها المتعلّمون الصغار ويكتشفون وتنمو ثقتهم بأنفسهم، مع فريق يعرف كلًّا منهم جيدًا.",
+      ],
+    ),
+  ),
   actions: [
     link(b, ["Book a visit", "احجزوا زيارة"], `/pages/visit#${ANCHOR.visit}`),
     link(
@@ -1056,10 +1268,19 @@ const EY_NOTICE = section(
   "announcement",
   "strip",
   (b) => ({
-    text: b.w([
-      "Stay-and-play mornings every Saturday this term: come with your child and meet the team.",
-      "صباحات لعب مفتوحة كل سبت في هذا الفصل: تعالوا مع طفلكم وتعرّفوا على الفريق.",
-    ]),
+    text: b.w(
+      naming(
+        ["families"],
+        [
+          "Stay-and-play mornings every Saturday this term: come with your child and meet the team.",
+          "صباحات لعب مفتوحة كل سبت في هذا الفصل: تعالوا مع طفلكم وتعرّفوا على الفريق.",
+        ],
+        [
+          "Stay-and-play mornings every Saturday this term: come and meet the team.",
+          "صباحات لعب مفتوحة كل سبت في هذا الفصل: تعالوا وتعرّفوا على الفريق.",
+        ],
+      ),
+    ),
     date: "",
     actions: [
       link(b, ["Book a place", "احجزوا مكانًا"], `/pages/visit#${ANCHOR.visit}`),
@@ -1073,8 +1294,8 @@ const PARENTS_ANCHOR = { day: "school-day", questions: "questions" } as const;
 
 const quickLink = (
   b: Builder,
-  title: Words,
-  text: Words,
+  title: Said,
+  text: Said,
   icon: IconId,
   href: string,
 ) => ({ id: b.id(), title: b.w(title), text: b.w(text), icon, href });
@@ -1117,7 +1338,13 @@ const EY_QUICK_LINKS = section("quickLinks", "tiles", (b) => ({
 }));
 
 const EY_LEARNING = section("cards", "icons", (b) => ({
-  heading: b.w(["How children *learn* here", "كيف *يتعلّم* أطفالنا"]),
+  heading: b.w(
+    naming(
+      ["families"],
+      ["How children *learn* here", "كيف *يتعلّم* أطفالنا"],
+      ["How we *learn* here", "كيف *نتعلّم* هنا"],
+    ),
+  ),
   text: b.w([
     "Days built around play, with gentle routines and plenty of time outdoors.",
     "أيام تقوم على اللعب، بروتين هادئ ووقت وافر في الهواء الطلق.",
@@ -1127,10 +1354,17 @@ const EY_LEARNING = section("cards", "icons", (b) => ({
     card(
       b,
       ["Play with a purpose", "لعب له هدف"],
-      [
-        "Sand, water, blocks and role play, each set up so children explore, count and talk as they go.",
-        "رمل وماء ومكعّبات ولعب أدوار، يُهيّأ كل منها ليستكشف الأطفال ويعدّوا ويتحدّثوا وهم يلعبون.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Sand, water, blocks and role play, each set up so children explore, count and talk as they go.",
+          "رمل وماء ومكعّبات ولعب أدوار، يُهيّأ كل منها ليستكشف الأطفال ويعدّوا ويتحدّثوا وهم يلعبون.",
+        ],
+        [
+          "Sand, water, blocks and role play, each set up so young learners explore, count and talk as they go.",
+          "رمل وماء ومكعّبات ولعب أدوار، يُهيّأ كل منها ليستكشف المتعلّمون الصغار ويعدّوا ويتحدّثوا وهم يلعبون.",
+        ],
+      ),
       "sparkles",
     ),
     card(
@@ -1154,10 +1388,17 @@ const EY_LEARNING = section("cards", "icons", (b) => ({
     card(
       b,
       ["Music and making", "موسيقى وصنع"],
-      [
-        "Singing, painting, clay and simple instruments, with something small to take home most weeks.",
-        "غناء ورسم وصلصال وآلات بسيطة، ومعظم الأسابيع يعود الطفل إلى البيت بشيء صنعه بيديه.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Singing, painting, clay and simple instruments, with something small to take home most weeks.",
+          "غناء ورسم وصلصال وآلات بسيطة، ومعظم الأسابيع يعود الطفل إلى البيت بشيء صنعه بيديه.",
+        ],
+        [
+          "Singing, painting, clay and simple instruments, with something small to take home most weeks.",
+          "غناء ورسم وصلصال وآلات بسيطة، وفي معظم الأسابيع شيء صغير مصنوع باليد يُؤخذ إلى البيت.",
+        ],
+      ),
       "music",
     ),
   ],
@@ -1167,24 +1408,42 @@ const EY_STATS = section(
   "stats",
   "row",
   (b) => ({
-    heading: b.w([
-      "Small enough to know *every* child",
-      "صغيرة بما يكفي لنعرف *كل* طفل",
-    ]),
+    heading: b.w(
+      naming(
+        ["families"],
+        ["Small enough to know *every* child", "صغيرة بما يكفي لنعرف *كل* طفل"],
+        ["Small enough to know *everyone*", "صغيرة بما يكفي لنعرف *الجميع*"],
+      ),
+    ),
     items: [
       {
         id: b.id(),
         value: "1:4",
-        label: b.w([
-          "adults to children under three",
-          "بالغ لكل أربعة أطفال دون الثالثة",
-        ]),
+        label: b.w(
+          naming(
+            ["families"],
+            [
+              "adults to children under three",
+              "بالغ لكل أربعة أطفال دون الثالثة",
+            ],
+            [
+              "adults to learners under three",
+              "بالغ لكل أربعة متعلّمين دون الثالثة",
+            ],
+          ),
+        ),
         caption: "",
       },
       {
         id: b.id(),
         value: "16",
-        label: b.w(["children in a class, at most", "طفلًا في الفصل كحدّ أقصى"]),
+        label: b.w(
+          naming(
+            ["families"],
+            ["children in a class, at most", "طفلًا في الفصل كحدّ أقصى"],
+            ["learners in a class, at most", "متعلّمًا في الفصل كحدّ أقصى"],
+          ),
+        ),
         caption: "",
       },
       {
@@ -1213,7 +1472,7 @@ const EY_GALLERY = section("gallery", "masonry", (b) => ({
   items: Array.from({ length: 6 }, () => ({ id: b.id(), image: noImage })),
 }));
 
-const parentVoice = (b: Builder, quote: Words, name: Words, role: Words) => ({
+const parentVoice = (b: Builder, quote: Said, name: Said, role: Said) => ({
   id: b.id(),
   quote: b.w(quote),
   name: b.w(name),
@@ -1271,42 +1530,93 @@ const EY_VOICES = section(
 
 const EY_STEPS = section("steps", "horizontal", (b) => ({
   heading: b.w(["Joining us, *step by step*", "الانضمام إلينا *خطوة بخطوة*"]),
-  text: b.w([
-    "Most children start in September, and we welcome new families all year whenever a place is free.",
-    "يبدأ معظم الأطفال في سبتمبر، ونرحّب بأسر جديدة طوال العام كلما توفّر مقعد.",
-  ]),
+  text: b.w(
+    naming(
+      ["families"],
+      [
+        "Most children start in September, and we welcome new families all year whenever a place is free.",
+        "يبدأ معظم الأطفال في سبتمبر، ونرحّب بأسر جديدة طوال العام كلما توفّر مقعد.",
+      ],
+      [
+        "Most start in September, and we welcome newcomers all year whenever a place is free.",
+        "يبدأ معظم المتعلّمين في سبتمبر، ونرحّب بالقادمين الجدد طوال العام كلما توفّر مقعد.",
+      ],
+    ),
+  ),
   items: [
     {
       id: b.id(),
       title: b.w(["Come and play", "تعالوا والعبوا معنا"]),
-      text: b.w([
-        "Visit with your child on a stay-and-play morning and see the rooms, the garden and the team.",
-        "زوروا الروضة مع طفلكم في صباح لعب مفتوح، وتعرّفوا على الغرف والحديقة والفريق.",
-      ]),
+      text: b.w(
+        naming(
+          ["families"],
+          [
+            "Visit with your child on a stay-and-play morning and see the rooms, the garden and the team.",
+            "زوروا الروضة مع طفلكم في صباح لعب مفتوح، وتعرّفوا على الغرف والحديقة والفريق.",
+          ],
+          [
+            "Visit on a stay-and-play morning and see the rooms, the garden and the team.",
+            "زوروا الروضة في صباح لعب مفتوح، وتعرّفوا على الغرف والحديقة والفريق.",
+          ],
+        ),
+      ),
     },
     {
       id: b.id(),
-      title: b.w(["Tell us about your child", "حدّثونا عن طفلكم"]),
-      text: b.w([
-        "Register online and tell us about routines, languages at home and what helps your child feel settled.",
-        "سجّلوا عبر الإنترنت وأخبرونا عن روتين طفلكم واللغات في البيت وما يساعده على الاطمئنان.",
-      ]),
+      title: b.w(
+        naming(
+          ["families"],
+          ["Tell us about your child", "حدّثونا عن طفلكم"],
+          ["Tell us about yourself", "حدّثونا عن أنفسكم"],
+        ),
+      ),
+      text: b.w(
+        naming(
+          ["families"],
+          [
+            "Register online and tell us about routines, languages at home and what helps your child feel settled.",
+            "سجّلوا عبر الإنترنت وأخبرونا عن روتين طفلكم واللغات في البيت وما يساعده على الاطمئنان.",
+          ],
+          [
+            "Register online and tell us about routines, languages at home and what helps you feel settled.",
+            "سجّلوا عبر الإنترنت وأخبرونا عن الروتين واللغات في البيت وما يساعد على الاطمئنان.",
+          ],
+        ),
+      ),
     },
     {
       id: b.id(),
       title: b.w(["Settling in gently", "تأقلم بهدوء"]),
-      text: b.w([
-        "Short sessions with a parent close by, growing a little longer each day.",
-        "جلسات قصيرة بقرب أحد الوالدين، تطول قليلًا كل يوم.",
-      ]),
+      text: b.w(
+        naming(
+          ["families"],
+          [
+            "Short sessions with a parent close by, growing a little longer each day.",
+            "جلسات قصيرة بقرب أحد الوالدين، تطول قليلًا كل يوم.",
+          ],
+          [
+            "Short sessions at first, growing a little longer each day.",
+            "جلسات قصيرة في البداية، تطول قليلًا كل يوم.",
+          ],
+        ),
+      ),
     },
     {
       id: b.id(),
       title: b.w(["A full, happy day", "يوم كامل وسعيد"]),
-      text: b.w([
-        "When your child is ready they stay the whole day, and you hear how it went at the end of each one.",
-        "حين يصبح طفلكم مستعدًا يبقى اليوم كله، ونخبركم في نهاية كل يوم كيف مضى.",
-      ]),
+      text: b.w(
+        naming(
+          ["families"],
+          [
+            "When your child is ready they stay the whole day, and you hear how it went at the end of each one.",
+            "حين يصبح طفلكم مستعدًا يبقى اليوم كله، ونخبركم في نهاية كل يوم كيف مضى.",
+          ],
+          [
+            "When the time is right the sessions run the whole day, and you hear how it went at the end of each one.",
+            "حين يحين الوقت تمتدّ الجلسات اليوم كله، ونخبركم في نهاية كل يوم كيف مضى.",
+          ],
+        ),
+      ),
     },
   ],
 }));
@@ -1360,7 +1670,11 @@ const PARENTS_LINKS = section("quickLinks", "tiles", (b) => ({
     ),
     quickLink(
       b,
-      ["Questions families ask", "أسئلة تطرحها الأسر"],
+      naming(
+        ["families"],
+        ["Questions families ask", "أسئلة تطرحها الأسر"],
+        ["Questions people ask", "أسئلة يطرحها كثيرون"],
+      ),
       ["Buses, joining mid-year and more", "الحافلات والالتحاق خلال العام وغيرها"],
       "lightbulb",
       `/pages/parents#${PARENTS_ANCHOR.questions}`,
@@ -1382,7 +1696,7 @@ const PARENTS_LINKS = section("quickLinks", "tiles", (b) => ({
   ],
 }));
 
-const moment = (b: Builder, time: string, title: Words, text: Words) => ({
+const moment = (b: Builder, time: string, title: Said, text: Said) => ({
   id: b.id(),
   year: time,
   title: b.w(title),
@@ -1503,7 +1817,13 @@ const LAUNCH_STATS = section("stats", "row", (b) => ({
     {
       id: b.id(),
       value: "20",
-      label: b.w(["children in a class, at most", "طفلًا في الفصل كحدّ أقصى"]),
+      label: b.w(
+        naming(
+          ["families"],
+          ["children in a class, at most", "طفلًا في الفصل كحدّ أقصى"],
+          ["learners in a class, at most", "متعلّمًا في الفصل كحدّ أقصى"],
+        ),
+      ),
       caption: "",
     },
     {
@@ -1521,10 +1841,19 @@ const LAUNCH_STATS = section("stats", "row", (b) => ({
     {
       id: b.id(),
       value: "1:10",
-      label: b.w([
-        "adults to children in the early years",
-        "نسبة الكبار إلى الأطفال في السنوات الأولى",
-      ]),
+      label: b.w(
+        naming(
+          ["families"],
+          [
+            "adults to children in the early years",
+            "نسبة الكبار إلى الأطفال في السنوات الأولى",
+          ],
+          [
+            "adults to learners in the early years",
+            "نسبة الكبار إلى المتعلّمين في السنوات الأولى",
+          ],
+        ),
+      ),
       caption: "",
     },
   ],
@@ -1557,10 +1886,19 @@ const LAUNCH_STEPS = section("steps", "horizontal", (b) => ({
     {
       id: b.id(),
       title: b.w(["Register interest", "سجّلوا اهتمامكم"]),
-      text: b.w([
-        "Tell us about your child and the year they would join. We reply within two working days.",
-        "أخبرونا عن طفلكم والصف الذي سيلتحق به، وسنرد خلال يومي عمل.",
-      ]),
+      text: b.w(
+        naming(
+          ["families", "grade_levels"],
+          [
+            "Tell us about your child and the year they would join. We reply within two working days.",
+            "أخبرونا عن طفلكم والصف الذي سيلتحق به، وسنرد خلال يومي عمل.",
+          ],
+          [
+            "Tell us a little about yourself and when you would like to start. We reply within two working days.",
+            "أخبرنا قليلًا عن نفسك ومتى تودّ أن تبدأ، وسنرد خلال يومي عمل.",
+          ],
+        ),
+      ),
     },
     {
       id: b.id(),
@@ -1573,18 +1911,36 @@ const LAUNCH_STEPS = section("steps", "horizontal", (b) => ({
     {
       id: b.id(),
       title: b.w(["Assessment", "التقييم"]),
-      text: b.w([
-        "A relaxed morning with us, so we can understand how your child learns best.",
-        "صباح هادئ معنا لنفهم كيف يتعلّم طفلكم على أفضل وجه.",
-      ]),
+      text: b.w(
+        naming(
+          ["families"],
+          [
+            "A relaxed morning with us, so we can understand how your child learns best.",
+            "صباح هادئ معنا لنفهم كيف يتعلّم طفلكم على أفضل وجه.",
+          ],
+          [
+            "A relaxed morning with us, so we can understand how you learn best.",
+            "صباح هادئ معنا لنفهم كيف تتعلّم على أفضل وجه.",
+          ],
+        ),
+      ),
     },
     {
       id: b.id(),
       title: b.w(["A founding place", "مقعد مؤسِّس"]),
-      text: b.w([
-        "We confirm your child's place and help you prepare for the very first day.",
-        "نؤكّد مقعد طفلكم ونساعدكم على الاستعداد لليوم الأول.",
-      ]),
+      text: b.w(
+        naming(
+          ["families"],
+          [
+            "We confirm your child's place and help you prepare for the very first day.",
+            "نؤكّد مقعد طفلكم ونساعدكم على الاستعداد لليوم الأول.",
+          ],
+          [
+            "We confirm your place and help you prepare for the very first day.",
+            "نؤكّد مقعدك ونساعدك على الاستعداد لليوم الأول.",
+          ],
+        ),
+      ),
     },
   ],
 }));
@@ -1648,14 +2004,11 @@ export function buildSection<T extends SectionType>(
   primary: SiteLocale,
 ): { content: PageSection; translation: PageSection } {
   const ids = Array.from({ length: 60 }, () => crypto.randomUUID());
-  const build = (locale: SiteLocale) => {
-    let cursor = 0;
-    const b: Builder = {
-      id: () => ids[cursor++] ?? crypto.randomUUID(),
-      w: (words) => (locale === "ar" ? words[1] : words[0]),
-    };
-    return { ...SAMPLES[type](b), variant } as PageSection;
-  };
+  const build = (locale: SiteLocale) =>
+    ({
+      ...SAMPLES[type](builder(ids, locale, () => true)),
+      variant,
+    }) as PageSection;
   return {
     content: build(primary),
     translation: build(primary === "ar" ? "en" : "ar"),
@@ -1688,7 +2041,7 @@ const INTL_HERO = section("hero", "collage", (b) => ({
   height: "l" as const,
 }));
 
-const figure = (b: Builder, value: string, label: Words, caption: Words) => ({
+const figure = (b: Builder, value: string, label: Said, caption: Said) => ({
   id: b.id(),
   value,
   label: b.w(label),
@@ -1702,28 +2055,49 @@ const INTL_FIGURES = section("stats", "captions", (b) => ({
       b,
       "1,200",
       ["students", "طالب وطالبة"],
-      [
-        "From the early years to Grade 12, on one campus.",
-        "من رياض الأطفال حتى الصف الثاني عشر، في حرم واحد.",
-      ],
+      naming(
+        ["grade_levels"],
+        [
+          "From the early years to Grade 12, on one campus.",
+          "من رياض الأطفال حتى الصف الثاني عشر، في حرم واحد.",
+        ],
+        [
+          "From the early years to graduation, on one campus.",
+          "من رياض الأطفال حتى التخرّج، في حرم واحد.",
+        ],
+      ),
     ),
     figure(
       b,
       "45",
       ["nationalities", "جنسية"],
-      [
-        "Families from every continent, learning as one community.",
-        "أسر من كل القارات تتعلّم مجتمعًا واحدًا.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Families from every continent, learning as one community.",
+          "أسر من كل القارات تتعلّم مجتمعًا واحدًا.",
+        ],
+        [
+          "Students from every continent, learning as one community.",
+          "طلاب من كل القارات يتعلّمون مجتمعًا واحدًا.",
+        ],
+      ),
     ),
     figure(
       b,
       "12:1",
       ["students per teacher", "طالبًا لكل معلّم"],
-      [
-        "Small classes, so every child is known well.",
-        "فصول صغيرة يُعرف فيها كل طفل معرفة جيدة.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Small classes, so every child is known well.",
+          "فصول صغيرة يُعرف فيها كل طفل معرفة جيدة.",
+        ],
+        [
+          "Small classes, so every student is known well.",
+          "فصول صغيرة يُعرف فيها كل طالب معرفة جيدة.",
+        ],
+      ),
     ),
     figure(
       b,
@@ -1745,10 +2119,19 @@ const INTL_FIGURES = section("stats", "captions", (b) => ({
 const INTL_STAGES = (variant: "tall" | "rows", href: string) =>
   section("divisions", variant, (b) => ({
     heading: b.w(["Four stages, *one* school", "أربع مراحل في مدرسة *واحدة*"]),
-    text: b.w([
-      "Each stage builds on the last, led by a head who knows every child in it.",
-      "تبني كل مرحلة على ما قبلها، ويقودها رئيس يعرف كل طفل فيها.",
-    ]),
+    text: b.w(
+      naming(
+        ["families"],
+        [
+          "Each stage builds on the last, led by a head who knows every child in it.",
+          "تبني كل مرحلة على ما قبلها، ويقودها رئيس يعرف كل طفل فيها.",
+        ],
+        [
+          "Each stage builds on the last, led by a head who knows every student in it.",
+          "تبني كل مرحلة على ما قبلها، ويقودها رئيس يعرف كل طالب فيها.",
+        ],
+      ),
+    ),
     items: [
       {
         id: b.id(),
@@ -1798,20 +2181,42 @@ const INTL_STAGES = (variant: "tall" | "rows", href: string) =>
   }));
 
 const INTL_WHY = section("cards", "icons", (b) => ({
-  heading: b.w(["Why families *choose* us", "لماذا *تختارنا* الأسر"]),
-  text: b.w([
-    "What parents tell us made the difference when they first visited.",
-    "ما تقول الأسر إنه صنع الفرق في زيارتها الأولى.",
-  ]),
+  heading: b.w(
+    naming(
+      ["families"],
+      ["Why families *choose* us", "لماذا *تختارنا* الأسر"],
+      ["Why students *choose* us", "لماذا *يختارنا* الطلاب"],
+    ),
+  ),
+  text: b.w(
+    naming(
+      ["families"],
+      [
+        "What parents tell us made the difference when they first visited.",
+        "ما تقول الأسر إنه صنع الفرق في زيارتها الأولى.",
+      ],
+      [
+        "What visitors tell us made the difference when they first came.",
+        "ما يقول زوّارنا إنه صنع الفرق في زيارتهم الأولى.",
+      ],
+    ),
+  ),
   columns: "3" as const,
   items: [
     card(
       b,
       ["Two languages, many cultures", "لغتان وثقافات كثيرة"],
-      [
-        "Every child becomes fluent in English and Arabic, alongside classmates from forty-five countries.",
-        "يتقن كل طفل العربية والإنجليزية، مع زملاء من خمس وأربعين دولة.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Every child becomes fluent in English and Arabic, alongside classmates from forty-five countries.",
+          "يتقن كل طفل العربية والإنجليزية، مع زملاء من خمس وأربعين دولة.",
+        ],
+        [
+          "Every student becomes fluent in English and Arabic, alongside classmates from forty-five countries.",
+          "يتقن كل طالب العربية والإنجليزية، مع زملاء من خمس وأربعين دولة.",
+        ],
+      ),
       "globe",
     ),
     card(
@@ -1837,9 +2242,9 @@ const INTL_WHY = section("cards", "icons", (b) => ({
 
 const voice = (
   b: Builder,
-  quote: Words,
-  name: Words,
-  role: Words,
+  quote: Said,
+  name: Said,
+  role: Said,
   audience: "student" | "parent" | "staff" | "alumni",
 ) => ({
   id: b.id(),
@@ -1870,7 +2275,11 @@ const INTL_VOICES = section("voices", "carousel", (b) => ({
         "المعلّمون هنا يستمعون حقًا. حين أردت تأسيس نادٍ للروبوتات ساعدوني في إيجاد القاعة والأدوات.",
       ],
       ["Omar Saleh", "عمر صالح"],
-      ["Student, Grade 10", "طالب في الصف العاشر"],
+      naming(
+        ["grade_levels"],
+        ["Student, Grade 10", "طالب في الصف العاشر"],
+        ["Student", "طالب"],
+      ),
       "student",
     ),
     voice(
@@ -1911,10 +2320,19 @@ const INTL_VOICES = section("voices", "carousel", (b) => ({
 
 const INTL_SUBJECTS = section("cards", "icons", (b) => ({
   heading: b.w(["What students *learn*", "ماذا *يتعلّم* طلابنا"]),
-  text: b.w([
-    "A broad curriculum in two languages, taught in small classes by teachers who know each child.",
-    "منهج واسع بلغتين، في فصول صغيرة، مع معلّمين يعرفون كل طفل.",
-  ]),
+  text: b.w(
+    naming(
+      ["families"],
+      [
+        "A broad curriculum in two languages, taught in small classes by teachers who know each child.",
+        "منهج واسع بلغتين، في فصول صغيرة، مع معلّمين يعرفون كل طفل.",
+      ],
+      [
+        "A broad curriculum in two languages, taught in small classes by teachers who know each student.",
+        "منهج واسع بلغتين، في فصول صغيرة، مع معلّمين يعرفون كل طالب.",
+      ],
+    ),
+  ),
   columns: "3" as const,
   items: [
     card(
@@ -1981,10 +2399,19 @@ const INTL_TEACHING = section("imageText", "mediaStart", (b) => ({
     "دروس تدعو الطلاب إلى *التفكير*",
   ]),
   body: plainContent(
-    b.w([
-      "Teachers plan together across each stage, so what a child learns one year builds on the last. Lessons begin with a question, and students spend as long explaining their thinking as writing answers down.\nWe report to families three times a year, and you are welcome to sit in on a lesson when you visit.",
-      "يخطّط المعلّمون معًا في كل مرحلة، فيبني ما يتعلّمه الطفل في عام على ما سبقه. تبدأ الدروس بسؤال، ويقضي الطلاب في شرح تفكيرهم وقتًا يعادل ما يقضونه في كتابة الإجابات.\nنرسل تقارير إلى الأسر ثلاث مرات في العام، ويسعدنا أن تحضروا درسًا في أثناء زيارتكم.",
-    ]),
+    b.w(
+      naming(
+        ["families"],
+        [
+          "Teachers plan together across each stage, so what a child learns one year builds on the last. Lessons begin with a question, and students spend as long explaining their thinking as writing answers down.\nWe report to families three times a year, and you are welcome to sit in on a lesson when you visit.",
+          "يخطّط المعلّمون معًا في كل مرحلة، فيبني ما يتعلّمه الطفل في عام على ما سبقه. تبدأ الدروس بسؤال، ويقضي الطلاب في شرح تفكيرهم وقتًا يعادل ما يقضونه في كتابة الإجابات.\nنرسل تقارير إلى الأسر ثلاث مرات في العام، ويسعدنا أن تحضروا درسًا في أثناء زيارتكم.",
+        ],
+        [
+          "Teachers plan together across each stage, so what a student learns one year builds on the last. Lessons begin with a question, and students spend as long explaining their thinking as writing answers down.\nEvery student hears how they are doing three times a year, and you are welcome to sit in on a lesson when you visit.",
+          "يخطّط المعلّمون معًا في كل مرحلة، فيبني ما يتعلّمه الطالب في عام على ما سبقه. تبدأ الدروس بسؤال، ويقضي الطلاب في شرح تفكيرهم وقتًا يعادل ما يقضونه في كتابة الإجابات.\nيعرف كل طالب مستوى تقدّمه ثلاث مرات في العام، ويسعدنا أن تحضروا درسًا في أثناء زيارتكم.",
+        ],
+      ),
+    ),
   ),
   media: {
     kind: "image" as const,
@@ -2026,10 +2453,17 @@ const INTL_RESULTS = section(
         b,
         "24",
         ["countries of study", "دولة للدراسة"],
-        [
-          "Where our last five year groups went on to university.",
-          "التحق فيها خريجو آخر خمس دفعات بالجامعات.",
-        ],
+        naming(
+          ["grade_levels"],
+          [
+            "Where our last five year groups went on to university.",
+            "التحق فيها خريجو آخر خمس دفعات بالجامعات.",
+          ],
+          [
+            "Where our last five graduating classes went on to university.",
+            "التحق فيها خريجو آخر خمس دفعات بالجامعات.",
+          ],
+        ),
       ),
     ],
     source: b.w([
@@ -2042,10 +2476,19 @@ const INTL_RESULTS = section(
 
 const INTL_HEADS = section("people", "grid", (b) => ({
   heading: b.w(["Heads of *stage*", "رؤساء *المراحل*"]),
-  text: b.w([
-    "The people who know your child's stage best, and whom you will meet when you visit.",
-    "هم الأقرب إلى مرحلة طفلكم، وستقابلونهم حين تزوروننا.",
-  ]),
+  text: b.w(
+    naming(
+      ["families"],
+      [
+        "The people who know your child's stage best, and whom you will meet when you visit.",
+        "هم الأقرب إلى مرحلة طفلكم، وستقابلونهم حين تزوروننا.",
+      ],
+      [
+        "The people who know each stage best, and whom you will meet when you visit.",
+        "هم الأقرب إلى كل مرحلة، وستقابلونهم حين تزوروننا.",
+      ],
+    ),
+  ),
   items: [
     person(
       b,
@@ -2093,10 +2536,19 @@ const HERITAGE_PURPOSE = section(
   "statement",
   (b) => ({
     eyebrow: b.w(["Our purpose", "رسالتنا"]),
-    heading: b.w([
-      "We teach children to *think for themselves*, to *care for others* and to go out into the world with a sense of purpose.",
-      "نعلّم أبناءنا أن *يفكّروا بأنفسهم* وأن *يرعوا غيرهم*، وأن يخرجوا إلى العالم وفي نفوسهم غاية.",
-    ]),
+    heading: b.w(
+      naming(
+        ["families"],
+        [
+          "We teach children to *think for themselves*, to *care for others* and to go out into the world with a sense of purpose.",
+          "نعلّم أبناءنا أن *يفكّروا بأنفسهم* وأن *يرعوا غيرهم*، وأن يخرجوا إلى العالم وفي نفوسهم غاية.",
+        ],
+        [
+          "We teach our students to *think for themselves*, to *care for others* and to go out into the world with a sense of purpose.",
+          "نعلّم طلابنا أن *يفكّروا بأنفسهم* وأن *يرعوا غيرهم*، وأن يخرجوا إلى العالم وفي نفوسهم غاية.",
+        ],
+      ),
+    ),
     body: plainContent(
       b.w([
         "Small classes, a broad and demanding curriculum and a house system that gives every pupil a place to belong, from their first morning to their last examination.",
@@ -2110,10 +2562,19 @@ const HERITAGE_PURPOSE = section(
 const HERITAGE_LETTER = section("welcome", "portraitStart", (b) => ({
   heading: b.w(["A letter from the *Principal*", "رسالة من *مديرة* المدرسة"]),
   body: plainContent(
-    b.w([
-      "Dear families,\nThank you for thinking of us for your child. A school is best judged not by its buildings or its results, though we are proud of both, but by the way its pupils treat one another when nobody is watching.\nHere every child is known. Their teachers notice when they fall quiet, stretch them when they coast and celebrate when they surprise themselves. That has been our work since the day the school opened.\nI would be delighted to show you round. Come on an ordinary morning and see it for yourself.\nWith warm wishes,",
-      "أعزّاءنا أولياء الأمور،\nشكرًا لأنكم فكّرتم فينا لأبنائكم. لا تُقاس المدرسة بمبانيها ولا بنتائجها، وإن كنّا نفخر بهما، بل بالطريقة التي يعامل بها طلابها بعضهم بعضًا حين لا يراهم أحد.\nهنا يُعرف كل طفل. يلاحظ معلّموه صمته، ويدفعونه إلى الأمام حين يتراخى، ويحتفون به حين يفاجئ نفسه. هذا عملنا منذ اليوم الأول لافتتاح المدرسة.\nيسعدني أن أرافقكم في جولة. تعالوا في صباح عادي وشاهدوا بأنفسكم.\nمع خالص التحيات،",
-    ]),
+    b.w(
+      naming(
+        ["families"],
+        [
+          "Dear families,\nThank you for thinking of us for your child. A school is best judged not by its buildings or its results, though we are proud of both, but by the way its pupils treat one another when nobody is watching.\nHere every child is known. Their teachers notice when they fall quiet, stretch them when they coast and celebrate when they surprise themselves. That has been our work since the day the school opened.\nI would be delighted to show you round. Come on an ordinary morning and see it for yourself.\nWith warm wishes,",
+          "أعزّاءنا أولياء الأمور،\nشكرًا لأنكم فكّرتم فينا لأبنائكم. لا تُقاس المدرسة بمبانيها ولا بنتائجها، وإن كنّا نفخر بهما، بل بالطريقة التي يعامل بها طلابها بعضهم بعضًا حين لا يراهم أحد.\nهنا يُعرف كل طفل. يلاحظ معلّموه صمته، ويدفعونه إلى الأمام حين يتراخى، ويحتفون به حين يفاجئ نفسه. هذا عملنا منذ اليوم الأول لافتتاح المدرسة.\nيسعدني أن أرافقكم في جولة. تعالوا في صباح عادي وشاهدوا بأنفسكم.\nمع خالص التحيات،",
+        ],
+        [
+          "Dear friends,\nThank you for thinking of us. A school is best judged not by its buildings or its results, though we are proud of both, but by the way its students treat one another when nobody is watching.\nHere every student is known. Their teachers notice when they fall quiet, stretch them when they coast and celebrate when they surprise themselves. That has been our work since the day the school opened.\nI would be delighted to show you round. Come on an ordinary morning and see it for yourself.\nWith warm wishes,",
+          "أعزّاءنا،\nشكرًا لأنكم فكّرتم فينا. لا تُقاس المدرسة بمبانيها ولا بنتائجها، وإن كنّا نفخر بهما، بل بالطريقة التي يعامل بها طلابها بعضهم بعضًا حين لا يراهم أحد.\nهنا يُعرف كل طالب. يلاحظ معلّموه صمته، ويدفعونه إلى الأمام حين يتراخى، ويحتفون به حين يفاجئ نفسه. هذا عملنا منذ اليوم الأول لافتتاح المدرسة.\nيسعدني أن أرافقكم في جولة. تعالوا في صباح عادي وشاهدوا بأنفسكم.\nمع خالص التحيات،",
+        ],
+      ),
+    ),
   ),
   portrait: noImage,
   name: b.w(["Dr Amal Nasser", "د. أمل ناصر"]),
@@ -2167,10 +2628,17 @@ const HISTORY = section("timeline", "vertical", (b) => ({
       b,
       "1921",
       ["Founded", "التأسيس"],
-      [
-        "The school opens in a family house by the river, with forty pupils, six teachers and a library of borrowed books.",
-        "تفتح المدرسة أبوابها في بيت عائلي قرب النهر، بأربعين طالبًا وستة معلّمين ومكتبة من كتب مستعارة.",
-      ],
+      naming(
+        ["families"],
+        [
+          "The school opens in a family house by the river, with forty pupils, six teachers and a library of borrowed books.",
+          "تفتح المدرسة أبوابها في بيت عائلي قرب النهر، بأربعين طالبًا وستة معلّمين ومكتبة من كتب مستعارة.",
+        ],
+        [
+          "The school opens in an old house by the river, with forty students, six teachers and a library of borrowed books.",
+          "تفتح المدرسة أبوابها في بيت قديم قرب النهر، بأربعين طالبًا وستة معلّمين ومكتبة من كتب مستعارة.",
+        ],
+      ),
     ),
     milestone(
       b,
@@ -2185,10 +2653,17 @@ const HISTORY = section("timeline", "vertical", (b) => ({
       b,
       "1978",
       ["Two languages, one school", "لغتان ومدرسة واحدة"],
-      [
-        "Arabic and English become equal languages of teaching, from the first year to the last.",
-        "تصبح العربية والإنجليزية لغتين متكافئتين للتدريس، من الصف الأول حتى الأخير.",
-      ],
+      naming(
+        ["grade_levels"],
+        [
+          "Arabic and English become equal languages of teaching, from the first year to the last.",
+          "تصبح العربية والإنجليزية لغتين متكافئتين للتدريس، من الصف الأول حتى الأخير.",
+        ],
+        [
+          "Arabic and English become equal languages of teaching, from the first year to the last.",
+          "تصبح العربية والإنجليزية لغتين متكافئتين للتدريس، من أول عام دراسي حتى آخره.",
+        ],
+      ),
     ),
     milestone(
       b,
@@ -2219,15 +2694,33 @@ const ABOUT_PURPOSE = section(
   "statement",
   (b) => ({
     eyebrow: b.w(["Our purpose", "رسالتنا"]),
-    heading: b.w([
-      "We want every child to leave us *confident* in themselves, *generous* to others and ready to keep learning all their life.",
-      "نريد لكل طفل أن يغادرنا *واثقًا* بنفسه، *كريمًا* مع غيره، مستعدًا لأن يواصل التعلّم طوال حياته.",
-    ]),
+    heading: b.w(
+      naming(
+        ["families"],
+        [
+          "We want every child to leave us *confident* in themselves, *generous* to others and ready to keep learning all their life.",
+          "نريد لكل طفل أن يغادرنا *واثقًا* بنفسه، *كريمًا* مع غيره، مستعدًا لأن يواصل التعلّم طوال حياته.",
+        ],
+        [
+          "We want every student to leave us *confident* in themselves, *generous* to others and ready to keep learning all their life.",
+          "نريد لكل طالب أن يغادرنا *واثقًا* بنفسه، *كريمًا* مع غيره، مستعدًا لأن يواصل التعلّم طوال حياته.",
+        ],
+      ),
+    ),
     body: plainContent(
-      b.w([
-        "Everything else follows from that: small classes, teachers who know each child well, languages taught with real care, and a day with room for sport, the arts and friendship as well as study.",
-        "ومن هذه الغاية ينبع كل ما عداها: فصول صغيرة، ومعلّمون يعرفون كل طفل جيدًا، ولغات تُدرَّس بعناية حقيقية، ويوم دراسي يتّسع للرياضة والفنون والصداقة إلى جانب الدراسة.",
-      ]),
+      b.w(
+        naming(
+          ["families"],
+          [
+            "Everything else follows from that: small classes, teachers who know each child well, languages taught with real care, and a day with room for sport, the arts and friendship as well as study.",
+            "ومن هذه الغاية ينبع كل ما عداها: فصول صغيرة، ومعلّمون يعرفون كل طفل جيدًا، ولغات تُدرَّس بعناية حقيقية، ويوم دراسي يتّسع للرياضة والفنون والصداقة إلى جانب الدراسة.",
+          ],
+          [
+            "Everything else follows from that: small classes, teachers who know each student well, languages taught with real care, and a day with room for sport, the arts and friendship as well as study.",
+            "ومن هذه الغاية ينبع كل ما عداها: فصول صغيرة، ومعلّمون يعرفون كل طالب جيدًا، ولغات تُدرَّس بعناية حقيقية، ويوم دراسي يتّسع للرياضة والفنون والصداقة إلى جانب الدراسة.",
+          ],
+        ),
+      ),
     ),
   }),
   { align: "center" },
@@ -2236,17 +2729,26 @@ const ABOUT_PURPOSE = section(
 const ABOUT_WELCOME = section("welcome", "portraitEnd", (b) => ({
   heading: b.w(["A word from our *principal*", "كلمة *مديرة* المدرسة"]),
   body: plainContent(
-    b.w([
-      "Thank you for taking the time to find out about us. Choosing a school is one of the biggest decisions a family makes, and we do not take your trust lightly.\nWhat I hope you notice when you visit is how well our teachers know the children in front of them: what each one finds easy, what they find hard and what will help them take the next step. That knowledge is the heart of the school.\nCome and see us on an ordinary morning. I would be glad to answer your questions myself.",
-      "شكرًا لأنكم خصّصتم وقتًا للتعرّف إلينا. إن اختيار المدرسة من أهمّ القرارات التي تتخذها الأسرة، ونحن نقدّر الثقة التي تضعونها فينا.\nأرجو أن تلاحظوا حين تزوروننا مدى معرفة معلّمينا بالأطفال الذين بين أيديهم: ما يسهل على كل منهم وما يصعب عليه، وما يعينه على الخطوة التالية. هذه المعرفة هي قلب المدرسة.\nتعالوا وزورونا في صباح عادي، ويسعدني أن أجيب عن أسئلتكم بنفسي.",
-    ]),
+    b.w(
+      naming(
+        ["families"],
+        [
+          "Thank you for taking the time to find out about us. Choosing a school is one of the biggest decisions a family makes, and we do not take your trust lightly.\nWhat I hope you notice when you visit is how well our teachers know the children in front of them: what each one finds easy, what they find hard and what will help them take the next step. That knowledge is the heart of the school.\nCome and see us on an ordinary morning. I would be glad to answer your questions myself.",
+          "شكرًا لأنكم خصّصتم وقتًا للتعرّف إلينا. إن اختيار المدرسة من أهمّ القرارات التي تتخذها الأسرة، ونحن نقدّر الثقة التي تضعونها فينا.\nأرجو أن تلاحظوا حين تزوروننا مدى معرفة معلّمينا بالأطفال الذين بين أيديهم: ما يسهل على كل منهم وما يصعب عليه، وما يعينه على الخطوة التالية. هذه المعرفة هي قلب المدرسة.\nتعالوا وزورونا في صباح عادي، ويسعدني أن أجيب عن أسئلتكم بنفسي.",
+        ],
+        [
+          "Thank you for taking the time to find out about us. Choosing where to learn is one of the biggest decisions anyone makes, and we do not take your trust lightly.\nWhat I hope you notice when you visit is how well our teachers know the students in front of them: what each one finds easy, what they find hard and what will help them take the next step. That knowledge is the heart of the school.\nCome and see us on an ordinary morning. I would be glad to answer your questions myself.",
+          "شكرًا لأنكم خصّصتم وقتًا للتعرّف إلينا. إن اختيار المكان الذي تتعلّمون فيه من أهمّ القرارات، ونحن نقدّر الثقة التي تضعونها فينا.\nأرجو أن تلاحظوا حين تزوروننا مدى معرفة معلّمينا بالطلاب الذين بين أيديهم: ما يسهل على كل منهم وما يصعب عليه، وما يعينه على الخطوة التالية. هذه المعرفة هي قلب المدرسة.\nتعالوا وزورونا في صباح عادي، ويسعدني أن أجيب عن أسئلتكم بنفسي.",
+        ],
+      ),
+    ),
   ),
   portrait: noImage,
   name: b.w(["Dr Amal Nasser", "د. أمل ناصر"]),
   role: b.w(["Principal", "مديرة المدرسة"]),
 }));
 
-const pillar = (b: Builder, title: Words, text: Words, icon: IconId) => ({
+const pillar = (b: Builder, title: Said, text: Said, icon: IconId) => ({
   id: b.id(),
   title: b.w(title),
   text: b.w(text),
@@ -2264,37 +2766,65 @@ const ABOUT_VALUES = section("pillars", "icons", (b) => ({
     pillar(
       b,
       ["Curiosity", "الفضول"],
-      [
-        "Lessons start with a question, and children learn to enjoy working the answer out for themselves.",
-        "تبدأ الدروس بسؤال، ويتعلّم الأطفال متعة الوصول إلى الإجابة بأنفسهم.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Lessons start with a question, and children learn to enjoy working the answer out for themselves.",
+          "تبدأ الدروس بسؤال، ويتعلّم الأطفال متعة الوصول إلى الإجابة بأنفسهم.",
+        ],
+        [
+          "Lessons start with a question, and students learn to enjoy working the answer out for themselves.",
+          "تبدأ الدروس بسؤال، ويتعلّم الطلاب متعة الوصول إلى الإجابة بأنفسهم.",
+        ],
+      ),
       "lightbulb",
     ),
     pillar(
       b,
       ["Care", "الرعاية"],
-      [
-        "Every child is known by name and by need, and no one is left to struggle quietly.",
-        "يُعرف كل طفل باسمه وبما يحتاج إليه، ولا يُترك أحد يعاني في صمت.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Every child is known by name and by need, and no one is left to struggle quietly.",
+          "يُعرف كل طفل باسمه وبما يحتاج إليه، ولا يُترك أحد يعاني في صمت.",
+        ],
+        [
+          "Every student is known by name and by need, and no one is left to struggle quietly.",
+          "يُعرف كل طالب باسمه وبما يحتاج إليه، ولا يُترك أحد يعاني في صمت.",
+        ],
+      ),
       "heart",
     ),
     pillar(
       b,
       ["Ambition", "الطموح"],
-      [
-        "High expectations in every subject, with the support each child needs to reach them.",
-        "توقّعات عالية في كل مادة، مع الدعم الذي يحتاجه كل طفل ليبلغها.",
-      ],
+      naming(
+        ["families"],
+        [
+          "High expectations in every subject, with the support each child needs to reach them.",
+          "توقّعات عالية في كل مادة، مع الدعم الذي يحتاجه كل طفل ليبلغها.",
+        ],
+        [
+          "High expectations in every subject, with the support each student needs to reach them.",
+          "توقّعات عالية في كل مادة، مع الدعم الذي يحتاجه كل طالب ليبلغها.",
+        ],
+      ),
       "star",
     ),
     pillar(
       b,
       ["Belonging", "الانتماء"],
-      [
-        "Families, students and staff work as one community, and every voice is heard.",
-        "تعمل الأسر والطلاب والمعلّمون مجتمعًا واحدًا يُسمع فيه كل صوت.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Families, students and staff work as one community, and every voice is heard.",
+          "تعمل الأسر والطلاب والمعلّمون مجتمعًا واحدًا يُسمع فيه كل صوت.",
+        ],
+        [
+          "Students and staff work as one community, and every voice is heard.",
+          "يعمل الطلاب والمعلّمون مجتمعًا واحدًا يُسمع فيه كل صوت.",
+        ],
+      ),
       "users",
     ),
   ],
@@ -2319,10 +2849,17 @@ const ABOUT_FIGURES = section(
         b,
         "12:1",
         ["students per teacher", "طالبًا لكل معلّم"],
-        [
-          "Small classes, so no child goes unnoticed.",
-          "فصول صغيرة لا يغيب فيها طفل عن الأنظار.",
-        ],
+        naming(
+          ["families"],
+          [
+            "Small classes, so no child goes unnoticed.",
+            "فصول صغيرة لا يغيب فيها طفل عن الأنظار.",
+          ],
+          [
+            "Small classes, so no student goes unnoticed.",
+            "فصول صغيرة لا يغيب فيها طالب عن الأنظار.",
+          ],
+        ),
       ),
       figure(
         b,
@@ -2358,10 +2895,19 @@ const ABOUT_STORY = section("imageText", "mediaStart", (b) => ({
     "بداية صغيرة وفكرة *باقية*",
   ]),
   body: plainContent(
-    b.w([
-      "We began with a handful of classes in a converted family house: a few dozen children, and teachers who believed a school could be both demanding and kind.\nThe house is still at the heart of the campus, joined now by laboratories, a library and playing fields, and the belief has not changed. Many of our teachers have been with us for more than a decade, and some of today's parents were once our students.",
-      "بدأنا ببضعة فصول في بيت عائلي مُجدَّد: عشرات من الأطفال، ومعلّمون آمنوا بأن المدرسة يمكن أن تكون متطلّبة ورحيمة في آن واحد.\nلا يزال ذلك البيت في قلب الحرم، وقد أحاطت به اليوم مختبرات ومكتبة وملاعب، أما الإيمان فلم يتغيّر. كثير من معلّمينا معنا منذ أكثر من عشر سنوات، وبعض أولياء الأمور اليوم كانوا يومًا طلابًا لدينا.",
-    ]),
+    b.w(
+      naming(
+        ["families"],
+        [
+          "We began with a handful of classes in a converted family house: a few dozen children, and teachers who believed a school could be both demanding and kind.\nThe house is still at the heart of the campus, joined now by laboratories, a library and playing fields, and the belief has not changed. Many of our teachers have been with us for more than a decade, and some of today's parents were once our students.",
+          "بدأنا ببضعة فصول في بيت عائلي مُجدَّد: عشرات من الأطفال، ومعلّمون آمنوا بأن المدرسة يمكن أن تكون متطلّبة ورحيمة في آن واحد.\nلا يزال ذلك البيت في قلب الحرم، وقد أحاطت به اليوم مختبرات ومكتبة وملاعب، أما الإيمان فلم يتغيّر. كثير من معلّمينا معنا منذ أكثر من عشر سنوات، وبعض أولياء الأمور اليوم كانوا يومًا طلابًا لدينا.",
+        ],
+        [
+          "We began with a handful of classes in a converted old house: a few dozen students, and teachers who believed a school could be both demanding and kind.\nThe house is still at the heart of the campus, joined now by laboratories, a library and playing fields, and the belief has not changed. Many of our teachers have been with us for more than a decade, and some of them were once our students.",
+          "بدأنا ببضعة فصول في بيت قديم مُجدَّد: عشرات من الطلاب، ومعلّمون آمنوا بأن المدرسة يمكن أن تكون متطلّبة ورحيمة في آن واحد.\nلا يزال ذلك البيت في قلب الحرم، وقد أحاطت به اليوم مختبرات ومكتبة وملاعب، أما الإيمان فلم يتغيّر. كثير من معلّمينا معنا منذ أكثر من عشر سنوات، وبعضهم كانوا يومًا طلابًا لدينا.",
+        ],
+      ),
+    ),
   ),
   media: {
     kind: "image" as const,
@@ -2380,17 +2926,26 @@ const ABOUT_STORY = section("imageText", "mediaStart", (b) => ({
 const EY_ABOUT_WELCOME = section("welcome", "portraitStart", (b) => ({
   heading: b.w(["Welcome to our *nursery*", "أهلًا بكم في *روضتنا*"]),
   body: plainContent(
-    b.w([
-      "Starting nursery is a big step, for children and for their parents. We have spent more than ten years learning how to make that step feel small: a key person who comes to know your child almost as well as you do, rooms that feel like home and a garden that is never more than a door away.\nWe would love you to see it for yourself. Come to a stay-and-play morning with your little one, and stay as long as you like.",
-      "بدء الروضة خطوة كبيرة للأطفال ولأسرهم معًا. وقد أمضينا أكثر من عشر سنوات نتعلّم كيف نجعل هذه الخطوة تبدو صغيرة: مربية رئيسية تعرف طفلكم كما تعرفونه تقريبًا، وغرف تشبه البيت، وحديقة لا يفصلها عن الأطفال سوى باب.\nيسعدنا أن تروا ذلك بأنفسكم. تعالوا مع صغيركم إلى صباح لعب مفتوح، وابقوا ما شئتم.",
-    ]),
+    b.w(
+      naming(
+        ["families"],
+        [
+          "Starting nursery is a big step, for children and for their parents. We have spent more than ten years learning how to make that step feel small: a key person who comes to know your child almost as well as you do, rooms that feel like home and a garden that is never more than a door away.\nWe would love you to see it for yourself. Come to a stay-and-play morning with your little one, and stay as long as you like.",
+          "بدء الروضة خطوة كبيرة للأطفال ولأسرهم معًا. وقد أمضينا أكثر من عشر سنوات نتعلّم كيف نجعل هذه الخطوة تبدو صغيرة: مربية رئيسية تعرف طفلكم كما تعرفونه تقريبًا، وغرف تشبه البيت، وحديقة لا يفصلها عن الأطفال سوى باب.\nيسعدنا أن تروا ذلك بأنفسكم. تعالوا مع صغيركم إلى صباح لعب مفتوح، وابقوا ما شئتم.",
+        ],
+        [
+          "Starting nursery is a big step. We have spent more than ten years learning how to make that step feel small: a key person who comes to know each learner well, rooms that feel like home and a garden that is never more than a door away.\nWe would love you to see it for yourself. Come to a stay-and-play morning, and stay as long as you like.",
+          "بدء الروضة خطوة كبيرة. وقد أمضينا أكثر من عشر سنوات نتعلّم كيف نجعل هذه الخطوة تبدو صغيرة: مربية رئيسية تعرف كل متعلّم معرفة جيدة، وغرف تشبه البيت، وحديقة لا يفصلها عن الغرف سوى باب.\nيسعدنا أن تروا ذلك بأنفسكم. تعالوا إلى صباح لعب مفتوح، وابقوا ما شئتم.",
+        ],
+      ),
+    ),
   ),
   portrait: noImage,
   name: b.w(["Rania Kamal", "رانيا كمال"]),
   role: b.w(["Head of nursery", "مديرة الروضة"]),
 }));
 
-const room = (b: Builder, title: Words, ages: Words, text: Words) => ({
+const room = (b: Builder, title: Said, ages: Said, text: Said) => ({
   id: b.id(),
   title: b.w(title),
   ages: b.w(ages),
@@ -2400,11 +2955,26 @@ const room = (b: Builder, title: Words, ages: Words, text: Words) => ({
 });
 
 const EY_ROOMS = section("divisions", "tall", (b) => ({
-  heading: b.w(["Four rooms, one *family*", "أربع غرف وأسرة *واحدة*"]),
-  text: b.w([
-    "Children move up a room each September, with their friends and familiar faces beside them.",
-    "ينتقل الأطفال إلى الغرفة التالية كل سبتمبر، ومعهم أصدقاؤهم ووجوه يعرفونها.",
-  ]),
+  heading: b.w(
+    naming(
+      ["families"],
+      ["Four rooms, one *family*", "أربع غرف وأسرة *واحدة*"],
+      ["Four rooms, one *home*", "أربع غرف وبيت *واحد*"],
+    ),
+  ),
+  text: b.w(
+    naming(
+      ["families"],
+      [
+        "Children move up a room each September, with their friends and familiar faces beside them.",
+        "ينتقل الأطفال إلى الغرفة التالية كل سبتمبر، ومعهم أصدقاؤهم ووجوه يعرفونها.",
+      ],
+      [
+        "Each September everyone moves up a room, with their friends and familiar faces beside them.",
+        "ينتقل المتعلّمون إلى الغرفة التالية كل سبتمبر، ومعهم أصدقاؤهم ووجوه يعرفونها.",
+      ],
+    ),
+  ),
   items: [
     room(
       b,
@@ -2437,10 +3007,17 @@ const EY_ROOMS = section("divisions", "tall", (b) => ({
       b,
       ["Kindergarten 2", "الروضة الثانية"],
       ["Ages 5 to 6", "من 5 إلى 6 سنوات"],
-      [
-        "Letters, numbers and the confidence to start big school, ready for Grade 1.",
-        "الحروف والأعداد والثقة اللازمة لبدء المدرسة، استعدادًا للصف الأول.",
-      ],
+      naming(
+        ["grade_levels"],
+        [
+          "Letters, numbers and the confidence to start big school, ready for Grade 1.",
+          "الحروف والأعداد والثقة اللازمة لبدء المدرسة، استعدادًا للصف الأول.",
+        ],
+        [
+          "Letters, numbers and the confidence to start big school.",
+          "الحروف والأعداد والثقة اللازمة لبدء المدرسة.",
+        ],
+      ),
     ),
   ],
 }));
@@ -2452,10 +3029,17 @@ const EY_DAY = section("timeline", "vertical", (b) => ({
       b,
       "7:30",
       ["Hello and breakfast", "الاستقبال والإفطار"],
-      [
-        "A warm welcome from your child's key person, and breakfast together for early arrivals.",
-        "تستقبل المربية الرئيسية طفلكم بابتسامة، ويتناول القادمون مبكرًا الإفطار معًا.",
-      ],
+      naming(
+        ["families"],
+        [
+          "A warm welcome from your child's key person, and breakfast together for early arrivals.",
+          "تستقبل المربية الرئيسية طفلكم بابتسامة، ويتناول القادمون مبكرًا الإفطار معًا.",
+        ],
+        [
+          "A warm welcome from each learner's key person, and breakfast together for early arrivals.",
+          "تستقبل المربية الرئيسية كل متعلّم بابتسامة، ويتناول القادمون مبكرًا الإفطار معًا.",
+        ],
+      ),
     ),
     moment(
       b,
@@ -2497,46 +3081,83 @@ const EY_DAY = section("timeline", "vertical", (b) => ({
       b,
       "14:00",
       ["Home time", "وقت العودة"],
-      [
-        "Collection with a note and a photo from the day. The extended day runs until 17:00.",
-        "الاستلام مع ملاحظة وصورة من يوم طفلكم، ويستمر اليوم الممتد حتى الساعة 17:00.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Collection with a note and a photo from the day. The extended day runs until 17:00.",
+          "الاستلام مع ملاحظة وصورة من يوم طفلكم، ويستمر اليوم الممتد حتى الساعة 17:00.",
+        ],
+        [
+          "Collection with a note and a photo from the day. The extended day runs until 17:00.",
+          "الاستلام مع ملاحظة وصورة من اليوم، ويستمر اليوم الممتد حتى الساعة 17:00.",
+        ],
+      ),
     ),
   ],
 }));
 
 const EY_PLAY = section("pillars", "icons", (b) => ({
   heading: b.w(["Learning through *play*", "التعلّم *باللعب*"]),
-  text: b.w([
-    "Young children learn best by doing, so our days are built around what they choose to do.",
-    "يتعلّم الصغار على أفضل وجه حين يفعلون بأنفسهم، لذا نبني أيامنا حول ما يختارون فعله.",
-  ]),
+  text: b.w(
+    naming(
+      ["families"],
+      [
+        "Young children learn best by doing, so our days are built around what they choose to do.",
+        "يتعلّم الصغار على أفضل وجه حين يفعلون بأنفسهم، لذا نبني أيامنا حول ما يختارون فعله.",
+      ],
+      [
+        "Young learners learn best by doing, so our days are built around what they choose to do.",
+        "يتعلّم الصغار على أفضل وجه حين يفعلون بأنفسهم، لذا نبني أيامنا حول ما يختارون فعله.",
+      ],
+    ),
+  ),
   items: [
     pillar(
       b,
       ["Following their interests", "نتبع اهتماماتهم"],
-      [
-        "If a child is fascinated by snails, the week fills with snails: counting them, drawing them, reading about them and building them a home.",
-        "إذا شُغف طفل بالحلزونات امتلأ الأسبوع بها: يعدّها ويرسمها ويقرأ عنها ويبني لها بيتًا.",
-      ],
+      naming(
+        ["families"],
+        [
+          "If a child is fascinated by snails, the week fills with snails: counting them, drawing them, reading about them and building them a home.",
+          "إذا شُغف طفل بالحلزونات امتلأ الأسبوع بها: يعدّها ويرسمها ويقرأ عنها ويبني لها بيتًا.",
+        ],
+        [
+          "If someone is fascinated by snails, the week fills with snails: counting them, drawing them, reading about them and building them a home.",
+          "إذا شُغف أحدهم بالحلزونات امتلأ الأسبوع بها: يعدّها ويرسمها ويقرأ عنها ويبني لها بيتًا.",
+        ],
+      ),
       "leaf",
     ),
     pillar(
       b,
       ["Two languages, naturally", "لغتان بطريقة طبيعية"],
-      [
-        "Every room has an Arabic-speaking and an English-speaking adult, so children hear both all day and answer in whichever comes first.",
-        "في كل غرفة مربية تتحدث العربية وأخرى تتحدث الإنجليزية، فيسمع الأطفال اللغتين طوال اليوم ويجيبون بأيّهما سبقت إلى ألسنتهم.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Every room has an Arabic-speaking and an English-speaking adult, so children hear both all day and answer in whichever comes first.",
+          "في كل غرفة مربية تتحدث العربية وأخرى تتحدث الإنجليزية، فيسمع الأطفال اللغتين طوال اليوم ويجيبون بأيّهما سبقت إلى ألسنتهم.",
+        ],
+        [
+          "Every room has an Arabic-speaking and an English-speaking adult, so learners hear both all day and answer in whichever comes first.",
+          "في كل غرفة مربية تتحدث العربية وأخرى تتحدث الإنجليزية، فيسمع المتعلّمون اللغتين طوال اليوم ويجيبون بأيّهما سبقت إلى ألسنتهم.",
+        ],
+      ),
       "book",
     ),
     pillar(
       b,
       ["Noticing every step", "نلاحظ كل خطوة"],
-      [
-        "Key persons watch, listen and note what each child can do, and share it with you in a photo and a short note every day.",
-        "تراقب المربيات وتصغي وتدوّن ما يستطيع كل طفل فعله، وتشاركنه معكم بصورة وملاحظة قصيرة كل يوم.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Key persons watch, listen and note what each child can do, and share it with you in a photo and a short note every day.",
+          "تراقب المربيات وتصغي وتدوّن ما يستطيع كل طفل فعله، وتشاركنه معكم بصورة وملاحظة قصيرة كل يوم.",
+        ],
+        [
+          "Key persons watch, listen and note what each learner can do, and share it in a photo and a short note every day.",
+          "تراقب المربيات وتصغي وتدوّن ما يستطيع كل متعلّم فعله، وتشاركنه بصورة وملاحظة قصيرة كل يوم.",
+        ],
+      ),
       "heart",
     ),
   ],
@@ -2551,10 +3172,17 @@ const EY_RATIOS = section(
       figure(
         b,
         "1:4",
-        [
-          "adults to children aged 2 to 3",
-          "نسبة الكبار إلى الأطفال من سنتين إلى ثلاث",
-        ],
+        naming(
+          ["families"],
+          [
+            "adults to children aged 2 to 3",
+            "نسبة الكبار إلى الأطفال من سنتين إلى ثلاث",
+          ],
+          [
+            "adults to learners aged 2 to 3",
+            "نسبة الكبار إلى المتعلّمين من سنتين إلى ثلاث",
+          ],
+        ),
         [
           "Two adults with every group of eight toddlers.",
           "اثنان من الكبار مع كل ثمانية أطفال من البراعم.",
@@ -2563,23 +3191,48 @@ const EY_RATIOS = section(
       figure(
         b,
         "1:8",
-        [
-          "adults to children aged 3 to 6",
-          "نسبة الكبار إلى الأطفال من ثلاث إلى ست",
-        ],
-        [
-          "A teacher and an assistant in every room of sixteen.",
-          "معلّمة ومساعدة في كل غرفة من ستة عشر طفلًا.",
-        ],
+        naming(
+          ["families"],
+          [
+            "adults to children aged 3 to 6",
+            "نسبة الكبار إلى الأطفال من ثلاث إلى ست",
+          ],
+          [
+            "adults to learners aged 3 to 6",
+            "نسبة الكبار إلى المتعلّمين من ثلاث إلى ست",
+          ],
+        ),
+        naming(
+          ["families"],
+          [
+            "A teacher and an assistant in every room of sixteen.",
+            "معلّمة ومساعدة في كل غرفة من ستة عشر طفلًا.",
+          ],
+          [
+            "A teacher and an assistant in every room of sixteen.",
+            "معلّمة ومساعدة في كل غرفة من ستة عشر متعلّمًا.",
+          ],
+        ),
       ),
       figure(
         b,
         "16",
-        ["children in a room, at most", "طفلًا في الغرفة كحدّ أقصى"],
-        [
-          "Small enough to feel like a family.",
-          "عدد صغير يجعل الغرفة أشبه بأسرة.",
-        ],
+        naming(
+          ["families"],
+          ["children in a room, at most", "طفلًا في الغرفة كحدّ أقصى"],
+          ["learners in a room, at most", "متعلّمًا في الغرفة كحدّ أقصى"],
+        ),
+        naming(
+          ["families"],
+          [
+            "Small enough to feel like a family.",
+            "عدد صغير يجعل الغرفة أشبه بأسرة.",
+          ],
+          [
+            "Small enough to feel like home.",
+            "عدد صغير يجعل الغرفة أشبه بالبيت.",
+          ],
+        ),
       ),
       figure(
         b,
@@ -2601,28 +3254,51 @@ const EY_RATIOS = section(
 
 const EY_CARE = section("cards", "icons", (b) => ({
   heading: b.w(["Safe, well and *cared* for", "في *أمان* ورعاية"]),
-  text: b.w([
-    "The care behind every happy day, written down in our policies and shared with every family.",
-    "الرعاية التي تقف وراء كل يوم سعيد، مكتوبة في سياساتنا ومتاحة لكل أسرة.",
-  ]),
+  text: b.w(
+    naming(
+      ["families"],
+      [
+        "The care behind every happy day, written down in our policies and shared with every family.",
+        "الرعاية التي تقف وراء كل يوم سعيد، مكتوبة في سياساتنا ومتاحة لكل أسرة.",
+      ],
+      [
+        "The care behind every happy day, written down in our policies and open to anyone who asks.",
+        "الرعاية التي تقف وراء كل يوم سعيد، مكتوبة في سياساتنا ومتاحة لكل من يطلبها.",
+      ],
+    ),
+  ),
   columns: "3" as const,
   items: [
     card(
       b,
       ["Safer recruitment", "تعيين آمن"],
-      [
-        "Every adult is checked and referenced before they join us, and trained in safeguarding every year.",
-        "يخضع كل من يعمل معنا للتحقق والتزكية قبل انضمامه، ويتدرّب على حماية الطفل كل عام.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Every adult is checked and referenced before they join us, and trained in safeguarding every year.",
+          "يخضع كل من يعمل معنا للتحقق والتزكية قبل انضمامه، ويتدرّب على حماية الطفل كل عام.",
+        ],
+        [
+          "Every adult is checked and referenced before they join us, and trained in safeguarding every year.",
+          "يخضع كل من يعمل معنا للتحقق والتزكية قبل انضمامه، ويتدرّب على الحماية والسلامة كل عام.",
+        ],
+      ),
       "award",
     ),
     card(
       b,
       ["Safe collection", "استلام آمن"],
-      [
-        "Children go home only with the adults you name, and a password covers any change on the day.",
-        "لا يغادر الطفل إلا مع من تسمّونهم من الكبار، وتُستخدم كلمة سر لأي تغيير طارئ.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Children go home only with the adults you name, and a password covers any change on the day.",
+          "لا يغادر الطفل إلا مع من تسمّونهم من الكبار، وتُستخدم كلمة سر لأي تغيير طارئ.",
+        ],
+        [
+          "No one leaves except with an adult named in advance, and a password covers any change on the day.",
+          "لا يغادر أحد إلا مع من سُمّي مسبقًا من الكبار، وتُستخدم كلمة سر لأي تغيير طارئ.",
+        ],
+      ),
       "users",
     ),
     card(
@@ -2637,10 +3313,17 @@ const EY_CARE = section("cards", "icons", (b) => ({
     card(
       b,
       ["Sleep and rest", "النوم والراحة"],
-      [
-        "A quiet room with a cot for every child who naps, and an adult checking on them throughout.",
-        "غرفة هادئة فيها سرير لكل طفل يأخذ قيلولة، وأحد الكبار يتفقّدهم طوال الوقت.",
-      ],
+      naming(
+        ["families"],
+        [
+          "A quiet room with a cot for every child who naps, and an adult checking on them throughout.",
+          "غرفة هادئة فيها سرير لكل طفل يأخذ قيلولة، وأحد الكبار يتفقّدهم طوال الوقت.",
+        ],
+        [
+          "A quiet room with a cot for everyone who naps, and an adult checking on them throughout.",
+          "غرفة هادئة فيها سرير لكل من يأخذ قيلولة، وأحد الكبار يتفقّدهم طوال الوقت.",
+        ],
+      ),
       "clock",
     ),
     card(
@@ -2665,11 +3348,26 @@ const EY_CARE = section("cards", "icons", (b) => ({
 }));
 
 const EY_TEAM = section("people", "grid", (b) => ({
-  heading: b.w(["The people your child will *know*", "من سيعرفهم *طفلكم*"]),
-  text: b.w([
-    "Every child has a key person: the adult who settles them in, knows their routines and is your first point of contact.",
-    "لكل طفل مربية رئيسية تتولّى تهيئته وتعرف روتينه، وهي أول من تتواصلون معه.",
-  ]),
+  heading: b.w(
+    naming(
+      ["families"],
+      ["The people your child will *know*", "من سيعرفهم *طفلكم*"],
+      ["The people you will *know*", "من *ستعرفونهم* هنا"],
+    ),
+  ),
+  text: b.w(
+    naming(
+      ["families"],
+      [
+        "Every child has a key person: the adult who settles them in, knows their routines and is your first point of contact.",
+        "لكل طفل مربية رئيسية تتولّى تهيئته وتعرف روتينه، وهي أول من تتواصلون معه.",
+      ],
+      [
+        "Every learner has a key person: the adult who settles them in, knows their routines and is the first point of contact.",
+        "لكل متعلّم مربية رئيسية تتولّى تهيئته وتعرف روتينه، وهي أول من يُتواصل معه.",
+      ],
+    ),
+  ),
   items: [
     person(
       b,
@@ -2694,7 +3392,7 @@ const EY_TEAM = section("people", "grid", (b) => ({
   ],
 }));
 
-const session = (b: Builder, label: Words, value: Words, note: Words) => ({
+const session = (b: Builder, label: Said, value: Said, note: Said) => ({
   id: b.id(),
   label: b.w(label),
   value: b.w(value),
@@ -2836,7 +3534,7 @@ const EY_PLACES = section("admissions", "triad", (b) => ({
   ]),
 }));
 
-const question = (b: Builder, title: Words, text: Words) => ({
+const question = (b: Builder, title: Said, text: Said) => ({
   id: b.id(),
   title: b.w(title),
   text: b.w(text),
@@ -2899,10 +3597,19 @@ const EY_STAY_AND_PLAY = section("imageText", "mediaEnd", (b) => ({
   eyebrow: b.w(["Stay-and-play mornings", "صباحات اللعب المفتوحة"]),
   heading: b.w(["Play first, *questions* after", "اللعب أولًا ثم *الأسئلة*"]),
   body: plainContent(
-    b.w([
-      "Stay-and-play mornings run every Saturday from 9:30 to 11:00. Your child plays in the rooms and the garden alongside ours, while you see how a nursery day really works.\nWe finish with songs at circle time, then coffee with the head of nursery and time for your questions. Brothers and sisters are welcome, and buggies fit through every door.",
-      "تُقام صباحات اللعب المفتوحة كل سبت من الساعة 9:30 حتى 11:00. يلعب طفلكم في الغرف والحديقة مع أطفالنا، بينما ترون كيف يمضي يوم الروضة فعلًا.\nنختم بالأغاني في حلقة الصباح، ثم قهوة مع مديرة الروضة ووقت لأسئلتكم. الإخوة مرحَّب بهم، وعربات الأطفال تمرّ من كل باب.",
-    ]),
+    b.w(
+      naming(
+        ["families"],
+        [
+          "Stay-and-play mornings run every Saturday from 9:30 to 11:00. Your child plays in the rooms and the garden alongside ours, while you see how a nursery day really works.\nWe finish with songs at circle time, then coffee with the head of nursery and time for your questions. Brothers and sisters are welcome, and buggies fit through every door.",
+          "تُقام صباحات اللعب المفتوحة كل سبت من الساعة 9:30 حتى 11:00. يلعب طفلكم في الغرف والحديقة مع أطفالنا، بينما ترون كيف يمضي يوم الروضة فعلًا.\nنختم بالأغاني في حلقة الصباح، ثم قهوة مع مديرة الروضة ووقت لأسئلتكم. الإخوة مرحَّب بهم، وعربات الأطفال تمرّ من كل باب.",
+        ],
+        [
+          "Stay-and-play mornings run every Saturday from 9:30 to 11:00. Play in the rooms and the garden alongside our learners, and see how a nursery day really works.\nWe finish with songs at circle time, then coffee with the head of nursery and time for your questions. Everyone is welcome, and buggies fit through every door.",
+          "تُقام صباحات اللعب المفتوحة كل سبت من الساعة 9:30 حتى 11:00. العبوا في الغرف والحديقة مع متعلّمينا، وشاهدوا كيف يمضي يوم الروضة فعلًا.\nنختم بالأغاني في حلقة الصباح، ثم قهوة مع مديرة الروضة ووقت لأسئلتكم. الجميع مرحَّب بهم، والعربات تمرّ من كل باب.",
+        ],
+      ),
+    ),
   ),
   media: {
     kind: "image" as const,
@@ -2916,7 +3623,7 @@ const EY_STAY_AND_PLAY = section("imageText", "mediaEnd", (b) => ({
   ],
 }));
 
-const step = (b: Builder, title: Words, text: Words) => ({
+const step = (b: Builder, title: Said, text: Said) => ({
   id: b.id(),
   title: b.w(title),
   text: b.w(text),
@@ -2929,26 +3636,47 @@ const EY_VISIT_STEPS = section("steps", "horizontal", (b) => ({
     step(
       b,
       ["Arrive and say hello", "الوصول والتعارف"],
-      [
-        "We meet you at the garden gate, show you where to leave the buggy and introduce the room leaders.",
-        "نستقبلكم عند بوابة الحديقة، ونريكم مكان عربة الطفل، ونعرّفكم إلى مشرفات الغرف.",
-      ],
+      naming(
+        ["families"],
+        [
+          "We meet you at the garden gate, show you where to leave the buggy and introduce the room leaders.",
+          "نستقبلكم عند بوابة الحديقة، ونريكم مكان عربة الطفل، ونعرّفكم إلى مشرفات الغرف.",
+        ],
+        [
+          "We meet you at the garden gate, show you where to leave the buggy and introduce the room leaders.",
+          "نستقبلكم عند بوابة الحديقة، ونريكم مكان ترك العربة، ونعرّفكم إلى مشرفات الغرف.",
+        ],
+      ),
     ),
     step(
       b,
       ["Play together", "نلعب معًا"],
-      [
-        "Explore the rooms and the garden at your child's pace. Join in, or sit back and watch.",
-        "استكشفوا الغرف والحديقة على إيقاع طفلكم. شاركوه اللعب أو اجلسوا وتابعوا.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Explore the rooms and the garden at your child's pace. Join in, or sit back and watch.",
+          "استكشفوا الغرف والحديقة على إيقاع طفلكم. شاركوه اللعب أو اجلسوا وتابعوا.",
+        ],
+        [
+          "Explore the rooms and the garden at your own pace. Join in, or sit back and watch.",
+          "استكشفوا الغرف والحديقة على إيقاعكم. شاركوا في اللعب أو اجلسوا وتابعوا.",
+        ],
+      ),
     ),
     step(
       b,
       ["Circle time", "حلقة الصباح"],
-      [
-        "Songs and a story in Arabic and English, so your child hears both.",
-        "أغانٍ وقصة بالعربية والإنجليزية، ليسمع طفلكم اللغتين.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Songs and a story in Arabic and English, so your child hears both.",
+          "أغانٍ وقصة بالعربية والإنجليزية، ليسمع طفلكم اللغتين.",
+        ],
+        [
+          "Songs and a story in Arabic and English, so everyone hears both.",
+          "أغانٍ وقصة بالعربية والإنجليزية، ليسمع الجميع اللغتين.",
+        ],
+      ),
     ),
     step(
       b,
@@ -3320,10 +4048,19 @@ const LAUNCH_MORNINGS = section("imageText", "mediaEnd", (b) => ({
   eyebrow: b.w(["Founders' mornings", "صباحات المؤسِّسين"]),
   heading: b.w(["A school you can help *shape*", "مدرسة تشاركون في *صنعها*"]),
   body: plainContent(
-    b.w([
-      "Founders' mornings run every Saturday at 10:00 and last about an hour and a half. We start with coffee and the plans on the table, then walk the site in hard hats: the classrooms, the library and the playground as they take shape.\nFounding families have a say most families never get: the clubs we start with, the uniform, even the names of the houses. Bring your questions, and your ideas.",
-      "تُقام صباحات المؤسِّسين كل سبت الساعة 10:00 وتستغرق نحو ساعة ونصف. نبدأ بالقهوة والمخطّطات على الطاولة، ثم نتجوّل في الموقع بخوذ السلامة بين الفصول والمكتبة والملعب وهي تكتمل أمام أعينكم.\nللأسر المؤسِّسة رأي لا يُتاح لغيرها: في الأندية التي نبدأ بها، وفي الزيّ المدرسي، بل وفي أسماء البيوت المدرسية. أحضروا أسئلتكم وأفكاركم.",
-    ]),
+    b.w(
+      naming(
+        ["families"],
+        [
+          "Founders' mornings run every Saturday at 10:00 and last about an hour and a half. We start with coffee and the plans on the table, then walk the site in hard hats: the classrooms, the library and the playground as they take shape.\nFounding families have a say most families never get: the clubs we start with, the uniform, even the names of the houses. Bring your questions, and your ideas.",
+          "تُقام صباحات المؤسِّسين كل سبت الساعة 10:00 وتستغرق نحو ساعة ونصف. نبدأ بالقهوة والمخطّطات على الطاولة، ثم نتجوّل في الموقع بخوذ السلامة بين الفصول والمكتبة والملعب وهي تكتمل أمام أعينكم.\nللأسر المؤسِّسة رأي لا يُتاح لغيرها: في الأندية التي نبدأ بها، وفي الزيّ المدرسي، بل وفي أسماء البيوت المدرسية. أحضروا أسئلتكم وأفكاركم.",
+        ],
+        [
+          "Founders' mornings run every Saturday at 10:00 and last about an hour and a half. We start with coffee and the plans on the table, then walk the site in hard hats: the classrooms, the library and the playground as they take shape.\nOur founding students have a say few ever get: the clubs we start with, the uniform, even the names of the houses. Bring your questions, and your ideas.",
+          "تُقام صباحات المؤسِّسين كل سبت الساعة 10:00 وتستغرق نحو ساعة ونصف. نبدأ بالقهوة والمخطّطات على الطاولة، ثم نتجوّل في الموقع بخوذ السلامة بين الفصول والمكتبة والملعب وهي تكتمل أمام أعينكم.\nلطلابنا المؤسِّسين رأي لا يُتاح لغيرهم: في الأندية التي نبدأ بها، وفي الزيّ المدرسي، بل وفي أسماء البيوت المدرسية. أحضروا أسئلتكم وأفكاركم.",
+        ],
+      ),
+    ),
   ),
   media: {
     kind: "image" as const,
@@ -3337,7 +4074,7 @@ const LAUNCH_MORNINGS = section("imageText", "mediaEnd", (b) => ({
   ],
 }));
 
-const season = (b: Builder, when: Words, title: Words, text: Words) => ({
+const season = (b: Builder, when: Said, title: Said, text: Said) => ({
   id: b.id(),
   year: b.w(when),
   title: b.w(title),
@@ -3369,19 +4106,33 @@ const LAUNCH_PLANS = section("timeline", "horizontal", (b) => ({
       b,
       ["Summer", "الصيف"],
       ["A first look inside", "نظرة أولى من الداخل"],
-      [
-        "Furniture and books arrive, and founding families see the finished rooms.",
-        "يصل الأثاث والكتب، وتشاهد الأسر المؤسِّسة الغرف مكتملة.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Furniture and books arrive, and founding families see the finished rooms.",
+          "يصل الأثاث والكتب، وتشاهد الأسر المؤسِّسة الغرف مكتملة.",
+        ],
+        [
+          "Furniture and books arrive, and our founding students see the finished rooms.",
+          "يصل الأثاث والكتب، ويشاهد طلابنا المؤسِّسون الغرف مكتملة.",
+        ],
+      ),
     ),
     season(
       b,
       ["September", "سبتمبر"],
       ["Doors open", "افتتاح الأبواب"],
-      [
-        "Our first children walk in, and the founding year begins.",
-        "يدخل أطفالنا الأوائل، ويبدأ عام التأسيس.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Our first children walk in, and the founding year begins.",
+          "يدخل أطفالنا الأوائل، ويبدأ عام التأسيس.",
+        ],
+        [
+          "Our first students walk in, and the founding year begins.",
+          "يدخل طلابنا الأوائل، ويبدأ عام التأسيس.",
+        ],
+      ),
     ),
   ],
 }));
@@ -3392,10 +4143,19 @@ const LAUNCH_LETTER = section("welcome", "portraitStart", (b) => ({
     "رسالة من *المديرة* المؤسِّسة",
   ]),
   body: plainContent(
-    b.w([
-      "Dear families,\nEvery school begins with a few families willing to trust an idea before there is a building to show them. If you are reading this, you may be one of them, and I would very much like to meet you.\nI have taught and led schools for twenty years, and this is the one I have always wanted to build: small enough for every child to be known, ambitious enough for every child to be stretched, and open to the families who make it.\nCome to a founders' morning and tell me what you hope for your child. Those conversations are shaping the school.\nWith warm wishes,",
-      "أعزّاءنا أولياء الأمور،\nتبدأ كل مدرسة بأسر قليلة تثق بفكرة قبل أن يكون هناك مبنى تراه. إن كنتم تقرؤون هذه الكلمات فقد تكونون منهم، ويسعدني كثيرًا أن ألقاكم.\nعملتُ في التعليم وقيادة المدارس عشرين عامًا، وهذه هي المدرسة التي طالما تمنّيت أن أبنيها: صغيرة بما يكفي ليُعرف فيها كل طفل، وطموحة بما يكفي ليُتحدّى فيها كل طفل، ومفتوحة للأسر التي تصنعها.\nاحضروا صباح المؤسِّسين وحدّثوني عمّا تتمنّونه لطفلكم، فهذه الأحاديث هي التي تصنع المدرسة.\nمع خالص التحيات،",
-    ]),
+    b.w(
+      naming(
+        ["families"],
+        [
+          "Dear families,\nEvery school begins with a few families willing to trust an idea before there is a building to show them. If you are reading this, you may be one of them, and I would very much like to meet you.\nI have taught and led schools for twenty years, and this is the one I have always wanted to build: small enough for every child to be known, ambitious enough for every child to be stretched, and open to the families who make it.\nCome to a founders' morning and tell me what you hope for your child. Those conversations are shaping the school.\nWith warm wishes,",
+          "أعزّاءنا أولياء الأمور،\nتبدأ كل مدرسة بأسر قليلة تثق بفكرة قبل أن يكون هناك مبنى تراه. إن كنتم تقرؤون هذه الكلمات فقد تكونون منهم، ويسعدني كثيرًا أن ألقاكم.\nعملتُ في التعليم وقيادة المدارس عشرين عامًا، وهذه هي المدرسة التي طالما تمنّيت أن أبنيها: صغيرة بما يكفي ليُعرف فيها كل طفل، وطموحة بما يكفي ليُتحدّى فيها كل طفل، ومفتوحة للأسر التي تصنعها.\nاحضروا صباح المؤسِّسين وحدّثوني عمّا تتمنّونه لطفلكم، فهذه الأحاديث هي التي تصنع المدرسة.\nمع خالص التحيات،",
+        ],
+        [
+          "Dear friends,\nEvery school begins with a few people willing to trust an idea before there is a building to show them. If you are reading this, you may be one of them, and I would very much like to meet you.\nI have taught and led schools for twenty years, and this is the one I have always wanted to build: small enough for every student to be known, ambitious enough for every student to be stretched, and open to the people who make it.\nCome to a founders' morning and tell me what you hope to learn here. Those conversations are shaping the school.\nWith warm wishes,",
+          "أعزّاءنا،\nتبدأ كل مدرسة بقلّة يثقون بفكرة قبل أن يكون هناك مبنى يرونه. إن كنتم تقرؤون هذه الكلمات فقد تكونون منهم، ويسعدني كثيرًا أن ألقاكم.\nعملتُ في التعليم وقيادة المدارس عشرين عامًا، وهذه هي المدرسة التي طالما تمنّيت أن أبنيها: صغيرة بما يكفي ليُعرف فيها كل طالب، وطموحة بما يكفي ليُتحدّى فيها كل طالب، ومفتوحة لمن يصنعونها.\nاحضروا صباح المؤسِّسين وحدّثوني عمّا تأملون أن تتعلّموه هنا، فهذه الأحاديث هي التي تصنع المدرسة.\nمع خالص التحيات،",
+        ],
+      ),
+    ),
   ),
   portrait: noImage,
   name: b.w(["Dr Amal Nasser", "د. أمل ناصر"]),
@@ -3416,9 +4176,9 @@ const ACCENT = { scheme: "accent" } as const;
 
 const courseVoice = (
   b: Builder,
-  quote: Words,
-  name: Words,
-  role: Words,
+  quote: Said,
+  name: Said,
+  role: Said,
   audience: "student" | "alumni",
 ) => ({
   id: b.id(),
@@ -3429,26 +4189,26 @@ const courseVoice = (
   portrait: noImage,
 });
 
-const courseQuestion = (b: Builder, title: Words, text: Words) => ({
+const courseQuestion = (b: Builder, title: Said, text: Said) => ({
   id: b.id(),
   title: b.w(title),
   text: b.w(text),
 });
 
-const coursePrice = (b: Builder, label: Words, value: Words, note: Words) => ({
+const coursePrice = (b: Builder, label: Said, value: Said, note: Said) => ({
   id: b.id(),
   label: b.w(label),
   value: b.w(value),
   note: b.w(note),
 });
 
-const courseStep = (b: Builder, title: Words, text: Words) => ({
+const courseStep = (b: Builder, title: Said, text: Said) => ({
   id: b.id(),
   title: b.w(title),
   text: b.w(text),
 });
 
-const courseFigure = (b: Builder, value: string, label: Words) => ({
+const courseFigure = (b: Builder, value: string, label: Said) => ({
   id: b.id(),
   value,
   label: b.w(label),
@@ -4247,7 +5007,7 @@ export const PAGE_TEMPLATES = {
     on(INTL_FIGURES, SOFT),
     on(INTL_STAGES("tall", "/pages/academics"), CANVAS),
     on(INTL_WHY, SOFT),
-    on(INTL_VOICES, CANVAS),
+    only(["families"], on(INTL_VOICES, CANVAS)),
     on(NEWS, SOFT),
     REGISTER_APPLY,
   ],
@@ -4256,7 +5016,7 @@ export const PAGE_TEMPLATES = {
     on(ADMISSIONS_TRIAD, BRAND),
     on(STEPS, CANVAS),
     on(STATS, SOFT),
-    on(VOICES, CANVAS),
+    only(["families"], on(VOICES, CANVAS)),
   ],
   // Young families: a warm split opening, this term's invitation, the
   // everyday links, how children learn, everyday moments, parents' words
@@ -4264,11 +5024,11 @@ export const PAGE_TEMPLATES = {
   homeCommunity: [
     on(EY_HERO, SOFT),
     EY_NOTICE,
-    on(EY_QUICK_LINKS, CANVAS),
+    only(["families"], on(EY_QUICK_LINKS, CANVAS)),
     on(EY_LEARNING, { scheme: "soft", dividerTop: "wave" }),
     on(EY_STATS, { dividerTop: "wave" }),
     on(EY_GALLERY, CANVAS),
-    on(EY_VOICES, { dividerTop: "wave" }),
+    only(["families"], on(EY_VOICES, { dividerTop: "wave" })),
     on(EY_STEPS, CANVAS),
   ],
   // Bold and new: words before pictures, values in motion, the proof, then
@@ -4293,7 +5053,7 @@ export const PAGE_TEMPLATES = {
     on(PILLARS, SOFT, "alternating"),
     on(STATS, CANVAS, "overImage"),
     on(ADMISSIONS_TRIAD, BRAND),
-    on(VOICES, SOFT, "tabs"),
+    only(["families"], on(VOICES, SOFT, "tabs")),
     on(NEWS, CANVAS, "featured"),
   ],
   // Any school: its purpose in a sentence, the principal's word, values,
@@ -4330,10 +5090,17 @@ export const PAGE_TEMPLATES = {
   aboutEarlyYears: [
     PAGE_HEADER(
       ["A nursery built around *play*", "روضة قوامها *اللعب*"],
-      [
-        "Who we are, how a day unfolds and how we keep every child safe, happy and learning.",
-        "من نحن، وكيف يمضي اليوم، وكيف نحرص على أن يكون كل طفل آمنًا سعيدًا يتعلّم.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Who we are, how a day unfolds and how we keep every child safe, happy and learning.",
+          "من نحن، وكيف يمضي اليوم، وكيف نحرص على أن يكون كل طفل آمنًا سعيدًا يتعلّم.",
+        ],
+        [
+          "Who we are, how a day unfolds and how we keep everyone safe, happy and learning.",
+          "من نحن، وكيف يمضي اليوم، وكيف نحرص على أن يكون الجميع آمنين سعداء يتعلّمون.",
+        ],
+      ),
     ),
     on(EY_ABOUT_WELCOME, CANVAS),
     on(EY_ROOMS, SOFT),
@@ -4371,10 +5138,17 @@ export const PAGE_TEMPLATES = {
     FORM(
       "visit",
       ["Book a visit", "احجز زيارة"],
-      [
-        "Tell us which mornings suit you and the year your child would join. We will confirm by email.",
-        "أخبرنا بالأيام التي تناسبك والصف الذي سيلتحق به طفلك، وسنؤكد لك بالبريد الإلكتروني.",
-      ],
+      naming(
+        ["families", "grade_levels"],
+        [
+          "Tell us which mornings suit you and the year your child would join. We will confirm by email.",
+          "أخبرنا بالأيام التي تناسبك والصف الذي سيلتحق به طفلك، وسنؤكد لك بالبريد الإلكتروني.",
+        ],
+        [
+          "Tell us which mornings suit you and what you would like to see. We will confirm by email.",
+          "أخبرنا بالأيام التي تناسبك وما تودّ أن تراه، وسنؤكد لك بالبريد الإلكتروني.",
+        ],
+      ),
     ),
     on(CONTACT_MAP, CANVAS),
   ],
@@ -4397,10 +5171,17 @@ export const PAGE_TEMPLATES = {
   visitEarlyYears: [
     PAGE_HEADER(
       ["Come and *play*", "تعالوا *والعبوا* معنا"],
-      [
-        "Bring your child to a stay-and-play morning. It is the easiest way for you both to get to know us.",
-        "أحضروا طفلكم إلى صباح لعب مفتوح، فهو أسهل طريقة لتتعرّفوا إلينا معًا.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Bring your child to a stay-and-play morning. It is the easiest way for you both to get to know us.",
+          "أحضروا طفلكم إلى صباح لعب مفتوح، فهو أسهل طريقة لتتعرّفوا إلينا معًا.",
+        ],
+        [
+          "Come to a stay-and-play morning. It is the easiest way to get to know us.",
+          "تعالوا إلى صباح لعب مفتوح، فهو أسهل طريقة لتتعرّفوا إلينا.",
+        ],
+      ),
     ),
     on(EY_STAY_AND_PLAY, CANVAS),
     on(EY_VISIT_STEPS, SOFT),
@@ -4408,10 +5189,17 @@ export const PAGE_TEMPLATES = {
       FORM(
         "visit",
         ["Book your *morning*", "احجزوا *صباحكم*"],
-        [
-          "Tell us your child's age and which Saturday suits you. We will confirm by email, with directions.",
-          "أخبرونا بعمر طفلكم والسبت الذي يناسبكم، وسنؤكّد لكم بالبريد الإلكتروني مع إرشادات الوصول.",
-        ],
+        naming(
+          ["families"],
+          [
+            "Tell us your child's age and which Saturday suits you. We will confirm by email, with directions.",
+            "أخبرونا بعمر طفلكم والسبت الذي يناسبكم، وسنؤكّد لكم بالبريد الإلكتروني مع إرشادات الوصول.",
+          ],
+          [
+            "Tell us which Saturday suits you. We will confirm by email, with directions.",
+            "أخبرونا بالسبت الذي يناسبكم، وسنؤكّد لكم بالبريد الإلكتروني مع إرشادات الوصول.",
+          ],
+        ),
       ),
       CANVAS,
     ),
@@ -4423,10 +5211,17 @@ export const PAGE_TEMPLATES = {
   visitLaunch: [
     PAGE_HEADER(
       ["Meet us before we *open*", "قابلونا قبل *الافتتاح*"],
-      [
-        "Our doors open in September 2027. Until then, come to a founders' morning, see the plans and meet the people who will teach your child.",
-        "تُفتح أبوابنا في سبتمبر 2027. وحتى ذلك الحين، احضروا أحد صباحات المؤسِّسين، واطّلعوا على المخطّطات، وقابلوا من سيعلّمون أطفالكم.",
-      ],
+      naming(
+        ["families"],
+        [
+          "Our doors open in September 2027. Until then, come to a founders' morning, see the plans and meet the people who will teach your child.",
+          "تُفتح أبوابنا في سبتمبر 2027. وحتى ذلك الحين، احضروا أحد صباحات المؤسِّسين، واطّلعوا على المخطّطات، وقابلوا من سيعلّمون أطفالكم.",
+        ],
+        [
+          "Our doors open in September 2027. Until then, come to a founders' morning, see the plans and meet the people who will teach here.",
+          "تُفتح أبوابنا في سبتمبر 2027. وحتى ذلك الحين، احضروا أحد صباحات المؤسِّسين، واطّلعوا على المخطّطات، وقابلوا من سيعلّمون فيها.",
+        ],
+      ),
     ),
     on(LAUNCH_MORNINGS, CANVAS),
     on(LAUNCH_PLANS, SOFT),
@@ -4434,10 +5229,17 @@ export const PAGE_TEMPLATES = {
     FORM(
       "visit",
       ["Book a founders' *morning*", "احجزوا *صباح* المؤسِّسين"],
-      [
-        "Choose a Saturday and tell us the year your child would join. We will confirm by email, with directions to the site office.",
-        "اختاروا يوم سبت وأخبرونا بالصف الذي سيلتحق به طفلكم، وسنؤكّد لكم بالبريد الإلكتروني مع إرشادات الوصول إلى مكتب الموقع.",
-      ],
+      naming(
+        ["families", "grade_levels"],
+        [
+          "Choose a Saturday and tell us the year your child would join. We will confirm by email, with directions to the site office.",
+          "اختاروا يوم سبت وأخبرونا بالصف الذي سيلتحق به طفلكم، وسنؤكّد لكم بالبريد الإلكتروني مع إرشادات الوصول إلى مكتب الموقع.",
+        ],
+        [
+          "Choose a Saturday and tell us what you hope to learn. We will confirm by email, with directions to the site office.",
+          "اختاروا يوم سبت وأخبرونا بما تأملون أن تتعلّموه، وسنؤكّد لكم بالبريد الإلكتروني مع إرشادات الوصول إلى مكتب الموقع.",
+        ],
+      ),
     ),
     on(LAUNCH_FIND_US, CANVAS),
   ],
@@ -4493,10 +5295,17 @@ export const PAGE_TEMPLATES = {
   contact: [
     PAGE_HEADER(
       ["Get in *touch*", "*تواصلوا* معنا"],
-      [
-        "We would love to hear from you, whether you are a family, a neighbour or a future colleague.",
-        "يسعدنا أن نسمع منكم، أسرةً كنتم أو جيرانًا أو زملاء في المستقبل.",
-      ],
+      naming(
+        ["families"],
+        [
+          "We would love to hear from you, whether you are a family, a neighbour or a future colleague.",
+          "يسعدنا أن نسمع منكم، أسرةً كنتم أو جيرانًا أو زملاء في المستقبل.",
+        ],
+        [
+          "We would love to hear from you, whether you are a future student, a neighbour or a future colleague.",
+          "يسعدنا أن نسمع منكم، طلابًا في المستقبل كنتم أو جيرانًا أو زملاء في المستقبل.",
+        ],
+      ),
     ),
     on(CONTACT_MAP, CANVAS),
     FORM(
@@ -4644,7 +5453,7 @@ export const PAGE_TEMPLATES = {
     on(REEL_HOW, SOFT),
   ],
   contactCourses: COURSES_CONTACT,
-} satisfies Record<string, ((b: Builder) => PageSection)[]>;
+} satisfies Record<string, Part[]>;
 export type PageTemplate = keyof typeof PAGE_TEMPLATES;
 export type SiteTemplate = PageTemplate;
 export const PAGE_TEMPLATE_IDS = Object.keys(PAGE_TEMPLATES) as PageTemplate[];
@@ -4657,20 +5466,29 @@ export interface BuiltTemplate {
 
 /**
  * Builds a template in both languages with the same section and item ids,
- * so the second language lines up as a translation of the first.
+ * so the second language lines up as a translation of the first. A section
+ * whose module, or whose words' modules, the school does not have is left
+ * out, a sentence naming one it does not have is read in its neutral form,
+ * and a form asks only what the school's modules let it ask.
  */
 export function buildTemplate(
   template: PageTemplate,
   primary: SiteLocale,
+  modules: SiteModules,
 ): BuiltTemplate {
   const ids = Array.from({ length: 400 }, () => crypto.randomUUID());
+  const has = (needs: readonly ModuleId[]) =>
+    needs.every((module) => modules[module]);
+  const present = MODULE_IDS.filter((module) => modules[module]);
+  const parts: readonly Part[] = PAGE_TEMPLATES[template];
   const build = (locale: SiteLocale) => {
-    let cursor = 0;
-    const b: Builder = {
-      id: () => ids[cursor++] ?? crypto.randomUUID(),
-      w: (words) => (locale === "ar" ? words[1] : words[0]),
-    };
-    return PAGE_TEMPLATES[template].map((make) => make(b));
+    const b = builder(ids, locale, has);
+    return parts.flatMap((part) => {
+      if (typeof part !== "function" && !has(part.needs)) return [];
+      const made = (typeof part === "function" ? part : part.make)(b);
+      const owner = sectionModule(made.type);
+      return owner && !modules[owner] ? [] : [askedBy(made, present)];
+    });
   };
   return {
     content: build(primary),
@@ -4683,6 +5501,8 @@ export interface StarterPage {
   title: Words;
   template: PageTemplate;
   home?: boolean;
+  /** The modules the page is about; a school without one is built without the page. */
+  needs?: readonly ModuleId[];
 }
 
 /** A button a starter puts in the site's header. */
@@ -4714,6 +5534,7 @@ const ADMISSIONS: StarterPage = {
   slug: "admissions",
   title: ["Admissions", "القبول"],
   template: "admissions",
+  needs: ["admissions"],
 };
 const VISIT: StarterPage = {
   slug: "visit",
@@ -4729,6 +5550,7 @@ const PARENTS: StarterPage = {
   slug: "parents",
   title: ["Parents", "أولياء الأمور"],
   template: "parents",
+  needs: ["families"],
 };
 const CONTACT_PAGE: StarterPage = {
   slug: "contact",
@@ -4853,14 +5675,30 @@ export const STARTERS = {
 export type StarterId = keyof typeof STARTERS;
 export const STARTER_IDS = Object.keys(STARTERS) as StarterId[];
 
-/** The frame a starter site comes with: the admissions actions and a sitemap footer. */
 const freshId = () => crypto.randomUUID();
 
 /** The pages a family weighing the school looks for, which the footer gathers under "Join us". */
 const JOINING = new Set(["admissions", "visit", "contact"]);
 
+const action = (
+  label: Words,
+  href: string,
+  style: StarterAction["style"],
+): SiteChrome["actions"][number] => ({
+  id: freshId(),
+  label: { en: label[0], ar: label[1] },
+  href,
+  style,
+});
+
+/**
+ * The frame a starter site comes with: header buttons and a sitemap footer.
+ * A school taking applications is offered its enquiry, visit and apply; any
+ * other is offered one way to write to it.
+ */
 export function starterChrome(
   pages: StarterPage[],
+  modules: SiteModules,
   actions?: StarterAction[],
 ): SiteChrome {
   const has = (slug: string) => pages.some((page) => page.slug === slug);
@@ -4879,31 +5717,33 @@ export function starterChrome(
   return {
     // News joins the menu by itself, so a new site's header is one row.
     utility: [],
-    actions: actions?.map((action) => ({
-      id: freshId(),
-      label: { en: action.label[0], ar: action.label[1] },
-      href: action.href,
-      style: action.style,
-    })) ?? [
-      {
-        id: freshId(),
-        label: { en: "Enquire", ar: "استفسر" },
-        href: target("admissions", ANCHOR.enquiry),
-        style: "secondary",
-      },
-      {
-        id: freshId(),
-        label: { en: "Book a visit", ar: "احجز زيارة" },
-        href: target("visit", ANCHOR.visit),
-        style: "secondary",
-      },
-      {
-        id: freshId(),
-        label: { en: "Apply", ar: "قدّم الآن" },
-        href: target("admissions", ANCHOR.apply),
-        style: "primary",
-      },
-    ],
+    actions: actions
+      ? actions.map((entry) => action(entry.label, entry.href, entry.style))
+      : modules.admissions
+        ? [
+            action(
+              ["Enquire", "استفسر"],
+              target("admissions", ANCHOR.enquiry),
+              "secondary",
+            ),
+            action(
+              ["Book a visit", "احجز زيارة"],
+              target("visit", ANCHOR.visit),
+              "secondary",
+            ),
+            action(
+              ["Apply", "قدّم الآن"],
+              target("admissions", ANCHOR.apply),
+              "primary",
+            ),
+          ]
+        : [
+            action(
+              ["Get in touch", "تواصل معنا"],
+              target("contact", ANCHOR.general),
+              "primary",
+            ),
+          ],
     footerColumns: [
       column(
         ["Explore", "تعرّف علينا"],
@@ -4916,5 +5756,90 @@ export function starterChrome(
     ].filter((entry) => entry.links.length > 0),
     footerNote: { en: "", ar: "" },
     dock: true,
+  };
+}
+
+/** Whether a school with these modules gets the page. */
+export const pageFits = (page: StarterPage, modules: SiteModules) =>
+  (page.needs ?? []).every((module) => modules[module]);
+
+/**
+ * Points every link at something the built site has: one to an anchor no
+ * section of its page carries leads to the page, or goes where it already
+ * is, one to a page the school was built without leads to the contact page.
+ */
+function settledLinks(
+  anchors: ReadonlyMap<string, ReadonlySet<string>>,
+  here: string,
+) {
+  const fallback = anchors.has("/pages/contact") ? "/pages/contact" : "/";
+  const settle = (href: string) => {
+    if (!href.startsWith("/pages/")) return href;
+    const [path = "", anchor] = href.split("#");
+    const found = anchors.get(path);
+    if (!found) return fallback;
+    if (anchor === undefined || found.has(anchor)) return href;
+    return path === here ? null : path;
+  };
+  const gone = (value: unknown) =>
+    !!value &&
+    typeof value === "object" &&
+    "label" in value &&
+    "href" in value &&
+    typeof value.href === "string" &&
+    settle(value.href) === null;
+  const walk = (value: unknown): unknown =>
+    Array.isArray(value)
+      ? value.filter((item) => !gone(item)).map(walk)
+      : value && typeof value === "object"
+        ? Object.fromEntries(
+            Object.entries(value).map(([key, inner]) => [
+              key,
+              key === "href" && typeof inner === "string"
+                ? (settle(inner) ?? "")
+                : walk(inner),
+            ]),
+          )
+        : value;
+  return <T>(value: T) => walk(value) as T;
+}
+
+export interface BuiltStarter {
+  pages: { plan: StarterPage; built: BuiltTemplate }[];
+  chrome: SiteChrome;
+}
+
+/** A starter's pages and frame as a school with these modules gets them. */
+export function buildStarter(
+  starter: Starter,
+  primary: SiteLocale,
+  modules: SiteModules,
+): BuiltStarter {
+  const plans = starter.pages.filter((page) => pageFits(page, modules));
+  const pages = plans.map((plan) => ({
+    plan,
+    built: buildTemplate(plan.template, primary, modules),
+  }));
+  const anchors = new Map(
+    pages.map(({ plan, built }) => [
+      `/pages/${plan.slug}`,
+      new Set(built.content.flatMap((row) => row.style.anchor || [])),
+    ]),
+  );
+  return {
+    pages: pages.map(({ plan, built }) => {
+      const settle = settledLinks(anchors, `/pages/${plan.slug}`);
+      return {
+        plan,
+        built: {
+          content: built.content.map(settle),
+          translation: built.translation.map(settle),
+        },
+      };
+    }),
+    chrome: settledLinks(
+      anchors,
+      "",
+    )(starterChrome(plans, modules, starter.actions)),
   };
 }

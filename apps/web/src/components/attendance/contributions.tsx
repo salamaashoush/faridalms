@@ -13,7 +13,11 @@ import {
   studentRecordTabs,
 } from "~/components/people/slots";
 import * as m from "~/i18n/messages";
-import { attendanceSettingsQuery, followUpQuery } from "~/queries/attendance";
+import {
+  attendanceSettingsQuery,
+  classAttendanceQuery,
+  followUpQuery,
+} from "~/queries/attendance";
 import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 
@@ -66,6 +70,8 @@ export const ATTENDANCE: ModuleFillings = {
       label: m.attendanceTitle,
       place: 40,
       capability: "attendance:read",
+      load: (queryClient, classId) =>
+        queryClient.ensureQueryData(classAttendanceQuery(classId)),
       Tab: ClassAttendance,
     }),
     fill(attendanceTabs, {
