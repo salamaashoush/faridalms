@@ -33,7 +33,7 @@ type ReportView = (typeof REPORTS)[number];
 
 const REPORT_LABEL: Record<ReportView, () => string> = {
   stage: m.adrTabStage,
-  intake: m.adrByIntake,
+  intake: m.adrByIntakeCore,
   origin: m.adrTabOrigin,
   time: m.adrTimes,
 };
@@ -180,7 +180,7 @@ function ReportsPage() {
   }));
   return (
     <Page width="list">
-      <PageHeader title={m.adrTitle()} description={m.adrHint()} />
+      <PageHeader title={m.adrTitle()} description={words(m.adrHintCore)()} />
       {facets.length > 0 ? (
         <div className="mb-6">
           <IndexToolbar
@@ -195,7 +195,10 @@ function ReportsPage() {
       ) : null}
       <RecordTabs
         label={m.adrTitle()}
-        tabs={REPORTS.map((value) => ({ value, label: REPORT_LABEL[value]() }))}
+        tabs={REPORTS.map((value) => ({
+          value,
+          label: words(REPORT_LABEL[value])(),
+        }))}
         value={search.report}
         onChange={(next) =>
           void navigate({
@@ -214,7 +217,7 @@ function ReportsPage() {
           </div>
         ) : search.report === "intake" ? (
           <DataTable
-            caption={m.adrByIntake()}
+            caption={words(m.adrByIntakeCore)()}
             rows={intakes}
             columns={stageColumns<IntakeRow>({
               id: "intake",

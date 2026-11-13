@@ -319,6 +319,7 @@ export const ADMISSIONS_WITH_FAMILIES: ModuleFillings = {
     ),
     replaceWords(m.aplConversationStartCore, m.aplConversationStart),
     replaceWords(m.adrByOriginCore, m.adrByOrigin),
+    replaceWords(m.adrHintCore, m.adrHint),
     replaceWords(m.brdReleaseBodyCore, m.brdReleaseBody),
     replaceWords(m.brdOfferBodyCore, m.brdOfferBody),
     replaceWords(m.brdEnrolBodyCore, m.brdEnrolBody, [

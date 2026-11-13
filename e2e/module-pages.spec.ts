@@ -63,6 +63,7 @@ test("a school without families signs in, registers and takes applications in th
     "/admissions/applications",
     "/admissions/intakes",
     "/admissions/intakes?tab=forms",
+    "/admissions/reports",
   ];
   for (const path of pages) {
     found.push(...(await familyWords(admin, `${at}${path}`, "en")));

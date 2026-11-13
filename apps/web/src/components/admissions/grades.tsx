@@ -87,6 +87,7 @@ export const ADMISSIONS_BY_GRADE: ModuleFillings = {
     fill(previousSchoolGrades, true),
     replaceWords(m.applyNoIntakesCore, m.applyNoIntakes),
     replaceWords(m.aplAgeFitsCore, m.aplAgeFits),
+    replaceWords(m.adrByIntakeCore, m.adrByIntake),
     replaceWords(m.famAppsEmptyBodyCore, m.famAppsEmptyBody),
     replaceWords(m.applyIntakeTitleCore, m.applyIntakeTitle, ["school_years"]),
   ],
