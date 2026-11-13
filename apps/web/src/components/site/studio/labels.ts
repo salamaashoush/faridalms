@@ -358,6 +358,9 @@ export const THEME_LABEL: Record<ThemeId, () => string> = {
   editorial: m.siteThemeEditorial,
   evergreen: m.siteThemeEvergreen,
   civic: m.siteThemeCivic,
+  workshop: m.siteThemeWorkshop,
+  atelier: m.siteThemeAtelier,
+  reel: m.siteThemeReel,
 };
 
 export const THEME_HINT: Record<ThemeId, () => string> = {
@@ -368,6 +371,9 @@ export const THEME_HINT: Record<ThemeId, () => string> = {
   editorial: m.siteThemeHintEditorial,
   evergreen: m.siteThemeHintEvergreen,
   civic: m.siteThemeHintCivic,
+  workshop: m.siteThemeHintWorkshop,
+  atelier: m.siteThemeHintAtelier,
+  reel: m.siteThemeHintReel,
 };
 
 export const HEADER_LABEL: Record<HeaderStyle, () => string> = {
@@ -428,6 +434,19 @@ export const TEMPLATE_LABEL: Record<SiteTemplate, () => string> = {
   parents: m.siteTemplateParentsCore,
   parentsEarlyYears: m.siteTemplateParentsEarlyYearsCore,
   contact: m.siteTemplateContact,
+  homeWorkshop: m.siteTemplateHomeWorkshop,
+  tracks: m.siteTemplateTracks,
+  cohorts: m.siteTemplateCohorts,
+  aboutWorkshop: m.siteTemplateAboutWorkshop,
+  homeAtelier: m.siteTemplateHomeAtelier,
+  courses: m.siteTemplateCourses,
+  tutors: m.siteTemplateTutors,
+  feesCourses: m.siteTemplateFeesCourses,
+  homeReel: m.siteTemplateHomeReel,
+  library: m.siteTemplateLibrary,
+  pricing: m.siteTemplatePricing,
+  aboutReel: m.siteTemplateAboutReel,
+  contactCourses: m.siteTemplateContactCourses,
 };
 
 export const TEMPLATE_HINT: Record<SiteTemplate, () => string> = {
@@ -450,6 +469,19 @@ export const TEMPLATE_HINT: Record<SiteTemplate, () => string> = {
   parents: m.siteTemplateHintParentsCore,
   parentsEarlyYears: m.siteTemplateHintParentsEarlyYears,
   contact: m.siteTemplateHintContact,
+  homeWorkshop: m.siteTemplateHintHomeWorkshop,
+  tracks: m.siteTemplateHintTracks,
+  cohorts: m.siteTemplateHintCohorts,
+  aboutWorkshop: m.siteTemplateHintAboutWorkshop,
+  homeAtelier: m.siteTemplateHintHomeAtelier,
+  courses: m.siteTemplateHintCourses,
+  tutors: m.siteTemplateHintTutors,
+  feesCourses: m.siteTemplateHintFeesCourses,
+  homeReel: m.siteTemplateHintHomeReel,
+  library: m.siteTemplateHintLibrary,
+  pricing: m.siteTemplateHintPricing,
+  aboutReel: m.siteTemplateHintAboutReel,
+  contactCourses: m.siteTemplateHintContactCourses,
 };
 
 export const STARTER_LABEL: Record<StarterId, () => string> = {
@@ -458,6 +490,9 @@ export const STARTER_LABEL: Record<StarterId, () => string> = {
   earlyYears: m.siteStarterEarlyYears,
   arabicFirst: m.siteStarterArabicFirst,
   launch: m.siteStarterLaunch,
+  workshop: m.siteStarterWorkshop,
+  atelier: m.siteStarterAtelier,
+  reel: m.siteStarterReel,
 };
 
 export const STARTER_HINT: Record<StarterId, () => string> = {
@@ -466,6 +501,9 @@ export const STARTER_HINT: Record<StarterId, () => string> = {
   earlyYears: m.siteStarterHintEarlyYears,
   arabicFirst: m.siteStarterHintArabicFirst,
   launch: m.siteStarterHintLaunch,
+  workshop: m.siteStarterHintWorkshop,
+  atelier: m.siteStarterHintAtelier,
+  reel: m.siteStarterHintReel,
 };
 
 export const ICON_LABEL: Record<IconId, () => string> = {

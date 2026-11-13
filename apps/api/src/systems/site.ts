@@ -1,6 +1,6 @@
 import type { PageRow } from "@faridalms/database/stores/site";
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { StarterPage } from "@faridalms/domain/site-templates";
+import type { Starter, StarterPage } from "@faridalms/domain/site-templates";
 import type {
   PageContent,
   SiteIssue,
@@ -1057,7 +1057,7 @@ export const applyStarter = writeProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "site:manage");
     const settings = await settingsFor(context);
-    const starter = STARTERS[input.starter];
+    const starter: Starter = STARTERS[input.starter];
     const pages = await sitePages(
       context.tx,
       context.tenantId,
@@ -1087,7 +1087,7 @@ export const applyStarter = writeProcedure
         chrome:
           settings.chrome.actions.length || settings.chrome.footerColumns.length
             ? settings.chrome
-            : starterChrome(starter.pages),
+            : starterChrome(starter.pages, starter.actions),
       });
       if (version === null) throw conflict();
     }

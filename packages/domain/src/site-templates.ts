@@ -3411,6 +3411,815 @@ const LAUNCH_FIND_US = section("contact", "map", (b) => ({
   mapHref: "",
 }));
 
+const INK = { scheme: "ink" } as const;
+const ACCENT = { scheme: "accent" } as const;
+
+const courseVoice = (
+  b: Builder,
+  quote: Words,
+  name: Words,
+  role: Words,
+  audience: "student" | "alumni",
+) => ({
+  id: b.id(),
+  quote: b.w(quote),
+  name: b.w(name),
+  role: b.w(role),
+  audience,
+  portrait: noImage,
+});
+
+const courseQuestion = (b: Builder, title: Words, text: Words) => ({
+  id: b.id(),
+  title: b.w(title),
+  text: b.w(text),
+});
+
+const coursePrice = (b: Builder, label: Words, value: Words, note: Words) => ({
+  id: b.id(),
+  label: b.w(label),
+  value: b.w(value),
+  note: b.w(note),
+});
+
+const courseStep = (b: Builder, title: Words, text: Words) => ({
+  id: b.id(),
+  title: b.w(title),
+  text: b.w(text),
+});
+
+const courseFigure = (b: Builder, value: string, label: Words) => ({
+  id: b.id(),
+  value,
+  label: b.w(label),
+  caption: "",
+});
+
+const COURSES_CONTACT = [
+  PAGE_HEADER(
+    ["Get in *touch*", "*تواصل* معنا"],
+    [
+      "Ask about a course, a start date or a place. We reply within two working days.",
+      "اسأل عن دورة أو موعد بدء أو مقعد. نرد خلال يومي عمل.",
+    ],
+  ),
+  on(CONTACT_MAP, { scheme: "canvas" }),
+  FORM(
+    "general",
+    ["Send us a message", "أرسل لنا رسالة"],
+    [
+      "Tell us what you would like to learn and when you are free. We read every message.",
+      "أخبرنا ماذا تريد أن تتعلّم ومتى يناسبك. نقرأ كل رسالة.",
+    ],
+  ),
+];
+
+// Workshop: a school that teaches code. Dark bands, one loud accent, and
+// pages named for what a learner looks for: tracks and cohorts.
+
+const WORKSHOP_HERO = section("hero", "type", (b) => ({
+  eyebrow: b.w(["Evening and weekend cohorts", "دفعات مسائية وفي عطلة الأسبوع"]),
+  heading: b.w([
+    "Learn to code by *shipping* something every week",
+    "تعلّم البرمجة بأن *تنجز* شيئًا كل أسبوع",
+  ]),
+  text: b.w([
+    "Small cohorts in Python, web and data. You write real code from the first session, and you leave with projects people can open.",
+    "دفعات صغيرة في بايثون والويب والبيانات. تكتب شيفرة حقيقية من الجلسة الأولى، وتخرج بمشاريع يستطيع الناس فتحها.",
+  ]),
+  actions: [
+    link(b, ["Join a cohort", "انضم إلى دفعة"], "/pages/cohorts"),
+    link(b, ["See the tracks", "تعرّف على المسارات"], "/pages/tracks"),
+  ],
+  height: "l" as const,
+}));
+
+const WORKSHOP_TRACKS = section("cards", "icons", (b) => ({
+  heading: b.w(["Pick where you *start*", "اختر من أين *تبدأ*"]),
+  text: b.w([
+    "Four tracks, each a set of weeks with a project at the end. Move up when you are ready.",
+    "أربعة مسارات، كلٌّ منها أسابيع معدودة تنتهي بمشروع. انتقل إلى التالي حين تكون مستعدًا.",
+  ]),
+  columns: "2" as const,
+  items: [
+    card(
+      b,
+      ["Python foundations", "أساسيات بايثون"],
+      [
+        "Ten weeks from your first line to a working program. No experience needed.",
+        "عشرة أسابيع من أول سطر إلى برنامج يعمل. لا تحتاج إلى خبرة سابقة.",
+      ],
+      "lightbulb",
+      "/pages/tracks",
+    ),
+    card(
+      b,
+      ["Web development", "تطوير الويب"],
+      [
+        "Twelve weeks from HTML to an app that is live on the internet.",
+        "اثنا عشر أسبوعًا من HTML إلى تطبيق منشور على الإنترنت.",
+      ],
+      "globe",
+      "/pages/tracks",
+    ),
+    card(
+      b,
+      ["Data analysis", "تحليل البيانات"],
+      [
+        "Eight weeks of real data: cleaning it, charting it and saying what it shows.",
+        "ثمانية أسابيع مع بيانات حقيقية: تنظيفها ورسمها وشرح ما تقوله.",
+      ],
+      "flask",
+      "/pages/tracks",
+    ),
+    card(
+      b,
+      ["Scratch and micro:bit", "سكراتش والمايكروبت"],
+      [
+        "For ages 8 to 12: eight Saturday mornings of games, lights and sensors.",
+        "للأعمار من 8 إلى 12: ثمانية صباحات سبت مع الألعاب والأضواء والحسّاسات.",
+      ],
+      "sparkles",
+      "/pages/tracks",
+    ),
+  ],
+}));
+
+const WORKSHOP_HOW = section("pillars", "numbered", (b) => ({
+  heading: b.w(["How a week *works*", "كيف يسير *الأسبوع*"]),
+  text: "",
+  items: [
+    pillar(
+      b,
+      ["Two sessions, hands on keys", "جلستان، ويداك على لوحة المفاتيح"],
+      [
+        "A short idea, then you build. The teacher is beside you, not in front of a slide.",
+        "فكرة قصيرة ثم تبني بنفسك. المعلّم بجانبك، لا أمام شريحة عرض.",
+      ],
+      "clock",
+    ),
+    pillar(
+      b,
+      ["Something shipped by Friday", "شيء منجز قبل نهاية الأسبوع"],
+      [
+        "Every week ends with code that runs: small at first, then yours.",
+        "ينتهي كل أسبوع بشيفرة تعمل: صغيرة في البداية، ثم من صنعك أنت.",
+      ],
+      "award",
+    ),
+    pillar(
+      b,
+      ["Feedback on your own code", "ملاحظات على شيفرتك أنت"],
+      [
+        "Your work is read line by line and returned with comments you can act on.",
+        "يُقرأ عملك سطرًا سطرًا ويعود إليك بملاحظات تستطيع العمل بها.",
+      ],
+      "lightbulb",
+    ),
+  ],
+}));
+
+const WORKSHOP_COHORTS = section("fees", "dates", (b) => ({
+  heading: b.w(["Upcoming *cohorts*", "الدفعات *القادمة*"]),
+  text: b.w([
+    "Twelve learners to a cohort. A place is yours once you have spoken to us.",
+    "اثنا عشر متعلّمًا في الدفعة. المقعد لك بعد أن تتحدّث إلينا.",
+  ]),
+  items: [
+    coursePrice(
+      b,
+      ["Python foundations", "أساسيات بايثون"],
+      ["Starts next month", "تبدأ الشهر القادم"],
+      [
+        "Sunday and Tuesday, 19:00 · 10 weeks",
+        "الأحد والثلاثاء، 19:00 · 10 أسابيع",
+      ],
+    ),
+    coursePrice(
+      b,
+      ["Web development", "تطوير الويب"],
+      ["Starts in two months", "تبدأ بعد شهرين"],
+      ["Saturdays, 10:00 · 12 weeks", "السبت، 10:00 · 12 أسبوعًا"],
+    ),
+    coursePrice(
+      b,
+      ["Scratch and micro:bit", "سكراتش والمايكروبت"],
+      ["Every term", "كل فصل"],
+      ["Saturdays, 10:00 · ages 8 to 12", "السبت، 10:00 · الأعمار من 8 إلى 12"],
+    ),
+  ],
+}));
+
+const WORKSHOP_PROJECTS = section("gallery", "grid", (b) => ({
+  heading: b.w(["Built by our *learners*", "من صنع *متعلّمينا*"]),
+  items: Array.from({ length: 6 }, () => ({ id: b.id(), image: noImage })),
+}));
+
+const WORKSHOP_VOICES = section("voices", "grid", (b) => ({
+  heading: b.w(["What learners *say*", "ماذا يقول *المتعلّمون*"]),
+  items: [
+    courseVoice(
+      b,
+      [
+        "I had watched tutorials for a year. Here I wrote more code in two weeks than in all of it.",
+        "شاهدت الدروس المصوّرة عامًا كاملًا. وهنا كتبت في أسبوعين شيفرة أكثر مما كتبت في ذلك العام كله.",
+      ],
+      ["Omar", "عمر"],
+      ["Python foundations", "أساسيات بايثون"],
+      "student",
+    ),
+    courseVoice(
+      b,
+      [
+        "The project at the end is what got me my first interview.",
+        "مشروع نهاية المسار هو ما أوصلني إلى أول مقابلة عمل.",
+      ],
+      ["Salma", "سلمى"],
+      ["Web development, last year", "تطوير الويب، العام الماضي"],
+      "alumni",
+    ),
+    courseVoice(
+      b,
+      [
+        "My daughter now explains to me how the game she made works.",
+        "ابنتي تشرح لي الآن كيف تعمل اللعبة التي صنعتها.",
+      ],
+      ["Hany", "هاني"],
+      ["Scratch, Saturdays", "سكراتش، أيام السبت"],
+      "student",
+    ),
+  ],
+}));
+
+const WORKSHOP_FAQ = section("accordion", "columns", (b) => ({
+  heading: b.w(["Before you *ask*", "قبل أن *تسأل*"]),
+  text: "",
+  items: [
+    courseQuestion(
+      b,
+      ["Do I need my own laptop?", "هل أحتاج إلى حاسوب محمول؟"],
+      [
+        "Yes, any laptop from the last eight years will do. Everything runs in the browser, so there is nothing to install.",
+        "نعم، وأي حاسوب محمول من آخر ثماني سنوات يكفي. كل شيء يعمل في المتصفح، فلا تحتاج إلى تثبيت أي شيء.",
+      ],
+    ),
+    courseQuestion(
+      b,
+      ["What if I miss a session?", "ماذا لو فاتتني جلسة؟"],
+      [
+        "Each session's lesson and exercise stay online, and the teacher answers questions between sessions.",
+        "يبقى درس كل جلسة وتمرينها على الإنترنت، ويجيب المعلّم عن الأسئلة بين الجلسات.",
+      ],
+    ),
+    courseQuestion(
+      b,
+      [
+        "Is it taught in Arabic or English?",
+        "هل التدريس بالعربية أم الإنجليزية؟",
+      ],
+      [
+        "Lessons are explained in Arabic; the code and its terms are in English, as they are at work.",
+        "تُشرح الدروس بالعربية، أما الشيفرة ومصطلحاتها فبالإنجليزية، كما هي في سوق العمل.",
+      ],
+    ),
+    courseQuestion(
+      b,
+      ["Do I get a certificate?", "هل أحصل على شهادة؟"],
+      [
+        "You get a certificate when your final project is accepted, and the project itself, which matters more.",
+        "تحصل على شهادة عند قبول مشروعك النهائي، وتحصل على المشروع نفسه، وهو الأهم.",
+      ],
+    ),
+  ],
+}));
+
+const WORKSHOP_JOIN = section("steps", "horizontal", (b) => ({
+  heading: b.w(["Joining is *three* steps", "الانضمام *ثلاث* خطوات"]),
+  text: "",
+  items: [
+    courseStep(
+      b,
+      ["Write to us", "راسلنا"],
+      [
+        "Say which track and which days suit you. We reply within two working days.",
+        "اذكر المسار والأيام التي تناسبك. نرد خلال يومي عمل.",
+      ],
+    ),
+    courseStep(
+      b,
+      ["A short call", "مكالمة قصيرة"],
+      [
+        "Ten minutes to check the track fits where you are starting from.",
+        "عشر دقائق لنتأكد أن المسار يناسب نقطة بدايتك.",
+      ],
+    ),
+    courseStep(
+      b,
+      ["Your place", "مقعدك"],
+      [
+        "You get your sign-in, the first lesson and the date of session one.",
+        "تحصل على حساب الدخول والدرس الأول وموعد الجلسة الأولى.",
+      ],
+    ),
+  ],
+}));
+
+const WORKSHOP_ABOUT = section(
+  "text",
+  "statement",
+  (b) => ({
+    eyebrow: b.w(["Why we teach this way", "لماذا ندرّس هكذا"]),
+    heading: b.w([
+      "Nobody learns to code by watching. You learn by *building*, getting stuck and being helped out.",
+      "لا أحد يتعلّم البرمجة بالمشاهدة. تتعلّم بأن *تبني*، وتتعثّر، وتجد من يساعدك.",
+    ]),
+    body: plainContent(
+      b.w([
+        "So our cohorts are small, our teachers work as developers, and every week ends with something that runs.",
+        "لذلك دفعاتنا صغيرة، ومعلّمونا يعملون مطوّرين، وكل أسبوع ينتهي بشيء يعمل.",
+      ]),
+    ),
+  }),
+  { scheme: "ink", align: "center" },
+);
+
+const WORKSHOP_TEAM = section("people", "grid", (b) => ({
+  heading: b.w(["Who *teaches* you", "من *يعلّمك*"]),
+  text: b.w([
+    "Developers who still ship code for a living.",
+    "مطوّرون ما زالوا يكتبون الشيفرة في عملهم اليومي.",
+  ]),
+  items: [
+    person(
+      b,
+      ["Lead teacher", "المعلّم الرئيسي"],
+      ["Python and data", "بايثون والبيانات"],
+    ),
+    person(b, ["Teacher", "معلّمة"], ["Web development", "تطوير الويب"]),
+    person(
+      b,
+      ["Teacher", "معلّم"],
+      ["Scratch and micro:bit", "سكراتش والمايكروبت"],
+    ),
+  ],
+}));
+
+// Atelier: an academy of courses for adults. Warm paper, a book serif, and
+// the season's courses as the first thing after the welcome.
+
+const ATELIER_HERO = section("hero", "split", (b) => ({
+  eyebrow: b.w(["Evening and weekend courses", "دورات مسائية وفي عطلة الأسبوع"]),
+  heading: b.w([
+    "Learn a craft *properly*, with people who practise it",
+    "تعلّم الصنعة *كما ينبغي*، مع من يمارسونها",
+  ]),
+  text: b.w([
+    "Twelve learners to a room, taught by working professionals, in terms of eight to twelve weeks.",
+    "اثنا عشر متعلّمًا في القاعة، يعلّمهم محترفون يعملون في مجالهم، في فصول من ثمانية إلى اثني عشر أسبوعًا.",
+  ]),
+  actions: [
+    link(b, ["See the courses", "تصفّح الدورات"], "/pages/courses"),
+    link(
+      b,
+      ["Ask about a place", "اسأل عن مقعد"],
+      `/pages/contact#${ANCHOR.general}`,
+    ),
+  ],
+  height: "m" as const,
+}));
+
+const ATELIER_COURSES = section("timeline", "vertical", (b) => ({
+  heading: b.w(["This season's *courses*", "دورات هذا *الموسم*"]),
+  items: [
+    milestone(
+      b,
+      "10",
+      ["Arabic calligraphy: Naskh", "الخط العربي: النسخ"],
+      [
+        "Ten Sunday evenings for beginners. The pen, the proportions and a finished page of your own.",
+        "عشر أمسيات أحد للمبتدئين. القلم والنِّسَب وصفحة مكتملة بخط يدك.",
+      ],
+    ),
+    milestone(
+      b,
+      "8",
+      ["Bookkeeping for small business", "مسك الدفاتر للمشروعات الصغيرة"],
+      [
+        "Eight Tuesdays. No experience needed: leave able to keep your own books.",
+        "ثمانية أيام ثلاثاء. بلا خبرة سابقة: تخرج قادرًا على مسك دفاترك بنفسك.",
+      ],
+    ),
+    milestone(
+      b,
+      "12",
+      ["English for the workplace", "الإنجليزية لبيئة العمل"],
+      [
+        "Twelve weeks, Monday and Wednesday, for people who read English and want to speak it at work.",
+        "اثنا عشر أسبوعًا، الاثنين والأربعاء، لمن يقرأ الإنجليزية ويريد أن يتحدّثها في عمله.",
+      ],
+    ),
+    milestone(
+      b,
+      "8",
+      ["Photography: light and portrait", "التصوير: الضوء والبورتريه"],
+      [
+        "Eight Saturday mornings with any camera, a phone included.",
+        "ثمانية صباحات سبت بأي كاميرا، ولو كانت كاميرا الهاتف.",
+      ],
+    ),
+  ],
+}));
+
+const ATELIER_FIGURES = section("stats", "row", (b) => ({
+  heading: "",
+  items: [
+    courseFigure(b, "12", [
+      "learners to a class, at most",
+      "متعلّمًا في الفصل، على الأكثر",
+    ]),
+    courseFigure(b, "94%", [
+      "finish the course they start",
+      "يكملون الدورة التي بدؤوها",
+    ]),
+    courseFigure(b, "9", [
+      "years teaching in this city",
+      "سنوات من التدريس في هذه المدينة",
+    ]),
+  ],
+  source: "",
+}));
+
+const ATELIER_QUOTE = section(
+  "quote",
+  "large",
+  (b) => ({
+    quote: b.w([
+      "I had tried to learn from videos for two years. Ten Sundays in that room did what they could not.",
+      "حاولت أن أتعلّم من الفيديوهات عامين. وعشرة أيام أحد في تلك القاعة فعلت ما لم تفعله.",
+    ]),
+    name: b.w(["Dina", "دينا"]),
+    role: b.w(["Naskh, spring term", "النسخ، فصل الربيع"]),
+    portrait: noImage,
+    badge: "none" as const,
+  }),
+  { align: "center" },
+);
+
+const ATELIER_TUTORS = section("people", "grid", (b) => ({
+  heading: b.w(["Your *tutors*", "*معلّموك*"]),
+  text: b.w([
+    "Each teaches what they do for a living.",
+    "كلٌّ منهم يعلّم ما يعمل به.",
+  ]),
+  items: [
+    person(b, ["Tutor", "معلّمة"], ["Calligraphy", "الخط العربي"]),
+    person(b, ["Tutor", "معلّم"], ["Accounting", "المحاسبة"]),
+    person(b, ["Tutor", "معلّمة"], ["Photography", "التصوير"]),
+  ],
+}));
+
+const ATELIER_JOIN = section("steps", "horizontal", (b) => ({
+  heading: b.w(["How to *join*", "كيف *تلتحق*"]),
+  text: "",
+  items: [
+    courseStep(
+      b,
+      ["Choose a course", "اختر دورة"],
+      [
+        "Read what each covers and who it is for. Ask us if you are unsure of the level.",
+        "اقرأ ما تغطيه كل دورة ولمن هي. واسألنا إن لم تكن متأكدًا من المستوى.",
+      ],
+    ),
+    courseStep(
+      b,
+      ["Reserve your place", "احجز مقعدك"],
+      [
+        "Write to us with the course and your phone number. Places are kept in the order we hear from you.",
+        "راسلنا باسم الدورة ورقم هاتفك. تُحجز المقاعد بترتيب وصول الرسائل.",
+      ],
+    ),
+    courseStep(
+      b,
+      ["Come to the first evening", "احضر الأمسية الأولى"],
+      [
+        "Materials are on the table. If the course is not for you, the first evening is free.",
+        "الأدوات على الطاولة. وإن لم تناسبك الدورة فالأمسية الأولى بلا مقابل.",
+      ],
+    ),
+  ],
+}));
+
+const ATELIER_FEES = section("fees", "table", (b) => ({
+  heading: b.w(["Fees", "الرسوم"]),
+  text: b.w([
+    "One fee for the whole course, materials included.",
+    "رسم واحد للدورة كلها، شاملًا الأدوات.",
+  ]),
+  items: [
+    coursePrice(
+      b,
+      ["Eight-week course", "دورة من ثمانية أسابيع"],
+      ["—", "—"],
+      ["", ""],
+    ),
+    coursePrice(
+      b,
+      ["Ten-week course", "دورة من عشرة أسابيع"],
+      ["—", "—"],
+      ["", ""],
+    ),
+    coursePrice(
+      b,
+      ["Twelve-week course", "دورة من اثني عشر أسبوعًا"],
+      ["—", "—"],
+      ["", ""],
+    ),
+  ],
+}));
+
+const ATELIER_FAQ = section("accordion", "accordion", (b) => ({
+  heading: b.w(["Questions people *ask*", "أسئلة *يطرحها* الناس"]),
+  text: "",
+  items: [
+    courseQuestion(
+      b,
+      ["Is this for beginners?", "هل هذه الدورات للمبتدئين؟"],
+      [
+        "Most courses are. Where a course expects you to know something already, its description says so.",
+        "أغلبها كذلك. وحيث تفترض الدورة معرفة سابقة، يذكر وصفها ذلك.",
+      ],
+    ),
+    courseQuestion(
+      b,
+      ["What if I miss an evening?", "ماذا لو فاتتني أمسية؟"],
+      [
+        "The notes and the exercise for each evening are kept online, and your tutor stays ten minutes after the next one.",
+        "تُحفظ ملاحظات كل أمسية وتمرينها على الإنترنت، ويبقى معلّمك عشر دقائق بعد الأمسية التالية.",
+      ],
+    ),
+    courseQuestion(
+      b,
+      ["Can I pay in parts?", "هل أستطيع الدفع على أقساط؟"],
+      [
+        "Yes: half before the first evening and half at the midpoint.",
+        "نعم: النصف قبل الأمسية الأولى والنصف عند منتصف الدورة.",
+      ],
+    ),
+  ],
+}));
+
+const ATELIER_ABOUT = section(
+  "text",
+  "statement",
+  (b) => ({
+    eyebrow: b.w(["Who we are", "من نحن"]),
+    heading: b.w([
+      "A small academy that believes a skill is learned in a *room*, from someone who has it.",
+      "أكاديمية صغيرة تؤمن بأن المهارة تُتعلَّم في *قاعة*، ممن يملكها.",
+    ]),
+    body: plainContent(
+      b.w([
+        "We keep classes small, hire tutors who practise what they teach, and judge ourselves by how many learners finish.",
+        "نبقي الفصول صغيرة، ونختار معلّمين يمارسون ما يعلّمونه، ونحكم على أنفسنا بعدد من يكملون.",
+      ]),
+    ),
+  }),
+  { scheme: "brand", align: "center" },
+);
+
+// Reel: a school of video courses. One picture fills the first screen, the
+// library comes next, and a free lesson is offered before any price.
+
+const REEL_ANCHOR = { free: "free-lesson" } as const;
+
+const REEL_HERO = section("hero", "fullbleed", (b) => ({
+  eyebrow: b.w(["Film school, in your own time", "مدرسة أفلام، في وقتك أنت"]),
+  heading: b.w([
+    "Make films people *finish* watching",
+    "اصنع أفلامًا *يكملها* الناس حتى النهاية",
+  ]),
+  text: b.w([
+    "Short lessons you can act on the same evening, taught by working directors and editors. In Arabic and English.",
+    "دروس قصيرة تطبّقها في المساء نفسه، يقدّمها مخرجون ومونتيرون يعملون في المجال. بالعربية والإنجليزية.",
+  ]),
+  actions: [
+    link(b, ["Browse the courses", "تصفّح الدورات"], "/pages/courses"),
+    link(
+      b,
+      ["Watch a free lesson", "شاهد درسًا مجانيًا"],
+      `/pages/courses#${REEL_ANCHOR.free}`,
+    ),
+  ],
+  height: "screen" as const,
+}));
+
+const REEL_LIBRARY = section("cards", "grid", (b) => ({
+  heading: b.w(["The *courses*", "*الدورات*"]),
+  text: b.w([
+    "Each is a set of short lessons with questions inside the video and an exercise at the end.",
+    "كل دورة مجموعة دروس قصيرة، بأسئلة داخل الفيديو وتمرين في نهايتها.",
+  ]),
+  columns: "3" as const,
+  items: [
+    card(
+      b,
+      ["Directing the short film", "إخراج الفيلم القصير"],
+      ["24 lessons · 6 hours · beginner", "24 درسًا · 6 ساعات · للمبتدئين"],
+      "none",
+      "/pages/courses",
+    ),
+    card(
+      b,
+      ["Editing on movement", "المونتاج على الحركة"],
+      [
+        "18 lessons · 4 hours · intermediate",
+        "18 درسًا · 4 ساعات · المستوى المتوسط",
+      ],
+      "none",
+      "/pages/courses",
+    ),
+    card(
+      b,
+      ["Light you already have", "الضوء المتاح لديك"],
+      ["12 lessons · 3 hours · beginner", "12 درسًا · 3 ساعات · للمبتدئين"],
+      "none",
+      "/pages/courses",
+    ),
+  ],
+}));
+
+const REEL_FREE = section(
+  "video",
+  "beside",
+  (b) => ({
+    heading: b.w(["Try a lesson *first*", "جرّب درسًا *أولًا*"]),
+    text: b.w([
+      '"Cutting on movement", eleven minutes, with the questions and the exercise that come with it.',
+      "«القطع على الحركة»، إحدى عشرة دقيقة، مع أسئلته وتمرينه.",
+    ]),
+    actions: [link(b, ["See every course", "كل الدورات"], "/pages/courses")],
+  }),
+  { scheme: "soft", anchor: REEL_ANCHOR.free },
+);
+
+const REEL_HOW = section("pillars", "icons", (b) => ({
+  heading: b.w(["How you *learn* here", "كيف *تتعلّم* هنا"]),
+  text: "",
+  items: [
+    pillar(
+      b,
+      ["Short on purpose", "قصيرة عن قصد"],
+      [
+        "Lessons run ten to fifteen minutes: one idea, shown, then yours to try.",
+        "مدة الدرس من عشر إلى خمس عشرة دقيقة: فكرة واحدة تُعرض، ثم تجرّبها أنت.",
+      ],
+      "clock",
+    ),
+    pillar(
+      b,
+      ["Questions inside the video", "أسئلة داخل الفيديو"],
+      [
+        "The lesson stops and asks, so you notice what you missed before moving on.",
+        "يتوقف الدرس ويسألك، فتنتبه لما فاتك قبل أن تكمل.",
+      ],
+      "lightbulb",
+    ),
+    pillar(
+      b,
+      ["Your work, looked at", "عملك يُشاهَد"],
+      [
+        "Send the exercise in and a teacher answers with notes on your own footage.",
+        "أرسل التمرين فيردّ عليك معلّم بملاحظات على لقطاتك أنت.",
+      ],
+      "award",
+    ),
+    pillar(
+      b,
+      ["Two languages", "لغتان"],
+      [
+        "Every lesson has captions in Arabic and English.",
+        "لكل درس ترجمة مكتوبة بالعربية والإنجليزية.",
+      ],
+      "globe",
+    ),
+  ],
+}));
+
+const REEL_PRICING = section("fees", "table", (b) => ({
+  heading: b.w(["Pricing", "الأسعار"]),
+  text: b.w([
+    "Buy one course and keep it, or take everything by the month.",
+    "اشترِ دورة واحدة واحتفظ بها، أو اشترك في كل شيء شهريًا.",
+  ]),
+  items: [
+    coursePrice(
+      b,
+      ["One course", "دورة واحدة"],
+      ["—", "—"],
+      ["Yours to keep, with its updates.", "تبقى لك، مع تحديثاتها."],
+    ),
+    coursePrice(
+      b,
+      ["Everything, by the month", "كل الدورات، شهريًا"],
+      ["—", "—"],
+      [
+        "Every course while you subscribe. Stop whenever you like.",
+        "كل الدورات ما دمت مشتركًا. وتوقف متى شئت.",
+      ],
+    ),
+  ],
+}));
+
+const REEL_VOICES = section("voices", "carousel", (b) => ({
+  heading: b.w(["From people who *finished*", "ممن *أكملوا*"]),
+  items: [
+    courseVoice(
+      b,
+      [
+        "The first course I have ever finished online. The lessons are short enough that I had no excuse.",
+        "أول دورة أكملها على الإنترنت. الدروس قصيرة إلى حد لم يترك لي عذرًا.",
+      ],
+      ["Karim", "كريم"],
+      ["Directing the short film", "إخراج الفيلم القصير"],
+      "student",
+    ),
+    courseVoice(
+      b,
+      [
+        "The notes on my own edit taught me more than the lessons did.",
+        "الملاحظات على مونتاجي أنا علّمتني أكثر من الدروس نفسها.",
+      ],
+      ["Nour", "نور"],
+      ["Editing on movement", "المونتاج على الحركة"],
+      "alumni",
+    ),
+  ],
+}));
+
+const REEL_FAQ = section("accordion", "accordion", (b) => ({
+  heading: b.w(["Before you *start*", "قبل أن *تبدأ*"]),
+  text: "",
+  items: [
+    courseQuestion(
+      b,
+      ["What do I need?", "ماذا أحتاج؟"],
+      [
+        "A phone that films and any free editing app. Each course says if it needs more.",
+        "هاتف يصوّر وأي تطبيق مونتاج مجاني. وتذكر كل دورة إن كانت تحتاج إلى أكثر من ذلك.",
+      ],
+    ),
+    courseQuestion(
+      b,
+      ["How long do I have?", "كم من الوقت لديّ؟"],
+      [
+        "As long as you like. Your place in every lesson is kept.",
+        "ما شئت من الوقت. ومكانك في كل درس محفوظ.",
+      ],
+    ),
+    courseQuestion(
+      b,
+      ["Can I watch on my phone?", "هل أستطيع المشاهدة على الهاتف؟"],
+      [
+        "Yes. The video adjusts to your connection, and captions work everywhere.",
+        "نعم. يتكيّف الفيديو مع سرعة اتصالك، والترجمة المكتوبة تعمل في كل مكان.",
+      ],
+    ),
+  ],
+}));
+
+const REEL_ABOUT = section(
+  "text",
+  "statement",
+  (b) => ({
+    eyebrow: b.w(["Why we made this", "لماذا صنعنا هذا"]),
+    heading: b.w([
+      "Most online courses are started and never *finished*. We built ours to be finished.",
+      "أغلب الدورات على الإنترنت تُبدأ ولا *تُكمَل*. صنعنا دوراتنا لتُكمَل.",
+    ]),
+    body: plainContent(
+      b.w([
+        "Short lessons, a question before you drift, and a person who looks at what you made.",
+        "دروس قصيرة، وسؤال قبل أن يشرد ذهنك، وإنسان يشاهد ما صنعت.",
+      ]),
+    ),
+  }),
+  { scheme: "ink", align: "center" },
+);
+
+const REEL_TEACHERS = section("people", "grid", (b) => ({
+  heading: b.w(["Who *teaches*", "من *يعلّم*"]),
+  text: "",
+  items: [
+    person(b, ["Director", "مخرجة"], ["Directing", "الإخراج"]),
+    person(b, ["Editor", "مونتير"], ["Editing", "المونتاج"]),
+    person(
+      b,
+      ["Cinematographer", "مدير تصوير"],
+      ["Light and camera", "الضوء والكاميرا"],
+    ),
+  ],
+}));
+
 const CANVAS = { scheme: "canvas" } as const;
 const SOFT = { scheme: "soft" } as const;
 const BRAND = { scheme: "brand" } as const;
@@ -3700,6 +4509,141 @@ export const PAGE_TEMPLATES = {
     ),
     on(FAQ, CANVAS, "columns"),
   ],
+  // Workshop: the promise in type on a dark band, the tracks, how a week
+  // goes, the cohorts with their days, learners' projects and words.
+  homeWorkshop: [
+    on(WORKSHOP_HERO, INK),
+    on(WORKSHOP_TRACKS, CANVAS),
+    on(WORKSHOP_HOW, SOFT),
+    on(WORKSHOP_COHORTS, CANVAS),
+    on(WORKSHOP_PROJECTS, INK),
+    on(WORKSHOP_VOICES, CANVAS),
+    on(WORKSHOP_JOIN, ACCENT),
+  ],
+  tracks: [
+    PAGE_HEADER(
+      ["The *tracks*", "*المسارات*"],
+      [
+        "What each track covers, who it is for and what you leave with.",
+        "ما يغطيه كل مسار، ولمن هو، وبماذا تخرج منه.",
+      ],
+    ),
+    on(WORKSHOP_TRACKS, CANVAS, "grid"),
+    on(WORKSHOP_HOW, SOFT),
+    on(WORKSHOP_FAQ, CANVAS),
+  ],
+  cohorts: [
+    PAGE_HEADER(
+      ["Upcoming *cohorts*", "الدفعات *القادمة*"],
+      [
+        "Days, times and how to take a place.",
+        "الأيام والمواعيد وكيف تحجز مقعدًا.",
+      ],
+    ),
+    on(WORKSHOP_COHORTS, CANVAS),
+    on(WORKSHOP_JOIN, SOFT),
+    on(WORKSHOP_FAQ, CANVAS),
+  ],
+  aboutWorkshop: [
+    PAGE_HEADER(
+      ["About *us*", "*من نحن*"],
+      [
+        "Who teaches here, and why we teach the way we do.",
+        "من يعلّم هنا، ولماذا ندرّس بهذه الطريقة.",
+      ],
+    ),
+    WORKSHOP_ABOUT,
+    on(WORKSHOP_TEAM, CANVAS),
+    on(WORKSHOP_PROJECTS, SOFT, "masonry"),
+  ],
+  // Atelier: the welcome beside a picture, the season's courses as a ruled
+  // list, three figures, one learner's sentence, the tutors and the way in.
+  homeAtelier: [
+    on(ATELIER_HERO, CANVAS),
+    on(ATELIER_COURSES, SOFT),
+    on(ATELIER_FIGURES, CANVAS),
+    on(ATELIER_QUOTE, BRAND),
+    on(ATELIER_TUTORS, CANVAS),
+    on(ATELIER_JOIN, SOFT),
+  ],
+  courses: [
+    PAGE_HEADER(
+      ["This season's *courses*", "دورات هذا *الموسم*"],
+      [
+        "What each course covers, when it meets and how long it runs.",
+        "ما تغطيه كل دورة، ومتى تنعقد، وكم تستمر.",
+      ],
+    ),
+    on(ATELIER_COURSES, CANVAS),
+    on(ATELIER_JOIN, SOFT),
+    on(ATELIER_FAQ, CANVAS),
+  ],
+  tutors: [
+    PAGE_HEADER(
+      ["Your *tutors*", "*معلّموك*"],
+      ["People who do the work they teach.", "أناس يعملون بما يعلّمونه."],
+    ),
+    ATELIER_ABOUT,
+    on(ATELIER_TUTORS, CANVAS),
+    on(ATELIER_QUOTE, { scheme: "soft", align: "center" }),
+  ],
+  feesCourses: [
+    PAGE_HEADER(
+      ["Fees", "الرسوم"],
+      [
+        "What a course costs and how to pay for it.",
+        "كم تكلّف الدورة وكيف تدفع رسومها.",
+      ],
+    ),
+    on(ATELIER_FEES, CANVAS),
+    on(ATELIER_FAQ, SOFT),
+  ],
+  // Reel: one picture and one sentence fill the screen, then the library,
+  // a lesson to try, how learning works here, and the price last.
+  homeReel: [
+    on(REEL_HERO, INK),
+    on(REEL_LIBRARY, CANVAS),
+    REEL_FREE,
+    on(REEL_HOW, CANVAS),
+    on(REEL_VOICES, INK),
+    on(REEL_PRICING, CANVAS),
+  ],
+  library: [
+    PAGE_HEADER(
+      ["The *courses*", "*الدورات*"],
+      [
+        "Every course, how long it is and who it is for.",
+        "كل الدورات، ومدة كلٍّ منها، ولمن هي.",
+      ],
+    ),
+    on(REEL_LIBRARY, CANVAS),
+    REEL_FREE,
+    on(REEL_FAQ, CANVAS),
+  ],
+  pricing: [
+    PAGE_HEADER(
+      ["Pricing", "الأسعار"],
+      [
+        "Two ways to pay, and what each gives you.",
+        "طريقتان للدفع، وما تحصل عليه في كلٍّ منهما.",
+      ],
+    ),
+    on(REEL_PRICING, CANVAS),
+    on(REEL_FAQ, SOFT),
+  ],
+  aboutReel: [
+    PAGE_HEADER(
+      ["About *us*", "*من نحن*"],
+      [
+        "Who makes these courses, and what we are trying to fix.",
+        "من يصنع هذه الدورات، وما الذي نحاول إصلاحه.",
+      ],
+    ),
+    REEL_ABOUT,
+    on(REEL_TEACHERS, CANVAS),
+    on(REEL_HOW, SOFT),
+  ],
+  contactCourses: COURSES_CONTACT,
 } satisfies Record<string, ((b: Builder) => PageSection)[]>;
 export type PageTemplate = keyof typeof PAGE_TEMPLATES;
 export type SiteTemplate = PageTemplate;
@@ -3735,9 +4679,18 @@ export interface StarterPage {
   home?: boolean;
 }
 
+/** A button a starter puts in the site's header. */
+export interface StarterAction {
+  label: Words;
+  href: string;
+  style: "primary" | "secondary";
+}
+
 export interface Starter {
   theme: ThemeId;
   pages: StarterPage[];
+  /** Its own header buttons, where a school's enquiry, visit and apply do not fit. */
+  actions?: StarterAction[];
 }
 
 const HOME: StarterPage = {
@@ -3776,6 +4729,12 @@ const CONTACT_PAGE: StarterPage = {
   title: ["Contact", "تواصل معنا"],
   template: "contact",
 };
+const starterPage = (
+  slug: string,
+  title: Words,
+  template: PageTemplate,
+): StarterPage => ({ slug, title, template });
+
 /** Whole sites a school can start from: a theme and a set of pages. */
 export const STARTERS = {
   heritage: {
@@ -3833,6 +4792,57 @@ export const STARTERS = {
       CONTACT_PAGE,
     ],
   },
+  workshop: {
+    theme: "workshop",
+    pages: [
+      { ...HOME, template: "homeWorkshop" },
+      starterPage("tracks", ["Tracks", "المسارات"], "tracks"),
+      starterPage("cohorts", ["Cohorts", "الدفعات"], "cohorts"),
+      { ...ABOUT, template: "aboutWorkshop" },
+      { ...CONTACT_PAGE, template: "contactCourses" },
+    ],
+    actions: [
+      {
+        label: ["Join a cohort", "انضم إلى دفعة"],
+        href: "/pages/cohorts",
+        style: "primary",
+      },
+    ],
+  },
+  atelier: {
+    theme: "atelier",
+    pages: [
+      { ...HOME, template: "homeAtelier" },
+      starterPage("courses", ["Courses", "الدورات"], "courses"),
+      starterPage("tutors", ["Tutors", "المعلّمون"], "tutors"),
+      starterPage("fees", ["Fees", "الرسوم"], "feesCourses"),
+      { ...CONTACT_PAGE, template: "contactCourses" },
+    ],
+    actions: [
+      {
+        label: ["Ask about a place", "اسأل عن مقعد"],
+        href: `/pages/contact#${ANCHOR.general}`,
+        style: "primary",
+      },
+    ],
+  },
+  reel: {
+    theme: "reel",
+    pages: [
+      { ...HOME, template: "homeReel" },
+      starterPage("courses", ["Courses", "الدورات"], "library"),
+      starterPage("pricing", ["Pricing", "الأسعار"], "pricing"),
+      { ...ABOUT, template: "aboutReel" },
+      { ...CONTACT_PAGE, template: "contactCourses" },
+    ],
+    actions: [
+      {
+        label: ["Start watching", "ابدأ المشاهدة"],
+        href: "/pages/courses",
+        style: "primary",
+      },
+    ],
+  },
 } satisfies Record<string, Starter>;
 export type StarterId = keyof typeof STARTERS;
 export const STARTER_IDS = Object.keys(STARTERS) as StarterId[];
@@ -3843,7 +4853,10 @@ const freshId = () => crypto.randomUUID();
 /** The pages a family weighing the school looks for, which the footer gathers under "Join us". */
 const JOINING = new Set(["admissions", "visit", "contact"]);
 
-export function starterChrome(pages: StarterPage[]): SiteChrome {
+export function starterChrome(
+  pages: StarterPage[],
+  actions?: StarterAction[],
+): SiteChrome {
   const has = (slug: string) => pages.some((page) => page.slug === slug);
   const target = (slug: string, anchor: string) =>
     has(slug) ? `/pages/${slug}#${anchor}` : `/pages/contact#${ANCHOR.general}`;
@@ -3860,7 +4873,12 @@ export function starterChrome(pages: StarterPage[]): SiteChrome {
   return {
     // News joins the menu by itself, so a new site's header is one row.
     utility: [],
-    actions: [
+    actions: actions?.map((action) => ({
+      id: freshId(),
+      label: { en: action.label[0], ar: action.label[1] },
+      href: action.href,
+      style: action.style,
+    })) ?? [
       {
         id: freshId(),
         label: { en: "Enquire", ar: "استفسر" },

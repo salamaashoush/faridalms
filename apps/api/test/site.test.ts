@@ -360,6 +360,64 @@ describe("starting from a starter", () => {
       bannerUntil: after.settings.bannerUntil ?? "",
     });
   });
+
+  test("gives a site with no header buttons the starter's own, and its pages for courses", async () => {
+    const { api } = await principal();
+    const before = await api.site.overview();
+    const settingsOf = (
+      settings: typeof before.settings,
+      over: Partial<Pick<typeof before.settings, "theme" | "chrome">>,
+    ) => ({
+      expectedVersion: settings.version,
+      theme: over.theme ?? settings.theme,
+      chrome: over.chrome ?? settings.chrome,
+      live: settings.live,
+      bilingual: settings.bilingual,
+      taglineEn: settings.taglineEn,
+      taglineAr: settings.taglineAr,
+      socialLinks: settings.socialLinks,
+      bannerEn: settings.bannerEn,
+      bannerAr: settings.bannerAr,
+      bannerTone: settings.bannerTone,
+      bannerUntil: settings.bannerUntil ?? "",
+    });
+    await api.site.saveSettings(
+      settingsOf(before.settings, {
+        chrome: { ...before.settings.chrome, actions: [], footerColumns: [] },
+      }),
+    );
+    const { created } = await api.site.applyStarter({
+      starter: "reel",
+      withTheme: true,
+    });
+    const after = await api.site.overview();
+    try {
+      expect(after.settings.theme.id).toBe("reel");
+      expect(
+        after.settings.chrome.actions.map((action) => action.label.en),
+      ).toEqual(["Start watching"]);
+      const added = after.pages.filter((row) => created.includes(row.id));
+      expect(added.map((row) => row.slug).toSorted()).toEqual([
+        "courses",
+        "pricing",
+      ]);
+      for (const row of added) {
+        expect(row.state).toBe("draft");
+        const page = await api.site.page({ id: row.id });
+        expect(page.content.sections.length).toBeGreaterThan(0);
+        expect(page.gaps.missing).toEqual([]);
+      }
+    } finally {
+      // Other files read Northwind's seeded site, so it goes back as it was.
+      for (const id of created) await api.site.removeSitePage({ id });
+      await api.site.saveSettings(
+        settingsOf(after.settings, {
+          theme: before.settings.theme,
+          chrome: before.settings.chrome,
+        }),
+      );
+    }
+  });
 });
 
 /** A visitor whose requests arrive through the web server from one address. */

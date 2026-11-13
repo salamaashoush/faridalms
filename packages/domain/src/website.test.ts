@@ -448,6 +448,16 @@ function hrefs(value: unknown): string[] {
   );
 }
 
+/** Every sentence a visitor reads in a value, leaving out what a person is quoted as saying. */
+function words(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(words);
+  if (!value || typeof value !== "object") return [];
+  return Object.entries(value).flatMap(([key, inner]) =>
+    key === "quote" ? [] : words(inner),
+  );
+}
+
 describe("templates", () => {
   it("build valid sections in both languages that line up as a translation", () => {
     for (const template of PAGE_TEMPLATE_IDS) {
@@ -509,6 +519,32 @@ describe("templates", () => {
       });
       expect(dead).toEqual([]);
     }
+  });
+
+  it("give a starter its own header buttons where it names them", () => {
+    const { pages, actions } = STARTERS.reel;
+    const chrome = starterChrome(pages, actions);
+    expect(chrome.actions.map((action) => action.label.en)).toEqual([
+      "Start watching",
+    ]);
+    expect(chrome.actions[0]?.href).toBe("/pages/courses");
+    expect(
+      starterChrome(STARTERS.heritage.pages).actions.map(
+        (action) => action.label.en,
+      ),
+    ).toEqual(["Enquire", "Book a visit", "Apply"]);
+  });
+
+  it("speak to learners, not to families, in the starters for courses", () => {
+    const schoolWords =
+      /\b(famil(y|ies)|parents?|guardians?|child(ren)?|grades?|homerooms?)\b|أسرة|الأسر|أولياء|ولي الأمر|طفلكم|أطفالكم/i;
+    for (const starter of ["workshop", "atelier", "reel"] as const)
+      for (const page of STARTERS[starter].pages)
+        for (const language of ["en", "ar"] as const) {
+          // A parent may speak in a quote; the page itself addresses the learner.
+          const said = words(buildTemplate(page.template, language).content);
+          expect(said.filter((text) => schoolWords.test(text))).toEqual([]);
+        }
   });
 
   it("give every starter a home page and a theme", () => {
