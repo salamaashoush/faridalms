@@ -223,6 +223,7 @@ export const MODULE_FILES: Partial<Record<ModuleId, readonly string[]>> = {
   website: [
     "packages/database/src/tables/site.ts",
     "packages/database/src/stores/site.ts",
+    "packages/database/src/stores/site-classes.ts",
     "apps/api/src/website/",
     "apps/api/src/systems/site.ts",
     "apps/web/src/components/site/",
@@ -835,6 +836,7 @@ export const FUNCTION_OWNERS: Readonly<Record<string, Ownership>> = {
   "app.change_year_span": { owner: "school_years" },
   "app.register_period_held": { owner: "attendance", needs: ["timetable"] },
   "app.programme_of": { owner: "coursework" },
+  "app.site_classes": { owner: "website" },
   "app.scale_version_of": { owner: "coursework" },
 };
 

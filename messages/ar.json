@@ -11093,5 +11093,96 @@
   "registerWho": "لمن تقدّم الطلب؟",
   "registerWhoOther": "لطفلي، أو لمن هو في رعايتي",
   "registerWhoSelf": "لنفسي",
-  "registerErrWho": "اختر لمن تقدّم الطلب."
+  "registerErrWho": "اختر لمن تقدّم الطلب.",
+  "siteClassStarts": "يبدأ في {date}",
+  "siteClassRunningUntil": "قائم الآن حتى {date}",
+  "siteClassRunningOpen": "قائم الآن، والانضمام متاح في أي وقت",
+  "siteClassWeeks": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "{value} أسبوع",
+        "countPlural=one": "أسبوع واحد",
+        "countPlural=two": "أسبوعان",
+        "countPlural=few": "{value} أسابيع",
+        "countPlural=many": "{value} أسبوعًا",
+        "countPlural=*": "{value} أسبوع"
+      }
+    }
+  ],
+  "siteClassDays": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "{value} يوم",
+        "countPlural=one": "يوم واحد",
+        "countPlural=two": "يومان",
+        "countPlural=few": "{value} أيام",
+        "countPlural=many": "{value} يومًا",
+        "countPlural=*": "{value} يوم"
+      }
+    }
+  ],
+  "siteClassWith": "مع {names}",
+  "siteClassButtonFor": "، {title}",
+  "siteClassesFromClasses": "تظهر هنا الفصول التي تعرضها على الموقع. اعرض الفصل من سجلّه، في قسم على الموقع.",
+  "siteTypeCourses": "الدورات",
+  "siteTypeHintCourses": "الفصول التي تعرضها على الموقع، بمواعيدها وطريقة للسؤال عنها.",
+  "siteVariantCoursesGrid": "بطاقات",
+  "siteVariantCoursesList": "قائمة بالمواعيد",
+  "siteVariantCoursesTable": "جدول المواعيد",
+  "siteFieldPick": "الفصول المعروضة",
+  "siteFieldClassIds": "الفصول",
+  "siteFieldCourseId": "المقرر",
+  "siteFieldOrder": "الترتيب",
+  "siteFieldDates": "المواعيد",
+  "siteFieldTeachers": "أسماء المعلّمين",
+  "siteFieldDuration": "المدة",
+  "siteFieldLevel": "سطر المستوى",
+  "siteFieldAction": "الزر بجانب كل فصل",
+  "siteFieldWhen": "الموعد",
+  "siteFieldClassIdsHint": "لا يمكن اختيار إلا فصل معروض على الموقع. تُكتب كلماته العامة في سجلّه.",
+  "siteFieldActionHint": "إلى أين يقود: صفحة أو نموذج التواصل أو طريق التقديم.",
+  "siteChoicePickAll": "كل الفصول المعروضة",
+  "siteChoicePickChosen": "فصول أختارها",
+  "siteChoicePickCourse": "فصول مقرر واحد",
+  "siteChoiceOrderStart": "الأقرب بدءًا أولًا",
+  "siteChoiceOrderTitle": "حسب الاسم",
+  "siteChoiceShow": "إظهار",
+  "siteChoiceHide": "إخفاء",
+  "siteClassSearch": "ابحث في الفصول",
+  "siteClassNoneToPick": "لا يوجد فصل قائم أو على وشك البدء.",
+  "siteClassNotShown": "غير معروض على الموقع",
+  "siteClassOpenRecord": "افتح سجلّ {title}",
+  "siteClassChooseCourse": "اختر مقررًا",
+  "classWebsiteTitle": "على الموقع",
+  "classWebsiteHint": "لا يظهر الفصل على موقع المدرسة إلا بعد أن تعرضه هنا، بالكلمات التي يقرؤها الزائر.",
+  "classWebsiteShown": "اعرض هذا الفصل على الموقع",
+  "classWebsiteNotLive": "الموقع غير منشور بعد. يظهر الفصل حين يُنشر.",
+  "classWebsitePublicTitleEn": "العنوان العام بالإنجليزية",
+  "classWebsitePublicTitleAr": "العنوان العام بالعربية",
+  "classWebsitePublicTitleHint": "اتركه فارغًا لاستخدام عنوان الفصل نفسه.",
+  "classWebsiteDescriptionEn": "الوصف بالإنجليزية",
+  "classWebsiteDescriptionAr": "الوصف بالعربية",
+  "classWebsiteLevelEn": "المستوى أو الفئة بالإنجليزية",
+  "classWebsiteLevelAr": "المستوى أو الفئة بالعربية",
+  "classWebsiteLevelHint": "مثل: للمبتدئين، أو الأعمار من 8 إلى 12.",
+  "classWebsitePicture": "الصورة على الموقع",
+  "classWebsitePictureAltEn": "وصف الصورة بالإنجليزية",
+  "classWebsitePictureAltAr": "وصف الصورة بالعربية",
+  "classWebsiteSave": "احفظ بيانات الموقع",
+  "classWebsiteSaved": "حُفظت بيانات الموقع.",
+  "siteErrClassDescription": "اكتب وصفًا قبل عرض الفصل على الموقع.",
+  "siteErrClassAlt": "صف الصورة بكل لغة كُتب بها الوصف.",
+  "auditSiteClassSave": "تغيّر الفصل على الموقع"
 }

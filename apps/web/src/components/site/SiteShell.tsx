@@ -1,4 +1,5 @@
 import type { PublishedPicture } from "@faridalms/domain/previews";
+import type { SiteClass } from "@faridalms/domain/site-classes";
 import type { SiteLocale } from "@faridalms/domain/website";
 import type { PictureSources } from "@faridalms/editor/file-facts";
 import type { ReactNode } from "react";
@@ -52,6 +53,7 @@ export function publicContext(
     news?: NewsItem[];
     events?: SiteEvent[];
     intakes?: SiteIntake[];
+    classes?: SiteClass[];
     today?: string;
     page?: string;
   } = {},
@@ -67,6 +69,7 @@ export function publicContext(
     news: input.news ?? [],
     events: input.events ?? [],
     intakes: input.intakes ?? [],
+    classes: input.classes ?? [],
     today: input.today,
     applyHref: (intakeId) =>
       hostHref(

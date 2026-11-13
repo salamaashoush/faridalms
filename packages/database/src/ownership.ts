@@ -169,6 +169,7 @@ export const TABLE_OWNERS: Record<string, Ownership> = {
   "core.sessions": { owner: "core" },
   "core.shared_blocks": { owner: "core" },
   "core.site_categories": { owner: "website" },
+  "core.site_classes": { owner: "website" },
   "core.site_enquiries": { owner: "admissions" },
   "core.site_pages": { owner: "website" },
   "core.site_posts": { owner: "website" },

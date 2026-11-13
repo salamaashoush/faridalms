@@ -70,7 +70,14 @@ what it leaves to do.
 - **Fees**: what a learner owes and has paid, the next module to design.
 - **Usage per module**: the `usageFacts` point carries a module's counts to
   the console, and only families reports to it.
-- **Public catalogue and checkout** for selling a course.
+- **Public catalogue and checkout** for selling a course. The website's
+  courses section now lists the classes a school shows, with their dates,
+  public words and one button; there is still no price, checkout or
+  enrolment from it.
+- **Classes on the website, what is left**: a class has no capacity, so
+  the courses section offers no "places left"; teachers are named by their
+  full name, as nothing else on the site names staff, and a school may want
+  a public name for each.
 - **Sign-in through an identity provider**: the `sso` module owns the
   provider tables and has no sign-in flow or API.
 - **Starter content that speaks of families and years**: event template

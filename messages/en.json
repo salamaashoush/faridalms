@@ -10653,5 +10653,88 @@
   "registerWho": "Who are you applying for?",
   "registerWhoOther": "My child, or someone in my care",
   "registerWhoSelf": "Myself",
-  "registerErrWho": "Choose who you are applying for."
+  "registerErrWho": "Choose who you are applying for.",
+  "siteClassStarts": "Starts {date}",
+  "siteClassRunningUntil": "Running now, until {date}",
+  "siteClassRunningOpen": "Running now, joins any time",
+  "siteClassWeeks": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "One week",
+        "countPlural=*": "{value} weeks"
+      }
+    }
+  ],
+  "siteClassDays": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "One day",
+        "countPlural=*": "{value} days"
+      }
+    }
+  ],
+  "siteClassWith": "With {names}",
+  "siteClassButtonFor": ", {title}",
+  "siteClassesFromClasses": "The classes you show on the website appear here. Show a class from its record, under On the website.",
+  "siteTypeCourses": "Courses",
+  "siteTypeHintCourses": "The classes you show on the website, with their dates and a way to ask.",
+  "siteVariantCoursesGrid": "Cards",
+  "siteVariantCoursesList": "List with dates",
+  "siteVariantCoursesTable": "Schedule",
+  "siteFieldPick": "Which classes",
+  "siteFieldClassIds": "Classes",
+  "siteFieldCourseId": "Course",
+  "siteFieldOrder": "Order",
+  "siteFieldDates": "Dates",
+  "siteFieldTeachers": "Teachers' names",
+  "siteFieldDuration": "Length",
+  "siteFieldLevel": "Level line",
+  "siteFieldAction": "Button beside each class",
+  "siteFieldWhen": "When",
+  "siteFieldClassIdsHint": "Only a class shown on the website can be picked. Its public words are written on its record.",
+  "siteFieldActionHint": "Where it leads: a page, the contact form or the way to apply.",
+  "siteChoicePickAll": "Every class shown",
+  "siteChoicePickChosen": "Classes I choose",
+  "siteChoicePickCourse": "The classes of one course",
+  "siteChoiceOrderStart": "Soonest start first",
+  "siteChoiceOrderTitle": "By name",
+  "siteChoiceShow": "Show",
+  "siteChoiceHide": "Hide",
+  "siteClassSearch": "Search classes",
+  "siteClassNoneToPick": "No class is running or about to start.",
+  "siteClassNotShown": "Not shown on the website",
+  "siteClassOpenRecord": "Open the record of {title}",
+  "siteClassChooseCourse": "Choose a course",
+  "classWebsiteTitle": "On the website",
+  "classWebsiteHint": "A class is on the school's website only once you show it here, with the words a visitor reads.",
+  "classWebsiteShown": "Show this class on the website",
+  "classWebsiteNotLive": "The website is not live yet. The class appears once it is.",
+  "classWebsitePublicTitleEn": "Public title in English",
+  "classWebsitePublicTitleAr": "Public title in Arabic",
+  "classWebsitePublicTitleHint": "Leave it empty to use the class's own title.",
+  "classWebsiteDescriptionEn": "Description in English",
+  "classWebsiteDescriptionAr": "Description in Arabic",
+  "classWebsiteLevelEn": "Level or audience in English",
+  "classWebsiteLevelAr": "Level or audience in Arabic",
+  "classWebsiteLevelHint": "Such as Beginner, or Ages 8 to 12.",
+  "classWebsitePicture": "Picture on the website",
+  "classWebsitePictureAltEn": "Picture description in English",
+  "classWebsitePictureAltAr": "Picture description in Arabic",
+  "classWebsiteSave": "Save website details",
+  "classWebsiteSaved": "Website details saved.",
+  "siteErrClassDescription": "Write a description before showing the class on the website.",
+  "siteErrClassAlt": "Describe the picture in each language the description is written in.",
+  "auditSiteClassSave": "Class on the website changed"
 }

@@ -3,6 +3,7 @@ import {
   sitePublished,
   siteSettings,
 } from "@faridalms/database/stores/site";
+import { keepSiteClassPicture } from "@faridalms/database/stores/site-classes";
 import { resolveTheme, siteThemeSchema } from "@faridalms/domain/site-theme";
 import * as v from "valibot";
 
@@ -48,6 +49,10 @@ export const WEBSITE: ModuleContributions = {
     contribute(pictureCopies, {
       hostType: "announcement",
       keep: (tx, input) => keepPublishedPicture(tx, { ...input, host: "post" }),
+    }),
+    contribute(pictureCopies, {
+      hostType: "site_class",
+      keep: keepSiteClassPicture,
     }),
   ],
 };

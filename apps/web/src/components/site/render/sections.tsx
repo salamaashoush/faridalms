@@ -54,6 +54,7 @@ import type { RenderContext, SiteIntake } from "./parts";
 
 import { useSiteWords } from "../slots";
 import { SiteArt } from "./art";
+import { Courses, coursesListed } from "./courses";
 import { useCountUp } from "./motion";
 import {
   Actions,
@@ -3777,6 +3778,8 @@ export function hasContent(
   if (section.type === "news") return context.news.length > 0;
   if (section.type === "events")
     return listedEvents(section.data, context).length > 0;
+  if (section.type === "courses")
+    return coursesListed(section.data, context).length > 0;
   if (section.type === "admissions" && section.data.source === "intakes")
     return (
       (context.intakes ?? []).length > 0 ||
@@ -3852,6 +3855,8 @@ export function SiteSection({
         return <News section={section} context={context} first={first} />;
       case "events":
         return <Events section={section} context={context} first={first} />;
+      case "courses":
+        return <Courses section={section} context={context} />;
       case "admissions":
         return <Admissions section={section} context={context} first={first} />;
       case "registerApply":

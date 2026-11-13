@@ -2,9 +2,9 @@
   "type": "diff",
   "version": "9",
   "dialect": "postgres",
-  "id": "f5b8a192-bb06-4a6e-967d-5070d9cdf4a3",
+  "id": "9981fb0d-abbb-4f06-a925-11581572199d",
   "prevIds": [
-    "bd3b42fb-8fa6-46c8-be35-60fb8737b3d5"
+    "8d7fdf73-664a-402d-b6f8-a9bca06b9117"
   ],
   "footprints": [
     {
@@ -2992,6 +2992,25 @@
         "n|rel|core.site_categories",
         "n|type|core.site_categories",
         "n|rel|core.site_categories_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_classes"
+      ],
+      "writes": [
+        "s|tbl|core.site_classes",
+        "n|tbl|core.site_classes",
+        "e|tbl|core.site_classes",
+        "n|rel|core.site_classes",
+        "n|type|core.site_classes",
+        "n|rel|core.site_classes_pkey"
       ],
       "reads": [
         "n|sch|core"
@@ -8679,6 +8698,48 @@
         "n|col|core.site_categories.tenant_id",
         "n|col|core.site_categories.org_id",
         "n|col|core.site_categories.slug"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "site_classes",
+        "site_classes_class_key"
+      ],
+      "writes": [
+        "s|idx|core.site_classes_class_key",
+        "n|idx|core.site_classes_class_key",
+        "e|idx|core.site_classes_class_key",
+        "n|rel|core.site_classes_class_key"
+      ],
+      "reads": [
+        "n|tbl|core.site_classes",
+        "n|sch|core",
+        "n|col|core.site_classes.tenant_id",
+        "n|col|core.site_classes.class_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "site_classes",
+        "site_classes_shown_idx"
+      ],
+      "writes": [
+        "s|idx|core.site_classes_shown_idx",
+        "n|idx|core.site_classes_shown_idx",
+        "e|idx|core.site_classes_shown_idx",
+        "n|rel|core.site_classes_shown_idx"
+      ],
+      "reads": [
+        "n|tbl|core.site_classes",
+        "n|sch|core",
+        "n|col|core.site_classes.tenant_id",
+        "n|col|core.site_classes.org_id"
       ]
     },
     {
@@ -22854,6 +22915,106 @@
         "n|col|core.orgs.tenant_id",
         "n|col|core.orgs.id",
         "e|uniqueness|core.orgs.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_classes"
+      ],
+      "writes": [
+        "s|fk|core.site_classes.site_classes_tenant_id_fkey",
+        "n|fk|core.site_classes.site_classes_tenant_id_fkey",
+        "e|fk|core.site_classes.site_classes_tenant_id_fkey",
+        "n|con|core.site_classes.site_classes_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.site_classes",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.site_classes.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_classes"
+      ],
+      "writes": [
+        "s|fk|core.site_classes.site_classes_tenant_id_org_id_fkey",
+        "n|fk|core.site_classes.site_classes_tenant_id_org_id_fkey",
+        "e|fk|core.site_classes.site_classes_tenant_id_org_id_fkey",
+        "n|con|core.site_classes.site_classes_tenant_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.site_classes",
+        "n|sch|core",
+        "n|tbl|core.orgs",
+        "n|sch|core",
+        "n|col|core.site_classes.tenant_id",
+        "n|col|core.site_classes.org_id",
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_classes"
+      ],
+      "writes": [
+        "s|fk|core.site_classes.site_classes_tenant_id_class_id_org_id_fkey",
+        "n|fk|core.site_classes.site_classes_tenant_id_class_id_org_id_fkey",
+        "e|fk|core.site_classes.site_classes_tenant_id_class_id_org_id_fkey",
+        "n|con|core.site_classes.site_classes_tenant_id_class_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.site_classes",
+        "n|sch|core",
+        "n|tbl|core.classes",
+        "n|sch|core",
+        "n|col|core.site_classes.tenant_id",
+        "n|col|core.site_classes.class_id",
+        "n|col|core.site_classes.org_id",
+        "n|col|core.classes.tenant_id",
+        "n|col|core.classes.id",
+        "n|col|core.classes.org_id",
+        "e|uniqueness|core.classes.id.org_id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_classes"
+      ],
+      "writes": [
+        "s|fk|core.site_classes.site_classes_tenant_id_picture_file_id_fkey",
+        "n|fk|core.site_classes.site_classes_tenant_id_picture_file_id_fkey",
+        "e|fk|core.site_classes.site_classes_tenant_id_picture_file_id_fkey",
+        "n|con|core.site_classes.site_classes_tenant_id_picture_file_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.site_classes",
+        "n|sch|core",
+        "n|tbl|core.files",
+        "n|sch|core",
+        "n|col|core.site_classes.tenant_id",
+        "n|col|core.site_classes.picture_file_id",
+        "n|col|core.files.tenant_id",
+        "n|col|core.files.id",
+        "e|uniqueness|core.files.id.tenant_id"
       ]
     },
     {
@@ -43860,6 +44021,107 @@
       "statementTarget": [
         "table",
         "core",
+        "site_classes"
+      ],
+      "writes": [
+        "s|pol|core.site_classes.tenant_isolation",
+        "n|pol|core.site_classes.tenant_isolation",
+        "e|pol|core.site_classes.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.site_classes",
+        "n|sch|core",
+        "e|rls|core.site_classes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_classes"
+      ],
+      "writes": [
+        "s|pol|core.site_classes.owner_all",
+        "n|pol|core.site_classes.owner_all",
+        "e|pol|core.site_classes.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.site_classes",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.site_classes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_classes"
+      ],
+      "writes": [
+        "s|pol|core.site_classes.p_select",
+        "n|pol|core.site_classes.p_select",
+        "e|pol|core.site_classes.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.site_classes",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.site_classes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_classes"
+      ],
+      "writes": [
+        "s|pol|core.site_classes.p_insert",
+        "n|pol|core.site_classes.p_insert",
+        "e|pol|core.site_classes.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.site_classes",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.site_classes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_classes"
+      ],
+      "writes": [
+        "s|pol|core.site_classes.p_update",
+        "n|pol|core.site_classes.p_update",
+        "e|pol|core.site_classes.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.site_classes",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.site_classes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "site_enquiries"
       ],
       "writes": [
@@ -49333,6 +49595,15 @@
       "row": {
         "schema": "core",
         "name": "site_categories",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "site_classes",
         "isRlsEnabled": true,
         "entityType": "tables"
       }
@@ -85330,6 +85601,342 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "site_classes",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "class_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "shown",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "title_en",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "title_ar",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "description_en",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "description_ar",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "level_en",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "level_ar",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "picture_file_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "picture_alt_en",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "picture_alt_ar",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "picture_key",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "picture",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "site_enquiries",
         "name": "tenant_id",
         "type": "uuid",
@@ -102030,6 +102637,68 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_class_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "class_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_shown_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "org_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active' and shown",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "site_enquiries",
         "name": "site_enquiries_org_idx",
         "nameExplicit": true,
@@ -115530,6 +116199,94 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_tenant_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "orgs",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_tenant_id_class_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "class_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "classes",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "org_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_tenant_id_picture_file_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "picture_file_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "files",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "site_enquiries",
         "name": "site_enquiries_tenant_id_fkey",
         "nameExplicit": true,
@@ -120378,6 +121135,20 @@
         "schema": "core",
         "table": "site_categories",
         "name": "site_categories_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_pkey",
         "columns": [
           "tenant_id",
           "id"
@@ -132269,6 +133040,126 @@
         "table": "site_categories",
         "name": "site_categories_position_check",
         "value": "position between 0 and 999",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_title_en_check",
+        "value": "char_length(title_en) <= 120",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_title_ar_check",
+        "value": "char_length(title_ar) <= 120",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_description_en_check",
+        "value": "char_length(description_en) <= 600",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_description_ar_check",
+        "value": "char_length(description_ar) <= 600",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_level_en_check",
+        "value": "char_length(level_en) <= 80",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_level_ar_check",
+        "value": "char_length(level_ar) <= 80",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_picture_alt_en_check",
+        "value": "char_length(picture_alt_en) <= 300",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_picture_alt_ar_check",
+        "value": "char_length(picture_alt_ar) <= 300",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "site_classes_picture_check",
+        "value": "picture is null or jsonb_typeof(picture) = 'object'",
         "entityType": "checks"
       }
     },
@@ -150244,6 +151135,93 @@
         ],
         "using": "status = 'active'",
         "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_classes",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
         "entityType": "policies"
       }
     },

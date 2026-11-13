@@ -19,7 +19,11 @@ import { TemplateGallery } from "~/components/site/studio/Gallery";
 import { SiteStudio } from "~/components/site/studio/Studio";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { siteOverviewQuery, sitePageQuery } from "~/queries/site";
+import {
+  siteClassesQuery,
+  siteOverviewQuery,
+  sitePageQuery,
+} from "~/queries/site";
 import { currentUserQuery } from "~/queries/user";
 import siteCss from "~/styles/site.css?url";
 import { requirePage } from "~/utils/page-access";
@@ -39,6 +43,7 @@ export const Route = createFileRoute("/_app/_staff/site-page-editor")({
     requirePage(user, "site:manage");
     const [overview] = await Promise.all([
       context.queryClient.ensureQueryData(siteOverviewQuery),
+      context.queryClient.ensureQueryData(siteClassesQuery),
       deps.id
         ? context.queryClient.ensureQueryData(sitePageQuery(deps.id))
         : null,

@@ -1,3 +1,4 @@
+import type { PublishedPicture } from "@faridalms/domain/previews";
 import type { SiteChrome, SiteTheme } from "@faridalms/domain/site-theme";
 import type { SocialLink } from "@faridalms/domain/website";
 import type { SQL } from "drizzle-orm";
@@ -28,7 +29,9 @@ import {
   roles,
   tenantColumns,
 } from "./conventions";
+import { files } from "./files";
 import { users } from "./people";
+import { classes } from "./teaching";
 import { orgs, tenants } from "./tenancy";
 
 export type SiteLocale = "en" | "ar";
@@ -437,5 +440,86 @@ export const sitePublishedPosts = core.table.withRLS(
       .where(sql`status = 'active'`),
     ...entityProfile(),
     siteRead(visible),
+  ],
+);
+
+/**
+ * A class as the school shows it on its website: whether it is shown at
+ * all, which it is not until the school says so, and the words a visitor
+ * reads in place of its own title and code. Its picture's public copy is
+ * `picture_key`, with the sizes made of it in `picture`. A visitor reads
+ * these, the class's dates and its teachers' names only through
+ * `app.site_classes`, never the class itself.
+ */
+export const siteClasses = core.table.withRLS(
+  "site_classes",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    classId: uuid("class_id").notNull(),
+    shown: boolean("shown").notNull().default(false),
+    titleEn: text("title_en").notNull().default(""),
+    titleAr: text("title_ar").notNull().default(""),
+    descriptionEn: text("description_en").notNull().default(""),
+    descriptionAr: text("description_ar").notNull().default(""),
+    levelEn: text("level_en").notNull().default(""),
+    levelAr: text("level_ar").notNull().default(""),
+    pictureFileId: uuid("picture_file_id"),
+    pictureAltEn: text("picture_alt_en").notNull().default(""),
+    pictureAltAr: text("picture_alt_ar").notNull().default(""),
+    pictureKey: text("picture_key"),
+    picture: jsonb("picture").$type<PublishedPicture>(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("site_classes", t.tenantId, t.id),
+    ...baseConstraints("site_classes", t, tenants),
+    fk("site_classes", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk(
+      "site_classes",
+      [t.tenantId, t.classId, t.orgId],
+      [classes.tenantId, classes.id, classes.orgId],
+    ),
+    fk(
+      "site_classes",
+      [t.tenantId, t.pictureFileId],
+      [files.tenantId, files.id],
+    ),
+    ck("site_classes", "title_en", sql`char_length(title_en) <= 120`),
+    ck("site_classes", "title_ar", sql`char_length(title_ar) <= 120`),
+    ck(
+      "site_classes",
+      "description_en",
+      sql`char_length(description_en) <= 600`,
+    ),
+    ck(
+      "site_classes",
+      "description_ar",
+      sql`char_length(description_ar) <= 600`,
+    ),
+    ck("site_classes", "level_en", sql`char_length(level_en) <= 80`),
+    ck("site_classes", "level_ar", sql`char_length(level_ar) <= 80`),
+    ck(
+      "site_classes",
+      "picture_alt_en",
+      sql`char_length(picture_alt_en) <= 300`,
+    ),
+    ck(
+      "site_classes",
+      "picture_alt_ar",
+      sql`char_length(picture_alt_ar) <= 300`,
+    ),
+    ck(
+      "site_classes",
+      "picture",
+      sql`picture is null or jsonb_typeof(picture) = 'object'`,
+    ),
+    uniqueIndex("site_classes_class_key")
+      .on(t.tenantId, t.classId)
+      .where(sql`status = 'active'`),
+    index("site_classes_shown_idx")
+      .on(t.tenantId, t.orgId)
+      .where(sql`status = 'active' and shown`),
+    ...entityProfile(),
   ],
 );

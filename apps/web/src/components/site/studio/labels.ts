@@ -53,6 +53,7 @@ export const SECTION_LABEL: Record<SectionType, () => string> = {
   logos: m.siteTypeLogos,
   news: m.siteTypeNews,
   events: m.siteTypeEvents,
+  courses: m.siteTypeCourses,
   admissions: m.siteTypeAdmissions,
   steps: m.siteTypeSteps,
   fees: m.siteTypeFees,
@@ -86,6 +87,7 @@ export const SECTION_HINT: Record<SectionType, () => string> = {
   logos: m.siteTypeHintLogos,
   news: m.siteTypeHintNews,
   events: m.siteTypeHintEvents,
+  courses: m.siteTypeHintCourses,
   admissions: m.siteTypeHintAdmissions,
   steps: m.siteTypeHintSteps,
   fees: m.siteTypeHintFees,
@@ -208,6 +210,11 @@ export const VARIANT_LABEL: {
     list: m.siteVariantEventsList,
     cards: m.siteVariantEventsCards,
   },
+  courses: {
+    grid: m.siteVariantCoursesGrid,
+    list: m.siteVariantCoursesList,
+    table: m.siteVariantCoursesTable,
+  },
   admissions: {
     triad: m.siteVariantAdmissionsTriad,
     banner: m.siteVariantAdmissionsBanner,
@@ -309,6 +316,16 @@ export const FIELD_LABEL: Record<string, () => string> = {
   questions: m.siteFieldQuestions,
   submit: m.siteFieldSubmit,
   thanks: m.siteFieldThanks,
+  pick: m.siteFieldPick,
+  classIds: m.siteFieldClassIds,
+  courseId: m.siteFieldCourseId,
+  order: m.siteFieldOrder,
+  dates: m.siteFieldDates,
+  teachers: m.siteFieldTeachers,
+  duration: m.siteFieldDuration,
+  level: m.siteFieldLevel,
+  action: m.siteFieldAction,
+  when: m.siteFieldWhen,
 };
 
 export const AUDIENCE_LABEL: Record<string, () => string> = {
@@ -550,6 +567,8 @@ export const FIELD_HINT: Record<string, () => string> = {
   intake: m.siteFieldIntakeHintCore,
   closed: m.siteFieldClosedHintCore,
   questions: m.siteFieldQuestionsHint,
+  classIds: m.siteFieldClassIdsHint,
+  action: m.siteFieldActionHint,
 };
 
 export const SCALE_LABEL: Record<HeadingScale, () => string> = {
@@ -700,4 +719,17 @@ export const CHOICE_LABEL: Record<string, Record<string, () => string>> = {
     ask: m.siteChoiceMessageAsk,
     hide: m.siteChoiceMessageHide,
   },
+  pick: {
+    all: m.siteChoicePickAll,
+    chosen: m.siteChoicePickChosen,
+    course: m.siteChoicePickCourse,
+  },
+  order: {
+    start: m.siteChoiceOrderStart,
+    title: m.siteChoiceOrderTitle,
+  },
+  dates: { show: m.siteChoiceShow, hide: m.siteChoiceHide },
+  teachers: { show: m.siteChoiceShow, hide: m.siteChoiceHide },
+  duration: { show: m.siteChoiceShow, hide: m.siteChoiceHide },
+  level: { show: m.siteChoiceShow, hide: m.siteChoiceHide },
 };

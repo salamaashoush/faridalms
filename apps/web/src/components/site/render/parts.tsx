@@ -1,6 +1,7 @@
 import type { Picture, PictureFocus } from "@faridalms/domain/commons";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { PublishedPicture } from "@faridalms/domain/previews";
+import type { SiteClass } from "@faridalms/domain/site-classes";
 import type {
   IconId,
   PageSection,
@@ -114,6 +115,8 @@ export interface RenderContext {
   events?: SiteEvent[];
   /** The intakes admissions lists as still to close, by the day learners start. */
   intakes?: SiteIntake[];
+  /** The classes the school shows on its website, not yet ended. */
+  classes?: SiteClass[];
   /** The school's day, to tell an intake open from one still to come. */
   today?: string;
   /** Where applying starts on the portal, preset to an intake when one is named. */

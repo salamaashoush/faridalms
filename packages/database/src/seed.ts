@@ -110,6 +110,7 @@ import {
   keepSitePost,
   writePublishedPost,
 } from "./stores/site";
+import { saveSiteClass } from "./stores/site-classes";
 import { uuidArray } from "./stores/sql";
 import { reviewTranslation } from "./stores/translations";
 import {
@@ -1505,6 +1506,7 @@ export async function seedSchool(
     await seedLearning(tx, tenantId, schoolId, yearId);
   }
   await seedSite(tx, tenantId, schoolId, context.visitor);
+  if (plan.slug === "acme") await seedSiteClasses(tx, tenantId, schoolId);
   await seedEnquiries(tx, tenantId, schoolId, office.id, context.visitor);
   if (plan.admissions)
     await seedAdmissions(tx, tenantId, schoolId, {
@@ -4961,6 +4963,56 @@ async function seedEnquiries(
         frozen: true,
       });
     }
+  }
+}
+
+/**
+ * Two of the school's classes shown on its website with the words a visitor
+ * reads; every other class stays off it, as a class is until the school
+ * shows it.
+ */
+async function seedSiteClasses(tx: Tx, tenantId: string, schoolId: string) {
+  const shown = await tx.execute<{ id: string }>(sql`
+    select id from core.classes
+    where tenant_id = ${tenantId}::uuid and org_id = ${schoolId}::uuid and status = 'active'
+    order by code limit 2`);
+  const words = [
+    {
+      titleEn: "Saturday coding club",
+      titleAr: "نادي البرمجة يوم السبت",
+      descriptionEn:
+        "Small games and animations in Scratch, built a step at a time with a teacher beside you.",
+      descriptionAr:
+        "ألعاب ورسوم متحركة صغيرة بسكراتش، تُبنى خطوة خطوة مع معلّم بجانبك.",
+      levelEn: "Beginners welcome",
+      levelAr: "مناسب للمبتدئين",
+    },
+    {
+      titleEn: "Arabic reading circle",
+      titleAr: "حلقة القراءة العربية",
+      descriptionEn:
+        "A short story each week, read aloud together and talked over.",
+      descriptionAr: "قصة قصيرة كل أسبوع، نقرؤها معًا بصوت عالٍ ونتحدث عنها.",
+      levelEn: "",
+      levelAr: "",
+    },
+  ];
+  for (const [index, row] of shown.entries()) {
+    const text = words[index];
+    if (!text) continue;
+    await saveSiteClass(tx, {
+      tenantId,
+      orgId: schoolId,
+      classId: row.id,
+      expectedVersion: 0,
+      shown: true,
+      ...text,
+      pictureFileId: null,
+      pictureAltEn: "",
+      pictureAltAr: "",
+      pictureKey: null,
+      picture: null,
+    });
   }
 }
 

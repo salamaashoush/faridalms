@@ -93,6 +93,10 @@ type DateField = { kind: "date" };
 type EmbedField = { kind: "embed" };
 /** One of the school's intakes, by its id, or "" for every intake open. */
 type IntakeField = { kind: "intake" };
+/** Classes of the school shown on its website, by their ids, in the order chosen. */
+type ClassesField = { kind: "classes"; max: number };
+/** One of the school's courses, by its id, or "" for none chosen. */
+type CourseField = { kind: "course" };
 export type ItemsField = {
   kind: "items";
   max: number;
@@ -110,7 +114,9 @@ export type ScalarField =
   | IconField
   | DateField
   | EmbedField
-  | IntakeField;
+  | IntakeField
+  | ClassesField
+  | CourseField;
 /** Columns of freely arranged blocks, the builder's open canvas. */
 type ColumnsField = { kind: "columns"; max: number };
 export type Field = ScalarField | ItemsField | ColumnsField;
@@ -152,9 +158,11 @@ type ScalarValue<F> = F extends TextField
                     ? string
                     : F extends EmbedField
                       ? SiteEmbed | null
-                      : F extends IntakeField
+                      : F extends IntakeField | CourseField
                         ? string
-                        : never;
+                        : F extends ClassesField
+                          ? string[]
+                          : never;
 type ValueOf<F> = F extends ColumnsField
   ? SiteColumn[]
   : F extends { kind: "items"; fields: infer G }
@@ -580,6 +588,39 @@ export const SECTION_SPECS = {
       },
     },
   },
+  /**
+   * Classes the school shows on its website, read from the classes it marks
+   * as shown with their public words; the typed items are samples the
+   * builder draws while the school shows none.
+   */
+  courses: {
+    category: "dynamic",
+    variants: ["grid", "list", "table"],
+    fields: {
+      heading,
+      text: intro,
+      pick: choice(["all", "chosen", "course"]),
+      classIds: { kind: "classes", max: 24 },
+      courseId: { kind: "course" },
+      order: choice(["start", "title"]),
+      count: { kind: "number", min: 1, max: 24, initial: 6 },
+      dates: choice(["show", "hide"]),
+      teachers: choice(["hide", "show"]),
+      duration: choice(["show", "hide"]),
+      level: choice(["show", "hide"]),
+      action: { kind: "links", max: 1 },
+      items: {
+        kind: "items",
+        max: 12,
+        fields: {
+          title: t(120),
+          text: t(300, true),
+          when: t(80),
+          level: t(80),
+        },
+      },
+    },
+  },
   /** The way in to applying: the portal's registration, preset to an intake when the section names one. */
   registerApply: {
     category: "conversion",
@@ -786,7 +827,10 @@ function scalarSchema(field: ScalarField): v.GenericSchema {
     case "date":
       return v.union([v.literal(""), v.pipe(v.string(), v.isoDate())]);
     case "intake":
+    case "course":
       return v.union([v.literal(""), id]);
+    case "classes":
+      return v.pipe(v.array(id), v.maxLength(field.max));
     case "embed":
       return v.nullable(
         v.pipe(
@@ -897,7 +941,10 @@ function initialScalar(field: ScalarField): unknown {
     case "href":
     case "date":
     case "intake":
+    case "course":
       return "";
+    case "classes":
+      return [];
     case "rich":
       return emptyBody();
     case "image":
@@ -1021,6 +1068,11 @@ const SHOWN_WHEN: Partial<
   events: {
     count: (data) => data.source !== "typed",
     items: (data) => data.source === "typed",
+  },
+  courses: {
+    classIds: (data) => data.pick === "chosen",
+    courseId: (data) => data.pick === "course",
+    items: () => false,
   },
 };
 

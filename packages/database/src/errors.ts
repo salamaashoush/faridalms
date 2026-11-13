@@ -133,6 +133,7 @@ export const CONFLICTS: Record<string, string> = {
   site_redirects_from_key: "site.redirect_taken",
   site_posts_slug_key: "site.slug_taken",
   site_posts_broadcast_key: "conflict.version",
+  site_classes_class_key: "conflict.version",
   module_templates_template_key: "conflict.version",
   peer_review_settings_assignment_key: "conflict.version",
   federated_identities_login_key: "conflict.version",

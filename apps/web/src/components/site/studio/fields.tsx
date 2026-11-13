@@ -70,8 +70,11 @@ import { formatNumber } from "~/utils/datetime";
 import { everyFilling } from "~/utils/extension";
 import { useWords } from "~/utils/words";
 
+import type { ClassChoice } from "./class-picker";
+
 import { SiteIcon } from "../render/parts";
 import { siteAudiences, siteChoiceFields } from "../slots";
+import { ClassPicker, CoursePicker } from "./class-picker";
 import { Disclosure, StudioField } from "./controls";
 import {
   AUDIENCE_LABEL,
@@ -91,6 +94,10 @@ export interface FieldContext {
   media: EditorMedia;
   /** The school's intakes still to close, which a section may name. */
   intakes: { id: string; label: string }[];
+  /** The school's classes still running or to start, which a courses section may list. */
+  classes?: ClassChoice[];
+  /** The school's courses, whose classes a courses section may list. */
+  courses?: { id: string; label: string }[];
 }
 
 const BADGE_NAME: Record<(typeof BADGES)[number], string> = {
@@ -1209,6 +1216,28 @@ export function FieldControl({
           hint={fieldHint}
           value={value as string}
           intakes={context.intakes}
+          onChange={onChange}
+        />
+      );
+    case "classes":
+      return (
+        <ClassPicker
+          id={id}
+          label={label}
+          hint={fieldHint}
+          value={value as string[]}
+          max={field.max}
+          classes={context.classes ?? []}
+          onChange={onChange}
+        />
+      );
+    case "course":
+      return (
+        <CoursePicker
+          id={id}
+          label={label}
+          value={value as string}
+          courses={context.courses ?? []}
           onChange={onChange}
         />
       );

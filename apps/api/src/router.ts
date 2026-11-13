@@ -89,6 +89,12 @@ import * as timetableSystem from "./systems/timetable";
 import * as yearsSystem from "./systems/years";
 import { today as timetableToday } from "./timetable/today";
 import { announcementOptions, announcementPost } from "./website/announcements";
+import {
+  classWebsite,
+  publicSiteClassList,
+  saveClassWebsite,
+  siteClasses,
+} from "./website/classes";
 
 /**
  * A namespace as its module answers it: every procedure of a module that
@@ -210,6 +216,10 @@ export const router = {
     ...siteSystem,
     announcementPost,
     announcementOptions,
+    classWebsite,
+    saveClassWebsite,
+    siteClasses,
+    publicSiteClassList,
   }),
   admissions: owned("admissions", admissionsSystem),
   intakes: owned("intakes", intakesSystem),

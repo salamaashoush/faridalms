@@ -4135,6 +4135,44 @@ CREATE TABLE "core"."site_categories" (
 );
 --> statement-breakpoint
 ALTER TABLE "core"."site_categories" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "core"."site_classes" (
+	"tenant_id" uuid,
+	"id" uuid DEFAULT uuidv7(),
+	"org_id" uuid NOT NULL,
+	"class_id" uuid NOT NULL,
+	"shown" boolean DEFAULT false NOT NULL,
+	"title_en" text DEFAULT '' NOT NULL,
+	"title_ar" text DEFAULT '' NOT NULL,
+	"description_en" text DEFAULT '' NOT NULL,
+	"description_ar" text DEFAULT '' NOT NULL,
+	"level_en" text DEFAULT '' NOT NULL,
+	"level_ar" text DEFAULT '' NOT NULL,
+	"picture_file_id" uuid,
+	"picture_alt_en" text DEFAULT '' NOT NULL,
+	"picture_alt_ar" text DEFAULT '' NOT NULL,
+	"picture_key" text,
+	"picture" jsonb,
+	"status" text DEFAULT 'active' NOT NULL,
+	"date_last_modified" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL,
+	"metadata" jsonb DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	CONSTRAINT "site_classes_pkey" PRIMARY KEY("tenant_id","id"),
+	CONSTRAINT "site_classes_status_check" CHECK (status in ('active', 'tobedeleted')),
+	CONSTRAINT "site_classes_version_check" CHECK (version > 0),
+	CONSTRAINT "site_classes_metadata_check" CHECK (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
+	CONSTRAINT "site_classes_title_en_check" CHECK (char_length(title_en) <= 120),
+	CONSTRAINT "site_classes_title_ar_check" CHECK (char_length(title_ar) <= 120),
+	CONSTRAINT "site_classes_description_en_check" CHECK (char_length(description_en) <= 600),
+	CONSTRAINT "site_classes_description_ar_check" CHECK (char_length(description_ar) <= 600),
+	CONSTRAINT "site_classes_level_en_check" CHECK (char_length(level_en) <= 80),
+	CONSTRAINT "site_classes_level_ar_check" CHECK (char_length(level_ar) <= 80),
+	CONSTRAINT "site_classes_picture_alt_en_check" CHECK (char_length(picture_alt_en) <= 300),
+	CONSTRAINT "site_classes_picture_alt_ar_check" CHECK (char_length(picture_alt_ar) <= 300),
+	CONSTRAINT "site_classes_picture_check" CHECK (picture is null or jsonb_typeof(picture) = 'object')
+);
+--> statement-breakpoint
+ALTER TABLE "core"."site_classes" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "core"."site_enquiries" (
 	"tenant_id" uuid,
 	"id" uuid DEFAULT uuidv7(),
@@ -5342,6 +5380,8 @@ CREATE INDEX "sessions_account_idx" ON "core"."sessions" ("tenant_id","account_i
 CREATE INDEX "sessions_expiry_idx" ON "core"."sessions" ("tenant_id","absolute_expires_at");--> statement-breakpoint
 CREATE INDEX "shared_blocks_org_idx" ON "core"."shared_blocks" ("tenant_id","org_id","scope") WHERE status = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "site_categories_slug_key" ON "core"."site_categories" ("tenant_id","org_id","slug") WHERE status = 'active';--> statement-breakpoint
+CREATE UNIQUE INDEX "site_classes_class_key" ON "core"."site_classes" ("tenant_id","class_id") WHERE status = 'active';--> statement-breakpoint
+CREATE INDEX "site_classes_shown_idx" ON "core"."site_classes" ("tenant_id","org_id") WHERE status = 'active' and shown;--> statement-breakpoint
 CREATE INDEX "site_enquiries_org_idx" ON "core"."site_enquiries" ("tenant_id","org_id","created_at") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "site_enquiries_state_idx" ON "core"."site_enquiries" ("tenant_id","org_id","state","created_at") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "site_enquiries_assignee_idx" ON "core"."site_enquiries" ("tenant_id","assignee_user_id","state") WHERE status = 'active' and assignee_user_id is not null;--> statement-breakpoint
@@ -5923,6 +5963,10 @@ ALTER TABLE "core"."shared_blocks" ADD CONSTRAINT "shared_blocks_tenant_id_org_i
 ALTER TABLE "core"."shared_blocks" ADD CONSTRAINT "shared_blocks_tenant_id_owner_user_id_fkey" FOREIGN KEY ("tenant_id","owner_user_id") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."site_categories" ADD CONSTRAINT "site_categories_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."site_categories" ADD CONSTRAINT "site_categories_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "core"."site_classes" ADD CONSTRAINT "site_classes_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
+ALTER TABLE "core"."site_classes" ADD CONSTRAINT "site_classes_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "core"."site_classes" ADD CONSTRAINT "site_classes_tenant_id_class_id_org_id_fkey" FOREIGN KEY ("tenant_id","class_id","org_id") REFERENCES "core"."classes"("tenant_id","id","org_id");--> statement-breakpoint
+ALTER TABLE "core"."site_classes" ADD CONSTRAINT "site_classes_tenant_id_picture_file_id_fkey" FOREIGN KEY ("tenant_id","picture_file_id") REFERENCES "core"."files"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."site_enquiries" ADD CONSTRAINT "site_enquiries_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."site_enquiries" ADD CONSTRAINT "site_enquiries_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."site_enquiries" ADD CONSTRAINT "site_enquiries_tenant_id_handled_by_fkey" FOREIGN KEY ("tenant_id","handled_by") REFERENCES "core"."users"("tenant_id","id");--> statement-breakpoint
@@ -6949,6 +6993,11 @@ CREATE POLICY "p_select" ON "core"."site_categories" AS PERMISSIVE FOR SELECT TO
 CREATE POLICY "p_insert" ON "core"."site_categories" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_update" ON "core"."site_categories" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_site_select" ON "core"."site_categories" AS PERMISSIVE FOR SELECT TO "site" USING (status = 'active');--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "core"."site_classes" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
+CREATE POLICY "owner_all" ON "core"."site_classes" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_select" ON "core"."site_classes" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
+CREATE POLICY "p_insert" ON "core"."site_classes" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_update" ON "core"."site_classes" AS PERMISSIVE FOR UPDATE TO "app", "cell_io", "worker" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "core"."site_enquiries" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
 CREATE POLICY "owner_all" ON "core"."site_enquiries" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_select" ON "core"."site_enquiries" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint

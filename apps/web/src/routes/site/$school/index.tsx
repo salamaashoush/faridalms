@@ -1,8 +1,12 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, getRouteApi } from "@tanstack/react-router";
 
-import { PublicPageView } from "~/components/site/PublicPage";
-import { publicPageQuery, publicSiteQuery } from "~/queries/site";
+import { listsClasses, PublicPageView } from "~/components/site/PublicPage";
+import {
+  publicClassesQuery,
+  publicPageQuery,
+  publicSiteQuery,
+} from "~/queries/site";
 import { siteHead } from "~/utils/seo";
 
 const site = getRouteApi("/site/$school");
@@ -18,6 +22,9 @@ export const Route = createFileRoute("/site/$school/")({
         publicPageQuery(params.school, "", deps.lang),
       ),
     ]);
+    await context.queryClient.ensureQueryData(
+      publicClassesQuery(params.school, deps.lang, listsClasses(page)),
+    );
     return { shell, page };
   },
   head: ({ loaderData }) =>
@@ -36,5 +43,16 @@ function HomePage() {
   const { lang } = site.useSearch();
   const shell = useSuspenseQuery(publicSiteQuery(school, lang)).data;
   const page = useSuspenseQuery(publicPageQuery(school, "", lang)).data;
-  return <PublicPageView page={page} site={shell} school={school} slug="" />;
+  const { classes } = useSuspenseQuery(
+    publicClassesQuery(school, lang, listsClasses(page)),
+  ).data;
+  return (
+    <PublicPageView
+      page={page}
+      classes={classes}
+      site={shell}
+      school={school}
+      slug=""
+    />
+  );
 }

@@ -795,6 +795,10 @@ export function getMessageFromError(
         return m.siteErrConsent();
       case "site.file":
         return m.siteErrFile();
+      case "site.class_description":
+        return m.siteErrClassDescription();
+      case "site.class_alt":
+        return m.siteErrClassAlt();
       case "site.title":
         return m.siteErrTitle();
       case "site.link":

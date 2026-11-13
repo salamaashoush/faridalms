@@ -729,6 +729,10 @@ alter table core.site_categories force row level security;
 grant select, insert, update on core.site_categories to app, worker, cell_io;
 grant select on core.site_categories to site, retention;
 
+alter table core.site_classes force row level security;
+grant select, insert, update on core.site_classes to app, worker, cell_io;
+grant select on core.site_classes to retention;
+
 alter table core.site_enquiries force row level security;
 grant select, insert, update on core.site_enquiries to app, worker, cell_io;
 grant select on core.site_enquiries to retention;

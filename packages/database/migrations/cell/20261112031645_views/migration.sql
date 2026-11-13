@@ -35,3 +35,42 @@ end
 $$;
 revoke all on function app.guardian_permits(core.user_relationships, date, text) from public;
 grant execute on function app.guardian_permits(core.user_relationships, date, text) to app, worker;
+
+-- What a visitor to a school's website reads of the classes it shows, and
+-- nothing else of them: the words the school wrote for the site, the days
+-- the class runs and its teachers' names, for a class still running or yet
+-- to start. The site role reads neither classes nor people, so this reads
+-- them for it, and is created once the tables exist.
+create function app.site_classes(p_org uuid, p_today date)
+returns table (class_id uuid, title_en text, title_ar text, description_en text, description_ar text,
+  level_en text, level_ar text, picture_key text, picture jsonb, picture_alt_en text,
+  picture_alt_ar text, starts_on date, ends_on date, course_id uuid, teachers_en text[],
+  teachers_ar text[])
+language sql stable security definer
+set search_path = pg_catalog, pg_temp
+as $$
+  select c.id,
+    coalesce(nullif(s.title_en, ''), c.title_en, c.title_ar),
+    coalesce(nullif(s.title_ar, ''), c.title_ar, c.title_en),
+    s.description_en, s.description_ar, s.level_en, s.level_ar,
+    s.picture_key, s.picture, s.picture_alt_en, s.picture_alt_ar,
+    lower(c.runs), case when upper_inf(c.runs) then null else upper(c.runs) - 1 end,
+    c.course_id, coalesce(t.en, '{}'), coalesce(t.ar, '{}')
+  from core.site_classes s
+  join core.classes c on c.tenant_id = s.tenant_id and c.id = s.class_id and c.org_id = s.org_id
+    and c.status = 'active'
+  left join lateral (
+    select array_agg(coalesce(u.full_name_en, u.full_name_ar) order by e.is_primary desc, u.full_name_en) as en,
+      array_agg(coalesce(u.full_name_ar, u.full_name_en) order by e.is_primary desc, u.full_name_en) as ar
+    from core.enrollments e
+    join core.users u on u.tenant_id = e.tenant_id and u.id = e.user_id and u.status = 'active'
+    where e.tenant_id = c.tenant_id and e.class_id = c.id and e.role = 'teacher'
+      and e.status = 'active' and e.valid_during @> greatest(lower(c.runs), p_today)
+  ) t on true
+  where s.org_id = p_org and s.status = 'active' and s.shown
+    and (upper_inf(c.runs) or upper(c.runs) > p_today)
+  order by lower(c.runs), c.id
+  limit 200
+$$;
+revoke all on function app.site_classes(uuid, date) from public;
+grant execute on function app.site_classes(uuid, date) to app, site;

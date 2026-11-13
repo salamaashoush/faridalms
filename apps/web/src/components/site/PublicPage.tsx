@@ -1,3 +1,4 @@
+import type { SiteClass } from "@faridalms/domain/site-classes";
 import type { SiteLocale } from "@faridalms/domain/website";
 import type { ReactNode } from "react";
 
@@ -33,6 +34,8 @@ type Post = Awaited<
 
 export interface PublicPageViewProps {
   page: Page;
+  /** The classes the school shows, read only where the page lists them. */
+  classes: SiteClass[];
   site: PublicSite;
   school: string;
   /** The page's address, "" for the home page. */
@@ -41,6 +44,7 @@ export interface PublicPageViewProps {
 
 export function PublicPageView({
   page,
+  classes,
   site,
   school,
   slug,
@@ -61,6 +65,7 @@ export function PublicPageView({
           news: page.news,
           events: page.events,
           intakes: page.intakes,
+          classes,
           today: page.today,
           page: slug,
         })}
@@ -279,3 +284,7 @@ export function PublicPostView({ post, site, school }: PublicPostViewProps) {
     </SiteShell>
   );
 }
+
+/** Whether a page lists the school's classes, and so reads them. */
+export const listsClasses = (page: Pick<Page, "sections">) =>
+  page.sections.some((item) => item.section.type === "courses");

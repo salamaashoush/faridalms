@@ -1247,6 +1247,14 @@ export async function completeFixture(
       and not exists (select 1 from core.site_posts p
         where p.tenant_id = b.tenant_id and p.broadcast_id = b.id and p.status = 'active')`);
   await tx.execute(sql`
+    insert into core.site_classes (tenant_id, org_id, class_id, description_en)
+    select c.tenant_id, c.org_id, c.id, 'Fixture class'
+    from core.classes c
+    where c.tenant_id = ${tenantId}::uuid and c.status = 'active'
+      and not exists (select 1 from core.site_classes s
+        where s.tenant_id = c.tenant_id and s.class_id = c.id and s.status = 'active')
+    order by c.code limit 1`);
+  await tx.execute(sql`
     insert into core.module_templates (tenant_id, template_id, module_id)
     select t.tenant_id, t.id, m.id from core.document_templates t
     join core.learning_modules m on m.tenant_id = t.tenant_id and m.status = 'active'

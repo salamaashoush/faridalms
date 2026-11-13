@@ -4,6 +4,9 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   getAnnouncementSiteOptions,
+  getClassWebsite,
+  getPublicClasses,
+  getSiteClasses,
   getPublicPage,
   getPublicPost,
   getPublicPosts,
@@ -75,3 +78,33 @@ export const announcementSiteOptionsQuery = queryOptions({
   queryKey: ["site", "announcement-options"],
   queryFn: () => getAnnouncementSiteOptions(),
 });
+
+/** How a class reads on the website, for its record. */
+export const classWebsiteQuery = (classId: string) =>
+  queryOptions({
+    queryKey: ["site", "class", classId],
+    queryFn: () => getClassWebsite({ data: { classId } }),
+  });
+
+/** The classes the builder's courses section is drawn and chosen from. */
+export const siteClassesQuery = queryOptions({
+  queryKey: ["site", "classes"],
+  queryFn: () => getSiteClasses(),
+});
+
+/**
+ * The classes a school shows on its website, read only for a page with a
+ * courses section, so every other page asks for nothing more.
+ */
+export const publicClassesQuery = (
+  school: string,
+  locale: SiteLocale | undefined,
+  wanted: boolean,
+) =>
+  queryOptions({
+    queryKey: ["public-site", school, locale ?? "", "classes", wanted],
+    queryFn: () =>
+      wanted
+        ? getPublicClasses({ data: { school, locale } })
+        : Promise.resolve({ today: "", classes: [] }),
+  });

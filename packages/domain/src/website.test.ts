@@ -638,8 +638,8 @@ describe("templates", () => {
       }
   });
 
-  it("build every starter for a school with every module exactly as before modules were weighed", () => {
-    const built = STARTER_IDS.map((id) => {
+  it("build every school starter for a school with every module exactly as before modules were weighed", () => {
+    const built = SCHOOL_STARTERS.map((id) => {
       const { pages, chrome } = buildStarter(STARTERS[id], "en", EVERY);
       return {
         id,
@@ -657,10 +657,10 @@ describe("templates", () => {
       };
     });
     const text = JSON.stringify(canonical(built)).replace(UUID, "<id>");
-    // The digest of what every starter built, ids aside, before a starter
-    // followed the school's modules.
+    // The digest of what every school starter built, ids aside, before a
+    // starter followed the school's modules.
     expect(createHash("sha256").update(text).digest("hex")).toBe(
-      "00fbbfcb97185928d14a831d46077dfaa7bf09a4f309e1bd58d366259336b5e6",
+      "887919bf24268ed5d9c5cd6d4a225497c370acb97c565184f070d5ca09fcdc00",
     );
   });
 

@@ -265,6 +265,7 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "site.host_check": m.auditSiteHostCheck,
   "site.host_remove": m.auditSiteHostRemove,
   "site.page_create": m.auditSitePageCreate,
+  "site.class_save": m.auditSiteClassSave,
   "site.page_delete": m.auditSitePageDelete,
   "site.page_publish": m.auditSitePagePublish,
   "site.page_unpublish": m.auditSitePageUnpublish,

@@ -1,5 +1,9 @@
 import { addHostSchema, hostRefSchema } from "@faridalms/domain/hosts";
 import {
+  classWebsiteSchema,
+  publicClassesSchema,
+} from "@faridalms/domain/site-classes";
+import {
   applyStarterSchema,
   enquirySchema,
   movePageSchema,
@@ -17,6 +21,7 @@ import {
   siteRefSchema,
 } from "@faridalms/domain/website";
 import { createServerFn } from "@tanstack/react-start";
+import * as v from "valibot";
 
 import { backend, record } from "./backend";
 import { byId, checked } from "./input";
@@ -132,3 +137,21 @@ export const getAnnouncementPost = createServerFn({ method: "GET" })
 export const getAnnouncementSiteOptions = createServerFn({
   method: "GET",
 }).handler(() => backend().site.announcementOptions());
+
+const byClass = v.object({ classId: v.pipe(v.string(), v.uuid()) });
+
+export const getClassWebsite = createServerFn({ method: "GET" })
+  .validator(checked(byClass))
+  .handler(({ data }) => backend().site.classWebsite(data));
+
+export const saveClassWebsite = createServerFn({ method: "POST" })
+  .validator(checked(classWebsiteSchema))
+  .handler(({ data }) => backend().site.saveClassWebsite(data));
+
+export const getSiteClasses = createServerFn({ method: "GET" }).handler(() =>
+  backend().site.siteClasses(),
+);
+
+export const getPublicClasses = createServerFn({ method: "GET" })
+  .validator(checked(publicClassesSchema))
+  .handler(({ data }) => record(backend().site.publicSiteClassList(data)));

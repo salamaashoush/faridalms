@@ -162,6 +162,7 @@ create trigger row_meta before insert or update on core.rubrics for each row exe
 create trigger row_meta before insert or update on core.saved_views for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.shared_blocks for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.site_categories for each row execute function app.row_meta();
+create trigger row_meta before insert or update on core.site_classes for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.site_enquiries for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.site_pages for each row execute function app.row_meta();
 create trigger row_meta before insert or update on core.site_posts for each row execute function app.row_meta();

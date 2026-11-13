@@ -604,6 +604,24 @@ says under the others which pages they will be built without. Starter words
 are a draft the school rewrites, so they do not take the grade word the
 school chose (Grade, Level, Year group, Stage).
 
+A courses section lists the school's own classes, never typed ones. A class
+is on the website only once the school shows it: the class record's On the
+website part, for whoever keeps the school's classes or its website, holds
+the switch and what a visitor reads (a public title that falls back to the
+class's own, a description in each language, an optional picture and a
+level or audience line). A visitor reads nothing else of a class: no code,
+no room, no roster and no count. The section lays them out as cards, a ruled
+list with dates or a schedule; it lists every class shown, a chosen few or
+the classes of one course, soonest start first or by name, up to a count,
+and shows or hides the dates, the length, the level line and the teachers'
+names (off unless the school turns them on). Dates read as "Starts 6
+December", "Running now, until 20 March", or "Running now, joins any time"
+for a class with no end; a class drops off once it has ended. One button,
+set once for the section, sits beside each class. With nothing to list the
+section is left off the public page, while the builder draws its samples.
+The three starters for learners start their cohorts, courses and library
+from it. Classes have no capacity, so the section shows no places left.
+
 ## Settings
 
 School profile (names in both languages, logo, brand colour, timezone,

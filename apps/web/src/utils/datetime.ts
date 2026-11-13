@@ -122,8 +122,11 @@ export function formatPercent(value: number): string {
 }
 
 /** Items as one phrase: "a, b, and c". */
-export function formatList(values: readonly string[]): string {
-  return formatListIn(values, "and", getLocale());
+export function formatList(
+  values: readonly string[],
+  locale: Locale = getLocale(),
+): string {
+  return formatListIn(values, "and", locale);
 }
 
 /** Items as alternatives: "a, b, or c". */

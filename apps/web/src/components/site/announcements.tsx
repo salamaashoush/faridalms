@@ -14,6 +14,7 @@ import type { ModuleFillings } from "~/utils/extension";
 
 import { announcementCopyParts } from "~/components/announcements/slots";
 import { navItems } from "~/components/app/navigation";
+import { classRecordSections } from "~/components/classes/slots";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { setupItemWords, setupStepWords } from "~/components/home/slots";
 import { PictureField } from "~/components/media/PictureField";
@@ -28,6 +29,7 @@ import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 import { replaceWords } from "~/utils/words";
 
+import { ClassWebsiteSection } from "./ClassWebsite";
 import { ISSUE_LABEL } from "./studio/labels";
 import { SECTION_TEMPLATE } from "./templates";
 
@@ -207,6 +209,11 @@ export const WEBSITE: ModuleFillings = {
         more: true,
         place: 30,
       },
+    }),
+    fill(classRecordSections, {
+      key: "website",
+      place: 20,
+      Section: ClassWebsiteSection,
     }),
     fill(announcementCopyParts, {
       key: "website",

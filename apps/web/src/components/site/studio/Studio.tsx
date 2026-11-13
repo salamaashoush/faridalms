@@ -39,7 +39,11 @@ import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { Segmented } from "@faridalms/ui/system/panel";
 import { StatusBadge } from "@faridalms/ui/system/status";
 import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -86,6 +90,7 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import { useSlot } from "~/hooks/useSlot";
 import * as m from "~/i18n/messages";
+import { siteClassesQuery } from "~/queries/site";
 import { saveSharedSection } from "~/server/shared";
 import {
   getSitePage,
@@ -243,6 +248,7 @@ export function SiteStudio({
   const user = useCurrentUser();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const classes = useSuspenseQuery(siteClassesQuery).data;
   const documentMedia = useDocumentMedia();
   const lent = useSlot(siteWords).map((each) => each.word);
   const pictured = usePicturePeople("website");
@@ -449,6 +455,7 @@ export function SiteStudio({
       : overview.news[languages.primary],
     events: overview.events,
     intakes: overview.intakes,
+    classes: classes.shown[locale],
     today: overview.today,
     applyHref: () => "/apply",
     contact: overview.school.contact,
@@ -809,6 +816,21 @@ export function SiteStudio({
         (locale === "ar"
           ? (intake.titleAr ?? intake.titleEn)
           : (intake.titleEn ?? intake.titleAr)) ?? "",
+    })),
+    classes: classes.choices.map((row) => ({
+      id: row.id,
+      label:
+        (locale === "ar"
+          ? (row.titleAr ?? row.titleEn)
+          : (row.titleEn ?? row.titleAr)) ?? row.code,
+      shown: row.shown,
+    })),
+    courses: classes.courses.map((course) => ({
+      id: course.id,
+      label:
+        (locale === "ar"
+          ? (course.titleAr ?? course.titleEn)
+          : (course.titleEn ?? course.titleAr)) ?? "",
     })),
   };
   const sharedWaiting = Object.keys(shared.base).some((id) =>

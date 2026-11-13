@@ -939,6 +939,62 @@ const milestone = (b: Builder, year: string, title: Said, text: Said) => ({
   text: b.w(text),
 });
 
+/** A class as a courses section's sample shows it, while the school shows none of its own. */
+const sampleClass = (
+  b: Builder,
+  title: Said,
+  text: Said,
+  when: Said,
+  level: Said = ["", ""],
+) => ({
+  id: b.id(),
+  title: b.w(title),
+  text: b.w(text),
+  when: b.w(when),
+  level: b.w(level),
+});
+
+const COURSES = section("courses", "grid", (b) => ({
+  heading: b.w(["Courses starting *soon*", "دورات تبدأ *قريبًا*"]),
+  text: b.w([
+    "Small groups, taught by people who practise what they teach.",
+    "مجموعات صغيرة، يعلّمها من يمارسون ما يعلّمونه.",
+  ]),
+  action: [link(b, ["Ask about a place", "اسأل عن مقعد"], "/pages/contact")],
+  items: [
+    sampleClass(
+      b,
+      ["Introduction to programming", "مدخل إلى البرمجة"],
+      [
+        "Ten evenings from your first line of code to a program that works.",
+        "عشر أمسيات من أول سطر برمجي إلى برنامج يعمل.",
+      ],
+      ["Starts 6 December", "تبدأ 6 ديسمبر"],
+      ["Beginner", "للمبتدئين"],
+    ),
+    sampleClass(
+      b,
+      ["Public speaking", "فن الإلقاء"],
+      [
+        "Six Saturdays of short talks, with notes on each one you give.",
+        "ستة أيام سبت من الكلمات القصيرة، مع ملاحظات على كل كلمة تلقيها.",
+      ],
+      ["Running now, joins any time", "قائمة الآن، والانضمام في أي وقت"],
+      ["All levels", "لكل المستويات"],
+    ),
+    sampleClass(
+      b,
+      ["Drawing from life", "الرسم من الطبيعة"],
+      [
+        "Eight mornings with pencil and charcoal, a model and a teacher beside you.",
+        "ثمانية صباحات بالقلم والفحم، مع نموذج ومعلّم بجانبك.",
+      ],
+      ["Starts 10 January", "تبدأ 10 يناير"],
+      ["Beginner", "للمبتدئين"],
+    ),
+  ],
+}));
+
 const TIMELINE = section("timeline", "vertical", (b) => ({
   heading: b.w(["Our story", "قصتنا"]),
   items: [
@@ -1984,6 +2040,7 @@ const SAMPLES: Record<SectionType, (b: Builder) => PageSection> = {
   logos: LOGOS,
   news: NEWS,
   events: EVENTS,
+  courses: COURSES,
   admissions: ADMISSIONS_INTAKES,
   registerApply: REGISTER_APPLY,
   steps: STEPS,
@@ -4339,33 +4396,40 @@ const WORKSHOP_HOW = section("pillars", "numbered", (b) => ({
   ],
 }));
 
-const WORKSHOP_COHORTS = section("fees", "dates", (b) => ({
+const WORKSHOP_COHORTS = section("courses", "table", (b) => ({
   heading: b.w(["Upcoming *cohorts*", "الدفعات *القادمة*"]),
   text: b.w([
     "Twelve learners to a cohort. A place is yours once you have spoken to us.",
     "اثنا عشر متعلّمًا في الدفعة. المقعد لك بعد أن تتحدّث إلينا.",
   ]),
+  action: [
+    link(
+      b,
+      ["Ask about a place", "اسأل عن مقعد"],
+      `/pages/contact#${ANCHOR.general}`,
+    ),
+  ],
   items: [
-    coursePrice(
+    sampleClass(
       b,
       ["Python foundations", "أساسيات بايثون"],
-      ["Starts next month", "تبدأ الشهر القادم"],
       [
         "Sunday and Tuesday, 19:00 · 10 weeks",
         "الأحد والثلاثاء، 19:00 · 10 أسابيع",
       ],
+      ["Starts next month", "تبدأ الشهر القادم"],
     ),
-    coursePrice(
+    sampleClass(
       b,
       ["Web development", "تطوير الويب"],
-      ["Starts in two months", "تبدأ بعد شهرين"],
       ["Saturdays, 10:00 · 12 weeks", "السبت، 10:00 · 12 أسبوعًا"],
+      ["Starts in two months", "تبدأ بعد شهرين"],
     ),
-    coursePrice(
+    sampleClass(
       b,
       ["Scratch and micro:bit", "سكراتش والمايكروبت"],
-      ["Every term", "كل فصل"],
       ["Saturdays, 10:00 · ages 8 to 12", "السبت، 10:00 · الأعمار من 8 إلى 12"],
+      ["Every term", "كل فصل"],
     ),
   ],
 }));
@@ -4548,44 +4612,52 @@ const ATELIER_HERO = section("hero", "split", (b) => ({
   height: "m" as const,
 }));
 
-const ATELIER_COURSES = section("timeline", "vertical", (b) => ({
+const ATELIER_COURSES = section("courses", "list", (b) => ({
   heading: b.w(["This season's *courses*", "دورات هذا *الموسم*"]),
-  items: [
-    milestone(
+  text: "",
+  action: [
+    link(
       b,
-      "10",
+      ["Ask about a place", "اسأل عن مقعد"],
+      `/pages/contact#${ANCHOR.general}`,
+    ),
+  ],
+  items: [
+    sampleClass(
+      b,
       ["Arabic calligraphy: Naskh", "الخط العربي: النسخ"],
       [
         "Ten Sunday evenings for beginners. The pen, the proportions and a finished page of your own.",
         "عشر أمسيات أحد للمبتدئين. القلم والنِّسَب وصفحة مكتملة بخط يدك.",
       ],
+      ["10 weeks", "10 أسابيع"],
     ),
-    milestone(
+    sampleClass(
       b,
-      "8",
       ["Bookkeeping for small business", "مسك الدفاتر للمشروعات الصغيرة"],
       [
         "Eight Tuesdays. No experience needed: leave able to keep your own books.",
         "ثمانية أيام ثلاثاء. بلا خبرة سابقة: تخرج قادرًا على مسك دفاترك بنفسك.",
       ],
+      ["8 weeks", "8 أسابيع"],
     ),
-    milestone(
+    sampleClass(
       b,
-      "12",
       ["English for the workplace", "الإنجليزية لبيئة العمل"],
       [
         "Twelve weeks, Monday and Wednesday, for people who read English and want to speak it at work.",
         "اثنا عشر أسبوعًا، الاثنين والأربعاء، لمن يقرأ الإنجليزية ويريد أن يتحدّثها في عمله.",
       ],
+      ["12 weeks", "12 أسبوعًا"],
     ),
-    milestone(
+    sampleClass(
       b,
-      "8",
       ["Photography: light and portrait", "التصوير: الضوء والبورتريه"],
       [
         "Eight Saturday mornings with any camera, a phone included.",
         "ثمانية صباحات سبت بأي كاميرا، ولو كانت كاميرا الهاتف.",
       ],
+      ["8 weeks", "8 أسابيع"],
     ),
   ],
 }));
@@ -4773,37 +4845,40 @@ const REEL_HERO = section("hero", "fullbleed", (b) => ({
   height: "screen" as const,
 }));
 
-const REEL_LIBRARY = section("cards", "grid", (b) => ({
+const REEL_LIBRARY = section("courses", "grid", (b) => ({
   heading: b.w(["The *courses*", "*الدورات*"]),
   text: b.w([
     "Each is a set of short lessons with questions inside the video and an exercise at the end.",
     "كل دورة مجموعة دروس قصيرة، بأسئلة داخل الفيديو وتمرين في نهايتها.",
   ]),
-  columns: "3" as const,
+  action: [
+    link(
+      b,
+      ["Watch a free lesson", "شاهد درسًا مجانيًا"],
+      `/pages/courses#${REEL_ANCHOR.free}`,
+    ),
+  ],
   items: [
-    card(
+    sampleClass(
       b,
       ["Directing the short film", "إخراج الفيلم القصير"],
-      ["24 lessons · 6 hours · beginner", "24 درسًا · 6 ساعات · للمبتدئين"],
-      "none",
-      "/pages/courses",
+      ["24 lessons · 6 hours", "24 درسًا · 6 ساعات"],
+      ["", ""],
+      ["Beginner", "للمبتدئين"],
     ),
-    card(
+    sampleClass(
       b,
       ["Editing on movement", "المونتاج على الحركة"],
-      [
-        "18 lessons · 4 hours · intermediate",
-        "18 درسًا · 4 ساعات · المستوى المتوسط",
-      ],
-      "none",
-      "/pages/courses",
+      ["18 lessons · 4 hours", "18 درسًا · 4 ساعات"],
+      ["", ""],
+      ["Intermediate", "المستوى المتوسط"],
     ),
-    card(
+    sampleClass(
       b,
       ["Light you already have", "الضوء المتاح لديك"],
-      ["12 lessons · 3 hours · beginner", "12 درسًا · 3 ساعات · للمبتدئين"],
-      "none",
-      "/pages/courses",
+      ["12 lessons · 3 hours", "12 درسًا · 3 ساعات"],
+      ["", ""],
+      ["Beginner", "للمبتدئين"],
     ),
   ],
 }));
