@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { API_ORIGIN, signedInApi } from "./fixtures/api";
+import { freshSchool, signInTo } from "./fixtures/fresh-school";
 import {
   chooseFromMenu,
   PASSWORD,
@@ -319,4 +320,40 @@ test.describe("acme's website", () => {
       await logo("");
     }
   });
+});
+
+test("a school without families or admissions sees first the ready-made sites that fit it, and what each other one is built without", async ({
+  browser,
+  page,
+}) => {
+  test.setTimeout(180_000);
+  const school = await freshSchool(browser, {
+    without: ["families", "admissions"],
+  });
+  await signInTo(page, school, "admin");
+  await page.goto(`${portal(school.slug)}/website`);
+  await untilHydrated(page);
+  const cards = page
+    .getByRole("list")
+    .filter({ has: page.getByRole("button", { name: "Use this site" }) })
+    .getByRole("listitem");
+  await expect(cards.getByRole("heading", { level: 3 })).toHaveText([
+    "Coding school",
+    "Course academy",
+    "Video courses",
+    "Established school",
+    "International school",
+    "Early years",
+    "Arabic-first school",
+    "New school",
+  ]);
+  const card = (name: string) =>
+    cards.filter({ has: page.getByRole("heading", { name, exact: true }) });
+  await expect(card("Coding school")).not.toContainText("Built without");
+  await expect(card("New school")).toContainText(
+    "Built without its Admissions page",
+  );
+  await expect(card("International school")).toContainText(
+    "Built without its Admissions and Parents pages",
+  );
 });

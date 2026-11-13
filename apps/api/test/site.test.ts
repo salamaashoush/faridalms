@@ -6,6 +6,7 @@ import { platformName } from "@faridalms/domain/hosts";
 import { newSection } from "@faridalms/domain/website";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
+import { SQL } from "bun";
 import { describe, expect, test } from "bun:test";
 
 import type { AppRouter } from "../src/router";
@@ -18,7 +19,9 @@ import {
   rejection,
   seeded,
   sessionFor,
+  setPlan,
   signedIn,
+  testDirectory,
   withoutModules,
 } from "./harness";
 
@@ -416,6 +419,122 @@ describe("starting from a starter", () => {
           chrome: before.settings.chrome,
         }),
       );
+    }
+  });
+
+  test("builds a school's site without the pages, buttons, questions and words of modules it does not have", async () => {
+    // The academy has no families, admissions or grade levels; for this test
+    // it also has the website, and afterwards its plan is as it was.
+    const academy = seeded()
+      .tenants.flatMap((row) => row.schools)
+      .find((row) => row.slug === "lanternfield");
+    if (!academy) throw new Error("the seed lacks Lanternfield");
+    const directory = new SQL(testDirectory().adminUrl);
+    const [plan] = await directory<
+      {
+        poolBytes: number;
+        classBytes: number;
+        moduleBytes: number;
+        personBytes: number;
+        modules: string[];
+        customDomains: number | null;
+        videoHours: number | null;
+        students: number | null;
+      }[]
+    >`select pool_bytes::float8 as "poolBytes", class_bytes::float8 as "classBytes",
+        module_bytes::float8 as "moduleBytes", person_bytes::float8 as "personBytes",
+        modules, custom_domains as "customDomains", video_hours as "videoHours",
+        students
+      from school_entitlements where school_id = ${academy.id}::uuid`;
+    await directory.close();
+    if (!plan) throw new Error("no plan for Lanternfield");
+    expect(plan.modules).not.toContain("families");
+    expect(plan.modules).not.toContain("admissions");
+    await setPlan(academy.id, {
+      ...plan,
+      modules: [...plan.modules, "website"],
+    });
+    try {
+      const tenant = seeded().tenants.findIndex((row) =>
+        row.schools.some((school) => school.slug === "lanternfield"),
+      );
+      const api = await signedIn(
+        "lanternfield",
+        login("site_administrator", tenant),
+      );
+      const before = await api.site.overview();
+      const { created } = await api.site.applyStarter({
+        starter: "international",
+        withTheme: true,
+      });
+      const after = await api.site.overview();
+      try {
+        const added = after.pages.filter((row) => created.includes(row.id));
+        expect(added.map((row) => row.slug).toSorted()).toEqual([
+          "about",
+          "academics",
+          "contact",
+          "home",
+          "visit",
+        ]);
+        expect(
+          after.settings.chrome.actions.map((action) => [
+            action.label.en,
+            action.href,
+          ]),
+        ).toEqual([["Get in touch", "/pages/contact"]]);
+        for (const row of added) {
+          const page = await api.site.page({ id: row.id });
+          expect(page.gaps.missing).toEqual([]);
+          const sections = [
+            ...page.content.sections,
+            ...(page.translation?.sections ?? []),
+          ];
+          expect(
+            sections.filter((section) =>
+              ["form", "registerApply", "admissions", "voices"].includes(
+                section.type,
+              ),
+            ),
+          ).toEqual([]);
+          const said = (value: unknown): string[] =>
+            typeof value === "string"
+              ? [value.replaceAll("رياض الأطفال", "")]
+              : value && typeof value === "object"
+                ? Object.values(value).flatMap(said)
+                : [];
+          expect(
+            said(sections.map((section) => section.data)).filter((text) =>
+              /\b(famil(y|ies)|parents?|child(ren)?)\b|الأسر|أولياء|طفل/i.test(
+                text,
+              ),
+            ),
+          ).toEqual([]);
+        }
+      } finally {
+        // A site's home page cannot be removed; it stays a draft, out of
+        // sight once the academy's plan no longer has the website.
+        for (const row of after.pages)
+          if (created.includes(row.id) && !row.isHome)
+            await api.site.removeSitePage({ id: row.id });
+        const settings = await api.site.overview();
+        await api.site.saveSettings({
+          expectedVersion: settings.settings.version,
+          theme: before.settings.theme,
+          chrome: before.settings.chrome,
+          live: settings.settings.live,
+          bilingual: settings.settings.bilingual,
+          taglineEn: settings.settings.taglineEn,
+          taglineAr: settings.settings.taglineAr,
+          socialLinks: settings.settings.socialLinks,
+          bannerEn: settings.settings.bannerEn,
+          bannerAr: settings.settings.bannerAr,
+          bannerTone: settings.settings.bannerTone,
+          bannerUntil: settings.settings.bannerUntil ?? "",
+        });
+      }
+    } finally {
+      await setPlan(academy.id, plan);
     }
   });
 });

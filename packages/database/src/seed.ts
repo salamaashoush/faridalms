@@ -22,6 +22,7 @@ import { addDays, schoolDate, teachingWeeks } from "@faridalms/domain/school";
 import { dayOpen, schoolDays } from "@faridalms/domain/school-days";
 import {
   buildTemplate,
+  siteModules,
   STARTERS,
   starterChrome,
 } from "@faridalms/domain/site-templates";
@@ -4996,7 +4997,10 @@ async function seedSite(
     bannerTone: "info",
     bannerUntil: null,
     theme: { id: STARTERS.international.theme, palette: {}, fonts: {} },
-    chrome: starterChrome(STARTERS.international.pages),
+    chrome: starterChrome(
+      STARTERS.international.pages,
+      siteModules(MODULE_IDS),
+    ),
   });
   const news = await saveCategory(tx, {
     tenantId,
@@ -5033,7 +5037,7 @@ async function seedSite(
       isHome: plan.home ?? false,
     });
     const host = { type: "site_page", id: created.id };
-    const built = buildTemplate(plan.template, "en");
+    const built = buildTemplate(plan.template, "en", siteModules(MODULE_IDS));
     const content = blankPage(built.content);
     const translation = {
       ...blankPage(built.translation),

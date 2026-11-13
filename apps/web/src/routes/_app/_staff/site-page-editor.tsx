@@ -48,7 +48,11 @@ export const Route = createFileRoute("/_app/_staff/site-page-editor")({
     return {
       built:
         deps.template && !deps.id
-          ? buildTemplate(deps.template, overview.settings.primaryLocale)
+          ? buildTemplate(
+              deps.template,
+              overview.settings.primaryLocale,
+              user.modules,
+            )
           : null,
     };
   },

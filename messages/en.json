@@ -5533,6 +5533,20 @@
       }
     }
   ],
+  "siteStarterWithout": [
+    {
+      "declarations": [
+        "input count",
+        "input pages",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Built without its {pages} page",
+        "countPlural=*": "Built without its {pages} pages"
+      }
+    }
+  ],
   "siteStarterApplied": [
     {
       "declarations": [

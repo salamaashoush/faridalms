@@ -1,8 +1,9 @@
 import type { SiteLocale } from "@faridalms/domain/site-sections";
-import type { StarterId } from "@faridalms/domain/site-templates";
+import type { SiteModules, StarterId } from "@faridalms/domain/site-templates";
 
 import {
   buildTemplate,
+  pageFits,
   STARTER_IDS,
   STARTERS,
 } from "@faridalms/domain/site-templates";
@@ -14,9 +15,11 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { CheckboxRow } from "~/components/people/fields";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { applySiteStarter } from "~/server/site";
-import { formatNumber } from "~/utils/datetime";
+import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import type { NewsItem, SiteContact } from "./render/parts";
@@ -27,6 +30,7 @@ import { STARTER_HINT, STARTER_LABEL, THEME_LABEL } from "./studio/labels";
 
 interface StarterCardProps {
   starter: StarterId;
+  modules: SiteModules;
   locale: SiteLocale;
   school: string;
   news: NewsItem[];
@@ -37,6 +41,7 @@ interface StarterCardProps {
 
 function StarterCard({
   starter,
+  modules,
   locale,
   school,
   news,
@@ -47,9 +52,12 @@ function StarterCard({
   const plan = STARTERS[starter];
   const home = plan.pages.find((page) => page.home) ?? plan.pages[0];
   const sections = useMemo(
-    () => (home ? buildTemplate(home.template, locale).content : []),
-    [home, locale],
+    () => (home ? buildTemplate(home.template, locale, modules).content : []),
+    [home, locale, modules],
   );
+  const kept = plan.pages.filter((page) => pageFits(page, modules));
+  const left = plan.pages.filter((page) => !pageFits(page, modules));
+  const titleAt = getLocale() === "ar" ? 1 : 0;
   const theme = resolveTheme({ id: plan.theme, palette: {}, fonts: {} });
   return (
     <li className="grid content-start overflow-hidden rounded-xl border bg-card shadow-xs">
@@ -84,10 +92,18 @@ function StarterCard({
         <p className="text-[13px] text-muted-foreground">
           {m.siteStarterTheme({ theme: THEME_LABEL[plan.theme]() })} ·{" "}
           {m.siteStarterPages({
-            count: plan.pages.length,
-            value: formatNumber(plan.pages.length),
+            count: kept.length,
+            value: formatNumber(kept.length),
           })}
         </p>
+        {left.length > 0 ? (
+          <p className="text-[13px] text-muted-foreground">
+            {m.siteStarterWithout({
+              count: left.length,
+              pages: formatList(left.map((page) => page.title[titleAt])),
+            })}
+          </p>
+        ) : null}
         <div className="flex gap-1">
           {Object.entries(THEMES[plan.theme].palette).map(([role, colour]) => (
             <span
@@ -122,8 +138,9 @@ export interface StartersProps {
 
 /**
  * Whole sites to start from: each a theme and a set of pages with sample
- * words in both languages, drafted for the school to rewrite. Pages whose
- * address is already taken are left alone.
+ * words in both languages, drafted for the school to rewrite and built from
+ * its modules, those whose pages all fit it first. Pages whose address is
+ * already taken are left alone.
  */
 export function Starters({
   locale,
@@ -133,7 +150,14 @@ export function Starters({
   hasPages,
 }: StartersProps) {
   const queryClient = useQueryClient();
+  const { modules } = useCurrentUser();
   const [withTheme, setWithTheme] = useState(true);
+  const fitting = (starter: StarterId) =>
+    STARTERS[starter].pages.every((page) => pageFits(page, modules));
+  const order = [
+    ...STARTER_IDS.filter(fitting),
+    ...STARTER_IDS.filter((starter) => !fitting(starter)),
+  ];
   const apply = useMutation({
     mutationFn: (starter: StarterId) =>
       applySiteStarter({ data: { starter, withTheme } }),
@@ -159,10 +183,11 @@ export function Starters({
         />
       ) : null}
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {STARTER_IDS.map((starter) => (
+        {order.map((starter) => (
           <StarterCard
             key={starter}
             starter={starter}
+            modules={modules}
             locale={locale}
             school={school}
             news={news}

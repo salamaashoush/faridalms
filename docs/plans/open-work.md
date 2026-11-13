@@ -73,9 +73,13 @@ what it leaves to do.
 - **Public catalogue and checkout** for selling a course.
 - **Sign-in through an identity provider**: the `sso` module owns the
   provider tables and has no sign-in flow or API.
-- **Starter content that speaks of families and years**: the website page
-  templates (`packages/domain/src/site-templates.ts`), event template
-  sections and the default admission letter bodies.
+- **Starter content that speaks of families and years**: event template
+  sections and the default admission letter bodies. The website's starters
+  now follow the school's modules, on the Home, About, Academics, Visit and
+  Contact pages; the Admissions page's own sentences still speak of a
+  child at a school with admissions and without families, and a single page
+  template picked in the builder (Parents, for one) is still offered to a
+  school without its module.
 - **A signed link issued before a module went off** opens until it
   expires: five minutes for a file, an hour for media, four to eight hours
   for a video stream.

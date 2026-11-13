@@ -1479,13 +1479,24 @@ export function itemFieldShown(field: ScalarField, item: Loose): boolean {
 
 /**
  * A section as a school's modules let it ask: a form asks no grade where
- * the school has no grade levels, whatever the page says.
+ * the school has no grade levels, and no child where it has no families,
+ * whatever the page says.
  */
 export function askedBy<T extends PageSection>(
   section: T,
   modules: readonly string[],
 ): T {
-  return section.type === "form" && !modules.includes("grade_levels")
-    ? { ...section, data: { ...section.data, grade: "hide" } }
-    : section;
+  if (section.type !== "form") return section;
+  const grade = modules.includes("grade_levels");
+  const child = modules.includes("families");
+  return grade && child
+    ? section
+    : {
+        ...section,
+        data: {
+          ...section.data,
+          ...(grade ? {} : { grade: "hide" }),
+          ...(child ? {} : { child: "hide" }),
+        },
+      };
 }

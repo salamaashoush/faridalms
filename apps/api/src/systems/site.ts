@@ -1,6 +1,6 @@
 import type { PageRow } from "@faridalms/database/stores/site";
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { Starter, StarterPage } from "@faridalms/domain/site-templates";
+import type { BuiltStarter } from "@faridalms/domain/site-templates";
 import type {
   PageContent,
   SiteIssue,
@@ -67,11 +67,7 @@ import {
   sitePagePath,
   sitePostPath,
 } from "@faridalms/domain/site-seo";
-import {
-  buildTemplate,
-  STARTERS,
-  starterChrome,
-} from "@faridalms/domain/site-templates";
+import { buildStarter, STARTERS } from "@faridalms/domain/site-templates";
 import {
   defaultTheme,
   emptyChrome,
@@ -115,6 +111,7 @@ import type { UnitContext } from "../core/context";
 
 import { contributionsAmong, contributionsTo } from "../core/extension";
 import { refuseIfHeld } from "../core/holds";
+import { modulesOf } from "../core/modules";
 import { forgetFace } from "../core/portal-face";
 import {
   audit,
@@ -1000,7 +997,7 @@ export const removeSiteCategory = writeProcedure
 async function startPage(
   context: UnitContext,
   settings: { primaryLocale: SiteLocale; bilingual: boolean },
-  plan: StarterPage,
+  { plan, built }: BuiltStarter["pages"][number],
   home: boolean,
 ): Promise<string> {
   const inserted = await insertPage(context.tx, {
@@ -1015,7 +1012,6 @@ async function startPage(
     indexed: true,
     isHome: home,
   });
-  const built = buildTemplate(plan.template, settings.primaryLocale);
   const content = blankPage(built.content);
   const host = pageHost(inserted.id);
   const original = await saveDocument(context.tx, {
@@ -1049,15 +1045,19 @@ async function startPage(
 
 /**
  * Starts a site from a starter: its theme and frame, and each of its pages
- * as a draft with placeholder words in both languages. Pages whose address
- * is already taken are left as they are.
+ * the school's modules give it as a draft with placeholder words in both
+ * languages. Pages whose address is already taken are left as they are.
  */
 export const applyStarter = writeProcedure
   .input(applyStarterSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "site:manage");
     const settings = await settingsFor(context);
-    const starter: Starter = STARTERS[input.starter];
+    const starter = buildStarter(
+      STARTERS[input.starter],
+      settings.primaryLocale,
+      await modulesOf(context),
+    );
     const pages = await sitePages(
       context.tx,
       context.tenantId,
@@ -1066,14 +1066,14 @@ export const applyStarter = writeProcedure
     const existing = new Set(pages.map((row) => row.slug));
     const hasHome = pages.some((row) => row.isHome);
     const created: string[] = [];
-    for (const plan of starter.pages) {
-      if (existing.has(plan.slug)) continue;
+    for (const planned of starter.pages) {
+      if (existing.has(planned.plan.slug)) continue;
       created.push(
         await startPage(
           context,
           settings,
-          plan,
-          Boolean(plan.home) && !hasHome,
+          planned,
+          Boolean(planned.plan.home) && !hasHome,
         ),
       );
     }
@@ -1083,11 +1083,11 @@ export const applyStarter = writeProcedure
         orgId: context.schoolId,
         ...settings,
         expectedVersion: settings.version,
-        theme: { ...settings.theme, id: starter.theme },
+        theme: { ...settings.theme, id: STARTERS[input.starter].theme },
         chrome:
           settings.chrome.actions.length || settings.chrome.footerColumns.length
             ? settings.chrome
-            : starterChrome(starter.pages, starter.actions),
+            : starter.chrome,
       });
       if (version === null) throw conflict();
     }

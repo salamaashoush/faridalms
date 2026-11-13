@@ -583,6 +583,27 @@ announcements put on the website (see Announcements), with a cover, summary,
 category, pin and schedule. A
 site-wide banner for closures.
 
+A school can start from a ready-made site: a theme and a set of draft pages
+in both languages. Five are written for a school of children (Established,
+International, Early years, Arabic-first, New school) and three for learners
+(Coding school, Course academy, Video courses); any school may take any of
+them, and each is built from the school's modules. A page about a module the
+school does not have (Parents needs families, Admissions needs admissions)
+is left out, and so is a section that takes a module's records or whose
+words are about families (parents' voices, the families' quick links). A
+sentence naming families, children or a grade on the pages that remain is
+written in a neutral form for a school without that module, chosen once as
+the site is built; the page is the school's own from then on. A link to a
+page or form left out leads to the contact page, or to its page where only
+the form is gone. Header buttons are Enquire, Book a visit and Apply where
+admissions is on and one Get in touch otherwise, unless the starter names
+its own. A form asks for a child only where families is on and a grade only
+where grade levels is on, on the built page and on the public site alike.
+The chooser lists first the starters whose pages all fit the school and
+says under the others which pages they will be built without. Starter words
+are a draft the school rewrites, so they do not take the grade word the
+school chose (Grade, Level, Year group, Stage).
+
 ## Settings
 
 School profile (names in both languages, logo, brand colour, timezone,

@@ -1,9 +1,13 @@
+import { createHash } from "node:crypto";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
+import type { ModuleId } from "./modules";
+import type { SiteModules, StarterId } from "./site-templates";
 import type { PageContent, PageSection, SectionOf } from "./website";
 
 import { plainContent } from "./content-conversion";
+import { MODULE_IDS } from "./modules";
 import {
   fitColumns,
   overlay,
@@ -13,8 +17,10 @@ import {
 } from "./site-sections";
 import {
   buildSection,
+  buildStarter,
   buildTemplate,
   PAGE_TEMPLATE_IDS,
+  siteModules,
   STARTER_IDS,
   starterChrome,
   STARTERS,
@@ -458,18 +464,127 @@ function words(value: unknown): string[] {
   );
 }
 
+const EVERY = siteModules(MODULE_IDS);
+const without = (...off: ModuleId[]) =>
+  siteModules(MODULE_IDS.filter((module) => !off.includes(module)));
+
+/** The schools a starter is built for in these tests, by what they lack. */
+const SCHOOLS: Record<string, SiteModules> = {
+  "every module": EVERY,
+  "no admissions": without("admissions"),
+  "no families": without("families"),
+  "no admissions or families": without("admissions", "families"),
+  "no grade levels": without("grade_levels"),
+  "no admissions, families or grade levels": without(
+    "admissions",
+    "families",
+    "grade_levels",
+  ),
+};
+
+/** The five starters written for a school of children, older than those for courses. */
+const SCHOOL_STARTERS = [
+  "heritage",
+  "international",
+  "earlyYears",
+  "arabicFirst",
+  "launch",
+] as const satisfies readonly StarterId[];
+
+/** The pages of those starters a school keeps whatever its modules. */
+const KEPT_PAGES = new Set(["home", "about", "academics", "visit", "contact"]);
+
+const FAMILY_WORDS =
+  /\b(famil(y|ies)|parents?|guardians?|child(ren)?('s)?|siblings?|brothers?|sisters?)\b|أسرة|أسرت|الأسر|لأسر|بأسر|أسرنا|صغيركم|أولياء|ولي الأمر|وليّ أمر|والدين|طفل|أطفالكم|أطفالنا|أبناء|إخوة/i;
+/** A grade as a level of school, not as a mark. */
+const GRADE_WORDS =
+  /\b(grade \d+|grade levels?|year groups?|each grade)\b|the year (they|your child) would join|الصف (الأول|الثاني|العاشر|الذي)|بالصف|كل صف/i;
+
+/** A starter's sentences on the pages every school keeps, in one language. */
+function keptWords(built: ReturnType<typeof buildStarter>, first: boolean) {
+  return built.pages
+    .filter(({ plan }) => KEPT_PAGES.has(plan.slug))
+    .flatMap(({ built: page }) =>
+      words(first ? page.content : page.translation)
+        // A stage of school, named the same with or without families.
+        .map((text) => text.replaceAll("رياض الأطفال", "")),
+    );
+}
+
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+
+/** A value with its keys in order, so two builds compare by their structure. */
+const canonical = (value: unknown): unknown =>
+  Array.isArray(value)
+    ? value.map(canonical)
+    : value && typeof value === "object"
+      ? Object.fromEntries(
+          Object.entries(value)
+            .toSorted(([a], [b]) => (a < b ? -1 : 1))
+            .map(([key, inner]) => [key, canonical(inner)]),
+        )
+      : value;
+
+const slugs = (starter: StarterId, modules: SiteModules) =>
+  buildStarter(STARTERS[starter], "en", modules).pages.map(
+    ({ plan }) => plan.slug,
+  );
+
+const types = (modules: SiteModules) =>
+  buildTemplate("homeStory", "en", modules).content.map((row) => row.type);
+
+const labels = (starter: StarterId, modules: SiteModules) =>
+  buildStarter(STARTERS[starter], "en", modules).chrome.actions.map(
+    (action) => [action.label.en, action.label.ar, action.href],
+  );
+
+/** What each form of a starter asks that the school's modules do not let it. */
+function overAsked(starter: StarterId, modules: SiteModules) {
+  return buildStarter(STARTERS[starter], "en", modules).pages.flatMap(
+    ({ built }) =>
+      [...built.content, ...built.translation].flatMap((row) =>
+        row.type === "form"
+          ? [
+              ...(modules.families || row.data.child === "hide"
+                ? []
+                : ["child"]),
+              ...(modules.grade_levels || row.data.grade === "hide"
+                ? []
+                : ["grade"]),
+            ]
+          : [],
+      ),
+  );
+}
+
+/** A starter's sentences on the kept pages that name a module the school does not have. */
+function unearned(starter: StarterId, modules: SiteModules) {
+  const built = buildStarter(STARTERS[starter], "en", modules);
+  return [true, false].flatMap((first) =>
+    keptWords(built, first).filter(
+      (text) =>
+        (!modules.families && FAMILY_WORDS.test(text)) ||
+        (!modules.grade_levels && GRADE_WORDS.test(text)),
+    ),
+  );
+}
+
 describe("templates", () => {
   it("build valid sections in both languages that line up as a translation", () => {
-    for (const template of PAGE_TEMPLATE_IDS) {
-      const { content, translation } = buildTemplate(template, "en");
-      expect(translation.map((row) => row.id)).toEqual(
-        content.map((row) => row.id),
-      );
-      for (const row of [...content, ...translation])
-        expect(v.safeParse(pageSectionSchema, row).success).toBe(true);
-      const gaps = translationGaps(blankPage(content), blankPage(translation));
-      expect(gaps.missing).toEqual([]);
-    }
+    for (const modules of Object.values(SCHOOLS))
+      for (const template of PAGE_TEMPLATE_IDS) {
+        const { content, translation } = buildTemplate(template, "en", modules);
+        expect(translation.map((row) => row.id)).toEqual(
+          content.map((row) => row.id),
+        );
+        for (const row of [...content, ...translation])
+          expect(v.safeParse(pageSectionSchema, row).success).toBe(true);
+        const gaps = translationGaps(
+          blankPage(content),
+          blankPage(translation),
+        );
+        expect(gaps.missing).toEqual([]);
+      }
   });
 
   it("offer a sample of every section in every layout, aligned in both languages", () => {
@@ -488,51 +603,139 @@ describe("templates", () => {
   });
 
   it("link only to pages the starter creates", () => {
-    for (const starter of STARTER_IDS) {
-      const { pages } = STARTERS[starter];
-      const known = new Set([
-        "",
-        "/",
-        "/news",
-        ...pages.map((page) => `/pages/${page.slug}`),
+    for (const modules of Object.values(SCHOOLS))
+      for (const starter of STARTER_IDS) {
+        const { pages, chrome } = buildStarter(
+          STARTERS[starter],
+          "en",
+          modules,
+        );
+        const known = new Set([
+          "",
+          "/",
+          "/news",
+          ...pages.map(({ plan }) => `/pages/${plan.slug}`),
+        ]);
+        const anchors = new Map(
+          pages.map(({ plan, built }) => [
+            `/pages/${plan.slug}`,
+            new Set(built.content.map((row) => row.style.anchor)),
+          ]),
+        );
+        const linked = [
+          ...pages.flatMap(({ built }) => [
+            ...hrefs(built.content),
+            ...hrefs(built.translation),
+          ]),
+          ...hrefs(chrome),
+        ];
+        const dead = linked.filter((href) => {
+          const [path = "", anchor] = href.split("#");
+          if (!known.has(path)) return true;
+          return anchor !== undefined && !anchors.get(path)?.has(anchor);
+        });
+        expect(dead).toEqual([]);
+      }
+  });
+
+  it("build every starter for a school with every module exactly as before modules were weighed", () => {
+    const built = STARTER_IDS.map((id) => {
+      const { pages, chrome } = buildStarter(STARTERS[id], "en", EVERY);
+      return {
+        id,
+        pages: pages.map(({ plan }) => ({
+          slug: plan.slug,
+          title: plan.title,
+          en: buildStarter(STARTERS[id], "en", EVERY).pages.find(
+            (page) => page.plan.slug === plan.slug,
+          )?.built,
+          ar: buildStarter(STARTERS[id], "ar", EVERY).pages.find(
+            (page) => page.plan.slug === plan.slug,
+          )?.built,
+        })),
+        chrome,
+      };
+    });
+    const text = JSON.stringify(canonical(built)).replace(UUID, "<id>");
+    // The digest of what every starter built, ids aside, before a starter
+    // followed the school's modules.
+    expect(createHash("sha256").update(text).digest("hex")).toBe(
+      "00fbbfcb97185928d14a831d46077dfaa7bf09a4f309e1bd58d366259336b5e6",
+    );
+  });
+
+  it("build a school without a page's modules without the page", () => {
+    expect(slugs("international", EVERY)).toEqual([
+      "home",
+      "about",
+      "academics",
+      "admissions",
+      "visit",
+      "parents",
+      "contact",
+    ]);
+    expect(slugs("international", without("families"))).not.toContain(
+      "parents",
+    );
+    expect(slugs("international", without("admissions", "families"))).toEqual([
+      "home",
+      "about",
+      "academics",
+      "visit",
+      "contact",
+    ]);
+    expect(slugs("reel", without("admissions", "families"))).toEqual(
+      slugs("reel", EVERY),
+    );
+  });
+
+  it("leave out a section whose module, or whose words' modules, the school does not have", () => {
+    expect(types(EVERY)).toEqual(
+      expect.arrayContaining(["voices", "registerApply"]),
+    );
+    expect(types(without("admissions"))).not.toContain("registerApply");
+    expect(types(without("families"))).not.toContain("voices");
+  });
+
+  it("give the header today's three buttons with admissions, and one way to write without", () => {
+    expect(labels("heritage", EVERY)).toEqual([
+      ["Enquire", "استفسر", "/pages/admissions#enquire"],
+      ["Book a visit", "احجز زيارة", "/pages/visit#book-a-visit"],
+      ["Apply", "قدّم الآن", "/pages/admissions#apply"],
+    ]);
+    for (const starter of SCHOOL_STARTERS)
+      expect(labels(starter, without("admissions"))).toEqual([
+        ["Get in touch", "تواصل معنا", "/pages/contact"],
       ]);
-      const anchors = new Map(
-        pages.map((page) => [
-          `/pages/${page.slug}`,
-          new Set(
-            buildTemplate(page.template, "en").content.map(
-              (row) => row.style.anchor,
-            ),
-          ),
-        ]),
-      );
-      const linked = [
-        ...pages.flatMap((page) =>
-          hrefs(buildTemplate(page.template, "en").content),
-        ),
-        ...hrefs(starterChrome(pages)),
-      ];
-      const dead = linked.filter((href) => {
-        const [path = "", anchor] = href.split("#");
-        if (!known.has(path)) return true;
-        return anchor !== undefined && !anchors.get(path)?.has(anchor);
-      });
-      expect(dead).toEqual([]);
-    }
+    expect(labels("reel", without("admissions"))).toEqual(
+      labels("reel", EVERY),
+    );
   });
 
   it("give a starter its own header buttons where it names them", () => {
     const { pages, actions } = STARTERS.reel;
-    const chrome = starterChrome(pages, actions);
+    const chrome = starterChrome(pages, EVERY, actions);
     expect(chrome.actions.map((action) => action.label.en)).toEqual([
       "Start watching",
     ]);
     expect(chrome.actions[0]?.href).toBe("/pages/courses");
     expect(
-      starterChrome(STARTERS.heritage.pages).actions.map(
+      starterChrome(STARTERS.heritage.pages, EVERY).actions.map(
         (action) => action.label.en,
       ),
     ).toEqual(["Enquire", "Book a visit", "Apply"]);
+  });
+
+  it("ask for a child only with families and a grade only with grade levels", () => {
+    for (const [name, modules] of Object.entries(SCHOOLS))
+      for (const starter of STARTER_IDS)
+        expect(overAsked(starter, modules), `${starter}, ${name}`).toEqual([]);
+  });
+
+  it("speak of families and grades only to a school that has them", () => {
+    for (const [name, modules] of Object.entries(SCHOOLS))
+      for (const starter of SCHOOL_STARTERS)
+        expect(unearned(starter, modules), `${starter}, ${name}`).toEqual([]);
   });
 
   it("speak to learners, not to families, in the starters for courses", () => {
@@ -542,7 +745,9 @@ describe("templates", () => {
       for (const page of STARTERS[starter].pages)
         for (const language of ["en", "ar"] as const) {
           // A parent may speak in a quote; the page itself addresses the learner.
-          const said = words(buildTemplate(page.template, language).content);
+          const said = words(
+            buildTemplate(page.template, language, EVERY).content,
+          );
           expect(said.filter((text) => schoolWords.test(text))).toEqual([]);
         }
   });

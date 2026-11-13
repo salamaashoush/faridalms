@@ -5824,6 +5824,21 @@
       }
     }
   ],
+  "siteStarterWithout": [
+    {
+      "declarations": [
+        "input count",
+        "input pages",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "يُبنى الموقع من دون صفحة {pages}",
+        "countPlural=two": "يُبنى الموقع من دون صفحتَي {pages}",
+        "countPlural=*": "يُبنى الموقع من دون صفحات {pages}"
+      }
+    }
+  ],
   "siteStarterApplied": [
     {
       "declarations": [

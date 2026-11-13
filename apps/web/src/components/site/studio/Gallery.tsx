@@ -239,15 +239,16 @@ export interface TemplateGalleryProps {
 /** The page templates, each drawn in the site's theme, for starting a new page. */
 export function TemplateGallery({ context, onPick }: TemplateGalleryProps) {
   const words = useWords();
+  const { modules } = useCurrentUser();
   const built = useMemo(
     () =>
       Object.fromEntries(
         PAGE_TEMPLATE_IDS.map((template) => [
           template,
-          buildTemplate(template, context.locale).content,
+          buildTemplate(template, context.locale, modules).content,
         ]),
       ),
-    [context.locale],
+    [context.locale, modules],
   );
   return (
     <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
