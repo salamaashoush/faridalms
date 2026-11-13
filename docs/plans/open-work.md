@@ -95,9 +95,6 @@ what it leaves to do.
 - **Starter content that speaks of families and years**: the website page
   templates (`packages/domain/src/site-templates.ts`), event template
   sections and the default admission letter bodies.
-- **Admission reports name families and grades** to a school without them:
-  the page's description (`adrHint`) and the "By grade and intake" tab
-  label (`adrByIntake`) are shown without `useWords`.
 - **An adult applying at a school with families** still meets the
   application's family step, which asks for their relationship to the
   child.
