@@ -30,7 +30,9 @@ import {
   contrast,
   darkBands,
   darkPalette,
+  DISTINCT_INK,
   fromOklch,
+  inkDistance,
   resolveTheme,
   schemesOf,
   THEME_IDS,
@@ -410,6 +412,37 @@ describe("themes", () => {
           const apart = Math.abs(tint.h - link.h) % 360;
           expect(Math.min(apart, 360 - apart)).toBeLessThan(8);
         }
+  });
+
+  it("mark Arabic's emphasis in a colour that reads and parts from the heading", () => {
+    let coloured = 0;
+    for (const id of THEME_IDS)
+      for (const palette of [
+        THEMES[id].palette,
+        darkPalette(THEMES[id].palette),
+      ])
+        for (const scheme of Object.values(schemesOf(palette))) {
+          if (scheme.standout === null) continue;
+          coloured += 1;
+          expect(
+            contrast(scheme.standout, scheme.background),
+          ).toBeGreaterThanOrEqual(4.5);
+          expect(
+            inkDistance(scheme.standout, scheme.heading),
+          ).toBeGreaterThanOrEqual(DISTINCT_INK);
+        }
+    // Only a band of a colour no other reads on falls back to weight.
+    expect(coloured).toBeGreaterThanOrEqual(THEME_IDS.length * 2 * 5 - 4);
+  });
+
+  it("give an italic theme with a brand as dark as its ink an Arabic accent", () => {
+    const { palette } = THEMES.atelier;
+    for (const scheme of [schemesOf(palette).canvas, schemesOf(palette).soft]) {
+      expect(scheme.standout).not.toBeNull();
+      expect(inkDistance(scheme.link, scheme.heading)).toBeLessThan(
+        DISTINCT_INK,
+      );
+    }
   });
 
   it("raise cards above a dark background rather than sink them", () => {

@@ -26,6 +26,7 @@ import {
   EmptyState,
   FilteredEmptyState,
 } from "@faridalms/ui/system/empty-state";
+import { ScaledPreview } from "@faridalms/ui/system/scaled-preview";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle, Share2 } from "lucide-react";
@@ -50,6 +51,7 @@ import { Viewport } from "./Canvas";
 import { SECTION_LABEL } from "./labels";
 
 const THUMB_WIDTH = 1200;
+const THUMB_HEIGHT = 224;
 
 /** A shared section a page shows, as the builder knows it. */
 export interface SharedInfo {
@@ -74,18 +76,19 @@ export interface SectionThumbnailProps {
   context: RenderContext;
 }
 
-/** A section drawn small, for choosing; it cannot be focused or clicked into. */
+/** A whole section drawn small at a desktop page's width, for choosing. */
 export function SectionThumbnail({ section, context }: SectionThumbnailProps) {
   return (
-    <div
-      aria-hidden
-      inert
-      className="pointer-events-none max-h-56 overflow-hidden bg-white"
+    <ScaledPreview
+      width={THUMB_WIDTH}
+      height={THUMB_HEIGHT}
+      className="bg-muted"
     >
       <Viewport
         width={THUMB_WIDTH}
         theme={context.theme}
         locale={context.locale}
+        scale={1}
       >
         <SiteSection
           section={section}
@@ -94,7 +97,7 @@ export function SectionThumbnail({ section, context }: SectionThumbnailProps) {
           first={false}
         />
       </Viewport>
-    </div>
+    </ScaledPreview>
   );
 }
 

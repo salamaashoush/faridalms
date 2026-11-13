@@ -79,6 +79,8 @@
     --s-btn: var(--s-btn-light);
     --s-btn-fg: var(--s-btn-fg-light);
     --s-tint: var(--s-tint-light);
+    --s-standout: var(--s-standout-light);
+    --s-standout-weight: var(--s-standout-weight-light);
   }
   .dark .site-root,
   .dark .site-section {
@@ -94,6 +96,8 @@
     --s-btn: var(--s-btn-dark);
     --s-btn-fg: var(--s-btn-fg-dark);
     --s-tint: var(--s-tint-dark);
+    --s-standout: var(--s-standout-dark);
+    --s-standout-weight: var(--s-standout-weight-dark);
     --s-edge: var(--s-edge-dark, transparent);
   }
   .dark .site-root {
@@ -484,15 +488,19 @@
     text-underline-offset: 0.14em;
     text-decoration-skip-ink: none;
   }
-  /* Arabic has no italic and no capitals: italic becomes colour, and the
-     underline clears the descenders. */
+  /* Arabic has no italic and no capitals: italic becomes the scheme's
+     standout colour (theme.ts, standoutStyle), and the underline clears the
+     descenders. The brand colour would not do: in a theme whose brand is as
+     dark as its ink, it marked nothing. */
   .site-root:lang(ar)[data-emphasis="italic"] .site-em,
   .site-root [lang="ar"] .site-em {
     font-family: inherit;
     font-style: normal;
   }
-  .site-root:lang(ar)[data-emphasis="italic"] .site-em {
-    color: var(--s-em, var(--s-link));
+  .site-root:lang(ar)[data-emphasis="italic"] .site-em,
+  .site-root[data-emphasis="italic"] [lang="ar"] .site-em {
+    color: var(--s-em, var(--s-standout));
+    font-weight: var(--s-standout-weight);
   }
   .site-root:lang(ar)[data-emphasis="underline"] .site-em {
     text-underline-offset: 0.35em;

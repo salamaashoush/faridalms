@@ -694,7 +694,7 @@ export function FramePanel({
   return (
     <div>
       <PanelGroup title={m.siteLogo()} hint={m.siteLogoHint()}>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="grid h-14 w-28 place-items-center overflow-hidden rounded-md border bg-muted">
             {logoUrl ? (
               <img

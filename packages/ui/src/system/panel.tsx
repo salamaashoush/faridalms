@@ -26,7 +26,7 @@ export function PanelGroup({ title, hint, children, action }: PanelGroupProps) {
   return (
     <section
       aria-labelledby={id}
-      className="grid gap-3 border-b px-4 py-4 last:border-b-0"
+      className="grid grid-cols-[minmax(0,1fr)] gap-3 border-b px-4 py-4 last:border-b-0"
     >
       <div className="flex items-center justify-between gap-2">
         <h3

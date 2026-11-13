@@ -76,6 +76,8 @@ import { SiteIcon } from "../render/parts";
 import { siteAudiences, siteChoiceFields } from "../slots";
 import { ClassPicker, CoursePicker } from "./class-picker";
 import { Disclosure, StudioField } from "./controls";
+import { HeadingInput } from "./heading-input";
+import { itemTitle } from "./item-title";
 import {
   AUDIENCE_LABEL,
   BLOCK_LABEL,
@@ -189,6 +191,8 @@ interface TextControlProps {
   multiline?: boolean;
   locale: SiteLocale;
   hint?: string;
+  /** Words drawn through the heading component, whose selected words can be emphasised. */
+  emphasis?: boolean;
   onChange: (value: string) => void;
 }
 
@@ -200,6 +204,7 @@ function TextControl({
   multiline,
   locale,
   hint,
+  emphasis = false,
   onChange,
 }: TextControlProps) {
   const near = value.length > max * 0.8;
@@ -217,7 +222,15 @@ function TextControl({
         ) : null
       }
     >
-      {multiline ? (
+      {emphasis ? (
+        <HeadingInput
+          id={id}
+          value={value}
+          max={max}
+          locale={locale}
+          onChange={onChange}
+        />
+      ) : multiline ? (
         <Textarea
           {...props}
           rows={3}
@@ -1095,6 +1108,7 @@ export function FieldControl({
           multiline={field.multiline}
           locale={context.locale}
           hint={EMPHASISABLE.has(name) ? m.siteHeadingFieldHint() : fieldHint}
+          emphasis={EMPHASISABLE.has(name)}
           onChange={onChange}
         />
       );
@@ -1435,14 +1449,6 @@ function ColumnsControl({ id, value, context, onChange }: ColumnsControlProps) {
 
 type Item = Record<string, unknown> & { id: string };
 
-function summaryOf(item: Item, index: number): string {
-  for (const key of ["title", "name", "label", "year", "value", "quote"]) {
-    const words = item[key];
-    if (typeof words === "string" && words.trim()) return words;
-  }
-  return m.siteItemNumber({ number: formatNumber(index + 1) });
-}
-
 interface ItemsControlProps {
   id: string;
   label: string;
@@ -1488,76 +1494,83 @@ function ItemsControl({
         </p>
       ) : null}
       <ul className="grid gap-2">
-        {items.map((item, index) => (
-          <li key={item.id}>
-            <Disclosure
-              summary={summaryOf(item, index)}
-              actions={
-                context.wordsOnly ? null : (
-                  <span className="flex shrink-0 gap-0.5">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label={m.siteMoveUpItem({
-                        item: summaryOf(item, index),
-                      })}
-                      disabled={index === 0}
-                      onClick={(event) =>
-                        stop(event, () => onChange(moved(items, index, -1)))
-                      }
-                    >
-                      <ArrowUp aria-hidden />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label={m.siteMoveDownItem({
-                        item: summaryOf(item, index),
-                      })}
-                      disabled={index === items.length - 1}
-                      onClick={(event) =>
-                        stop(event, () => onChange(moved(items, index, 1)))
-                      }
-                    >
-                      <ArrowDown aria-hidden />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label={m.siteRemoveItem({
-                        item: summaryOf(item, index),
-                      })}
-                      onClick={(event) =>
-                        stop(event, () =>
-                          onChange(items.filter((_, at) => at !== index)),
-                        )
-                      }
-                    >
-                      <Trash2 aria-hidden />
-                    </Button>
-                  </span>
-                )
-              }
-            >
-              {Object.entries(field.fields)
-                .filter(([, inner]) => itemFieldShown(inner, item))
-                .map(([key, inner]) => (
-                  <FieldControl
-                    key={key}
-                    name={key}
-                    field={inner}
-                    value={item[key]}
-                    context={context}
-                    prefix={`${id}-${item.id}`}
-                    onChange={(next) => set(index, key, next)}
-                  />
-                ))}
-            </Disclosure>
-          </li>
-        ))}
+        {items.map((item, index) => {
+          const title = itemTitle(item, field.fields);
+          const name =
+            title ?? m.siteItemNumber({ number: formatNumber(index + 1) });
+          return (
+            <li key={item.id}>
+              <Disclosure
+                summary={
+                  title ? (
+                    <span lang={context.locale} dir={dirOf(context.locale)}>
+                      {title}
+                    </span>
+                  ) : (
+                    name
+                  )
+                }
+                actions={
+                  context.wordsOnly ? null : (
+                    <span className="flex shrink-0 gap-0.5">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={m.siteMoveUpItem({ item: name })}
+                        disabled={index === 0}
+                        onClick={(event) =>
+                          stop(event, () => onChange(moved(items, index, -1)))
+                        }
+                      >
+                        <ArrowUp aria-hidden />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={m.siteMoveDownItem({ item: name })}
+                        disabled={index === items.length - 1}
+                        onClick={(event) =>
+                          stop(event, () => onChange(moved(items, index, 1)))
+                        }
+                      >
+                        <ArrowDown aria-hidden />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={m.siteRemoveItem({ item: name })}
+                        onClick={(event) =>
+                          stop(event, () =>
+                            onChange(items.filter((_, at) => at !== index)),
+                          )
+                        }
+                      >
+                        <Trash2 aria-hidden />
+                      </Button>
+                    </span>
+                  )
+                }
+              >
+                {Object.entries(field.fields)
+                  .filter(([, inner]) => itemFieldShown(inner, item))
+                  .map(([key, inner]) => (
+                    <FieldControl
+                      key={key}
+                      name={key}
+                      field={inner}
+                      value={item[key]}
+                      context={context}
+                      prefix={`${id}-${item.id}`}
+                      onChange={(next) => set(index, key, next)}
+                    />
+                  ))}
+              </Disclosure>
+            </li>
+          );
+        })}
       </ul>
       {context.wordsOnly || items.length >= field.max ? null : (
         <Button

@@ -725,12 +725,58 @@ function readable(
     : "#FFFFFF";
 }
 
+/** How far apart in OKLab two inks must be to read as two colours, not one. */
+export const DISTINCT_INK = 0.1;
+
+/** The OKLab distance between two colours. */
+export function inkDistance(a: string, b: string): number {
+  const [l1, a1, b1] = toOklab(a);
+  const [l2, a2, b2] = toOklab(b);
+  return Math.hypot(l1 - l2, a1 - a2, b1 - b2);
+}
+
+/**
+ * Words set apart from a heading by colour alone: the first of the given
+ * colours that has a hue, at the nearest lightness that reads on the
+ * background and parts from the heading's ink. A brand as dark as the ink
+ * (a near-black green) would otherwise mark nothing. Null where no colour
+ * does both, as on a band of the accent itself.
+ */
+function standout(
+  background: string,
+  heading: string,
+  sources: string[],
+): string | null {
+  const darker = toOklch(background).l >= 0.5;
+  for (const source of sources) {
+    const { l, c, h } = toOklch(source);
+    if (c < NEUTRAL) continue;
+    for (let step = 0; step <= 60; step++) {
+      const lightness = l + (darker ? -step : step) * 0.01;
+      if (lightness < 0.05 || lightness > 0.97) break;
+      const candidate = fromOklch({ l: lightness, c, h });
+      if (
+        contrast(candidate, background) >= 4.5 &&
+        inkDistance(candidate, heading) >= DISTINCT_INK
+      )
+        return candidate;
+    }
+  }
+  return null;
+}
+
 export interface Scheme {
   background: string;
   heading: string;
   body: string;
   muted: string;
   link: string;
+  /**
+   * Emphasised words where the script has no italic: the accent, readable
+   * and apart from the heading, or null where only a heavier weight can
+   * mark them.
+   */
+  standout: string | null;
   border: string;
   card: string;
   button: string;
@@ -899,6 +945,7 @@ export function schemesOf(palette: Palette): Record<SchemeId, Scheme> {
         mix(body, background, 0.2),
       ]),
       link,
+      standout: standout(background, body, [palette.accent, palette.primary]),
       border: mix(body, background, 0.84),
       // On a dark background a card is raised by being lighter, never sunk.
       card:

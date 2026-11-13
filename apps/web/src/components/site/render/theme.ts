@@ -115,6 +115,22 @@ export function themeAttributes(theme: Theme, editing = false) {
 }
 
 /**
+ * How a script without italic, Arabic, takes a theme's italic emphasis: in
+ * the scheme's standout colour, or in a heavier weight of its heading face
+ * where no colour reads on the scheme apart from the heading. Both are set
+ * on every scheme, so a section never inherits another's.
+ */
+export function standoutStyle(
+  mode: "light" | "dark",
+  colour: string | null,
+): Record<string, string> {
+  return {
+    [`--s-standout-${mode}`]: colour ?? "currentColor",
+    [`--s-standout-weight-${mode}`]: colour ? "var(--s-heading-weight)" : "700",
+  };
+}
+
+/**
  * One colour scheme in both its light and dark colours; the stylesheet
  * gives a section's contents whichever the reader's screen shows.
  */
@@ -153,6 +169,8 @@ export function schemeStyle(theme: Theme, scheme: SchemeId): CSSProperties {
     "--s-btn-dark": dark.button,
     "--s-btn-fg-dark": dark.buttonText,
     "--s-tint-dark": dark.tint,
+    ...standoutStyle("light", colours.standout),
+    ...standoutStyle("dark", dark.standout),
     ...(band && edged ? { "--s-edge-dark": dark.border } : {}),
   } as CSSProperties;
 }
