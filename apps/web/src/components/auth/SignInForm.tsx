@@ -12,6 +12,7 @@ import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
 import { loginSchema } from "~/schema/auth";
 import { login } from "~/server/auth";
+import { getMessageFromError } from "~/utils/error";
 
 import type { DemoAccount } from "./demo-accounts";
 
@@ -32,9 +33,12 @@ export function SignInForm({
   const hydrated = useHydrated();
   const sessionChanged = useSessionChange();
 
-  const { mutateAsync } = useMutation({
+  const { mutateAsync, error } = useMutation({
     mutationFn: useServerFn(login),
     mutationKey: ["user/login"],
+    // A refusal stays beside the form until the next try; a toast is gone
+    // before a reader using a screen magnifier or a slow phone has read it.
+    meta: { inlineError: true },
     onSuccess: async () => {
       toast(m.authSignInSuccessTitle(), {
         description: m.authSignInSuccessMessage(),
@@ -54,7 +58,7 @@ export function SignInForm({
     // no @hookform/resolvers-style adapter package.
     validators: { onSubmit: loginSchema },
     onSubmit: async ({ value }) => {
-      await mutateAsync({ data: value });
+      await mutateAsync({ data: value }).catch(() => undefined);
     },
   });
 
@@ -124,6 +128,12 @@ export function SignInForm({
             );
           }}
         </form.Field>
+
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {getMessageFromError(error)}
+          </p>
+        ) : null}
 
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(isSubmitting) => (

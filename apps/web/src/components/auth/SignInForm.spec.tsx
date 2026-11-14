@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PortalFace } from "~/queries/portal";
 
 import * as m from "~/i18n/messages";
+import { login } from "~/server/auth";
 import { render } from "~/testUtils";
 
 import { demoAccounts } from "./demo-accounts";
@@ -124,6 +125,22 @@ describe("SignForm", () => {
     expect(
       await screen.findByText(m.validationMinLength({ count: 8 })),
     ).toBeInTheDocument();
+  });
+
+  it("keeps a refused sign-in beside the form until the next try", async () => {
+    vi.mocked(login).mockRejectedValueOnce(
+      new Error("auth.invalid_credentials"),
+    );
+    render(<SignInForm />);
+    await userEvent.type(
+      screen.getByLabelText(m.authSignInFormLogin()),
+      "salama@example.com",
+    );
+    await userEvent.type(screen.getByLabelText(/password/i), "password123");
+    await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      m.authInvalidCredentials(),
+    );
   });
 
   it("submits form with valid data", async () => {
