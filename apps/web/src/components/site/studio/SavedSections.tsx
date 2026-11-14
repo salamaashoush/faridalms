@@ -26,6 +26,7 @@ import {
   EmptyState,
   FilteredEmptyState,
 } from "@faridalms/ui/system/empty-state";
+import { NearViewport } from "@faridalms/ui/system/near-viewport";
 import { ScaledPreview } from "@faridalms/ui/system/scaled-preview";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -79,25 +80,27 @@ export interface SectionThumbnailProps {
 /** A whole section drawn small at a desktop page's width, for choosing. */
 export function SectionThumbnail({ section, context }: SectionThumbnailProps) {
   return (
-    <ScaledPreview
-      width={THUMB_WIDTH}
-      height={THUMB_HEIGHT}
-      className="bg-muted"
-    >
-      <Viewport
+    <NearViewport className="bg-muted" style={{ height: THUMB_HEIGHT }}>
+      <ScaledPreview
         width={THUMB_WIDTH}
-        theme={context.theme}
-        locale={context.locale}
-        scale={1}
+        height={THUMB_HEIGHT}
+        className="bg-muted"
       >
-        <SiteSection
-          section={section}
-          shownIn={context.locale}
-          context={context}
-          first={false}
-        />
-      </Viewport>
-    </ScaledPreview>
+        <Viewport
+          width={THUMB_WIDTH}
+          theme={context.theme}
+          locale={context.locale}
+          scale={1}
+        >
+          <SiteSection
+            section={section}
+            shownIn={context.locale}
+            context={context}
+            first={false}
+          />
+        </Viewport>
+      </ScaledPreview>
+    </NearViewport>
   );
 }
 

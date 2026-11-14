@@ -26,6 +26,7 @@ import {
 } from "@faridalms/ui/dialog";
 import { Input } from "@faridalms/ui/input";
 import { FilteredEmptyState } from "@faridalms/ui/system/empty-state";
+import { NearViewport } from "@faridalms/ui/system/near-viewport";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -274,20 +275,22 @@ export function TemplateGallery({ context, onPick }: TemplateGalleryProps) {
                   {TEMPLATE_HINT.blank()}
                 </span>
               ) : (
-                <Viewport
-                  width={THUMB_WIDTH}
-                  theme={context.theme}
-                  locale={context.locale}
-                >
-                  <PageSections
-                    sections={(built[template] ?? []).map((section) => ({
-                      section,
-                      locale: context.locale,
-                    }))}
-                    title=""
-                    context={context}
-                  />
-                </Viewport>
+                <NearViewport className="h-full">
+                  <Viewport
+                    width={THUMB_WIDTH}
+                    theme={context.theme}
+                    locale={context.locale}
+                  >
+                    <PageSections
+                      sections={(built[template] ?? []).map((section) => ({
+                        section,
+                        locale: context.locale,
+                      }))}
+                      title=""
+                      context={context}
+                    />
+                  </Viewport>
+                </NearViewport>
               )}
             </div>
             <span className="grid gap-0.5 p-4">

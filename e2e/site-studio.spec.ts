@@ -58,12 +58,34 @@ test("the builder's left panels fit their width in English and Arabic", async ({
   page,
 }) => {
   await signIn(page, "admin");
-  for (const language of ["en", "ar"]) {
+  const panels = {
+    en: {
+      sections: "Sections",
+      page: "Page",
+      styles: "Styles",
+      frame: "Header",
+    },
+    ar: {
+      sections: "الأقسام",
+      page: "الصفحة",
+      styles: "الأنماط",
+      frame: "الرأس",
+    },
+  };
+  for (const language of ["en", "ar"] as const) {
     await page
       .context()
       .addCookies([{ name: "language-tag", value: language, url: portal() }]);
-    for (const panel of ["sections", "page", "styles", "frame"]) {
-      await openStudio(page, panel);
+    await openStudio(page, "sections");
+    for (const [panel, name] of Object.entries(panels[language])) {
+      const tab = page.getByRole("tab", { name, exact: true });
+      // A click before the studio hydrates is dropped, so it is repeated.
+      await expect(async () => {
+        await tab.click();
+        await expect(tab).toHaveAttribute("aria-selected", "true", {
+          timeout: 1_000,
+        });
+      }).toPass();
       const rail = page.getByRole("tabpanel");
       if (panel === "frame")
         await within(rail.locator('a[href^="/settings"]'), rail);

@@ -1,5 +1,10 @@
+import { addDays } from "@faridalms/domain/school";
 import { expect, test } from "@playwright/test";
 
+import type { Api } from "./fixtures/api";
+
+import { apiAs } from "./fixtures/api";
+import { workingYear } from "./fixtures/school";
 import {
   PASSWORD,
   portal,
@@ -8,10 +13,21 @@ import {
   untilHydrated,
 } from "./fixtures/sign-in";
 
-// Each browser shows its own class, so runs side by side never meet; the
-// class after all of them stays off the website in every run.
-const SHOWN: Record<string, number> = { chromium: 0, webkit: 1, firefox: 2 };
-const HIDDEN = 5;
+// Classes of the test's own, since other specs add to the school's list
+// while this one runs and a place in it names a different class each time.
+async function ownClass(api: Api, title: string) {
+  const year = await workingYear(api);
+  const saved = await api.classes.save({
+    code: `SC-${crypto.randomUUID().slice(0, 6)}`,
+    titleEn: title,
+    titleAr: "",
+    teacherIds: [],
+    startsOn: year.startsOn,
+    endsOn: addDays(year.endsBefore, -1),
+    parts: { year: { yearId: year.id } },
+  });
+  return saved.id;
+}
 
 test("a school shows a class on its website and a visitor reads it in a courses section, in both languages and at phone width", async ({
   browser,
@@ -21,14 +37,17 @@ test("a school shows a class on its website and a visitor reads it in a courses 
   const tag = crypto.randomUUID().slice(0, 6);
   const publicTitle = `Robotics evenings ${tag}`;
   const arabicTitle = `أمسيات الروبوتات ${tag}`;
+  const admin = await apiAs("admin");
+  const shownTitle = `Salama robotics ${tag}`;
+  const hiddenTitle = `Salama chess ${tag}`;
+  const shownId = await ownClass(admin, shownTitle);
+  await ownClass(admin, hiddenTitle);
   await signIn(page, "admin");
-  await page.goto("/classes");
+  await page.goto(`/classes/${shownId}`);
   await untilHydrated(page);
-  await page.getByRole("tab", { name: "All classes" }).click();
-  const links = page.getByRole("table").locator(`a[href*="/classes/"]`);
-  const hiddenTitle = (await links.nth(HIDDEN).innerText()).trim();
-  await links.nth(SHOWN[test.info().project.name] ?? 0).click();
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: shownTitle }),
+  ).toBeVisible();
 
   const onWebsite = page.getByRole("region", { name: "On the website" });
   await onWebsite

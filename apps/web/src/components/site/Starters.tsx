@@ -10,6 +10,7 @@ import {
 } from "@faridalms/domain/site-templates";
 import { resolveTheme, THEMES } from "@faridalms/domain/site-theme";
 import { Button } from "@faridalms/ui/button";
+import { NearViewport } from "@faridalms/ui/system/near-viewport";
 import { Check, Eye } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -25,6 +26,43 @@ import { StarterPreview } from "./StarterPreview";
 import { StarterReview } from "./StarterReview";
 import { Viewport } from "./studio/Canvas";
 import { STARTER_HINT, STARTER_LABEL, THEME_LABEL } from "./studio/labels";
+
+type StarterHomeProps = Omit<StarterCardProps, "onPreview" | "onUse">;
+
+/** A starter's home page drawn at a desktop's width, its top showing. */
+function StarterHome({
+  starter,
+  modules,
+  locale,
+  school,
+  news,
+  contact,
+}: StarterHomeProps) {
+  const plan = STARTERS[starter];
+  const home = plan.pages.find((page) => page.home) ?? plan.pages[0];
+  const sections = useMemo(
+    () => (home ? buildTemplate(home.template, locale, modules).content : []),
+    [home, locale, modules],
+  );
+  const theme = resolveTheme({ id: plan.theme, palette: {}, fonts: {} });
+  return (
+    <Viewport width={1280} theme={theme} locale={locale}>
+      <PageSections
+        sections={sections.map((section) => ({ section, locale }))}
+        title=""
+        context={{
+          school,
+          locale,
+          theme,
+          fileUrl: () => null,
+          news,
+          contact,
+          editing: true,
+        }}
+      />
+    </Viewport>
+  );
+}
 
 interface StarterCardProps {
   starter: StarterId;
@@ -48,15 +86,9 @@ function StarterCard({
   onUse,
 }: StarterCardProps) {
   const plan = STARTERS[starter];
-  const home = plan.pages.find((page) => page.home) ?? plan.pages[0];
-  const sections = useMemo(
-    () => (home ? buildTemplate(home.template, locale, modules).content : []),
-    [home, locale, modules],
-  );
   const kept = plan.pages.filter((page) => pageFits(page, modules));
   const left = plan.pages.filter((page) => !pageFits(page, modules));
   const titleAt = getLocale() === "ar" ? 1 : 0;
-  const theme = resolveTheme({ id: plan.theme, palette: {}, fonts: {} });
   return (
     <li className="grid content-start overflow-hidden rounded-xl border bg-card shadow-xs">
       <div
@@ -64,21 +96,16 @@ function StarterCard({
         inert
         className="pointer-events-none h-64 overflow-hidden border-b bg-white"
       >
-        <Viewport width={1280} theme={theme} locale={locale}>
-          <PageSections
-            sections={sections.map((section) => ({ section, locale }))}
-            title=""
-            context={{
-              school,
-              locale,
-              theme,
-              fileUrl: () => null,
-              news,
-              contact,
-              editing: true,
-            }}
+        <NearViewport className="h-full">
+          <StarterHome
+            starter={starter}
+            modules={modules}
+            locale={locale}
+            school={school}
+            news={news}
+            contact={contact}
           />
-        </Viewport>
+        </NearViewport>
       </div>
       <div className="grid gap-3 p-4">
         <div className="grid gap-1">
