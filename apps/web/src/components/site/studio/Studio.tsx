@@ -250,7 +250,13 @@ export function SiteStudio({
   const queryClient = useQueryClient();
   const classes = useSuspenseQuery(siteClassesQuery).data;
   const documentMedia = useDocumentMedia();
-  const lent = useSlot(siteWords).map((each) => each.word);
+  const lentWords = useSlot(siteWords)
+    .map((each) => each.word)
+    .join("\n");
+  const lent = useMemo(
+    () => (lentWords ? lentWords.split("\n") : []),
+    [lentWords],
+  );
   const pictured = usePicturePeople("website");
   const media = useMemo(
     () => ({ ...documentMedia, people: pictured.open }),
@@ -304,7 +310,10 @@ export function SiteStudio({
   const device = wide ? chosenDevice : "phone";
   const otherLocale = languages.other;
   const page = draft.page;
-  const theme = siteThemeFor(draft.site.theme, overview.school.brand);
+  const theme = useMemo(
+    () => siteThemeFor(draft.site.theme, overview.school.brand),
+    [draft.site.theme, overview.school.brand],
+  );
   const siteDirty = JSON.stringify(draft.site) !== JSON.stringify(savedSite);
 
   const updatePage = useCallback(
@@ -445,23 +454,35 @@ export function SiteStudio({
     // The builder shows the link without following it.
     signInHref: "/sign-in",
   };
-  const context: RenderContext = {
-    school: user.school.slug,
-    locale,
-    theme,
-    fileUrl: (fileId) => `/files/${fileId}`,
-    news: overview.news[locale].length
-      ? overview.news[locale]
-      : overview.news[languages.primary],
-    events: overview.events,
-    intakes: overview.intakes,
-    classes: classes.shown[locale],
-    today: overview.today,
-    applyHref: () => "/apply",
-    contact: overview.school.contact,
-    editing: true,
-    words: lent,
-  };
+  // Kept the same while typing, so only the section typed in draws again.
+  const context = useMemo<RenderContext>(
+    () => ({
+      school: user.school.slug,
+      locale,
+      theme,
+      fileUrl: (fileId) => `/files/${fileId}`,
+      news: overview.news[locale].length
+        ? overview.news[locale]
+        : overview.news[languages.primary],
+      events: overview.events,
+      intakes: overview.intakes,
+      classes: classes.shown[locale],
+      today: overview.today,
+      applyHref: () => "/apply",
+      contact: overview.school.contact,
+      editing: true,
+      words: lent,
+    }),
+    [
+      user.school.slug,
+      locale,
+      theme,
+      overview,
+      languages.primary,
+      classes.shown,
+      lent,
+    ],
+  );
   const sections = canvasSections(page, languages, locale);
   const selectedSection =
     page.sections.find((section) => section.id === selected) ?? null;
@@ -1534,22 +1555,42 @@ export function SiteStudio({
             onRemove={remove}
             onInsert={(at) => setGalleryAt(at)}
             readOnly={reading}
-            onText={(id, field, value) => {
+            typable={(id) => {
               const section = page.sections.find((item) => item.id === id);
-              if (!section || fixed(section)) return;
-              const target = editingOther ? otherOf(page, section) : section;
-              const next = {
-                ...target,
-                data: { ...target.data, [field]: value },
-              } as PageSection;
+              return Boolean(section && !fixed(section));
+            }}
+            onUndo={history.undo}
+            onRedo={history.redo}
+            onText={(id, field, value, step) => {
+              const words = (target: PageSection) =>
+                ({
+                  ...target,
+                  data: { ...target.data, [field]: value },
+                }) as PageSection;
+              // The panel's own key, so typing here and there undoes alike.
+              const key = step === "own" ? "" : `${id}:${field}`;
               if (editingOther)
-                updatePage((current) => ({
-                  ...current,
-                  translated: { ...current.translated, [id]: next },
-                }));
+                updatePage((current) => {
+                  const section = current.sections.find(
+                    (item) => item.id === id,
+                  );
+                  return section
+                    ? {
+                        ...current,
+                        translated: {
+                          ...current.translated,
+                          [id]: words(otherOf(current, section)),
+                        },
+                      }
+                    : current;
+                }, key);
               else
-                setSections((current) =>
-                  current.map((item) => (item.id === id ? next : item)),
+                setSections(
+                  (current) =>
+                    current.map((item) =>
+                      item.id === id ? words(item) : item,
+                    ),
+                  key,
                 );
             }}
           />

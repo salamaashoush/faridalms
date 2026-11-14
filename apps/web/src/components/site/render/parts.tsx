@@ -12,7 +12,7 @@ import type {
 import type { Divider, Theme } from "@faridalms/domain/site-theme";
 import type { PictureSource } from "@faridalms/editor/file-facts";
 import type { LucideIcon } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import type { ComponentType, CSSProperties, ReactNode } from "react";
 
 import { placeholderUrl, publishedSources } from "@faridalms/domain/previews";
 import { usePicture } from "@faridalms/editor/file-facts";
@@ -328,108 +328,91 @@ export function Scrim({ photo, strength = "m" }: ScrimProps) {
   );
 }
 
-/** The builder's way to take words typed straight onto the canvas. */
-export const TextEditContext = createContext<
-  ((field: string, value: string) => void) | null
->(null);
+export type EditableTag = "h1" | "h2" | "h3" | "p" | "span";
+
+/** What the builder needs to draw one of a section's words fields as typing. */
+export interface EditableTextProps {
+  tag: EditableTag;
+  field: string;
+  value: string;
+  /** The words are drawn through the heading, asterisks setting words apart. */
+  emphasis: boolean;
+  className?: string;
+}
+
+/**
+ * The builder's way to type straight onto the canvas: where it supplies one,
+ * the words of a section's fields are drawn by it, and `holds` keeps a field
+ * drawn while it is typed empty. A visitor's page has none and is plain markup.
+ */
+export interface TextEditing {
+  Text: ComponentType<EditableTextProps>;
+  holds: (field: string) => boolean;
+}
+
+export const TextEditContext = createContext<TextEditing | null>(null);
+
+const nothing = () => false;
+
+/** Whether the builder keeps a field drawn although it has no words yet. */
+export function useHeldText(): (field: string) => boolean {
+  const editing = useContext(TextEditContext);
+  return editing ? editing.holds : nothing;
+}
 
 const EMPHASIS = /(\*[^*\n]+\*)/;
 
 const marked = (part: string) =>
   part.length > 2 && part.startsWith("*") && part.endsWith("*");
 
-/** Where a point in the drawn words falls in the raw text, past the asterisks. */
-function rawOffset(raw: string, drawn: number): number {
-  let seen = 0;
-  let at = 0;
-  for (const part of raw.split(EMPHASIS)) {
-    const inner = marked(part) ? 1 : 0;
-    const shown = part.length - inner * 2;
-    if (drawn <= seen + shown) return at + inner + drawn - seen;
-    seen += shown;
-    at += part.length;
-  }
-  return raw.length;
-}
-
-function drawnOffset(element: HTMLElement, x: number, y: number): number {
-  const point =
-    "caretPositionFromPoint" in document
-      ? document.caretPositionFromPoint(x, y)
-      : null;
-  if (!point || !element.contains(point.offsetNode))
-    return element.textContent.length;
-  const range = document.createRange();
-  range.setStart(element, 0);
-  range.setEnd(point.offsetNode, point.offset);
-  return range.toString().length;
-}
-
-function showRaw(element: HTMLElement, raw: string, caret = raw.length) {
-  element.textContent = raw;
-  getSelection()?.collapse(element.firstChild ?? element, caret);
-}
-
 interface EditableProps {
-  tag: "h1" | "h2" | "h3" | "p";
+  tag: EditableTag | null;
   field?: string;
   value: string;
-  multiline?: boolean;
+  emphasis?: boolean;
   className?: string;
   children: ReactNode;
 }
 
-/**
- * Words a school can type over in the builder: on focus the element shows
- * its raw text, asterisks and all; on leaving, the words are saved and the
- * element is drawn afresh. Outside the builder it is plain markup.
- */
+/** A field's words, or in the builder the same words taking typing; nothing when empty. */
 function Editable({
-  tag: Tag,
+  tag,
   field,
   value,
-  multiline = false,
+  emphasis = false,
   className,
   children,
 }: EditableProps) {
-  const edit = useContext(TextEditContext);
-  const [round, setRound] = useState(0);
-  if (!edit || !field) return <Tag className={className}>{children}</Tag>;
+  const editing = useContext(TextEditContext);
+  if (editing && field) {
+    if (!value && !editing.holds(field)) return null;
+    return (
+      <editing.Text
+        tag={tag ?? "span"}
+        field={field}
+        value={value}
+        emphasis={emphasis}
+        className={className}
+      />
+    );
+  }
+  if (!value) return null;
+  if (!tag) return children;
+  const Tag = tag;
+  return <Tag className={className}>{children}</Tag>;
+}
+
+export interface EditableWordsProps {
+  field: string;
+  children: string;
+}
+
+/** Words inside markup of their own, which the builder takes typing over in place. */
+export function EditableWords({ field, children }: EditableWordsProps) {
   return (
-    <Tag
-      key={round}
-      contentEditable="plaintext-only"
-      suppressContentEditableWarning
-      spellCheck
-      className={cn(className, "site-editable")}
-      onMouseDown={(event) => {
-        const element = event.currentTarget;
-        if (document.activeElement === element) return;
-        // Swapping in the raw text moves every character, so the caret the
-        // browser would place under the pointer lands on the wrong word.
-        event.preventDefault();
-        const drawn = drawnOffset(element, event.clientX, event.clientY);
-        element.focus();
-        showRaw(element, value, rawOffset(value, drawn));
-      }}
-      onFocus={(event) => showRaw(event.currentTarget, value)}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          event.currentTarget.textContent = value;
-          event.currentTarget.blur();
-        } else if (event.key === "Enter" && !multiline) {
-          event.preventDefault();
-          event.currentTarget.blur();
-        }
-      }}
-      onBlur={(event) => {
-        const typed = event.currentTarget.textContent.trim();
-        setRound((current) => current + 1);
-        if (typed !== value) edit(field, typed);
-      }}
-    >
+    <Editable tag={null} field={field} value={children}>
       {children}
-    </Tag>
+    </Editable>
   );
 }
 
@@ -439,11 +422,11 @@ export interface EyebrowProps {
 }
 
 export function Eyebrow({ children, field }: EyebrowProps) {
-  return children ? (
+  return (
     <Editable tag="p" field={field} value={children} className="site-eyebrow">
       {children}
     </Editable>
-  ) : null;
+  );
 }
 
 export interface EmphasisedProps {
@@ -493,12 +476,12 @@ export function Heading({
   className,
   field,
 }: HeadingProps) {
-  if (!children) return null;
   return (
     <Editable
       tag={level === 1 ? "h1" : level === 2 ? "h2" : "h3"}
       field={field}
       value={children}
+      emphasis
       className={cn(
         "site-heading",
         SIZE[size ?? (level === 1 ? "display" : level === 2 ? "h2" : "h3")],
@@ -517,17 +500,16 @@ export interface LeadProps {
 }
 
 export function Lead({ children, className, field }: LeadProps) {
-  return children ? (
+  return (
     <Editable
       tag="p"
       field={field}
       value={children}
-      multiline
       className={cn("site-lead", className)}
     >
       {children}
     </Editable>
-  ) : null;
+  );
 }
 
 export interface ProseProps {
@@ -1012,6 +994,8 @@ export function SectionFrame({
   );
 }
 
+const INTRO = ["eyebrow", "heading", "text"];
+
 export interface SectionIntroProps {
   eyebrow?: string;
   heading: string;
@@ -1024,7 +1008,8 @@ export function SectionIntro({
   heading,
   text = "",
 }: SectionIntroProps) {
-  if (!eyebrow && !heading && !text) return null;
+  const held = useHeldText();
+  if (!eyebrow && !heading && !text && !INTRO.some(held)) return null;
   return (
     <div className="site-intro">
       <Eyebrow field="eyebrow">{eyebrow}</Eyebrow>

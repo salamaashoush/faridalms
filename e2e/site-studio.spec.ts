@@ -397,3 +397,206 @@ test("the themes are grouped by character, the current theme's group open and th
   await expect(group("Bold")).toHaveAttribute("open", "");
   await expect(group("Modern")).not.toHaveAttribute("open", "");
 });
+
+/** Selects the hero by clicking its headline, once the builder takes clicks, and gives its heading as typed on the canvas. */
+async function heroHeading(page: Page) {
+  const canvas = page.getByRole("main", { name: "Page preview" });
+  const heading = canvas.getByRole("textbox", {
+    name: "Heading, Hero section",
+    exact: true,
+  });
+  // The section's overlay takes the first click, which is the point: it
+  // lands on the headline as a school's would, not on the overlay's name.
+  await expect(async () => {
+    await canvas.locator("h1").first().click({ force: true });
+    await expect(heading).toBeVisible({ timeout: 1_000 });
+  }).toPass();
+  return heading;
+}
+
+/** Puts the selection between two points of the words as drawn, anchor first, either way round. */
+async function selectDrawn(text: Locator, anchor: number, focus: number) {
+  await text.evaluate(
+    (element, { from, to }) => {
+      element.focus();
+      const at = (point: number): [Node, number] => {
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let seen = 0;
+        let last: [Node, number] = [element, 0];
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          const length = node.textContent?.length ?? 0;
+          if (point <= seen + length) return [node, point - seen];
+          seen += length;
+          last = [node, length];
+        }
+        return last;
+      };
+      const [anchorNode, anchorOffset] = at(from);
+      const [focusNode, focusOffset] = at(to);
+      getSelection()?.setBaseAndExtent(
+        anchorNode,
+        anchorOffset,
+        focusNode,
+        focusOffset,
+      );
+    },
+    { from: anchor, to: focus },
+  );
+}
+
+test("a school types over a hero's heading on the canvas, emphasises a word from the keyboard and undoes it", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await openStudio(page, "sections");
+  const heading = await heroHeading(page);
+  const field = page.getByRole("textbox", { name: "Heading", exact: true });
+  const stored = await field.inputValue();
+  const drawn = (await heading.textContent()) ?? "";
+  expect(drawn).not.toContain("*");
+
+  await selectDrawn(heading, drawn.length, drawn.length);
+  await page.keyboard.type(" today");
+  await expect(heading).toHaveText(`${drawn} today`);
+  await expect(field).toHaveValue(`${stored} today`);
+
+  await selectDrawn(heading, drawn.length + 1, drawn.length + 6);
+  await page.keyboard.press("Control+i");
+  await expect(field).toHaveValue(`${stored} *today*`);
+  await expect(heading.locator("em.site-em").last()).toHaveText("today");
+  await expect(heading).toHaveText(`${drawn} today`);
+  await expect(
+    page.locator("body > div.fixed button[aria-pressed=true]"),
+  ).toHaveText("Emphasise");
+
+  await page.keyboard.press("Control+z");
+  await expect(field).toHaveValue(`${stored} today`);
+  await expect(heading.locator("em.site-em", { hasText: "today" })).toHaveCount(
+    0,
+  );
+  await page.keyboard.press("Control+z");
+  await expect(field).toHaveValue(stored);
+  await page.keyboard.press("Control+Shift+z");
+  await expect(field).toHaveValue(`${stored} today`);
+  await page.keyboard.press("Control+z");
+  await expect(field).toHaveValue(stored);
+  await expect(heading).toHaveText(drawn);
+});
+
+test("a school edits an Arabic heading on the canvas and emphasises a word selected backwards", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await openStudio(page, "sections");
+  await heroHeading(page);
+  await page.getByRole("button", { name: "Arabic", exact: true }).click();
+  const heading = page
+    .getByRole("main", { name: "Page preview" })
+    .getByRole("textbox", { name: "Heading, Hero section", exact: true });
+  await expect(heading).toHaveText(/\p{Script=Arabic}/u);
+  await expect(heading).toHaveCSS("direction", "rtl");
+  const field = page.getByRole("textbox", { name: "Heading", exact: true });
+  const stored = await field.inputValue();
+  const drawn = (await heading.textContent()) ?? "";
+
+  await selectDrawn(heading, drawn.length, drawn.length);
+  await page.keyboard.insertText(" اليوم مع Northwind");
+  await expect(field).toHaveValue(`${stored} اليوم مع Northwind`);
+  await expect(heading).toHaveText(`${drawn} اليوم مع Northwind`);
+
+  await selectDrawn(heading, drawn.length + 6, drawn.length + 1);
+  await page.keyboard.press("Control+i");
+  await expect(field).toHaveValue(`${stored} *اليوم* مع Northwind`);
+  await expect(heading.locator("em.site-em").last()).toHaveText("اليوم");
+  expect(await page.evaluate(() => String(getSelection()))).toBe("اليوم");
+});
+
+test("Tab moves between a selected section's words, and Enter and Escape hand the keyboard back to the section", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await openStudio(page, "sections");
+  const heading = await heroHeading(page);
+  const canvas = page.getByRole("main", { name: "Page preview" });
+  const text = canvas.getByRole("textbox", {
+    name: "Text, Hero section",
+    exact: true,
+  });
+  const section = canvas.getByRole("button", { name: "Edit section 1: Hero" });
+
+  await heading.focus();
+  await page.keyboard.press("Tab");
+  await expect(text).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(heading).toBeFocused();
+
+  await page.keyboard.press("Enter");
+  await expect(section).toBeFocused();
+  await expect(section).toHaveAttribute("aria-pressed", "true");
+
+  await page.keyboard.press("Tab");
+  await expect(canvas.locator(":focus")).toHaveAttribute("data-canvas-text");
+  await page.keyboard.press("Escape");
+  await expect(section).toBeFocused();
+  await expect(section).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.getByRole("textbox", { name: "Heading", exact: true }),
+  ).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(section).toHaveAttribute("aria-pressed", "false");
+  await expect(heading).toHaveCount(0);
+});
+
+test("words typed on the canvas are published, and the visitor's HTML carries nothing of the canvas", async ({
+  browser,
+  page,
+}) => {
+  const tag = crypto.randomUUID().slice(0, 6);
+  await signIn(page, "admin");
+  await page.goto("/website");
+  await untilHydrated(page);
+  await page.getByRole("link", { name: "New page" }).click();
+  await page.getByRole("button", { name: /^Blank/ }).click();
+  await page
+    .getByRole("textbox", { name: "Title (English)" })
+    .fill(`Typed ${tag}`);
+  await page
+    .getByRole("textbox", { name: "Title (Arabic)" })
+    .fill(`مكتوب ${tag}`);
+  await page.getByRole("tab", { name: "Sections" }).click();
+  await page.getByRole("button", { name: "Add section" }).click();
+  await page.getByRole("button", { name: "Add Text: Narrow" }).click();
+
+  const heading = page
+    .getByRole("main", { name: "Page preview" })
+    .getByRole("textbox", { name: "Heading, Text section", exact: true });
+  await expect(heading).toBeVisible();
+  await heading.focus();
+  await page.keyboard.insertText("After school");
+  await selectDrawn(heading, 6, 12);
+  await page.keyboard.press("Control+i");
+  await expect(
+    page.getByRole("textbox", { name: "Heading", exact: true }),
+  ).toHaveValue("After *school*");
+
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(
+    page.getByText("Published", { exact: true }).first(),
+  ).toBeVisible();
+
+  const visitorContext = await browser.newContext();
+  const visitor = await visitorContext.newPage();
+  const address = `/site/northwind/pages/typed-${tag}`;
+  await visitor.goto(address);
+  await expect(
+    visitor.getByRole("heading", { level: 2, name: "After school" }),
+  ).toBeVisible();
+  const html = await (await visitor.request.get(address)).text();
+  expect(html).toContain(
+    '<h2 class="site-heading site-h2">After <em class="site-em">school</em></h2>',
+  );
+  for (const studio of ["data-canvas-text", "contenteditable", "site-editable"])
+    expect(html).not.toContain(studio);
+  await visitorContext.close();
+});

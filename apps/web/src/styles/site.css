@@ -1123,7 +1123,9 @@
     color: var(--s-link);
   }
 
-  /* Words that take typing in the builder's canvas. */
+  /* Words that take typing in the builder's canvas. Focused, they are
+     ringed in white inside the editor's blue, which shows on a light band
+     and a dark one alike. */
   .site-editable {
     cursor: text;
     border-radius: 0.25rem;
@@ -1133,8 +1135,10 @@
   .site-editable:hover {
     outline-color: color-mix(in oklab, var(--editor) 60%, transparent);
   }
-  .site-editable:focus {
+  .site-root .site-editable:focus {
     outline: 2px solid var(--editor);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px #fff;
   }
 
   /* Sections rise into view once scripts run; without them everything is

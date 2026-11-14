@@ -5,19 +5,21 @@ import type { CSSProperties, ReactNode } from "react";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { ArrowDown, ArrowUp, Copy, EyeOff, Plus, Trash2 } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
 import type { SiteFrameModel } from "../render/frame";
-import type { RenderContext } from "../render/parts";
+import type { RenderContext, TextEditing } from "../render/parts";
+import type { SectionTexts } from "./CanvasText";
 import type { CanvasSection } from "./draft";
 
 import { SiteFrame } from "../render/frame";
 import { opensOnPicture, PageSections } from "../render/page";
 import { TextEditContext } from "../render/parts";
 import { schemeStyle, themeAttributes, themeStyle } from "../render/theme";
+import { CanvasText, SectionTextContext } from "./CanvasText";
 import { SECTION_LABEL } from "./labels";
 
 /** Builder controls inside the zoomed canvas keep their true size. */
@@ -88,13 +90,17 @@ interface SectionChromeProps {
   index: number;
   count: number;
   selected: boolean;
+  /** Its words take typing where they are drawn. */
+  typable: boolean;
   locale: SiteLocale;
   onSelect: () => void;
   onMove: (by: -1 | 1) => void;
   onDuplicate: () => void;
   onRemove: () => void;
   onInsert: (at: number) => void;
-  onText: (field: string, value: string) => void;
+  onText: SectionTexts["edit"];
+  onUndo: () => void;
+  onRedo: () => void;
   children: ReactNode;
 }
 
@@ -103,6 +109,7 @@ function SectionChrome({
   index,
   count,
   selected,
+  typable,
   locale,
   onSelect,
   onMove,
@@ -110,10 +117,32 @@ function SectionChrome({
   onRemove,
   onInsert,
   onText,
+  onUndo,
+  onRedo,
   children,
 }: SectionChromeProps) {
   const label = SECTION_LABEL[item.section.type]();
   const t = { locale };
+  const select = useRef<HTMLButtonElement>(null);
+  const [active, setActive] = useState<string | null>(null);
+  const editing = useMemo<TextEditing>(
+    () => ({ Text: CanvasText, holds: (field) => field === active }),
+    [active],
+  );
+  const type = item.section.type;
+  const texts = useMemo<SectionTexts>(
+    () => ({
+      type,
+      label,
+      locale,
+      edit: onText,
+      undo: onUndo,
+      redo: onRedo,
+      leave: () => select.current?.focus(),
+      setActive,
+    }),
+    [type, label, locale, onText, onUndo, onRedo],
+  );
   return (
     <div
       data-section={item.section.id}
@@ -122,12 +151,10 @@ function SectionChrome({
         item.hidden && "opacity-40",
       )}
     >
-      {/* Once selected, a section's words take typing and its overlay
-          lets clicks through to them. */}
-      <TextEditContext.Provider value={selected ? onText : null}>
-        {children}
-      </TextEditContext.Provider>
+      {/* Before the section's words, so the keyboard reaches them from it;
+          once selected it lets clicks through to them. */}
       <button
+        ref={select}
         type="button"
         aria-label={m.siteSelectSection({
           section: label,
@@ -141,6 +168,11 @@ function SectionChrome({
             "pointer-events-none outline-3 outline-editor outline-solid hover:outline-solid",
         )}
       />
+      <SectionTextContext.Provider value={texts}>
+        <TextEditContext.Provider value={selected && typable ? editing : null}>
+          {children}
+        </TextEditContext.Provider>
+      </SectionTextContext.Provider>
       <span
         aria-hidden
         style={UNZOOM}
@@ -239,7 +271,11 @@ export interface CanvasProps {
   onDuplicate: (id: string) => void;
   onRemove: (id: string) => void;
   onInsert: (at: number) => void;
-  onText: (id: string, field: string, value: string) => void;
+  onText: (id: string, field: string, value: string, step?: "own") => void;
+  /** Whether a section's words may be typed over, as a shared section kept elsewhere may not. */
+  typable: (id: string) => boolean;
+  onUndo: () => void;
+  onRedo: () => void;
   /** Someone else holds the page: it draws as visitors see it, with no handles. */
   readOnly?: boolean;
 }
@@ -262,6 +298,9 @@ export function Canvas({
   onRemove,
   onInsert,
   onText,
+  typable,
+  onUndo,
+  onRedo,
   readOnly = false,
 }: CanvasProps) {
   const scroller = useRef<HTMLDivElement>(null);
@@ -321,15 +360,20 @@ export function Canvas({
                       index={index}
                       count={sections.length}
                       selected={selected === shown.section.id}
+                      typable={
+                        item.locale === locale && typable(shown.section.id)
+                      }
                       locale={locale}
                       onSelect={() => onSelect(shown.section.id)}
                       onMove={(by) => onMove(shown.section.id, by)}
                       onDuplicate={() => onDuplicate(shown.section.id)}
                       onRemove={() => onRemove(shown.section.id)}
                       onInsert={onInsert}
-                      onText={(field, value) =>
-                        onText(shown.section.id, field, value)
+                      onText={(field, value, step) =>
+                        onText(shown.section.id, field, value, step)
                       }
+                      onUndo={onUndo}
+                      onRedo={onRedo}
                     >
                       {rendered}
                     </SectionChrome>

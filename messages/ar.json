@@ -5776,6 +5776,7 @@
   "siteSearchSections": "ابحث في الأقسام",
   "siteSectionGroups": "مجموعات الأقسام",
   "siteSelectSection": "حرّر القسم {number}: {section}",
+  "siteCanvasText": "{field}، قسم {section}",
   "siteSelectToEdit": "اختر قسمًا في الصفحة لتحريره.",
   "siteShape": "الشكل",
   "siteShownInOriginal": "يُعرض باللغة الأصلية",

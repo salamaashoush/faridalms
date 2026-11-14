@@ -119,9 +119,23 @@ export function sharedChanged(
   );
 }
 
-/** The other language of a section, always in the section's current shape. */
-export const otherOf = (draft: PageDraft, section: PageSection) =>
-  overlay(section, draft.translated[section.id] ?? wordless(section));
+const overlaid = new WeakMap<
+  PageSection,
+  { words: PageSection | undefined; other: PageSection }
+>();
+
+/**
+ * The other language of a section, always in the section's current shape;
+ * the same object while neither changes, so the canvas need not draw it again.
+ */
+export function otherOf(draft: PageDraft, section: PageSection): PageSection {
+  const words = draft.translated[section.id];
+  const known = overlaid.get(section);
+  if (known && known.words === words) return known.other;
+  const other = overlay(section, words ?? wordless(section));
+  overlaid.set(section, { words, other });
+  return other;
+}
 
 export function contentOf(draft: PageDraft): {
   content: PageContent;

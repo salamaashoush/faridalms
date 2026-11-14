@@ -45,7 +45,7 @@ import {
   Star,
   X,
 } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { memo, useEffect, useId, useRef, useState } from "react";
 
 import { TurnstileWidget } from "~/components/auth/turnstile";
 import { ContentView } from "~/components/content/ContentView";
@@ -64,6 +64,7 @@ import { useCountUp } from "./motion";
 import {
   Actions,
   BackgroundVideo,
+  EditableWords,
   Eyebrow,
   Heading,
   Lead,
@@ -79,6 +80,7 @@ import {
   SiteAnchor,
   SiteIcon,
   TextLink,
+  useHeldText,
 } from "./parts";
 import { overMediaStyle } from "./theme";
 
@@ -585,7 +587,7 @@ function Announcement({ section, context }: Props<"announcement">) {
         </span>
         <p className="grid gap-0.5 text-[1.0625rem] leading-[calc(var(--s-line)-0.2)] font-semibold @3xl/site:text-[1.125rem]">
           {date ? <span className="site-meta">{date}</span> : null}
-          {data.text}
+          <EditableWords field="text">{data.text}</EditableWords>
         </p>
       </div>
       <Actions actions={data.actions} context={context} />
@@ -1196,6 +1198,7 @@ function Ticker({ section, context }: TickerProps) {
   const { data } = section;
   const [paused, setPaused] = useState(false);
   const t = { locale: context.locale };
+  const held = useHeldText();
   const words = data.items.filter((item) => item.title);
   const run = (copy: number) => (
     <ul
@@ -1213,7 +1216,7 @@ function Ticker({ section, context }: TickerProps) {
   );
   return (
     <div className="grid gap-[var(--s-intro-gap)]">
-      {data.heading || data.text ? (
+      {data.heading || data.text || held("heading") || held("text") ? (
         <div className="[&_.site-intro]:mb-0">
           <SectionIntro heading={data.heading} text={data.text} />
         </div>
@@ -3888,7 +3891,11 @@ export interface SiteSectionProps {
   joined?: boolean;
 }
 
-export function SiteSection({
+/**
+ * Kept from drawing again while its section and context stay the same, so
+ * typing in the builder draws only the section being typed in.
+ */
+export const SiteSection = memo(function SiteSection({
   section,
   shownIn,
   context,
@@ -4001,4 +4008,4 @@ export function SiteSection({
       </SectionFrame>
     </div>
   );
-}
+});

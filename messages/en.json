@@ -5489,6 +5489,7 @@
   "siteSearchSections": "Search sections",
   "siteSectionGroups": "Section groups",
   "siteSelectSection": "Edit section {number}: {section}",
+  "siteCanvasText": "{field}, {section} section",
   "siteSelectToEdit": "Select a section on the page to edit it.",
   "siteShape": "Shape",
   "siteShownInOriginal": "Shown in the original language",

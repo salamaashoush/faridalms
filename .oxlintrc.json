@@ -189,6 +189,14 @@
       }
     },
     {
+      // A heading typed in on the website canvas is the renderer's own
+      // heading, drawn in the theme with its emphasised words; an input or
+      // textarea cannot draw it so. It is a contenteditable named as the
+      // textbox it is, the pattern ARIA gives for editable text.
+      "files": ["apps/web/src/components/site/studio/CanvasText.tsx"],
+      "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
+    },
+    {
       // Embeds are cross-origin players from a fixed allowlist. allow-same-origin
       // keeps each frame in its own origin, never ours, and the YouTube, Vimeo
       // and Google players need it to keep playback state. The coding studio

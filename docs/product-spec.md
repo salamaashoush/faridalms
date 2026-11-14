@@ -583,6 +583,27 @@ announcements put on the website (see Announcements), with a cover, summary,
 category, pin and schedule. A
 site-wide banner for closures.
 
+A section's own words are typed where the page draws them. The first click
+on a section selects it and opens its settings; a second click on its label
+above the heading, its heading or its introduction (an announcement's
+sentence) puts the caret there, and from the section's outline the Tab key
+reaches them too. Typing changes the same words the settings panel holds, in
+the language the builder is showing, and undo takes it back as it does
+typing in the panel. A heading is drawn as visitors will read it, its
+emphasised words in the theme's emphasis and no asterisks; Ctrl+I (Cmd+I on
+a Mac) or the Emphasise button that floats above the words sets the
+selected words apart or takes it off them, as the panel's button does, and
+is undone on its own. Enter ends typing in a one-line field and starts a
+new line in an introduction; Escape ends typing and keeps the section
+selected; Tab and Shift+Tab move between the section's words. A field keeps
+its length limit and shows how much is left near it, and a one-line field
+takes no line breaks. Each is named for what it is and its section
+("Heading, Hero section"). A section shown in the original language because
+its translation is unfinished, and a shared section the page may not
+change, are not typed on. Rich text, the words of a section's items and its
+buttons, pictures, links, layout and style are changed in the panel. The
+page a visitor is sent is the same with or without the builder's typing.
+
 A school can start from a ready-made site: a theme and a set of draft pages
 in both languages. Five are written for a school of children (Established,
 International, Early years, Arabic-first, New school) and three for learners
