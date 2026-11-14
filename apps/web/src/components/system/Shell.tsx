@@ -6,7 +6,7 @@ import type {
 } from "@faridalms/ui/system/app-shell";
 import type { ReactNode } from "react";
 
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
+import { namingRole, WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -49,6 +49,7 @@ import { useNavigation } from "~/components/app/useNavigation";
 import { WorkspaceBreadcrumb } from "~/components/app/WorkspaceBreadcrumb";
 import { WorkspaceSearch } from "~/components/app/WorkspaceSearch";
 import { ChangePassword } from "~/components/auth/ChangePassword";
+import { NATURAL_ROLE_LABEL } from "~/components/people/format";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
@@ -144,6 +145,7 @@ function rememberMoreOpen(open: string[]) {
 
 function AccountMenu() {
   const user = useCurrentUser();
+  const role = namingRole(user.roles, user.workspace);
   const sessionChanged = useSessionChange();
   const [changingPassword, setChangingPassword] = useState(false);
   const signOut = useCallback(async () => {
@@ -159,7 +161,10 @@ function AccountMenu() {
       <ShellAccount
         label={m.shellAccount()}
         name={user.name}
-        detail={PROFILE_LABEL[user.profile]()}
+        detail={
+          (role ? NATURAL_ROLE_LABEL[role] : undefined)?.() ??
+          PROFILE_LABEL[user.profile]()
+        }
         email={user.email}
         avatarUrl={user.avatarUrl}
       >

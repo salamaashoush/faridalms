@@ -1831,6 +1831,7 @@
   "naturalRoleParent": "Parent",
   "naturalRoleGuardian": "Guardian",
   "naturalRoleRelative": "Relative",
+  "naturalRoleApplicant": "Applicant",
   "personRecordBreadcrumb": "Person",
   "personRoles": "Roles at this school",
   "personNoRoles": "No current role at this school.",

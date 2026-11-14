@@ -64,6 +64,8 @@ export const NATURAL_ROLE_LABEL: Record<string, () => string> = {
   parent: m.naturalRoleParent,
   guardian: m.naturalRoleGuardian,
   relative: m.naturalRoleRelative,
+  applicant_family: m.naturalRoleApplicant,
+  applicant: m.naturalRoleApplicant,
 };
 
 export function roleLabel(role: string): string {

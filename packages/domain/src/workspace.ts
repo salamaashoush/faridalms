@@ -72,6 +72,37 @@ export function contextsFor(roles: readonly string[]): SessionContext[] {
   return contexts;
 }
 
+/** Staff roles, the one that names a person's work first. */
+const STAFF_BY_STANDING = [
+  "principal",
+  "site_administrator",
+  "district_administrator",
+  "system_administrator",
+  "teacher",
+  "counselor",
+  "aide",
+  "proctor",
+  "staff",
+] as const satisfies readonly (typeof STAFF_ROLES)[number][];
+
+const NAMING: Record<Workspace, readonly string[]> = {
+  staff: STAFF_BY_STANDING,
+  family: [...FAMILY_ROLES, APPLICANT_ROLE],
+  me: ["student", SELF_APPLICANT_ROLE],
+};
+
+/**
+ * The natural role that says who a person is in a workspace, of all they
+ * hold: a teacher who is also a parent is a teacher at work and a parent at
+ * home, and someone who has only applied is an applicant in either.
+ */
+export function namingRole(
+  roles: readonly string[],
+  workspace: Workspace,
+): string | null {
+  return NAMING[workspace].find((role) => roles.includes(role)) ?? null;
+}
+
 /** The built-in access role that a natural role receives. */
 export function builtinFor(role: string): string {
   return (FAMILY_ROLES as readonly string[]).includes(role) ? "family" : role;
