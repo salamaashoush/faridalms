@@ -130,18 +130,20 @@ function SectionChrome({
     [active],
   );
   const type = item.section.type;
+  const data = item.section.data as Record<string, unknown>;
   const texts = useMemo<SectionTexts>(
     () => ({
       type,
       label,
       locale,
+      data,
       edit: onText,
       undo: onUndo,
       redo: onRedo,
       leave: () => select.current?.focus(),
       setActive,
     }),
-    [type, label, locale, onText, onUndo, onRedo],
+    [type, label, locale, data, onText, onUndo, onRedo],
   );
   return (
     <div

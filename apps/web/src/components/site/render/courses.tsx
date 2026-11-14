@@ -11,7 +11,15 @@ import type { RenderContext } from "./parts";
 
 import { SiteArt } from "./art";
 import { classLengthWords, classWhenWords, teacherWords } from "./class-words";
-import { Heading, PostCover, SectionIntro, SiteAnchor } from "./parts";
+import {
+  EditableWords,
+  Heading,
+  itemField,
+  PostCover,
+  SectionIntro,
+  SiteAnchor,
+  useHeldText,
+} from "./parts";
 
 /** One class as a courses section draws it, from the school's classes or its samples. */
 interface Listed {
@@ -68,19 +76,30 @@ interface ItemButtonProps {
   title: string;
   context: RenderContext;
   className?: string;
+  /** Its words take typing in the builder: the first class's alone, as the one button is one field. */
+  typable: boolean;
 }
 
 /** The section's one button, beside each class, named with the class it is for. */
-function ItemButton({ data, title, context, className }: ItemButtonProps) {
+function ItemButton({
+  data,
+  title,
+  context,
+  className,
+  typable,
+}: ItemButtonProps) {
+  const held = useHeldText();
   const action = data.action[0];
-  if (!action?.label.trim()) return null;
+  const field =
+    action && typable ? itemField("action", action.id, "label") : undefined;
+  if (!action || !(action.label.trim() || (field && held(field)))) return null;
   return (
     <SiteAnchor
       href={action.href}
       context={context}
       className={cn("site-button", className)}
     >
-      {action.label}
+      <EditableWords field={field}>{action.label}</EditableWords>
       <span className="sr-only">
         {m.siteClassButtonFor({ title }, { locale: context.locale })}
       </span>
@@ -144,7 +163,7 @@ export function Courses({ section, context }: CoursesProps) {
           data-stagger
           className="divide-y divide-[var(--s-border)] border-y border-[var(--s-border)]"
         >
-          {items.map((item) => (
+          {items.map((item, index) => (
             <li
               key={item.id}
               className="grid gap-3 py-6 text-start @3xl/site:grid-cols-[11rem_1fr_auto] @3xl/site:items-start @3xl/site:gap-10"
@@ -160,6 +179,7 @@ export function Courses({ section, context }: CoursesProps) {
                 title={item.title}
                 context={context}
                 className="justify-self-start"
+                typable={index === 0}
               />
             </li>
           ))}
@@ -171,7 +191,7 @@ export function Courses({ section, context }: CoursesProps) {
       <div className="site-narrow" data-wide>
         {intro}
         <ul data-stagger className="grid gap-4">
-          {items.map((item) => (
+          {items.map((item, index) => (
             <li
               key={item.id}
               className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--s-border)] pb-4 text-start"
@@ -188,7 +208,12 @@ export function Courses({ section, context }: CoursesProps) {
                   {item.when}
                 </span>
               ) : null}
-              <ItemButton data={data} title={item.title} context={context} />
+              <ItemButton
+                data={data}
+                title={item.title}
+                context={context}
+                typable={index === 0}
+              />
             </li>
           ))}
         </ul>
@@ -198,7 +223,7 @@ export function Courses({ section, context }: CoursesProps) {
     <div>
       {intro}
       <ul data-stagger className="site-grid" data-cols="3" data-rail>
-        {items.map((item) => (
+        {items.map((item, index) => (
           <li
             key={item.id}
             className="site-card flex h-full flex-col overflow-hidden text-start"
@@ -229,6 +254,7 @@ export function Courses({ section, context }: CoursesProps) {
                 title={item.title}
                 context={context}
                 className="mt-auto self-start justify-self-start"
+                typable={index === 0}
               />
             </div>
           </li>

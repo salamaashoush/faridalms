@@ -17,7 +17,12 @@ import { embedProviders, isEmbedId } from "./embed";
 import { MAX_QUESTIONS } from "./enquiries";
 import { translatedContent } from "./lesson-translation";
 import { formIssue, formQuestions } from "./questions";
-import { isSiteHref, isVagueLink, MAX_BUTTON_LABEL } from "./site-links";
+import {
+  isSiteHref,
+  isVagueLink,
+  MAX_BUTTON_LABEL,
+  MAX_LINK_LABEL,
+} from "./site-links";
 import { DIVIDERS, SCHEMES } from "./site-theme";
 
 export const SITE_LOCALES = ["en", "ar"] as const;
@@ -835,7 +840,7 @@ function scalarSchema(field: ScalarField): v.GenericSchema {
         v.array(
           v.object({
             id,
-            label: v.pipe(v.string(), v.maxLength(60)),
+            label: v.pipe(v.string(), v.maxLength(MAX_LINK_LABEL)),
             href: hrefSchema,
           }),
         ),

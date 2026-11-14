@@ -548,6 +548,191 @@ test("Tab moves between a selected section's words, and Enter and Escape hand th
   await expect(heading).toHaveCount(0);
 });
 
+/** Selects a section by its overlay, once the builder takes clicks, and gives the canvas. */
+async function selectSection(page: Page, name: string) {
+  const canvas = page.getByRole("main", { name: "Page preview" });
+  const overlay = canvas.getByRole("button", {
+    name: new RegExp(`^Edit section \\d+: ${name}$`),
+  });
+  await expect(async () => {
+    await overlay.click();
+    await expect(overlay).toHaveAttribute("aria-pressed", "true", {
+      timeout: 1_000,
+    });
+  }).toPass();
+  return canvas;
+}
+
+/** Adds a Cards section of picture cards to the page being built, which takes it selected. */
+async function addCards(page: Page) {
+  await page.getByRole("button", { name: "Add section" }).click();
+  await page.getByRole("button", { name: "Add Cards: Picture cards" }).click();
+  const canvas = page.getByRole("main", { name: "Page preview" });
+  await expect(
+    canvas.getByRole("textbox", { name: "Title, card 1, Cards section" }),
+  ).toBeVisible();
+  return canvas;
+}
+
+/** The panel's fields for one item of the selected section's list, opened. */
+async function panelItem(page: Page, index: number) {
+  const item = page
+    .getByRole("complementary", { name: "Section settings" })
+    .getByRole("group", { name: "Items", exact: true })
+    .locator("details")
+    .nth(index);
+  if ((await item.getAttribute("open")) === null)
+    await item.locator("summary").click();
+  return item;
+}
+
+test("a school types a card's title on the page, the panel's item follows, and undo restores it", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await openStudio(page, "sections");
+  const canvas = await addCards(page);
+  const title = canvas.getByRole("textbox", {
+    name: "Title, card 2, Cards section",
+    exact: true,
+  });
+  const field = (await panelItem(page, 1)).getByRole("textbox", {
+    name: "Title",
+    exact: true,
+  });
+  const stored = await field.inputValue();
+  const drawn = (await title.textContent()) ?? "";
+  expect(drawn).toBe(stored);
+
+  await selectDrawn(title, drawn.length, drawn.length);
+  await page.keyboard.type(" today");
+  await expect(title).toHaveText(`${drawn} today`);
+  await expect(field).toHaveValue(`${stored} today`);
+
+  await page.keyboard.press("Control+z");
+  await expect(field).toHaveValue(stored);
+  await expect(title).toHaveText(drawn);
+  await page.keyboard.press("Control+Shift+z");
+  await expect(field).toHaveValue(`${stored} today`);
+});
+
+test("words typed on the page go to the same card after the panel reorders the cards", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await openStudio(page, "sections");
+  const canvas = await addCards(page);
+  const card = (number: number) =>
+    canvas.getByRole("textbox", {
+      name: `Title, card ${number}, Cards section`,
+      exact: true,
+    });
+  const first = (await card(1).textContent()) ?? "";
+  const second = (await card(2).textContent()) ?? "";
+  expect(first).not.toBe(second);
+
+  // The panel moves the first card down while its title on the page has
+  // the keyboard: a click that takes no focus, as a shortcut's would.
+  await selectDrawn(card(1), first.length, first.length);
+  await page
+    .getByRole("complementary", { name: "Section settings" })
+    .getByRole("button", { name: `Move ${first} down` })
+    .dispatchEvent("click");
+  await expect(card(1)).toHaveText(second);
+  await expect(card(2)).toHaveText(first);
+  await page.keyboard.insertText(" and more");
+  // The words went to the card that moved, wherever its caret now sits.
+  await expect(card(2)).toContainText("and more");
+  await expect(card(1)).toHaveText(second);
+  const moved = (await card(2).textContent()) ?? "";
+  // WebKit keeps a space typed at the very start as a non-breaking one.
+  expect(moved.replace(/\sand more/u, "")).toBe(first);
+
+  await selectDrawn(card(2), moved.length, moved.length);
+  await page.keyboard.insertText(" again");
+  await expect(card(2)).toHaveText(`${moved} again`);
+  await expect(card(1)).toHaveText(second);
+  await expect(
+    (await panelItem(page, 0)).getByRole("textbox", {
+      name: "Title",
+      exact: true,
+    }),
+  ).toHaveValue(second);
+  await expect(
+    (await panelItem(page, 1)).getByRole("textbox", {
+      name: "Title",
+      exact: true,
+    }),
+  ).toHaveValue(`${moved} again`);
+});
+
+test("a school types a button's words on the page, and the click does not follow its link", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await openStudio(page, "sections");
+  await heroHeading(page);
+  const address = page.url();
+  let navigated = 0;
+  page.on("framenavigated", (frame) => {
+    if (frame === page.mainFrame()) navigated += 1;
+  });
+  const canvas = page.getByRole("main", { name: "Page preview" });
+  const label = canvas.getByRole("textbox", {
+    name: "Button words, button 1, Hero section",
+    exact: true,
+  });
+  const field = page.getByRole("textbox", {
+    name: "Words on button 1",
+    exact: true,
+  });
+  const stored = await field.inputValue();
+  await expect(label).toHaveText(stored);
+  expect(await label.evaluate((element) => element.closest("a"))).toBeNull();
+
+  await label.click();
+  await expect(label).toBeFocused();
+  await selectDrawn(label, stored.length, stored.length);
+  await page.keyboard.type(" now");
+  await expect(field).toHaveValue(`${stored} now`);
+  await expect(label).toHaveText(`${stored} now`);
+  expect(page.url()).toBe(address);
+  expect(navigated).toBe(0);
+});
+
+test("a school edits an Arabic item on the page through a selection made backwards", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await openStudio(page, "sections");
+  await heroHeading(page);
+  await page.getByRole("button", { name: "Arabic", exact: true }).click();
+  const canvas = await selectSection(page, "School stages");
+  const title = canvas.getByRole("textbox", {
+    name: "Title, stage 1, School stages section",
+    exact: true,
+  });
+  await expect(title).toHaveText(/\p{Script=Arabic}/u);
+  await expect(title).toHaveCSS("direction", "rtl");
+  const field = (await panelItem(page, 0)).getByRole("textbox", {
+    name: "Title",
+    exact: true,
+  });
+  const stored = await field.inputValue();
+  const drawn = (await title.textContent()) ?? "";
+  expect(drawn).toBe(stored);
+
+  await selectDrawn(title, drawn.length, drawn.length);
+  await page.keyboard.insertText(" والمرحلة الأولى");
+  await expect(field).toHaveValue(`${stored} والمرحلة الأولى`);
+  const typed = `${drawn} والمرحلة الأولى`;
+  await selectDrawn(title, typed.length, typed.length - 6);
+  expect(await page.evaluate(() => String(getSelection()))).toBe("الأولى");
+  await page.keyboard.insertText("الثانية");
+  await expect(field).toHaveValue(`${stored} والمرحلة الثانية`);
+  await expect(title).toHaveText(`${drawn} والمرحلة الثانية`);
+});
+
 test("words typed on the canvas are published, and the visitor's HTML carries nothing of the canvas", async ({
   browser,
   page,
@@ -580,6 +765,15 @@ test("words typed on the canvas are published, and the visitor's HTML carries no
     page.getByRole("textbox", { name: "Heading", exact: true }),
   ).toHaveValue("After *school*");
 
+  const canvas = await addCards(page);
+  const card = canvas.getByRole("textbox", {
+    name: "Title, card 1, Cards section",
+    exact: true,
+  });
+  await selectDrawn(card, 0, ((await card.textContent()) ?? "").length);
+  await page.keyboard.insertText(`Forest school ${tag}`);
+  await expect(card).toHaveText(`Forest school ${tag}`);
+
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(
     page.getByText("Published", { exact: true }).first(),
@@ -595,6 +789,12 @@ test("words typed on the canvas are published, and the visitor's HTML carries no
   const html = await (await visitor.request.get(address)).text();
   expect(html).toContain(
     '<h2 class="site-heading site-h2">After <em class="site-em">school</em></h2>',
+  );
+  await expect(
+    visitor.getByRole("heading", { level: 3, name: `Forest school ${tag}` }),
+  ).toBeVisible();
+  expect(html).toContain(
+    `<h3 class="site-heading site-h3">Forest school ${tag}</h3>`,
   );
   for (const studio of ["data-canvas-text", "contenteditable", "site-editable"])
     expect(html).not.toContain(studio);

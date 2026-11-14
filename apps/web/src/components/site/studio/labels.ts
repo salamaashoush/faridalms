@@ -332,6 +332,28 @@ export const FIELD_LABEL: Record<string, () => string> = {
   link: m.siteFieldLink,
 };
 
+type Numbered = (inputs: { number: string }) => string;
+
+/** What one item of a section's list is called, as "card 2" names the second of a Cards section. */
+export const ITEM_NOUN: Partial<Record<SectionType, Numbered>> = {
+  slides: m.siteCanvasSlide,
+  cards: m.siteCanvasCard,
+  divisions: m.siteCanvasStage,
+  stats: m.siteCanvasFigure,
+  pillars: m.siteCanvasPillar,
+  voices: m.siteCanvasVoice,
+  people: m.siteCanvasPerson,
+  timeline: m.siteCanvasMoment,
+  accordion: m.siteCanvasPanel,
+  logos: m.siteCanvasLogo,
+  events: m.siteCanvasEvent,
+  admissions: m.siteCanvasPanel,
+  courses: m.siteCanvasCourse,
+  steps: m.siteCanvasStep,
+  fees: m.siteCanvasFee,
+  quickLinks: m.siteCanvasLink,
+};
+
 export const AUDIENCE_LABEL: Record<string, () => string> = {
   student: m.siteAudienceStudent,
   parent: m.siteAudienceParent,

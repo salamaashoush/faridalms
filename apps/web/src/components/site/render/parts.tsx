@@ -243,11 +243,32 @@ export interface ActionsProps {
   context: RenderContext;
   className?: string;
   size?: ButtonSize;
+  /**
+   * The links field the buttons come from, for typing their words in the
+   * builder, or each button's own words field where they come from several.
+   */
+  field?: string | ((action: Link) => string);
 }
 
 /** A section's buttons: the first filled, the rest outlined beside it. */
-export function Actions({ actions, context, className, size }: ActionsProps) {
-  const shown = actions.filter((action) => action.label.trim());
+export function Actions({
+  actions,
+  context,
+  className,
+  size,
+  field,
+}: ActionsProps) {
+  const held = useHeldText();
+  const labelOf = (action: Link) =>
+    typeof field === "function"
+      ? field(action)
+      : field
+        ? itemField(field, action.id, "label")
+        : undefined;
+  const shown = actions.filter((action) => {
+    const label = labelOf(action);
+    return action.label.trim() || (label !== undefined && held(label));
+  });
   if (shown.length === 0) return null;
   return (
     <div className={cn("site-actions", className)}>
@@ -260,7 +281,7 @@ export function Actions({ actions, context, className, size }: ActionsProps) {
           variant={index === 0 ? undefined : "secondary"}
           size={size}
         >
-          {action.label}
+          <EditableWords field={labelOf(action)}>{action.label}</EditableWords>
         </SiteAnchor>
       ))}
     </div>
@@ -328,7 +349,7 @@ export function Scrim({ photo, strength = "m" }: ScrimProps) {
   );
 }
 
-export type EditableTag = "h1" | "h2" | "h3" | "p" | "span";
+export type EditableTag = "h1" | "h2" | "h3" | "p" | "span" | "dd";
 
 /** What the builder needs to draw one of a section's words fields as typing. */
 export interface EditableTextProps {
@@ -353,6 +374,13 @@ export interface TextEditing {
 export const TextEditContext = createContext<TextEditing | null>(null);
 
 const nothing = () => false;
+
+/**
+ * The field of one item of a list, named by the item's id rather than its
+ * place, so words typed for it never land on another after a move.
+ */
+export const itemField = (list: string, id: string, key: string) =>
+  `${list}.${id}.${key}`;
 
 /** Whether the builder keeps a field drawn although it has no words yet. */
 export function useHeldText(): (field: string) => boolean {
@@ -403,14 +431,32 @@ function Editable({
 }
 
 export interface EditableWordsProps {
-  field: string;
+  field?: string;
+  /** What the field holds, where a visitor is shown other words for it. */
+  value?: string;
   children: string;
 }
 
 /** Words inside markup of their own, which the builder takes typing over in place. */
-export function EditableWords({ field, children }: EditableWordsProps) {
+export function EditableWords({ field, value, children }: EditableWordsProps) {
   return (
-    <Editable tag={null} field={field} value={children}>
+    <Editable tag={null} field={field} value={value ?? children}>
+      {children}
+    </Editable>
+  );
+}
+
+export interface WordsProps {
+  tag: EditableTag;
+  field?: string;
+  className?: string;
+  children: string;
+}
+
+/** Plain words in an element of their own, which is left out while they are empty. */
+export function Words({ tag, field, className, children }: WordsProps) {
+  return (
+    <Editable tag={tag} field={field} value={children} className={className}>
       {children}
     </Editable>
   );

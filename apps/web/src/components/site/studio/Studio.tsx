@@ -113,6 +113,7 @@ import { withNews } from "../render/frame-model";
 import { PageSections } from "../render/page";
 import { siteWords } from "../slots";
 import { Canvas, DEVICES, Viewport } from "./Canvas";
+import { topField, withWords } from "./canvas-text";
 import {
   canonicalValid,
   canvasSections,
@@ -318,10 +319,10 @@ export function SiteStudio({
 
   const updatePage = useCallback(
     (change: (page: PageDraft) => PageDraft, key?: string) =>
-      history.update(
-        (current) => ({ ...current, page: change(current.page) }),
-        key,
-      ),
+      history.update((current) => {
+        const next = change(current.page);
+        return next === current.page ? current : { ...current, page: next };
+      }, key),
     [history],
   );
   const setSections = (
@@ -1562,36 +1563,34 @@ export function SiteStudio({
             onUndo={history.undo}
             onRedo={history.redo}
             onText={(id, field, value, step) => {
-              const words = (target: PageSection) =>
-                ({
-                  ...target,
-                  data: { ...target.data, [field]: value },
-                }) as PageSection;
+              const words = (target: PageSection) => {
+                const data = withWords(target.data, field, value);
+                return data ? ({ ...target, data } as PageSection) : null;
+              };
               // The panel's own key, so typing here and there undoes alike.
-              const key = step === "own" ? "" : `${id}:${field}`;
-              if (editingOther)
-                updatePage((current) => {
-                  const section = current.sections.find(
-                    (item) => item.id === id,
-                  );
-                  return section
+              const key = step === "own" ? "" : `${id}:${topField(field)}`;
+              updatePage((current) => {
+                const section = current.sections.find((item) => item.id === id);
+                if (!section) return current;
+                if (editingOther) {
+                  const next = words(otherOf(current, section));
+                  return next
                     ? {
                         ...current,
-                        translated: {
-                          ...current.translated,
-                          [id]: words(otherOf(current, section)),
-                        },
+                        translated: { ...current.translated, [id]: next },
                       }
                     : current;
-                }, key);
-              else
-                setSections(
-                  (current) =>
-                    current.map((item) =>
-                      item.id === id ? words(item) : item,
-                    ),
-                  key,
-                );
+                }
+                const next = words(section);
+                return next
+                  ? {
+                      ...current,
+                      sections: current.sections.map((item) =>
+                        item.id === id ? next : item,
+                      ),
+                    }
+                  : current;
+              }, key);
             }}
           />
         </main>

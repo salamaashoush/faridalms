@@ -17,6 +17,7 @@ import {
 import { createPortal } from "react-dom";
 
 import * as m from "~/i18n/messages";
+import { formatNumber } from "~/utils/datetime";
 
 import type { EditableTextProps } from "../render/parts";
 import type { DrawnRun, TextRule } from "./canvas-text";
@@ -24,6 +25,8 @@ import type { DrawnRun, TextRule } from "./canvas-text";
 import {
   drawnOffset,
   drawnRuns,
+  fieldPath,
+  fieldPlaces,
   nearLimit,
   storedFrom,
   storedOffset,
@@ -31,7 +34,7 @@ import {
   textRule,
   typedAfterEmphasis,
 } from "./canvas-text";
-import { FIELD_LABEL } from "./labels";
+import { FIELD_LABEL, ITEM_NOUN } from "./labels";
 
 /** The selected section, as its words typed on the canvas need it. */
 export interface SectionTexts {
@@ -39,6 +42,8 @@ export interface SectionTexts {
   /** The section's name, which each of its words fields is called by. */
   label: string;
   locale: SiteLocale;
+  /** The words as drawn, which an item's place in its list is read from. */
+  data: Record<string, unknown>;
   /** A step of its own is undone alone, as a toggled emphasis is; typing joins the field's last. */
   edit: (field: string, value: string, step?: "own") => void;
   undo: () => void;
@@ -146,6 +151,25 @@ function placeCaret(element: HTMLElement, caret: Caret) {
     focusNode,
     focusOffset,
   );
+}
+
+/** What a words field is called, with the item it belongs to: "Title, card 2, Cards section". */
+function fieldName(section: SectionTexts, field: string): string {
+  const { key } = fieldPath(field);
+  const places = fieldPlaces(section.type, section.data, field) ?? [];
+  const inLinks = places.at(-1)?.kind === "links";
+  const label =
+    (inLinks ? m.siteFieldLinkLabel() : FIELD_LABEL[key]?.()) ?? key;
+  if (places.length === 0)
+    return m.siteCanvasText({ field: label, section: section.label });
+  const item = places
+    .map((place) => {
+      const number = formatNumber(place.number);
+      if (place.kind === "links") return m.siteCanvasButton({ number });
+      return (ITEM_NOUN[section.type] ?? m.siteCanvasItem)({ number });
+    })
+    .reduce((outer, inner) => m.siteCanvasPlaces({ inner, outer }));
+  return m.siteCanvasItemText({ field: label, item, section: section.label });
 }
 
 const isCommand = (event: KeyboardEvent) =>
@@ -391,7 +415,7 @@ export function CanvasText({
         ...(own
           .closest("[data-section]")
           ?.querySelectorAll<HTMLElement>("[data-canvas-text]") ?? []),
-      ];
+      ].filter((each) => !each.closest("[inert]"));
       const next = all[all.indexOf(own) + (event.shiftKey ? -1 : 1)];
       if (next) {
         event.preventDefault();
@@ -413,7 +437,6 @@ export function CanvasText({
       storedOffset(value, start, true),
       storedOffset(value, end, true),
     );
-  const fieldLabel = FIELD_LABEL[field]?.() ?? field;
   return (
     <>
       <Tag
@@ -423,10 +446,7 @@ export function CanvasText({
         }}
         data-canvas-text={field}
         role="textbox"
-        aria-label={m.siteCanvasText({
-          field: fieldLabel,
-          section: section.label,
-        })}
+        aria-label={fieldName(section, field)}
         aria-multiline={rule.multiline}
         aria-describedby={counter ? counterId : undefined}
         aria-keyshortcuts={emphasis ? "Control+I Meta+I" : undefined}

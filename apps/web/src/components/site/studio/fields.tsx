@@ -17,6 +17,7 @@ import type { MouseEvent, PointerEvent, ReactNode } from "react";
 
 import { Popover } from "@base-ui/react/popover";
 import { embedProviderNames, parseEmbedUrl } from "@faridalms/domain/embed";
+import { MAX_LINK_LABEL } from "@faridalms/domain/site-links";
 import {
   BLOCK_TYPES,
   blockFieldsOf,
@@ -711,7 +712,7 @@ function LinksControl({
             <div className="flex items-center gap-1.5">
               <Input
                 value={link.label}
-                maxLength={60}
+                maxLength={MAX_LINK_LABEL}
                 lang={context.locale}
                 dir={dirOf(context.locale)}
                 aria-label={m.siteButtonWords({

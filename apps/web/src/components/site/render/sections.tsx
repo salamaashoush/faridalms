@@ -4,6 +4,7 @@ import type {
   PageSection,
   SectionOf,
   SiteBlock,
+  SiteLink,
   SiteLocale,
   SiteMedia,
 } from "@faridalms/domain/site-sections";
@@ -79,8 +80,10 @@ import {
   SectionIntro,
   SiteAnchor,
   SiteIcon,
+  itemField,
   TextLink,
   useHeldText,
+  Words,
 } from "./parts";
 import { overMediaStyle } from "./theme";
 
@@ -89,6 +92,10 @@ type Props<T extends PageSection["type"]> = {
   context: RenderContext;
   first: boolean;
 };
+
+/** A field of one item of a section's list. */
+const fieldOf = (item: { id: string }, key: string) =>
+  itemField("items", item.id, key);
 
 const BADGE_NAME: Record<string, string> = {
   isi: "ISI",
@@ -196,7 +203,12 @@ function Hero({ section, context, first }: Props<"hero">) {
         {data.heading}
       </Heading>
       <Lead field="text">{data.text}</Lead>
-      <Actions actions={data.actions} context={context} size="lg" />
+      <Actions
+        actions={data.actions}
+        context={context}
+        size="lg"
+        field="actions"
+      />
     </div>
   );
   if (variant === "fullbleed")
@@ -290,7 +302,12 @@ function Hero({ section, context, first }: Props<"hero">) {
           </Heading>
           <div className="grid items-end gap-6 @3xl/site:grid-cols-[1fr_auto]">
             <Lead field="text">{data.text}</Lead>
-            <Actions actions={data.actions} context={context} size="lg" />
+            <Actions
+              actions={data.actions}
+              context={context}
+              size="lg"
+              field="actions"
+            />
           </div>
         </div>
         <div className="site-feature -rotate-2 shadow-[var(--s-shadow-lift)] @3xl/site:absolute @3xl/site:end-0 @3xl/site:top-[8%] @3xl/site:w-[28%]">
@@ -327,7 +344,12 @@ function Hero({ section, context, first }: Props<"hero">) {
           {data.heading}
         </Heading>
         <Lead field="text">{data.text}</Lead>
-        <Actions actions={data.actions} context={context} size="lg" />
+        <Actions
+          actions={data.actions}
+          context={context}
+          size="lg"
+          field="actions"
+        />
       </div>
       <div aria-hidden className="h-px w-full bg-[var(--s-border)]" />
     </div>
@@ -412,12 +434,21 @@ function Slides({ section, context, first }: Props<"slides">) {
   );
   const words = (slide: (typeof slides)[number], at: number) => (
     <div className="site-stack">
-      <Eyebrow>{slide.eyebrow}</Eyebrow>
-      <Heading level={level(at)} size="display">
+      <Eyebrow field={fieldOf(slide, "eyebrow")}>{slide.eyebrow}</Eyebrow>
+      <Heading
+        level={level(at)}
+        size="display"
+        field={fieldOf(slide, "heading")}
+      >
         {slide.heading}
       </Heading>
-      <Lead>{slide.text}</Lead>
-      <Actions actions={slide.actions} context={context} size="lg" />
+      <Lead field={fieldOf(slide, "text")}>{slide.text}</Lead>
+      <Actions
+        actions={slide.actions}
+        context={context}
+        size="lg"
+        field={fieldOf(slide, "actions")}
+      />
     </div>
   );
   if (variant === "split")
@@ -590,20 +621,23 @@ function Announcement({ section, context }: Props<"announcement">) {
           <EditableWords field="text">{data.text}</EditableWords>
         </p>
       </div>
-      <Actions actions={data.actions} context={context} />
+      <Actions actions={data.actions} context={context} field="actions" />
     </div>
   );
 }
 
 function Welcome({ section, context }: Props<"welcome">) {
   const { data, variant } = section;
+  const held = useHeldText();
   const signature =
-    data.name || data.role ? (
+    data.name || data.role || held("name") || held("role") ? (
       <p className="site-signature">
-        {data.name ? (
-          <span className="site-heading site-h3">{data.name}</span>
-        ) : null}
-        {data.role ? <span className="site-meta">{data.role}</span> : null}
+        <Words tag="span" field="name" className="site-heading site-h3">
+          {data.name}
+        </Words>
+        <Words tag="span" field="role" className="site-meta">
+          {data.role}
+        </Words>
       </p>
     ) : null;
   const words = (
@@ -680,7 +714,7 @@ function ImageText({ section, context }: Props<"imageText">) {
       <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
       <Heading field="heading">{data.heading}</Heading>
       <Prose body={data.body} context={context} />
-      <Actions actions={data.actions} context={context} />
+      <Actions actions={data.actions} context={context} field="actions" />
     </div>
   );
   return (
@@ -911,7 +945,11 @@ function Cards({ section, context }: Props<"cards">) {
           ratio="4 / 5"
         >
           <span className="flex items-end justify-between gap-3">
-            <span className="site-heading site-h3">{item.title}</span>
+            <span className="site-heading site-h3">
+              <EditableWords field={fieldOf(item, "title")}>
+                {item.title}
+              </EditableWords>
+            </span>
             {item.href ? (
               <ArrowUpRight
                 aria-hidden
@@ -936,8 +974,12 @@ function Cards({ section, context }: Props<"cards">) {
           ) : null}
           <div className="site-card-body">
             {variant === "icons" ? <IconTile icon={item.icon} /> : null}
-            <Heading level={3}>{item.title}</Heading>
-            {item.text ? <p className="site-text">{item.text}</p> : null}
+            <Heading level={3} field={fieldOf(item, "title")}>
+              {item.title}
+            </Heading>
+            <Words tag="p" field={fieldOf(item, "text")} className="site-text">
+              {item.text}
+            </Words>
             {item.href ? (
               <TextLink context={context} className="mt-auto pt-2">
                 {m.siteLearnMore({}, t)}
@@ -1018,16 +1060,24 @@ function Divisions({ section, context }: Props<"divisions">) {
                   className="flex h-full flex-col justify-between gap-6 p-[var(--s-card-pad)]"
                   style={overMediaStyle}
                 >
-                  <span className="site-heading site-h3">{item.title}</span>
+                  <span className="site-heading site-h3">
+                    <EditableWords field={fieldOf(item, "title")}>
+                      {item.title}
+                    </EditableWords>
+                  </span>
                   <span className="grid gap-1.5">
                     <span className="site-meta text-[var(--s-fg)]">
-                      {item.ages}
+                      <EditableWords field={fieldOf(item, "ages")}>
+                        {item.ages}
+                      </EditableWords>
                     </span>
-                    {item.text ? (
-                      <span className="site-small text-[var(--s-muted)]">
-                        {item.text}
-                      </span>
-                    ) : null}
+                    <Words
+                      tag="span"
+                      field={fieldOf(item, "text")}
+                      className="site-small text-[var(--s-muted)]"
+                    >
+                      {item.text}
+                    </Words>
                   </span>
                 </div>
               </SiteAnchor>
@@ -1057,10 +1107,22 @@ function Divisions({ section, context }: Props<"divisions">) {
                 {/* On a wide screen the stage and its sentence sit side by side, so a row reads as one line of a table. */}
                 <div className="grid content-center items-center gap-x-[var(--s-grid-gap)] gap-y-3 p-[var(--s-card-pad)] @5xl/site:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_auto]">
                   <div className="grid justify-items-start gap-2">
-                    <span className="site-eyebrow">{item.ages}</span>
-                    <Heading level={3}>{item.title}</Heading>
+                    <span className="site-eyebrow">
+                      <EditableWords field={fieldOf(item, "ages")}>
+                        {item.ages}
+                      </EditableWords>
+                    </span>
+                    <Heading level={3} field={fieldOf(item, "title")}>
+                      {item.title}
+                    </Heading>
                   </div>
-                  {item.text ? <p className="site-text">{item.text}</p> : null}
+                  <Words
+                    tag="p"
+                    field={fieldOf(item, "text")}
+                    className="site-text"
+                  >
+                    {item.text}
+                  </Words>
                   {item.href ? (
                     <Arrow className="hidden size-6 text-[var(--s-link)] @5xl/site:block" />
                   ) : null}
@@ -1083,7 +1145,9 @@ function Divisions({ section, context }: Props<"divisions">) {
                   strength="l"
                 >
                   <span className="site-meta text-[var(--s-fg)]">
-                    {item.ages}
+                    <EditableWords field={fieldOf(item, "ages")}>
+                      {item.ages}
+                    </EditableWords>
                   </span>
                   <span
                     className={cn(
@@ -1091,14 +1155,18 @@ function Divisions({ section, context }: Props<"divisions">) {
                       columns === "4" ? "site-h3" : "site-h2",
                     )}
                   >
-                    {item.title}
+                    <EditableWords field={fieldOf(item, "title")}>
+                      {item.title}
+                    </EditableWords>
                   </span>
-                  {item.text ? (
-                    // Three lines held for every stage's sentence, so the titles of a row line up.
-                    <span className="site-small min-h-[3lh] max-w-xs text-[var(--s-muted)]">
-                      {item.text}
-                    </span>
-                  ) : null}
+                  {/* Three lines held for every stage's sentence, so the titles of a row line up. */}
+                  <Words
+                    tag="span"
+                    field={fieldOf(item, "text")}
+                    className="site-small min-h-[3lh] max-w-xs text-[var(--s-muted)]"
+                  >
+                    {item.text}
+                  </Words>
                   {item.href ? (
                     <span className="mt-3 inline-grid size-11 place-items-center rounded-full bg-white text-black">
                       <Arrow />
@@ -1119,9 +1187,11 @@ interface FigureProps {
   label: string;
   caption?: string;
   context: RenderContext;
+  /** The item the figure is, for typing its words in the builder. */
+  item?: { id: string };
 }
 
-function Figure({ value, label, caption, context }: FigureProps) {
+function Figure({ value, label, caption, context, item }: FigureProps) {
   // In the school's Arabic-Indic digits a figure stands still, as counting
   // up runs in Latin ones.
   const shown = context.locale === "ar" ? arabicDigits(value) : value;
@@ -1131,13 +1201,30 @@ function Figure({ value, label, caption, context }: FigureProps) {
   );
   return (
     <div className="site-stat">
-      <dt className="site-stat-label order-2">{label}</dt>
+      <dt className="site-stat-label order-2">
+        <EditableWords field={item && fieldOf(item, "label")}>
+          {label}
+        </EditableWords>
+      </dt>
       <dd ref={ref} className="site-figure order-1">
-        {shown}
+        {/* Arabic draws the figure in other digits than it is typed in. */}
+        <EditableWords
+          field={
+            item && context.locale !== "ar" ? fieldOf(item, "value") : undefined
+          }
+        >
+          {shown}
+        </EditableWords>
       </dd>
-      {caption ? (
-        <dd className="site-text site-small order-3">{caption}</dd>
-      ) : null}
+      {caption === undefined ? null : (
+        <Words
+          tag="dd"
+          field={item && fieldOf(item, "caption")}
+          className="site-text site-small order-3"
+        >
+          {caption}
+        </Words>
+      )}
     </div>
   );
 }
@@ -1158,6 +1245,7 @@ function Stats({ section, context }: Props<"stats">) {
           label={item.label}
           caption={variant === "captions" ? item.caption : undefined}
           context={context}
+          item={item}
         />
       ))}
     </dl>
@@ -1179,7 +1267,9 @@ function Stats({ section, context }: Props<"stats">) {
       ) : (
         figures(columnsFor(data.items.length, 4))
       )}
-      {data.source ? <p className="site-meta mt-10">{data.source}</p> : null}
+      <Words tag="p" field="source" className="site-meta mt-10">
+        {data.source}
+      </Words>
     </div>
   );
 }
@@ -1275,10 +1365,20 @@ function Pillars({ section, context }: Props<"pillars">) {
               </div>
               <div data-stagger className="site-stack">
                 <span className="site-numeral">{numeral(index)}</span>
-                <Heading level={data.heading ? 3 : 2} size="h2">
+                <Heading
+                  level={data.heading ? 3 : 2}
+                  size="h2"
+                  field={fieldOf(item, "title")}
+                >
                   {item.title}
                 </Heading>
-                {item.text ? <p className="site-lead">{item.text}</p> : null}
+                <Words
+                  tag="p"
+                  field={fieldOf(item, "text")}
+                  className="site-lead"
+                >
+                  {item.text}
+                </Words>
               </div>
             </div>
           ))}
@@ -1310,8 +1410,12 @@ function Pillars({ section, context }: Props<"pillars">) {
             ) : (
               <IconTile icon={item.icon} />
             )}
-            <Heading level={3}>{item.title}</Heading>
-            {item.text ? <p className="site-text">{item.text}</p> : null}
+            <Heading level={3} field={fieldOf(item, "title")}>
+              {item.title}
+            </Heading>
+            <Words tag="p" field={fieldOf(item, "text")} className="site-text">
+              {item.text}
+            </Words>
           </li>
         ))}
       </ol>
@@ -1322,11 +1426,16 @@ function Pillars({ section, context }: Props<"pillars">) {
 function QuoteSection({ section, context }: Props<"quote">) {
   const { data, variant } = section;
   const portrait = variant === "portrait";
+  const held = useHeldText();
   const who =
-    data.name || data.role ? (
+    data.name || data.role || held("name") || held("role") ? (
       <figcaption className="site-stack gap-2">
-        {data.name ? <span className="site-eyebrow">{data.name}</span> : null}
-        {data.role ? <span className="site-meta">{data.role}</span> : null}
+        <Words tag="span" field="name" className="site-eyebrow">
+          {data.name}
+        </Words>
+        <Words tag="span" field="role" className="site-meta">
+          {data.role}
+        </Words>
       </figcaption>
     ) : null;
   return (
@@ -1363,7 +1472,7 @@ function QuoteSection({ section, context }: Props<"quote">) {
           className="site-quote"
           data-size={portrait ? undefined : "l"}
         >
-          {data.quote}
+          <EditableWords field="quote">{data.quote}</EditableWords>
         </blockquote>
         {who}
       </div>
@@ -1391,7 +1500,9 @@ function Voices({ section, context }: Props<"voices">) {
       <figure className="site-card flex h-full flex-col gap-5 p-[var(--s-card-pad)] text-start">
         <QuoteMark />
         <blockquote className="site-quote" data-size="s">
-          {item.quote}
+          <EditableWords field={fieldOf(item, "quote")}>
+            {item.quote}
+          </EditableWords>
         </blockquote>
         <figcaption className="mt-auto flex items-center gap-3 border-t border-[var(--s-border)] pt-5">
           {item.portrait.fileId ? (
@@ -1412,8 +1523,16 @@ function Voices({ section, context }: Props<"voices">) {
             </span>
           )}
           <span className="grid">
-            <span className="font-semibold">{item.name}</span>
-            <span className="site-meta">{item.role}</span>
+            <span className="font-semibold">
+              <EditableWords field={fieldOf(item, "name")}>
+                {item.name}
+              </EditableWords>
+            </span>
+            <span className="site-meta">
+              <EditableWords field={fieldOf(item, "role")}>
+                {item.role}
+              </EditableWords>
+            </span>
           </span>
         </figcaption>
       </figure>
@@ -1479,10 +1598,24 @@ function People({ section, context }: Props<"people">) {
         />
       </div>
       <span className="grid gap-1">
-        <span className="site-heading site-h4">{item.name}</span>
-        <span className="site-meta">{item.role}</span>
+        <span className="site-heading site-h4">
+          <EditableWords field={fieldOf(item, "name")}>
+            {item.name}
+          </EditableWords>
+        </span>
+        <span className="site-meta">
+          <EditableWords field={fieldOf(item, "role")}>
+            {item.role}
+          </EditableWords>
+        </span>
       </span>
-      {item.text ? <p className="site-text site-small">{item.text}</p> : null}
+      <Words
+        tag="p"
+        field={fieldOf(item, "text")}
+        className="site-text site-small"
+      >
+        {item.text}
+      </Words>
     </li>
   ));
   if (variant === "carousel")
@@ -1558,7 +1691,7 @@ function Video({ section, context }: Props<"video">) {
         <div data-stagger className="site-stack">
           <Heading field="heading">{data.heading}</Heading>
           <Lead field="text">{data.text}</Lead>
-          <Actions actions={data.actions} context={context} />
+          <Actions actions={data.actions} context={context} field="actions" />
         </div>
         {player}
       </div>
@@ -1570,7 +1703,12 @@ function Video({ section, context }: Props<"video">) {
     >
       <SectionIntro heading={data.heading} text={data.text} />
       {player}
-      <Actions actions={data.actions} context={context} className="mt-8" />
+      <Actions
+        actions={data.actions}
+        context={context}
+        className="mt-8"
+        field="actions"
+      />
     </div>
   );
 }
@@ -1819,9 +1957,23 @@ function Timeline({ section }: Props<"timeline">) {
         <ol data-stagger className="site-rail site-timeline-rail">
           {data.items.map((item) => (
             <li key={item.id} className="grid content-start gap-3 text-start">
-              <span className="site-timeline-year">{item.year}</span>
-              <span className="site-heading site-h3">{item.title}</span>
-              {item.text ? <p className="site-text">{item.text}</p> : null}
+              <span className="site-timeline-year">
+                <EditableWords field={fieldOf(item, "year")}>
+                  {item.year}
+                </EditableWords>
+              </span>
+              <span className="site-heading site-h3">
+                <EditableWords field={fieldOf(item, "title")}>
+                  {item.title}
+                </EditableWords>
+              </span>
+              <Words
+                tag="p"
+                field={fieldOf(item, "text")}
+                className="site-text"
+              >
+                {item.text}
+              </Words>
             </li>
           ))}
         </ol>
@@ -1833,9 +1985,19 @@ function Timeline({ section }: Props<"timeline">) {
       <ol data-stagger className="site-timeline">
         {data.items.map((item) => (
           <li key={item.id} className="site-timeline-row">
-            <span className="site-timeline-year">{item.year}</span>
-            <span className="site-heading site-h3">{item.title}</span>
-            {item.text ? <p className="site-text">{item.text}</p> : null}
+            <span className="site-timeline-year">
+              <EditableWords field={fieldOf(item, "year")}>
+                {item.year}
+              </EditableWords>
+            </span>
+            <span className="site-heading site-h3">
+              <EditableWords field={fieldOf(item, "title")}>
+                {item.title}
+              </EditableWords>
+            </span>
+            <Words tag="p" field={fieldOf(item, "text")} className="site-text">
+              {item.text}
+            </Words>
           </li>
         ))}
       </ol>
@@ -1864,6 +2026,7 @@ function Accordion({ section, context }: Props<"accordion">) {
       event.preventDefault();
       choose(open + step * (context.locale === "ar" ? -1 : 1));
     };
+    const shownTab = data.items[open];
     return (
       <div>
         <SectionIntro heading={data.heading} text={data.text} />
@@ -1901,7 +2064,11 @@ function Accordion({ section, context }: Props<"accordion">) {
           aria-labelledby={tabId(open)}
           className="site-narrow text-[1.125rem] leading-relaxed whitespace-pre-line"
         >
-          {data.items[open]?.text}
+          <EditableWords
+            field={shownTab ? fieldOf(shownTab, "text") : undefined}
+          >
+            {shownTab?.text ?? ""}
+          </EditableWords>
         </p>
       </div>
     );
@@ -1923,7 +2090,9 @@ function Accordion({ section, context }: Props<"accordion">) {
             </span>
           </summary>
           <p className="site-text max-w-2xl pb-7 whitespace-pre-line @3xl/site:pe-16">
-            {item.text}
+            <EditableWords field={fieldOf(item, "text")}>
+              {item.text}
+            </EditableWords>
           </p>
         </details>
       ))}
@@ -1950,9 +2119,11 @@ function Accordion({ section, context }: Props<"accordion">) {
 interface LogoProps {
   item: SectionOf<"logos">["data"]["items"][number];
   context: RenderContext;
+  /** Its name takes typing in the builder, as a moving row's cannot. */
+  typable?: boolean;
 }
 
-function Logo({ item, context }: LogoProps) {
+function Logo({ item, context, typable = false }: LogoProps) {
   return (
     <SiteAnchor
       href={item.href}
@@ -1971,7 +2142,11 @@ function Logo({ item, context }: LogoProps) {
           className="h-14 w-auto rounded-none object-contain"
         />
       ) : (
-        <span className="site-logo-name">{item.name}</span>
+        <span className="site-logo-name">
+          <EditableWords field={typable ? fieldOf(item, "name") : undefined}>
+            {item.name}
+          </EditableWords>
+        </span>
       )}
     </SiteAnchor>
   );
@@ -2042,7 +2217,7 @@ function Logos({ section, context }: Props<"logos">) {
             key={item.id}
             className="grid items-center justify-items-start in-[.text-center]:justify-items-center"
           >
-            <Logo item={item} context={context} />
+            <Logo item={item} context={context} typable />
           </li>
         ))}
       </ul>
@@ -2223,6 +2398,8 @@ function Events({ section, context }: Props<"events">) {
   const { data, variant } = section;
   const t = { locale: context.locale };
   const items = listedEvents(data, context);
+  const typed = data.source === "typed";
+  const held = useHeldText();
   const dayMonth = (date: string) =>
     date
       ? {
@@ -2276,18 +2453,33 @@ function Events({ section, context }: Props<"events">) {
                   )}
                 </span>
                 <span className="grid flex-1 gap-1">
-                  <span className="site-heading site-h3">{item.title}</span>
-                  {item.location || item.note ? (
+                  <span className="site-heading site-h3">
+                    <EditableWords
+                      field={typed ? fieldOf(item, "title") : undefined}
+                    >
+                      {item.title}
+                    </EditableWords>
+                  </span>
+                  {item.location ||
+                  item.note ||
+                  (typed && held(fieldOf(item, "location"))) ? (
                     <span className="site-muted inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                       {item.note ? (
                         <span dir="auto">
                           <bdi>{item.note}</bdi>
                         </span>
                       ) : null}
-                      {item.location ? (
+                      {item.location ||
+                      (typed && held(fieldOf(item, "location"))) ? (
                         <span className="inline-flex items-center gap-1.5">
                           <MapPin aria-hidden className="size-4" />
-                          {item.location}
+                          <EditableWords
+                            field={
+                              typed ? fieldOf(item, "location") : undefined
+                            }
+                          >
+                            {item.location}
+                          </EditableWords>
                         </span>
                       ) : null}
                     </span>
@@ -2486,6 +2678,14 @@ function Admissions({ section, context }: Props<"admissions">) {
           actions={data.items.flatMap((item) => item.actions)}
           context={context}
           size="lg"
+          field={(action) => {
+            const item = data.items.find((each) =>
+              each.actions.includes(action),
+            );
+            return item
+              ? itemField(fieldOf(item, "actions"), action.id, "label")
+              : "";
+          }}
         />
       </div>
     );
@@ -2508,10 +2708,22 @@ function Admissions({ section, context }: Props<"admissions">) {
                   index + 1,
                 )}
               </span>
-              <Heading level={3}>{item.title}</Heading>
-              {item.text ? <p className="site-text">{item.text}</p> : null}
+              <Heading level={3} field={fieldOf(item, "title")}>
+                {item.title}
+              </Heading>
+              <Words
+                tag="p"
+                field={fieldOf(item, "text")}
+                className="site-text"
+              >
+                {item.text}
+              </Words>
             </div>
-            <Actions actions={item.actions} context={context} />
+            <Actions
+              actions={item.actions}
+              context={context}
+              field={fieldOf(item, "actions")}
+            />
           </li>
         ))}
       </ol>
@@ -2553,10 +2765,16 @@ function RegisterApply({ section, context }: Props<"registerApply">) {
         ? m.siteRegisterApplyOpensOn({ date: date(soonest.opensOn) }, t)
         : m.siteRegisterApplyNotOpen({}, t);
   const label = data.button.trim() || m.siteRegisterApplyButton({}, t);
+  const held = useHeldText();
   const banner = variant === "banner";
   const action =
     closed !== null ? (
-      <Actions actions={data.closed} context={context} size="lg" />
+      <Actions
+        actions={data.closed}
+        context={context}
+        size="lg"
+        field="closed"
+      />
     ) : context.applyHref ? (
       <div className="site-actions">
         <PortalLink
@@ -2565,7 +2783,13 @@ function RegisterApply({ section, context }: Props<"registerApply">) {
           className="site-button"
           size="lg"
         >
-          {label}
+          {data.button.trim() || held("button") ? (
+            <EditableWords field="button" value={data.button}>
+              {label}
+            </EditableWords>
+          ) : (
+            label
+          )}
         </PortalLink>
       </div>
     ) : null;
@@ -2647,10 +2871,18 @@ function Steps({ section, context }: Props<"steps">) {
               {number(index)}
             </span>
             <span className="grid gap-1.5 pt-3 @3xl/site:pt-0">
-              <span className="site-heading site-h3">{item.title}</span>
-              {item.text ? (
-                <span className="site-text">{item.text}</span>
-              ) : null}
+              <span className="site-heading site-h3">
+                <EditableWords field={fieldOf(item, "title")}>
+                  {item.title}
+                </EditableWords>
+              </span>
+              <Words
+                tag="span"
+                field={fieldOf(item, "text")}
+                className="site-text"
+              >
+                {item.text}
+              </Words>
             </span>
           </li>
         ))}
@@ -2674,6 +2906,7 @@ interface PlanCardsProps {
 function PlanCards({ items, context }: PlanCardsProps) {
   const plans = items.slice(0, MAX_PLANS);
   const chosen = plans.findIndex((item) => item.mark === "chosen");
+  const held = useHeldText();
   return (
     <ul
       data-stagger
@@ -2683,7 +2916,16 @@ function PlanCards({ items, context }: PlanCardsProps) {
       {plans.map((item, index) => {
         const marked = index === chosen;
         const points = planPoints(item.includes ?? "");
-        const [action] = (item.link ?? []).filter((link) => link.label.trim());
+        const field = (key: string) =>
+          item.id ? fieldOf({ id: item.id }, key) : undefined;
+        const linkField = (link: SiteLink) => {
+          const list = field("link");
+          return list ? itemField(list, link.id, "label") : undefined;
+        };
+        const [action] = (item.link ?? []).filter((link) => {
+          const label = linkField(link);
+          return link.label.trim() || (label !== undefined && held(label));
+        });
         return (
           <li
             key={item.id}
@@ -2701,13 +2943,19 @@ function PlanCards({ items, context }: PlanCardsProps) {
                   {m.sitePlanChosen({}, { locale: context.locale })}
                 </span>
               ) : null}
-              <Heading level={3}>{item.label ?? ""}</Heading>
-              {item.value ? (
-                <p className="site-heading text-3xl tabular-nums">
-                  {item.value}
-                </p>
-              ) : null}
-              {item.note ? <p className="site-muted">{item.note}</p> : null}
+              <Heading level={3} field={field("label")}>
+                {item.label ?? ""}
+              </Heading>
+              <Words
+                tag="p"
+                field={field("value")}
+                className="site-heading text-3xl tabular-nums"
+              >
+                {item.value ?? ""}
+              </Words>
+              <Words tag="p" field={field("note")} className="site-muted">
+                {item.note ?? ""}
+              </Words>
             </div>
             {points.length ? (
               <ul className="grid gap-2.5 border-t border-[var(--s-border)] pt-5">
@@ -2729,7 +2977,9 @@ function PlanCards({ items, context }: PlanCardsProps) {
                 className="site-button mt-auto w-full justify-center"
                 variant={marked ? undefined : "secondary"}
               >
-                {action.label}
+                <EditableWords field={linkField(action)}>
+                  {action.label}
+                </EditableWords>
               </SiteAnchor>
             ) : null}
           </li>
@@ -2761,15 +3011,21 @@ function Fees({ section, context }: Props<"fees">) {
                     scope="row"
                     className="px-[var(--s-card-pad)] py-5 text-start font-semibold"
                   >
-                    {item.label}
-                    {item.note ? (
-                      <span className="site-meta mt-1 block font-normal">
-                        {item.note}
-                      </span>
-                    ) : null}
+                    <EditableWords field={fieldOf(item, "label")}>
+                      {item.label}
+                    </EditableWords>
+                    <Words
+                      tag="span"
+                      field={fieldOf(item, "note")}
+                      className="site-meta mt-1 block font-normal"
+                    >
+                      {item.note}
+                    </Words>
                   </th>
                   <td className="site-heading px-[var(--s-card-pad)] py-5 text-end text-xl tabular-nums">
-                    {item.value}
+                    <EditableWords field={fieldOf(item, "value")}>
+                      {item.value}
+                    </EditableWords>
                   </td>
                 </tr>
               ))}
@@ -2783,9 +3039,15 @@ function Fees({ section, context }: Props<"fees">) {
               key={item.id}
               className="flex flex-wrap items-baseline justify-between gap-4 border-b border-[var(--s-border)] pb-4"
             >
-              <dt className="font-semibold">{item.label}</dt>
+              <dt className="font-semibold">
+                <EditableWords field={fieldOf(item, "label")}>
+                  {item.label}
+                </EditableWords>
+              </dt>
               <dd className="site-heading text-xl tabular-nums">
-                {item.value}
+                <EditableWords field={fieldOf(item, "value")}>
+                  {item.value}
+                </EditableWords>
               </dd>
             </div>
           ))}
@@ -3604,10 +3866,18 @@ function QuickLinks({ section, context }: Props<"quickLinks">) {
                 <>
                   <IconTile icon={item.icon} />
                   <span className="grid flex-1 gap-0.5">
-                    <span className="site-heading site-h4">{item.title}</span>
-                    {item.text ? (
-                      <span className="site-small site-muted">{item.text}</span>
-                    ) : null}
+                    <span className="site-heading site-h4">
+                      <EditableWords field={fieldOf(item, "title")}>
+                        {item.title}
+                      </EditableWords>
+                    </span>
+                    <Words
+                      tag="span"
+                      field={fieldOf(item, "text")}
+                      className="site-small site-muted"
+                    >
+                      {item.text}
+                    </Words>
                   </span>
                   <Arrow className="shrink-0 text-[var(--s-link)]" />
                 </>
@@ -3626,10 +3896,18 @@ function QuickLinks({ section, context }: Props<"quickLinks">) {
                     ) : null}
                   </span>
                   <span className="mt-auto grid gap-1">
-                    <span className="site-heading site-h4">{item.title}</span>
-                    {item.text ? (
-                      <span className="site-small opacity-80">{item.text}</span>
-                    ) : null}
+                    <span className="site-heading site-h4">
+                      <EditableWords field={fieldOf(item, "title")}>
+                        {item.title}
+                      </EditableWords>
+                    </span>
+                    <Words
+                      tag="span"
+                      field={fieldOf(item, "text")}
+                      className="site-small opacity-80"
+                    >
+                      {item.text}
+                    </Words>
                   </span>
                 </>
               )}

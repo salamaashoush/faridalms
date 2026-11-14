@@ -1,6 +1,7 @@
 import type { Field, SectionType } from "@faridalms/domain/site-sections";
 
 import { readEmphasis, writeEmphasis } from "@faridalms/domain/site-emphasis";
+import { MAX_LINK_LABEL } from "@faridalms/domain/site-links";
 import { SECTION_SPECS } from "@faridalms/domain/site-sections";
 
 /** How long a field's words may run, and whether they may break onto new lines. */
@@ -9,13 +10,115 @@ export interface TextRule {
   multiline: boolean;
 }
 
-/** The rule a section's words field declares, or null when the field holds no plain words. */
+/** One list a field sits in: the list's field, and the id of the entry holding the words. */
+export interface FieldStep {
+  list: string;
+  id: string;
+}
+
+/**
+ * A words field by its path: a section's own field (`heading`), or a field
+ * of an entry of a list, named by the entry's id (`items.<id>.title`,
+ * `items.<id>.actions.<id>.label`).
+ */
+export interface FieldPath {
+  steps: FieldStep[];
+  key: string;
+}
+
+export function fieldPath(field: string): FieldPath {
+  const parts = field.split(".");
+  const key = parts.pop() ?? "";
+  const steps: FieldStep[] = [];
+  for (let at = 0; at + 1 < parts.length; at += 2)
+    steps.push({ list: parts[at] ?? "", id: parts[at + 1] ?? "" });
+  return { steps, key };
+}
+
+/** The section field a path starts from, which the panel edits and undoes it as. */
+export const topField = (field: string) => field.split(".")[0] ?? field;
+
+type Fields = Partial<Record<string, Field>>;
+
+/** The rule a words field declares, or null when the path holds no plain words. */
 export function textRule(type: SectionType, field: string): TextRule | null {
-  const fields: Partial<Record<string, Field>> = SECTION_SPECS[type].fields;
-  const spec = fields[field];
+  const { steps, key } = fieldPath(field);
+  let fields: Fields = SECTION_SPECS[type].fields;
+  for (const step of steps) {
+    const list = fields[step.list];
+    if (list?.kind === "links")
+      return key === "label" && step === steps.at(-1)
+        ? { max: MAX_LINK_LABEL, multiline: false }
+        : null;
+    if (list?.kind !== "items") return null;
+    fields = list.fields;
+  }
+  const spec = fields[key];
   return spec?.kind === "text"
     ? { max: spec.max, multiline: spec.multiline ?? false }
     : null;
+}
+
+type Entries = Record<string, unknown>[];
+
+/**
+ * A section's data with one words field set, the entries it passes through
+ * found by id wherever they now stand. Null when an entry is gone, so words
+ * typed for it are dropped rather than written to another.
+ */
+export function withWords(
+  data: Record<string, unknown>,
+  field: string,
+  value: string,
+): Record<string, unknown> | null {
+  const { steps, key } = fieldPath(field);
+  const set = (
+    holder: Record<string, unknown>,
+    at: number,
+  ): Record<string, unknown> | null => {
+    const step = steps[at];
+    if (!step) return { ...holder, [key]: value };
+    const entries = holder[step.list];
+    if (!Array.isArray(entries)) return null;
+    const list = entries as Entries;
+    const index = list.findIndex((entry) => entry.id === step.id);
+    const entry = list[index];
+    if (!entry) return null;
+    const next = set(entry, at + 1);
+    if (!next) return null;
+    return { ...holder, [step.list]: list.with(index, next) };
+  };
+  return set(data, 0);
+}
+
+/** An entry a field passes through: a button of a links field, or an item of a list, counted from one. */
+export interface FieldPlace {
+  kind: "links" | "items";
+  number: number;
+}
+
+/** Where each entry a field passes through stands now, outermost first; null when one is gone. */
+export function fieldPlaces(
+  type: SectionType,
+  data: Record<string, unknown>,
+  field: string,
+): FieldPlace[] | null {
+  const places: FieldPlace[] = [];
+  let fields: Fields = SECTION_SPECS[type].fields;
+  let holder: Record<string, unknown> | undefined = data;
+  for (const step of fieldPath(field).steps) {
+    const spec = fields[step.list];
+    const entries: unknown = holder?.[step.list];
+    if (!Array.isArray(entries)) return null;
+    const list = entries as Entries;
+    const index = list.findIndex((entry) => entry.id === step.id);
+    if (index === -1 || (spec?.kind !== "items" && spec?.kind !== "links"))
+      return null;
+    places.push({ kind: spec.kind, number: index + 1 });
+    if (spec.kind === "items") fields = spec.fields;
+    holder = list[index];
+  }
+  return places;
 }
 
 /** A stretch of words as the canvas draws them, set apart or not. */

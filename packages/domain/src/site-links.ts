@@ -35,3 +35,6 @@ export const isVagueLink = (label: string) =>
 
 /** Buttons stay scannable under this many characters. */
 export const MAX_BUTTON_LABEL = 25;
+
+/** The most a link's words may hold; past `MAX_BUTTON_LABEL` the page is only warned. */
+export const MAX_LINK_LABEL = 60;

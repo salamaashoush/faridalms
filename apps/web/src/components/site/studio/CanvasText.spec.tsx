@@ -6,6 +6,7 @@ import { SECTION_SPECS, SECTION_TYPES } from "@faridalms/domain/site-sections";
 import { buildSection } from "@faridalms/domain/site-templates";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render as mount } from "@testing-library/react";
+import { useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -14,6 +15,7 @@ import type { SectionTexts } from "./CanvasText";
 
 import { PageSections } from "../render/page";
 import { TextEditContext } from "../render/parts";
+import { withWords } from "./canvas-text";
 import { CanvasText, SectionTextContext } from "./CanvasText";
 
 const contextIn = (locale: SiteLocale): RenderContext => ({
@@ -50,6 +52,7 @@ function texts(
     type: section.type,
     label: section.type,
     locale: "en",
+    data: section.data,
     edit,
     undo: () => {},
     redo: () => {},
@@ -238,5 +241,159 @@ describe("a page's words typed on the canvas", () => {
       fireEvent.input(eyebrow);
     });
     expect(edit).toHaveBeenLastCalledWith("eyebrow", "Openmorning", undefined);
+  });
+
+  it("names an item's words by the item, and a button's by the button", () => {
+    const cards = buildSection("cards", "grid", "en").content;
+    const hero = buildSection("hero", "split", "en").content;
+    const { getByRole } = render(
+      <Studio sections={[cards, hero]} locale="en" />,
+    );
+    expect(
+      getByRole("textbox", { name: "Title, card 2, cards section" }),
+    ).toBeTruthy();
+    expect(
+      getByRole("textbox", {
+        name: "Text, card 3, cards section",
+      }).getAttribute("aria-multiline"),
+    ).toBe("true");
+    expect(
+      getByRole("textbox", { name: "Button words, button 1, hero section" }),
+    ).toBeTruthy();
+  });
+
+  it("sends an item's words to the item by its id, not its place", () => {
+    const cards = buildSection("cards", "grid", "en").content;
+    if (cards.type !== "cards") throw new Error("not cards");
+    const [first, second, ...rest] = cards.data.items;
+    if (!first || !second) throw new Error("too few cards");
+    const section = {
+      ...cards,
+      data: { ...cards.data, items: [second, first, ...rest] },
+    } as PageSection;
+    const edit = vi.fn<SectionTexts["edit"]>();
+    const { getByRole } = render(
+      <Typing texts={texts(section, edit)}>
+        <PageSections
+          sections={[{ section, locale: "en" }]}
+          title=""
+          context={contextIn("en")}
+        />
+      </Typing>,
+    );
+    const title = getByRole("textbox", {
+      name: "Title, card 2, cards section",
+    });
+    expect(title.textContent).toBe(first.title);
+    act(() => {
+      title.textContent = "Forest school";
+      fireEvent.input(title);
+    });
+    expect(edit).toHaveBeenLastCalledWith(
+      `items.${first.id}.title`,
+      "Forest school",
+      undefined,
+    );
+  });
+
+  it("types a button's words where it is drawn, which is no link in the builder", () => {
+    const hero = buildSection("hero", "split", "en").content;
+    if (hero.type !== "hero") throw new Error("not a hero");
+    const [action] = hero.data.actions;
+    if (!action) throw new Error("no button");
+    const edit = vi.fn<SectionTexts["edit"]>();
+    const { getByRole } = render(
+      <Typing texts={texts(hero, edit)}>
+        <PageSections
+          sections={[{ section: hero, locale: "en" }]}
+          title=""
+          context={{ ...contextIn("en"), editing: true }}
+        />
+      </Typing>,
+    );
+    const label = getByRole("textbox", {
+      name: "Button words, button 1, hero section",
+    });
+    expect(label.closest("a")).toBeNull();
+    expect(label.closest(".site-button")).toBeTruthy();
+    act(() => {
+      label.textContent = "Book a visit today";
+      fireEvent.input(label);
+    });
+    expect(edit).toHaveBeenLastCalledWith(
+      `actions.${action.id}.label`,
+      "Book a visit today",
+      undefined,
+    );
+    act(() => {
+      label.textContent = "x".repeat(61);
+      fireEvent.input(label);
+    });
+    expect(edit).toHaveBeenCalledTimes(1);
+  });
+
+  it("draws again only the section an item is typed in", () => {
+    const typedIn = buildSection("cards", "grid", "en").content;
+    const sections = [
+      buildSection("hero", "split", "en").content,
+      typedIn,
+      buildSection("people", "grid", "en").content,
+    ];
+    const context = contextIn("en");
+    // A drawn section is kept, unless one of what it is drawn from changed.
+    const drawnFrom = new Map<string, Record<string, unknown>[]>();
+    function Page() {
+      const [shown, setShown] = useState(sections);
+      const edit: SectionTexts["edit"] = (field, value) =>
+        setShown((current) =>
+          current.map((section) => {
+            if (section.id !== typedIn.id) return section;
+            const data = withWords(section.data, field, value);
+            return data ? ({ ...section, data } as PageSection) : section;
+          }),
+        );
+      return (
+        <PageSections
+          sections={shown.map((section) => ({ section, locale: "en" }))}
+          title=""
+          context={context}
+          renderSection={(item, _index, rendered) => {
+            const props = (rendered as ReactElement<Record<string, unknown>>)
+              .props;
+            drawnFrom.set(item.section.id, [
+              ...(drawnFrom.get(item.section.id) ?? []),
+              props,
+            ]);
+            return item.section.id === typedIn.id ? (
+              <Typing texts={texts(item.section, edit)}>{rendered}</Typing>
+            ) : (
+              rendered
+            );
+          }}
+        />
+      );
+    }
+    const { getByRole } = render(<Page />);
+    const title = getByRole("textbox", {
+      name: "Title, card 2, cards section",
+    });
+    act(() => {
+      title.textContent = "Forest school";
+      fireEvent.input(title);
+    });
+    expect(title.textContent).toBe("Forest school");
+    const changed = (id: string) => {
+      const [before, after] = (drawnFrom.get(id) ?? []).slice(-2);
+      if (!before || !after) throw new Error("not drawn twice");
+      return Object.keys({ ...before, ...after }).filter(
+        (key) => !Object.is(before[key], after[key]),
+      );
+    };
+    expect(changed(typedIn.id)).toEqual(["section"]);
+    expect(
+      sections
+        .filter((section) => section.id !== typedIn.id)
+        .flatMap((section) => changed(section.id)),
+    ).toEqual([]);
   });
 });

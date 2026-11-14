@@ -600,9 +600,29 @@ its length limit and shows how much is left near it, and a one-line field
 takes no line breaks. Each is named for what it is and its section
 ("Heading, Hero section"). A section shown in the original language because
 its translation is unfinished, and a shared section the page may not
-change, are not typed on. Rich text, the words of a section's items and its
-buttons, pictures, links, layout and style are changed in the panel. The
-page a visitor is sent is the same with or without the builder's typing.
+change, are not typed on. Rich text, pictures, links, layout and style are
+changed in the panel. The page a visitor is sent is the same with or without
+the builder's typing.
+
+The words of a section's items are typed on the page the same way: a card's
+title and sentence, a person's name and role, a figure and its label, a
+fee's label, amount and note, a step, a stage, a moment of a timeline, a
+quote and who said it, and any other plain words a layout draws. Each is
+named with the item it belongs to ("Title, card 2, Cards section"), and Tab
+follows the page's reading order through the section's words, items
+included. The words belong to the item, not to its place in the list, so
+an item moved, added or removed in the panel keeps its own words and typing
+never lands on another item; typing and the panel's fields for the list undo
+together. A button's words are typed where the button is drawn, and its link
+is set in the panel; in the builder a button never leads anywhere. A quote's
+words and who said it, a welcome letter's signature and a set of figures'
+source are typed too. Some words stay in the panel: titles drawn inside a
+control that opens or switches (a question that opens its answer, a tab),
+words that move across the band (a moving row of values or logos), a plan's
+list of what it includes, a figure drawn in Arabic digits, a form's send
+button and its thanks, blocks inside a free-form section, and the records a
+section is fed (news, calendar events, intakes, classes), whose heading and
+introduction are still typed on the page.
 
 A school can start from a ready-made site: a theme and a set of draft pages
 in both languages. Five are written for a school of children (Established,
