@@ -173,10 +173,27 @@ describe("grades and levels", () => {
     await api.classes.enrol({ studentId: ungraded, classId: elective.id });
     expect(await gradesOf(api, ungraded)).toEqual([[otherGrade, today, null]]);
 
-    await api.homerooms.place({ studentId: created.id, classId: other.id });
-    const after = await gradesOf(api, created.id);
-    expect(after.at(-2)).toEqual([otherGrade, today, later]);
-    expect(after.at(-1)).toEqual([nine, later, null]);
+    const placed = await api.homerooms.place({
+      studentId: created.id,
+      classId: other.id,
+    });
+    try {
+      const after = await gradesOf(api, created.id);
+      expect(after.at(-2)).toEqual([otherGrade, today, later]);
+      expect(after.at(-1)).toEqual([nine, later, null]);
+    } finally {
+      // Put back, so the other suites find the homeroom as the seed made it.
+      const place = (
+        await api.homerooms.history({ studentId: created.id })
+      ).rows.find((row) => row.enrollmentId === placed.id);
+      if (place)
+        await api.homerooms.leave({
+          studentId: created.id,
+          enrollmentId: place.enrollmentId,
+          expectedVersion: place.version,
+          on: today,
+        });
+    }
   });
 
   test("an event for a grade reaches its students and no one else's", async () => {

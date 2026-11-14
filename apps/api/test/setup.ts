@@ -1,8 +1,12 @@
-import { afterAll } from "bun:test";
+import { afterAll, afterEach } from "bun:test";
 
-import { setUp, tearDown } from "./harness";
+import { requireSeedMarks, setUp, tearDown } from "./harness";
 
 await setUp();
+
+afterEach(async () => {
+  await requireSeedMarks();
+});
 
 afterAll(async () => {
   await tearDown();

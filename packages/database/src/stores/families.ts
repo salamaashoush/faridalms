@@ -716,7 +716,8 @@ const guardianCandidates = (reach: MessageReach) => sql`
 /**
  * A page of the guardians the viewer may write to, matching their name or
  * a child's, each with the children they are linked to, ranked after staff
- * and before students.
+ * and before students. One who is also staff here is offered once, as staff,
+ * by core's own recipients.
  */
 export async function guardianRecipients(
   tx: Tx,
@@ -743,6 +744,10 @@ export async function guardianRecipients(
       from (${guardianCandidates(reach)}) p
       join core.users u on u.tenant_id = ${reach.tenantId}::uuid and u.id = p.user_id and u.status = 'active'
       where ${only === null ? sql`true` : sql`p.user_id = any(${only})`}
+        and not exists (select 1 from core.user_roles r
+          where r.tenant_id = u.tenant_id and r.user_id = u.id
+            and r.org_id = ${reach.schoolId}::uuid and r.status = 'active'
+            and r.valid_during @> ${reach.today}::date and r.role = any (app.staff_roles()))
         and (${holds(filter.q, [sql`u.full_name_en`, sql`u.full_name_ar`])}
              or exists (select 1 from core.user_relationships l
                join core.users s on s.tenant_id = l.tenant_id and s.id = l.student_user_id

@@ -103,57 +103,65 @@ describe("year rollover", () => {
       api.rollover.apply({ ...query, expectedVersion: 1 }),
       api.rollover.apply({ ...query, expectedVersion: 1 }),
     ]);
-    expect(a).toEqual(b);
-    expect(a).toMatchObject({ placed: staying, graduated: 1 });
-    expect(a.classes).toHaveLength(first.plan.classes.length - 1);
-    expect(
-      await rejection(
-        api.rollover.save({ ...query, expectedVersion: 1, plan }),
-      ),
-    ).toMatchObject({ code: "CONFLICT", message: "rollover.applied" });
+    try {
+      expect(a).toEqual(b);
+      expect(a).toMatchObject({ placed: staying, graduated: 1 });
+      expect(a.classes).toHaveLength(first.plan.classes.length - 1);
+      expect(
+        await rejection(
+          api.rollover.save({ ...query, expectedVersion: 1, plan }),
+        ),
+      ).toMatchObject({ code: "CONFLICT", message: "rollover.applied" });
 
-    const target = await api.homerooms.directory({
-      views: { year: targetId },
-    });
-    expect(target.rows).toHaveLength(
-      first.plan.classes.filter((row) => row.carrier === "homerooms").length -
-        1,
-    );
-    const carried = target.rows.find((row) => row.code === `${kept.code}-N`);
-    if (!carried) throw new Error("carried class");
-    expect(carried.subjects).toHaveLength(kept.subjects.length);
-    expect(carried.teachers[0]?.userId).toBe(kept.teacherId);
-    const record = await api.classes.record({
-      id: carried.id,
-      on: "2031-09-07",
-    });
-    expect(record.roster.map((row) => row.userId)).toContain(repeater.id);
-    expect(record.roster.map((row) => row.userId)).not.toContain(leaver.id);
+      const target = await api.homerooms.directory({
+        views: { year: targetId },
+      });
+      expect(target.rows).toHaveLength(
+        first.plan.classes.filter((row) => row.carrier === "homerooms").length -
+          1,
+      );
+      const carried = target.rows.find((row) => row.code === `${kept.code}-N`);
+      if (!carried) throw new Error("carried class");
+      expect(carried.subjects).toHaveLength(kept.subjects.length);
+      expect(carried.teachers[0]?.userId).toBe(kept.teacherId);
+      const record = await api.classes.record({
+        id: carried.id,
+        on: "2031-09-07",
+      });
+      expect(record.roster.map((row) => row.userId)).toContain(repeater.id);
+      expect(record.roster.map((row) => row.userId)).not.toContain(leaver.id);
 
-    const left = await api.years.placementsOf({ studentId: graduate.id });
-    expect(
-      left.placements.find((row) => row.schoolYearId === source.id)
-        ?.exitMeaning,
-    ).toBe("graduated");
-    // Those who go leave on the year's last day and read their record until
-    // the new year begins without them; those who stay have no such day.
-    const departure = {
-      leftOn: source.endsBefore,
-      accessEndsOn: "2031-09-07",
-    };
-    expect((await api.people.student({ id: graduate.id })).departure).toEqual(
-      departure,
-    );
-    expect((await api.people.student({ id: leaver.id })).departure).toEqual(
-      departure,
-    );
-    expect(
-      (await api.people.student({ id: repeater.id })).departure,
-    ).toBeNull();
-    const sourceRecord = await api.classes.record({
-      id: kept.sourceClassId,
-    });
-    expect(sourceRecord.roster.map((row) => row.userId)).toContain(leaver.id);
+      const left = await api.years.placementsOf({ studentId: graduate.id });
+      expect(
+        left.placements.find((row) => row.schoolYearId === source.id)
+          ?.exitMeaning,
+      ).toBe("graduated");
+      // Those who go leave on the year's last day and read their record until
+      // the new year begins without them; those who stay have no such day.
+      const departure = {
+        leftOn: source.endsBefore,
+        accessEndsOn: "2031-09-07",
+      };
+      expect((await api.people.student({ id: graduate.id })).departure).toEqual(
+        departure,
+      );
+      expect((await api.people.student({ id: leaver.id })).departure).toEqual(
+        departure,
+      );
+      expect(
+        (await api.people.student({ id: repeater.id })).departure,
+      ).toBeNull();
+      const sourceRecord = await api.classes.record({
+        id: kept.sourceClassId,
+      });
+      expect(sourceRecord.roster.map((row) => row.userId)).toContain(leaver.id);
+    } finally {
+      // Those the rollover sent away come back, so the other suites find
+      // the seeded students still at the school.
+      for (const { id } of first.students)
+        if ((await api.people.student({ id })).departure)
+          await api.people.cancelLeaving({ studentId: id });
+    }
   });
 
   test("a year not yet started cannot be rolled over into an earlier one", async () => {

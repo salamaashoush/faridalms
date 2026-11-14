@@ -40,6 +40,38 @@ async function currentYear(api: Awaited<ReturnType<typeof acmePrincipal>>) {
   return year;
 }
 
+async function restoreYears(
+  api: Awaited<ReturnType<typeof acmePrincipal>>,
+  ids: { current: string; upcoming: string },
+) {
+  const yearOf = async (id: string) => {
+    const year = (await api.years.directory()).years.find(
+      (row) => row.id === id,
+    );
+    if (!year) throw new Error(`no year ${id}`);
+    return year;
+  };
+  const reopen = async (id: string) => {
+    const year = await yearOf(id);
+    if (year.lifecycle === "closed")
+      await api.years.lifecycle({
+        id,
+        expectedVersion: year.version,
+        action: "reopen",
+        reason: "Put back after a test",
+      });
+  };
+  await reopen(ids.current);
+  const current = await yearOf(ids.current);
+  if (current.lifecycle !== "current")
+    await api.years.lifecycle({
+      id: ids.current,
+      expectedVersion: current.version,
+      action: "make_current",
+    });
+  await reopen(ids.upcoming);
+}
+
 const lastDay = (endsBefore: string) => {
   const day = new Date(`${endsBefore}T00:00:00Z`);
   day.setUTCDate(day.getUTCDate() - 1);
@@ -456,92 +488,103 @@ describe("school years", () => {
       expectedVersion: next.version,
       action: "make_current",
     });
-    expect(made.replaced).toBe(old.id);
-    const after = (await api.years.directory()).years;
-    expect(after.find((row) => row.id === next.id)?.lifecycle).toBe("current");
-    const closed = after.find((row) => row.id === old.id);
-    if (!closed) throw new Error("old year");
-    expect(closed.lifecycle).toBe("closed");
+    try {
+      expect(made.replaced).toBe(old.id);
+      const after = (await api.years.directory()).years;
+      expect(after.find((row) => row.id === next.id)?.lifecycle).toBe(
+        "current",
+      );
+      const closed = after.find((row) => row.id === old.id);
+      if (!closed) throw new Error("old year");
+      expect(closed.lifecycle).toBe("closed");
 
-    const homeroom = (await api.classes.directory({ views: { year: old.id } }))
-      .rows[0];
-    if (!homeroom) throw new Error("old homeroom");
-    const record = await api.classes.record({ id: homeroom.id });
-    const student = record.roster[0];
-    if (!student) throw new Error("old roster");
-    expect(record.access.manage).toBe(false);
-    // The school's day is no year's: what keeps a closed year's days as
-    // they were is the registers taken on them.
-    const { periods } = await api.periods.periods({ on: old.startsOn });
-    expect(
-      await rejection(
-        api.periods.savePeriods({
-          from: old.startsOn,
-          known: knownOf(periods),
-          periods: inputOf(periods).map((period) =>
-            period.official ? { ...period, endTime: "07:55" } : period,
-          ),
-        }),
-      ),
-    ).toMatchObject({
-      code: "CONFLICT",
-      message: expect.stringMatching(/^class_period\.registers_after:/),
-    });
-    expect(
-      await rejection(
-        api.classes.withdraw({
-          studentId: student.userId,
-          enrollmentId: student.enrollmentId,
-          expectedVersion: student.version,
-          on: "",
-        }),
-      ),
-    ).toMatchObject({ code: "CONFLICT", message: "school_year.closed" });
-    // A closed year's class takes no more work.
-    expect(
-      await rejection(
-        api.coursework.save({
-          classId: homeroom.id,
-          title: "Work for a closed year",
-          brief: plainContent("Instructions."),
-          audience: "class",
-          latePolicy: "accept",
-          submissionFormat: "both",
-          points: 10,
-          rubric: null,
-        }),
-      ),
-    ).toMatchObject({ code: "CONFLICT", message: "school_year.closed" });
+      const homeroom = (
+        await api.classes.directory({ views: { year: old.id } })
+      ).rows[0];
+      if (!homeroom) throw new Error("old homeroom");
+      const record = await api.classes.record({ id: homeroom.id });
+      const student = record.roster[0];
+      if (!student) throw new Error("old roster");
+      expect(record.access.manage).toBe(false);
+      // The school's day is no year's: what keeps a closed year's days as
+      // they were is the registers taken on them.
+      const { periods } = await api.periods.periods({ on: old.startsOn });
+      expect(
+        await rejection(
+          api.periods.savePeriods({
+            from: old.startsOn,
+            known: knownOf(periods),
+            periods: inputOf(periods).map((period) =>
+              period.official ? { ...period, endTime: "07:55" } : period,
+            ),
+          }),
+        ),
+      ).toMatchObject({
+        code: "CONFLICT",
+        message: expect.stringMatching(/^class_period\.registers_after:/),
+      });
+      expect(
+        await rejection(
+          api.classes.withdraw({
+            studentId: student.userId,
+            enrollmentId: student.enrollmentId,
+            expectedVersion: student.version,
+            on: "",
+          }),
+        ),
+      ).toMatchObject({ code: "CONFLICT", message: "school_year.closed" });
+      // A closed year's class takes no more work.
+      expect(
+        await rejection(
+          api.coursework.save({
+            classId: homeroom.id,
+            title: "Work for a closed year",
+            brief: plainContent("Instructions."),
+            audience: "class",
+            latePolicy: "accept",
+            submissionFormat: "both",
+            points: 10,
+            rubric: null,
+          }),
+        ),
+      ).toMatchObject({ code: "CONFLICT", message: "school_year.closed" });
 
-    expect(
-      await rejection(
-        api.years.lifecycle({
-          id: old.id,
-          expectedVersion: closed.version,
-          action: "reopen",
-          reason: " ",
-        }),
-      ),
-    ).toMatchObject({
-      code: "BAD_REQUEST",
-      message: "school_year.reason_required",
-    });
-    await api.years.lifecycle({
-      id: old.id,
-      expectedVersion: closed.version,
-      action: "reopen",
-      reason: "Correct a mistyped grade",
-    });
-    const reopened = (await api.years.directory()).years.find(
-      (row) => row.id === old.id,
-    );
-    expect(reopened).toMatchObject({ lifecycle: "upcoming", standing: "open" });
-    const { rows: events } = await api.years.history({ id: old.id });
-    expect(events.map((event) => event.action).slice(0, 2)).toEqual([
-      "academic_session.reopened",
-      "academic_session.closed",
-    ]);
-    expect(events[0]?.reason).toBe("Correct a mistyped grade");
+      expect(
+        await rejection(
+          api.years.lifecycle({
+            id: old.id,
+            expectedVersion: closed.version,
+            action: "reopen",
+            reason: " ",
+          }),
+        ),
+      ).toMatchObject({
+        code: "BAD_REQUEST",
+        message: "school_year.reason_required",
+      });
+      await api.years.lifecycle({
+        id: old.id,
+        expectedVersion: closed.version,
+        action: "reopen",
+        reason: "Correct a mistyped grade",
+      });
+      const reopened = (await api.years.directory()).years.find(
+        (row) => row.id === old.id,
+      );
+      expect(reopened).toMatchObject({
+        lifecycle: "upcoming",
+        standing: "open",
+      });
+      const { rows: events } = await api.years.history({ id: old.id });
+      expect(events.map((event) => event.action).slice(0, 2)).toEqual([
+        "academic_session.reopened",
+        "academic_session.closed",
+      ]);
+      expect(events[0]?.reason).toBe("Correct a mistyped grade");
+    } finally {
+      // Put back, so the other suites find Acme's seeded year current.
+      await restoreYears(api, { current: old.id, upcoming: next.id });
+    }
   });
 });
 

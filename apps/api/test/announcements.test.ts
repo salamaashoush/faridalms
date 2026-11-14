@@ -804,35 +804,44 @@ describe("announcements on the website", () => {
       id: saved.id,
       expectedVersion: saved.version,
     });
-    const family = await mother();
-    const listed = async () =>
-      (await family.announcements.feed({})).rows.some(
-        (row) => row.id === saved.id,
-      );
-    expect(await listed()).toBe(true);
-    await withoutModules("northwind", ["website"], async () => {
-      expect(
-        await rejection(
-          office.announcements.save({
-            ...story("Fair", "Fair"),
-            parts: { website: { slug: "fair-closed" } },
-          }),
-        ),
-      ).toMatchObject({ message: "announcements.part_unknown" });
-      expect(await listed()).toBe(false);
-      expect(
-        await rejection(family.announcements.record({ id: saved.id })),
-      ).toMatchObject({ code: "NOT_FOUND" });
-      expect(
-        (await office.announcements.record({ id: saved.id })).copies,
-      ).toEqual([]);
-      // The office's list puts nothing first that the website pins.
-      const { rows } = await office.announcements.manage({
-        tab: "published",
-        q: "Sports day",
+    try {
+      const family = await mother();
+      const listed = async () =>
+        (await family.announcements.feed({})).rows.some(
+          (row) => row.id === saved.id,
+        );
+      expect(await listed()).toBe(true);
+      await withoutModules("northwind", ["website"], async () => {
+        expect(
+          await rejection(
+            office.announcements.save({
+              ...story("Fair", "Fair"),
+              parts: { website: { slug: "fair-closed" } },
+            }),
+          ),
+        ).toMatchObject({ message: "announcements.part_unknown" });
+        expect(await listed()).toBe(false);
+        expect(
+          await rejection(family.announcements.record({ id: saved.id })),
+        ).toMatchObject({ code: "NOT_FOUND" });
+        expect(
+          (await office.announcements.record({ id: saved.id })).copies,
+        ).toEqual([]);
+        // The office's list puts nothing first that the website pins.
+        const { rows } = await office.announcements.manage({
+          tab: "published",
+          q: "Sports day",
+        });
+        expect(rows.find((row) => row.id === saved.id)?.copies).toEqual([]);
       });
-      expect(rows.find((row) => row.id === saved.id)?.copies).toEqual([]);
-    });
-    expect(await listed()).toBe(true);
+      expect(await listed()).toBe(true);
+    } finally {
+      // Taken down, so the website reads its seeded posts and none of this one's.
+      const { version } = await office.announcements.record({ id: saved.id });
+      await office.announcements.archive({
+        id: saved.id,
+        expectedVersion: version,
+      });
+    }
   });
 });

@@ -107,9 +107,85 @@ interface State {
   /** The provisioner's listener, as the `provisioner` login, and its secret. */
   provisioner: (request: Request) => Promise<Response>;
   provisionSecret: Uint8Array<ArrayBuffer>;
+  /** A superuser's connection to the cell, which reads the seed's marks past every school's policies. */
+  marks: SQL;
+  /** What the seed left in the schools that suites in other files pin, by school and mark. */
+  seedMarks: Map<string, string>;
   close: () => Promise<void>;
 }
 let state: State | undefined;
+
+/**
+ * The seeded state other files assert on: each homeroom's students today,
+ * how many of a subject class's students today differ from its homeroom's,
+ * and which year is each school's current one.
+ */
+async function readMarks(sql: SQL) {
+  const rows: { school: string; mark: string; value: string }[] = await sql`
+    with school as (
+      select id, tenant_id, (statement_timestamp() at time zone time_zone)::date as today
+      from core.orgs where type = 'school'
+    ), members as (
+      select e.tenant_id, e.class_id, e.user_id from core.enrollments e
+      join core.classes c on c.tenant_id = e.tenant_id and c.id = e.class_id
+      join school s on s.tenant_id = c.tenant_id and s.id = c.org_id
+      where e.role = 'student' and e.status = 'active' and e.valid_during @> s.today
+    )
+    select h.org_id::text as school, 'homeroom ' || coalesce(c.code || ' ', '') || '(' || c.id || ') students' as mark,
+      (select count(*) from members m
+        where m.tenant_id = h.tenant_id and m.class_id = h.class_id)::text as value
+    from core.homerooms h
+    join core.classes c on c.tenant_id = h.tenant_id and c.id = h.class_id
+    where h.status = 'active'
+    union all
+    select l.org_id::text, 'subject class ' || coalesce(c.code || ' ', '') || '(' || c.id || ') students unlike its homeroom',
+      (select count(*) from (
+        (select user_id from members m where m.tenant_id = l.tenant_id and m.class_id = l.class_id
+         except select user_id from members m
+           where m.tenant_id = l.tenant_id and m.class_id = l.homeroom_class_id)
+        union all
+        (select user_id from members m
+           where m.tenant_id = l.tenant_id and m.class_id = l.homeroom_class_id
+         except select user_id from members m
+           where m.tenant_id = l.tenant_id and m.class_id = l.class_id)) differ)::text
+    from core.homeroom_classes l
+    join core.classes c on c.tenant_id = l.tenant_id and c.id = l.class_id
+    where l.status = 'active'
+    union all
+    select org_id::text, 'current year', id::text from core.academic_sessions
+    where type = 'school_year' and lifecycle = 'current' and status = 'active'`;
+  return new Map(rows.map((row) => [`${row.school} ${row.mark}`, row.value]));
+}
+
+/**
+ * Fails the test that just ran when it left a mark of the seed changed,
+ * naming the school, so a suite that reads the seed is not failed in its
+ * place by whichever file happens to run before it on this platform. The
+ * marks then start again from what it left, so only that test fails.
+ */
+export async function requireSeedMarks() {
+  const { marks, seedMarks, tenants } = seeded();
+  const now = await readMarks(marks);
+  const slugs = new Map(
+    tenants.flatMap((tenant) =>
+      tenant.schools.map((school) => [school.id, school.slug]),
+    ),
+  );
+  const changed = [...seedMarks].flatMap(([key, value]) => {
+    const found = now.get(key) ?? "nothing";
+    if (found === value) return [];
+    const [schoolId = "", ...mark] = key.split(" ");
+    return [
+      `${slugs.get(schoolId) ?? schoolId} ${mark.join(" ")}: ${value} became ${found}`,
+    ];
+  });
+  if (changed.length === 0) return;
+  for (const key of seedMarks.keys())
+    seedMarks.set(key, now.get(key) ?? "nothing");
+  throw new Error(
+    `This test left the seed changed for other files; put back what it changes in a finally, or use a school of its own:\n${changed.join("\n")}`,
+  );
+}
 
 export async function setUp() {
   const admin = new SQL(adminUrl);
@@ -241,6 +317,8 @@ export async function setUp() {
       ),
   };
   const handler = createApp(dependencies);
+  const marks = new SQL(urlFor(cellName), { max: 1 });
+  const seedMarks = await readMarks(marks);
   const provisioning = openOwner(urlFor(cellName, "provisioner"));
   const provisionSecret = new Uint8Array(randomBytes(32));
   const provisioner = createProvisioner({
@@ -268,7 +346,10 @@ export async function setUp() {
     logins,
     collabUrl: urlFor(cellName, "collab"),
     files,
+    marks,
+    seedMarks,
     close: async () => {
+      await marks.close();
       await cell.close();
       await provisioning.close();
       await directory.close();

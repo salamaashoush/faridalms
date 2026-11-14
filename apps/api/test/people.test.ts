@@ -324,65 +324,78 @@ describe("students", () => {
     });
     // Joining a class of the working year places a student in the year.
     await api.classes.enrol({ studentId, classId: inYear.id });
-    const firstPlacement = async () =>
-      (await api.years.placementsOf({ studentId })).placements[0];
-    const placement = await firstPlacement();
-    if (!placement) throw new Error("the student was not placed");
-    expect(placement).toMatchObject({
-      entryTypeId: null,
-      previousSchool: null,
-    });
+    try {
+      const firstPlacement = async () =>
+        (await api.years.placementsOf({ studentId })).placements[0];
+      const placement = await firstPlacement();
+      if (!placement) throw new Error("the student was not placed");
+      expect(placement).toMatchObject({
+        entryTypeId: null,
+        previousSchool: null,
+      });
 
-    const arrival = { studentId, placementId: placement.id };
-    await api.years.saveArrival({
-      ...arrival,
-      entryTypeId: transfer.id,
-      previousSchool: "  Nile Valley School ",
-    });
-    expect(await firstPlacement()).toMatchObject({
-      entryTypeId: transfer.id,
-      previousSchool: "Nile Valley School",
-    });
-    // Cleared again, both read as not recorded.
-    await api.years.saveArrival({
-      ...arrival,
-      entryTypeId: "",
-      previousSchool: "",
-    });
-    expect(await firstPlacement()).toMatchObject({
-      entryTypeId: null,
-      previousSchool: null,
-    });
+      const arrival = { studentId, placementId: placement.id };
+      await api.years.saveArrival({
+        ...arrival,
+        entryTypeId: transfer.id,
+        previousSchool: "  Nile Valley School ",
+      });
+      expect(await firstPlacement()).toMatchObject({
+        entryTypeId: transfer.id,
+        previousSchool: "Nile Valley School",
+      });
+      // Cleared again, both read as not recorded.
+      await api.years.saveArrival({
+        ...arrival,
+        entryTypeId: "",
+        previousSchool: "",
+      });
+      expect(await firstPlacement()).toMatchObject({
+        entryTypeId: null,
+        previousSchool: null,
+      });
 
-    expect(
-      await rejection(
-        api.years.saveArrival({
-          ...arrival,
-          placementId: crypto.randomUUID(),
-          entryTypeId: transfer.id,
-          previousSchool: "",
-        }),
-      ),
-    ).toMatchObject({ code: "NOT_FOUND" });
-    expect(
-      await rejection(
-        api.years.saveArrival({
-          ...arrival,
-          entryTypeId: crypto.randomUUID(),
-          previousSchool: "",
-        }),
-      ),
-    ).toMatchObject({ code: "NOT_FOUND" });
-    const teacher = await signedIn("northwind", login("teacher"));
-    expect(
-      await rejection(
-        teacher.years.saveArrival({
-          ...arrival,
-          entryTypeId: "",
-          previousSchool: "",
-        }),
-      ),
-    ).toMatchObject({ code: "FORBIDDEN" });
+      expect(
+        await rejection(
+          api.years.saveArrival({
+            ...arrival,
+            placementId: crypto.randomUUID(),
+            entryTypeId: transfer.id,
+            previousSchool: "",
+          }),
+        ),
+      ).toMatchObject({ code: "NOT_FOUND" });
+      expect(
+        await rejection(
+          api.years.saveArrival({
+            ...arrival,
+            entryTypeId: crypto.randomUUID(),
+            previousSchool: "",
+          }),
+        ),
+      ).toMatchObject({ code: "NOT_FOUND" });
+      const teacher = await signedIn("northwind", login("teacher"));
+      expect(
+        await rejection(
+          teacher.years.saveArrival({
+            ...arrival,
+            entryTypeId: "",
+            previousSchool: "",
+          }),
+        ),
+      ).toMatchObject({ code: "FORBIDDEN" });
+    } finally {
+      // Put back, so the other suites find the class as the seed made it.
+      const joined = (await api.classes.record({ id: inYear.id })).roster.find(
+        (row) => row.userId === studentId,
+      );
+      if (joined)
+        await api.classes.withdraw({
+          studentId,
+          enrollmentId: joined.enrollmentId,
+          expectedVersion: joined.version,
+        });
+    }
   });
 });
 

@@ -202,7 +202,7 @@ describe("coursework for a teacher", () => {
       expect(await takes(open)).toBe(true);
       expect(await takes(past)).toBe(false);
     } finally {
-      await principal.classes.enrol({
+      await principal.homerooms.place({
         studentId: newcomer.userId,
         classId: from.id,
       });
