@@ -832,6 +832,7 @@ short title, one line of what happens next and at most one action.
 | A page, tab or index with nothing yet         | `EmptyState` (page)                                |
 | A search or filter that matched nothing       | `FilteredEmptyState`                               |
 | A section, card, panel, sheet or popover list | `EmptyState placement="section"`, or `RecordEmpty` |
+| A framed pane with no heading of its own      | `EmptyState placement="pane"`                      |
 | A value or a table cell with nothing in it    | `Value absent` (or `Value` for "Not recorded")     |
 | Nothing left to do                            | `EmptyState kind="done"`                           |
 | Something the viewer may not see or use       | `EmptyState kind="restricted"`                     |
@@ -850,9 +851,12 @@ short title, one line of what happens next and at most one action.
   a box is the inconsistency this rule removes.
   Those containers wrap their content in `EmptyStateScope`, so an
   `EmptyState` or a `DataTable` inside them draws as a section by itself;
-  a sheet, a popover, a split pane or a block in a lesson says
+  a sheet, a popover or a block in a lesson says
   `placement="section"`. `RecordEmpty` is the same line for a record's
   section.
+- **Pane.** A framed pane that has no heading, such as the reading side of
+  a split view before anything is chosen: the page's icon, title and
+  sentence, centred, with no frame of its own, since the pane is the frame.
 - **Filtered.** `FilteredEmptyState` says "Nothing matches your search or
   filters" with the search icon, or a title naming what was searched ("No
   word matches."), and always offers Clear filters when the filters can be
@@ -885,6 +889,26 @@ Wording:
 
 `scripts/empty-states.spec.ts` fails on muted text or a dashed box that
 says a thing is empty without one of the components above.
+
+## Failed pages
+
+A page that could not be drawn says which of five things happened, so the
+reader knows what to do next. `ErrorPage` asks the app's `errorKind` and
+draws one of these; no page words its own.
+
+| What happened                    | It says                           | It offers          |
+| -------------------------------- | --------------------------------- | ------------------ |
+| The reader may not open it       | "This page is not open to you"    | Go home, Go back   |
+| It is gone, or the link is stale | "This is no longer here"          | Go home, Go back   |
+| The session ended                | "Your session has ended"          | Sign in again      |
+| The server was not reached       | "The server could not be reached" | Try again          |
+| Something nobody foresaw broke   | "Something went wrong"            | Try again, Go back |
+
+Only the last keeps its cause to hand, folded under "Technical details".
+Try again is offered only where trying again can help: a refusal or a
+missing record answers the same a second time. A page that refuses the
+viewer on every visit is a defect in the page, which should have sent them
+home (`requirePage`) or shown what they may see.
 
 ## Feedback
 

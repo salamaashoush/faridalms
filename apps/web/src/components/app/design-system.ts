@@ -5,7 +5,7 @@ import { PAGE_SIZES } from "@faridalms/domain/paging";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";
-import { getMessageFromError } from "~/utils/error";
+import { errorKindOf, getMessageFromError } from "~/utils/error";
 import { validationMessage } from "~/utils/validation";
 
 /** The design system in the reader's language, read afresh for each render. */
@@ -14,6 +14,7 @@ export function portalDesignSystem(): DesignSystemValue {
     direction: getTextDirection(getLocale()),
     formatNumber,
     errorMessage: getMessageFromError,
+    errorKind: errorKindOf,
     issueMessage: validationMessage,
     pageSizes: PAGE_SIZES,
     strings: {
@@ -51,6 +52,15 @@ export function portalDesignSystem(): DesignSystemValue {
       emptyTitle: m.commonEmptyTitle(),
       errorBody: m.errorBody(),
       errorDetails: m.errorDetails(),
+      errorForbiddenBody: m.errorForbiddenPageBody(),
+      errorForbiddenTitle: m.errorForbiddenPageTitle(),
+      errorMissingBody: m.errorMissingPageBody(),
+      errorMissingTitle: m.errorMissingPageTitle(),
+      errorOfflineBody: m.errorOfflinePageBody(),
+      errorOfflineTitle: m.errorOfflinePageTitle(),
+      errorSignedOutBody: m.errorSignedOutPageBody(),
+      errorSignedOutTitle: m.errorSignedOutPageTitle(),
+      errorSignIn: m.errorSignInAgain(),
       errorDocumentTitle: (title) => m.formErrorDocumentTitle({ title }),
       errorRetry: m.errorRetry(),
       errorSummaryItem: (label, message) =>

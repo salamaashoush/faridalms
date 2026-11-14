@@ -191,7 +191,7 @@ export const followed = readProcedure
     }),
   )
   .handler(async ({ input, context }) => {
-    requireCapability(context, "children:read");
+    if (context.actor.workspace !== "family") throw new ORPCError("FORBIDDEN");
     const reached = await studentsReached(
       context,
       "teaching",

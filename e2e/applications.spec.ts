@@ -107,6 +107,13 @@ test("a registered family applies on the apply page and sends it", async ({
   origin,
 }) => {
   await signInWith(page, APPLICANT, PASSWORD, "/family");
+  // With nobody enrolled yet, its home is where its applications stand.
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Home" }),
+  ).toBeVisible();
+  const mine = page.getByRole("region", { name: "Your applications" });
+  await expect(mine.getByText("Omar Ashoush")).toBeVisible();
+  await expect(mine.getByText("Submitted")).toBeVisible();
   await page.getByRole("link", { name: "Applications" }).first().click();
   await expect(page.getByText("Omar Ashoush").first()).toBeVisible();
   await page.getByRole("link", { name: "Start an application" }).click();

@@ -53,6 +53,15 @@ export interface SystemStrings {
   emptyTitle: string;
   errorBody: string;
   errorDetails: string;
+  errorForbiddenBody: string;
+  errorForbiddenTitle: string;
+  errorMissingBody: string;
+  errorMissingTitle: string;
+  errorOfflineBody: string;
+  errorOfflineTitle: string;
+  errorSignedOutBody: string;
+  errorSignedOutTitle: string;
+  errorSignIn: string;
   errorDocumentTitle: (title: string) => string;
   errorRetry: string;
   errorSummaryItem: (label: string, message: string) => string;
@@ -159,6 +168,18 @@ export interface Issue {
   message?: string;
 }
 
+/**
+ * Why a page could not be drawn, as far as the reader can act on it: they
+ * may not open it, it is not there, their session ended, the server was
+ * not reached, or something broke.
+ */
+export type ErrorKind =
+  | "forbidden"
+  | "missing"
+  | "signed_out"
+  | "offline"
+  | "unexpected";
+
 /** How the reader's language writes and what it calls things. */
 export interface DesignSystemValue {
   strings: SystemStrings;
@@ -166,6 +187,8 @@ export interface DesignSystemValue {
   formatNumber: (value: number) => string;
   /** What to tell the reader about a failure, in their language. */
   errorMessage: (error: unknown) => string;
+  /** Which kind of failure this is, so a failed page says what to do about it. */
+  errorKind: (error: unknown) => ErrorKind;
   /** A validator's issue as the reader should read it. */
   issueMessage: (issue: Issue) => string;
   /** The page sizes a list offers, which the app's server accepts. */

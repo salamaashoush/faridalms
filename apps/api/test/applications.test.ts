@@ -138,6 +138,12 @@ describe("registering to apply", () => {
     expect(await rejection(api.applications.list({}))).toMatchObject({
       code: "FORBIDDEN",
     });
+    // Its home opens all the same, with nobody on it yet.
+    expect(await api.home.followed({})).toMatchObject({
+      choices: [],
+      children: [],
+      messages: { unread: 0 },
+    });
   });
 
   test("an address that already signs in is told so in its inbox, and the page says the same", async () => {

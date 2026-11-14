@@ -1,3 +1,5 @@
+import type { ErrorKind } from "@faridalms/ui/system/provider";
+
 import type { InWords } from "~/utils/words";
 
 import * as m from "~/i18n/messages";
@@ -204,6 +206,20 @@ function hasMessage(value: unknown): value is HasMessage {
     "message" in value &&
     typeof (value as HasMessage).message === "string"
   );
+}
+
+const KIND: Partial<Record<string, ErrorKind>> = {
+  Forbidden: "forbidden",
+  "Not Found": "missing",
+  Unauthorized: "signed_out",
+  "Failed to fetch": "offline",
+  "Load failed": "offline",
+  "NetworkError when attempting to fetch resource.": "offline",
+};
+
+/** Which kind of failure stopped a page, so it can say what to do about it. */
+export function errorKindOf(error: unknown): ErrorKind {
+  return (hasMessage(error) ? KIND[error.message] : undefined) ?? "unexpected";
 }
 
 const unworded: InWords = (neutral) => neutral;

@@ -20,13 +20,18 @@ import { House, LoaderCircle, Smile } from "lucide-react";
 import { Fragment } from "react";
 import * as v from "valibot";
 
+import { inPlace, loadCards, useModuleCards } from "~/components/home/cards";
 import {
   HomeCard,
   HomeItem,
   HomeList,
   itemLink,
 } from "~/components/home/parts";
-import { childDayParts, familyChildParts } from "~/components/home/slots";
+import {
+  childDayParts,
+  familyCards,
+  familyChildParts,
+} from "~/components/home/slots";
 import { displayName } from "~/components/people/format";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSessionChange } from "~/hooks/useSessionChange";
@@ -52,6 +57,7 @@ export const Route = createFileRoute("/_app/family/")({
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     const [home] = await Promise.all([
       context.queryClient.ensureQueryData(followedHomeQuery(deps.child)),
+      loadCards(context.queryClient, context.extensions, user, familyCards),
       ...filled(context.extensions, user, familyChildParts).flatMap((part) => {
         const query = part.query(user.capabilities);
         return query ? [context.queryClient.ensureQueryData(query)] : [];
@@ -229,14 +235,17 @@ function ChildCard({ child, single }: ChildCardProps) {
 
 /**
  * A family's home: each child's day and anything that needs the family,
- * then pinned announcements and the latest school news. The chosen child stays in the
- * address.
+ * what the modules on add, then pinned announcements and the latest school
+ * news. The chosen child stays in the address. Someone the school has
+ * linked to nobody yet, as a family that has only applied, still reads
+ * the rest.
  */
 function FamilyHome() {
   const { child } = Route.useSearch();
   const navigate = Route.useNavigate();
   const data = useSuspenseQuery(followedHomeQuery(child)).data;
-  const aside = [
+  const added = useModuleCards(familyCards);
+  const own = [
     data.messages.unread > 0 ? (
       <HomeCard
         key="messages"
@@ -299,7 +308,21 @@ function FamilyHome() {
         </HomeList>
       </HomeCard>
     ) : null,
-  ].filter(Boolean);
+  ];
+  const main = [
+    ...data.children.map((row) => (
+      <ChildCard
+        key={row.studentId}
+        child={row}
+        single={data.children.length === 1}
+      />
+    )),
+    ...inPlace(added.main),
+  ];
+  const aside = inPlace([
+    ...own.map((node, index) => ({ place: (index + 1) * 10, node })),
+    ...added.side,
+  ]);
   return (
     <Page width="list">
       <PageHeader title={m.navHome()} description={formatDate(data.today)} />
@@ -323,24 +346,20 @@ function FamilyHome() {
           />
         </div>
       ) : null}
-      {data.choices.length === 0 ? (
-        <EmptyState
-          icon={House}
-          title={m.courseworkNoChildren()}
-          description={m.courseworkNoChildrenBody()}
-        />
-      ) : (
-        <RecordColumns
-          main={data.children.map((row) => (
-            <ChildCard
-              key={row.studentId}
-              child={row}
-              single={data.children.length === 1}
+      <RecordColumns
+        main={
+          main.length ? (
+            main
+          ) : (
+            <EmptyState
+              icon={House}
+              title={m.courseworkNoChildren()}
+              description={m.courseworkNoChildrenBody()}
             />
-          ))}
-          aside={aside.length ? aside : undefined}
-        />
-      )}
+          )
+        }
+        aside={aside.length ? aside : undefined}
+      />
     </Page>
   );
 }

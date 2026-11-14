@@ -16,6 +16,7 @@ import { fill } from "~/utils/extension";
 import { modulePages } from "~/utils/pages";
 
 import { EVENT_KIND_LABEL } from "./application-labels";
+import { ADMISSIONS_HOME } from "./home";
 import { enquiryEventText } from "./labels";
 import { ADMISSIONS_NOTICES } from "./notices";
 
@@ -60,6 +61,7 @@ export const ADMISSIONS_NAV: PlacedItem = {
 export const ADMISSIONS: ModuleFillings = {
   module: "admissions",
   fillings: [
+    ...ADMISSIONS_HOME,
     fill(templateUses, {
       kind: "admission_letter",
       start: {

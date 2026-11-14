@@ -582,6 +582,7 @@ export function MessagesPage({ search, onSearch }: MessagesPageProps) {
   const inbox = useSuspenseInfiniteQuery(inboxQuery(inboxOf(search))).data
     .pages[0];
   const words = useWords();
+  const { workspace } = useCurrentUser();
   const open = search.thread !== "";
   return (
     <Page width="list">
@@ -618,9 +619,16 @@ export function MessagesPage({ search, onSearch }: MessagesPageProps) {
           ) : (
             <div className="grid h-full place-items-center p-6">
               <EmptyState
+                placement="pane"
                 icon={InboxIcon}
                 title={m.msgPick()}
-                description={words(m.msgPickBodyCore)()}
+                // Only staff write to a family or a colleague; anyone
+                // else is told no more than that they can write.
+                description={
+                  workspace === "staff"
+                    ? words(m.msgPickBodyCore)()
+                    : m.msgPickBodyCore()
+                }
               />
             </div>
           )}

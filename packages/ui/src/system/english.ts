@@ -39,6 +39,17 @@ export const ENGLISH_STRINGS: SystemStrings = {
   errorBody:
     "An unexpected error occurred. You can retry, or go back and try again.",
   errorDetails: "Technical details",
+  errorForbiddenBody:
+    "Your account does not reach this page. If you think it should, ask whoever manages your account.",
+  errorForbiddenTitle: "This page is not open to you",
+  errorMissingBody:
+    "It may have been removed, or the link is out of date.",
+  errorMissingTitle: "This is no longer here",
+  errorOfflineBody: "Check your connection, then try again.",
+  errorOfflineTitle: "The server could not be reached",
+  errorSignedOutBody: "Sign in again to carry on where you were.",
+  errorSignedOutTitle: "Your session has ended",
+  errorSignIn: "Sign in again",
   errorDocumentTitle: (title) => `Error: ${title}`,
   errorRetry: "Try again",
   errorSummaryItem: (label, message) => `${label}: ${message}`,
@@ -152,6 +163,7 @@ export const ENGLISH: DesignSystemValue = {
   strings: ENGLISH_STRINGS,
   direction: "ltr",
   formatNumber: (value) => numbers.format(value),
+  errorKind: () => "unexpected",
   errorMessage: (error) =>
     error instanceof Error
       ? error.message

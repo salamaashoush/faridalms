@@ -39,6 +39,11 @@ describe("home pages", () => {
 
   test("a family sees each of their children, and only their own", async () => {
     const family = await signedIn("northwind", login("parent"));
+    // A family's home is the family context's alone.
+    const teacher = await signedIn("northwind", login("teacher"));
+    expect(await rejection(teacher.home.followed({}))).toMatchObject({
+      code: "FORBIDDEN",
+    });
     const home = await family.home.followed({});
     expect(home.choices.length).toBeGreaterThan(0);
     expect(home.children.map((row) => row.studentId)).toEqual(

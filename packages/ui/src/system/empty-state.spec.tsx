@@ -38,6 +38,17 @@ describe("empty states", () => {
     expect(onClear).toHaveBeenCalledOnce();
   });
 
+  it("draws no frame of its own inside a pane that is already framed", () => {
+    const { container } = renderWithSystem(
+      <EmptyState placement="pane" icon={Inbox} title="Choose a conversation" />,
+    );
+    const state = container.querySelector("[data-slot='empty-state']");
+    expect(state).not.toHaveClass("border");
+    expect(
+      screen.getByRole("heading", { name: "Choose a conversation" }),
+    ).toBeInTheDocument();
+  });
+
   it("says it in one line inside a section, under the section's heading", () => {
     renderWithSystem(
       <RecordSection title="By grade and intake">

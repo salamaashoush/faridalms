@@ -11275,5 +11275,16 @@
         "countPlural=*": "استُبدلت {value} صفحة بمسودات؛ كلماتها السابقة في سجلّها"
       }
     }
-  ]
+  ],
+  "errorForbiddenPageTitle": "هذه الصفحة غير متاحة لك",
+  "errorForbiddenPageBody": "حسابك لا يصل إلى هذه الصفحة. إن رأيت أنه ينبغي أن يصل فاسأل مكتب المدرسة.",
+  "errorMissingPageTitle": "لم يعد هذا موجودًا",
+  "errorMissingPageBody": "ربما أُزيل، أو أن الرابط قديم.",
+  "errorOfflinePageTitle": "تعذّر الوصول إلى الخادم",
+  "errorOfflinePageBody": "تحقق من اتصالك ثم أعد المحاولة.",
+  "errorSignedOutPageTitle": "انتهت جلستك",
+  "errorSignedOutPageBody": "سجّل الدخول مجددًا لتكمل من حيث توقفت.",
+  "errorSignInAgain": "تسجيل الدخول مجددًا",
+  "homeApplications": "طلباتك",
+  "homeOpenApplications": "كل الطلبات"
 }

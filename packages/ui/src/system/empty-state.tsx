@@ -19,9 +19,10 @@ import { useSystemStrings } from "./provider";
 /**
  * Where an empty state stands. `page` stands in for a page's or a tab's
  * whole list; `section` sits inside a titled section, card or panel, whose
- * own heading already says what is missing.
+ * own heading already says what is missing; `pane` fills a framed pane
+ * that has no heading, and draws no frame of its own inside it.
  */
-export type EmptyStatePlacement = "page" | "section";
+export type EmptyStatePlacement = "page" | "section" | "pane";
 
 /**
  * Why it is empty: nothing there yet, nothing left to do, or nothing the
@@ -79,7 +80,8 @@ export function EmptyState({
 }: EmptyStateProps) {
   const scoped = useContext(PlacementContext);
   const Icon = KIND_ICON[kind] ?? icon;
-  if ((placement ?? scoped) === "section") {
+  const placed = placement ?? scoped;
+  if (placed === "section") {
     // The section's heading names what is missing, so the thing's own icon
     // would only repeat it; only a state that is not "nothing yet" is marked.
     const Mark = KIND_ICON[kind];
@@ -111,7 +113,10 @@ export function EmptyState({
   return (
     <Empty
       data-slot="empty-state"
-      className="gap-5 border bg-card px-6 py-16"
+      className={cn(
+        "gap-5 px-6 py-16",
+        placed === "pane" ? null : "border bg-card",
+      )}
     >
       <EmptyHeader className="gap-1">
         {Icon ? (

@@ -84,6 +84,7 @@ export interface TodayCard {
 
 export const teacherCards = slot<TodayCard>("teacher cards");
 export const learnerCards = slot<TodayCard>("learner cards");
+export const familyCards = slot<TodayCard>("family cards");
 
 /** Something on a child's day that needs the family, ranked against the others. */
 export interface ChildAttention {
