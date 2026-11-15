@@ -66,6 +66,7 @@ import {
   PAYMENT_METHOD_NAMES,
   standingOf,
 } from "../format";
+import { useFreshAction } from "../fresh";
 import { plainLine } from "../lines";
 import { useMay } from "../may";
 import {
@@ -200,12 +201,13 @@ function InvoicePage() {
         : open
           ? { label: "Record a payment", icon: Banknote, onClick: paying.show }
           : undefined;
-  const creditIt = () =>
+  const creditIt = useFreshAction("credit", () => {
     void navigate({
       to: "/invoices/$invoiceId/credit",
       params: { invoiceId: invoice.id },
       search: {},
     });
+  });
   const menu: ActionItem[] = [
     ...(mayBill && draft
       ? [
@@ -244,7 +246,7 @@ function InvoicePage() {
       ? [{ label: "Pause reminders", icon: BellOff, onSelect: pausing.show }]
       : []),
     ...(mayCredit
-      ? [{ label: "Credit it", icon: ReceiptText, onSelect: creditIt }]
+      ? [{ label: "Credit it", icon: ReceiptText, onSelect: () => creditIt() }]
       : []),
     ...(mayBill && !draft
       ? [
@@ -335,7 +337,7 @@ function InvoicePage() {
           ) : tab === "credits" ? (
             <CreditsTab
               data={data}
-              onCredit={mayCredit ? creditIt : null}
+              onCredit={mayCredit ? () => creditIt() : null}
               onRecordTaxId={mayBill ? recordTaxId : null}
             />
           ) : tab === "reminders" ? (

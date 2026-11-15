@@ -6,6 +6,11 @@ export interface StandInPerson {
   sub: string;
   email: string;
   name: string;
+  /**
+   * How long ago the provider says they last signed in, so a spec can meet
+   * the console's ask for a fresh sign-in; a `max_age=0` request is met now.
+   */
+  signedInMinutesAgo?: number;
 }
 
 export const OIDC_CLIENT_ID = "farida-ops-e2e";
@@ -54,8 +59,8 @@ function personFrom(request: Request): StandInPerson {
  * An OpenID Connect provider as the operator console meets it in the
  * end-to-end gate: discovery, an authorization endpoint that signs in at
  * once whoever the spec named, a token endpoint that checks PKCE and the
- * client, and its keys. Every authorization is a fresh sign-in, so a
- * request for one with `max_age=0` is always met.
+ * client, and its keys. A sign-in is as old as the spec's person says, and
+ * a request for a fresh one with `max_age=0` is always met.
  */
 export async function startOidcStandIn(port: number) {
   const issuer = `http://127.0.0.1:${port}`;
@@ -110,13 +115,16 @@ export async function startOidcStandIn(port: number) {
         )
           return new Response("invalid authorization request", { status: 400 });
         const code = base64url(randomBytes(24));
+        const person = personFrom(request);
+        const agoMinutes =
+          query.get("max_age") === "0" ? 0 : (person.signedInMinutesAgo ?? 0);
         grants.set(code, {
-          person: personFrom(request),
+          person,
           clientId: OIDC_CLIENT_ID,
           redirectUri,
           nonce: query.get("nonce"),
           challenge,
-          authTime: Math.floor(Date.now() / 1000),
+          authTime: Math.floor(Date.now() / 1000) - agoMinutes * 60,
         });
         const back = new URL(redirectUri);
         back.searchParams.set("code", code);

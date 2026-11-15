@@ -27,6 +27,7 @@ import {
   SUBSCRIPTION_STATE_NAMES,
   SUBSCRIPTION_STATE_TONE,
 } from "../format";
+import { useFreshAction } from "../fresh";
 import { useMay } from "../may";
 import { getSubscriptions, runDailyRound } from "../server/subscriptions";
 
@@ -201,6 +202,7 @@ function Subscriptions() {
       await router.invalidate();
     }
   };
+  const startRound = useFreshAction("round", () => void runRound());
   const needle = q.trim().toLowerCase();
   const rows = subscriptions.filter(
     (row) =>
@@ -242,7 +244,7 @@ function Subscriptions() {
                 label: running ? "Running…" : "Run the round now",
                 icon: Play,
                 onClick: () => {
-                  if (!running) void runRound();
+                  if (!running) startRound();
                 },
               }
             : undefined

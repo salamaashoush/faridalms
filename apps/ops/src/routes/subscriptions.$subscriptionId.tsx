@@ -79,6 +79,7 @@ import {
   TENANT_STATE_NAMES,
   TENANT_STATE_TONE,
 } from "../format";
+import { useFreshAction } from "../fresh";
 import { useMay } from "../may";
 import {
   addSubscriptionItem,
@@ -237,10 +238,16 @@ function SubscriptionPage() {
   const addingOverride = useSheet();
   const changingPlan = useSheet();
   const [changedItem, setChangedItem] = useState<string | null>(null);
-  const changePlan = (itemId: string) => {
-    setChangedItem(itemId);
-    changingPlan.show();
-  };
+  const publish = useFreshAction("publish", () => publishing.show());
+  // Only a change from today publishes at once, so only that asks again.
+  const changePlan = useFreshAction(
+    "change-plan",
+    (itemId) => {
+      setChangedItem(itemId);
+      changingPlan.show();
+    },
+    false,
+  );
   const waiting = data.schools.filter(
     (school) => changesBetween(school.current, school.next).length > 0,
   );
@@ -299,7 +306,7 @@ function SubscriptionPage() {
         ]}
         action={
           mayChange && waiting.length
-            ? { label: "Publish now", icon: Upload, onClick: publishing.show }
+            ? { label: "Publish now", icon: Upload, onClick: () => publish() }
             : undefined
         }
         menu={
@@ -335,7 +342,7 @@ function SubscriptionPage() {
           data={data}
           waiting={waiting}
           mayChange={mayChange}
-          onPublish={publishing.show}
+          onPublish={() => publish()}
           onTerms={changingTerms.show}
           onItem={addingItem.show}
         />

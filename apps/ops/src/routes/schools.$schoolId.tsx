@@ -9,7 +9,7 @@ import type { RecordTab } from "@faridalms/ui/system/record-page";
 import type { SummaryItem } from "@faridalms/ui/system/summary-list";
 import type { UsageItem } from "@faridalms/ui/system/usage-list";
 
-import { MODULES } from "@faridalms/domain/modules";
+import { MODULE_IDS, MODULES } from "@faridalms/domain/modules";
 import { availableModules, SCHOOL_NOTICES } from "@faridalms/domain/plans";
 import { SCHOOL_STANDINGS, standingOf } from "@faridalms/domain/provisioning";
 import { daysBetween } from "@faridalms/domain/school";
@@ -98,6 +98,7 @@ import {
   TENANT_STATE_NAMES,
   TENANT_STATE_TONE,
 } from "../format";
+import { useFreshAction } from "../fresh";
 import { useMay } from "../may";
 import {
   getSchool,
@@ -171,13 +172,18 @@ function SchoolPage() {
   const switchingModule = useSheet();
   const [switched, setSwitched] = useState<ModuleId | null>(null);
   const maySell = useMay("subscriptions");
+  const startSwitch = useFreshAction("module", (module) => {
+    const known = MODULE_IDS.find((id) => id === module);
+    if (!known) return;
+    setSwitched(known);
+    switchingModule.show();
+  });
   const switchModule =
     sold?.subscriptionId && maySell
-      ? (module: ModuleId) => {
-          setSwitched(module);
-          switchingModule.show();
-        }
+      ? (module: ModuleId) => startSwitch(module)
       : null;
+  const changeAccess = useFreshAction("access", () => changingAccess.show());
+  const editLimits = useFreshAction("limits", () => editing.show());
   const modules = availableModules(school.entitlements);
   const signIn = modules.includes("sso");
   const counts: Partial<Record<SchoolTab, number>> = {
@@ -253,7 +259,7 @@ function SchoolPage() {
                 {
                   label: "Change access",
                   icon: ShieldAlert,
-                  onSelect: changingAccess.show,
+                  onSelect: () => changeAccess(),
                 },
               ]
             : []),
@@ -274,7 +280,7 @@ function SchoolPage() {
                 {
                   label: "Edit limits and modules",
                   icon: Pencil,
-                  onSelect: editing.show,
+                  onSelect: () => editLimits(),
                 },
               ]
             : []),
@@ -304,13 +310,13 @@ function SchoolPage() {
               </RecordEmpty>
             )
           ) : shown === "limits" ? (
-            <LimitsTab data={data} onEdit={editing.show} />
+            <LimitsTab data={data} onEdit={() => editLimits()} />
           ) : shown === "modules" ? (
             <ModulesTab
               data={data}
               view={moduleView}
               onView={showModules}
-              onEdit={editing.show}
+              onEdit={() => editLimits()}
               onSwitch={switchModule}
             />
           ) : shown === "addresses" ? (

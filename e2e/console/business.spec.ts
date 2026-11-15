@@ -411,6 +411,37 @@ test("sales gives one school a module, takes it back, and moves its contract to 
   ).toContainText("Starts later");
 });
 
+test("an operator whose sign-in has aged signs in again before publishing, and the sheet opens on return", async ({
+  page,
+}) => {
+  await signInAs(page, { ...OWNER, signedInMinutesAgo: 10 });
+  const slug = `e2e-${unique()}`;
+  await createSchool(page, {
+    slug,
+    nameEn: `Hazel ${slug}`,
+    nameAr: "مدرسة البندق",
+  });
+  await page.getByRole("tab", { name: "About" }).click();
+  await openSubscriptionFromSchool(page);
+  await page.getByRole("tab", { name: /^Overrides/ }).click();
+  await page.getByRole("button", { name: "Add override" }).click();
+  const override = page.getByRole("form", { name: "Add an override" });
+  await choose(override, "Module", "Badges");
+  await override.getByLabel("Why").fill("A pilot of badges");
+  await override.getByRole("button", { name: "Add override" }).click();
+
+  await recordHeader(page).getByRole("button", { name: "Publish now" }).click();
+  await expect(
+    page.getByText("Signed in again. Carry on where you were."),
+  ).toBeVisible();
+  const publish = page.getByRole("form", { name: "Publish now" });
+  await publish.getByLabel("Why now").fill("The pilot starts today");
+  await publish.getByRole("button", { name: "Publish now" }).click();
+  await expect(
+    page.getByText("Published to 1 school. They have it now."),
+  ).toBeVisible();
+});
+
 test("a group set up as a draft is left, resumed, and finished after a refusal", async ({
   page,
 }) => {

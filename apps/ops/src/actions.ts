@@ -3,8 +3,27 @@ import type { DesignSystemValue } from "@faridalms/ui/system/provider";
 import { PAGE_SIZES } from "@faridalms/domain/paging";
 import { ENGLISH } from "@faridalms/ui/system/english";
 
-/** Sends the operator to sign in again, then back to this page. */
+/** Where the action waiting on a fresh sign-in is kept across the round trip. */
+export const RESUME_KEY = "console:resume";
+
+/** The action the operator is taking, opened again after signing in again. */
+let taking: { name: string; payload: string } | null = null;
+
+/** Names the action under way, so a fresh sign-in it asks for can resume it. */
+export function takeAction(name: string, payload: string) {
+  taking = { name, payload };
+}
+
+/**
+ * Sends the operator to sign in again, then back to this page, keeping the
+ * action they were taking so the page opens it again.
+ */
 export function signInAgain() {
+  if (taking)
+    sessionStorage.setItem(
+      RESUME_KEY,
+      JSON.stringify({ ...taking, path: window.location.pathname }),
+    );
   window.location.assign(
     `/auth/login?step=1&return=${encodeURIComponent(window.location.pathname + window.location.search)}`,
   );
