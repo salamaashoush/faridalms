@@ -1,3 +1,4 @@
+import { formatters } from "@faridalms/documents/parts";
 import { AGREEMENT_NAMES } from "@faridalms/domain/agreements";
 import { Segmented } from "@faridalms/ui/system/panel";
 import { NotFoundPage } from "@faridalms/ui/system/status-page";
@@ -31,10 +32,7 @@ export function AgreementPage({ text }: AgreementPageProps) {
   if (!text) return <NotFoundPage />;
   const shown = locale === "ar" && text.bodyAr ? "ar" : "en";
   const words = WORDS[shown];
-  const from = new Date(`${text.effectiveOn}T00:00:00Z`).toLocaleDateString(
-    shown === "ar" ? "ar-EG-u-nu-latn" : "en-GB",
-    { dateStyle: "long", timeZone: "UTC" },
-  );
+  const from = formatters(shown, "EGP").day(text.effectiveOn);
   return (
     <CustomerFrame
       business={
