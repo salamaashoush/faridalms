@@ -166,6 +166,11 @@ authorisation, school isolation or database ownership.
 - The QueryClient is constructed per SSR request. Never make it a server singleton.
 - Server-function files must not use the `*.server.ts` filename pattern. TanStack
   import protection rejects that pattern even for legitimate RPC bridges.
+- A server-function file a route imports exports server functions and types
+  only. The build strips handler bodies, but an exported plain helper stays in
+  the client bundle with its imports, and a database import there becomes
+  `import "bun"`: the page loads and never hydrates. Shared server helpers live
+  in a module no route imports, such as `apps/ops/src/server/school-setup.ts`.
 - Use ORPCError in the API; throw Error rather than plain objects. Keep tokens,
   connection strings and full user profiles out of router `beforeLoad` context.
 - Required API environment variables belong in `apps/api/src/env.ts`; required
