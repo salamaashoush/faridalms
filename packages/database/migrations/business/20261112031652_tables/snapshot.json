@@ -2,7 +2,7 @@
   "type": "base",
   "version": "9",
   "dialect": "postgres",
-  "id": "645fa2d7-9970-456c-bf4c-40115fdfc34d",
+  "id": "b834d4f0-5249-487a-8b56-bde14d4c4058",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -5734,6 +5734,19 @@
     {
       "schema": "public",
       "table": "subscription_items",
+      "name": "replaces_item_ids",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 1,
+      "default": "'{}'",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "subscription_items",
       "name": "created_at",
       "type": "timestamp with time zone",
       "typeSchema": null,
@@ -8619,6 +8632,13 @@
     {
       "schema": "public",
       "table": "subscription_items",
+      "name": "subscription_items_replaces_check",
+      "value": "cardinality(replaces_item_ids) = 0 or plan_version_id is not null",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "subscription_items",
       "name": "subscription_items_owner_check",
       "value": "(plan_version_id is null) <> (add_on_version_id is null)",
       "entityType": "checks"
@@ -8683,7 +8703,7 @@
       "schema": "public",
       "table": "subscription_overrides",
       "name": "subscription_overrides_span_check",
-      "value": "ends_on is null or ends_on > starts_on",
+      "value": "ends_on is null or ends_on >= starts_on",
       "entityType": "checks"
     },
     {

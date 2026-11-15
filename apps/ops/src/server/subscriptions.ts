@@ -3,24 +3,32 @@ import { eventsOf } from "@faridalms/database/business/events";
 import {
   addItem,
   addOverride,
+  changePlan,
   endParts,
   listOpenSubscriptions,
+  openSubscription,
   setTerms,
   soldInForce,
   SubscriptionError,
+  switchModule,
 } from "@faridalms/database/business/subscriptions";
+import { MODULES } from "@faridalms/domain/modules";
 import {
   businessToday,
   endPartsSchema,
+  moduleSwitchSchema,
+  planChangeSchema,
   overrideSchema,
   subscriptionItemSchema,
   subscriptionTermsSchema,
+  usableModules,
 } from "@faridalms/domain/subscriptions";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
 import type { RoundOutcome } from "./daily-round";
 
+import { MODULE_NAMES } from "../format";
 import { requireArea, requireFreshSignIn } from "./access";
 import { requireBusiness } from "./business";
 import { lastRound } from "./daily-round";
@@ -40,6 +48,10 @@ const REFUSED: Record<SubscriptionError["code"], string> = {
   version_retired: "That version is retired and no longer sold.",
   version_missing: "That version is not in the catalogue.",
   ended: "The subscription has ended, so it no longer changes.",
+  plan_overlap:
+    "Those schools already have a plan then. Change that plan instead of adding another.",
+  not_running:
+    "That plan is not running on that day, or began on it: change it from a later day.",
 };
 
 async function refused(write: () => Promise<unknown>): Promise<Outcome> {
@@ -260,6 +272,92 @@ export const publishNow = createServerFn({ method: "POST" })
       by: operator.id,
       reason: data.reason,
     });
+  });
+
+/**
+ * Changes one of the subscription's plans for another from a day, and
+ * publishes at once when that day is today.
+ */
+export const changeSubscriptionPlan = createServerFn({ method: "POST" })
+  .validator((input: v.InferInput<typeof planChangeSchema>) =>
+    v.parse(planChangeSchema, input),
+  )
+  .handler(async ({ data }): Promise<Outcome> => {
+    const { operator } = await requireArea("subscriptions");
+    const day = businessToday();
+    if (data.startsOn < day)
+      return {
+        ok: false,
+        message: "A plan changes from today or a later day, never before.",
+      };
+    if (data.startsOn === day) requireFreshSignIn(operator);
+    const out = await refused(() =>
+      changePlan(requireBusiness(), { ...data, by: operator.id }),
+    );
+    if (!out.ok || data.startsOn > day) return out;
+    await publishSubscription(publishing(operator), {
+      subscriptionId: data.subscriptionId,
+      day,
+      by: operator.id,
+      reason: data.reason,
+    });
+    return out;
+  });
+
+/**
+ * Gives or takes one module for one school from today, through its
+ * subscription's overrides, and publishes the subscription at once so the
+ * school has it now. A module is given only with what it needs.
+ */
+export const switchSchoolModule = createServerFn({ method: "POST" })
+  .validator((input: v.InferInput<typeof moduleSwitchSchema>) =>
+    v.parse(moduleSwitchSchema, input),
+  )
+  .handler(async ({ data }): Promise<Outcome> => {
+    const { operator } = await requireArea("subscriptions");
+    requireFreshSignIn(operator);
+    const school = await directoryAdmin().school(data.schoolId);
+    if (!school) return { ok: false, message: "No such school." };
+    const db = requireBusiness();
+    const subscription = await openSubscription(db, school.tenantId);
+    if (!subscription)
+      return {
+        ok: false,
+        message:
+          "The school has no subscription yet. The daily round opens one; run it from Subscriptions to change the school's modules now.",
+      };
+    const day = businessToday();
+    if (data.on) {
+      const preview = await previewSubscription(deps(), subscription.id, day);
+      const next =
+        preview?.schools.find(({ school: one }) => one.id === school.id)?.next
+          .modules ?? [];
+      if (!usableModules([...next, data.module]).includes(data.module))
+        return {
+          ok: false,
+          message: `${MODULE_NAMES[data.module]} needs ${MODULES[
+            data.module
+          ].requires
+            .map((group) => group.map((id) => MODULE_NAMES[id]).join(" and "))
+            .join(" or ")} first.`,
+        };
+    }
+    const out = await refused(() =>
+      switchModule(db, {
+        ...data,
+        subscriptionId: subscription.id,
+        day,
+        by: operator.id,
+      }),
+    );
+    if (!out.ok) return out;
+    await publishSubscription(publishing(operator), {
+      subscriptionId: subscription.id,
+      day,
+      by: operator.id,
+      reason: data.reason,
+    });
+    return { ok: true };
   });
 
 /** Runs today's round now, as the console does each day on its own. */

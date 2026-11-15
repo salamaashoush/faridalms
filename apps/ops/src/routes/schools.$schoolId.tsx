@@ -47,7 +47,16 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Blocks, Globe, Pencil, Repeat, Send, ShieldAlert } from "lucide-react";
+import {
+  Blocks,
+  CircleMinus,
+  CirclePlus,
+  Globe,
+  Pencil,
+  Repeat,
+  Send,
+  ShieldAlert,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
@@ -96,6 +105,7 @@ import {
   saveEntitlements,
   setSchoolLifecycle,
 } from "../server/directory";
+import { switchSchoolModule } from "../server/subscriptions";
 
 const SCHOOL_TABS = [
   "about",
@@ -158,6 +168,16 @@ function SchoolPage() {
   const changingAccess = useSheet();
   const editing = useSheet();
   const addingHost = useSheet();
+  const switchingModule = useSheet();
+  const [switched, setSwitched] = useState<ModuleId | null>(null);
+  const maySell = useMay("subscriptions");
+  const switchModule =
+    sold?.subscriptionId && maySell
+      ? (module: ModuleId) => {
+          setSwitched(module);
+          switchingModule.show();
+        }
+      : null;
   const modules = availableModules(school.entitlements);
   const signIn = modules.includes("sso");
   const counts: Partial<Record<SchoolTab, number>> = {
@@ -291,6 +311,7 @@ function SchoolPage() {
               view={moduleView}
               onView={showModules}
               onEdit={editing.show}
+              onSwitch={switchModule}
             />
           ) : shown === "addresses" ? (
             <SchoolAddresses
@@ -330,6 +351,17 @@ function SchoolPage() {
           schoolId={school.id}
           open={addingHost.open}
           onOpenChange={addingHost.onOpenChange}
+        />
+      ) : null}
+      {switchModule && switched ? (
+        <ModuleSwitchSheet
+          key={`module-${switchingModule.key}`}
+          schoolId={school.id}
+          schoolName={name}
+          module={switched}
+          entitled={modules}
+          open={switchingModule.open}
+          onOpenChange={switchingModule.onOpenChange}
         />
       ) : null}
       {sold === null ? (
@@ -906,6 +938,8 @@ interface ModulesTabProps {
   view: ModuleView | undefined;
   onView: (view: ModuleView | undefined) => void;
   onEdit: () => void;
+  /** Gives or takes a module through the subscription, where one sets them. */
+  onSwitch: ((module: ModuleId) => void) | null;
 }
 
 /**
@@ -913,7 +947,7 @@ interface ModulesTabProps {
  * it has, whether it can be used and who turns it on. Those it lacks are
  * what could be sold to it.
  */
-function ModulesTab({ data, view, onView, onEdit }: ModulesTabProps) {
+function ModulesTab({ data, view, onView, onEdit, onSwitch }: ModulesTabProps) {
   const entitled = availableModules(data.school.entitlements);
   const usable = new Set(usableModules(entitled));
   const all: ModuleRow[] = MODULE_GROUPS.flatMap((group) =>
@@ -942,6 +976,24 @@ function ModulesTab({ data, view, onView, onEdit }: ModulesTabProps) {
       columns={MODULE_COLUMNS}
       rowLabel={(row) => MODULE_NAMES[row.id]}
       card={MODULE_CARD}
+      rowActions={
+        onSwitch
+          ? (row) => [
+              row.included
+                ? {
+                    label: "Take away…",
+                    icon: CircleMinus,
+                    onSelect: () => onSwitch(row.id),
+                  }
+                : {
+                    label: "Give…",
+                    icon: CirclePlus,
+                    inline: true,
+                    onSelect: () => onSwitch(row.id),
+                  },
+            ]
+          : undefined
+      }
       toolbar={{
         facets: [
           {
@@ -966,6 +1018,107 @@ function ModulesTab({ data, view, onView, onEdit }: ModulesTabProps) {
       actions={<SetBy data={data} onEdit={onEdit} />}
       empty={{ icon: Blocks, title: "No modules" }}
     />
+  );
+}
+
+interface ModuleSwitchSheetProps {
+  schoolId: string;
+  schoolName: string;
+  module: ModuleId;
+  /** The modules the school is entitled to now. */
+  entitled: readonly ModuleId[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+/**
+ * Gives a module to one school, or takes it away, from today: an override
+ * of the school's on its subscription, published at once.
+ */
+function ModuleSwitchSheet({
+  schoolId,
+  schoolName,
+  module,
+  entitled,
+  open,
+  onOpenChange,
+}: ModuleSwitchSheetProps) {
+  const router = useRouter();
+  const save = useServerFn(switchSchoolModule);
+  const on = !entitled.includes(module);
+  const [reason, setReason] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const usableNow = usableModules(entitled);
+  const usableAfter = new Set(
+    usableModules(
+      on ? [...entitled, module] : entitled.filter((id) => id !== module),
+    ),
+  );
+  const alsoStops = usableNow.filter(
+    (id) => id !== module && !usableAfter.has(id),
+  );
+  const named = MODULE_NAMES[module];
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title={on ? `Give ${named}` : `Take away ${named}`}
+      submitLabel={on ? `Give ${named}` : `Take away ${named}`}
+      destructive={!on}
+      pending={pending}
+      error={error}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if (!reason.trim()) return;
+        setPending(true);
+        setError(null);
+        const failed = await attempt(
+          () => save({ data: { schoolId, module, on, reason } }),
+          on
+            ? `${named} could not be given.`
+            : `${named} could not be taken away.`,
+        );
+        setPending(false);
+        if (failed) {
+          setError(failed);
+          return;
+        }
+        toast.success(
+          on
+            ? `${schoolName} has ${named} now.`
+            : `${schoolName} no longer has ${named}.`,
+        );
+        onOpenChange(false);
+        await router.invalidate();
+      }}
+    >
+      <SummaryList
+        items={[
+          { id: "gives", label: "What it gives", value: MODULE_HINTS[module] },
+          {
+            id: "when",
+            label: "From",
+            value: on
+              ? MODULES[module].schoolSwitch
+                ? "Today. Its administrators then switch it on in the school's settings."
+                : "Today, as soon as the subscription is published with it."
+              : "Today, as soon as the subscription is published without it.",
+          },
+          ...(alsoStops.length
+            ? [
+                {
+                  id: "stops",
+                  label: "Also stops",
+                  value: alsoStops.map((id) => MODULE_NAMES[id]).join(", "),
+                },
+              ]
+            : []),
+        ]}
+      />
+      <WhyField value={reason} onChange={setReason} submitted={submitted} />
+    </SheetForm>
   );
 }
 

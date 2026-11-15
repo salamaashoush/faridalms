@@ -449,7 +449,9 @@ export const subscriptions = pgTable(
  * A plan version or add-on version in a subscription: how many, at what
  * unit price and discount, for which of the tenant's schools (all when
  * empty), and from when to when. A change ends one item and starts another,
- * so what a school had on any day can be read back.
+ * so what a school had on any day can be read back; a plan that takes over
+ * from another names the items it ended, so billing charges only the
+ * difference.
  */
 export const subscriptionItems = pgTable(
   "subscription_items",
@@ -475,11 +477,19 @@ export const subscriptionItems = pgTable(
       .default(sql`'{}'::uuid[]`),
     startsOn: date("starts_on", { mode: "string" }).notNull(),
     endsOn: date("ends_on", { mode: "string" }),
+    replacesItemIds: uuid("replaces_item_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
     createdAt: createdAt(),
     createdBy: text("created_by").notNull(),
   },
   (t) => [
     index("subscription_items_subscription_idx").on(t.subscriptionId),
+    check(
+      "subscription_items_replaces_check",
+      sql`cardinality(replaces_item_ids) = 0 or plan_version_id is not null`,
+    ),
     check(
       "subscription_items_owner_check",
       sql`(plan_version_id is null) <> (add_on_version_id is null)`,
@@ -542,7 +552,8 @@ export const subscriptionOverrides = pgTable(
     ),
     check(
       "subscription_overrides_span_check",
-      sql`ends_on is null or ends_on > starts_on`,
+      // Ending on the day it began, it never ran: undone the same day.
+      sql`ends_on is null or ends_on >= starts_on`,
     ),
     check(
       "subscription_overrides_reason_check",

@@ -6,9 +6,10 @@ import type { Column, DataTableCard } from "@faridalms/ui/system/data-table";
 import type { RecordTab } from "@faridalms/ui/system/record-page";
 import type { Tone } from "@faridalms/ui/system/status";
 
+import { monthsBetween, proratedShare } from "@faridalms/domain/invoices";
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import { netMinor } from "@faridalms/domain/money";
-import { daysBetween } from "@faridalms/domain/school";
+import { addDays, daysBetween } from "@faridalms/domain/school";
 import { LIMIT_KEYS, usableModules } from "@faridalms/domain/subscriptions";
 import { Button } from "@faridalms/ui/button";
 import { AttentionList } from "@faridalms/ui/system/attention-list";
@@ -16,6 +17,7 @@ import { CellWithNote } from "@faridalms/ui/system/cell-note";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import {
   CheckboxGroupField,
+  ChoiceField,
   SelectField,
   TextField,
 } from "@faridalms/ui/system/form-field";
@@ -39,6 +41,7 @@ import {
 } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  ArrowLeftRight,
   CalendarClock,
   Package,
   Pencil,
@@ -80,6 +83,7 @@ import { useMay } from "../may";
 import {
   addSubscriptionItem,
   addSubscriptionOverride,
+  changeSubscriptionPlan,
   endSubscriptionParts,
   getSubscription,
   publishNow,
@@ -231,6 +235,12 @@ function SubscriptionPage() {
   const changingTerms = useSheet();
   const addingItem = useSheet();
   const addingOverride = useSheet();
+  const changingPlan = useSheet();
+  const [changedItem, setChangedItem] = useState<string | null>(null);
+  const changePlan = (itemId: string) => {
+    setChangedItem(itemId);
+    changingPlan.show();
+  };
   const waiting = data.schools.filter(
     (school) => changesBetween(school.current, school.next).length > 0,
   );
@@ -300,6 +310,15 @@ function SubscriptionPage() {
                   icon: CalendarClock,
                   onSelect: changingTerms.show,
                 },
+                ...(plan
+                  ? [
+                      {
+                        label: "Change plan",
+                        icon: ArrowLeftRight,
+                        onSelect: () => changePlan(plan.item.id),
+                      },
+                    ]
+                  : []),
                 { label: "Add item", icon: Package, onSelect: addingItem.show },
                 {
                   label: "Add override",
@@ -337,6 +356,7 @@ function SubscriptionPage() {
               data={data}
               mayChange={mayChange}
               onAdd={addingItem.show}
+              onChangePlan={changePlan}
             />
           ) : tab === "overrides" ? (
             <OverridesTab
@@ -373,6 +393,15 @@ function SubscriptionPage() {
             open={addingItem.open}
             onOpenChange={addingItem.onOpenChange}
           />
+          {changedItem ? (
+            <ChangePlanSheet
+              key={`plan-${changingPlan.key}`}
+              data={data}
+              itemId={changedItem}
+              open={changingPlan.open}
+              onOpenChange={changingPlan.onOpenChange}
+            />
+          ) : null}
           <AddOverrideSheet
             key={`override-${addingOverride.key}`}
             data={data}
@@ -747,7 +776,11 @@ interface PartsTabProps extends ChangeableProps {
  * The plans and add-ons sold, each with its schools, its days, its price
  * and what it comes to a term; those in force are totalled under them.
  */
-function ItemsTab({ data, mayChange, onAdd }: PartsTabProps) {
+interface ItemsTabProps extends PartsTabProps {
+  onChangePlan: (itemId: string) => void;
+}
+
+function ItemsTab({ data, mayChange, onAdd, onChangePlan }: ItemsTabProps) {
   const ending = useSheet();
   const [chosen, setChosen] = useState<string | null>(null);
   const rows: ItemRow[] = data.items.map((row) => ({
@@ -789,6 +822,14 @@ function ItemsTab({ data, mayChange, onAdd }: PartsTabProps) {
                 partState(row.item, data.today) === "ended"
                   ? []
                   : [
+                      ...(row.plan
+                        ? [
+                            {
+                              label: "Change plan…",
+                              onSelect: () => onChangePlan(row.item.id),
+                            },
+                          ]
+                        : []),
                       {
                         label: "End…",
                         onSelect: () => {
@@ -1436,6 +1477,260 @@ function AddItemSheet({ data, open, onOpenChange }: SubscriptionSheetProps) {
         onChange={setReason}
         submitted={submitted}
         placeholder="For example: the order form signed on 3 November"
+      />
+    </SheetForm>
+  );
+}
+
+interface ChangePlanSheetProps extends SubscriptionSheetProps {
+  itemId: string;
+}
+
+type PlanChangeFrom = "today" | "term_end" | "day";
+
+/**
+ * Changes one of the subscription's plans for another, for the same
+ * schools: today, at the term's end or on a day between. A dearer plan
+ * mid-term bills the difference for the months left; a cheaper one bills
+ * nothing more and credits nothing, as a fall during a term never is.
+ */
+function ChangePlanSheet({
+  data,
+  itemId,
+  open,
+  onOpenChange,
+}: ChangePlanSheetProps) {
+  const router = useRouter();
+  const change = useServerFn(changeSubscriptionPlan);
+  const { selling, subscription, today } = data;
+  const current = data.items.find(({ item }) => item.id === itemId);
+  const termEndsOn = subscription.termEndsOn;
+  const endsLater = termEndsOn !== null && termEndsOn > today;
+  // Seats added in the term are items of the same plan, replaced with it.
+  const replacedOn = (day: string) =>
+    data.items.filter(
+      ({ item, plan }) =>
+        current?.plan &&
+        plan?.planId === current.plan.planId &&
+        item.startsOn < day &&
+        (item.endsOn === null || item.endsOn > day) &&
+        (item.schoolIds.length === 0 ||
+          current.item.schoolIds.length === 0 ||
+          item.schoolIds.some((id) => current.item.schoolIds.includes(id))),
+    );
+  const [planId, setPlanId] = useState("");
+  const [quantity, setQuantity] = useState(() =>
+    String(
+      replacedOn(today).reduce((sum, { item }) => sum + item.quantity, 0) ||
+        (current?.item.quantity ?? 1),
+    ),
+  );
+  const [price, setPrice] = useState("");
+  const [discount, setDiscount] = useState(
+    current ? String(Number(current.item.discountPercent)) : "0",
+  );
+  // A plan that began today changes from a later day, never the same one.
+  const changesToday = current !== undefined && current.item.startsOn < today;
+  const [from, setFrom] = useState<PlanChangeFrom>(
+    changesToday ? "today" : endsLater ? "term_end" : "day",
+  );
+  const [day, setDay] = useState(changesToday ? today : addDays(today, 1));
+  const [reason, setReason] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [answer, setAnswer] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  if (!current?.plan) return null;
+  const chosen = selling.plans.find((plan) => plan.id === planId);
+  const startsOn =
+    from === "today"
+      ? today
+      : from === "term_end" && termEndsOn
+        ? termEndsOn
+        : day;
+  const pick = (value: string) => {
+    setPlanId(value);
+    const listed = selling.plans
+      .find((plan) => plan.id === value)
+      ?.prices.find((row) => row.currency === subscription.currency);
+    setPrice(listed ? (listed.amountMinor / 100).toFixed(2) : "");
+  };
+  const unitPriceMinor = minorOf(price);
+  const count = Number(quantity);
+  const off = Number(discount || "0");
+  const valid =
+    chosen !== undefined &&
+    unitPriceMinor !== null &&
+    Number.isInteger(count) &&
+    count >= 1 &&
+    Number.isFinite(off) &&
+    off >= 0 &&
+    off <= 100;
+  const midTerm =
+    subscription.state === "active" &&
+    subscription.termStartsOn !== null &&
+    termEndsOn !== null &&
+    startsOn < termEndsOn;
+  const billing = (() => {
+    if (!midTerm || !valid || !subscription.termStartsOn || !termEndsOn)
+      return null;
+    const share = proratedShare({
+      startsOn,
+      termStartsOn: subscription.termStartsOn,
+      termEndsOn,
+    });
+    const replacedValue = replacedOn(startsOn).reduce(
+      (sum, { item }) =>
+        sum +
+        netMinor({
+          quantity: item.quantity,
+          unitPriceMinor: item.unitPriceMinor,
+          discountPercent: Number(item.discountPercent),
+        }),
+      0,
+    );
+    const difference = Math.round(
+      (netMinor({ quantity: count, unitPriceMinor, discountPercent: off }) -
+        replacedValue) *
+        share,
+    );
+    const months = monthsBetween(startsOn, termEndsOn);
+    const termMonths = monthsBetween(subscription.termStartsOn, termEndsOn);
+    return difference > 0
+      ? `${formatMoney(difference, subscription.currency)} before VAT, the difference for ${months} of ${termMonths} months, drafted for finance to issue.`
+      : "Nothing more. The plan it replaces is billed to the term's end, and nothing is credited.";
+  })();
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Change ${current.plan.nameEn}`}
+      submitLabel="Change plan"
+      pending={saving}
+      error={answer}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if (!chosen) {
+          setAnswer("Choose the plan it changes to.");
+          return;
+        }
+        if (!valid) {
+          setAnswer(
+            "Give a quantity, a unit price and a discount between 0 and 100 per cent.",
+          );
+          return;
+        }
+        if (!reason.trim()) return;
+        setSaving(true);
+        setAnswer(null);
+        const failed = await attempt(
+          () =>
+            change({
+              data: {
+                subscriptionId: subscription.id,
+                itemId,
+                planVersionId: chosen.id,
+                quantity: count,
+                unitPriceMinor,
+                discountPercent: off,
+                startsOn,
+                reason: reason.trim(),
+              },
+            }),
+          "The plan could not be changed.",
+        );
+        setSaving(false);
+        if (failed) {
+          setAnswer(failed);
+          return;
+        }
+        toast.success(
+          startsOn === today
+            ? `Its schools have ${chosen.nameEn} now.`
+            : `Changes to ${chosen.nameEn} on ${formatDay(startsOn)}.`,
+        );
+        onOpenChange(false);
+        await router.invalidate();
+      }}
+    >
+      <SelectField
+        label="To"
+        value={planId}
+        options={[
+          { value: "", label: "Choose…" },
+          ...selling.plans
+            .filter((plan) => plan.id !== current.item.planVersionId)
+            .map((plan) => ({
+              value: plan.id,
+              label: `${plan.nameEn} version ${plan.version}`,
+            })),
+        ]}
+        onChange={pick}
+      />
+      <div className="grid items-start gap-6 @md:grid-cols-2">
+        <TextField
+          label="Quantity"
+          inputMode="numeric"
+          value={quantity}
+          onChange={(event) => setQuantity(event.target.value)}
+        />
+        <TextField
+          label={`Unit price (${subscription.currency})`}
+          inputMode="decimal"
+          value={price}
+          onChange={(event) => setPrice(event.target.value)}
+        />
+        <TextField
+          label="Discount (%)"
+          inputMode="decimal"
+          value={discount}
+          onChange={(event) => setDiscount(event.target.value)}
+        />
+      </div>
+      <ChoiceField
+        label="From"
+        value={from}
+        onChange={setFrom}
+        options={[
+          ...(changesToday
+            ? [
+                {
+                  value: "today" as const,
+                  label: "Today",
+                  hint: "Its schools have the new plan at once.",
+                },
+              ]
+            : []),
+          ...(endsLater && termEndsOn
+            ? [
+                {
+                  value: "term_end" as const,
+                  label: `When the term ends, ${formatDay(termEndsOn)}`,
+                  hint: "The usual way to move to a cheaper plan.",
+                },
+              ]
+            : []),
+          { value: "day", label: "Another day" },
+        ]}
+      />
+      {from === "day" ? (
+        <TextField
+          label="First day on the new plan"
+          type="date"
+          value={day}
+          min={changesToday ? today : addDays(today, 1)}
+          onChange={(event) => setDay(event.target.value)}
+        />
+      ) : null}
+      {billing ? (
+        <SummaryList
+          items={[{ id: "billed", label: "Billed", value: billing }]}
+        />
+      ) : null}
+      <WhyField
+        value={reason}
+        onChange={setReason}
+        submitted={submitted}
+        placeholder="For example: the upgrade agreed on the call of 3 November"
       />
     </SheetForm>
   );

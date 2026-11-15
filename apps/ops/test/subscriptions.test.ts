@@ -14,11 +14,14 @@ import { eventsOf } from "@faridalms/database/business/events";
 import {
   addItem,
   addOverride,
+  changePlan,
   createSubscription,
   endParts,
   openSubscription,
   setTerms,
+  subscriptionDetail,
   SubscriptionError,
+  switchModule,
 } from "@faridalms/database/business/subscriptions";
 import { BASIC_MODULES } from "@faridalms/domain/modules";
 import { SQL } from "bun";
@@ -29,7 +32,13 @@ import {
   publishSubscription,
   SYSTEM_OPERATOR,
 } from "../src/server/publication";
-import { business, businessUrl, directory, tenantWith } from "./harness";
+import {
+  business,
+  businessUrl,
+  contract,
+  directory,
+  tenantWith,
+} from "./harness";
 
 const GIB = 1024 ** 3;
 const paused: { tenantId: string; reason: string }[] = [];
@@ -488,5 +497,173 @@ describe("the daily round", () => {
     expect(round?.failed).toContain(subscriptionId);
     // The round still finished and is recorded for the day.
     expect(await roundDue(business(), "2027-02-02")).toBe(false);
+  });
+});
+
+describe("one school's module", () => {
+  test("is given and taken back through the school's own override, leaving none", async () => {
+    const { subscriptionId, schoolIds } = await contract("quince");
+    const [quince] = schoolIds;
+    if (!quince) throw new Error("school");
+    const publish = (day: string) =>
+      publishSubscription(deps(), {
+        subscriptionId,
+        day,
+        by: OWNER,
+        reason: "Switched",
+      });
+    const overrides = async () =>
+      (await subscriptionDetail(business(), subscriptionId))?.overrides ?? [];
+    const toggle = (on: boolean, day: string) =>
+      switchModule(business(), {
+        subscriptionId,
+        schoolId: quince,
+        module: "video",
+        on,
+        day,
+        reason: on ? "A pilot" : "The pilot is over",
+        by: OWNER,
+      });
+
+    expect(await toggle(true, "2026-11-05")).toBe(true);
+    await publish("2026-11-05");
+    expect((await entitlementsOf(quince))?.modules).toContain("video");
+    // Already given, so nothing changes.
+    expect(await toggle(true, "2026-11-05")).toBe(false);
+
+    // Taken back the same day, the override ends the day it began, so it
+    // never ran, and its record stays.
+    expect(await toggle(false, "2026-11-05")).toBe(true);
+    expect(
+      (await overrides()).map((row) => [row.granted, row.startsOn, row.endsOn]),
+    ).toEqual([[true, "2026-11-05", "2026-11-05"]]);
+    await publish("2026-11-05");
+    expect((await entitlementsOf(quince))?.modules).not.toContain("video");
+
+    // Given again and taken back later, it ends and its record stays.
+    await toggle(true, "2026-11-06");
+    await toggle(false, "2026-12-01");
+    expect(
+      (await overrides())
+        .filter((row) => row.startsOn === "2026-11-06")
+        .map((row) => [row.granted, row.endsOn]),
+    ).toEqual([[true, "2026-12-01"]]);
+
+    // Taking a module the plan includes adds the one override that takes it.
+    expect(
+      await switchModule(business(), {
+        subscriptionId,
+        schoolId: quince,
+        module: "attendance",
+        on: false,
+        day: "2026-12-02",
+        reason: "Not used",
+        by: OWNER,
+      }),
+    ).toBe(true);
+    expect(
+      (await overrides())
+        .filter((row) => row.module === "attendance")
+        .map((row) => [row.granted, row.startsOn, row.endsOn]),
+    ).toEqual([[false, "2026-12-02", null]]);
+    const events = await eventsOf(business(), "subscription", subscriptionId);
+    expect(
+      events.filter((event) => event.action === "subscription.module_on"),
+    ).toHaveLength(2);
+  });
+});
+
+describe("changing a plan", () => {
+  test("ends the plan and its added seats, starts the new one and refuses a second plan", async () => {
+    const { subscriptionId, schoolIds } = await contract("sorrel");
+    const [sorrel] = schoolIds;
+    if (!sorrel) throw new Error("school");
+    const old = (await subscriptionDetail(business(), subscriptionId))?.items[0]
+      ?.item;
+    if (!old?.planVersionId) throw new Error("plan");
+    // More seats of the same plan run beside it.
+    const seats = await addItem(business(), {
+      subscriptionId,
+      planVersionId: old.planVersionId,
+      addOnVersionId: null,
+      quantity: 12,
+      unitPriceMinor: 35_000,
+      discountPercent: 0,
+      schoolIds: [],
+      startsOn: "2026-10-01",
+      reason: "More seats",
+      by: OWNER,
+    });
+    const premium = await savePlanVersion(business(), {
+      ...standard,
+      code: "sorrel_premium",
+      nameEn: "Premium",
+      nameAr: "المميزة",
+      modules: [...standard.modules, "video" as const],
+      by: OWNER,
+    });
+
+    // Another plan beside it is refused: a school has one plan at a time.
+    expect(
+      await addItem(business(), {
+        subscriptionId,
+        planVersionId: premium,
+        addOnVersionId: null,
+        quantity: 1,
+        unitPriceMinor: 1,
+        discountPercent: 0,
+        schoolIds: [],
+        startsOn: "2026-11-01",
+        reason: "A second plan",
+        by: OWNER,
+      }).catch((error: SubscriptionError) => error.code),
+    ).toBe("plan_overlap");
+
+    // It cannot change on the day it began.
+    expect(
+      await changePlan(business(), {
+        subscriptionId,
+        itemId: old.id,
+        planVersionId: premium,
+        quantity: 312,
+        unitPriceMinor: 50_000,
+        discountPercent: 0,
+        startsOn: old.startsOn,
+        reason: "Too early",
+        by: OWNER,
+      }).catch((error: SubscriptionError) => error.code),
+    ).toBe("not_running");
+
+    const changed = await changePlan(business(), {
+      subscriptionId,
+      itemId: old.id,
+      planVersionId: premium,
+      quantity: 312,
+      unitPriceMinor: 50_000,
+      discountPercent: 0,
+      startsOn: "2027-01-01",
+      reason: "Upgraded on the call",
+      by: OWNER,
+    });
+    const items =
+      (await subscriptionDetail(business(), subscriptionId))?.items ?? [];
+    const byId = new Map(items.map(({ item }) => [item.id, item]));
+    expect(byId.get(old.id)?.endsOn).toBe("2027-01-01");
+    expect(byId.get(seats)?.endsOn).toBe("2027-01-01");
+    expect(byId.get(changed)).toMatchObject({
+      planVersionId: premium,
+      startsOn: "2027-01-01",
+      endsOn: null,
+    });
+    expect(byId.get(changed)?.replacesItemIds.toSorted()).toEqual(
+      [old.id, seats].toSorted(),
+    );
+    await publishSubscription(deps(), {
+      subscriptionId,
+      day: "2027-01-01",
+      by: OWNER,
+      reason: "Upgraded",
+    });
+    expect((await entitlementsOf(sorrel))?.modules).toContain("video");
   });
 });

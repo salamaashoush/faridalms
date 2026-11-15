@@ -8,7 +8,7 @@ import type {
 
 import { BASIC_MODULES } from "./modules";
 import { BASIC_ENTITLEMENTS, settableOf } from "./plans";
-import { entitlementsFor, usableModules } from "./subscriptions";
+import { entitlementsFor, moduleSwitch, usableModules } from "./subscriptions";
 
 const GIB = 1024 ** 3;
 
@@ -184,5 +184,117 @@ describe("usable modules", () => {
       "coursework",
       "early_years",
     ]);
+  });
+});
+
+const own = (terms: Partial<OverrideTerms> & { id: string }) => ({
+  ...override({ schoolId: "school-a", module: "admissions", ...terms }),
+  id: terms.id,
+});
+
+describe("turning one school's module on or off", () => {
+  const plan = [item({ plan: standard })];
+
+  it("gives a module the plan lacks with an override of the school's", () => {
+    expect(
+      moduleSwitch({
+        schoolId: "school-a",
+        module: "video",
+        on: true,
+        day: "2026-11-05",
+        items: plan,
+        overrides: [],
+      }),
+    ).toEqual({ end: [], grant: true });
+  });
+
+  it("takes away a module the plan includes", () => {
+    expect(
+      moduleSwitch({
+        schoolId: "school-a",
+        module: "admissions",
+        on: false,
+        day: "2026-11-05",
+        items: plan,
+        overrides: [],
+      }),
+    ).toEqual({ end: [], grant: false });
+  });
+
+  it("gives a module back by ending the override that took it, adding none", () => {
+    expect(
+      moduleSwitch({
+        schoolId: "school-a",
+        module: "admissions",
+        on: true,
+        day: "2026-11-05",
+        items: plan,
+        overrides: [own({ id: "took", granted: false })],
+      }),
+    ).toEqual({ end: ["took"], grant: null });
+  });
+
+  it("ends an override that began the same day, so it never runs", () => {
+    expect(
+      moduleSwitch({
+        schoolId: "school-a",
+        module: "admissions",
+        on: true,
+        day: "2026-11-05",
+        items: plan,
+        overrides: [
+          own({ id: "today", granted: false, startsOn: "2026-11-05" }),
+        ],
+      }),
+    ).toEqual({ end: ["today"], grant: null });
+  });
+
+  it("changes nothing when the school already has what is asked", () => {
+    expect(
+      moduleSwitch({
+        schoolId: "school-a",
+        module: "admissions",
+        on: true,
+        day: "2026-11-05",
+        items: plan,
+        overrides: [own({ id: "gave", module: "admissions", granted: true })],
+      }),
+    ).toEqual({ end: [], grant: null });
+  });
+
+  it("leaves other schools', other modules' and finished overrides alone", () => {
+    expect(
+      moduleSwitch({
+        schoolId: "school-a",
+        module: "admissions",
+        on: false,
+        day: "2026-11-05",
+        items: plan,
+        overrides: [
+          { ...own({ id: "other-school", granted: false }), schoolId: "b" },
+          own({ id: "other-module", module: "video", granted: true }),
+          own({ id: "ended", granted: true, endsOn: "2026-10-01" }),
+          own({ id: "later", granted: true, startsOn: "2026-12-01" }),
+        ],
+      }),
+    ).toEqual({ end: [], grant: false });
+  });
+
+  it("overrules an override for every school with one of the school's own", () => {
+    expect(
+      moduleSwitch({
+        schoolId: "school-a",
+        module: "video",
+        on: false,
+        day: "2026-11-05",
+        items: plan,
+        overrides: [
+          {
+            ...override({ module: "video", granted: true }),
+            id: "everyone",
+          },
+        ],
+      }),
+    ).toEqual({ end: [], grant: false });
   });
 });

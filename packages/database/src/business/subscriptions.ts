@@ -2,7 +2,9 @@ import type { EntitlementsInput, SchoolNotice } from "@faridalms/domain/plans";
 import type {
   Currency,
   EndPartsInput,
+  ModuleSwitchInput,
   OverrideInput,
+  PlanChangeInput,
   OverrideTerms,
   SubscriptionItemInput,
   SubscriptionItemTerms,
@@ -11,7 +13,11 @@ import type {
 
 import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
 import { netMinor } from "@faridalms/domain/money";
-import { LIMIT_KEYS, pickLimits } from "@faridalms/domain/subscriptions";
+import {
+  LIMIT_KEYS,
+  moduleSwitch,
+  pickLimits,
+} from "@faridalms/domain/subscriptions";
 import { and, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 
 import type { BusinessDb, BusinessTx } from "./client";
@@ -38,7 +44,9 @@ export class SubscriptionError extends Error {
       | "already_open"
       | "version_retired"
       | "version_missing"
-      | "ended",
+      | "ended"
+      | "plan_overlap"
+      | "not_running",
   ) {
     super(code);
     this.name = "SubscriptionError";
@@ -135,7 +143,10 @@ export function listOpenSubscriptions(db: BusinessDb) {
 }
 
 /** A subscription with its customer, items, overrides and publications, newest first. */
-export async function subscriptionDetail(db: BusinessDb, id: string) {
+export async function subscriptionDetail(
+  db: BusinessDb | BusinessTx,
+  id: string,
+) {
   const [row] = await db
     .select({ subscription: subscriptions, customer: customers })
     .from(subscriptions)
@@ -367,13 +378,69 @@ export async function setNotice(
   });
 }
 
-/** Writes an item of a version still sold, and moves the subscription's revision. */
+/**
+ * The plan items running on or after a day for any of some schools (all
+ * when none), with the plan each sells.
+ */
+async function plansFor(
+  tx: BusinessTx,
+  item: { subscriptionId: string; schoolIds: string[]; startsOn: string },
+) {
+  return tx
+    .select({
+      id: subscriptionItems.id,
+      planId: planVersions.planId,
+      planVersionId: planVersions.id,
+      startsOn: subscriptionItems.startsOn,
+      endsOn: subscriptionItems.endsOn,
+    })
+    .from(subscriptionItems)
+    .innerJoin(
+      planVersions,
+      eq(planVersions.id, subscriptionItems.planVersionId),
+    )
+    .where(
+      and(
+        eq(subscriptionItems.subscriptionId, item.subscriptionId),
+        or(
+          isNull(subscriptionItems.endsOn),
+          gt(subscriptionItems.endsOn, item.startsOn),
+        ),
+        item.schoolIds.length === 0
+          ? sql`true`
+          : sql`(cardinality(${subscriptionItems.schoolIds}) = 0 or ${subscriptionItems.schoolIds} && ${item.schoolIds}::uuid[])`,
+      ),
+    );
+}
+
+async function planOf(tx: BusinessTx, planVersionId: string) {
+  const [row] = await tx
+    .select({ planId: planVersions.planId })
+    .from(planVersions)
+    .where(eq(planVersions.id, planVersionId));
+  return row?.planId ?? null;
+}
+
+/**
+ * Writes an item of a version still sold, and moves the subscription's
+ * revision. A plan is refused where one already runs for its schools, and
+ * one that takes over from another names it.
+ */
 async function insertItem(
   tx: BusinessTx,
   input: SubscriptionItemInput,
   by: string,
+  replaces: { itemIds: string[]; planVersionId: string } | null = null,
 ): Promise<string> {
   const { reason, ...item } = input;
+  if (item.planVersionId) {
+    // More seats of the same plan may run beside it; another plan may not,
+    // since a school has one plan at a time.
+    const planId = await planOf(tx, item.planVersionId);
+    const running = await plansFor(tx, item);
+    if (running.some((other) => other.planId !== planId))
+      throw new SubscriptionError("plan_overlap");
+  }
   const table = item.planVersionId ? planVersions : addOnVersions;
   const versionId = item.planVersionId ?? item.addOnVersionId ?? "";
   const [version] = await tx
@@ -387,6 +454,7 @@ async function insertItem(
     .values({
       ...item,
       discountPercent: String(item.discountPercent),
+      replacesItemIds: replaces?.itemIds ?? [],
       createdBy: by,
     })
     .returning({ id: subscriptionItems.id });
@@ -394,13 +462,81 @@ async function insertItem(
   await bump(tx, item.subscriptionId);
   await recordEvent(tx, {
     operatorId: by,
-    action: "subscription.item_add",
+    action: replaces ? "subscription.plan_change" : "subscription.item_add",
     subjectType: "subscription",
     subjectId: item.subscriptionId,
+    before: replaces
+      ? { itemIds: replaces.itemIds, planVersionId: replaces.planVersionId }
+      : undefined,
     after: { itemId: created.id, ...item },
     reason,
   });
   return created.id;
+}
+
+/**
+ * Changes one plan item for another plan from a day, for the same schools,
+ * in one transaction: it and every item of its plan running then for those
+ * schools (seats added in the term) end that day, and the new one starts
+ * it, naming those it took over from. The old plan must be running then
+ * and have begun before it.
+ */
+export async function changePlan(
+  db: BusinessDb,
+  input: PlanChangeInput & { by: string },
+): Promise<string> {
+  const { by, itemId, ...change } = input;
+  return db.transaction(async (tx) => {
+    await heldOpen(tx, change.subscriptionId);
+    const [old] = await tx
+      .select()
+      .from(subscriptionItems)
+      .where(
+        and(
+          eq(subscriptionItems.id, itemId),
+          eq(subscriptionItems.subscriptionId, change.subscriptionId),
+        ),
+      )
+      .for("update");
+    if (!old?.planVersionId) throw new SubscriptionError("not_found");
+    if (
+      !(old.startsOn < change.startsOn) ||
+      (old.endsOn !== null && old.endsOn <= change.startsOn)
+    )
+      throw new SubscriptionError("not_running");
+    const planId = await planOf(tx, old.planVersionId);
+    const ending = (
+      await plansFor(tx, {
+        subscriptionId: change.subscriptionId,
+        schoolIds: old.schoolIds,
+        startsOn: change.startsOn,
+      })
+    ).filter(
+      (item) => item.planId === planId && item.startsOn < change.startsOn,
+    );
+    await tx
+      .update(subscriptionItems)
+      .set({ endsOn: change.startsOn })
+      .where(
+        inArray(
+          subscriptionItems.id,
+          ending.map((item) => item.id),
+        ),
+      );
+    return insertItem(
+      tx,
+      {
+        ...change,
+        addOnVersionId: null,
+        schoolIds: old.schoolIds,
+      },
+      by,
+      {
+        itemIds: ending.map((item) => item.id),
+        planVersionId: old.planVersionId,
+      },
+    );
+  });
 }
 
 /** Adds a plan or add-on version to a subscription from a day. */
@@ -484,6 +620,74 @@ export async function addOverride(
       reason: override.reason,
     });
     return created.id;
+  });
+}
+
+/**
+ * Turns a module on or off for one school from a day, in one transaction:
+ * the school's own overrides of it end that day and one is added only
+ * where the rest disagree with what is asked. False when nothing had to
+ * change.
+ */
+export async function switchModule(
+  db: BusinessDb,
+  input: ModuleSwitchInput & {
+    subscriptionId: string;
+    day: string;
+    by: string;
+  },
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    await heldOpen(tx, input.subscriptionId);
+    const detail = await subscriptionDetail(tx, input.subscriptionId);
+    if (!detail) throw new SubscriptionError("not_found");
+    const change = moduleSwitch({
+      schoolId: input.schoolId,
+      module: input.module,
+      on: input.on,
+      day: input.day,
+      items: termsOf(detail).items,
+      overrides: detail.overrides,
+    });
+    if (change.end.length === 0 && change.grant === null) return false;
+    if (change.end.length > 0)
+      await tx
+        .update(subscriptionOverrides)
+        .set({ endsOn: input.day })
+        .where(inArray(subscriptionOverrides.id, change.end));
+    const [added] =
+      change.grant === null
+        ? []
+        : await tx
+            .insert(subscriptionOverrides)
+            .values({
+              subscriptionId: input.subscriptionId,
+              schoolId: input.schoolId,
+              module: input.module,
+              granted: change.grant,
+              limitKey: null,
+              value: null,
+              startsOn: input.day,
+              endsOn: null,
+              reason: input.reason,
+              createdBy: input.by,
+            })
+            .returning({ id: subscriptionOverrides.id });
+    await bump(tx, input.subscriptionId);
+    await recordEvent(tx, {
+      operatorId: input.by,
+      action: input.on ? "subscription.module_on" : "subscription.module_off",
+      subjectType: "subscription",
+      subjectId: input.subscriptionId,
+      after: {
+        schoolId: input.schoolId,
+        module: input.module,
+        endedOverrideIds: change.end,
+        overrideId: added?.id ?? null,
+      },
+      reason: input.reason,
+    });
+    return true;
   });
 }
 

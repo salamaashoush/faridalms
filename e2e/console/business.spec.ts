@@ -280,6 +280,95 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
   ).toContainText("Included");
 });
 
+test("sales gives one school a module, takes it back, and moves its contract to another plan", async ({
+  page,
+}) => {
+  await signInAs(page, OWNER);
+  const first = `Standard ${unique()}`;
+  const second = `Premium ${unique()}`;
+  await addPlan(page, first);
+  await addPlan(page, second);
+  const slug = `e2e-${unique()}`;
+  const schoolName = `Rowan ${slug}`;
+  const today = businessToday();
+  await createSchool(
+    page,
+    { slug, nameEn: schoolName, nameAr: "مدرسة الغبيراء" },
+    { plan: first, students: 200, today, ends: addDays(today, 365) },
+  );
+
+  await page.getByRole("tab", { name: /^Modules/ }).click();
+  const modules = page.getByRole("region", { name: "Modules" });
+  const video = modules.getByRole("row", { name: /^Video/ });
+  await expect(video).toContainText("Not included");
+  await video.getByRole("button", { name: "Give…" }).click();
+  const give = page.getByRole("form", { name: "Give Video" });
+  await give.getByLabel("Why").fill("A term's pilot of video lessons");
+  await give.getByRole("button", { name: "Give Video" }).click();
+  await expect(page.getByText(`${schoolName} has Video now.`)).toBeVisible();
+  await expect(video).toContainText("Included");
+
+  await video.getByRole("button", { name: "Actions for Video" }).click();
+  await page.getByRole("menuitem", { name: "Take away…" }).click();
+  const take = page.getByRole("form", { name: "Take away Video" });
+  await take.getByLabel("Why").fill("Given by mistake");
+  await take.getByRole("button", { name: "Take away Video" }).click();
+  await expect(
+    page.getByText(`${schoolName} no longer has Video.`),
+  ).toBeVisible();
+  await expect(video).toContainText("Not included");
+
+  await page.getByRole("tab", { name: "About" }).click();
+  await openSubscriptionFromSchool(page);
+  await page.getByRole("tab", { name: "History" }).click();
+  await expect(
+    page.getByRole("table").getByText("Module given to a school"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("table").getByText("Module taken from a school"),
+  ).toBeVisible();
+
+  // Another plan beside the one it has is refused, and Change plan says why.
+  await page.getByRole("tab", { name: /^Items/ }).click();
+  await page.getByRole("button", { name: "Add item" }).click();
+  const item = page.getByRole("form", { name: "Add an item" });
+  await choose(item, "What", `Plan: ${second} version 1`);
+  await item.getByLabel("Why").fill("A second plan");
+  await item.getByRole("button", { name: "Add item" }).click();
+  await expect(
+    item.getByText(
+      "Those schools already have a plan then. Change that plan instead of adding another.",
+    ),
+  ).toBeVisible();
+  await item.getByRole("button", { name: "Cancel" }).click();
+
+  // Sold today, it changes from tomorrow at the earliest.
+  await recordHeader(page)
+    .getByRole("button", { name: "More actions" })
+    .click();
+  await page.getByRole("menuitem", { name: "Change plan" }).click();
+  const change = page.getByRole("form", { name: `Change ${first}` });
+  await expect(change.getByRole("radio", { name: "Today" })).toHaveCount(0);
+  await choose(change, "To", `${second} version 1`);
+  await expect(change.getByLabel("Quantity")).toHaveValue("200");
+  await expect(change.getByLabel("Unit price (EGP)")).toHaveValue("350.00");
+  await change.getByLabel("Unit price (EGP)").fill("500");
+  await change.getByRole("radio", { name: "Another day" }).check();
+  await change.getByLabel("First day on the new plan").fill(addDays(today, 1));
+  await expect(change).toContainText(
+    "the difference for 12 of 12 months, drafted for finance to issue.",
+  );
+  await change.getByLabel("Why").fill("Upgraded on the call");
+  await change.getByRole("button", { name: "Change plan" }).click();
+  await expect(
+    page.getByText(new RegExp(`Changes to ${second} on `)),
+  ).toBeVisible();
+  const items = page.getByRole("region", { name: "Items" });
+  await expect(
+    items.getByRole("row", { name: new RegExp(second) }),
+  ).toContainText("Starts later");
+});
+
 test("a group set up as a draft is left, resumed, and finished after a refusal", async ({
   page,
 }) => {

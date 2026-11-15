@@ -36,6 +36,8 @@ interface Billed {
   once: boolean;
   startsOn: string;
   endsOn: string | null;
+  /** The plan items this one took over from, charged already for the term. */
+  replaces: string[];
 }
 
 const money = (minor: number) => (minor / 100).toFixed(2);
@@ -143,6 +145,7 @@ export async function billingRound(
           once: unitOf.get(`${version.id}:${subscription.currency}`) === "once",
           startsOn: item.startsOn,
           endsOn: item.endsOn,
+          replaces: item.replacesItemIds,
         },
       ];
     });
@@ -207,6 +210,42 @@ export async function billingRound(
         termEndsOn,
       });
       const months = monthsBetween(line.startsOn, termEndsOn);
+      const termMonths = monthsBetween(termStartsOn, termEndsOn);
+      const replaced = billed.filter((one) =>
+        line.replaces.includes(one.itemId),
+      );
+      const [first] = replaced;
+      if (first) {
+        // What it took over from is billed to the term's end, so only a
+        // dearer plan's difference is owed, and a cheaper one owes nothing.
+        const difference = Math.round(
+          (netMinor(line) -
+            replaced.reduce((sum, one) => sum + netMinor(one), 0)) *
+            share,
+        );
+        if (
+          difference > 0 &&
+          (await draft({
+            kind: "proration",
+            scheduleKey: `proration:${line.itemId}:${termStartsOn}`,
+            forDay: line.startsOn,
+            lines: [
+              {
+                descriptionEn: `${first.nameEn} to ${line.nameEn} from ${line.startsOn}: the difference for ${months} of ${termMonths} months`,
+                descriptionAr: `من ${first.nameAr} إلى ${line.nameAr} من ${line.startsOn}: الفرق عن ${months} من ${termMonths} شهرًا`,
+                itemCode: null,
+                periodStart: line.startsOn,
+                periodEnd: addDays(termEndsOn, -1),
+                quantity: 1,
+                unitPriceMinor: difference,
+                discountPercent: 0,
+              },
+            ],
+          }))
+        )
+          drafted += 1;
+        continue;
+      }
       const amount = line.once
         ? netMinor(line)
         : Math.round(netMinor(line) * share);

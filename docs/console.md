@@ -89,23 +89,46 @@ what does it hold and until when, what does it owe, who do I speak to.
 
 Support opens it when a school struggles or is new.
 
-| Place   | Content                                                                                                                                                                                                                                                                                                                                       |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Header  | name; access as status; facts: Arabic name, portal address, customer (linked). Menu: Change access, Send the administrator a new link, Edit limits and modules (only where no subscription sets them)                                                                                                                                         |
-| Figures | Signed in this week, Students against the limit, Storage against the pool, Onboarding steps taken                                                                                                                                                                                                                                             |
-| To do   | each health reason with what to do (Send a new sign-in link, Open its invoices, Open onboarding, Open addresses), a cell that has not finished creating it, an address waiting for its DNS records, a trial ending                                                                                                                            |
-| Tabs    | About (school, account with its plan and access explained, where its data lives), Onboarding (steps by phase), Limits (use against limits, allowances), Modules (each with what it gives, status, who turns it on; facet), Addresses (web addresses, then the DNS records any waits for), Sign-in domains (only with single sign-on), History |
+| Place   | Content                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Header  | name; access as status; facts: Arabic name, portal address, customer (linked). Menu: Change access, Send the administrator a new link, Edit limits and modules (only where no subscription sets them)                                                                                                                                                                                                      |
+| Figures | Signed in this week, Students against the limit, Storage against the pool, Onboarding steps taken                                                                                                                                                                                                                                                                                                          |
+| To do   | each health reason with what to do (Send a new sign-in link, Open its invoices, Open onboarding, Open addresses), a cell that has not finished creating it, an address waiting for its DNS records, a trial ending                                                                                                                                                                                         |
+| Tabs    | About (school, account with its plan and access explained, where its data lives), Onboarding (steps by phase), Limits (use against limits, allowances), Modules (each with what it gives, status, who turns it on; Give or Take away in the row where a subscription sets them; facet), Addresses (web addresses, then the DNS records any waits for), Sign-in domains (only with single sign-on), History |
 
 ### Subscription
 
 Sales opens it to sell, renew or change the contract.
 
-| Place   | Content                                                                                                                                                                                                                         |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Header  | the tenant's name; state; facts: "Sold to" the customer (linked), the plan, the term. Primary: Publish now when changes wait. Menu: Change the terms, Add item, Add override                                                    |
-| Figures | Value a term (items in force, before VAT, how billed), Term or trial ends (days left), Students against contracted                                                                                                              |
-| To do   | changes waiting to be published (Publish now), a trial ending or over (Set its term), a term ending within 60 days that does not renew itself (Extend the term), nothing sold                                                   |
-| Tabs    | Terms, Items (status, when, quantity, unit price, a term; total in force; End in the row; Add item), Overrides (batch End; Add override), Schools (access, usable modules, what publishing would change), Publications, History |
+| Place   | Content                                                                                                                                                                                                                                         |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Header  | the tenant's name; state; facts: "Sold to" the customer (linked), the plan, the term. Primary: Publish now when changes wait. Menu: Change the terms, Change plan, Add item, Add override                                                       |
+| Figures | Value a term (items in force, before VAT, how billed), Term or trial ends (days left), Students against contracted                                                                                                                              |
+| To do   | changes waiting to be published (Publish now), a trial ending or over (Set its term), a term ending within 60 days that does not renew itself (Extend the term), nothing sold                                                                   |
+| Tabs    | Terms, Items (status, when, quantity, unit price, a term; total in force; Change plan and End in the row; Add item), Overrides (batch End; Add override), Schools (access, usable modules, what publishing would change), Publications, History |
+
+A school has one plan at a time. More seats of its plan may be sold as
+items beside it, but another plan is refused: Change plan replaces it.
+The sheet names the plan it changes to, the quantity (the seats of the
+old plan together), the price from the list, and when: today, when the
+term ends (the usual way to a cheaper plan), or another day. The old
+plan and its added seats end that day and the new one starts it, naming
+what it replaced. Billed says what follows before it is saved: a dearer
+plan mid-term drafts the difference for the months left for finance to
+issue; a cheaper one bills nothing more and credits nothing, since what
+it replaced is billed to the term's end. From today it is published at
+once.
+
+Give and Take away on a school's Modules tab turn one module on or off
+for that school from today, for sales and the owner. The school's own
+overrides of the module end that day and an override is added only
+where the plan and the rest disagree, so giving back what the plan
+includes leaves nothing behind; one undone the day it began ends that
+day and never runs. The sheet says what the module gives, when the
+school has it (for a module the school switches itself, that its
+administrators then switch it on) and which modules stop with it. A
+module is given only with what it needs. The subscription is published
+at once.
 
 ### Lead
 

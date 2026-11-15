@@ -1,3 +1,4 @@
+import { savePlanVersion } from "@faridalms/database/business/catalogue";
 import {
   creditInvoice,
   InvoiceError,
@@ -9,7 +10,9 @@ import {
 import { addTaxRate } from "@faridalms/database/business/profile";
 import {
   addItem,
+  changePlan,
   openSubscription,
+  subscriptionDetail,
 } from "@faridalms/database/business/subscriptions";
 import { describe, expect, test } from "bun:test";
 
@@ -18,6 +21,59 @@ import { business, contract, directory, reportStudents } from "./harness";
 
 const OWNER = "op-owner";
 const deps = () => ({ business: business(), directory: directory() });
+
+const planAt = (code: string, amountMinor: number) =>
+  savePlanVersion(business(), {
+    code,
+    nameEn: code,
+    nameAr: code,
+    modules: [],
+    limits: {
+      poolBytes: 1024 ** 3,
+      classBytes: 1024 ** 3,
+      moduleBytes: 1024 ** 3,
+      personBytes: 1024 ** 3,
+      students: null,
+      staffAccounts: null,
+      videoHours: null,
+      customDomains: null,
+      emailPerMonth: null,
+      captionMinutes: null,
+    },
+    prices: [
+      {
+        currency: "EGP",
+        unit: "student_year",
+        amountMinor,
+        minimumMinor: 0,
+      },
+    ],
+    validFrom: "2026-09-01",
+    reason: "Sold",
+    by: OWNER,
+  });
+
+async function changeAndBill(slug: string, to: string, unitPriceMinor: number) {
+  const { customerId, subscriptionId } = await contract(slug);
+  const item = (await subscriptionDetail(business(), subscriptionId))?.items[0]
+    ?.item;
+  if (!item) throw new Error("item");
+  await changePlan(business(), {
+    subscriptionId,
+    itemId: item.id,
+    planVersionId: to,
+    quantity: 300,
+    unitPriceMinor,
+    discountPercent: 0,
+    startsOn: "2027-03-01",
+    reason: "Changed on the call",
+    by: OWNER,
+  });
+  await billingRound(deps(), "2027-03-01", OWNER);
+  return (await listInvoices(business(), { customerId }))
+    .map(({ invoice }) => invoice)
+    .filter((invoice) => invoice.kind === "proration");
+}
 
 describe("the billing schedule", () => {
   test("drafts each instalment once, before it falls due, with VAT", async () => {
@@ -80,6 +136,20 @@ describe("the billing schedule", () => {
     expect(rows.find((row) => row.kind === "true_up")).toMatchObject({
       subtotalMinor: Math.round(30 * 35_000 * (11 / 12)),
     });
+  });
+
+  test("bills a dearer plan's difference for the months left, and a cheaper one nothing", async () => {
+    // 300 at 500.00 instead of 350.00, for the 6 of 12 months left.
+    expect(
+      await changeAndBill(
+        "tamarack",
+        await planAt("tamarack_premium", 50_000),
+        50_000,
+      ),
+    ).toMatchObject([{ subtotalMinor: 300 * 15_000 * (6 / 12) }]);
+    expect(
+      await changeAndBill("yew", await planAt("yew_lite", 20_000), 20_000),
+    ).toEqual([]);
   });
 
   test("renews a term that ended on its own", async () => {

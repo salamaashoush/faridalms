@@ -403,8 +403,10 @@ CREATE TABLE "subscription_items" (
 	"school_ids" uuid[] DEFAULT '{}'::uuid[] NOT NULL,
 	"starts_on" date NOT NULL,
 	"ends_on" date,
+	"replaces_item_ids" uuid[] DEFAULT '{}'::uuid[] NOT NULL,
 	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
 	"created_by" text NOT NULL,
+	CONSTRAINT "subscription_items_replaces_check" CHECK (cardinality(replaces_item_ids) = 0 or plan_version_id is not null),
 	CONSTRAINT "subscription_items_owner_check" CHECK ((plan_version_id is null) <> (add_on_version_id is null)),
 	CONSTRAINT "subscription_items_quantity_check" CHECK (quantity > 0),
 	CONSTRAINT "subscription_items_price_check" CHECK (unit_price_minor >= 0),
@@ -430,7 +432,7 @@ CREATE TABLE "subscription_overrides" (
 	CONSTRAINT "subscription_overrides_shape_check" CHECK ((module is not null and granted is not null and limit_key is null and value is null)
         or (module is null and granted is null and limit_key is not null)),
 	CONSTRAINT "subscription_overrides_storage_check" CHECK (limit_key not in ('poolBytes', 'classBytes', 'moduleBytes', 'personBytes') or value > 0),
-	CONSTRAINT "subscription_overrides_span_check" CHECK (ends_on is null or ends_on > starts_on),
+	CONSTRAINT "subscription_overrides_span_check" CHECK (ends_on is null or ends_on >= starts_on),
 	CONSTRAINT "subscription_overrides_reason_check" CHECK (char_length(reason) between 1 and 500)
 );
 --> statement-breakpoint

@@ -188,6 +188,58 @@ export function entitlementsFor(input: {
   };
 }
 
+/** How a subscription's overrides change to turn one school's module on or off. */
+export interface ModuleSwitch {
+  /**
+   * The school's own overrides of the module running on the day, ended on
+   * it; one that began that day so never runs.
+   */
+  end: string[];
+  /** The override to add from the day, or null where the rest already agree. */
+  grant: boolean | null;
+}
+
+/**
+ * Turns a module on or off for one school from a day. Asked for what it
+ * has, nothing changes. Otherwise the school's own overrides of that
+ * module running then make way, and a new one is added only where its
+ * items and every other override would not already give what is asked,
+ * so switching back to what the plan says leaves nothing behind.
+ */
+export function moduleSwitch(input: {
+  schoolId: string;
+  module: ModuleId;
+  on: boolean;
+  day: string;
+  items: readonly SubscriptionItemTerms[];
+  overrides: readonly (OverrideTerms & { id: string })[];
+}): ModuleSwitch {
+  const has = (overrides: readonly OverrideTerms[]) =>
+    entitlementsFor({
+      schoolId: input.schoolId,
+      day: input.day,
+      items: input.items,
+      overrides,
+      trialEndsOn: null,
+      notice: null,
+    }).modules.includes(input.module);
+  if (has(input.overrides) === input.on) return { end: [], grant: null };
+  const own = input.overrides.filter(
+    (override) =>
+      override.schoolId === input.schoolId &&
+      override.module === input.module &&
+      runs(override, input.day),
+  );
+  const ownIds = new Set(own.map((override) => override.id));
+  const without = has(
+    input.overrides.filter((override) => !ownIds.has(override.id)),
+  );
+  return {
+    end: own.map((override) => override.id),
+    grant: without === input.on ? null : input.on,
+  };
+}
+
 const isStorage = (key: LimitKey): key is (typeof STORAGE_KEYS)[number] =>
   (STORAGE_KEYS as readonly LimitKey[]).includes(key);
 
@@ -432,6 +484,27 @@ export type SubscriptionItemInput = v.InferOutput<
   typeof subscriptionItemSchema
 >;
 
+/**
+ * One plan of a subscription changed for another from a day, for the same
+ * schools: today, or when the term ends.
+ */
+export const planChangeSchema = v.object({
+  subscriptionId: uuid,
+  itemId: uuid,
+  planVersionId: uuid,
+  quantity: v.pipe(
+    v.number(),
+    v.integer(),
+    v.minValue(1),
+    v.maxValue(1_000_000),
+  ),
+  unitPriceMinor: money,
+  discountPercent: v.pipe(v.number(), v.minValue(0), v.maxValue(100)),
+  startsOn: isoDay,
+  reason: label(500),
+});
+export type PlanChangeInput = v.InferOutput<typeof planChangeSchema>;
+
 export const overrideSchema = v.pipe(
   v.object({
     subscriptionId: uuid,
@@ -467,6 +540,15 @@ export const overrideSchema = v.pipe(
   ),
 );
 export type OverrideInput = v.InferOutput<typeof overrideSchema>;
+
+/** A module turned on or off for one school of a subscription, from today. */
+export const moduleSwitchSchema = v.object({
+  schoolId: uuid,
+  module: v.picklist(MODULE_IDS),
+  on: v.boolean(),
+  reason: label(500),
+});
+export type ModuleSwitchInput = v.InferOutput<typeof moduleSwitchSchema>;
 
 /** Ends items or overrides from a day, scheduled or at once. */
 export const endPartsSchema = v.object({
