@@ -303,9 +303,13 @@ export async function businessDetails(page: Page) {
   await rate.getByLabel("From").fill("2016-07-01");
   await rate.getByLabel("Why").fill("Egypt's VAT law");
   await rate.getByRole("button", { name: "Add rate" }).click();
-  await expect(
-    page.getByText(/^(Rate added\.|Egypt already has a rate from that day\.)/),
-  ).toBeVisible();
+  const added = page.getByText("Rate added.");
+  const held = rate.getByText("Egypt already has a rate from that day.");
+  await expect(added.or(held)).toBeVisible();
+  // Another spec set it first: its sheet stays open over the page until closed.
+  if (await held.isVisible())
+    await rate.getByRole("button", { name: "Cancel" }).click();
+  await expect(rate).toBeHidden();
 }
 
 const paymobOrigin = `http://127.0.0.1:${process.env.E2E_PAYMOB_PORT ?? "3209"}`;
