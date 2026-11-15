@@ -1,5 +1,5 @@
-import type {
-  AgreementError} from "@faridalms/database/business/agreements";
+import type { AgreementError } from "@faridalms/database/business/agreements";
+
 import {
   acceptancesOf,
   agreementsInForce,

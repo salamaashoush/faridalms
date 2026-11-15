@@ -1,7 +1,7 @@
+import type { quoteById } from "@faridalms/database/business/quotes";
 import type { DraftSpec } from "@faridalms/domain/provisioning-draft";
 
 import { listTaxRates } from "@faridalms/database/business/profile";
-import type { quoteById } from "@faridalms/database/business/quotes";
 import { rateOn } from "@faridalms/domain/business";
 import { blankDraft } from "@faridalms/domain/provisioning-draft";
 
