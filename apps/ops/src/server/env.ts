@@ -92,6 +92,12 @@ export function opsEnv() {
         PORTAL_DOMAIN: domain,
         SITES_DOMAIN: domain,
         EDGE_IPV4: v.optional(v.pipe(v.string(), v.ipv4())),
+        // Proxies in front of the console that append to X-Forwarded-For,
+        // so a customer's acceptance records the address it came from.
+        TRUSTED_PROXY_HOPS: v.optional(
+          v.pipe(v.string(), v.transform(Number), v.integer(), v.minValue(1)),
+          "1",
+        ),
       }),
       v.check(
         (value) =>

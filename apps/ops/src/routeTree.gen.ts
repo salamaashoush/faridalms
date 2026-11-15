@@ -17,6 +17,8 @@ import { Route as OperatorsRouteImport } from './routes/operators'
 import { Route as ReceivablesRouteImport } from './routes/receivables'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as AcceptanceFilesAcceptanceIdRouteImport } from './routes/acceptance-files.$acceptanceId'
+import { Route as AgreeTokenRouteImport } from './routes/agree.$token'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
@@ -30,6 +32,7 @@ import { Route as InvoicesInvoiceIdRouteImport } from './routes/invoices.$invoic
 import { Route as InvoicesNewRouteImport } from './routes/invoices.new'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
+import { Route as OfferTokenRouteImport } from './routes/offer.$token'
 import { Route as PaymentsPaymobRouteImport } from './routes/payments/paymob'
 import { Route as ProvisioningDraftIdRouteImport } from './routes/provisioning.$draftId'
 import { Route as QuoteFilesQuoteIdRouteImport } from './routes/quote-files.$quoteId'
@@ -43,6 +46,8 @@ import { Route as SubscriptionsSubscriptionIdRouteImport } from './routes/subscr
 import { Route as CatalogueAddOnsAddOnIdRouteImport } from './routes/catalogue.add-ons.$addOnId'
 import { Route as CataloguePlansPlanIdRouteImport } from './routes/catalogue.plans.$planId'
 import { Route as InvoicesInvoiceIdCreditRouteImport } from './routes/invoices.$invoiceId_.credit'
+import { Route as LegalKindIndexRouteImport } from './routes/legal.$kind.index'
+import { Route as LegalKindVersionRouteImport } from './routes/legal.$kind.$version'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -82,6 +87,17 @@ const SettingsRoute = SettingsRouteImport.update({
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcceptanceFilesAcceptanceIdRoute =
+  AcceptanceFilesAcceptanceIdRouteImport.update({
+    id: '/acceptance-files/$acceptanceId',
+    path: '/acceptance-files/$acceptanceId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AgreeTokenRoute = AgreeTokenRouteImport.update({
+  id: '/agree/$token',
+  path: '/agree/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -147,6 +163,11 @@ const LeadsIndexRoute = LeadsIndexRouteImport.update({
 const LeadsLeadIdRoute = LeadsLeadIdRouteImport.update({
   id: '/leads/$leadId',
   path: '/leads/$leadId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OfferTokenRoute = OfferTokenRouteImport.update({
+  id: '/offer/$token',
+  path: '/offer/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PaymentsPaymobRoute = PaymentsPaymobRouteImport.update({
@@ -215,6 +236,16 @@ const InvoicesInvoiceIdCreditRoute = InvoicesInvoiceIdCreditRouteImport.update({
   path: '/invoices/$invoiceId/credit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LegalKindIndexRoute = LegalKindIndexRouteImport.update({
+  id: '/legal/$kind/',
+  path: '/legal/$kind/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalKindVersionRoute = LegalKindVersionRouteImport.update({
+  id: '/legal/$kind/$version',
+  path: '/legal/$kind/$version',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -225,6 +256,8 @@ export interface FileRoutesByFullPath {
   '/receivables': typeof ReceivablesRoute
   '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
+  '/acceptance-files/$acceptanceId': typeof AcceptanceFilesAcceptanceIdRoute
+  '/agree/$token': typeof AgreeTokenRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -235,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
   '/invoices/new': typeof InvoicesNewRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/offer/$token': typeof OfferTokenRoute
   '/payments/paymob': typeof PaymentsPaymobRoute
   '/provisioning/$draftId': typeof ProvisioningDraftIdRoute
   '/quote-files/$quoteId': typeof QuoteFilesQuoteIdRoute
@@ -251,6 +285,8 @@ export interface FileRoutesByFullPath {
   '/catalogue/add-ons/$addOnId': typeof CatalogueAddOnsAddOnIdRoute
   '/catalogue/plans/$planId': typeof CataloguePlansPlanIdRoute
   '/invoices/$invoiceId/credit': typeof InvoicesInvoiceIdCreditRoute
+  '/legal/$kind/$version': typeof LegalKindVersionRoute
+  '/legal/$kind/': typeof LegalKindIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -261,6 +297,8 @@ export interface FileRoutesByTo {
   '/receivables': typeof ReceivablesRoute
   '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
+  '/acceptance-files/$acceptanceId': typeof AcceptanceFilesAcceptanceIdRoute
+  '/agree/$token': typeof AgreeTokenRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -271,6 +309,7 @@ export interface FileRoutesByTo {
   '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
   '/invoices/new': typeof InvoicesNewRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/offer/$token': typeof OfferTokenRoute
   '/payments/paymob': typeof PaymentsPaymobRoute
   '/provisioning/$draftId': typeof ProvisioningDraftIdRoute
   '/quote-files/$quoteId': typeof QuoteFilesQuoteIdRoute
@@ -287,6 +326,8 @@ export interface FileRoutesByTo {
   '/catalogue/add-ons/$addOnId': typeof CatalogueAddOnsAddOnIdRoute
   '/catalogue/plans/$planId': typeof CataloguePlansPlanIdRoute
   '/invoices/$invoiceId/credit': typeof InvoicesInvoiceIdCreditRoute
+  '/legal/$kind/$version': typeof LegalKindVersionRoute
+  '/legal/$kind': typeof LegalKindIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -298,6 +339,8 @@ export interface FileRoutesById {
   '/receivables': typeof ReceivablesRoute
   '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
+  '/acceptance-files/$acceptanceId': typeof AcceptanceFilesAcceptanceIdRoute
+  '/agree/$token': typeof AgreeTokenRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -308,6 +351,7 @@ export interface FileRoutesById {
   '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
   '/invoices/new': typeof InvoicesNewRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/offer/$token': typeof OfferTokenRoute
   '/payments/paymob': typeof PaymentsPaymobRoute
   '/provisioning/$draftId': typeof ProvisioningDraftIdRoute
   '/quote-files/$quoteId': typeof QuoteFilesQuoteIdRoute
@@ -324,6 +368,8 @@ export interface FileRoutesById {
   '/catalogue/add-ons/$addOnId': typeof CatalogueAddOnsAddOnIdRoute
   '/catalogue/plans/$planId': typeof CataloguePlansPlanIdRoute
   '/invoices/$invoiceId_/credit': typeof InvoicesInvoiceIdCreditRoute
+  '/legal/$kind/$version': typeof LegalKindVersionRoute
+  '/legal/$kind/': typeof LegalKindIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -336,6 +382,8 @@ export interface FileRouteTypes {
     | '/receivables'
     | '/settings'
     | '/sign-in'
+    | '/acceptance-files/$acceptanceId'
+    | '/agree/$token'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -346,6 +394,7 @@ export interface FileRouteTypes {
     | '/invoices/$invoiceId'
     | '/invoices/new'
     | '/leads/$leadId'
+    | '/offer/$token'
     | '/payments/paymob'
     | '/provisioning/$draftId'
     | '/quote-files/$quoteId'
@@ -362,6 +411,8 @@ export interface FileRouteTypes {
     | '/catalogue/add-ons/$addOnId'
     | '/catalogue/plans/$planId'
     | '/invoices/$invoiceId/credit'
+    | '/legal/$kind/$version'
+    | '/legal/$kind/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -372,6 +423,8 @@ export interface FileRouteTypes {
     | '/receivables'
     | '/settings'
     | '/sign-in'
+    | '/acceptance-files/$acceptanceId'
+    | '/agree/$token'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -382,6 +435,7 @@ export interface FileRouteTypes {
     | '/invoices/$invoiceId'
     | '/invoices/new'
     | '/leads/$leadId'
+    | '/offer/$token'
     | '/payments/paymob'
     | '/provisioning/$draftId'
     | '/quote-files/$quoteId'
@@ -398,6 +452,8 @@ export interface FileRouteTypes {
     | '/catalogue/add-ons/$addOnId'
     | '/catalogue/plans/$planId'
     | '/invoices/$invoiceId/credit'
+    | '/legal/$kind/$version'
+    | '/legal/$kind'
   id:
     | '__root__'
     | '/'
@@ -408,6 +464,8 @@ export interface FileRouteTypes {
     | '/receivables'
     | '/settings'
     | '/sign-in'
+    | '/acceptance-files/$acceptanceId'
+    | '/agree/$token'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -418,6 +476,7 @@ export interface FileRouteTypes {
     | '/invoices/$invoiceId'
     | '/invoices/new'
     | '/leads/$leadId'
+    | '/offer/$token'
     | '/payments/paymob'
     | '/provisioning/$draftId'
     | '/quote-files/$quoteId'
@@ -434,6 +493,8 @@ export interface FileRouteTypes {
     | '/catalogue/add-ons/$addOnId'
     | '/catalogue/plans/$planId'
     | '/invoices/$invoiceId_/credit'
+    | '/legal/$kind/$version'
+    | '/legal/$kind/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -445,6 +506,8 @@ export interface RootRouteChildren {
   ReceivablesRoute: typeof ReceivablesRoute
   SettingsRoute: typeof SettingsRoute
   SignInRoute: typeof SignInRoute
+  AcceptanceFilesAcceptanceIdRoute: typeof AcceptanceFilesAcceptanceIdRoute
+  AgreeTokenRoute: typeof AgreeTokenRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
@@ -455,6 +518,7 @@ export interface RootRouteChildren {
   InvoicesInvoiceIdRoute: typeof InvoicesInvoiceIdRoute
   InvoicesNewRoute: typeof InvoicesNewRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
+  OfferTokenRoute: typeof OfferTokenRoute
   PaymentsPaymobRoute: typeof PaymentsPaymobRoute
   ProvisioningDraftIdRoute: typeof ProvisioningDraftIdRoute
   QuoteFilesQuoteIdRoute: typeof QuoteFilesQuoteIdRoute
@@ -471,6 +535,8 @@ export interface RootRouteChildren {
   CatalogueAddOnsAddOnIdRoute: typeof CatalogueAddOnsAddOnIdRoute
   CataloguePlansPlanIdRoute: typeof CataloguePlansPlanIdRoute
   InvoicesInvoiceIdCreditRoute: typeof InvoicesInvoiceIdCreditRoute
+  LegalKindVersionRoute: typeof LegalKindVersionRoute
+  LegalKindIndexRoute: typeof LegalKindIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -529,6 +595,20 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/acceptance-files/$acceptanceId': {
+      id: '/acceptance-files/$acceptanceId'
+      path: '/acceptance-files/$acceptanceId'
+      fullPath: '/acceptance-files/$acceptanceId'
+      preLoaderRoute: typeof AcceptanceFilesAcceptanceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agree/$token': {
+      id: '/agree/$token'
+      path: '/agree/$token'
+      fullPath: '/agree/$token'
+      preLoaderRoute: typeof AgreeTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -622,6 +702,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeadsLeadIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/offer/$token': {
+      id: '/offer/$token'
+      path: '/offer/$token'
+      fullPath: '/offer/$token'
+      preLoaderRoute: typeof OfferTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/payments/paymob': {
       id: '/payments/paymob'
       path: '/payments/paymob'
@@ -713,6 +800,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InvoicesInvoiceIdCreditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/legal/$kind/': {
+      id: '/legal/$kind/'
+      path: '/legal/$kind'
+      fullPath: '/legal/$kind/'
+      preLoaderRoute: typeof LegalKindIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/$kind/$version': {
+      id: '/legal/$kind/$version'
+      path: '/legal/$kind/$version'
+      fullPath: '/legal/$kind/$version'
+      preLoaderRoute: typeof LegalKindVersionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -725,6 +826,8 @@ const rootRouteChildren: RootRouteChildren = {
   ReceivablesRoute: ReceivablesRoute,
   SettingsRoute: SettingsRoute,
   SignInRoute: SignInRoute,
+  AcceptanceFilesAcceptanceIdRoute: AcceptanceFilesAcceptanceIdRoute,
+  AgreeTokenRoute: AgreeTokenRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
@@ -735,6 +838,7 @@ const rootRouteChildren: RootRouteChildren = {
   InvoicesInvoiceIdRoute: InvoicesInvoiceIdRoute,
   InvoicesNewRoute: InvoicesNewRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
+  OfferTokenRoute: OfferTokenRoute,
   PaymentsPaymobRoute: PaymentsPaymobRoute,
   ProvisioningDraftIdRoute: ProvisioningDraftIdRoute,
   QuoteFilesQuoteIdRoute: QuoteFilesQuoteIdRoute,
@@ -751,6 +855,8 @@ const rootRouteChildren: RootRouteChildren = {
   CatalogueAddOnsAddOnIdRoute: CatalogueAddOnsAddOnIdRoute,
   CataloguePlansPlanIdRoute: CataloguePlansPlanIdRoute,
   InvoicesInvoiceIdCreditRoute: InvoicesInvoiceIdCreditRoute,
+  LegalKindVersionRoute: LegalKindVersionRoute,
+  LegalKindIndexRoute: LegalKindIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

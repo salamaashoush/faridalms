@@ -52,7 +52,11 @@ import type { HostChange } from "../components/DraftHosts";
 import type { SaveStepInput } from "../server/provisioning";
 
 import { attempt, failure } from "../actions";
-import { Agreements } from "../components/Agreements";
+import {
+  Agreements,
+  PaperAcceptanceSheet,
+  SendForAcceptanceSheet,
+} from "../components/Agreements";
 import { Contacts } from "../components/Contacts";
 import { NewCustomerSheet } from "../components/CustomerForm";
 import { DraftHosts } from "../components/DraftHosts";
@@ -862,6 +866,8 @@ function ReviewStep({ data }: StepProps) {
   const [answer, setAnswer] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const settingAside = useSheet();
+  const sendingAgreements = useSheet();
+  const recording = useSheet();
   const { tenant, plan, addresses, people } = data.draft.spec;
   const customer = data.customer?.customer ?? null;
   const currency = customer?.currency ?? "EGP";
@@ -947,15 +953,30 @@ function ReviewStep({ data }: StepProps) {
         </RecordSection>
       </section>
 
-      {customer ? (
-        <Agreements
-          customerId={customer.id}
-          terms={{
-            version: customer.termsVersion,
-            at: customer.termsAcceptedAt,
-          }}
-          dpa={{ version: customer.dpaVersion, at: customer.dpaAcceptedAt }}
-        />
+      {customer && data.customer && data.agreements ? (
+        <>
+          <Agreements
+            customer={customer}
+            state={data.agreements}
+            onSend={sendingAgreements.show}
+            onRecord={recording.show}
+          />
+          <SendForAcceptanceSheet
+            key={`send-agreements-${sendingAgreements.key}`}
+            customerId={customer.id}
+            contacts={data.customer.contacts}
+            open={sendingAgreements.open}
+            onOpenChange={sendingAgreements.onOpenChange}
+          />
+          <PaperAcceptanceSheet
+            key={`agreement-${recording.key}`}
+            customerId={customer.id}
+            published={data.agreements.published}
+            inForce={data.agreements.inForce}
+            open={recording.open}
+            onOpenChange={recording.onOpenChange}
+          />
+        </>
       ) : null}
 
       <form

@@ -1,4 +1,5 @@
 import type { DirectoryTenantState } from "@faridalms/database/directory/schema";
+import type { Agreement } from "@faridalms/domain/agreements";
 import type { AgingBucket, DunningStep } from "@faridalms/domain/dunning";
 import type { HostRole, HostState } from "@faridalms/domain/hosts";
 import type {
@@ -110,6 +111,12 @@ export const MODULE_HINTS: Record<ModuleId, string> = {
 };
 
 /** A module's name, or the id itself for one the catalogue no longer has, as an old change may name. */
+/** How an agreement is named where an operator reads it. */
+export const AGREEMENT_LABELS: Record<Agreement, string> = {
+  terms: "Terms of service",
+  dpa: "Data processing agreement",
+};
+
 export function moduleName(id: string): string {
   const known = MODULE_IDS.find((module) => module === id);
   return known ? MODULE_NAMES[known] : id;

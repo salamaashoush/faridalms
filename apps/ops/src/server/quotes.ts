@@ -1,6 +1,7 @@
 import type { QuoteContent } from "@faridalms/database/business/quotes";
 import type { QuoteLine, QuoteSpec } from "@faridalms/domain/quotes";
 
+import { agreementsInForce } from "@faridalms/database/business/agreements";
 import { catalogue } from "@faridalms/database/business/catalogue";
 import { customerById } from "@faridalms/database/business/customers";
 import { leadById } from "@faridalms/database/business/leads";
@@ -16,7 +17,6 @@ import {
   saveQuote,
 } from "@faridalms/database/business/quotes";
 import { rateOn } from "@faridalms/domain/business";
-import { blankDraft } from "@faridalms/domain/provisioning-draft";
 import { quoteSpecSchema, quoteTotals } from "@faridalms/domain/quotes";
 import { addDays } from "@faridalms/domain/school";
 import { businessToday } from "@faridalms/domain/subscriptions";
@@ -26,6 +26,9 @@ import * as v from "valibot";
 import { requireArea } from "./access";
 import { requireBusiness } from "./business";
 import { directoryAdmin } from "./directory-admin";
+import { opsEnv } from "./env";
+import { consoleMail } from "./mail";
+import { draftOfQuote, quoteVatName } from "./quote-parts";
 
 type Outcome<T = object> = ({ ok: true } & T) | { ok: false; message: string };
 
@@ -151,6 +154,67 @@ async function contentOf(
   };
 }
 
+/**
+ * What sending a quote with its link starts from: who it goes to, and for
+ * a party without a school, the school its acceptance sets up; and what is
+ * missing before it can be sent.
+ */
+async function offerStartOf(
+  quote: QuoteRow,
+  party: Awaited<ReturnType<typeof partyOf>>,
+) {
+  const db = requireBusiness();
+  const [lead, customer, business, inForce] = await Promise.all([
+    quote.leadId ? leadById(db, quote.leadId) : null,
+    quote.customerId ? customerById(db, quote.customerId) : null,
+    profile(db),
+    agreementsInForce(db, businessToday()),
+  ]);
+  const decider = customer?.contacts.find(
+    (contact) => contact.email && contact.roles.includes("decision_maker"),
+  );
+  const to =
+    quote.offer?.to ??
+    (decider?.email
+      ? { name: decider.name, email: decider.email, locale: decider.locale }
+      : lead
+        ? {
+            name: lead.lead.name,
+            email: lead.lead.email ?? "",
+            locale: lead.lead.locale,
+          }
+        : { name: "", email: "", locale: "en" as const });
+  const needsSchool = !customer?.customer.tenantId;
+  const name = lead?.lead.organisation ?? party?.name ?? "";
+  return {
+    to,
+    needsSchool,
+    school: quote.offer?.school ?? {
+      nameEn: name || null,
+      nameAr: null,
+      slug: suggestedSlug(name),
+    },
+    portalDomain: opsEnv().PORTAL_DOMAIN,
+    missing: [
+      ...(business ? [] : ["the business's legal details in Settings"]),
+      ...(inForce.terms && inForce.dpa
+        ? []
+        : ["the terms and the data processing agreement in Settings"]),
+      ...(consoleMail() ? [] : ["email (RESEND_API_KEY and EMAIL_FROM)"]),
+    ],
+  };
+}
+
+/** A portal address from a name: its letters and digits, joined by hyphens. */
+function suggestedSlug(name: string): string {
+  return name
+    .normalize("NFKD")
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-+|-+$/g, "")
+    .slice(0, 63);
+}
+
 /** What a new quote for a lead or customer starts from. */
 export const getQuoteStart = createServerFn({ method: "GET" })
   .validator((input: { leadId?: string; customerId?: string }) =>
@@ -187,7 +251,7 @@ export const getQuote = createServerFn({ method: "GET" })
     const db = requireBusiness();
     const quote = await quoteById(db, data.id);
     if (!quote) throw new Error("NOT_FOUND");
-    const [party, business, versions, sold, rates] = await Promise.all([
+    const [party, business, versions, sold, vatName] = await Promise.all([
       partyOf(quote),
       profile(db),
       quotesFor(db, {
@@ -195,18 +259,14 @@ export const getQuote = createServerFn({ method: "GET" })
         customerId: quote.customerId ?? undefined,
       }),
       catalogue(db),
-      listTaxRates(db),
+      quoteVatName(quote),
     ]);
-    const rate = rateOn(
-      rates.map((row) => ({ ...row, percent: Number(row.percent) })),
-      quote.country,
-      quote.createdAt.toISOString().slice(0, 10),
-    );
     return {
       quote,
       party,
       business,
-      vatName: rate ? { en: rate.nameEn, ar: rate.nameAr } : null,
+      vatName,
+      offer: await offerStartOf(quote, party),
       versions: versions.filter((row) => row.number === quote.number),
       today: businessToday(),
       selling: {
@@ -289,7 +349,11 @@ export const sendQuote = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<Outcome> => {
     const { operator } = await requireArea("leads");
     try {
-      await markQuoteSent(requireBusiness(), { id: data.id, by: operator.id });
+      await markQuoteSent(requireBusiness(), {
+        id: data.id,
+        by: operator.id,
+        offer: null,
+      });
       return { ok: true };
     } catch (error) {
       if (error instanceof QuoteError)
@@ -297,6 +361,9 @@ export const sendQuote = createServerFn({ method: "POST" })
       throw error;
     }
   });
+
+/** A quote as the stores answer it. */
+type QuoteRow = NonNullable<Awaited<ReturnType<typeof quoteById>>>;
 
 /**
  * Records a quote accepted, with the signed copy or purchase order: the
@@ -326,19 +393,25 @@ export const accept = createServerFn({ method: "POST" })
     if (!quote.customerId && !lead)
       return { ok: false, message: REFUSED.not_found };
     const [cell] = await directoryAdmin().openCells();
-    const spec = quote.spec;
     try {
       const { draftId } = await acceptQuote(db, {
         id: quote.id,
-        attachment: {
-          name: data.file.name.slice(0, 200),
-          type: data.file.type,
-          bytes: new Uint8Array(await data.file.arrayBuffer()),
+        evidence: {
+          kind: "paper",
+          attachment: {
+            name: data.file.name.slice(0, 200),
+            type: data.file.type,
+            bytes: new Uint8Array(await data.file.arrayBuffer()),
+          },
         },
         newCustomer:
           lead && !quote.customerId
             ? {
                 legalNameEn: lead.lead.organisation,
+                legalNameAr: null,
+                taxNumber: null,
+                commercialRegistry: null,
+                address: null,
                 country: quote.country,
                 contact:
                   lead.lead.email || lead.lead.phone
@@ -352,47 +425,14 @@ export const accept = createServerFn({ method: "POST" })
                     : null,
               }
             : null,
-        draft: () => {
-          const draft = blankDraft({
+        draft: () =>
+          draftOfQuote({
+            quote,
             cellId: cell?.id ?? "",
-            trialEndsOn: spec.termStartsOn,
-          });
-          return {
-            ...draft,
-            tenant: {
-              ...draft.tenant,
-              jurisdictions: [quote.country],
-              schools: draft.tenant.schools.map((school) => ({
-                ...school,
-                nameEn: lead?.lead.organisation ?? null,
-                countryCode: quote.country,
-              })),
-            },
-            plan: {
-              planVersionId: spec.planVersionId,
-              quantity: spec.quantity,
-              unitPriceMinor: spec.unitPriceMinor,
-              discountPercent: spec.discountPercent,
-              addOns: spec.addOns.map((addOn) => ({
-                addOnVersionId: addOn.addOnVersionId,
-                quantity: addOn.quantity,
-                unitPriceMinor: addOn.unitPriceMinor,
-                schoolIndexes: [],
-              })),
-              terms: {
-                state: "active",
-                termStartsOn: spec.termStartsOn,
-                termEndsOn: spec.termEndsOn,
-                trialEndsOn: null,
-                renewal: "auto",
-                schedule: spec.schedule,
-                contractedStudents: spec.planVersionId ? spec.quantity : null,
-                censusOn: null,
-                notice: null,
-              },
-            },
-          };
-        },
+            schoolName: lead?.lead.organisation ?? null,
+            setup: null,
+          }),
+        draftStep: "schools",
         by: operator.id,
       });
       return { ok: true, draftId };

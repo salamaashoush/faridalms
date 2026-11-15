@@ -17,14 +17,29 @@ import { ConsoleShell } from "../components/ConsoleShell";
 import { getAccess } from "../server/directory";
 import appCss from "../styles/app.css?url";
 
+/**
+ * Pages a customer opens from a link the console sent, and the agreements'
+ * public text: no sign-in, and none of the console's frame.
+ */
+const CUSTOMER_PAGES = ["/offer/", "/agree/", "/legal/"];
+
+const forCustomers = (pathname: string) =>
+  CUSTOMER_PAGES.some((prefix) => pathname.startsWith(prefix));
+
 export const Route = createRootRoute({
   beforeLoad: async ({ location }) => {
+    if (forCustomers(location.pathname))
+      return { access: null, operator: null, forCustomers: true };
     const access = await getAccess();
     if (!access && location.pathname !== "/sign-in")
       throw redirect({ to: "/sign-in" });
     if (access && access.roles.length === 0 && location.pathname !== "/no-role")
       throw redirect({ to: "/no-role" });
-    return { access, operator: access?.operator ?? null };
+    return {
+      access,
+      operator: access?.operator ?? null,
+      forCustomers: false,
+    };
   },
   head: () => ({
     meta: [
@@ -46,8 +61,8 @@ export const Route = createRootRoute({
 
 /** Signed-in pages sit in the console's frame; signing in has a page of its own. */
 function Page() {
-  const { access } = Route.useRouteContext();
-  if (!access || access.roles.length === 0) return <Outlet />;
+  const { access, forCustomers: customers } = Route.useRouteContext();
+  if (customers || !access || access.roles.length === 0) return <Outlet />;
   return (
     <ConsoleShell
       operator={{

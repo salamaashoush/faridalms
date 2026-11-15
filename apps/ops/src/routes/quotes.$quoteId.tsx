@@ -4,7 +4,11 @@ import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { DocumentView } from "@faridalms/ui/system/document-view";
-import { FormField } from "@faridalms/ui/system/form-field";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
 import { Page } from "@faridalms/ui/system/page";
 import { Segmented } from "@faridalms/ui/system/panel";
 import {
@@ -13,6 +17,7 @@ import {
   RecordSection,
 } from "@faridalms/ui/system/record-page";
 import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import {
   createFileRoute,
   Link,
@@ -20,7 +25,14 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarX, FileCheck, Pencil, Printer, Send } from "lucide-react";
+import {
+  CalendarX,
+  CheckCheck,
+  FileCheck,
+  Mail,
+  Pencil,
+  Printer,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
@@ -28,6 +40,7 @@ import * as v from "valibot";
 import { attemptWith, failure } from "../actions";
 import { QuoteForm } from "../components/QuoteForm";
 import { formatWhen, QUOTE_STATE_NAMES, QUOTE_STATE_TONE } from "../format";
+import { sendOffer } from "../server/offers";
 import { accept, changeQuote, getQuote, sendQuote } from "../server/quotes";
 
 export const Route = createFileRoute("/quotes/$quoteId")({
@@ -53,12 +66,18 @@ function QuotePage() {
   const { quote, party } = data;
   const [editing, setEditing] = useState(false);
   const accepting = useSheet();
+  const offering = useSheet();
   const markSent = useMarkSent(data);
   const open = quote.state === "draft" || quote.state === "sent";
   const acceptance = {
     label: "Record acceptance",
     icon: FileCheck,
     onClick: accepting.show,
+  };
+  const sendToCustomer = {
+    label: quote.offer ? "Send again" : "Send to the customer",
+    icon: Mail,
+    onClick: offering.show,
   };
   const change = {
     label: quote.state === "draft" ? "Change it" : "Make a new version",
@@ -86,6 +105,19 @@ function QuotePage() {
               : []
           }
           facts={[
+            ...(quote.offer && open
+              ? [
+                  {
+                    label: "Sent to",
+                    value: (
+                      <span>
+                        Sent to {quote.offer.to.name}{" "}
+                        <span dir="ltr">({quote.offer.to.email})</span>
+                      </span>
+                    ),
+                  },
+                ]
+              : []),
             ...(party
               ? [
                   {
@@ -143,27 +175,27 @@ function QuotePage() {
                 ]
               : []),
           ]}
-          action={
-            quote.state === "draft"
-              ? {
-                  label: "Mark as sent",
-                  icon: Send,
-                  onClick: () => void markSent.run(),
-                  pending: markSent.pending,
-                  disabled: !data.business,
-                }
-              : quote.state === "sent"
-                ? acceptance
-                : undefined
-          }
+          action={open ? sendToCustomer : undefined}
           menu={
             quote.state === "draft"
               ? [
                   change,
+                  ...(data.business
+                    ? [
+                        {
+                          label: "Mark as sent",
+                          icon: CheckCheck,
+                          onSelect: () => markSent.run(),
+                        },
+                      ]
+                    : []),
                   { label: acceptance.label, onSelect: acceptance.onClick },
                 ]
               : quote.state === "sent"
-                ? [change]
+                ? [
+                    change,
+                    { label: acceptance.label, onSelect: acceptance.onClick },
+                  ]
                 : []
           }
         />
@@ -235,12 +267,20 @@ function QuotePage() {
                 }
               >
                 <div className="grid gap-3 text-sm leading-5">
-                  <a
-                    href={`/quote-files/${quote.id}`}
-                    className="font-medium text-primary underline-offset-4 hover:underline"
-                  >
-                    {quote.attachmentName}
-                  </a>
+                  {quote.attachmentName ? (
+                    <a
+                      href={`/quote-files/${quote.id}`}
+                      className="font-medium text-primary underline-offset-4 hover:underline"
+                    >
+                      {quote.attachmentName}
+                    </a>
+                  ) : (
+                    <span>
+                      Through its link by {quote.signerName}
+                      {quote.signerTitle ? `, ${quote.signerTitle}` : ""} (
+                      {quote.signerEmail})
+                    </span>
+                  )}
                   {quote.draftId ? (
                     <ButtonLink
                       to="/provisioning/$draftId"
@@ -257,6 +297,14 @@ function QuotePage() {
         }
       />
       {open ? (
+        <SendOfferSheet
+          key={`offer-${offering.key}`}
+          data={data}
+          open={offering.open}
+          onOpenChange={offering.onOpenChange}
+        />
+      ) : null}
+      {open ? (
         <AcceptSheet
           key={accepting.key}
           data={data}
@@ -265,6 +313,160 @@ function QuotePage() {
         />
       ) : null}
     </Page>
+  );
+}
+
+interface SendOfferSheetProps {
+  data: Data;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+/**
+ * Sends the quote to the customer with a link of their own to read it with
+ * the terms and the data processing agreement, and accept them; for a party
+ * with no school yet, naming the school their acceptance sets up.
+ */
+function SendOfferSheet({ data, open, onOpenChange }: SendOfferSheetProps) {
+  const router = useRouter();
+  const send = useServerFn(sendOffer);
+  const start = data.offer;
+  const [to, setTo] = useState(start.to);
+  const [school, setSchool] = useState({
+    nameEn: start.school.nameEn ?? "",
+    nameAr: start.school.nameAr ?? "",
+    slug: start.school.slug,
+  });
+  const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [slugIssue, setSlugIssue] = useState<string | null>(null);
+  const needed = (value: string, words: string) =>
+    submitted && !value.trim() ? [words] : undefined;
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Send to the customer"
+      submitLabel="Send"
+      pending={pending}
+      error={error}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if (
+          !to.name.trim() ||
+          !to.email.trim() ||
+          (start.needsSchool &&
+            (!school.slug.trim() ||
+              (!school.nameEn.trim() && !school.nameAr.trim())))
+        )
+          return;
+        setPending(true);
+        setError(null);
+        setSlugIssue(null);
+        const out = await attemptWith(
+          () =>
+            send({
+              data: {
+                quoteId: data.quote.id,
+                to,
+                school: start.needsSchool
+                  ? {
+                      nameEn: school.nameEn || null,
+                      nameAr: school.nameAr || null,
+                      slug: school.slug,
+                    }
+                  : null,
+              },
+            }),
+          "It could not be sent.",
+        );
+        setPending(false);
+        if (!out.ok) {
+          if (out.field === "slug") setSlugIssue(out.message);
+          else setError(out.message);
+          return;
+        }
+        toast.success(`Sent to ${to.email}.`);
+        onOpenChange(false);
+        await router.invalidate();
+      }}
+    >
+      <p className="text-sm leading-5 text-muted-foreground">
+        They get an email with a link to read the quote, the terms of service
+        and the data processing agreement, and accept them. Accepting makes the
+        customer and, with the school named here, creates it at once and emails
+        its first administrator. The link stands until the quote's last day;
+        sending again ends the link sent before.
+      </p>
+      {start.missing.length ? (
+        <StatusText tone="warning">
+          Set {start.missing.join(", and ")} first.
+        </StatusText>
+      ) : null}
+      <div className="grid items-start gap-6 @md:grid-cols-2">
+        <TextField
+          label="Their name"
+          value={to.name}
+          onChange={(event) => setTo({ ...to, name: event.target.value })}
+          errors={needed(to.name, "Give who it goes to.")}
+        />
+        <TextField
+          label="Their email"
+          type="email"
+          dir="ltr"
+          value={to.email}
+          onChange={(event) => setTo({ ...to, email: event.target.value })}
+          errors={needed(to.email, "Give their email address.")}
+        />
+        <SelectField
+          label="Written in"
+          value={to.locale}
+          options={[...LANGUAGES]}
+          onChange={(locale) => setTo({ ...to, locale })}
+        />
+      </div>
+      {start.needsSchool ? (
+        <div className="grid items-start gap-6 @md:grid-cols-2">
+          <TextField
+            label="School's name in English"
+            value={school.nameEn}
+            onChange={(event) =>
+              setSchool({ ...school, nameEn: event.target.value })
+            }
+            errors={
+              submitted && !school.nameEn.trim() && !school.nameAr.trim()
+                ? ["Give the school a name in English or Arabic."]
+                : undefined
+            }
+          />
+          <TextField
+            label="School's name in Arabic"
+            dir="rtl"
+            lang="ar"
+            value={school.nameAr}
+            onChange={(event) =>
+              setSchool({ ...school, nameAr: event.target.value })
+            }
+          />
+          <TextField
+            label="Portal address"
+            dir="ltr"
+            hint={`${school.slug || "address"}.${start.portalDomain}`}
+            value={school.slug}
+            onChange={(event) => {
+              setSlugIssue(null);
+              setSchool({ ...school, slug: event.target.value });
+            }}
+            errors={
+              slugIssue
+                ? [slugIssue]
+                : needed(school.slug, "Give the school's portal address.")
+            }
+          />
+        </div>
+      ) : null}
+    </SheetForm>
   );
 }
 

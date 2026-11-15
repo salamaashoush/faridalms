@@ -202,7 +202,7 @@ describe("a quote", () => {
 
     await saveQuote(business(), { ...content(550_000), id: first, by: OWNER });
     expect((await quoteById(business(), first))?.subtotalMinor).toBe(550_000);
-    await markQuoteSent(business(), { id: first, by: OWNER });
+    await markQuoteSent(business(), { id: first, by: OWNER, offer: null });
     expect(
       await saveQuote(business(), {
         ...content(1),
@@ -233,13 +233,20 @@ describe("a quote", () => {
     });
     const accepted = await acceptQuote(business(), {
       id: revised,
-      attachment: {
-        name: "signed.pdf",
-        type: "application/pdf",
-        bytes: new TextEncoder().encode("%PDF-1.4 signed"),
+      evidence: {
+        kind: "paper",
+        attachment: {
+          name: "signed.pdf",
+          type: "application/pdf",
+          bytes: new TextEncoder().encode("%PDF-1.4 signed"),
+        },
       },
       newCustomer: {
         legalNameEn: "Rowan Schools",
+        legalNameAr: null,
+        taxNumber: null,
+        commercialRegistry: null,
+        address: null,
         country: "EG",
         contact: {
           name: "Salama Ashoush",
@@ -250,6 +257,7 @@ describe("a quote", () => {
         },
       },
       draft: () => blankDraft({ cellId: "eg-1", trialEndsOn: "2026-12-01" }),
+      draftStep: "schools",
       by: OWNER,
     });
     expect(await quoteById(business(), revised)).toMatchObject({

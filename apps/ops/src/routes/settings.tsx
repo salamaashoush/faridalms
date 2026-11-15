@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import * as v from "valibot";
 
 import { attempt, attemptWith } from "../actions";
+import { AgreementVersions } from "../components/AgreementVersions";
 import { EventList } from "../components/EventList";
 import { WhyField } from "../components/Why";
 import { COUNTRY_OPTIONS, formatCountry, formatDay } from "../format";
@@ -55,11 +56,17 @@ function Settings() {
     <Page width="form">
       <PageHeader
         title="Settings"
-        description="The business as its quotes and invoices print it."
+        description="The business as its quotes and invoices print it, and the agreements its customers accept."
       />
       <SettingsPage>
         <Profile data={data} key={data.profile?.version ?? 0} />
         <Rates data={data} />
+        <AgreementVersions
+          versions={data.agreements}
+          inForce={data.agreementsInForce}
+          today={data.today}
+          names={data.names}
+        />
         {data.events.length ? (
           <SettingsSection title="History">
             <EventList events={data.events} names={data.names} />

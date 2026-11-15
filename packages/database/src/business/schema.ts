@@ -1,3 +1,8 @@
+import type {
+  AcceptanceMethod,
+  Agreement,
+  Offer,
+} from "@faridalms/domain/agreements";
 import type { DunningStep } from "@faridalms/domain/dunning";
 import type {
   InvoiceKind,
@@ -371,6 +376,88 @@ export const contacts = pgTable(
     check("contacts_locale_check", sql`locale in ('en', 'ar')`),
     check("contacts_status_check", sql`status in ('active', 'removed')`),
     check("contacts_reach_check", sql`email is not null or phone is not null`),
+  ],
+);
+
+/**
+ * A version of the terms or the data processing agreement as the owner
+ * published it, never changed after: its words, and their digest, so an
+ * acceptance proves what was accepted.
+ */
+export const agreementVersions = pgTable(
+  "agreement_versions",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    kind: text("kind").$type<Agreement>().notNull(),
+    version: text("version").notNull(),
+    effectiveOn: date("effective_on", { mode: "string" }).notNull(),
+    bodyEn: text("body_en").notNull(),
+    bodyAr: text("body_ar"),
+    digest: text("digest").notNull(),
+    publishedAt: instant("published_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+    publishedBy: text("published_by").notNull(),
+  },
+  (t) => [
+    uniqueIndex("agreement_versions_kind_version_key").on(t.kind, t.version),
+    index("agreement_versions_kind_idx").on(t.kind, t.effectiveOn),
+    check("agreement_versions_kind_check", sql`kind in ('terms', 'dpa')`),
+    check("agreement_versions_digest_check", sql`digest ~ '^[0-9a-f]{64}$'`),
+    check(
+      "agreement_versions_version_check",
+      sql`version ~ '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$'`,
+    ),
+  ],
+);
+
+/**
+ * A customer's acceptance of one agreement version: through the link it was
+ * sent, with who signed and from where, or on paper an operator recorded
+ * with the signed copy.
+ */
+export const agreementAcceptances = pgTable(
+  "agreement_acceptances",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id),
+    versionId: uuid("version_id")
+      .notNull()
+      .references(() => agreementVersions.id),
+    method: text("method").$type<AcceptanceMethod>().notNull(),
+    signerName: text("signer_name").notNull(),
+    signerTitle: text("signer_title"),
+    signerEmail: text("signer_email"),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    attachmentName: text("attachment_name"),
+    attachmentType: text("attachment_type"),
+    attachment: bytea("attachment"),
+    recordedBy: text("recorded_by"),
+    acceptedAt: instant("accepted_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+  },
+  (t) => [
+    index("agreement_acceptances_customer_idx").on(t.customerId, t.acceptedAt),
+    check(
+      "agreement_acceptances_method_check",
+      sql`method in ('link', 'paper')`,
+    ),
+    check(
+      "agreement_acceptances_paper_check",
+      sql`(method = 'paper') = (recorded_by is not null and attachment is not null)`,
+    ),
+    check(
+      "agreement_acceptances_attachment_check",
+      sql`attachment is null or octet_length(attachment) <= 10485760`,
+    ),
   ],
 );
 
@@ -779,7 +866,8 @@ export const leadActivities = pgTable(
 /**
  * An offer to a lead or customer, numbered by year, in versions: a change
  * after it is sent is a new version that supersedes it. Accepting one keeps
- * the signed copy or purchase order and starts the school's draft.
+ * the signed copy or purchase order, or who accepted it through its link,
+ * and starts the school's draft.
  */
 export const quotes = pgTable(
   "quotes",
@@ -809,6 +897,13 @@ export const quotes = pgTable(
     attachmentName: text("attachment_name"),
     attachmentType: text("attachment_type"),
     attachment: bytea("attachment"),
+    /** Who it was sent to with its link, and the school it sets up. */
+    offer: jsonb("offer").$type<Offer>(),
+    signerName: text("signer_name"),
+    signerTitle: text("signer_title"),
+    signerEmail: text("signer_email"),
+    signerIp: text("signer_ip"),
+    signerAgent: text("signer_agent"),
     draftId: uuid("draft_id").references(() => provisioningDrafts.id),
     createdBy: text("created_by").notNull(),
     createdAt: createdAt(),
@@ -828,7 +923,7 @@ export const quotes = pgTable(
     ),
     check(
       "quotes_accepted_check",
-      sql`(state = 'accepted') = (accepted_at is not null and attachment is not null)`,
+      sql`(state = 'accepted') = (accepted_at is not null and (attachment is not null or signer_name is not null))`,
     ),
     check(
       "quotes_attachment_check",

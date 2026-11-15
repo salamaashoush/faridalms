@@ -37,6 +37,7 @@ import {
   Plus,
   Receipt,
   School as SchoolIcon,
+  Send,
   UserRound,
   UserRoundPlus,
 } from "lucide-react";
@@ -45,7 +46,12 @@ import { toast } from "sonner";
 import * as v from "valibot";
 
 import { attempt } from "../actions";
-import { Accepted, AgreementSheet } from "../components/Agreements";
+import {
+  agreementRows,
+  agreementsDue,
+  PaperAcceptanceSheet,
+  SendForAcceptanceSheet,
+} from "../components/Agreements";
 import { ContactSheet, ContactsTable } from "../components/Contacts";
 import { EditCustomerSheet } from "../components/CustomerForm";
 import { EventList } from "../components/EventList";
@@ -169,6 +175,7 @@ function CustomerPage() {
   const changingOwner = useSheet();
   const addingContact = useSheet();
   const recording = useSheet();
+  const sendingAgreements = useSheet();
   const pausing = useSheet();
   const paying = useSheet();
   const closing = useSheet();
@@ -264,7 +271,12 @@ function CustomerPage() {
             onSelect: addingContact.show,
           },
           {
-            label: "Record acceptance",
+            label: "Send for acceptance",
+            icon: Send,
+            onSelect: sendingAgreements.show,
+          },
+          {
+            label: "Record a signed copy",
             icon: FileSignature,
             onSelect: recording.show,
           },
@@ -285,7 +297,7 @@ function CustomerPage() {
         <ToDo
           data={data}
           onAddContact={addingContact.show}
-          onRecord={recording.show}
+          onSend={sendingAgreements.show}
           onChooseOwner={changingOwner.show}
           onClose={(task) => {
             setClosingTask(task);
@@ -395,6 +407,7 @@ function CustomerPage() {
               ownerName={owner?.name ?? null}
               onEdit={editing.show}
               onChangeOwner={changingOwner.show}
+              onSend={sendingAgreements.show}
               onRecord={recording.show}
             />
           ) : (
@@ -427,11 +440,20 @@ function CustomerPage() {
         open={addingContact.open}
         onOpenChange={addingContact.onOpenChange}
       />
-      <AgreementSheet
+      <PaperAcceptanceSheet
         key={`agreement-${recording.key}`}
         customerId={customer.id}
+        published={data.agreements.published}
+        inForce={data.agreements.inForce}
         open={recording.open}
         onOpenChange={recording.onOpenChange}
+      />
+      <SendForAcceptanceSheet
+        key={`send-agreements-${sendingAgreements.key}`}
+        customerId={customer.id}
+        contacts={contacts}
+        open={sendingAgreements.open}
+        onOpenChange={sendingAgreements.onOpenChange}
       />
       {closingTask ? (
         <CloseTask
@@ -576,7 +598,7 @@ function Glance({ data }: GlanceProps) {
 interface ToDoProps {
   data: Data;
   onAddContact: () => void;
-  onRecord: () => void;
+  onSend: () => void;
   onChooseOwner: () => void;
   onClose: (task: TaskRow) => void;
 }
@@ -585,7 +607,7 @@ interface ToDoProps {
 function ToDo({
   data,
   onAddContact,
-  onRecord,
+  onSend,
   onChooseOwner,
   onClose,
 }: ToDoProps) {
@@ -678,17 +700,21 @@ function ToDo({
         </Button>
       ),
     });
-  if (!customer.dpaVersion)
+  const due = agreementsDue(customer, data.agreements);
+  if (!customer.dpaVersion || due.length)
     items.push({
       id: "dpa",
       tone: "warning",
-      title: "Data processing agreement not accepted",
-      detail: data.schools.length
-        ? "Record the version the customer signed."
-        : "No school can be created for the customer until it is.",
+      title: !customer.dpaVersion
+        ? "Data processing agreement not accepted"
+        : "A newer version of its agreements is in force",
+      detail:
+        !customer.dpaVersion && !data.schools.length
+          ? "No school can be created for the customer until it is."
+          : "Send it for acceptance; its acceptance is recorded when it accepts.",
       action: (
-        <Button type="button" variant="outline" size="sm" onClick={onRecord}>
-          Record acceptance
+        <Button type="button" variant="outline" size="sm" onClick={onSend}>
+          Send for acceptance
         </Button>
       ),
     });
@@ -1155,6 +1181,7 @@ interface AboutTabProps {
   ownerName: string | null;
   onEdit: () => void;
   onChangeOwner: () => void;
+  onSend: () => void;
   onRecord: () => void;
 }
 
@@ -1167,6 +1194,7 @@ function AboutTab({
   ownerName,
   onEdit,
   onChangeOwner,
+  onSend,
   onRecord,
 }: AboutTabProps) {
   const { customer } = data;
@@ -1269,37 +1297,18 @@ function AboutTab({
         title="Agreements"
         align="start"
         action={
-          <Button type="button" variant="ghost" size="sm" onClick={onRecord}>
-            <FileSignature aria-hidden />
-            Record acceptance
-          </Button>
+          <span className="flex flex-wrap gap-1">
+            <Button type="button" variant="ghost" size="sm" onClick={onSend}>
+              <Send aria-hidden />
+              Send for acceptance
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={onRecord}>
+              <FileSignature aria-hidden />
+              Record a signed copy
+            </Button>
+          </span>
         }
-        items={[
-          {
-            id: "terms",
-            label: "Terms of service",
-            value: (
-              <Accepted
-                held={{
-                  version: customer.termsVersion,
-                  at: customer.termsAcceptedAt,
-                }}
-              />
-            ),
-          },
-          {
-            id: "dpa",
-            label: "Data processing agreement",
-            value: (
-              <Accepted
-                held={{
-                  version: customer.dpaVersion,
-                  at: customer.dpaAcceptedAt,
-                }}
-              />
-            ),
-          },
-        ]}
+        items={agreementRows(customer, data.agreements)}
       />
     </RecordStack>
   );

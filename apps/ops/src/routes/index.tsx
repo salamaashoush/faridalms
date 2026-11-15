@@ -18,7 +18,12 @@ import type { getHome } from "../server/home";
 
 import { HealthBadge } from "../components/Health";
 import { CloseTaskButton } from "../components/TaskList";
-import { formatDay, formatMoney, HEALTH_REASON_NAMES } from "../format";
+import {
+  formatDay,
+  formatMoney,
+  formatWhen,
+  HEALTH_REASON_NAMES,
+} from "../format";
 import { useMay } from "../may";
 import { getHome as loadHome } from "../server/home";
 
@@ -68,7 +73,7 @@ interface HomeProps {
  * Someone else's work is not here; nobody's work is, until someone takes it.
  */
 function YourDay({ data }: HomeProps) {
-  const { tasks, steps, drafts, today, me, myName } = data;
+  const { tasks, steps, drafts, stalledSetUps, today, me, myName } = data;
   const late = (day: string) => day < today;
   const items: AttentionItem[] = [
     ...tasks.map(({ task, customerName }) => ({
@@ -106,6 +111,22 @@ function YourDay({ data }: HomeProps) {
           params={{ leadId: lead.id }}
         >
           Open lead
+        </ButtonLink>
+      ),
+    })),
+    ...stalledSetUps.map((draft) => ({
+      id: `set-up-${draft.id}`,
+      tone: "danger" as const,
+      title: `${draft.name} was accepted, and its school is not created`,
+      detail: `Its customer accepted ${formatWhen(draft.since)}; creating the school stopped. Finish it from its review.`,
+      action: (
+        <ButtonLink
+          variant="outline"
+          size="sm"
+          to="/provisioning/$draftId"
+          params={{ draftId: draft.id }}
+        >
+          Finish it
         </ButtonLink>
       ),
     })),

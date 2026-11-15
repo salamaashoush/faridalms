@@ -1,3 +1,7 @@
+import {
+  agreementsInForce,
+  listAgreementVersions,
+} from "@faridalms/database/business/agreements";
 import { eventsAbout } from "@faridalms/database/business/events";
 import {
   addTaxRate,
@@ -9,6 +13,7 @@ import {
   businessProfileSchema,
   taxRateSchema,
 } from "@faridalms/domain/business";
+import { businessToday } from "@faridalms/domain/subscriptions";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
@@ -25,13 +30,28 @@ export const getSettings = createServerFn({ method: "GET" }).handler(
   async () => {
     await requireArea("settings");
     const db = requireBusiness();
-    const [held, rates, events, names] = await Promise.all([
-      profile(db),
-      listTaxRates(db),
-      eventsAbout(db, ["business", "tax_rate"]),
-      operatorNames(db),
-    ]);
-    return { profile: held, rates, events, names };
+    const today = businessToday();
+    const [held, rates, events, names, agreements, inForce] = await Promise.all(
+      [
+        profile(db),
+        listTaxRates(db),
+        eventsAbout(db, ["business", "tax_rate", "agreement_version"]),
+        operatorNames(db),
+        listAgreementVersions(db),
+        agreementsInForce(db, today),
+      ],
+    );
+    return {
+      profile: held,
+      rates,
+      events,
+      names,
+      agreements,
+      agreementsInForce: [inForce.terms?.id, inForce.dpa?.id].filter(
+        (id) => id !== undefined,
+      ),
+      today,
+    };
   },
 );
 

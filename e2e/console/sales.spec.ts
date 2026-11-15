@@ -3,12 +3,15 @@ import { expect, test } from "@playwright/test";
 
 import {
   addPlan,
+  businessDetails,
   choose,
   hydrated,
   OWNER,
+  recordHeader,
   signInAs,
   unique,
 } from "../fixtures/console";
+import { sentTo } from "../fixtures/mail";
 import { BARE, PASSWORD, portal, signInWith } from "../fixtures/sign-in";
 
 // The business's details and VAT come first: the quotes below print them.
@@ -128,7 +131,8 @@ test("a demonstration request becomes a lead, a quote in both languages, and a c
   await expect(arabic).toBeVisible();
   await page.emulateMedia({ media: "screen" });
 
-  await page.getByRole("button", { name: "Mark as sent" }).click();
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Mark as sent" }).click();
   await expect(
     page.getByText("Marked as sent. A change now makes a new version."),
   ).toBeVisible();
@@ -161,6 +165,111 @@ test("a demonstration request becomes a lead, a quote in both languages, and a c
     page
       .getByRole("table", { name: "Contacts" })
       .getByRole("row", { name: /Salama Ashoush/ }),
+  ).toBeVisible();
+});
+
+test("a quote sent with its link is accepted by the school, which is set up at once", async ({
+  browser,
+  page,
+}) => {
+  await signInAs(page, OWNER);
+  await businessDetails(page);
+  const planName = `Standard ${unique()}`;
+  await addPlan(page, planName);
+  const tag = unique();
+  const school = `Cedar Hill ${tag}`;
+  const slug = `cedar-${tag}`;
+  const decider = `head@cedar-${tag}.example.com`;
+  const administrator = `office@cedar-${tag}.example.com`;
+
+  await page.getByRole("link", { name: "Leads", exact: true }).click();
+  await page.getByRole("button", { name: "New lead" }).click();
+  const lead = page.getByRole("form", { name: "New lead" });
+  await lead.getByLabel("School or group").fill(school);
+  await lead.getByLabel("Person").fill("Salama Ashoush");
+  await lead.getByLabel("Email").fill(decider);
+  await lead.getByLabel("Country").fill("EG");
+  await lead.getByRole("button", { name: "Add lead" }).click();
+  await expect(page.getByText("Lead added.")).toBeVisible();
+
+  await page.getByRole("tab", { name: /^Quotes/ }).click();
+  await page.getByRole("link", { name: "New quote" }).click();
+  const quote = page.getByRole("form", { name: "Quote" });
+  await choose(quote, "Plan", `${planName} version 1`);
+  await quote.getByLabel("Quantity").fill("120");
+  await quote.getByRole("button", { name: "Save the quote" }).click();
+  await expect(
+    page.getByRole("heading", { name: /^Quote Q-\d{4}-\d{4}/ }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Send to the customer" }).click();
+  const send = page.getByRole("form", { name: "Send to the customer" });
+  await expect(send.getByLabel("Their email")).toHaveValue(decider);
+  await expect(send.getByLabel("School's name in English")).toHaveValue(school);
+  await send.getByLabel("Portal address").fill(slug);
+  await send.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByText(`Sent to ${decider}.`)).toBeVisible();
+  await expect(page.getByText(`Sent to Salama Ashoush`)).toBeVisible();
+
+  const email = await sentTo(decider, "/offer/");
+  const link = /(https?:\/\/\S+\/offer\/\S+)/.exec(email?.text ?? "")?.[1];
+  expect(link).toBeTruthy();
+
+  // The customer, signed in to nothing, reads it and accepts.
+  const visitor = await browser.newContext();
+  const customer = await visitor.newPage();
+  await customer.goto(link ?? "");
+  await expect(
+    customer.getByRole("heading", { name: /^Quote Q-/ }),
+  ).toBeVisible();
+  await expect(
+    customer.getByRole("article", { name: /^Quote Q-/ }),
+  ).toContainText(school);
+  await expect(customer.getByText(`${slug}.`)).toBeVisible();
+  const terms = customer.getByRole("link", { name: "Read it" }).first();
+  await expect(terms).toHaveAttribute("href", /\/legal\/terms\//);
+  const form = customer.getByRole("form", { name: "Acceptance" });
+  await hydrated(form);
+  await form.getByLabel("Tax registration number").fill("555-666-777");
+  await form.getByLabel("Your title").fill("Head of school");
+  await form.getByLabel("First name").fill("Mona");
+  await form.getByLabel("Last name").fill("Hassan");
+  await form.getByLabel("Their email").fill(administrator);
+  await form.getByRole("button", { name: "Accept" }).click();
+  await expect(form.getByText("Tick the box to accept.")).toBeVisible();
+  await form.getByRole("checkbox", { name: /^I accept quote/ }).check();
+  await form.getByRole("button", { name: "Accept" }).click();
+  await expect(
+    customer.getByRole("heading", { name: "Your school is ready" }),
+  ).toBeVisible({ timeout: 60_000 });
+  await sentTo(administrator, "/welcome#");
+  await sentTo(decider, "acceptance of quote");
+
+  // The same link now says it was accepted.
+  await customer.reload();
+  await expect(
+    customer.getByText("This quote has been accepted. Thank you.").first(),
+  ).toBeVisible();
+  await visitor.close();
+
+  // The console has the customer, its agreements, the school and the lead won.
+  await page.reload();
+  await expect(
+    recordHeader(page).getByText("Accepted", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/^Through its link by Salama Ashoush/),
+  ).toBeVisible();
+  await page.goto("/customers");
+  await page.getByRole("link", { name: school }).click();
+  await expect(
+    page.getByText("By Salama Ashoush, through their link").first(),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: /^Schools/ }).click();
+  await expect(
+    page
+      .getByRole("table", { name: "Schools" })
+      .getByRole("link", { name: school }),
   ).toBeVisible();
 });
 

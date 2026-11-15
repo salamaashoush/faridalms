@@ -29,6 +29,41 @@ CREATE TABLE "add_ons" (
 	CONSTRAINT "add_ons_kind_check" CHECK (kind in ('module', 'limit_pack', 'service'))
 );
 --> statement-breakpoint
+CREATE TABLE "agreement_acceptances" (
+	"id" uuid PRIMARY KEY DEFAULT uuidv7(),
+	"customer_id" uuid NOT NULL,
+	"version_id" uuid NOT NULL,
+	"method" text NOT NULL,
+	"signer_name" text NOT NULL,
+	"signer_title" text,
+	"signer_email" text,
+	"ip" text,
+	"user_agent" text,
+	"attachment_name" text,
+	"attachment_type" text,
+	"attachment" bytea,
+	"recorded_by" text,
+	"accepted_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	CONSTRAINT "agreement_acceptances_method_check" CHECK (method in ('link', 'paper')),
+	CONSTRAINT "agreement_acceptances_paper_check" CHECK ((method = 'paper') = (recorded_by is not null and attachment is not null)),
+	CONSTRAINT "agreement_acceptances_attachment_check" CHECK (attachment is null or octet_length(attachment) <= 10485760)
+);
+--> statement-breakpoint
+CREATE TABLE "agreement_versions" (
+	"id" uuid PRIMARY KEY DEFAULT uuidv7(),
+	"kind" text NOT NULL,
+	"version" text NOT NULL,
+	"effective_on" date NOT NULL,
+	"body_en" text NOT NULL,
+	"body_ar" text,
+	"digest" text NOT NULL,
+	"published_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
+	"published_by" text NOT NULL,
+	CONSTRAINT "agreement_versions_kind_check" CHECK (kind in ('terms', 'dpa')),
+	CONSTRAINT "agreement_versions_digest_check" CHECK (digest ~ '^[0-9a-f]{64}$'),
+	CONSTRAINT "agreement_versions_version_check" CHECK (version ~ '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$')
+);
+--> statement-breakpoint
 CREATE TABLE "business_events" (
 	"id" uuid PRIMARY KEY DEFAULT uuidv7(),
 	"occurred_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
@@ -382,13 +417,19 @@ CREATE TABLE "quotes" (
 	"attachment_name" text,
 	"attachment_type" text,
 	"attachment" bytea,
+	"offer" jsonb,
+	"signer_name" text,
+	"signer_title" text,
+	"signer_email" text,
+	"signer_ip" text,
+	"signer_agent" text,
 	"draft_id" uuid,
 	"created_by" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT statement_timestamp() NOT NULL,
 	CONSTRAINT "quotes_state_check" CHECK (state in ('draft', 'sent', 'accepted', 'superseded')),
 	CONSTRAINT "quotes_currency_check" CHECK (currency in ('EGP', 'USD')),
 	CONSTRAINT "quotes_party_check" CHECK (lead_id is not null or customer_id is not null),
-	CONSTRAINT "quotes_accepted_check" CHECK ((state = 'accepted') = (accepted_at is not null and attachment is not null)),
+	CONSTRAINT "quotes_accepted_check" CHECK ((state = 'accepted') = (accepted_at is not null and (attachment is not null or signer_name is not null))),
 	CONSTRAINT "quotes_attachment_check" CHECK (attachment is null or octet_length(attachment) <= 10485760)
 );
 --> statement-breakpoint
@@ -499,6 +540,9 @@ CREATE TABLE "tax_rates" (
 --> statement-breakpoint
 CREATE UNIQUE INDEX "add_on_versions_add_on_version_key" ON "add_on_versions" ("add_on_id","version");--> statement-breakpoint
 CREATE UNIQUE INDEX "add_ons_code_key" ON "add_ons" ("code");--> statement-breakpoint
+CREATE INDEX "agreement_acceptances_customer_idx" ON "agreement_acceptances" ("customer_id","accepted_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "agreement_versions_kind_version_key" ON "agreement_versions" ("kind","version");--> statement-breakpoint
+CREATE INDEX "agreement_versions_kind_idx" ON "agreement_versions" ("kind","effective_on");--> statement-breakpoint
 CREATE INDEX "business_events_subject_idx" ON "business_events" ("subject_type","subject_id");--> statement-breakpoint
 CREATE INDEX "business_events_occurred_idx" ON "business_events" ("occurred_at");--> statement-breakpoint
 CREATE INDEX "business_events_action_idx" ON "business_events" ("action","occurred_at");--> statement-breakpoint
@@ -540,6 +584,8 @@ CREATE INDEX "tasks_open_idx" ON "tasks" ("due_on") WHERE done_at is null;--> st
 CREATE INDEX "tasks_customer_idx" ON "tasks" ("customer_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "tax_rates_country_from_key" ON "tax_rates" ("country","valid_from");--> statement-breakpoint
 ALTER TABLE "add_on_versions" ADD CONSTRAINT "add_on_versions_add_on_id_add_ons_id_fkey" FOREIGN KEY ("add_on_id") REFERENCES "add_ons"("id");--> statement-breakpoint
+ALTER TABLE "agreement_acceptances" ADD CONSTRAINT "agreement_acceptances_customer_id_customers_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("id");--> statement-breakpoint
+ALTER TABLE "agreement_acceptances" ADD CONSTRAINT "agreement_acceptances_version_id_agreement_versions_id_fkey" FOREIGN KEY ("version_id") REFERENCES "agreement_versions"("id");--> statement-breakpoint
 ALTER TABLE "contacts" ADD CONSTRAINT "contacts_customer_id_customers_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("id");--> statement-breakpoint
 ALTER TABLE "credit_notes" ADD CONSTRAINT "credit_notes_invoice_id_invoices_id_fkey" FOREIGN KEY ("invoice_id") REFERENCES "invoices"("id");--> statement-breakpoint
 ALTER TABLE "dunning_pauses" ADD CONSTRAINT "dunning_pauses_customer_id_customers_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("id");--> statement-breakpoint

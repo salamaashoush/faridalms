@@ -46,8 +46,10 @@ their roles work needs someone.
 
 - **Your day** leads the page (an `AttentionList` with an `empty` line):
   the tasks due by today that are theirs or nobody's yet (with Open
-  customer and Close), their leads' next steps due by today, and for
-  finance one item for the drafts the daily round left to issue. Someone
+  customer and Close), their leads' next steps due by today, for support
+  each school a customer accepted through its link that could not be
+  created (Finish it), and for finance one item for the drafts the daily
+  round left to issue. Someone
   else's work is not here. With nothing due it says so in one line, so the
   page never opens on a blank.
 - **Figures**, only for areas the operator's roles open, each opening its
@@ -78,12 +80,12 @@ puts in each place. "Menu" lists the header's `•••` actions.
 Sales and finance open it before a call: is the account in good standing,
 what does it hold and until when, what does it owe, who do I speak to.
 
-| Place   | Content                                                                                                                                                                                                                                                                                                                      |
-| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Header  | legal name; the subscription's state; facts: Arabic legal name, country and currency, who looks after it. Menu: New invoice, Record a payment, Pause reminders, Add contact, Record acceptance, Change the account owner, Edit legal details                                                                                 |
-| Figures | Owed (overdue amount and since when), Last payment, Plan (when it ends; opens the subscription), Students against those contracted                                                                                                                                                                                           |
-| To do   | each overdue invoice (Open invoice), tasks due today or earlier (Close task), running reminder pause (End the pause), no billing contact (Add contact), data processing agreement not accepted (Record acceptance), trial ending within 14 days or over, term ending within 60 days without renewal, nobody looking after it |
-| Tabs    | About (legal details, relationship, agreements), Invoices (status facet, New invoice, owed total), Payments (what each settled, Record a payment), Schools (access, health, students, sign-ins), Contacts (Add contact), Tasks (To do or Done facet; Close in the row), History                                              |
+| Place   | Content                                                                                                                                                                                                                                                                                                                                                                     |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Header  | legal name; the subscription's state; facts: Arabic legal name, country and currency, who looks after it. Menu: New invoice, Record a payment, Pause reminders, Add contact, Send for acceptance, Record a signed copy, Change the account owner, Edit legal details                                                                                                        |
+| Figures | Owed (overdue amount and since when), Last payment, Plan (when it ends; opens the subscription), Students against those contracted                                                                                                                                                                                                                                          |
+| To do   | each overdue invoice (Open invoice), tasks due today or earlier (Close task), running reminder pause (End the pause), no billing contact (Add contact), data processing agreement not accepted, or a newer version of an agreement in force (Send for acceptance), trial ending within 14 days or over, term ending within 60 days without renewal, nobody looking after it |
+| Tabs    | About (legal details, relationship, agreements), Invoices (status facet, New invoice, owed total), Payments (what each settled, Record a payment), Schools (access, health, students, sign-ins), Contacts (Add contact), Tasks (To do or Done facet; Close in the row), History                                                                                             |
 
 ### School
 
@@ -142,6 +144,19 @@ Sales opens it to move it forward.
 | To do   | no next step (Plan the next step), next step due or overdue (Log what happened, Plan the next one), won with a customer to set up (Open the customer)                 |
 | Tabs    | About (what they wrote, next step, lead details), Activity (Log activity), Quotes (New quote), History                                                                |
 
+A customer accepts the terms of service and the data processing
+agreement as published in Settings, at a version, in one of two ways.
+Send for acceptance emails each contact chosen (its decision makers
+first) a link of their own, standing 30 days, to a page outside the
+console: each agreement in force it has not accepted at that version,
+with Read it opening its public text, then their name, title and email
+and one box to tick. Accepting records the version, who signed, the
+address and browser it came from, and the time. Record a signed copy
+is for paper: the agreement, the published version signed, who signed
+and the signed copy, which is required. About's Agreements says, for
+each, the version held, when and how it was accepted and by whom, and
+when a newer version is in force.
+
 ### Invoice and quote
 
 Documents. The printable document is the first tab; payments, credit notes,
@@ -191,6 +206,24 @@ discount when one has one, and net) with Add add-on, an add-on's row or
 its Edit opening that one in a sheet that starts at its list price in the
 quote's currency, then the term and the notes. The quote saves as a
 whole, since changing a sent one makes a new version.
+
+A sent quote reaches its customer with Send to the customer, the
+quote's primary action while it is open: who it goes to (the lead's
+person, or the customer's decision maker) and the language they read,
+and for a party without a school its school's name and portal address,
+checked free. The email carries a link of their own, standing until the
+quote's last day; sending again ends the link before. The page it
+opens, outside the console, shows the quote as printed, the school, and
+asks for the organisation's legal details (a customer already on record
+keeps its own), who accepts, the school's first administrator, and one
+box accepting the quote with the agreements in force. Accepting records
+the quote accepted with who signed, both agreements accepted the same
+way, the customer from its lead, the lead won, and the school's draft
+complete; the school is then created at once and its administrator
+emailed a link to sign in, and the signer is sent a copy. A school that
+cannot be created stays complete in New school and is on support's
+day. Mark as sent and Record acceptance (the signed copy or purchase
+order) stay in the menu for a quote that went out on paper.
 
 Credit it opens the credit note as a page at the form width (Stripe's,
 Chargebee's and Recurly's credit notes all start from the invoice): the
@@ -415,6 +448,15 @@ own (Stripe's Business details and Tax settings).
   empty state: every customer is charged none until a rate is set. The
   add sheet picks the country by name, and a rate that already starts on
   that day is refused on the From field.
+- **Agreements**, a card holding one table of every version of the
+  terms of service and the data processing agreement published: each
+  opens its public text at `/legal/<agreement>/<version>`; from (the day
+  it takes effect) and whether it is in force, takes effect later or was
+  replaced. Publish a version is the table's action: the agreement, its
+  version, the day it takes effect, its words in English and optionally
+  Arabic as Markdown, and why. A version is never changed: a change is a
+  new version, which customers are then asked to accept. Until both are
+  published, no quote is sent for acceptance and no customer asked.
 - **History**, a card holding the audit log of these settings: the first
   save of the legal details, each later save with the fields it changed,
   each rate added, why, by whom and when. Every save asks why; this is

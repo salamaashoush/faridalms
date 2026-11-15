@@ -6,6 +6,7 @@ import {
   listOperators,
   setOperator,
 } from "@faridalms/database/business/operators";
+import { CUSTOMER_LINK_ACTOR } from "@faridalms/domain/agreements";
 import {
   mayOperate,
   OPERATOR_ROLES,
@@ -30,6 +31,7 @@ export async function operatorNames(
     [PAYMOB_OPERATOR.id]: PAYMOB_OPERATOR.name,
     "intake:demo_form": "The product site",
     "intake:module_interest": "A school's administrator",
+    [CUSTOMER_LINK_ACTOR]: "The customer, through its link",
     ...Object.fromEntries(rows.map((row) => [row.id, row.name])),
   };
 }

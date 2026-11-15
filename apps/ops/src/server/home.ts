@@ -1,10 +1,12 @@
 import type { Currency } from "@faridalms/domain/subscriptions";
 
+import { openDrafts } from "@faridalms/database/business/drafts";
 import { owedInvoices } from "@faridalms/database/business/dunning";
 import { listInvoices } from "@faridalms/database/business/invoices";
 import { dueNextSteps } from "@faridalms/database/business/leads";
 import { listOpenSubscriptions } from "@faridalms/database/business/subscriptions";
 import { listTasks } from "@faridalms/database/business/tasks";
+import { CUSTOMER_LINK_ACTOR } from "@faridalms/domain/agreements";
 import { mayOperate } from "@faridalms/domain/operators";
 import { addDays } from "@faridalms/domain/school";
 import { businessToday } from "@faridalms/domain/subscriptions";
@@ -46,7 +48,7 @@ export const getHome = createServerFn({ method: "GET" }).handler(async () => {
   const schools = (await directory().schools()).filter((school) =>
     SERVED.has(school.tenantState),
   );
-  const [health, tasks, steps, owed, drafts, open] = await Promise.all([
+  const [health, tasks, steps, owed, drafts, open, setUps] = await Promise.all([
     schoolHealth(
       { directory: directory(), business },
       schools,
@@ -62,6 +64,7 @@ export const getHome = createServerFn({ method: "GET" }).handler(async () => {
     business && may("readSubscriptions")
       ? listOpenSubscriptions(business)
       : null,
+    business && may("tenants") ? openDrafts(business) : null,
   ]);
   const rows = schools.flatMap((school) => {
     const held = health.get(school.id);
@@ -116,6 +119,22 @@ export const getHome = createServerFn({ method: "GET" }).handler(async () => {
     steps: (steps ?? []).filter(
       (lead) => lead.ownerId === me || lead.ownerId === null,
     ),
+    /**
+     * Schools a customer's acceptance should have created and could not,
+     * left complete in New school for someone to finish.
+     */
+    stalledSetUps: (setUps ?? [])
+      .map(({ draft }) => draft)
+      .filter((draft) => draft.createdBy === CUSTOMER_LINK_ACTOR)
+      .map((draft) => ({
+        id: draft.id,
+        name:
+          draft.spec.tenant.schools[0]?.nameEn ??
+          draft.spec.tenant.schools[0]?.nameAr ??
+          draft.spec.tenant.schools[0]?.slug ??
+          "A school",
+        since: draft.createdAt,
+      })),
     drafts: drafts
       ? {
           count: drafts.length,

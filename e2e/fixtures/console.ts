@@ -140,11 +140,7 @@ export async function createSchool(
     .fill(`salama@${school.slug}.example.com`);
   await people.getByRole("button", { name: "Save and continue" }).click();
 
-  await page.getByRole("button", { name: "Record acceptance" }).click();
-  const agreements = page.getByRole("form", { name: "Record an acceptance" });
-  await choose(agreements, "Agreement", "Data processing agreement");
-  await agreements.getByLabel("Version accepted").fill("2026-11");
-  await agreements.getByRole("button", { name: "Record acceptance" }).click();
+  await recordSignedCopy(page);
   await page.getByRole("button", { name: "Create the school" }).click();
   await expect(
     page.getByRole("heading", { name: `${school.nameEn} created` }),
@@ -152,6 +148,64 @@ export async function createSchool(
   await page.getByRole("link", { name: "Open the school" }).click();
   await expect(page).toHaveURL(/\/schools\/[0-9a-f-]{36}$/);
   return new URL(page.url()).pathname.split("/").at(-1) ?? "";
+}
+
+/** The version of each agreement the owner publishes before any spec runs. */
+export const AGREEMENT_VERSION = "e2e-1";
+
+/**
+ * Publishes the terms and the data processing agreement, as the owner does
+ * before the first quote is sent or school created.
+ */
+export async function publishAgreements(page: Page) {
+  await page.goto("/settings");
+  await hydrated(page.getByRole("form", { name: "Legal details" }));
+  const section = page.getByRole("table", { name: "Agreements" });
+  for (const [label, words] of [
+    ["Terms of service", "# Terms of service\n\nThe school uses the service."],
+    [
+      "Data processing agreement",
+      "# Data processing agreement\n\nWe process the school's data for it.",
+    ],
+  ] as const) {
+    await page
+      .getByRole("button", { name: "Publish a version" })
+      .first()
+      .click();
+    const form = page.getByRole("form", { name: "Publish a version" });
+    await choose(form, "Agreement", label);
+    await form.getByLabel("Version").fill(AGREEMENT_VERSION);
+    await form.getByLabel("Takes effect").fill("2026-01-01");
+    await form.getByLabel("Words in English").fill(words);
+    await form.getByLabel("Why").fill("Reviewed by counsel");
+    await form.getByRole("button", { name: "Publish" }).click();
+    await expect(
+      page.getByText(`${label} ${AGREEMENT_VERSION} published.`),
+    ).toBeVisible();
+  }
+  await expect(section.getByText("In force")).toHaveCount(2);
+}
+
+/**
+ * Records the data processing agreement in force as signed on paper, from
+ * a page that shows the customer's agreements.
+ */
+export async function recordSignedCopy(scope: Page | Locator) {
+  const page = "page" in scope ? scope.page() : scope;
+  await scope
+    .getByRole("button", { name: "Record a signed copy" })
+    .first()
+    .click();
+  const form = page.getByRole("form", { name: "Record a signed copy" });
+  await choose(form, "Agreement", "Data processing agreement");
+  await form.getByLabel("Signed by").fill("Salama Ashoush");
+  await form.getByLabel("Signed copy").setInputFiles({
+    name: "dpa-signed.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4\n% signed\n"),
+  });
+  await form.getByRole("button", { name: "Record acceptance" }).click();
+  await expect(page.getByText("Acceptance recorded.")).toBeVisible();
 }
 
 /**

@@ -1,4 +1,8 @@
-import type { DraftSpec } from "@faridalms/domain/provisioning-draft";
+import type { Offer } from "@faridalms/domain/agreements";
+import type {
+  DraftSpec,
+  DraftStep,
+} from "@faridalms/domain/provisioning-draft";
 import type {
   QuoteLine,
   QuoteSpec,
@@ -10,6 +14,7 @@ import { and, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 
 import type { BusinessDb } from "./client";
 
+import { insertAcceptance } from "./agreements";
 import { insertContact, insertCustomer } from "./customers";
 import { insertDraft } from "./drafts";
 import { recordEvent } from "./events";
@@ -37,6 +42,10 @@ const summary = {
   acceptedBy: quotes.acceptedBy,
   attachmentName: quotes.attachmentName,
   attachmentType: quotes.attachmentType,
+  offer: quotes.offer,
+  signerName: quotes.signerName,
+  signerTitle: quotes.signerTitle,
+  signerEmail: quotes.signerEmail,
   draftId: quotes.draftId,
   createdBy: quotes.createdBy,
   createdAt: quotes.createdAt,
@@ -277,39 +286,78 @@ export async function reviseQuote(
   });
 }
 
+/**
+ * Marks a quote sent: by hand, or as an offer emailed with its link, kept
+ * with who it went to and the school its acceptance sets up. An offer may
+ * be sent again while the quote is open, to the same or another person.
+ */
 export async function markQuoteSent(
   db: BusinessDb,
-  input: { id: string; by: string },
+  input: { id: string; by: string; offer: Offer | null },
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const [sent] = await tx
       .update(quotes)
-      .set({ state: "sent", sentAt: new Date() })
-      .where(and(eq(quotes.id, input.id), eq(quotes.state, "draft")))
+      .set({
+        state: "sent",
+        sentAt: sql`coalesce(${quotes.sentAt}, statement_timestamp())`,
+        ...(input.offer ? { offer: input.offer } : {}),
+      })
+      .where(
+        and(
+          eq(quotes.id, input.id),
+          input.offer
+            ? inArray(quotes.state, ["draft", "sent"])
+            : eq(quotes.state, "draft"),
+        ),
+      )
       .returning({ id: quotes.id });
-    if (!sent) throw new QuoteError("not_draft");
+    if (!sent) throw new QuoteError(input.offer ? "not_open" : "not_draft");
     await recordEvent(tx, {
       operatorId: input.by,
-      action: "quote.send",
+      action: input.offer ? "quote.offer" : "quote.send",
       subjectType: "quote",
       subjectId: input.id,
+      after: input.offer
+        ? { to: input.offer.to.email, school: input.offer.school?.slug ?? null }
+        : undefined,
     });
   });
 }
 
+/** How a quote's acceptance is proved: a signed copy, or its link's signer. */
+export type QuoteEvidence =
+  | {
+      kind: "paper";
+      attachment: { name: string; type: string; bytes: Uint8Array };
+    }
+  | {
+      kind: "link";
+      signer: { name: string; title: string | null; email: string };
+      ip: string | null;
+      userAgent: string | null;
+      /** The agreement versions accepted with it. */
+      agreementVersionIds: string[];
+    };
+
 /**
- * Records a quote accepted, with the signed copy or purchase order, in one
- * transaction: the customer it is for, created from its lead if it has
- * none, the lead won, every other version superseded, and the school's
- * draft begun from it. Answers the customer and the draft.
+ * Records a quote accepted in one transaction: with the signed copy or
+ * purchase order, or through its link with who signed and the agreements
+ * they accepted with it; the customer it is for, created from its lead if
+ * it has none, the lead won, every other version superseded, and the
+ * school's draft begun from it. Answers the customer and the draft.
  */
 export async function acceptQuote(
   db: BusinessDb,
   input: {
     id: string;
-    attachment: { name: string; type: string; bytes: Uint8Array };
+    evidence: QuoteEvidence;
     newCustomer: {
       legalNameEn: string;
+      legalNameAr: string | null;
+      taxNumber: string | null;
+      commercialRegistry: string | null;
+      address: string | null;
       country: string;
       /** The lead's person, where it gave an email or a phone to reach them. */
       contact: {
@@ -321,6 +369,8 @@ export async function acceptQuote(
       } | null;
     } | null;
     draft: (customerId: string) => DraftSpec;
+    /** Where the draft opens: its schools step, or its review once complete. */
+    draftStep: DraftStep;
     by: string;
   },
 ): Promise<{ customerId: string; draftId: string }> {
@@ -350,10 +400,10 @@ export async function acceptQuote(
         : [];
       customerId = await insertCustomer(tx, {
         legalNameEn: input.newCustomer.legalNameEn,
-        legalNameAr: null,
-        taxNumber: null,
-        commercialRegistry: null,
-        address: null,
+        legalNameAr: input.newCustomer.legalNameAr,
+        taxNumber: input.newCustomer.taxNumber,
+        commercialRegistry: input.newCustomer.commercialRegistry,
+        address: input.newCustomer.address,
         country: input.newCustomer.country,
         currency: held.currency,
         tenantId: null,
@@ -368,10 +418,23 @@ export async function acceptQuote(
           by: input.by,
         });
     }
+    const { evidence } = input;
+    if (evidence.kind === "link")
+      for (const versionId of evidence.agreementVersionIds)
+        await insertAcceptance(tx, {
+          customerId,
+          versionId,
+          method: "link",
+          signer: evidence.signer,
+          ip: evidence.ip,
+          userAgent: evidence.userAgent,
+          attachment: null,
+          recordedBy: null,
+        });
     const draftId = await insertDraft(tx, {
       spec: input.draft(customerId),
       customerId,
-      step: "schools",
+      step: input.draftStep,
       by: input.by,
     });
     await tx
@@ -386,9 +449,19 @@ export async function acceptQuote(
         acceptedAt: new Date(),
         acceptedBy: input.by,
         sentAt: sql`coalesce(${quotes.sentAt}, statement_timestamp())`,
-        attachmentName: input.attachment.name,
-        attachmentType: input.attachment.type,
-        attachment: Buffer.from(input.attachment.bytes),
+        ...(evidence.kind === "paper"
+          ? {
+              attachmentName: evidence.attachment.name,
+              attachmentType: evidence.attachment.type,
+              attachment: Buffer.from(evidence.attachment.bytes),
+            }
+          : {
+              signerName: evidence.signer.name,
+              signerTitle: evidence.signer.title,
+              signerEmail: evidence.signer.email,
+              signerIp: evidence.ip,
+              signerAgent: evidence.userAgent,
+            }),
         draftId,
       })
       .where(eq(quotes.id, input.id));
@@ -410,7 +483,13 @@ export async function acceptQuote(
       action: "quote.accept",
       subjectType: "quote",
       subjectId: input.id,
-      after: { number: held.number, customerId, draftId },
+      after: {
+        number: held.number,
+        customerId,
+        draftId,
+        method: evidence.kind,
+        ...(evidence.kind === "link" ? { signer: evidence.signer.name } : {}),
+      },
     });
     return { customerId, draftId };
   });

@@ -209,36 +209,6 @@ export async function setAccountOwner(
   });
 }
 
-/** Records the version of the terms or the data processing agreement a customer accepted. */
-export async function acceptAgreement(
-  db: BusinessDb,
-  input: {
-    customerId: string;
-    agreement: "terms" | "dpa";
-    version: string;
-    by: string;
-  },
-): Promise<void> {
-  await db.transaction(async (tx) => {
-    const now = new Date();
-    await tx
-      .update(customers)
-      .set(
-        input.agreement === "terms"
-          ? { termsVersion: input.version, termsAcceptedAt: now }
-          : { dpaVersion: input.version, dpaAcceptedAt: now },
-      )
-      .where(eq(customers.id, input.customerId));
-    await recordEvent(tx, {
-      operatorId: input.by,
-      action: input.agreement === "terms" ? "customer.terms" : "customer.dpa",
-      subjectType: "customer",
-      subjectId: input.customerId,
-      after: { version: input.version, acceptedAt: now.toISOString() },
-    });
-  });
-}
-
 /** Writes a new contact of a customer in the caller's transaction, and logs it. */
 export async function insertContact(
   tx: BusinessTx,

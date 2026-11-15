@@ -349,6 +349,7 @@ services:
       PORTAL_DOMAIN: *portal-domain
       SITES_DOMAIN: *sites-domain
       EDGE_IPV4: ${EDGE_IPV4:-}
+      TRUSTED_PROXY_HOPS: 1
     networks: [front, data, provision, intake]
     depends_on:
       migrate:

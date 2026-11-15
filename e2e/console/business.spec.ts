@@ -6,12 +6,15 @@ import { expect, test } from "@playwright/test";
 
 import {
   addPlan,
+  AGREEMENT_VERSION,
+  businessDetails,
   choose,
   createSchool,
   FINANCE,
   hydrated,
   OWNER,
   recordHeader,
+  recordSignedCopy,
   signInAs,
   unique,
 } from "../fixtures/console";
@@ -122,6 +125,8 @@ test("a customer keeps its contacts, agreements and history", async ({
   page,
 }) => {
   await signInAs(page, OWNER);
+  // The emails asking for acceptance are sent in the business's name.
+  await businessDetails(page);
   await page.getByRole("link", { name: "Customers" }).click();
   await page.getByRole("button", { name: "New customer" }).click();
   const name = `Oakfield Schools ${unique()}`;
@@ -146,15 +151,52 @@ test("a customer keeps its contacts, agreements and history", async ({
   ).toBeVisible();
 
   await page.getByRole("tab", { name: "About" }).click();
+  await recordSignedCopy(page.getByRole("region", { name: "Agreements" }));
+  await expect(
+    page.getByText(new RegExp(`^Version ${AGREEMENT_VERSION}, accepted`)),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Signed by Salama Ashoush, recorded from the signed copy"),
+  ).toBeVisible();
+
+  // The terms are still to accept: the contact accepts them through a link.
   await page
     .getByRole("region", { name: "Agreements" })
-    .getByRole("button", { name: "Record acceptance" })
+    .getByRole("button", { name: "Send for acceptance" })
     .click();
-  const agreements = page.getByRole("form", { name: "Record an acceptance" });
-  await choose(agreements, "Agreement", "Data processing agreement");
-  await agreements.getByLabel("Version accepted").fill("2026-11");
-  await agreements.getByRole("button", { name: "Record acceptance" }).click();
-  await expect(page.getByText(/^Version 2026-11, accepted/)).toBeVisible();
+  const sending = page.getByRole("form", { name: "Send for acceptance" });
+  await expect(
+    sending.getByRole("checkbox", { name: /Salama Ashoush/ }),
+  ).toBeChecked();
+  await sending.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByText(/^Sent\./)).toBeVisible();
+  const request = await sentTo("salama@oakfield.example.com", "/agree/");
+  const link = /(https?:\/\/\S+\/agree\/\S+)/.exec(request?.text ?? "")?.[1];
+  const visitor = await page.context().browser()?.newContext();
+  const contactPage = await visitor?.newPage();
+  if (!visitor || !contactPage || !link) throw new Error("no link");
+  await contactPage.goto(link);
+  await expect(
+    contactPage.getByRole("heading", { name: "Accept our agreements" }),
+  ).toBeVisible();
+  await expect(
+    contactPage.getByText(/^Terms of service, version/),
+  ).toBeVisible();
+  const accept = contactPage.getByRole("form", {
+    name: "Accept our agreements",
+  });
+  await hydrated(accept);
+  await accept.getByLabel("Your title").fill("Head of finance");
+  await accept.getByRole("checkbox", { name: /^I have read them/ }).check();
+  await accept.getByRole("button", { name: "Accept" }).click();
+  await expect(
+    contactPage.getByRole("heading", { name: "Thank you" }),
+  ).toBeVisible();
+  await visitor.close();
+  await page.reload();
+  await expect(
+    page.getByText("By Salama Ashoush, through their link"),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "Edit legal details" }).click();
   const details = page.getByRole("form", { name: "Edit legal details" });
@@ -447,11 +489,7 @@ test("a group set up as a draft is left, resumed, and finished after a refusal",
   // No school is created before the customer accepts the data processing agreement.
   const create = page.getByRole("button", { name: "Create the school" });
   await expect(create).toBeDisabled();
-  await page.getByRole("button", { name: "Record acceptance" }).click();
-  const agreements = page.getByRole("form", { name: "Record an acceptance" });
-  await choose(agreements, "Agreement", "Data processing agreement");
-  await agreements.getByLabel("Version accepted").fill("2026-11");
-  await agreements.getByRole("button", { name: "Record acceptance" }).click();
+  await recordSignedCopy(page);
   await create.click();
   await expect(page.getByRole("alert")).toContainText(
     `Another school holds ${taken}.`,

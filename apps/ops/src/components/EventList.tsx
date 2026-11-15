@@ -45,6 +45,8 @@ const ACTIONS: Record<string, string> = {
   "task.done": "Task done",
   "business.profile": "Legal details changed",
   "tax_rate.create": "VAT rate added",
+  "agreement.publish": "Agreement version published",
+  "quote.offer": "Sent with its link",
   "plan.version": "Version added",
   "plan.retire": "Version retired",
   "add_on.version": "Version added",

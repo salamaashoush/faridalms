@@ -1,5 +1,4 @@
 import {
-  acceptAgreement,
   customerById,
   listCustomers,
   removeContact,
@@ -24,6 +23,7 @@ import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
 import { requireArea } from "./access";
+import { agreementStateOf } from "./agreement-state";
 import { requireBusiness } from "./business";
 import { directoryAdmin } from "./directory-admin";
 import { schoolHealth } from "./health";
@@ -104,13 +104,15 @@ export const getCustomer = createServerFn({ method: "GET" })
     await requireArea("customers");
     const db = requireBusiness();
     const today = businessToday();
-    const [found, history, names, owners, tasks] = await Promise.all([
-      customerById(db, data.id),
-      eventsOf(db, "customer", data.id),
-      operatorNames(db),
-      operatorsWhoMay(db, "customers"),
-      listTasks(db, { customerId: data.id }),
-    ]);
+    const [found, history, names, owners, tasks, agreements] =
+      await Promise.all([
+        customerById(db, data.id),
+        eventsOf(db, "customer", data.id),
+        operatorNames(db),
+        operatorsWhoMay(db, "customers"),
+        listTasks(db, { customerId: data.id }),
+        agreementStateOf(db, data.id),
+      ]);
     if (!found) throw new Error("NOT_FOUND");
     const tenantId = found.customer.tenantId;
     const directory = directoryAdmin();
@@ -150,6 +152,7 @@ export const getCustomer = createServerFn({ method: "GET" })
       names,
       owners,
       tasks,
+      agreements,
       today,
     };
   });
@@ -176,23 +179,6 @@ export const saveCustomerDetails = createServerFn({ method: "POST" })
           };
     },
   );
-
-const agreementSchema = v.object({
-  customerId: uuid,
-  agreement: v.picklist(["terms", "dpa"]),
-  version: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(40)),
-});
-
-/** Records the version of the terms or data processing agreement a customer accepted. */
-export const recordAgreement = createServerFn({ method: "POST" })
-  .validator((input: v.InferInput<typeof agreementSchema>) =>
-    v.parse(agreementSchema, input),
-  )
-  .handler(async ({ data }) => {
-    const { operator } = await requireArea("customers");
-    await acceptAgreement(requireBusiness(), { ...data, by: operator.id });
-    return { ok: true };
-  });
 
 export const saveCustomerContact = createServerFn({ method: "POST" })
   .validator((input: v.InferInput<typeof contactSchema>) =>
