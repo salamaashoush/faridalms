@@ -25,6 +25,8 @@ import {
 } from "./hosts";
 import {
   cells,
+  changes,
+  formerSlugs,
   hosts,
   loginIndex,
   moduleOffers,
@@ -170,6 +172,24 @@ export function openDirectory(url: string, ttlMs = 60_000) {
       cached(`slug:${slug}`, async () => {
         const [row] = await select().where(
           and(eq(schools.slug, slug), eq(schools.placement, "cell")),
+        );
+        return row ? schoolOf(row) : null;
+      }),
+    /**
+     * The school a former portal address now belongs to, while that
+     * address still sends its visitors on.
+     */
+    byFormerSlug: (slug: string) =>
+      cached(`former:${slug}`, async () => {
+        const [former] = await db
+          .select({ schoolId: formerSlugs.schoolId })
+          .from(formerSlugs)
+          .where(
+            and(eq(formerSlugs.slug, slug), sql`${formerSlugs.until} > now()`),
+          );
+        if (!former) return null;
+        const [row] = await select().where(
+          and(eq(schools.id, former.schoolId), eq(schools.placement, "cell")),
         );
         return row ? schoolOf(row) : null;
       }),
@@ -343,6 +363,49 @@ export function openDirectorySync(url: string, actor: HostActor) {
       record: (input: Omit<Parameters<typeof recordCheck>[1], "actor">) =>
         recordCheck(db, { ...input, actor }),
     },
+    /**
+     * Copies a school's names as its settings now hold them, and a
+     * standalone school's to its tenant, so the console and the school
+     * finder show what the school calls itself.
+     */
+    schoolNames: (input: {
+      schoolId: string;
+      tenantId: string;
+      nameEn: string | null;
+      nameAr: string | null;
+      reason: string;
+    }) =>
+      db.transaction(async (tx) => {
+        const names = { nameEn: input.nameEn, nameAr: input.nameAr };
+        const [before] = await tx
+          .select({ nameEn: schools.nameEn, nameAr: schools.nameAr })
+          .from(schools)
+          .where(eq(schools.id, input.schoolId));
+        if (
+          !before ||
+          (before.nameEn === names.nameEn && before.nameAr === names.nameAr)
+        )
+          return;
+        await tx
+          .update(schools)
+          .set({ ...names, updatedAt: new Date() })
+          .where(eq(schools.id, input.schoolId));
+        await tx
+          .update(tenants)
+          .set({ ...names, updatedAt: new Date() })
+          .where(
+            and(eq(tenants.id, input.tenantId), eq(tenants.kind, "school")),
+          );
+        await tx.insert(changes).values({
+          actor,
+          subjectType: "school",
+          subjectId: input.schoolId,
+          action: "school.rename",
+          before,
+          after: names,
+          reason: input.reason,
+        });
+      }),
     /**
      * Makes the directory's keyed sign-in names for a tenant exactly the
      * ones given, in one transaction, so a lookup never sees half of them.

@@ -9779,6 +9779,8 @@
   "auditClassYoung": "حدّد صفًا للأطفال الصغار",
   "auditClassNotYoung": "ألغى تحديد صف للأطفال الصغار",
   "auditSchoolUpdate": "عُدّلت بيانات المدرسة",
+  "auditSchoolRename": "غُيّر اسم المدرسة",
+  "auditSchoolMove": "نُقلت المدرسة إلى عنوان آخر",
   "auditSessionChildStart": "بدأت جلسة الطفل",
   "auditSessionContextSwitch": "تغيّرت مساحة العمل",
   "auditSharedBlockRemove": "حُذفت كتلة مشتركة",

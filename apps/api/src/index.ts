@@ -176,6 +176,7 @@ const server = Bun.serve({
     domains,
     edgeAddress,
     hosts,
+    schoolNames: directorySync?.schoolNames ?? null,
     logins,
     trustedProxyHops: env.TRUSTED_PROXY_HOPS,
     ...stores,

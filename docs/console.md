@@ -93,10 +93,22 @@ Support opens it when a school struggles or is new.
 
 | Place   | Content                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Header  | name; access as status; facts: Arabic name, portal address, customer (linked). Menu: Change access, Send the administrator a new link, Edit limits and modules (only where no subscription sets them)                                                                                                                                                                                                      |
+| Header  | name; access as status; facts: Arabic name, portal address, customer (linked). Menu: Change access, Send the administrator a new link, Rename, Change portal address, Add host, Edit limits and modules (only where no subscription sets them)                                                                                                                                                             |
 | Figures | Signed in this week, Students against the limit, Storage against the pool, Onboarding steps taken                                                                                                                                                                                                                                                                                                          |
 | To do   | each health reason with what to do (Send a new sign-in link, Open its invoices, Open onboarding, Open addresses), a cell that has not finished creating it, an address waiting for its DNS records, a trial ending                                                                                                                                                                                         |
 | Tabs    | About (school, account with its plan and access explained, where its data lives), Onboarding (steps by phase), Limits (use against limits, allowances), Modules (each with what it gives, status, who turns it on; Give or Take away in the row where a subscription sets them; facet), Addresses (web addresses, then the DNS records any waits for), Sign-in domains (only with single sign-on), History |
+
+Rename, also the School list's action on About, changes the school's
+names in its portal and in the directory at once; its administrators may
+rename it in the school's settings too, which reaches the directory the
+same way. Change portal address, also Change beside Portal, moves the
+school to another address, and its website with it: the sheet names the
+new platform names, says that the old ones send visitors on for 90 days
+before another school may take them, that everyone signs in again, and,
+where the school has hosts of its own, that their DNS records must name
+the new address. About lists each former address under Portal with the
+day it stops. The platform names on Addresses follow the address and are
+never removed on their own.
 
 ### Subscription
 

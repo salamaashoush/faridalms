@@ -11,7 +11,11 @@ import type { UsageItem } from "@faridalms/ui/system/usage-list";
 
 import { MODULE_IDS, MODULES } from "@faridalms/domain/modules";
 import { availableModules, SCHOOL_NOTICES } from "@faridalms/domain/plans";
-import { SCHOOL_STANDINGS, standingOf } from "@faridalms/domain/provisioning";
+import {
+  FORMER_ADDRESS_DAYS,
+  SCHOOL_STANDINGS,
+  standingOf,
+} from "@faridalms/domain/provisioning";
 import { daysBetween } from "@faridalms/domain/school";
 import { LIMIT_KEYS, usableModules } from "@faridalms/domain/subscriptions";
 import { Alert, AlertDescription, AlertTitle } from "@faridalms/ui/alert";
@@ -52,6 +56,8 @@ import {
   CircleMinus,
   CirclePlus,
   Globe,
+  Link2,
+  PenLine,
   Pencil,
   Repeat,
   Send,
@@ -104,6 +110,8 @@ import {
   getSchool,
   resendInvite,
   saveEntitlements,
+  moveSchool,
+  renameSchool,
   setSchoolLifecycle,
 } from "../server/directory";
 import { switchSchoolModule } from "../server/subscriptions";
@@ -183,6 +191,8 @@ function SchoolPage() {
       ? (module: ModuleId) => startSwitch(module)
       : null;
   const changeAccess = useFreshAction("access", () => changingAccess.show());
+  const renaming = useSheet();
+  const moving = useSheet();
   const editLimits = useFreshAction("limits", () => editing.show());
   const modules = availableModules(school.entitlements);
   const signIn = modules.includes("sso");
@@ -273,7 +283,15 @@ function SchoolPage() {
               ]
             : []),
           ...(mayChange
-            ? [{ label: "Add host", icon: Globe, onSelect: addingHost.show }]
+            ? [
+                { label: "Rename", icon: PenLine, onSelect: renaming.show },
+                {
+                  label: "Change portal address",
+                  icon: Link2,
+                  onSelect: moving.show,
+                },
+                { label: "Add host", icon: Globe, onSelect: addingHost.show },
+              ]
             : []),
           ...(sold === null && mayChange
             ? [
@@ -296,7 +314,12 @@ function SchoolPage() {
           onChange={go}
         >
           {shown === "about" ? (
-            <AboutTab data={data} standing={standing} />
+            <AboutTab
+              data={data}
+              standing={standing}
+              onRename={mayChange ? renaming.show : null}
+              onMove={mayChange ? moving.show : null}
+            />
           ) : shown === "onboarding" ? (
             health ? (
               <OnboardingSteps
@@ -350,6 +373,22 @@ function SchoolPage() {
           open={sending.open}
           onOpenChange={sending.onOpenChange}
         />
+      ) : null}
+      {mayChange ? (
+        <>
+          <RenameSchoolSheet
+            key={`rename-${renaming.key}`}
+            school={school}
+            open={renaming.open}
+            onOpenChange={renaming.onOpenChange}
+          />
+          <MoveSchoolSheet
+            key={`move-${moving.key}`}
+            data={data}
+            open={moving.open}
+            onOpenChange={moving.onOpenChange}
+          />
+        </>
       ) : null}
       {mayChange ? (
         <AddHostSheet
@@ -614,10 +653,12 @@ const ACCESS_HINT: Record<SchoolStanding, string> = {
 interface AboutTabProps {
   data: Data;
   standing: SchoolStanding | null;
+  onRename: (() => void) | null;
+  onMove: (() => void) | null;
 }
 
 /** Who the school is, who it belongs to and pays for it, and where it lives. */
-function AboutTab({ data, standing }: AboutTabProps) {
+function AboutTab({ data, standing, onRename, onMove }: AboutTabProps) {
   const { school, platform, sold } = data;
   const group = school.tenantKind === "school_group";
   return (
@@ -625,6 +666,14 @@ function AboutTab({ data, standing }: AboutTabProps) {
       <SummaryList
         title="School"
         align="start"
+        action={
+          onRename ? (
+            <Button type="button" variant="ghost" size="sm" onClick={onRename}>
+              <PenLine aria-hidden />
+              Rename
+            </Button>
+          ) : undefined
+        }
         items={[
           {
             id: "nameEn",
@@ -645,7 +694,25 @@ function AboutTab({ data, standing }: AboutTabProps) {
           {
             id: "portal",
             label: "Portal",
-            value: <span dir="ltr">{platform.portal}</span>,
+            value: (
+              <span className="grid gap-0.5">
+                <span dir="ltr">{platform.portal}</span>
+                {data.formerAddresses.map((former) => (
+                  <span
+                    key={former.portal}
+                    className="text-[13px] leading-[18px] text-muted-foreground"
+                  >
+                    <span dir="ltr">{former.portal}</span> sends visitors here
+                    until {formatDay(former.until.toISOString().slice(0, 10))}
+                  </span>
+                ))}
+              </span>
+            ),
+            action: onMove ? (
+              <Button type="button" variant="ghost" size="sm" onClick={onMove}>
+                Change
+              </Button>
+            ) : undefined,
           },
           {
             id: "site",
@@ -1024,6 +1091,191 @@ function ModulesTab({ data, view, onView, onEdit, onSwitch }: ModulesTabProps) {
       actions={<SetBy data={data} onEdit={onEdit} />}
       empty={{ icon: Blocks, title: "No modules" }}
     />
+  );
+}
+
+interface RenameSchoolSheetProps {
+  school: School;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+/** Renames the school in its portal, the directory and the console. */
+function RenameSchoolSheet({
+  school,
+  open,
+  onOpenChange,
+}: RenameSchoolSheetProps) {
+  const router = useRouter();
+  const save = useServerFn(renameSchool);
+  const [nameEn, setNameEn] = useState(school.nameEn ?? "");
+  const [nameAr, setNameAr] = useState(school.nameAr ?? "");
+  const [reason, setReason] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const unnamed = submitted && !nameEn.trim() && !nameAr.trim();
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Rename the school"
+      submitLabel="Rename"
+      pending={pending}
+      error={error}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if ((!nameEn.trim() && !nameAr.trim()) || !reason.trim()) return;
+        setPending(true);
+        setError(null);
+        const failed = await attempt(
+          () =>
+            save({
+              data: {
+                schoolId: school.id,
+                nameEn: nameEn || null,
+                nameAr: nameAr || null,
+                reason,
+              },
+            }),
+          "The school could not be renamed.",
+        );
+        setPending(false);
+        if (failed) {
+          setError(failed);
+          return;
+        }
+        toast.success("Renamed.");
+        onOpenChange(false);
+        await router.invalidate();
+      }}
+    >
+      <p className="text-sm leading-5 text-muted-foreground">
+        The school shows the new name everywhere at once. Its administrators can
+        also rename it in the school's settings.
+      </p>
+      <TextField
+        label="Name in English"
+        maxLength={160}
+        value={nameEn}
+        onChange={(event) => setNameEn(event.target.value)}
+        errors={
+          unnamed ? ["Give the school a name in English or Arabic."] : undefined
+        }
+      />
+      <TextField
+        label="Name in Arabic"
+        dir="rtl"
+        lang="ar"
+        maxLength={160}
+        value={nameAr}
+        onChange={(event) => setNameAr(event.target.value)}
+      />
+      <WhyField value={reason} onChange={setReason} submitted={submitted} />
+    </SheetForm>
+  );
+}
+
+interface MoveSchoolSheetProps {
+  data: Data;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+/**
+ * Moves the school to another portal address. Its website moves with it,
+ * the old address sends visitors on for a while, and everyone signs in
+ * again at the new one.
+ */
+function MoveSchoolSheet({ data, open, onOpenChange }: MoveSchoolSheetProps) {
+  const router = useRouter();
+  const move = useServerFn(moveSchool);
+  const { school, platform, hosts } = data;
+  const [slug, setSlug] = useState(school.slug);
+  const [reason, setReason] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [slugIssue, setSlugIssue] = useState<string | null>(null);
+  const wanted = slug.trim().toLowerCase();
+  const portalDomain = data.domains.portal;
+  const siteDomain = data.domains.sites;
+  const unchanged = wanted === school.slug;
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Change the portal address"
+      submitLabel="Change address"
+      pending={pending}
+      error={error}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if (!wanted || unchanged || !reason.trim()) return;
+        setPending(true);
+        setError(null);
+        setSlugIssue(null);
+        const out = await attemptWith(
+          () => move({ data: { schoolId: school.id, slug: wanted, reason } }),
+          "The address could not be changed.",
+        );
+        setPending(false);
+        if (!out.ok) {
+          if (out.field === "slug") setSlugIssue(out.message);
+          else setError(out.message);
+          return;
+        }
+        toast.success(`The school is at ${wanted}.${portalDomain} now.`);
+        onOpenChange(false);
+        await router.invalidate();
+      }}
+    >
+      <TextField
+        label="Address"
+        dir="ltr"
+        maxLength={64}
+        value={slug}
+        hint={`${wanted || "address"}.${portalDomain} and ${wanted || "address"}.${siteDomain}`}
+        onChange={(event) => {
+          setSlugIssue(null);
+          setSlug(event.target.value);
+        }}
+        errors={
+          slugIssue
+            ? [slugIssue]
+            : submitted && !wanted
+              ? ["Give the new address."]
+              : submitted && unchanged
+                ? ["That is the address it has."]
+                : undefined
+        }
+      />
+      <SummaryList
+        items={[
+          {
+            id: "old",
+            label: "Its address now",
+            value: `${platform.portal} and ${platform.site} send visitors to the new address for ${FORMER_ADDRESS_DAYS} days, then another school may take it.`,
+          },
+          {
+            id: "people",
+            label: "Its people",
+            value:
+              "Everyone signs in again at the new address. Sign-in links already emailed open the old one, which sends them on.",
+          },
+          ...(hosts.length
+            ? [
+                {
+                  id: "hosts",
+                  label: "Its own hosts",
+                  value: `Each host's DNS record that names ${platform.portal} or ${platform.site} must name the new address instead.`,
+                },
+              ]
+            : []),
+        ]}
+      />
+      <WhyField value={reason} onChange={setReason} submitted={submitted} />
+    </SheetForm>
   );
 }
 

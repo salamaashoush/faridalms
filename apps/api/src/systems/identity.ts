@@ -590,8 +590,9 @@ export const childSession = sessionProcedure
  * What a host serves, for the web to route a request before anything else:
  * the school, whether it is the school's website or its portal, and the
  * school's own canonical host for that role when the request should be sent
- * there instead. Null for a host that serves nothing, which the web answers
- * with a 404 rather than a guess.
+ * there instead; a former address of the school's is sent to its current
+ * one. Null for a host that serves nothing, which the web answers with a
+ * 404 rather than a guess.
  */
 export const resolveHost = publicProcedure
   .input(v.object({ host: v.pipe(v.string(), v.maxLength(260)) }))
@@ -599,6 +600,20 @@ export const resolveHost = publicProcedure
     const hostname = hostOf(input.host);
     if (!hostname) return null;
     const place = placeOf(hostname, context.domains);
+    if (place.kind === "platform") {
+      // An address the school left sends its visitors to where it is now.
+      const moved = (await context.directory.bySlug(place.slug))
+        ? null
+        : await context.directory.byFormerSlug(place.slug);
+      if (moved)
+        return {
+          slug: moved.slug,
+          role: place.role,
+          redirect:
+            moved.hosts[place.role] ??
+            platformName(moved.slug, place.role, context.domains),
+        };
+    }
     const routed =
       place.kind === "platform"
         ? await context.directory

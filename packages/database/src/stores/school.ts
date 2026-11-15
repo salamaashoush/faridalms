@@ -2,7 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
-import { orgs } from "../tables/tenancy";
+import { orgs, tenants } from "../tables/tenancy";
 
 type Tx = CellTransaction;
 
@@ -82,6 +82,41 @@ export async function updateSchool(
     )
     .returning({ id: orgs.id, version: orgs.version });
   return row ?? null;
+}
+
+/**
+ * Renames a school as the operator console asks, and a standalone school's
+ * tenant with it. Answers false when the tenant holds no such school.
+ */
+export async function renameSchool(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    nameEn: string | null;
+    nameAr: string | null;
+  },
+): Promise<boolean> {
+  const names = { nameEn: input.nameEn, nameAr: input.nameAr };
+  const [row] = await tx
+    .update(orgs)
+    .set(names)
+    .where(
+      and(
+        eq(orgs.tenantId, input.tenantId),
+        eq(orgs.id, input.schoolId),
+        eq(orgs.type, "school"),
+      ),
+    )
+    .returning({ id: orgs.id });
+  if (!row) return false;
+  await tx
+    .update(tenants)
+    .set(names)
+    .where(
+      and(eq(tenants.tenantId, input.tenantId), eq(tenants.kind, "school")),
+    );
+  return true;
 }
 
 /** Turns a feature on or off at one org, overriding what the orgs above say. */

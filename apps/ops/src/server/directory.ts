@@ -5,6 +5,7 @@ import {
   openSubscription,
   soldInForce,
 } from "@faridalms/database/business/subscriptions";
+import { SlugTakenError } from "@faridalms/database/directory/admin";
 import { HostRefusedError } from "@faridalms/database/directory/hosts";
 import {
   addHostSchema,
@@ -16,8 +17,11 @@ import {
 import { onboardingMarkSchema } from "@faridalms/domain/onboarding";
 import { saveEntitlementsSchema } from "@faridalms/domain/plans";
 import {
+  FORMER_ADDRESS_DAYS,
   newSchoolSchema,
   reissueInviteSchema,
+  schoolAddressSchema,
+  schoolNamesSchema,
   setStandingSchema,
 } from "@faridalms/domain/provisioning";
 import { businessToday } from "@faridalms/domain/subscriptions";
@@ -40,7 +44,7 @@ import { directoryAdmin as directory } from "./directory-admin";
 import { opsEnv } from "./env";
 import { schoolHealth } from "./health";
 import { operatorNames } from "./operators";
-import { explain, reissueInvite } from "./provisioner";
+import { explain, reissueInvite, renameSchoolInCell } from "./provisioner";
 import { changeStanding, tellCell } from "./standing";
 
 const byId = v.object({ id: v.pipe(v.string(), v.uuid()) });
@@ -85,9 +89,10 @@ export const getSchool = createServerFn({ method: "GET" })
       actorNames(),
     ]);
     if (!school) throw new Error("NOT_FOUND");
-    const [ssoDomains, tenantChanges] = await Promise.all([
+    const [ssoDomains, tenantChanges, formerAddresses] = await Promise.all([
       directory().ssoDomains(school.tenantId),
       directory().changes({ id: school.tenantId }),
+      directory().formerAddresses(school.id),
     ]);
     const business = businessDb();
     const [subscription, customer] = business
@@ -133,6 +138,11 @@ export const getSchool = createServerFn({ method: "GET" })
         : null,
       plan,
       today: businessToday(),
+      domains,
+      formerAddresses: formerAddresses.map((former) => ({
+        portal: platformName(former.slug, "portal", domains),
+        until: former.until,
+      })),
       platform: {
         site: platformName(school.slug, "site", domains),
         portal: platformName(school.slug, "portal", domains),
@@ -394,6 +404,82 @@ export const setSchoolLifecycle = createServerFn({ method: "POST" })
       const { operator } = await requireArea("lifecycle");
       requireFreshSignIn(operator);
       return changeStanding(operator, data);
+    },
+  );
+
+/**
+ * Renames a school: in its cell, which shows the names in the school, then
+ * in the directory, which routes and lists it.
+ */
+export const renameSchool = createServerFn({ method: "POST" })
+  .validator((input: v.InferInput<typeof schoolNamesSchema>) =>
+    v.parse(schoolNamesSchema, input),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: true } | { ok: false; message: string }> => {
+      const { operator } = await requireArea("tenants");
+      const school = await directory().school(data.schoolId);
+      if (!school) throw new Error("NOT_FOUND");
+      // A tenant still being created takes its names from the directory.
+      if (school.tenantState !== "provisioning") {
+        const answer = await renameSchoolInCell(operator, {
+          tenantId: school.tenantId,
+          schoolId: school.id,
+          nameEn: data.nameEn,
+          nameAr: data.nameAr,
+        });
+        if (!answer.ok) return { ok: false, message: explain(answer) };
+      }
+      await directory().renameSchool({
+        schoolId: school.id,
+        nameEn: data.nameEn,
+        nameAr: data.nameAr,
+        operatorId: operator.id,
+        reason: data.reason,
+      });
+      return { ok: true };
+    },
+  );
+
+/**
+ * Moves a school to another portal address. The address it leaves sends
+ * visitors on for FORMER_ADDRESS_DAYS, and nobody else may take it till then.
+ */
+export const moveSchool = createServerFn({ method: "POST" })
+  .validator((input: v.InferInput<typeof schoolAddressSchema>) =>
+    v.parse(schoolAddressSchema, input),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<
+      { ok: true } | { ok: false; message: string; field?: string }
+    > => {
+      const { operator } = await requireArea("tenants");
+      const until = new Date(
+        Date.now() + FORMER_ADDRESS_DAYS * 24 * 60 * 60 * 1000,
+      );
+      try {
+        const moved = await directory().moveSchool({
+          schoolId: data.schoolId,
+          slug: data.slug,
+          until,
+          operatorId: operator.id,
+          reason: data.reason,
+        });
+        if (!moved) throw new Error("NOT_FOUND");
+      } catch (error) {
+        if (error instanceof SlugTakenError)
+          return {
+            ok: false,
+            field: "slug",
+            message: `Another school has ${data.slug}, or had it lately. Choose another address.`,
+          };
+        throw error;
+      }
+      return { ok: true };
     },
   );
 

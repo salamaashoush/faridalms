@@ -1,0 +1,215 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "dd5853e2-4819-4bbb-b8d3-f5c3ac07ec4b",
+  "prevIds": [
+    "dfd4fc55-dbad-41d2-9e55-2400f45f1284"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "former_slugs"
+      ],
+      "writes": [
+        "s|tbl|public.former_slugs",
+        "n|tbl|public.former_slugs",
+        "e|tbl|public.former_slugs",
+        "n|rel|public.former_slugs",
+        "n|type|public.former_slugs",
+        "n|rel|public.former_slugs_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "former_slugs",
+        "former_slugs_school_idx"
+      ],
+      "writes": [
+        "s|idx|public.former_slugs_school_idx",
+        "n|idx|public.former_slugs_school_idx",
+        "e|idx|public.former_slugs_school_idx",
+        "n|rel|public.former_slugs_school_idx"
+      ],
+      "reads": [
+        "n|tbl|public.former_slugs",
+        "n|sch|public",
+        "n|col|public.former_slugs.school_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "former_slugs"
+      ],
+      "writes": [
+        "s|fk|public.former_slugs.former_slugs_school_id_fkey",
+        "n|fk|public.former_slugs.former_slugs_school_id_fkey",
+        "e|fk|public.former_slugs.former_slugs_school_id_fkey",
+        "n|con|public.former_slugs.former_slugs_school_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.former_slugs",
+        "n|sch|public",
+        "n|tbl|public.schools",
+        "n|sch|public",
+        "n|col|public.former_slugs.school_id",
+        "n|col|public.schools.id",
+        "e|uniqueness|public.schools.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "former_slugs",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "former_slugs",
+        "name": "slug",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "former_slugs",
+        "name": "school_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "former_slugs",
+        "name": "until",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "former_slugs",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "former_slugs",
+        "name": "former_slugs_school_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "school_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "former_slugs",
+        "name": "former_slugs_school_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "school_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "schools",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "former_slugs",
+        "name": "former_slugs_pkey",
+        "columns": [
+          "slug"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "former_slugs",
+        "name": "former_slugs_slug_check",
+        "value": "slug ~ '^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$'",
+        "entityType": "checks"
+      }
+    }
+  ]
+}

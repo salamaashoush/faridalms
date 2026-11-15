@@ -27,6 +27,7 @@ import {
 import {
   cells,
   changes,
+  formerSlugs,
   hosts,
   moduleOffers,
   schoolEntitlements,
@@ -469,6 +470,17 @@ export function openDirectoryAdmin(url: string) {
             .from(cells)
             .where(eq(cells.id, input.cellId));
           if (cell?.state !== "open") throw new Error("cell.not_open");
+          const leftBehind = await tx
+            .select({ slug: formerSlugs.slug })
+            .from(formerSlugs)
+            .where(
+              and(
+                inArray(formerSlugs.slug, slugs),
+                gte(formerSlugs.until, new Date()),
+              ),
+            );
+          if (leftBehind.length > 0)
+            throw new SlugTakenError(leftBehind.map((row) => row.slug));
           const held = await tx
             .select({
               slug: schools.slug,
@@ -676,6 +688,130 @@ export function openDirectoryAdmin(url: string) {
         });
         return true;
       }),
+    /**
+     * Renames a school, and a standalone school's tenant with it, as its
+     * cell is told to. False when there is no such school.
+     */
+    renameSchool: (input: {
+      schoolId: string;
+      nameEn: string | null;
+      nameAr: string | null;
+      operatorId: string;
+      reason: string;
+    }) =>
+      db.transaction(async (tx) => {
+        const [before] = await tx
+          .select({
+            nameEn: schools.nameEn,
+            nameAr: schools.nameAr,
+            tenantId: schools.tenantId,
+          })
+          .from(schools)
+          .where(eq(schools.id, input.schoolId))
+          .for("update");
+        if (!before) return false;
+        const names = { nameEn: input.nameEn, nameAr: input.nameAr };
+        await tx
+          .update(schools)
+          .set({ ...names, updatedAt: new Date() })
+          .where(eq(schools.id, input.schoolId));
+        await tx
+          .update(tenants)
+          .set({ ...names, updatedAt: new Date() })
+          .where(
+            and(eq(tenants.id, before.tenantId), eq(tenants.kind, "school")),
+          );
+        await tx.insert(changes).values({
+          actor: `operator:${input.operatorId}`,
+          subjectType: "school",
+          subjectId: input.schoolId,
+          action: "school.rename",
+          before: { nameEn: before.nameEn, nameAr: before.nameAr },
+          after: names,
+          reason: input.reason,
+        });
+        return true;
+      }),
+    /**
+     * Moves a school to another portal address. The one it leaves sends its
+     * visitors on until the day given, and no other school may take it till
+     * then; moving back to an address it held takes that one up again.
+     * Throws SlugTakenError when another school holds or held the address.
+     */
+    moveSchool: (input: {
+      schoolId: string;
+      slug: string;
+      until: Date;
+      operatorId: string;
+      reason: string;
+    }) =>
+      db.transaction(async (tx) => {
+        const [before] = await tx
+          .select({ slug: schools.slug })
+          .from(schools)
+          .where(eq(schools.id, input.schoolId))
+          .for("update");
+        if (!before) return false;
+        if (before.slug === input.slug) return true;
+        const [holder] = await tx
+          .select({ id: schools.id })
+          .from(schools)
+          .where(eq(schools.slug, input.slug));
+        const [former] = await tx
+          .select({ schoolId: formerSlugs.schoolId })
+          .from(formerSlugs)
+          .where(
+            and(
+              eq(formerSlugs.slug, input.slug),
+              gte(formerSlugs.until, new Date()),
+            ),
+          );
+        if (holder || (former && former.schoolId !== input.schoolId))
+          throw new SlugTakenError([input.slug]);
+        await tx.delete(formerSlugs).where(eq(formerSlugs.slug, input.slug));
+        await tx
+          .insert(formerSlugs)
+          .values({
+            slug: before.slug,
+            schoolId: input.schoolId,
+            until: input.until,
+          })
+          .onConflictDoUpdate({
+            target: formerSlugs.slug,
+            set: { schoolId: input.schoolId, until: input.until },
+          });
+        try {
+          await tx
+            .update(schools)
+            .set({ slug: input.slug, updatedAt: new Date() })
+            .where(eq(schools.id, input.schoolId));
+        } catch (error) {
+          if (isSlugConflict(error)) throw new SlugTakenError([input.slug]);
+          throw error;
+        }
+        await tx.insert(changes).values({
+          actor: `operator:${input.operatorId}`,
+          subjectType: "school",
+          subjectId: input.schoolId,
+          action: "school.move",
+          before: { slug: before.slug },
+          after: { slug: input.slug, formerUntil: input.until.toISOString() },
+          reason: input.reason,
+        });
+        return true;
+      }),
+    /** The addresses a school left that still send its visitors on. */
+    formerAddresses: (schoolId: string) =>
+      db
+        .select({ slug: formerSlugs.slug, until: formerSlugs.until })
+        .from(formerSlugs)
+        .where(
+          and(
+            eq(formerSlugs.schoolId, schoolId),
+            gte(formerSlugs.until, new Date()),
+          ),
+        )
+        .orderBy(desc(formerSlugs.until)),
     /** A school's own hosts, as the console lists them. */
     hosts: (schoolId: string) => schoolHosts(db, schoolId),
     /** The domains a tenant's people sign in with through its identity provider. */

@@ -11,6 +11,7 @@ import type {
   ProvisionTenant,
   ReissueInvite,
   ReissueResult,
+  RenameSchool,
   SetLifecycle,
   TenantCalendar,
   TenantCalendarRequest,
@@ -20,6 +21,7 @@ import type { Provider } from "@faridalms/mail/providers";
 import { changeOf, writeAudit } from "@faridalms/database/audit";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import { replaceContact } from "@faridalms/database/stores/persons";
+import { renameSchool } from "@faridalms/database/stores/school";
 import {
   giveGroupAdministrator,
   schoolAdministrator,
@@ -38,6 +40,7 @@ import {
   entitlementsChangedSchema,
   provisionTenantSchema,
   reissueInviteSchema,
+  renameSchoolSchema,
   setLifecycleSchema,
   tenantCalendarSchema,
 } from "@faridalms/domain/provisioning";
@@ -450,6 +453,27 @@ async function setLifecycle(call: Call, request: SetLifecycle) {
   );
 }
 
+/** Renames a school as the operator console asks, its tenant too when standalone. */
+async function rename(call: Call, request: RenameSchool) {
+  return call.deps.owner.asOwner(
+    request.tenantId,
+    call.requestId,
+    async (tx) => {
+      const names = { nameEn: request.nameEn, nameAr: request.nameAr };
+      if (!(await renameSchool(tx, { ...request, ...names })))
+        throw new ORPCError("NOT_FOUND", { message: "school.not_in_cell" });
+      await writeAudit(tx, request.tenantId, {
+        action: "school.rename",
+        objectType: "org",
+        objectId: request.schoolId,
+        details: { operatorId: call.operator.id },
+        change: changeOf("core.orgs", null, names),
+      });
+      return names;
+    },
+  );
+}
+
 /**
  * Counts a change the console made to what a tenant's schools may use, so
  * every server drops its directory rows for the tenant on its next unit.
@@ -509,6 +533,12 @@ const ROUTES = {
     const parsed = v.safeParse(entitlementsChangedSchema, body);
     return parsed.success
       ? entitlementsChanged(call, parsed.output)
+      : invalid(parsed.issues);
+  },
+  "/v1/schools/names": async (call: Call, body: unknown) => {
+    const parsed = v.safeParse(renameSchoolSchema, body);
+    return parsed.success
+      ? rename(call, parsed.output)
       : invalid(parsed.issues);
   },
   "/v1/tenants/calendar": async (call: Call, body: unknown) => {

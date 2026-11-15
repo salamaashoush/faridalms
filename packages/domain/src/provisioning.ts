@@ -343,6 +343,50 @@ export const setLifecycleSchema = v.object({
 });
 export type SetLifecycle = v.InferOutput<typeof setLifecycleSchema>;
 
+const schoolNames = {
+  nameEn: optionalText(160),
+  nameAr: optionalText(160),
+};
+const NAME_REQUIRED = "Give the school a name in English or Arabic.";
+
+/** A school's names changed by the console, as its cell is asked to keep them. */
+export const renameSchoolSchema = v.pipe(
+  v.object({ tenantId: id, schoolId: id, ...schoolNames }),
+  v.forward(
+    v.check((school) => named(school), NAME_REQUIRED),
+    ["nameEn"],
+  ),
+);
+export type RenameSchool = v.InferOutput<typeof renameSchoolSchema>;
+
+/** An operator renaming a school, with why. */
+export const schoolNamesSchema = v.pipe(
+  v.object({
+    schoolId: id,
+    ...schoolNames,
+    reason: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(500)),
+  }),
+  v.forward(
+    v.check((school) => named(school), NAME_REQUIRED),
+    ["nameEn"],
+  ),
+);
+export type SchoolNamesInput = v.InferOutput<typeof schoolNamesSchema>;
+
+/**
+ * How long a school's former portal address keeps sending visitors to the
+ * new one before another school may take it.
+ */
+export const FORMER_ADDRESS_DAYS = 90;
+
+/** An operator moving a school to another portal address, with why. */
+export const schoolAddressSchema = v.object({
+  schoolId: id,
+  slug: slugSchema,
+  reason: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(500)),
+});
+export type SchoolAddressInput = v.InferOutput<typeof schoolAddressSchema>;
+
 /** Tells a cell the directory changed what a tenant's schools may use. */
 export const entitlementsChangedSchema = v.object({ tenantId: id });
 export type EntitlementsChanged = v.InferOutput<

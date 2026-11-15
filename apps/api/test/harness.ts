@@ -272,6 +272,7 @@ export async function setUp() {
     domains: DOMAINS,
     edgeAddress: EDGE_ADDRESS,
     hosts,
+    schoolNames: sync.schoolNames,
     logins,
     trustedProxyHops: 1,
     files,

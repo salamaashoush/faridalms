@@ -39,6 +39,11 @@ export interface ApiDependencies {
    */
   hosts: { registry: DirectorySync["hosts"]; checks: HostChecks } | null;
   /**
+   * Copies a school's names to the directory once they change in its
+   * settings; null without the directory_sync login.
+   */
+  schoolNames: DirectorySync["schoolNames"] | null;
+  /**
    * Which tenants hold a sign-in name, for sign-in on the bare portal
    * domain; none where the platform's index key is not set.
    */

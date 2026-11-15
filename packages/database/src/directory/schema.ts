@@ -499,6 +499,33 @@ export const schoolOnboarding = pgTable(
   ],
 );
 
+/**
+ * A school's portal address before it moved: until the day given, its
+ * platform names send visitors to the school's current ones, and no other
+ * school may take it.
+ */
+export const formerSlugs = pgTable(
+  "former_slugs",
+  {
+    slug: text("slug").primaryKey(),
+    schoolId: uuid("school_id").notNull(),
+    until: instant("until").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    foreignKey({
+      name: "former_slugs_school_id_fkey",
+      columns: [t.schoolId],
+      foreignColumns: [schools.id],
+    }).onDelete("cascade"),
+    check(
+      "former_slugs_slug_check",
+      sql`slug ~ '^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$'`,
+    ),
+    index("former_slugs_school_idx").on(t.schoolId),
+  ],
+);
+
 export const changes = pgTable(
   "changes",
   {

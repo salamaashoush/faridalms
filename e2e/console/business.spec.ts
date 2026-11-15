@@ -442,6 +442,59 @@ test("an operator whose sign-in has aged signs in again before publishing, and t
   ).toBeVisible();
 });
 
+test("support renames a school and moves its address, and the old address sends visitors on", async ({
+  page,
+}) => {
+  await signInAs(page, OWNER);
+  const slug = `e2e-${unique()}`;
+  await createSchool(page, {
+    slug,
+    nameEn: `Linden ${slug}`,
+    nameAr: "مدرسة الزيزفون",
+  });
+  await page.getByRole("tab", { name: "About" }).click();
+  const about = page.getByRole("region", { name: "School" });
+  await about.getByRole("button", { name: "Rename" }).click();
+  const rename = page.getByRole("form", { name: "Rename the school" });
+  await rename.getByLabel("Name in English").fill(`Linden Academy ${slug}`);
+  await rename.getByLabel("Name in Arabic").fill("أكاديمية الزيزفون");
+  await rename.getByLabel("Why").fill("Registered under a new name");
+  await rename.getByRole("button", { name: "Rename" }).click();
+  await expect(page.getByText("Renamed.")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: `Linden Academy ${slug}` }),
+  ).toBeVisible();
+
+  const moved = `${slug}-academy`;
+  await about.getByRole("button", { name: "Change" }).click();
+  const move = page.getByRole("form", { name: "Change the portal address" });
+  await move.getByLabel("Address").fill(moved);
+  await move.getByLabel("Why").fill("The address follows the new name");
+  await move.getByRole("button", { name: "Change address" }).click();
+  await expect(page.getByText(new RegExp(`at ${moved}\\.`))).toBeVisible();
+  await expect(about).toContainText(`${slug}.localhost sends visitors here`);
+
+  // The old address answers with the new one, keeping the page asked for.
+  await expect
+    .poll(
+      async () => {
+        const answer = await fetch(`${portal(slug)}/sign-in?next=1`, {
+          redirect: "manual",
+        });
+        return `${answer.status} ${answer.headers.get("location") ?? ""}`;
+      },
+      { timeout: 90_000, intervals: [5_000] },
+    )
+    .toMatch(
+      new RegExp(`^308 https://${moved}\\.localhost[^/]*/sign-in\\?next=1$`),
+    );
+
+  await page.getByRole("tab", { name: "History" }).click();
+  await expect(
+    page.getByText("The address follows the new name").first(),
+  ).toBeVisible();
+});
+
 test("a group set up as a draft is left, resumed, and finished after a refusal", async ({
   page,
 }) => {

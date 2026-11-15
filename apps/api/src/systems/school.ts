@@ -79,6 +79,18 @@ export const saveProfile = writeProcedure
     if (!saved)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
     await publishLooks(context, before, looks);
+    const nameEn = input.nameEn || null;
+    const nameAr = input.nameAr || null;
+    if (before?.nameEn !== nameEn || before.nameAr !== nameAr)
+      context.afterCommit(async () => {
+        await context.schoolNames?.({
+          schoolId: context.schoolId,
+          tenantId: context.tenantId,
+          nameEn,
+          nameAr,
+          reason: "Renamed in the school's settings",
+        });
+      });
     await audit(context, {
       action: "school.update",
       objectType: "org",

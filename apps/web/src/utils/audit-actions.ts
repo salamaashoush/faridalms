@@ -252,6 +252,8 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "relationship_restriction.write": m.auditRelationshipRestrictionWrite,
   "role.change": m.auditRoleChange,
   "school.update": m.auditSchoolUpdate,
+  "school.rename": m.auditSchoolRename,
+  "school.move": m.auditSchoolMove,
   "session.child_start": m.auditSessionChildStart,
   "session.context_switch": m.auditSessionContextSwitch,
   "shared_block.create": m.auditSharedBlockCreate,

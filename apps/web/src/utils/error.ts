@@ -63,6 +63,8 @@ export const isErrorCode = (message: string) => CODE.test(message);
  * generic error rather than given copy of their own.
  */
 const INTERNAL_CODES: ReadonlySet<string> = new Set([
+  // Only the operator console renames a school through its cell.
+  "school.not_in_cell",
   "classes.part_unknown",
   "coursework.part_unknown",
   "announcements.part_unknown",

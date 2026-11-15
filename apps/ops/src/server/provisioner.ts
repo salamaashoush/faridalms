@@ -4,6 +4,7 @@ import type {
   ProvisionTenant,
   ReissueInvite,
   ReissueResult,
+  RenameSchool,
   SetLifecycle,
   TenantCalendar,
   TenantCalendarRequest,
@@ -79,6 +80,14 @@ export const setLifecycle = (operator: Operator, request: SetLifecycle) =>
   post<{ before: string; lifecycle: string }>(
     operator,
     "/v1/tenants/lifecycle",
+    request,
+  );
+
+/** Asks the school's cell to keep the names the operator gave it. */
+export const renameSchoolInCell = (operator: Operator, request: RenameSchool) =>
+  post<{ nameEn: string | null; nameAr: string | null }>(
+    operator,
+    "/v1/schools/names",
     request,
   );
 

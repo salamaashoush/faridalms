@@ -134,6 +134,37 @@ describe("routing by host", () => {
     ).toBeNull();
   });
 
+  test("an address a school left sends its visitors on, only until its day", async () => {
+    const school = acme();
+    const sql = superuser();
+    try {
+      await sql`
+        insert into former_slugs (slug, school_id, until) values
+          ('acme-before', ${school.id}::uuid, now() + interval '90 days'),
+          ('acme-long-ago', ${school.id}::uuid, now() - interval '1 day')`;
+    } finally {
+      await sql.close();
+    }
+    const open = client("");
+    expect(
+      await open.identity.resolveHost({
+        host: `acme-before.${DOMAINS.portal}`,
+      }),
+    ).toEqual({
+      slug: "acme",
+      role: "portal",
+      redirect: `acme.${DOMAINS.portal}`,
+    });
+    expect(
+      await open.identity.resolveHost({ host: `acme-before.${DOMAINS.sites}` }),
+    ).toMatchObject({ slug: "acme", role: "site" });
+    expect(
+      await open.identity.resolveHost({
+        host: `acme-long-ago.${DOMAINS.portal}`,
+      }),
+    ).toBeNull();
+  });
+
   test("a school's own host routes only while active", async () => {
     const open = client("");
     expect(
