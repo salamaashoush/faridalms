@@ -470,7 +470,7 @@ migration rules in 9). `bun run db:up` starts Postgres in Docker on port
   `packages/database/drizzle.config.ts` does not read, because drizzle-kit cannot create them.
 - **Migrations** live in `packages/database/migrations/`, one folder per
   database: `cell/` (tenant data), `directory/` (the global routing of schools
-  and hosts) and `business/`. Each holds one baseline, written as if the
+  and hosts) and `business/`. Each begins with one baseline, written as if the
   schema were designed today: a `tables` migration that drizzle-kit generates
   from the declarations, and hand-written migrations by topic for what
   drizzle-kit cannot express. The cell's migrations run in this order:
@@ -480,22 +480,16 @@ migration rules in 9). `bun run db:up` starts Postgres in Docker on port
   `partitions` (partitioned tables, their policies and registry rows),
   `search` (the search index), `views`, `triggers` and `access` (forced RLS
   and every grant). The directory and business databases have `tables` and
-  `access`. Each object appears once, in its final form.
-- **No release has carried the baseline yet, so a change still rewrites it
-  in place and appends nothing.** Change the declarations and run
-  `bun run db:baseline`, which writes the `tables` migrations again from
-  empty and keeps every topic migration's words and place, then edit by
-  hand the topic migration the change belongs to. Do not run `db:generate`
-  meanwhile, since it appends; the one use left is
-  `bun run db:generate --custom --name <topic>` for a new topic, which
-  `db:baseline` then keeps in its place. A database built from an earlier
-  baseline cannot migrate to a rewritten one: `bun run db:reset` makes the
-  developer's databases again. The release that carries the baseline
-  recreates production. From then on an applied migration is never edited
-  and changes are appended: generated ones by `bun run db:generate`,
-  `db:generate:directory` and `db:generate:business`, hand-written ones by
-  `bun run db:generate --custom --name <topic>` right after the generated one
-  they complete.
+  `access`, and what changed since follows it as appended migrations.
+- **Production runs the baselines, so an applied migration is never
+  edited.** `migrate` refuses one whose hash changed ("changed after it was
+  applied"), and the deploy stops there. Change the declarations, then
+  append: generated migrations by `bun run db:generate`,
+  `db:generate:directory` and `db:generate:business` with `--name <topic>`,
+  and hand-written ones (grants, keys, what drizzle-kit cannot express) by
+  the same command with `--custom --name <topic>`, right after the
+  generated one they complete. `bun run db:baseline` rewrites the baselines
+  and is for a deliberate rebuild of production only.
 - Never `drizzle-kit push`: it would drop what it does not understand.
   `scripts/db.ts` applies migrations as `migrator` with `SET ROLE
   cell_owner`, all pending ones in one transaction.

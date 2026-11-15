@@ -2,7 +2,7 @@
   "type": "base",
   "version": "9",
   "dialect": "postgres",
-  "id": "8631c5e7-8635-4d31-bf0c-fbfbf6f76ede",
+  "id": "645fa2d7-9970-456c-bf4c-40115fdfc34d",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -40,44 +40,6 @@
         "n|rel|public.add_ons",
         "n|type|public.add_ons",
         "n|rel|public.add_ons_pkey"
-      ],
-      "reads": [
-        "n|sch|public"
-      ]
-    },
-    {
-      "statementType": "create_table",
-      "statementTarget": [
-        "table",
-        "public",
-        "agreement_acceptances"
-      ],
-      "writes": [
-        "s|tbl|public.agreement_acceptances",
-        "n|tbl|public.agreement_acceptances",
-        "e|tbl|public.agreement_acceptances",
-        "n|rel|public.agreement_acceptances",
-        "n|type|public.agreement_acceptances",
-        "n|rel|public.agreement_acceptances_pkey"
-      ],
-      "reads": [
-        "n|sch|public"
-      ]
-    },
-    {
-      "statementType": "create_table",
-      "statementTarget": [
-        "table",
-        "public",
-        "agreement_versions"
-      ],
-      "writes": [
-        "s|tbl|public.agreement_versions",
-        "n|tbl|public.agreement_versions",
-        "e|tbl|public.agreement_versions",
-        "n|rel|public.agreement_versions",
-        "n|type|public.agreement_versions",
-        "n|rel|public.agreement_versions_pkey"
       ],
       "reads": [
         "n|sch|public"
@@ -634,69 +596,6 @@
         "n|tbl|public.add_ons",
         "n|sch|public",
         "n|col|public.add_ons.code"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "public",
-        "agreement_acceptances",
-        "agreement_acceptances_customer_idx"
-      ],
-      "writes": [
-        "s|idx|public.agreement_acceptances_customer_idx",
-        "n|idx|public.agreement_acceptances_customer_idx",
-        "e|idx|public.agreement_acceptances_customer_idx",
-        "n|rel|public.agreement_acceptances_customer_idx"
-      ],
-      "reads": [
-        "n|tbl|public.agreement_acceptances",
-        "n|sch|public",
-        "n|col|public.agreement_acceptances.customer_id",
-        "n|col|public.agreement_acceptances.accepted_at"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "public",
-        "agreement_versions",
-        "agreement_versions_kind_version_key"
-      ],
-      "writes": [
-        "s|idx|public.agreement_versions_kind_version_key",
-        "n|idx|public.agreement_versions_kind_version_key",
-        "e|idx|public.agreement_versions_kind_version_key",
-        "n|rel|public.agreement_versions_kind_version_key"
-      ],
-      "reads": [
-        "n|tbl|public.agreement_versions",
-        "n|sch|public",
-        "n|col|public.agreement_versions.kind",
-        "n|col|public.agreement_versions.version"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "public",
-        "agreement_versions",
-        "agreement_versions_kind_idx"
-      ],
-      "writes": [
-        "s|idx|public.agreement_versions_kind_idx",
-        "n|idx|public.agreement_versions_kind_idx",
-        "e|idx|public.agreement_versions_kind_idx",
-        "n|rel|public.agreement_versions_kind_idx"
-      ],
-      "reads": [
-        "n|tbl|public.agreement_versions",
-        "n|sch|public",
-        "n|col|public.agreement_versions.kind",
-        "n|col|public.agreement_versions.effective_on"
       ]
     },
     {
@@ -1546,52 +1445,6 @@
       "statementTarget": [
         "table",
         "public",
-        "agreement_acceptances"
-      ],
-      "writes": [
-        "s|fk|public.agreement_acceptances.agreement_acceptances_customer_id_customers_id_fkey",
-        "n|fk|public.agreement_acceptances.agreement_acceptances_customer_id_customers_id_fkey",
-        "e|fk|public.agreement_acceptances.agreement_acceptances_customer_id_customers_id_fkey",
-        "n|con|public.agreement_acceptances.agreement_acceptances_customer_id_customers_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|public.agreement_acceptances",
-        "n|sch|public",
-        "n|tbl|public.customers",
-        "n|sch|public",
-        "n|col|public.agreement_acceptances.customer_id",
-        "n|col|public.customers.id",
-        "e|uniqueness|public.customers.id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "agreement_acceptances"
-      ],
-      "writes": [
-        "s|fk|public.agreement_acceptances.agreement_acceptances_version_id_agreement_versions_id_fkey",
-        "n|fk|public.agreement_acceptances.agreement_acceptances_version_id_agreement_versions_id_fkey",
-        "e|fk|public.agreement_acceptances.agreement_acceptances_version_id_agreement_versions_id_fkey",
-        "n|con|public.agreement_acceptances.agreement_acceptances_version_id_agreement_versions_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|public.agreement_acceptances",
-        "n|sch|public",
-        "n|tbl|public.agreement_versions",
-        "n|sch|public",
-        "n|col|public.agreement_acceptances.version_id",
-        "n|col|public.agreement_versions.id",
-        "e|uniqueness|public.agreement_versions.id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
         "contacts"
       ],
       "writes": [
@@ -2247,18 +2100,6 @@
     },
     {
       "schema": "public",
-      "name": "agreement_acceptances",
-      "isRlsEnabled": false,
-      "entityType": "tables"
-    },
-    {
-      "schema": "public",
-      "name": "agreement_versions",
-      "isRlsEnabled": false,
-      "entityType": "tables"
-    },
-    {
-      "schema": "public",
       "name": "business_events",
       "isRlsEnabled": false,
       "entityType": "tables"
@@ -2623,305 +2464,6 @@
       "notNull": true,
       "dimensions": 0,
       "default": "statement_timestamp()",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "id",
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "uuidv7()",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "customer_id",
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "version_id",
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "method",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "signer_name",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "signer_title",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "signer_email",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "ip",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "user_agent",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "attachment_name",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "attachment_type",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "attachment",
-      "type": "bytea",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "recorded_by",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "accepted_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "statement_timestamp()",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "id",
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "uuidv7()",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "kind",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "version",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "effective_on",
-      "type": "date",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "body_en",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "body_ar",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "digest",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "published_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "statement_timestamp()",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "published_by",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
       "generated": null,
       "identity": null,
       "entityType": "columns"
@@ -6023,84 +5565,6 @@
     {
       "schema": "public",
       "table": "quotes",
-      "name": "offer",
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "quotes",
-      "name": "signer_name",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "quotes",
-      "name": "signer_title",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "quotes",
-      "name": "signer_email",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "quotes",
-      "name": "signer_ip",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "quotes",
-      "name": "signer_agent",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "quotes",
       "name": "draft_id",
       "type": "uuid",
       "typeSchema": null,
@@ -6263,19 +5727,6 @@
       "notNull": false,
       "dimensions": 0,
       "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "subscription_items",
-      "name": "replaces_item_ids",
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 1,
-      "default": "'{}'",
       "generated": null,
       "identity": null,
       "entityType": "columns"
@@ -6999,90 +6450,6 @@
         }
       ],
       "isUnique": true,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "entityType": "indexes"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "agreement_acceptances_customer_idx",
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "customer_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "accepted_at",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "entityType": "indexes"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "agreement_versions_kind_version_key",
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "kind",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "version",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": true,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "entityType": "indexes"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "agreement_versions_kind_idx",
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "kind",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "effective_on",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
       "where": null,
       "with": "",
       "method": "btree",
@@ -8081,40 +7448,6 @@
     },
     {
       "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "agreement_acceptances_customer_id_customers_id_fkey",
-      "nameExplicit": false,
-      "columns": [
-        "customer_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "customers",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "agreement_acceptances_version_id_agreement_versions_id_fkey",
-      "nameExplicit": false,
-      "columns": [
-        "version_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "agreement_versions",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
       "table": "contacts",
       "name": "contacts_customer_id_customers_id_fkey",
       "nameExplicit": false,
@@ -8622,26 +7955,6 @@
     },
     {
       "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "agreement_acceptances_pkey",
-      "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "agreement_versions_pkey",
-      "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
-      "schema": "public",
       "table": "business_events",
       "name": "business_events_pkey",
       "columns": [
@@ -8937,48 +8250,6 @@
       "table": "add_ons",
       "name": "add_ons_kind_check",
       "value": "kind in ('module', 'limit_pack', 'service')",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "agreement_acceptances_method_check",
-      "value": "method in ('link', 'paper')",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "agreement_acceptances_paper_check",
-      "value": "(method = 'paper') = (recorded_by is not null and attachment is not null)",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_acceptances",
-      "name": "agreement_acceptances_attachment_check",
-      "value": "attachment is null or octet_length(attachment) <= 10485760",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "agreement_versions_kind_check",
-      "value": "kind in ('terms', 'dpa')",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "agreement_versions_digest_check",
-      "value": "digest ~ '^[0-9a-f]{64}$'",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "agreement_versions",
-      "name": "agreement_versions_version_check",
-      "value": "version ~ '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$'",
       "entityType": "checks"
     },
     {
@@ -9335,7 +8606,7 @@
       "schema": "public",
       "table": "quotes",
       "name": "quotes_accepted_check",
-      "value": "(state = 'accepted') = (accepted_at is not null and (attachment is not null or signer_name is not null))",
+      "value": "(state = 'accepted') = (accepted_at is not null and attachment is not null)",
       "entityType": "checks"
     },
     {
@@ -9343,13 +8614,6 @@
       "table": "quotes",
       "name": "quotes_attachment_check",
       "value": "attachment is null or octet_length(attachment) <= 10485760",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "subscription_items",
-      "name": "subscription_items_replaces_check",
-      "value": "cardinality(replaces_item_ids) = 0 or plan_version_id is not null",
       "entityType": "checks"
     },
     {
@@ -9419,7 +8683,7 @@
       "schema": "public",
       "table": "subscription_overrides",
       "name": "subscription_overrides_span_check",
-      "value": "ends_on is null or ends_on >= starts_on",
+      "value": "ends_on is null or ends_on > starts_on",
       "entityType": "checks"
     },
     {

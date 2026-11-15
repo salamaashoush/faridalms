@@ -13,9 +13,6 @@ grant update (retired_at) on plan_versions, add_on_versions to business_admin;
 -- Customers, their contacts and subscriptions change as the business does;
 -- an item or override is ended by its date, never deleted.
 grant select, insert, update on customers, contacts, subscriptions to business_admin;
--- A published agreement version and each acceptance of one are written once:
--- together they prove what a customer accepted, when and by whom.
-grant select, insert on agreement_versions, agreement_acceptances to business_admin;
 grant select, insert on subscription_items, subscription_overrides to business_admin;
 grant update (ends_on) on subscription_items, subscription_overrides to business_admin;
 grant select, insert on entitlement_publications to business_admin;

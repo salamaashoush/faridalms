@@ -1,0 +1,1090 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "be8045d7-814d-4ad4-abd0-f7c77a70eb82",
+  "prevIds": [
+    "b8e130ce-99c4-4efe-9562-fbc48df60ff5"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "agreement_acceptances"
+      ],
+      "writes": [
+        "s|tbl|public.agreement_acceptances",
+        "n|tbl|public.agreement_acceptances",
+        "e|tbl|public.agreement_acceptances",
+        "n|rel|public.agreement_acceptances",
+        "n|type|public.agreement_acceptances",
+        "n|rel|public.agreement_acceptances_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "agreement_versions"
+      ],
+      "writes": [
+        "s|tbl|public.agreement_versions",
+        "n|tbl|public.agreement_versions",
+        "e|tbl|public.agreement_versions",
+        "n|rel|public.agreement_versions",
+        "n|type|public.agreement_versions",
+        "n|rel|public.agreement_versions_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "quotes",
+        "offer"
+      ],
+      "writes": [
+        "s|col|public.quotes.offer",
+        "n|col|public.quotes.offer",
+        "e|col|public.quotes.offer"
+      ],
+      "reads": [
+        "n|tbl|public.quotes",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "quotes",
+        "signer_name"
+      ],
+      "writes": [
+        "s|col|public.quotes.signer_name",
+        "n|col|public.quotes.signer_name",
+        "e|col|public.quotes.signer_name"
+      ],
+      "reads": [
+        "n|tbl|public.quotes",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "quotes",
+        "signer_title"
+      ],
+      "writes": [
+        "s|col|public.quotes.signer_title",
+        "n|col|public.quotes.signer_title",
+        "e|col|public.quotes.signer_title"
+      ],
+      "reads": [
+        "n|tbl|public.quotes",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "quotes",
+        "signer_email"
+      ],
+      "writes": [
+        "s|col|public.quotes.signer_email",
+        "n|col|public.quotes.signer_email",
+        "e|col|public.quotes.signer_email"
+      ],
+      "reads": [
+        "n|tbl|public.quotes",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "quotes",
+        "signer_ip"
+      ],
+      "writes": [
+        "s|col|public.quotes.signer_ip",
+        "n|col|public.quotes.signer_ip",
+        "e|col|public.quotes.signer_ip"
+      ],
+      "reads": [
+        "n|tbl|public.quotes",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "quotes",
+        "signer_agent"
+      ],
+      "writes": [
+        "s|col|public.quotes.signer_agent",
+        "n|col|public.quotes.signer_agent",
+        "e|col|public.quotes.signer_agent"
+      ],
+      "reads": [
+        "n|tbl|public.quotes",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "subscription_items",
+        "replaces_item_ids"
+      ],
+      "writes": [
+        "s|col|public.subscription_items.replaces_item_ids",
+        "n|col|public.subscription_items.replaces_item_ids",
+        "e|col|public.subscription_items.replaces_item_ids"
+      ],
+      "reads": [
+        "n|tbl|public.subscription_items",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "agreement_acceptances",
+        "agreement_acceptances_customer_idx"
+      ],
+      "writes": [
+        "s|idx|public.agreement_acceptances_customer_idx",
+        "n|idx|public.agreement_acceptances_customer_idx",
+        "e|idx|public.agreement_acceptances_customer_idx",
+        "n|rel|public.agreement_acceptances_customer_idx"
+      ],
+      "reads": [
+        "n|tbl|public.agreement_acceptances",
+        "n|sch|public",
+        "n|col|public.agreement_acceptances.customer_id",
+        "n|col|public.agreement_acceptances.accepted_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "agreement_versions",
+        "agreement_versions_kind_version_key"
+      ],
+      "writes": [
+        "s|idx|public.agreement_versions_kind_version_key",
+        "n|idx|public.agreement_versions_kind_version_key",
+        "e|idx|public.agreement_versions_kind_version_key",
+        "n|rel|public.agreement_versions_kind_version_key"
+      ],
+      "reads": [
+        "n|tbl|public.agreement_versions",
+        "n|sch|public",
+        "n|col|public.agreement_versions.kind",
+        "n|col|public.agreement_versions.version"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "agreement_versions",
+        "agreement_versions_kind_idx"
+      ],
+      "writes": [
+        "s|idx|public.agreement_versions_kind_idx",
+        "n|idx|public.agreement_versions_kind_idx",
+        "e|idx|public.agreement_versions_kind_idx",
+        "n|rel|public.agreement_versions_kind_idx"
+      ],
+      "reads": [
+        "n|tbl|public.agreement_versions",
+        "n|sch|public",
+        "n|col|public.agreement_versions.kind",
+        "n|col|public.agreement_versions.effective_on"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "agreement_acceptances"
+      ],
+      "writes": [
+        "s|fk|public.agreement_acceptances.agreement_acceptances_customer_id_customers_id_fkey",
+        "n|fk|public.agreement_acceptances.agreement_acceptances_customer_id_customers_id_fkey",
+        "e|fk|public.agreement_acceptances.agreement_acceptances_customer_id_customers_id_fkey",
+        "n|con|public.agreement_acceptances.agreement_acceptances_customer_id_customers_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.agreement_acceptances",
+        "n|sch|public",
+        "n|tbl|public.customers",
+        "n|sch|public",
+        "n|col|public.agreement_acceptances.customer_id",
+        "n|col|public.customers.id",
+        "e|uniqueness|public.customers.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "agreement_acceptances"
+      ],
+      "writes": [
+        "s|fk|public.agreement_acceptances.agreement_acceptances_version_id_agreement_versions_id_fkey",
+        "n|fk|public.agreement_acceptances.agreement_acceptances_version_id_agreement_versions_id_fkey",
+        "e|fk|public.agreement_acceptances.agreement_acceptances_version_id_agreement_versions_id_fkey",
+        "n|con|public.agreement_acceptances.agreement_acceptances_version_id_agreement_versions_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.agreement_acceptances",
+        "n|sch|public",
+        "n|tbl|public.agreement_versions",
+        "n|sch|public",
+        "n|col|public.agreement_acceptances.version_id",
+        "n|col|public.agreement_versions.id",
+        "e|uniqueness|public.agreement_versions.id"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "subscription_items"
+      ],
+      "writes": [
+        "s|ck|public.subscription_items.subscription_items_replaces_check",
+        "n|ck|public.subscription_items.subscription_items_replaces_check",
+        "e|ck|public.subscription_items.subscription_items_replaces_check",
+        "n|con|public.subscription_items.subscription_items_replaces_check"
+      ],
+      "reads": [
+        "n|tbl|public.subscription_items",
+        "n|sch|public",
+        "n|col|public.subscription_items.replaces_item_ids",
+        "n|col|public.subscription_items.plan_version_id"
+      ]
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "quotes"
+      ],
+      "writes": [
+        "s|ck|public.quotes.quotes_accepted_check"
+      ],
+      "reads": [
+        "n|tbl|public.quotes",
+        "n|sch|public",
+        "n|col|public.quotes.state",
+        "n|col|public.quotes.accepted_at",
+        "n|col|public.quotes.attachment",
+        "n|col|public.quotes.signer_name",
+        "e|col|public.quotes.state",
+        "e|col|public.quotes.accepted_at",
+        "e|col|public.quotes.attachment"
+      ],
+      "sqlHash": "6b8e43ff50136bf0"
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "subscription_overrides"
+      ],
+      "writes": [
+        "s|ck|public.subscription_overrides.subscription_overrides_span_check"
+      ],
+      "reads": [
+        "n|tbl|public.subscription_overrides",
+        "n|sch|public",
+        "n|col|public.subscription_overrides.ends_on",
+        "n|col|public.subscription_overrides.starts_on",
+        "e|col|public.subscription_overrides.ends_on",
+        "e|col|public.subscription_overrides.starts_on"
+      ],
+      "sqlHash": "f9efa97d584b200a"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "agreement_acceptances",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "agreement_versions",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "customer_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "version_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "method",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "signer_name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "signer_title",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "signer_email",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "ip",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "user_agent",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "attachment_name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "attachment_type",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "attachment",
+        "type": "bytea",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "recorded_by",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "accepted_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "kind",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "version",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "effective_on",
+        "type": "date",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "body_en",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "body_ar",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "digest",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "published_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "published_by",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "quotes",
+        "name": "offer",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "quotes",
+        "name": "signer_name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "quotes",
+        "name": "signer_title",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "quotes",
+        "name": "signer_email",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "quotes",
+        "name": "signer_ip",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "quotes",
+        "name": "signer_agent",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "subscription_items",
+        "name": "replaces_item_ids",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 1,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "agreement_acceptances_customer_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "customer_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "accepted_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "agreement_versions_kind_version_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "kind",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "version",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "agreement_versions_kind_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "kind",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "effective_on",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "agreement_acceptances_customer_id_customers_id_fkey",
+        "nameExplicit": false,
+        "columns": [
+          "customer_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "customers",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "agreement_acceptances_version_id_agreement_versions_id_fkey",
+        "nameExplicit": false,
+        "columns": [
+          "version_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "agreement_versions",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "agreement_acceptances_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "agreement_versions_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "agreement_acceptances_method_check",
+        "value": "method in ('link', 'paper')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "agreement_acceptances_paper_check",
+        "value": "(method = 'paper') = (recorded_by is not null and attachment is not null)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_acceptances",
+        "name": "agreement_acceptances_attachment_check",
+        "value": "attachment is null or octet_length(attachment) <= 10485760",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "agreement_versions_kind_check",
+        "value": "kind in ('terms', 'dpa')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "agreement_versions_digest_check",
+        "value": "digest ~ '^[0-9a-f]{64}$'",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agreement_versions",
+        "name": "agreement_versions_version_check",
+        "value": "version ~ '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$'",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "subscription_items",
+        "name": "subscription_items_replaces_check",
+        "value": "cardinality(replaces_item_ids) = 0 or plan_version_id is not null",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"quotes\",\"quotes_accepted_check\"]",
+      "set": {
+        "value": "(state = 'accepted') = (accepted_at is not null and (attachment is not null or signer_name is not null))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"subscription_overrides\",\"subscription_overrides_span_check\"]",
+      "set": {
+        "value": "ends_on is null or ends_on >= starts_on"
+      }
+    }
+  ]
+}
